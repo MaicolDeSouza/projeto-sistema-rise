@@ -2670,6 +2670,22 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       (o "A descrição será apresentada como..." do formato Nome: valor, "Sem evidência, omita o campo", "Não coloque fonte, loja ou link
       dentro de nome ou valor" e "Não presuma que uma placa compatível seja um produto original Arduino"). Os outros quatro prompts
       (ESP32 e demais) não foram mexidos.
+    - **Prompt do ESP32** (`docs/prompts-descricao/embarcados/02-esp32.txt`, refeito em 25/10/2026; pedido do dono: "use o prompt do
+      Arduino como referência para criar para o ESP32, seguir as mesmas regras; o ESP vai ter mais campos nas especificações pois tem
+      Wi-Fi e Bluetooth; pegar os produtos dos concorrentes que são ESP32, analisar com precisão e ver quais dados são relevantes").
+      Feito a partir dos **458 ESP32 coletados** no banco do PC (18 lojas; 145 clássicos, 41 CAM, 33 LoRa, 32 S3, 20 C3, 22 com tela)
+      e dos 1.198 nomes de campo que elas publicam: 27 obrigatórios (Marca, Modelo = a PLACA, Módulo = ESP32-WROOM-32D..., SoC,
+      Processador, Clock, Flash, RAM, ROM, Wi-Fi, Bluetooth, Modos Wi-Fi, Segurança, Tensão de Alimentação por entrada com " / ",
+      Tensão de Operação, Nível Lógico "3,3V (não tolera 5V)", Consumo "típico / máximo", Pinos GPIO da PLACA com o total de pinos,
+      Entradas Analógicas, Interfaces, Conector USB, Chip de Interface USB, Antena, Botões, Pinos Soldados, Temperatura, Ambiente de
+      Programação) e 16 condicionais (PSRAM, DAC, Touch, Deep Sleep, Sensores, Passo, Tela e Resolução, os 5 da CAM, Bateria e Corrente
+      de Carga, Cabo USB). Regras próprias: placa > módulo > SoC são três coisas; não copiar entre variantes (clássico, S2, S3, C3, C6,
+      H2); USB-C não prova USB nativo; sufixo U = U.FL sem antena; CAM não tem USB; GPIO 6-11 da placa de 38 pinos não contam. Ficaram
+      de fora de propósito: Taxa de Transferência, RTC, Cor, textos de aplicação. **LoRa continua no `03-esp32-lora.txt`, não revisado**
+      (ainda com "?"), assim como STM32 e Raspberry. 11.996 de 12.000 caracteres. **Só vale depois de colado na biblioteca da VPS** com
+      o nome "ESP32" (a cópia do PC só tem "Padrão do sistema", "Arduino" e "teste"). O 170113 (DevKitC V4 WROOM-32D) é o primeiro
+      candidato: ainda sem concorrente vinculado, mas o acervo tem o mesmo produto em Usinainfo, Mamute, Wj, Saravati, Eletrogate,
+      Piscaled e na Fortek (R$ 38,90); as lojas divergem no conector (Micro USB × USB-C) e na alimentação pelo VIN (4,5-12V × 5V).
     - **Origem da linha que nenhuma loja confirma** (13/10/2026, pedido do dono: "se veio pela IA, deve mostrar de onde
       veio a fonte"): antes a linha ficava sem nada ao lado. `origemSemLoja` (`divergencias.js`) diz **"Cadastro"** quando o
       valor está no título, na marca, no modelo, na descrição atual ou nas peças do kit (número solto, como "6", nunca conta),

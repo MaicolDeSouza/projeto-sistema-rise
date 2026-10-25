@@ -2,6 +2,8 @@
 
 Versão de trabalho: 12/10/2026. Cinco prompts completos e independentes, para enviar apenas o correspondente à subfamília do produto.
 
+**Atualização de 25/10/2026:** o [Arduino](01-arduino.txt) (v4, 14/10) e o [ESP32](02-esp32.txt) (refeito em 25/10 no molde do Arduino, a partir dos 458 ESP32 coletados dos concorrentes) seguem a regra do roteiro da proposta: **campo sem dado confirmado SAI da descrição** (nunca `?`), nomes padronizados por campo, "possui" em vez de "tem", o porquê depois da vírgula e " / " entre informações distintas no mesmo valor. A tabela abaixo com `?` descreve o desenho antigo e ainda vale para os três prompts não revisados (ESP32 LoRa, STM32, Raspberry Pi).
+
 - [Arduino](01-arduino.txt)
 - [ESP32, incluindo ESP32-CAM](02-esp32.txt)
 - [ESP32 LoRa](03-esp32-lora.txt)
