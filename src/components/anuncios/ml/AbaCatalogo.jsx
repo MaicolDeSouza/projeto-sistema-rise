@@ -132,11 +132,20 @@ export default function AbaCatalogo({ rascunho, alterar, setContexto, visivel = 
                       <span className="truncate text-sm font-medium">{catalogo.nome || catalogo.id}</span>
                       {catalogo.resumo && <SeloDaPosicao resumo={catalogo.resumo} />}
                     </span>
-                    <span className="mt-0.5 block text-xs text-suave">
-                      {catalogo.resumo ? textoDoResumo(catalogo.resumo) : acompanhado ? <ResumoDaPosicao posicao={tela.posicao} /> : "Clique em Buscar no ML para ler o catálogo."}
+                    {/* Os precos na linha de baixo, junto dos anuncios e vendedores (pedido do dono: "como estava antes"). */}
+                    <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-suave">
+                      {catalogo.resumo ? (
+                        <>
+                          <span>{textoDoResumo(catalogo.resumo)}</span>
+                          <PrecosDaLinha resumo={catalogo.resumo} />
+                        </>
+                      ) : acompanhado ? (
+                        <ResumoDaPosicao posicao={tela.posicao} />
+                      ) : (
+                        "Clique em Buscar no ML para ler o catálogo."
+                      )}
                     </span>
                   </span>
-                  {catalogo.resumo && <PrecosDaLinha resumo={catalogo.resumo} />}
                   {acompanhado && tela.avisos?.length > 0 && (
                     <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">
                       {tela.avisos.length} aviso{tela.avisos.length > 1 ? "s" : ""}
@@ -199,7 +208,7 @@ function SeloDaPosicao({ resumo }) {
 }
 
 /**
- * O 1o colocado e voce, lado a lado (pedido do dono em 26/10/2026), com a diferenca do SEU preco para o do 1o numa etiqueta:
+ * O 1o colocado e voce, na linha de baixo do catalogo (pedido do dono em 26/10/2026), com a diferenca do SEU preco para o do 1o numa etiqueta:
  * seta para cima e vermelho quando voce esta mais caro (o 1o esta mais barato, a cor da coluna Diferenca da aba Concorrentes
  * do produto), para baixo e verde quando voce esta mais barato. Voce em 1o: so o seu preco, em verde.
  */
@@ -209,17 +218,16 @@ function PrecosDaLinha({ resumo }) {
   const maisCaro = diferenca !== null && diferenca >= 0.05;
   const maisBarato = diferenca !== null && diferenca <= -0.05;
   return (
-    <span className="hidden shrink-0 items-center gap-5 text-right sm:flex">
+    <>
       {!souPrimeiro && resumo.primeiroPreco > 0 && (
         <span>
-          <span className="block text-[11px] text-suave">1º colocado</span>
-          <span className="text-sm font-medium tabular-nums">{MOEDA.format(resumo.primeiroPreco)}</span>
+          · 1º colocado <span className="font-medium text-texto tabular-nums">{MOEDA.format(resumo.primeiroPreco)}</span>
         </span>
       )}
       {resumo.meuPreco > 0 && (
-        <span>
-          <span className="block text-[11px] text-suave">Você</span>
-          <span className={`inline-flex items-center gap-1.5 text-sm font-medium tabular-nums ${souPrimeiro ? "text-emerald-700" : ""}`}>
+        <span className="inline-flex items-center gap-1.5">
+          · Você
+          <span className={`inline-flex items-center gap-1.5 font-medium tabular-nums ${souPrimeiro ? "text-emerald-700" : "text-texto"}`}>
             {MOEDA.format(resumo.meuPreco)}
             {(maisCaro || maisBarato) && (
               <span
@@ -233,7 +241,7 @@ function PrecosDaLinha({ resumo }) {
           </span>
         </span>
       )}
-    </span>
+    </>
   );
 }
 

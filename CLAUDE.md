@@ -3631,7 +3631,7 @@ Pedidos do dono (com print anotado e "usar UI/UX"):
 - **Linha de cada catálogo da aba Catálogo** (pedido do dono no mesmo dia, "como a aba Concorrentes do produto"; redesenhada
   depois: "deixar mais bonito, retirar o MLB"): à esquerda o nome com o selo **"29º de 79"** (`SeloDaPosicao`, o desenho e as
   cores do `SeloPosicaoDePreco` do produto: verde no 1º, âmbar no último, cinza no meio; a dica diz que é a ordem do ML no
-  catálogo) e embaixo "79 anúncios · 52 vendedores"; à direita "1º colocado R$ 35,17" e "Você R$ 45,90" com a etiqueta
+  catálogo) e embaixo, na mesma linha, "79 anúncios · 52 vendedores · 1º colocado R$ 35,17 · Você R$ 45,90" com a etiqueta
   "▲ 30,5%" (vermelho quando você está mais caro, a cor da coluna Diferença; verde quando mais barato). Lido agora no ML pela
   busca da aba (`posicaoNoCatalogo` em `catalogo.js`). A linha com os MLB dos anúncios saiu. E o botão **Abrir no ML** em cada
   linha (fora do botão da linha: link dentro de botão é HTML inválido).
