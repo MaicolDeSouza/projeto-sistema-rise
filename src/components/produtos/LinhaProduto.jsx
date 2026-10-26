@@ -235,14 +235,15 @@ export default function LinhaProduto({
                     !
                   </span>
                 )}
-                {/* "C2" (pedido do dono em 26/10/2026): os anuncios publicados estao em 2 catalogos diferentes do ML. A
-                    mudanca (entrou, saiu, trocou) acende o "!" acima, ate o dono marcar como revisado. */}
+                {/* "C" (pedido do dono em 26/10/2026; era "C2", com a quantidade): algum anuncio publicado concorre num
+                    catalogo do ML. Quantos sao fica no texto do icone ("em 2 catalogos"). A mudanca (entrou, saiu, trocou)
+                    acende o "!" acima, ate o dono marcar como revisado. */}
                 {iconeML.catalogos > 0 && (
                   <span
                     aria-hidden="true"
-                    className="absolute -right-2 -bottom-1.5 rounded-full bg-sky-700 px-1 text-[9px] leading-[13px] font-bold text-white ring-2 ring-superficie"
+                    className="absolute -right-1.5 -bottom-1.5 rounded-full bg-sky-700 px-1 text-[9px] leading-[13px] font-bold text-white ring-2 ring-superficie"
                   >
-                    C{iconeML.catalogos}
+                    C
                   </span>
                 )}
               </button>
