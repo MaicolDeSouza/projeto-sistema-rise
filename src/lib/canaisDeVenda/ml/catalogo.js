@@ -249,6 +249,25 @@ export function textoDoResumo(resumo) {
   return `${plural(resumo.anuncios, "anúncio", "anúncios")} · ${plural(resumo.vendedores, "vendedor", "vendedores")}`;
 }
 
+/**
+ * O resumo de um catalogo para a linha da aba Catalogo (pedido do dono em 26/10/2026, "1 de 7" como na aba Concorrentes):
+ * anuncios e vendedores, a melhor posicao do dono, o preco do 1o colocado e o do dono. `lido` e o `lerConcorrentesDoCatalogo`.
+ * Sem anuncio do dono no catalogo, `minhaPosicao` e `meuPreco` ficam nulos.
+ */
+export function posicaoNoCatalogo(lido) {
+  const itens = lido?.itens ?? [];
+  const meu = itens.find((item) => item.meu) ?? null;
+  return {
+    anuncios: Number(lido?.total ?? itens.length),
+    vendedores: contarVendedores(itens),
+    completo: itens.length >= Number(lido?.total ?? itens.length),
+    minhaPosicao: meu?.posicao ?? null,
+    primeiroPreco: itens[0]?.preco ?? null,
+    primeiroEhMeu: Boolean(itens[0]?.meu),
+    meuPreco: meu?.preco ?? null,
+  };
+}
+
 /** Os `n` primeiros que nao sao do dono, na ordem do ML. */
 export function topDoCatalogo(itens, n = TOP_DO_CATALOGO) {
   return (itens ?? []).filter((item) => !item.meu).slice(0, n);

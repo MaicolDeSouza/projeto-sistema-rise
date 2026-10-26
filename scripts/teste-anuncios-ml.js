@@ -421,6 +421,22 @@ try {
       conferir("acompanhar: sem acompanhado, o primeiro", catalogoParaAcompanhar(null, lidos)?.id, "MLBA");
       conferir("acompanhar: acompanhado antigo fora da lista, troca para o primeiro", catalogoParaAcompanhar("MLBZ", lidos)?.id, "MLBA");
       conferir("acompanhar: fora de catalogo, nada", catalogoParaAcompanhar("MLBZ", []), null);
+
+      // A linha do catalogo (26/10/2026): anuncios, vendedores, a posicao do dono, o 1o e o preco dele.
+      const { posicaoNoCatalogo } = await import("../src/lib/canaisDeVenda/ml/catalogo.js");
+      const lido = {
+        total: 4,
+        itens: [
+          { posicao: 1, vendedorId: "1", preco: 28.9, meu: false },
+          { posicao: 2, vendedorId: "2", preco: 29.5, meu: false },
+          { posicao: 3, vendedorId: "eu", preco: 31.49, meu: true },
+          { posicao: 4, vendedorId: "2", preco: 29.9, meu: false },
+        ],
+      };
+      conferir("linha do catalogo: 3o de 4, 3 vendedores, 1o a 28,90 e eu a 31,49", posicaoNoCatalogo(lido), {
+        anuncios: 4, vendedores: 3, completo: true, minhaPosicao: 3, primeiroPreco: 28.9, primeiroEhMeu: false, meuPreco: 31.49,
+      });
+      conferir("linha do catalogo: catalogo vazio", posicaoNoCatalogo({ total: 0, itens: [] }).minhaPosicao, null);
     }
     {
       // Peso e medidas do anuncio SIMPLES sao sempre os do produto (26/10/2026, no molde da LI): a aba so os mostra. O kit

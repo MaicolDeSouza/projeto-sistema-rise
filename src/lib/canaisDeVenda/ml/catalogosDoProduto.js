@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 
-import { catalogosDosMeusAnuncios } from "./catalogo";
+import { catalogosDosMeusAnuncios, lerConcorrentesDoCatalogo, posicaoNoCatalogo } from "./catalogo";
 import { acompanharCatalogoML, seguirCatalogoDosAnuncios } from "./concorrentes";
 import { catalogoParaAcompanhar, juntarCatalogos } from "./estadoNoML";
 import { relerEstadosML } from "./relerEstadoML";
@@ -38,7 +38,19 @@ export async function buscarCatalogosDoProduto(cliente, produtoId, { acompanhar 
   }
 
   const doRise = await seguirCatalogoDosAnuncios(cliente, produtoId, { acompanhar: false });
-  const catalogos = juntarCatalogos(doRise.catalogos, peloSku);
+  // Cada catalogo lido agora no ML (pedido do dono em 26/10/2026): anuncios, vendedores, a posicao do dono e o preco do 1o
+  // e o dele. Um catalogo que falha fica sem resumo; 401/429 param a busca.
+  const meuSellerId = await cliente.usuarioId();
+  const catalogos = [];
+  for (const catalogo of juntarCatalogos(doRise.catalogos, peloSku)) {
+    let resumo = null;
+    try {
+      resumo = posicaoNoCatalogo(await lerConcorrentesDoCatalogo(cliente, catalogo.id, { meuSellerId }));
+    } catch (erro) {
+      if (erro?.status === 401 || erro?.status === 429) return { ok: false, erro: `O Mercado Livre recusou a leitura (HTTP ${erro.status}). Tente de novo em alguns minutos.` };
+    }
+    catalogos.push({ ...catalogo, resumo });
+  }
   const novo = acompanhar && produto.conferido ? catalogoParaAcompanhar(produto.mlCatalogoId, catalogos) : null;
   let aviso = null;
   if (novo) {

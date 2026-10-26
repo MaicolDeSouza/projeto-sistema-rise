@@ -3628,6 +3628,11 @@ Pedidos do dono (com print anotado e "usar UI/UX"):
   ligado por `item_relations` continua valendo). O estado gravado pela regra antiga sai na próxima leitura SEM o aviso de
   "saiu do catálogo" (`soIdentificado` em `relerEstadoML.js`), e o acompanhado troca sozinho para o catálogo de verdade.
   **A medição de 25/10 (catalog_product_id null depois de sair) continua valendo; o erro foi supor o contrário.**
+- **Linha de cada catálogo da aba Catálogo** (pedido do dono no mesmo dia, "como a aba Concorrentes do produto"): "9 anúncios ·
+  8 vendedores · você é o 2º de 9 · 1º R$ 28,90 (você R$ 31,49 ▲ 9,0%)", lido agora no ML pela busca da aba
+  (`posicaoNoCatalogo` em `catalogo.js`, um `lerConcorrentesDoCatalogo` por catálogo). A seta diz onde está o SEU preço em
+  relação ao 1º; a cor é a da coluna Diferença da aba Concorrentes (vermelho = o 1º está mais barato que você). E o botão
+  **Abrir no ML** em cada linha (fora do botão da linha: link dentro de botão é HTML inválido).
 - **O título do anúncio publicado NÃO muda pela API, nem sem vendas** (medido em 26/10/2026 com OK do dono, no MLB7881037020
   do 100104, pausado e sem vendas): `PUT /items/{id}` com `title` → 400 "You cannot modify the title if the item has a
   family_name"; com `family_name` → 400 "The field family name is invalid". Nada mudou (`last_updated` igual). O título fica

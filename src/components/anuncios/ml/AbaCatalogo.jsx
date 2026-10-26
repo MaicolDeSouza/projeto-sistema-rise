@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useEffectEvent, useRef, useState, useTransition } from "react";
-import { ChevronRight, ExternalLink, Loader, RefreshCw, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronRight, ExternalLink, Loader, RefreshCw, X } from "lucide-react";
 
 import { buscarCatalogosDoProdutoMLAcao, catalogosDoAnuncioMLAcao, preverCatalogoMLAcao, relerConcorrentesMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
@@ -11,6 +11,8 @@ import { ResumoDaPosicao, TabelaDeConcorrentes, TabelaDoCatalogoAoVivo, urlDoCat
 import SecaoDoAnuncio from "./SecaoDoAnuncio";
 
 const DATA_HORA = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const PERCENTUAL = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const HORA = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 const FALHA = "Não foi possível falar com o servidor.";
 
@@ -122,13 +124,16 @@ export default function AbaCatalogo({ rascunho, alterar, setContexto, visivel = 
           {catalogos.map((catalogo) => {
             const acompanhado = tela?.catalogoId === catalogo.id;
             return (
-              <li key={catalogo.id}>
-                <button type="button" onClick={() => setAberto(catalogo.id)} className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-fundo">
+              // O link do catalogo fica FORA do botao da linha (link dentro de botao e HTML invalido): a linha abre a janela,
+              // o "Abrir no ML" abre o catalogo no site em outra aba (pedido do dono em 26/10/2026).
+              <li key={catalogo.id} className="flex items-center hover:bg-fundo">
+                <button type="button" onClick={() => setAberto(catalogo.id)} className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-left">
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">{catalogo.nome || catalogo.id}</span>
+                    <span className="mt-0.5 block text-sm text-suave">
+                      {catalogo.resumo ? <ResumoDaLinha resumo={catalogo.resumo} /> : acompanhado ? <ResumoDaPosicao posicao={tela.posicao} /> : catalogo.id}
+                    </span>
                     <span className="block truncate text-xs text-suave">
-                      {acompanhado ? <ResumoDaPosicao posicao={tela.posicao} /> : catalogo.id}
-                      {" · "}
                       {catalogo.anuncios.map((anuncio) => `${ROTULO_DO_TIPO_ML[anuncio.tipoAnuncio] ?? "Anúncio"} ${anuncio.idExterno}`).join(", ")}
                     </span>
                   </span>
@@ -137,7 +142,18 @@ export default function AbaCatalogo({ rascunho, alterar, setContexto, visivel = 
                       {tela.avisos.length} aviso{tela.avisos.length > 1 ? "s" : ""}
                     </span>
                   )}
-                  <ChevronRight size={16} className="shrink-0 text-suave" />
+                </button>
+                <a
+                  href={urlDoCatalogo(catalogo.id)}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={`Abre o catálogo ${catalogo.id} no Mercado Livre, em outra aba`}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-borda bg-superficie px-3 py-1.5 text-sm font-medium text-acento hover:bg-fundo"
+                >
+                  Abrir no ML <ExternalLink size={13} />
+                </a>
+                <button type="button" onClick={() => setAberto(catalogo.id)} aria-label={`Ver os concorrentes de ${catalogo.nome || catalogo.id}`} className="shrink-0 px-3 py-2.5 text-suave">
+                  <ChevronRight size={16} />
                 </button>
               </li>
             );
@@ -157,6 +173,47 @@ export default function AbaCatalogo({ rascunho, alterar, setContexto, visivel = 
         />
       )}
     </SecaoDoAnuncio>
+  );
+}
+
+/**
+ * A linha de um catalogo (pedido do dono em 26/10/2026): "9 anúncios · 8 vendedores · você é o 2º de 9 · 1º R$ 28,90 (você
+ * R$ 31,49 ▲ 9,0%)". A seta diz onde esta o SEU preco em relacao ao 1o colocado (pedido: "quantos % estou acima"), e a cor
+ * segue a da coluna Diferenca da aba Concorrentes do produto: vermelho quando o concorrente esta mais barato que voce, verde
+ * quando voce esta mais barato. Voce em 1o: verde, sem comparacao.
+ */
+function ResumoDaLinha({ resumo }) {
+  const partes = [textoDoResumo(resumo)];
+  const posicao = resumo.minhaPosicao ? `você é o ${resumo.minhaPosicao}º de ${resumo.anuncios}` : "você não está neste catálogo";
+  const diferenca =
+    resumo.meuPreco > 0 && resumo.primeiroPreco > 0 && !resumo.primeiroEhMeu ? ((resumo.meuPreco - resumo.primeiroPreco) / resumo.primeiroPreco) * 100 : null;
+  const maisCaro = diferenca !== null && diferenca >= 0.05;
+  const maisBarato = diferenca !== null && diferenca <= -0.05;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-x-1.5">
+      <span>{partes.join(" · ")} ·</span>
+      <span className={resumo.minhaPosicao === 1 ? "font-medium text-emerald-700" : "font-medium text-texto"}>{posicao}</span>
+      {resumo.primeiroPreco > 0 && !resumo.primeiroEhMeu && (
+        <>
+          <span>· 1º {MOEDA.format(resumo.primeiroPreco)}</span>
+          {resumo.meuPreco > 0 && (
+            <span className="tabular-nums">
+              (você {MOEDA.format(resumo.meuPreco)}
+              {(maisCaro || maisBarato) && (
+                <span
+                  className={`ml-1 inline-flex items-center gap-0.5 font-medium ${maisCaro ? "text-red-700" : "text-emerald-700"}`}
+                  title={maisCaro ? "O 1º colocado está mais barato que você" : "Você está mais barato que o 1º colocado"}
+                >
+                  {maisCaro ? <ArrowUp size={12} aria-hidden="true" /> : <ArrowDown size={12} aria-hidden="true" />}
+                  {PERCENTUAL.format(Math.abs(diferenca))}%
+                </span>
+              )}
+              )
+            </span>
+          )}
+        </>
+      )}
+    </span>
   );
 }
 
