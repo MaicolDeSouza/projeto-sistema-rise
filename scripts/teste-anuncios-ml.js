@@ -2867,6 +2867,7 @@ try {
       ],
       ["saiu do catálogo Wemos em 25/10", "entrou no catálogo Mega em 25/10", "trocou do catálogo Wemos para MLB2 em 25/10"],
     );
+    conferir("aviso: ja estava no catalogo na 1a leitura", textoDoAvisoDeCatalogo({ de: null, para: { id: "MLB2", nome: "Mega" }, em: "2026-10-25T15:20:00Z", inicial: true }), "está no catálogo Mega");
 
     const produto = await prisma.produto.create({ data: { sku: "ZZ-ML-CAT1", tituloBase: "catalogo", conferido: true } });
     const anuncio = await prisma.anuncio.create({ data: { produtoId: produto.id, canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "ATIVA", idExterno: "MLB920001", dados: { publicacao: { itemId: "MLB920001" } } } });
@@ -2876,8 +2877,24 @@ try {
     const estado = async () => (await prisma.anuncio.findUnique({ where: { id: anuncio.id }, select: { dados: true } })).dados.publicacao.estadoML;
     const icone = async () => estadoDoIconeML(await prisma.anuncio.findMany({ where: { id: anuncio.id }, select: { canal: true, status: true, situacaoCanal: true, dados: true } }));
 
+    // O dono quer conferir todo catalogo em que o anuncio esta (25/10/2026: o 100111 foi publicado ja no catalogo e o "!"
+    // nao acendeu): a 1a leitura DENTRO de um catalogo tambem avisa; fora, nao.
     await relerEstadosML({ ...so, agora: new Date("2026-10-25T10:00:00Z") });
-    conferir("1a leitura: grava o catalogo com o nome, sem '!' (nao havia leitura antes)", [(await estado()).catalogo?.id, Boolean((await estado()).catalogo?.nome), (await estado()).catalogoAviso ?? null, (await icone()).catalogoMudouNoML], ["MLB44072268", true, null, false]);
+    const iconeInicial = await icone();
+    conferir(
+      "1a leitura ja no catalogo: grava o catalogo com o nome e acende o '!' (esta no catalogo)",
+      [(await estado()).catalogo?.id, Boolean((await estado()).catalogo?.nome), (await estado()).catalogoAviso?.inicial, iconeInicial.catalogoMudouNoML, /está no catálogo Cabo USB/.test(rotuloDoIconeML(iconeInicial))],
+      ["MLB44072268", true, true, true, true],
+    );
+    await relerEstadosML({ ...so, agora: new Date("2026-10-25T10:15:00Z") });
+    conferir("a leitura seguinte nao repete o aviso", (await estado()).catalogoAviso?.em, "2026-10-25T10:00:00.000Z");
+    await marcarCatalogoVistoML(anuncio.id);
+
+    const fora = await prisma.anuncio.create({ data: { produtoId: produto.id, canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "ATIVA", idExterno: "MLB920002", dados: { publicacao: { itemId: "MLB920002" } } } });
+    ml.itens.set("MLB920002", { id: "MLB920002", status: "active", sub_status: [], available_quantity: 1, sold_quantity: 0, catalog_product_id: null, catalog_listing: false, item_relations: [] });
+    await relerEstadosML({ ml, anuncioIds: [fora.id], agora: new Date("2026-10-25T10:00:00Z") });
+    const estadoFora = (await prisma.anuncio.findUnique({ where: { id: fora.id }, select: { dados: true } })).dados.publicacao.estadoML;
+    conferir("1a leitura fora do catalogo: grava fora, sem '!'", [estadoFora.catalogo, estadoFora.catalogoAviso], [null, null]);
 
     ml.itens.get("MLB920001").catalog_product_id = null;
     const saiu = await relerEstadosML({ ...so, agora: new Date("2026-10-25T15:20:00Z") });

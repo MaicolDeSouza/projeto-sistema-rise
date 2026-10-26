@@ -101,6 +101,8 @@ export function textoDoCatalogo(catalogo) {
 /** O aviso de mudanca (`estadoML.catalogoAviso = { de, para, em, visto }`): "saiu do catálogo Wemos em 25/10". */
 export function textoDoAvisoDeCatalogo(aviso) {
   if (!aviso) return null;
+  // Ja estava no catalogo quando o Rise o leu pela primeira vez: nao se sabe quando entrou, so onde esta.
+  if (aviso.inicial && aviso.para) return `está no catálogo ${nomeDoCatalogo(aviso.para)}`;
   const dia = aviso.em ? ` em ${DIA_E_MES.format(new Date(aviso.em))}` : "";
   if (aviso.de && !aviso.para) return `saiu do catálogo ${nomeDoCatalogo(aviso.de)}${dia}`;
   if (!aviso.de && aviso.para) return `entrou no catálogo ${nomeDoCatalogo(aviso.para)}${dia}`;

@@ -3488,7 +3488,9 @@ publicou, os 1.007 antigos da conta ficam de fora):**
   três). Agora a mesma releitura do estado lê os três campos e, se o item tem anúncios ligados, os lê numa chamada a mais
   (`catalogoDoItem`: o próprio `catalog_product_id`, ou um ligado com `catalog_listing: true` ativo ou pausado; o jeito em
   que o anúncio aparece DENTRO de um catálogo ainda não foi medido). Grava `estadoML.catalogo = {id, nome}` (nome por
-  `/products/{id}`, só quando muda) ou null; ausente = nunca lido, e a primeira leitura só grava, sem aviso. Entrar, sair ou
+  `/products/{id}`, só quando muda) ou null; ausente = nunca lido. **Anúncio que está num catálogo e nunca teve aviso
+  ganha o "!" "está no catálogo X"** (`catalogoAviso.inicial`; corrigido no mesmo dia: a 1ª versão só registrava a 1ª
+  leitura, e o 100111, publicado já no catálogo, não acendeu nada); fora do catálogo na 1ª leitura não avisa. Entrar, sair ou
   trocar grava `estadoML.catalogoAviso = {de, para, em, visto}`: "!" no ícone do ML ("saiu do catálogo X em 25/10"),
   rodapé do editor "No catálogo: X" / "Fora do catálogo" (em âmbar com a mudança), aviso no Telegram (tipo `catalogoML`) e
   abrir o anúncio marca como visto (`marcarCatalogoVistoMLAcao`, basta ver o canal). O ranking passou a dizer "catálogo
