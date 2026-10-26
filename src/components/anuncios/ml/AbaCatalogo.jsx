@@ -6,7 +6,7 @@ import { ArrowDown, ArrowUp, ChevronRight, ExternalLink, Loader, RefreshCw, X } 
 import { buscarCatalogosDoProdutoMLAcao, catalogosDoAnuncioMLAcao, preverCatalogoMLAcao, relerConcorrentesMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { textoDoResumo } from "@/lib/canaisDeVenda/ml/catalogo";
-import { ResumoDaPosicao, TabelaDeConcorrentes, TabelaDoCatalogoAoVivo, urlDoCatalogo } from "./ConcorrentesDoML";
+import { ResumoDaPosicao, TabelaDoCatalogoAoVivo, urlDoCatalogo } from "./ConcorrentesDoML";
 import SecaoDoAnuncio from "./SecaoDoAnuncio";
 
 const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -305,7 +305,6 @@ function JanelaDoCatalogo({ catalogo, tela, produtoId, alterar, podeReler, aoRel
 
   // O preco anterior de cada concorrente acompanhado, para a seta de subiu/baixou na tabela ao vivo.
   const anteriores = new Map((tela?.concorrentes ?? []).filter((c) => c.precoAnterior != null).map((c) => [c.itemId, c.precoAnterior]));
-  const ausentes = (tela?.concorrentes ?? []).filter((c) => c.ausenteDesde);
 
   return (
     <div {...propsDoFundo(aoFechar)} className="fixed inset-0 z-[60] flex items-start justify-center bg-slate-900/50 p-4 pt-[6vh] text-left font-normal normal-case">
@@ -339,13 +338,9 @@ function JanelaDoCatalogo({ catalogo, tela, produtoId, alterar, podeReler, aoRel
           )}
           {aoVivo ? (
             <>
+              {/* Os que "sairam do top 10" sairam do popup (pedido do dono em 26/10/2026): eram, em geral, os concorrentes de
+                  um catalogo acompanhado antes, e pareciam ser deste. O historico continua no banco. */}
               <TabelaDoCatalogoAoVivo itens={aoVivo.itens} alterar={alterar} anteriores={anteriores} meuItemId={meuItemId} />
-              {ausentes.length > 0 && (
-                <details className="text-sm">
-                  <summary className="cursor-pointer text-suave">{ausentes.length} saíram do top 10 acompanhado</summary>
-                  <TabelaDeConcorrentes linhas={ausentes} alterar={alterar} apagados />
-                </details>
-              )}
               <p className="text-[11px] text-suave">Os 10 primeiros do catálogo, na ordem do Mercado Livre, lidos agora; este anúncio aparece em verde, no fim se estiver abaixo do 10º. Clique num preço para usá-lo no anúncio.</p>
             </>
           ) : (

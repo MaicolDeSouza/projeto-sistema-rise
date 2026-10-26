@@ -88,33 +88,6 @@ function Tipo({ tipoAnuncio, freteGratis }) {
   );
 }
 
-/** Os concorrentes acompanhados (gravados, com o preco anterior). Clicar num preco o copia para o anuncio. */
-export function TabelaDeConcorrentes({ linhas, alterar, apagados = false }) {
-  return (
-    <table className={`w-full text-sm ${apagados ? "mt-2 text-suave" : ""}`}>
-      {CABECALHO}
-      <tbody className="divide-y divide-borda">
-        {linhas.map((c) => (
-          <tr key={c.id}>
-            <td className="py-1.5 tabular-nums">{c.posicao}º</td>
-            <td className="py-1.5"><Vendedor apelido={c.vendedorApelido} id={c.vendedorId} reputacao={c.vendedorReputacao} vendas={c.vendedorVendas} itemId={c.itemId} /></td>
-            <td className="py-1.5 text-xs"><Tipo tipoAnuncio={c.tipoAnuncio} freteGratis={c.freteGratis} /></td>
-            <td className="py-1.5 text-right">
-              {c.preco === null ? "-" : (
-                <button type="button" onClick={() => alterar({ preco: c.preco })} title="Usar este preço no anúncio" className="inline-flex items-center gap-1 tabular-nums hover:text-acento hover:underline">
-                  <Seta preco={c.preco} anterior={c.precoAnterior} />
-                  {MOEDA.format(c.preco)}
-                </button>
-              )}
-              {c.precoCheio > c.preco && <span className="ml-1 text-[11px] text-suave line-through tabular-nums">{MOEDA.format(c.precoCheio)}</span>}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
 /**
  * Todos os anuncios de um catalogo lidos agora no ML (`preverCatalogoMLAcao`), na ordem do ML e com os do dono destacados
  * como "Você" (pedido do dono em 26/10/2026: ele era o 2o e a lista dos acompanhados, que tira os dele, pulava a linha).

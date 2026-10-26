@@ -3646,7 +3646,8 @@ Pedidos do dono (com print anotado e "usar UI/UX"):
   Agora mostra os 10 primeiros na ordem do ML (`preverCatalogoMLAcao`, `TabelaDoCatalogoAoVivo`, `linhasDoCatalogo` em
   `catalogo.js`); **verde só na linha do anúncio aberto** (o vinculado ao Rise: "Você (este anúncio)"), e se ele estiver abaixo
   do 10º entra no fim depois de "⋯"; outro anúncio do dono no catálogo aparece como "Outro anúncio seu", sem verde. No
-  acompanhado, os avisos e a seta do preço anterior vêm do guardado, e o "Reler agora" relê os dois.
+  acompanhado, os avisos e a seta do preço anterior vêm do guardado, e o "Reler agora" relê os dois. A lista "saíram do top
+  10" saiu do popup (dono, opção 1: eram os concorrentes do catálogo acompanhado antes); o histórico fica no banco.
 - **Selo "C" no ícone do ML da lista de Produtos** (26/10/2026: primeiro "C2", com a quantidade de catálogos diferentes;
   depois o dono pediu só "C"): algum anúncio publicado concorre num catálogo (`iconeML.catalogos > 0`). A quantidade fica no
   texto do ícone ("em 2 catálogos").
