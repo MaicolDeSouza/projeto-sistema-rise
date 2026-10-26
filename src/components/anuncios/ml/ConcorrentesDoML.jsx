@@ -115,8 +115,13 @@ export function TabelaDeConcorrentes({ linhas, alterar, apagados = false }) {
   );
 }
 
-/** Todos os anuncios de um catalogo lidos agora no ML (`preverCatalogoMLAcao`), com o do dono destacado. */
-export function TabelaDoCatalogoAoVivo({ itens }) {
+/**
+ * Todos os anuncios de um catalogo lidos agora no ML (`preverCatalogoMLAcao`), na ordem do ML e com os do dono destacados
+ * como "Você" (pedido do dono em 26/10/2026: ele era o 2o e a lista dos acompanhados, que tira os dele, pulava a linha).
+ * `anteriores` (itemId -> preco anterior, dos acompanhados) poe a seta de subiu/baixou; com `alterar`, clicar num preco de
+ * concorrente o copia para o anuncio.
+ */
+export function TabelaDoCatalogoAoVivo({ itens, alterar = null, anteriores = null }) {
   if (itens.length === 0) return <p className="text-sm text-suave">Este catálogo não tem anúncios abertos.</p>;
   return (
     <table className="w-full text-sm">
@@ -124,13 +129,31 @@ export function TabelaDoCatalogoAoVivo({ itens }) {
       <tbody className="divide-y divide-borda">
         {itens.map((item) => (
           <tr key={item.itemId} className={item.meu ? "bg-emerald-50 font-medium" : ""}>
-            <td className="py-1.5 tabular-nums">{item.posicao}º</td>
+            <td className="py-1.5 pl-1 tabular-nums">{item.posicao}º</td>
             <td className="py-1.5">
-              {item.meu ? "Você" : <Vendedor apelido={item.vendedor?.apelido} id={item.vendedorId} reputacao={item.vendedor?.reputacao} vendas={item.vendedor?.vendas} itemId={item.itemId} />}
+              {item.meu ? (
+                <span className="flex items-center gap-1 text-emerald-800">
+                  Você
+                  <a href={urlDoAnuncio(item.itemId)} target="_blank" rel="noreferrer" title={`Abrir o seu anúncio ${item.itemId} no Mercado Livre`} aria-label={`Abrir o seu anúncio ${item.itemId} no Mercado Livre`} className="rounded p-0.5 text-suave hover:text-acento">
+                    <ExternalLink size={12} />
+                  </a>
+                </span>
+              ) : (
+                <Vendedor apelido={item.vendedor?.apelido} id={item.vendedorId} reputacao={item.vendedor?.reputacao} vendas={item.vendedor?.vendas} itemId={item.itemId} />
+              )}
             </td>
             <td className="py-1.5 text-xs"><Tipo tipoAnuncio={item.tipoAnuncio} freteGratis={item.freteGratis} /></td>
-            <td className="py-1.5 text-right tabular-nums">
-              {item.preco === null ? "-" : MOEDA.format(item.preco)}
+            <td className="py-1.5 pr-1 text-right tabular-nums">
+              {item.preco === null ? (
+                "-"
+              ) : alterar && !item.meu ? (
+                <button type="button" onClick={() => alterar({ preco: item.preco })} title="Usar este preço no anúncio" className="inline-flex items-center gap-1 tabular-nums hover:text-acento hover:underline">
+                  <Seta preco={item.preco} anterior={anteriores?.get(item.itemId) ?? null} />
+                  {MOEDA.format(item.preco)}
+                </button>
+              ) : (
+                MOEDA.format(item.preco)
+              )}
               {item.precoCheio > item.preco && <span className="ml-1 text-[11px] text-suave line-through">{MOEDA.format(item.precoCheio)}</span>}
             </td>
           </tr>

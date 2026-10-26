@@ -9,7 +9,6 @@ import { textoDoResumo } from "@/lib/canaisDeVenda/ml/catalogo";
 import { ResumoDaPosicao, TabelaDeConcorrentes, TabelaDoCatalogoAoVivo, urlDoCatalogo } from "./ConcorrentesDoML";
 import SecaoDoAnuncio from "./SecaoDoAnuncio";
 
-const DATA_HORA = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const PERCENTUAL = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const HORA = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
@@ -273,13 +272,15 @@ function PrecosDaLinha({ resumo }) {
 }
 
 /**
- * Tudo de um catalogo: o acompanhado mostra os concorrentes gravados (com o preco anterior, os avisos e o "Reler agora");
- * outro catalogo (o produto em dois catalogos, o "C2") e lido agora no ML, sem gravar nada.
+ * Tudo de um catalogo, lido AGORA no ML: todos os anuncios na ordem do ML, com os do dono destacados como "Você" (pedido do
+ * dono em 26/10/2026: ele era o 2o e a lista dos acompanhados, que tira os dele, pulava a linha). No catalogo acompanhado,
+ * os avisos e o preco anterior (a seta) vem do que o Rise guardou, e o "Reler agora" renova o guardado e a leitura.
  */
 function JanelaDoCatalogo({ catalogo, tela, produtoId, alterar, podeReler, aoReler, aoFechar }) {
   const [aoVivo, setAoVivo] = useState(null);
   const [erro, setErro] = useState(null);
   const [ocupado, iniciar] = useTransition();
+  const [leitura, setLeitura] = useState(0);
 
   // O Esc fecha so esta janela, nao o editor por baixo (que ouve o Esc no `document`).
   useEffect(() => {
@@ -293,7 +294,6 @@ function JanelaDoCatalogo({ catalogo, tela, produtoId, alterar, podeReler, aoRel
   }, [aoFechar]);
 
   useEffect(() => {
-    if (tela) return undefined;
     let vivo = true;
     preverCatalogoMLAcao(catalogo.id)
       .then((resposta) => {
@@ -305,7 +305,7 @@ function JanelaDoCatalogo({ catalogo, tela, produtoId, alterar, podeReler, aoRel
     return () => {
       vivo = false;
     };
-  }, [catalogo.id, tela]);
+  }, [catalogo.id, leitura]);
 
   function reler() {
     iniciar(async () => {
@@ -317,10 +317,12 @@ function JanelaDoCatalogo({ catalogo, tela, produtoId, alterar, podeReler, aoRel
       }
       if (resposta?.tela) aoReler(resposta.tela);
       setErro(resposta?.ok ? null : resposta?.erro ?? FALHA);
+      setLeitura((atual) => atual + 1);
     });
   }
 
-  const presentes = (tela?.concorrentes ?? []).filter((c) => !c.ausenteDesde);
+  // O preco anterior de cada concorrente acompanhado, para a seta de subiu/baixou na tabela ao vivo.
+  const anteriores = new Map((tela?.concorrentes ?? []).filter((c) => c.precoAnterior != null).map((c) => [c.itemId, c.precoAnterior]));
   const ausentes = (tela?.concorrentes ?? []).filter((c) => c.ausenteDesde);
 
   return (
@@ -330,8 +332,7 @@ function JanelaDoCatalogo({ catalogo, tela, produtoId, alterar, podeReler, aoRel
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-base font-semibold" title={catalogo.nome}>{catalogo.nome || catalogo.id}</h2>
             <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-suave">
-              {tela ? <ResumoDaPosicao posicao={tela.posicao} /> : aoVivo ? <span>{textoDoResumo(aoVivo.resumo) ?? `${aoVivo.total} anúncios`} · lido agora</span> : null}
-              {tela?.lidoEm && <span>lido em {DATA_HORA.format(new Date(tela.lidoEm))}</span>}
+              {aoVivo ? <span>{textoDoResumo(aoVivo.resumo) ?? `${aoVivo.total} anúncios`} · lido agora</span> : tela ? <ResumoDaPosicao posicao={tela.posicao} /> : null}
             </p>
           </div>
           <a href={urlDoCatalogo(catalogo.id)} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-1 rounded border border-borda px-2.5 py-1 text-sm font-medium text-acento hover:bg-fundo">
@@ -349,28 +350,22 @@ function JanelaDoCatalogo({ catalogo, tela, produtoId, alterar, podeReler, aoRel
 
         <div className="space-y-3 overflow-y-auto px-5 py-4">
           {erro && <p role="alert" className="text-sm text-red-700">{erro}</p>}
-          {tela ? (
+          {tela?.avisos?.length > 0 && (
+            <ul className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              {tela.avisos.map((aviso) => <li key={aviso.texto}>{aviso.texto}</li>)}
+            </ul>
+          )}
+          {aoVivo ? (
             <>
-              {tela.avisos?.length > 0 && (
-                <ul className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                  {tela.avisos.map((aviso) => <li key={aviso.texto}>{aviso.texto}</li>)}
-                </ul>
-              )}
-              {presentes.length === 0 ? (
-                <p className="text-sm text-suave">Nenhum outro anúncio neste catálogo.</p>
-              ) : (
-                <TabelaDeConcorrentes linhas={presentes} alterar={alterar} />
-              )}
+              <TabelaDoCatalogoAoVivo itens={aoVivo.itens} alterar={alterar} anteriores={anteriores} />
               {ausentes.length > 0 && (
                 <details className="text-sm">
-                  <summary className="cursor-pointer text-suave">{ausentes.length} saíram do top 10</summary>
+                  <summary className="cursor-pointer text-suave">{ausentes.length} saíram do top 10 acompanhado</summary>
                   <TabelaDeConcorrentes linhas={ausentes} alterar={alterar} apagados />
                 </details>
               )}
-              <p className="text-[11px] text-suave">Os 10 primeiros anúncios do catálogo, sem os seus, relidos todo dia. Clique num preço para usá-lo no anúncio.</p>
+              <p className="text-[11px] text-suave">Todos os anúncios do catálogo, na ordem do Mercado Livre, lidos agora. Clique num preço para usá-lo no anúncio.</p>
             </>
-          ) : aoVivo ? (
-            <TabelaDoCatalogoAoVivo itens={aoVivo.itens} />
           ) : (
             !erro && (
               <p className="flex items-center gap-2 text-sm text-suave">
