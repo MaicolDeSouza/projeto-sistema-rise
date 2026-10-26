@@ -68,14 +68,44 @@ const CLASSE_DO_TOM = {
 };
 
 const CLASSE_DO_BOTAO_SECUNDARIO =
-  "inline-flex items-center gap-1.5 rounded border border-acento bg-superficie px-3 py-1.5 text-xs font-medium text-acento hover:bg-fundo disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex items-center gap-2 rounded-md border border-acento bg-superficie px-4 py-2 text-sm font-medium text-acento hover:bg-fundo disabled:cursor-not-allowed disabled:opacity-60";
+
+/// A janela e uma comparacao em DUAS COLUNAS FIXAS (pedido do dono em 26/10/2026: "na esquerda sempre dados do Rise e
+/// na direita dados do Bling"): o Rise e sempre a metade da esquerda e o Bling a da direita, em toda secao, e a
+/// faixa de cima (`CabecalhoDasColunas`) fica presa no topo ao rolar para dizer qual e qual. Por isso as celulas
+/// nao repetem "No Rise"/"No Bling" (so para leitor de tela).
+function Par({ rise, bling, className = "" }) {
+  return (
+    <div className={`grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] divide-x divide-borda ${className}`}>
+      <div className="min-w-0 px-4 py-3">{rise}</div>
+      <div className="min-w-0 px-4 py-3">{bling}</div>
+    </div>
+  );
+}
+
+function CabecalhoDasColunas({ existe }) {
+  return (
+    <div className="sticky top-0 z-10 bg-superficie pb-1 pt-1">
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] divide-x divide-borda overflow-hidden rounded-lg border border-borda bg-fundo/70">
+        <div className="border-t-4 border-acento px-4 py-2.5">
+          <p className="text-lg font-semibold text-texto">Rise</p>
+          <p className="text-sm text-suave">o que está salvo no produto</p>
+        </div>
+        <div className="border-t-4 border-slate-500 px-4 py-2.5">
+          <p className="text-lg font-semibold text-texto">Bling</p>
+          <p className="text-sm text-suave">{existe ? "lido agora" : "último saldo lido"}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /// O valor de um campo: texto que cabe na coluna (a descricao inteira rola em vez de esticar a janela) ou,
 /// sem valor, a frase que diz de qual lado ele falta.
 function Valor({ campo, valor, quandoVazio }) {
   const texto = valorParaTela(campo, valor);
   if (texto === null) return <span className="text-suave italic">{quandoVazio}</span>;
-  return <span className="block max-h-40 overflow-y-auto break-words whitespace-pre-wrap">{texto}</span>;
+  return <span className="block max-h-48 overflow-y-auto break-words whitespace-pre-wrap">{texto}</span>;
 }
 
 /**
@@ -86,25 +116,29 @@ function Valor({ campo, valor, quandoVazio }) {
 function LinhaDeDiferenca({ item }) {
   const vazioNoRise = item.tipo === "vazioNoRise";
   return (
-    <li className={`rounded border p-3 ${vazioNoRise ? "border-borda bg-fundo/60 text-suave" : "border-amber-200 bg-amber-50/50"}`}>
-      <p className="text-sm font-medium text-texto">
+    <li className={`overflow-hidden rounded-lg border ${vazioNoRise ? "border-borda bg-fundo/60 text-suave" : "border-amber-200 bg-amber-50/50"}`}>
+      <p className="px-4 pt-3 text-base font-medium text-texto">
         {item.rotulo}
-        <span className="ml-1.5 text-xs font-normal text-suave">{vazioNoRise ? "só tem no Bling" : "diferente"}</span>
+        <span className="ml-2 text-sm font-normal text-suave">{vazioNoRise ? "só tem no Bling" : "diferente"}</span>
       </p>
-      <dl className="mt-1.5 grid grid-cols-2 gap-3 text-xs">
-        <div className="min-w-0">
-          <dt className="text-[11px] text-suave">No Rise (salvo)</dt>
-          <dd>
-            <Valor campo={item.campo} valor={item.rise} quandoVazio="vazio no Rise (não será enviado)" />
-          </dd>
-        </div>
-        <div className="min-w-0">
-          <dt className="text-[11px] text-suave">No Bling</dt>
-          <dd>
-            <Valor campo={item.campo} valor={item.bling} quandoVazio="vazio no Bling" />
-          </dd>
-        </div>
-      </dl>
+      <Par
+        rise={
+          <>
+            <span className="sr-only">No Rise: </span>
+            <span className="text-base">
+              <Valor campo={item.campo} valor={item.rise} quandoVazio="vazio no Rise (não será enviado)" />
+            </span>
+          </>
+        }
+        bling={
+          <>
+            <span className="sr-only">No Bling: </span>
+            <span className="text-base">
+              <Valor campo={item.campo} valor={item.bling} quandoVazio="vazio no Bling" />
+            </span>
+          </>
+        }
+      />
     </li>
   );
 }
@@ -118,7 +152,7 @@ function Miniaturas({ itens, campo, vazio }) {
   if (itens.length === 0) {
     return (
       <span className="flex items-center gap-1.5 text-suave italic">
-        <ImageOff size={14} />
+        <ImageOff size={16} />
         {vazio}
       </span>
     );
@@ -127,13 +161,13 @@ function Miniaturas({ itens, campo, vazio }) {
   return (
     <ul className="flex flex-wrap gap-1.5">
       {visiveis.map((item, posicao) => (
-        <li key={`${posicao}-${item[campo]}`} className="h-14 w-14 shrink-0 overflow-hidden rounded border border-borda bg-white">
+        <li key={`${posicao}-${item[campo]}`} className="h-16 w-16 shrink-0 overflow-hidden rounded border border-borda bg-white">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={item[campo]} alt={`Foto ${posicao + 1}`} loading="lazy" className="h-full w-full object-contain" />
         </li>
       ))}
       {itens.length > visiveis.length && (
-        <li className="flex h-14 w-14 shrink-0 items-center justify-center rounded border border-borda bg-fundo text-xs text-suave">
+        <li className="flex h-16 w-16 shrink-0 items-center justify-center rounded border border-borda bg-fundo text-sm text-suave">
           +{itens.length - visiveis.length}
         </li>
       )}
@@ -166,27 +200,31 @@ function BlocoDeFotos({ fotos }) {
   else if (fotos.porContagem) estado = "mesma quantidade";
   const acao = fotos.podeEnviar ? textoDaAcaoDeFotos(fotos) : null;
   return (
-    <section aria-label="Fotos" className={`rounded border p-3 ${tom}`}>
-      <p className="text-sm font-medium text-texto">
+    <section aria-label="Fotos" className={`overflow-hidden rounded-lg border ${tom}`}>
+      <p className="px-4 pt-3 text-base font-semibold text-texto">
         Fotos
-        <span className="ml-1.5 text-xs font-normal text-suave">{estado}</span>
+        <span className="ml-2 text-sm font-normal text-suave">{estado}</span>
       </p>
-      <dl className="mt-1.5 grid grid-cols-2 gap-3 text-xs">
-        <div className="min-w-0">
-          <dt className="text-[11px] text-suave">No Rise ({fotos.rise.total})</dt>
-          <dd className="mt-1">
+      <Par
+        rise={
+          <>
+            <p className="mb-2 text-sm text-suave">{fotos.rise.total === 1 ? "1 foto" : `${fotos.rise.total} fotos`}</p>
             <Miniaturas itens={fotos.rise.itens} campo="caminho" vazio="sem foto no Rise (não será enviado)" />
-          </dd>
-        </div>
-        <div className="min-w-0">
-          <dt className="text-[11px] text-suave">No Bling ({fotos.bling.total})</dt>
-          <dd className="mt-1">
+          </>
+        }
+        bling={
+          <>
+            <p className="mb-2 text-sm text-suave">{fotos.bling.total === 1 ? "1 foto" : `${fotos.bling.total} fotos`}</p>
             <Miniaturas itens={fotos.bling.itens} campo="miniatura" vazio="sem foto no Bling" />
-          </dd>
+          </>
+        }
+      />
+      {(acao || fotos.motivo) && (
+        <div className="space-y-1 border-t border-borda px-4 py-3 text-sm">
+          {acao && <p className="text-amber-900">{acao}</p>}
+          {fotos.motivo && <p className="text-amber-800">{fotos.motivo}</p>}
         </div>
-      </dl>
-      {acao && <p className="mt-2 text-xs text-amber-900">{acao}</p>}
-      {fotos.motivo && <p className="mt-2 text-xs text-amber-800">{fotos.motivo}</p>}
+      )}
     </section>
   );
 }
@@ -205,6 +243,15 @@ function valorDoVinculo(campo, valor) {
   return String(valor);
 }
 
+function ValorDoVinculo({ campo, valor, destaque = false }) {
+  return (
+    <>
+      <span className="block text-sm text-suave">{ROTULO_DO_VINCULO[campo] ?? campo}</span>
+      <span className={`block text-base tabular-nums ${destaque ? "font-medium" : ""}`}>{valorDoVinculo(campo, valor)}</span>
+    </>
+  );
+}
+
 /**
  * Os FORNECEDORES, Rise x Bling (23/10/2026: o dono viu "Nenhuma diferença" com o "!" aceso: era o custo do
  * fornecedor, que a tela nao mostrava). So aparece quando ha diferenca, falta ou erro de leitura: fornecedor igual fica
@@ -215,60 +262,67 @@ function BlocoDeFornecedores({ fornecedores }) {
   const pendentes = (fornecedores.itens ?? []).filter((item) => item.situacao !== "igual");
   if (pendentes.length === 0 && !fornecedores.erro) return null;
   return (
-    <section aria-label="Fornecedores" className="rounded border border-amber-200 bg-amber-50/50 p-3">
-      <h3 className="text-sm font-semibold">Fornecedores</h3>
-      {fornecedores.erro && <p className="mt-1 text-xs text-amber-900">{fornecedores.erro}</p>}
-      <ul className="mt-2 space-y-1.5 text-sm">
+    <section aria-label="Fornecedores" className="overflow-hidden rounded-lg border border-amber-200 bg-amber-50/50">
+      <h3 className="px-4 pt-3 text-base font-semibold">Fornecedores</h3>
+      {fornecedores.erro && <p className="px-4 pt-1 text-sm text-amber-900">{fornecedores.erro}</p>}
+      <ul>
         {pendentes.map((item) => (
-          <li key={item.nome}>
-            <span className="font-medium">{item.nome}</span>
+          <li key={item.nome} className="border-t border-borda first:border-t-0">
+            <p className="px-4 pt-3 text-base font-medium">{item.nome}</p>
             {item.situacao === "falta" ? (
-              <span className="text-suave">: não está ligado a este produto no Bling (o Sincronizar liga).</span>
+              <Par
+                rise={<span className="text-base">Ligado a este produto</span>}
+                bling={<span className="text-base italic text-suave">Não está ligado (o Sincronizar liga)</span>}
+              />
             ) : (
               item.diferencas.map((diferenca) => (
-                <span key={diferenca.campo} className="block text-xs text-texto">
-                  {ROTULO_DO_VINCULO[diferenca.campo] ?? diferenca.campo}: no Bling{" "}
-                  <span className="tabular-nums">{valorDoVinculo(diferenca.campo, diferenca.bling)}</span>, no Rise{" "}
-                  <span className="font-medium tabular-nums">{valorDoVinculo(diferenca.campo, diferenca.rise)}</span>
-                </span>
+                <Par
+                  key={diferenca.campo}
+                  rise={<ValorDoVinculo campo={diferenca.campo} valor={diferenca.rise} destaque />}
+                  bling={<ValorDoVinculo campo={diferenca.campo} valor={diferenca.bling} />}
+                />
               ))
             )}
           </li>
         ))}
       </ul>
-      <p className="mt-2 text-xs text-suave">O Sincronizar envia os fornecedores do Rise ao Bling.</p>
+      <p className="border-t border-borda px-4 py-3 text-sm text-suave">O Sincronizar envia os fornecedores do Rise ao Bling.</p>
     </section>
   );
 }
 
-function Diferencas({ diferencas, fotos, fornecedores, iguais, lerDeNovo, lendo }) {
+function Diferencas({ existe, diferencas, fotos, fornecedores, iguais, lerDeNovo, lendo, children }) {
   const fornecedoresDiferentes = (fornecedores?.itens ?? []).filter((item) => item.situacao !== "igual").length + (fornecedores?.erro ? 1 : 0);
   const diferentes = diferencas.filter((item) => item.tipo === "diferente").length + (fotos?.diferente ? 1 : 0) + fornecedoresDiferentes;
   const textoDosIguais = `${iguais} ${iguais === 1 ? "campo igual" : "campos iguais"}`;
 
   return (
-    <section aria-label="Diferenças entre o Rise e o Bling" className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        {diferentes === 0 && diferencas.length === 0 ? (
-          <p className={`rounded border px-3 py-1.5 text-sm ${CLASSE_DO_TOM.ok}`}>Nenhuma diferença: {textoDosIguais} no Rise e no Bling.</p>
-        ) : (
-          <p className="text-sm">
-            <span className="font-semibold">{diferentes} item(ns) diferente(s)</span> entre o produto salvo no Rise e o Bling.
-          </p>
-        )}
-        <button
-          type="button"
-          onClick={lerDeNovo}
-          disabled={lendo}
-          className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-1.5 text-xs hover:bg-fundo disabled:opacity-60"
-        >
-          {lendo ? <Loader size={13} className="animate-spin" /> : <RefreshCw size={13} />}
-          Ler o Bling de novo
-        </button>
-      </div>
+    <section aria-label="Comparação entre o Rise e o Bling" className="space-y-4 pt-5">
+      {existe && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {diferentes === 0 && diferencas.length === 0 ? (
+            <p className={`rounded-md border px-4 py-2 text-base ${CLASSE_DO_TOM.ok}`}>Nenhuma diferença: {textoDosIguais} no Rise e no Bling.</p>
+          ) : (
+            <p className="text-base">
+              <span className="font-semibold">{diferentes} item(ns) diferente(s)</span> entre o produto salvo no Rise e o Bling.
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={lerDeNovo}
+            disabled={lendo}
+            className="inline-flex items-center gap-2 rounded-md border border-borda px-4 py-2 text-sm hover:bg-fundo disabled:opacity-60"
+          >
+            {lendo ? <Loader size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+            Ler o Bling de novo
+          </button>
+        </div>
+      )}
+
+      <CabecalhoDasColunas existe={existe} />
 
       {diferencas.length > 0 && (
-        <ul className="space-y-2">
+        <ul className="space-y-3">
           {diferencas.map((item) => (
             <LinhaDeDiferenca key={item.campo} item={item} />
           ))}
@@ -276,7 +330,8 @@ function Diferencas({ diferencas, fotos, fornecedores, iguais, lerDeNovo, lendo 
       )}
       <BlocoDeFotos fotos={fotos} />
       <BlocoDeFornecedores fornecedores={fornecedores} />
-      {iguais > 0 && diferencas.length > 0 && <p className="text-xs text-suave">{textoDosIguais} no Rise e no Bling.</p>}
+      {iguais > 0 && diferencas.length > 0 && <p className="text-sm text-suave">{textoDosIguais} no Rise e no Bling.</p>}
+      {children}
     </section>
   );
 }
@@ -416,6 +471,7 @@ export default function JanelaBling({ produto, aoFechar }) {
   const estoque = leitura?.estoque ?? null;
   // Sem o sku a leitura falhou antes de achar o produto no Rise: nao ha estoque a mostrar.
   const mostraEstoque = Boolean(estoque && leitura?.sku);
+  const existeNoBling = Boolean(leitura?.ok && leitura.situacao === "existe");
   const escritaBloqueada = leitura?.ok && leitura.escrita?.liberada === false;
   // Edicao do produto no Bling (`produtos.php#edit/<id>`), so com o id numerico lido do proprio Bling.
   const linkDoBling = /^\d+$/.test(String(leitura?.blingId ?? "")) ? `https://www.bling.com.br/produtos.php#edit/${leitura.blingId}` : null;
@@ -436,64 +492,65 @@ export default function JanelaBling({ produto, aoFechar }) {
         aria-busy={pendente}
         className="flex max-h-full w-full max-w-5xl flex-col rounded-lg border border-borda bg-superficie shadow-2xl focus:outline-none"
       >
-        <header className="flex shrink-0 items-start justify-between gap-3 border-b border-borda px-5 py-3">
+        <header className="flex shrink-0 items-start justify-between gap-3 border-b border-borda px-6 py-4">
           <div className="min-w-0">
-            <p className="text-sm font-semibold">Sincronização com o Bling</p>
-            <p className="mt-0.5 truncate text-xs text-suave">
+            <p className="text-xl font-semibold">Sincronização com o Bling</p>
+            <p className="mt-1 truncate text-base text-suave">
               <span className="font-mono">{produto.sku}</span> · {produto.tituloBase}
             </p>
           </div>
-          <button type="button" onClick={aoFechar} aria-label="Fechar" className="rounded p-1 text-suave hover:bg-fundo">
-            <X size={16} />
+          <button type="button" onClick={aoFechar} aria-label="Fechar" className="rounded-md p-2 text-suave hover:bg-fundo">
+            <X size={20} />
           </button>
         </header>
 
         {temAviso && (
-          <div className="shrink-0 space-y-2 px-5 pt-3">
+          <div className="shrink-0 space-y-2 px-6 pt-4">
             {erro && (
-              <p role="alert" className={`rounded border px-3 py-2 text-sm ${CLASSE_DO_TOM.erro}`}>
+              <p role="alert" className={`rounded-md border px-4 py-2.5 text-base ${CLASSE_DO_TOM.erro}`}>
                 {erro}
               </p>
             )}
             {envio && (
-              <div role="status" className={`rounded border px-3 py-2 text-sm ${CLASSE_DO_TOM[envio.ok ? "ok" : "atencao"]}`}>
+              <div role="status" className={`rounded-md border px-4 py-2.5 text-base ${CLASSE_DO_TOM[envio.ok ? "ok" : "atencao"]}`}>
                 {envio.titulo && (
-                  <p className="flex items-start gap-1.5 font-medium">
-                    {envio.ok && <CircleCheck size={15} className="mt-0.5 shrink-0" />}
+                  <p className="flex items-start gap-2 font-medium">
+                    {envio.ok && <CircleCheck size={18} className="mt-0.5 shrink-0" />}
                     {envio.titulo}
                   </p>
                 )}
                 {envio.linhas.length > 0 && (
-                  <ul className="mt-1 max-h-28 list-disc space-y-0.5 overflow-y-auto pl-5 text-xs">
+                  <ul className="mt-1 max-h-32 list-disc space-y-0.5 overflow-y-auto pl-5 text-sm">
                     {envio.linhas.map((linha, indice) => (
                       <li key={`${indice}-${linha}`}>{linha}</li>
                     ))}
                   </ul>
                 )}
-                {envio.aviso && <p className={envio.titulo ? "mt-1 text-xs" : "text-xs"}>{envio.aviso}</p>}
+                {envio.aviso && <p className={envio.titulo ? "mt-1 text-sm" : "text-sm"}>{envio.aviso}</p>}
               </div>
             )}
           </div>
         )}
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
+        {/* Sem padding em cima: a faixa Rise/Bling gruda no topo ao rolar, e o espaco acima dela vem de cada bloco. */}
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pb-6">
           {carregando ? (
-            <p role="status" className="flex items-center gap-2 py-6 text-sm text-suave">
-              <Loader size={16} className="animate-spin" />
+            <p role="status" className="flex items-center gap-2 py-6 text-base text-suave">
+              <Loader size={18} className="animate-spin" />
               Lendo o Bling...
             </p>
           ) : (
             <>
               {!leitura.ok && (
-                <p role="alert" className={`rounded border px-3 py-2 text-sm ${CLASSE_DO_TOM.erro}`}>
+                <p role="alert" className={`mt-5 rounded-md border px-4 py-2.5 text-base ${CLASSE_DO_TOM.erro}`}>
                   {leitura.erro ?? "Não foi possível ler o Bling."}
                 </p>
               )}
 
               {leitura.ok && leitura.situacao === "nao_existe" && (
-                <section aria-label="Produto fora do Bling" className="rounded border border-borda bg-fundo p-3 text-sm">
+                <section aria-label="Produto fora do Bling" className="mt-5 rounded-lg border border-borda bg-fundo p-4 text-base">
                   <p className="font-medium">Este código não está no Bling</p>
-                  <p className="mt-1 text-xs text-suave">
+                  <p className="mt-1 text-sm text-suave">
                     O código <span className="font-mono">{leitura.sku}</span> não foi achado entre os produtos ativos do Bling.
                     &quot;Cadastrar no Bling&quot; cria o produto lá com os dados do Rise. Se ele existe inativo no Bling, reative-o
                     lá em vez de cadastrar.
@@ -501,101 +558,118 @@ export default function JanelaBling({ produto, aoFechar }) {
                 </section>
               )}
 
-              {leitura.ok && leitura.situacao === "existe" && (
+              {(existeNoBling || mostraEstoque) && (
                 <Diferencas
+                  existe={existeNoBling}
                   diferencas={leitura.diferencas ?? []}
                   fotos={leitura.fotos ?? null}
                   fornecedores={leitura.fornecedores ?? null}
                   iguais={leitura.iguais ?? 0}
                   lerDeNovo={lerDeNovo}
                   lendo={pendente}
-                />
+                >
+                  {avisos.length > 0 && (
+                    <ul className={`space-y-1 rounded-lg border p-4 text-sm ${CLASSE_DO_TOM.atencao}`}>
+                      {avisos.map((aviso, indice) => (
+                        <li key={`${indice}-${aviso}`}>{aviso}</li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {mostraEstoque && (
+                    <section aria-label="Estoque" className="overflow-hidden rounded-lg border border-borda">
+                      <p className="px-4 pt-3 text-base font-semibold">Estoque</p>
+                      <Par
+                        rise={
+                          <dl className="flex gap-10">
+                            <div>
+                              <dt className="text-sm text-suave">Estoque no Rise</dt>
+                              <dd className="text-2xl font-semibold tabular-nums">{estoque.riseEstoque}</dd>
+                            </div>
+                            <div>
+                              <dt className="text-sm text-suave">Ajustes pendentes</dt>
+                              <dd className="text-2xl font-semibold tabular-nums">{estoque.pendentes}</dd>
+                            </div>
+                          </dl>
+                        }
+                        bling={
+                          <dl>
+                            <dt className="text-sm text-suave">Saldo no Bling</dt>
+                            <dd className="text-2xl font-semibold tabular-nums">{estoque.blingSaldo ?? "não lido"}</dd>
+                            {/* Sem leitura agora (codigo fora do Bling ou erro), o saldo e o ultimo guardado no Rise. */}
+                            {estoque.blingSaldo !== null && (
+                              <dd className="text-sm text-suave">{existeNoBling ? "lido agora" : "último lido"}</dd>
+                            )}
+                          </dl>
+                        }
+                      />
+                      <div className="space-y-3 border-t border-borda px-4 py-3">
+                        <p className="text-sm text-suave">O estoque do Rise é o saldo do Bling mais os ajustes ainda não enviados.</p>
+
+                        {existeNoBling && estoque.pendentes > 0 && !depositos && (
+                          <button type="button" onClick={() => enviarEstoque()} disabled={pendente} className={CLASSE_DO_BOTAO_SECUNDARIO}>
+                            {qual === "estoque" && <Loader size={15} className="animate-spin" />}
+                            {qual === "estoque" ? "Enviando..." : "Enviar ajustes de estoque"}
+                          </button>
+                        )}
+
+                        {depositos && (
+                          <fieldset className={`rounded-lg border p-4 ${CLASSE_DO_TOM.atencao}`}>
+                            <legend className="px-1 text-sm font-medium">Escolha o depósito</legend>
+                            <p className="text-sm">{depositos.motivo}</p>
+                            {/* O Enter num radio enviaria o formulario inteiro, e o botao principal do rodape e
+                                outro envio (sincronizar): aqui o Enter nao faz nada. */}
+                            <div
+                              className="mt-2 space-y-1.5"
+                              onKeyDown={(evento) => {
+                                if (evento.key === "Enter") evento.preventDefault();
+                              }}
+                            >
+                              {depositos.lista.map((item) => (
+                                <label key={item.id} className="flex cursor-pointer items-center gap-2 text-base">
+                                  <input
+                                    type="radio"
+                                    name="deposito-bling"
+                                    checked={deposito === item.id}
+                                    onChange={() => setDeposito(item.id)}
+                                    disabled={pendente}
+                                  />
+                                  {item.descricao || `Depósito ${item.id}`}
+                                </label>
+                              ))}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => enviarEstoque(deposito)}
+                              disabled={pendente || deposito === null}
+                              className={`mt-3 ${CLASSE_DO_BOTAO_SECUNDARIO}`}
+                            >
+                              {qual === "estoque" && <Loader size={15} className="animate-spin" />}
+                              {qual === "estoque" ? "Enviando..." : "Enviar ajustes neste depósito"}
+                            </button>
+                          </fieldset>
+                        )}
+                      </div>
+                    </section>
+                  )}
+                </Diferencas>
               )}
 
-              {avisos.length > 0 && (
-                <ul className={`space-y-1 rounded border p-3 text-xs ${CLASSE_DO_TOM.atencao}`}>
+              {!existeNoBling && !mostraEstoque && avisos.length > 0 && (
+                <ul className={`mt-5 space-y-1 rounded-lg border p-4 text-sm ${CLASSE_DO_TOM.atencao}`}>
                   {avisos.map((aviso, indice) => (
                     <li key={`${indice}-${aviso}`}>{aviso}</li>
                   ))}
                 </ul>
               )}
-
-              {mostraEstoque && (
-                <section aria-label="Estoque" className="rounded border border-borda p-3">
-                  <p className="text-sm font-medium">Estoque</p>
-                  <dl className="mt-2 grid grid-cols-3 gap-3">
-                    <div>
-                      <dt className="text-[11px] text-suave">Saldo no Bling</dt>
-                      <dd className="text-base tabular-nums">{estoque.blingSaldo ?? "não lido"}</dd>
-                      {/* Sem leitura agora (codigo fora do Bling ou erro), o saldo e o ultimo guardado no Rise. */}
-                      {estoque.blingSaldo !== null && (
-                        <dd className="text-[11px] text-suave">{leitura.situacao === "existe" ? "lido agora" : "último lido"}</dd>
-                      )}
-                    </div>
-                    <div>
-                      <dt className="text-[11px] text-suave">Estoque no Rise</dt>
-                      <dd className="text-base tabular-nums">{estoque.riseEstoque}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-[11px] text-suave">Ajustes pendentes</dt>
-                      <dd className="text-base tabular-nums">{estoque.pendentes}</dd>
-                    </div>
-                  </dl>
-                  <p className="mt-2 text-[11px] text-suave">O estoque do Rise é o saldo do Bling mais os ajustes ainda não enviados.</p>
-
-                  {leitura.ok && leitura.situacao === "existe" && estoque.pendentes > 0 && !depositos && (
-                    <button type="button" onClick={() => enviarEstoque()} disabled={pendente} className={`mt-2 ${CLASSE_DO_BOTAO_SECUNDARIO}`}>
-                      {qual === "estoque" && <Loader size={13} className="animate-spin" />}
-                      {qual === "estoque" ? "Enviando..." : "Enviar ajustes de estoque"}
-                    </button>
-                  )}
-
-                  {depositos && (
-                    <fieldset className={`mt-2 rounded border p-3 ${CLASSE_DO_TOM.atencao}`}>
-                      <legend className="px-1 text-xs font-medium">Escolha o depósito</legend>
-                      <p className="text-xs">{depositos.motivo}</p>
-                      {/* O Enter num radio enviaria o formulario inteiro, e o botao principal do rodape e
-                          outro envio (sincronizar): aqui o Enter nao faz nada. */}
-                      <div
-                        className="mt-1.5 space-y-1"
-                        onKeyDown={(evento) => {
-                          if (evento.key === "Enter") evento.preventDefault();
-                        }}
-                      >
-                        {depositos.lista.map((item) => (
-                          <label key={item.id} className="flex cursor-pointer items-center gap-2 text-xs">
-                            <input
-                              type="radio"
-                              name="deposito-bling"
-                              checked={deposito === item.id}
-                              onChange={() => setDeposito(item.id)}
-                              disabled={pendente}
-                            />
-                            {item.descricao || `Depósito ${item.id}`}
-                          </label>
-                        ))}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => enviarEstoque(deposito)}
-                        disabled={pendente || deposito === null}
-                        className={`mt-2 ${CLASSE_DO_BOTAO_SECUNDARIO}`}
-                      >
-                        {qual === "estoque" && <Loader size={13} className="animate-spin" />}
-                        {qual === "estoque" ? "Enviando..." : "Enviar ajustes neste depósito"}
-                      </button>
-                    </fieldset>
-                  )}
-                </section>
-              )}
             </>
           )}
         </div>
 
-        <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-borda px-5 py-3">
+        <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-borda px-6 py-4">
           {/* A trava fechada nao esconde o botao: o motivo fica aqui, em uma linha, e o clique devolve o mesmo
               motivo em vermelho. */}
-          <div className="flex min-w-0 flex-1 items-center gap-3 text-xs">
+          <div className="flex min-w-0 flex-1 items-center gap-3 text-sm">
             {/* O produto no Bling, em outra aba (pedido do dono em 24/10/2026): so com o produto ja la. */}
             {linkDoBling && (
               <a
@@ -603,9 +677,9 @@ export default function JanelaBling({ produto, aoFechar }) {
                 target="_blank"
                 rel="noreferrer"
                 title="Abre o produto no Bling, em outra aba"
-                className="inline-flex shrink-0 items-center gap-1 rounded border border-borda px-2.5 py-1.5 font-medium text-acento hover:bg-fundo"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-borda px-3.5 py-2 font-medium text-acento hover:bg-fundo"
               >
-                Abrir no Bling <ExternalLink size={12} />
+                Abrir no Bling <ExternalLink size={14} />
               </a>
             )}
             <p className="min-w-0 flex-1 truncate text-amber-800" title={escritaBloqueada ? leitura.escrita.motivo : undefined}>
@@ -621,7 +695,7 @@ export default function JanelaBling({ produto, aoFechar }) {
               type="button"
               onClick={aoFechar}
               disabled={ocupado}
-              className="rounded border border-borda px-4 py-2 text-sm hover:bg-fundo disabled:opacity-50"
+              className="rounded-md border border-borda px-5 py-2.5 text-base hover:bg-fundo disabled:opacity-50"
             >
               Fechar
             </button>
@@ -629,9 +703,9 @@ export default function JanelaBling({ produto, aoFechar }) {
               type="button"
               onClick={principal.executar}
               disabled={pendente}
-              className="inline-flex items-center gap-1.5 rounded bg-acento px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-md bg-acento px-5 py-2.5 text-base font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {pendente && <Loader size={14} className="animate-spin" />}
+              {pendente && <Loader size={16} className="animate-spin" />}
               {rotuloDoBotao}
             </button>
           </div>

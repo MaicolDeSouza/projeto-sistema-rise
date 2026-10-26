@@ -3800,6 +3800,15 @@ caminho relativo; as do Bling pela `linkMiniatura` do S3) e o estado: "iguais", 
 produto tem foto, e entrar lá acenderia o "!" em todo produto já sincronizado. O ícone da lista **não** acusa
 diferença de foto (só campos e estoque).
 
+**Duas colunas fixas (pedido do dono em 26/10/2026: "na esquerda sempre dados do Rise e na direita dados do Bling, aumentar o
+tamanho das letras"):** a janela é uma comparação com o **Rise sempre à esquerda e o Bling sempre à direita** em toda seção
+(campos diferentes, Fotos, Fornecedores, Estoque), linha a linha (`Par`), com a faixa "Rise · o que está salvo / Bling · lido
+agora" **presa no topo ao rolar** (`CabecalhoDasColunas`, por isso o contêiner do corpo não tem padding em cima). As células não
+repetem "No Rise/No Bling" (só `sr-only`). Letras maiores: título `text-xl`, texto `text-base`, rótulos `text-sm` (eram `text-xs` e
+`text-[11px]`), números do estoque `text-2xl`, miniaturas de 64 px, botões `text-base`. Estoque agora aparece dentro da mesma
+comparação (também com o código fora do Bling, com "último saldo lido"). Visto na tela (1366x768, 100101, só leitura); o envio
+não mudou.
+
 **Custo:** abrir a janela de um produto com foto baixa as fotos do Bling uma vez (md5; ~250 KB cada) e as do Rise
 vêm do disco; depois fica na memória do processo (teto de 2.000 por lado).
 
