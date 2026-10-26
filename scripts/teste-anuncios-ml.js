@@ -419,16 +419,16 @@ try {
 
     // Regra do dono em 24/10/2026: verde = publicado (ativo ou pausado sem estoque); "!" = so erro ou publicacao parada.
     const ml = (status, situacaoCanal) => ({ canal: "MERCADO_LIVRE", status, situacaoCanal });
-    conferir("icone: sem anuncio", estadoDoIconeML([]), { publicado: false, pausado: false, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [] });
-    conferir("icone: publicado e ativo, sem selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA")]), { publicado: true, pausado: false, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [] });
-    conferir("icone: publicado e pausado (sem estoque) continua verde e sem selo", estadoDoIconeML([ml("PUBLICADO", "PAUSADA")]), { publicado: true, pausado: true, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [] });
-    conferir("icone: rascunho nao acende nada", estadoDoIconeML([ml("RASCUNHO")]), { publicado: false, pausado: false, erro: false, rascunho: true, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [] });
+    conferir("icone: sem anuncio", estadoDoIconeML([]), { publicado: false, pausado: false, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [], catalogos: 0 });
+    conferir("icone: publicado e ativo, sem selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA")]), { publicado: true, pausado: false, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [], catalogos: 0 });
+    conferir("icone: publicado e pausado (sem estoque) continua verde e sem selo", estadoDoIconeML([ml("PUBLICADO", "PAUSADA")]), { publicado: true, pausado: true, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [], catalogos: 0 });
+    conferir("icone: rascunho nao acende nada", estadoDoIconeML([ml("RASCUNHO")]), { publicado: false, pausado: false, erro: false, rascunho: true, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [], catalogos: 0 });
     for (const status of ["ERRO", "PUBLICANDO"]) {
       conferir(`icone: ${status} poe o selo`, estadoDoIconeML([ml(status, "PAUSADA")]).erro, true);
     }
     conferir("icone: encerrado nao e verde", estadoDoIconeML([ml("PUBLICADO", "ENCERRADA")]).publicado, false);
     conferir("icone: ativo e pausado juntos nao dizem pausado", estadoDoIconeML([ml("PUBLICADO", "ATIVA"), ml("PUBLICADO", "PAUSADA")]).pausado, false);
-    conferir("icone: publicado e outro com erro: verde com selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA"), ml("ERRO")]), { publicado: true, pausado: false, erro: true, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [] });
+    conferir("icone: publicado e outro com erro: verde com selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA"), ml("ERRO")]), { publicado: true, pausado: false, erro: true, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [], catalogos: 0 });
     conferir("icone: anuncio de outro canal nao conta", estadoDoIconeML([{ canal: "BLING", status: "ERRO" }, { canal: "LOJA_INTEGRADA", status: "PUBLICADO", situacaoCanal: "ATIVA" }]).publicado, false);
     conferir("icone: lista invalida", estadoDoIconeML(undefined).erro, false);
     conferir("rotulo do icone: sem anuncio", rotuloDoIconeML({ publicado: false, erro: false }), "Anúncio no Mercado Livre: sem anúncio");
@@ -2949,6 +2949,20 @@ try {
     ml.itens.set("MLB920099", { id: "MLB920099", status: "active", catalog_listing: true, catalog_product_id: "MLB44072268" });
     await relerEstadosML({ ...so, agora: new Date("2026-10-25T17:00:00Z") });
     conferir("entrou pelo anuncio de catalogo ligado: '!' de novo", [(await estado()).catalogo?.id, (await estado()).catalogoAviso?.de, (await estado()).catalogoAviso?.visto, (await icone()).catalogoMudouNoML], ["MLB44072268", null, false, true]);
+
+    // O selo "C2" do icone (pedido do dono em 26/10/2026): em quantos catalogos DIFERENTES estao os anuncios publicados do
+    // produto (Classico e Premium no mesmo catalogo contam 1). Rascunho e anuncio fora de catalogo nao contam.
+    const noCatalogo = (catalogo, status = "PUBLICADO") => ({ canal: "MERCADO_LIVRE", status, situacaoCanal: "ATIVA", dados: { publicacao: { estadoML: { status: "active", subStatus: [], catalogo } } } });
+    conferir(
+      "selo C: catalogos diferentes dos publicados",
+      [
+        estadoDoIconeML([noCatalogo({ id: "MLB1", nome: "A" }), noCatalogo({ id: "MLB1", nome: "A" })]).catalogos,
+        estadoDoIconeML([noCatalogo({ id: "MLB1", nome: "A" }), noCatalogo({ id: "MLB2", nome: "B" })]).catalogos,
+        estadoDoIconeML([noCatalogo(null), noCatalogo({ id: "MLB3", nome: "C" }, "RASCUNHO")]).catalogos,
+      ],
+      [1, 2, 0],
+    );
+    conferir("selo C: o texto do icone diz em quantos", /em 2 catálogos/.test(rotuloDoIconeML(estadoDoIconeML([noCatalogo({ id: "MLB1", nome: "A" }), noCatalogo({ id: "MLB2", nome: "B" })]))), true);
 
     const { avisosDevidos } = await import("../src/lib/telegram/avisos.js");
     const devidos = (await avisosDevidos("catalogoML", { agora: Date.parse("2026-10-25T17:05:00Z") })).filter((aviso) => aviso.chave.includes(anuncio.id));

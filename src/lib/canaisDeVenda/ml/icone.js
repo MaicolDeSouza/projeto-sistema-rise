@@ -54,6 +54,8 @@ export function estadoDoIconeML(anuncios) {
     // O anuncio entrou, saiu ou trocou de catalogo no ML (25/10/2026): "!" ate o dono abrir o anuncio.
     catalogoMudouNoML: comCatalogoNovo.length > 0,
     catalogosNoML: [...new Set(comCatalogoNovo.map((anuncio) => textoDoAvisoDeCatalogo(anuncio.dados.publicacao.estadoML.catalogoAviso)))],
+    // O selo "C2" (pedido do dono em 26/10/2026): em quantos catalogos DIFERENTES estao os anuncios publicados do produto.
+    catalogos: new Set(doML.filter(estaPublicado).map((anuncio) => anuncio.dados?.publicacao?.estadoML?.catalogo?.id).filter(Boolean)).size,
   };
 }
 
@@ -80,10 +82,11 @@ function textoDoDesatualizado(partes) {
   return `desatualizado: ${trechos.join("; ")}`;
 }
 
-export function rotuloDoIconeML({ publicado, pausado = false, erro, rascunho = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [], precisaAgirNoML: barrado = false, estadosNoML = [], estoqueDivergenteNoML = false, estoquesNoML = [], catalogoMudouNoML = false, catalogosNoML = [] }) {
+export function rotuloDoIconeML({ publicado, pausado = false, erro, rascunho = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [], precisaAgirNoML: barrado = false, estadosNoML = [], estoqueDivergenteNoML = false, estoquesNoML = [], catalogoMudouNoML = false, catalogosNoML = [], catalogos = 0 }) {
   const base = "Anúncio no Mercado Livre";
   const partes = [];
   if (publicado) partes.push(pausado ? "publicado, pausado (sem estoque)" : "publicado");
+  if (catalogos > 0) partes.push(`em ${catalogos} ${catalogos === 1 ? "catálogo" : "catálogos"}`);
   if (desatualizado) {
     partes.push(
       naoConferido
