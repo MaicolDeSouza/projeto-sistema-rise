@@ -4313,6 +4313,51 @@ existirá mais a proposta para a LI, pois tudo será feito na proposta do produt
   valores migrados do SEO aparecendo. **Não visto na tela:** a marca PROPOSTA nas duas abas e a faixa "Usar a proposta" (só
   testadas nas regras puras), a IA das duas abas (paga) e o Salvar recusando 21 categorias.
 
+### Aba Características enxuta, "Ativo na loja" e rodapé no padrão do Bling (26/10/2026, SEM deploy)
+
+Pedido do dono, com um print marcado em vermelho ("deixar apenas os campos marcados; botão liga/desliga para ativar ou
+desativar o produto na loja, nasce ativado; marca só visualização") e, no meio do trabalho, o rodapé ("manter o padrão do
+Bling, Fechar vira Salvar e fechar, 'Na loja' e 'Tudo salvo' saem").
+
+- **A aba** (`AbaGeral.jsx`) tem só: a caixa do Produto, a Marca (só leitura, com a bolha "i"), o destaque, o Vídeo e o
+  interruptor **Ativo na loja**. O "Nome na loja" saiu. **Nome e marca do anúncio são SEMPRE os do produto**
+  (`rascunhoDoAnuncio(anuncio, produto)`, em `banco.js`, que agora recebe o produto: título = `tituloBase`, marca = a do produto,
+  e só na falta dela vale a guardada), como já eram a descrição, as categorias e o SEO. Quem muda o nome ou a marca muda no
+  cadastro do produto; o anúncio já sincronizado cujo nome ou marca guardados eram outros fica com o campo diferente até o
+  próximo Sincronizar (no banco do PC os 2 anúncios tinham o mesmo nome e a mesma marca; na VPS não conferi). O Sincronizar
+  cria a marca na loja se ela não existir (já era assim).
+- **Ativo na loja** (`rascunho.ativo`, em `Anuncio.dados.ativo`, sem migration; o esquema zod põe `true`):
+  - **Nasce ligado.** Anúncio de antes (sem `dados.ativo`) abre como a última situação conhecida da loja
+    (`situacaoCanal` PAUSADA = desligado), para o Sincronizar não reativar o que o dono pausou lá; o vínculo de um produto que
+    já está na loja (`rascunhoDaLI`) adota o estado da loja.
+  - **É um campo comparado e enviado** (`CAMPOS_DE_ENVIO_LI` ganhou `ativo`, rótulo "Ativo na loja"): diferente da loja =
+    linha na aba Divergências ("Ativo" / "Inativo"), conta no número da aba e no "!" do ícone (o aviso à parte "inativo na
+    loja" saiu: loja inativa com o Rise DESLIGADO é escolha, não "!"). O Sincronizar manda `ativo` no PUT do produto inteiro
+    (`corpo.js`, caso `ativo`). **Fica FORA da assinatura** (`FORA_DA_ASSINATURA_LI`): senão todo produto já sincronizado
+    ganhava o "!" uma vez. `normalizarDaLI` devolve `ativo: null` quando a resposta não traz o campo e `diferencasLI` o pula.
+  - **Cadastrar e Completar o cadastro** respeitam o interruptor: ligado, o fluxo de sempre (criar pausado, ligar no Bling,
+    estoque, ativar); desligado, cria, liga no Bling e grava o estoque e **para sem ativar** (a etapa `ativar` não entra em
+    `etapas`, `situacaoCanal` PAUSADA, resultado com `ativo: false`, e o popup diz "pausado (Ativo na loja desligado)").
+  - **Cadastro incompleto não ativa pelo Sincronizar** (`dados.cadastroLI`): o campo `ativo` sai das diferenças, senão o
+    produto iria ao ar sem o estoque na loja. Quem ativa é o "Completar o cadastro". Na aba e no monitor o `ativo` também não
+    conta enquanto o cadastro está incompleto (a faixa do editor já explica).
+  - **Monitor e ícone:** `monitorDaLeitura` põe "Ativo na loja" em `diferentes` (mesma regra) e `alertaDoMonitorLI` perdeu a
+    chave `inativo`; monitor gravado antes disto com `ativo: false` só perde o "!" na próxima rodada do worker.
+- **Rodapé** (`EditorAnuncioLI.jsx`), no desenho da `JanelaBling`: links "Abrir no painel da LI" e "Abrir no site" à esquerda
+  (mesmo estilo do "Abrir no Bling"); à direita **Salvar e fechar** (contornado) e **Sincronizar com a LI / Cadastrar na LI**
+  (azul, a ação principal). Saíram o selo de status ("Na loja"), o "Tudo salvo" e o botão "Salvar" (e com ele o estado
+  `statusAtual` e a prop `status`). "Alterações não salvas" continua à esquerda. Salvar e fechar grava sem chamar o `aoSalvar`
+  (não troca a URL), e fecha: a janela chama `aoFechar`, a página volta para `/canais-de-venda/loja-integrada`; sem alteração só
+  fecha; falha ao gravar deixa o editor aberto com o erro. Quem só pode ver (Acessos) tem o botão "Fechar". A lista de marcas
+  da loja não é mais lida ao abrir o editor.
+- **Testes:** `teste:li-sync` foi de 356 para 390 asserções (liga/desliga no campo, na assinatura, no Cadastrar pausado, no
+  Sincronizar ligando e desligando, na leitura, no cadastro incompleto e no nome e marca do produto); lint limpo.
+- **Visto na tela (PC, servidor de outra sessão, anúncio do 100101):** a aba só com os campos marcados, a marca travada, o
+  interruptor trocando e o "Alterações não salvas" aparecendo, e o rodapé com os dois botões. **Não visto:** o Salvar e fechar
+  clicado (gravaria no banco do PC), um Sincronizar ou Cadastrar de verdade com o interruptor desligado (só contra a LI falsa),
+  e o aviso de hidratação do console (o servidor de outra sessão renderizou o HTML antigo no servidor depois da troca; some ao
+  reiniciar o `next dev`).
+
 ### Primeiro envio real (07/10/2026, produto 100101, com ok do dono)
 
 Travas abertas só no processo de um script (`LI_ESCRITA=true LI_ESCRITA_CODIGOS=100101`), `.env` intocado.

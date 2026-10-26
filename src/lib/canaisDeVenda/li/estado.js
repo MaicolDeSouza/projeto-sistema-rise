@@ -36,7 +36,7 @@ function cadastroIncompleto(anuncioLI) {
 export function iconeLIDoProduto(produto, anuncioLI, { documentos = [] } = {}) {
   const vinculadoAoBling = Boolean(produto?.blingId);
   if (!anuncioLI) return estadoDoIconeLI({ conferido: produto?.conferido, sincronizadoEm: null, vinculadoAoBling });
-  const atual = assinaturaLI(normalizarDoRiseLI(produto, rascunhoDoAnuncio(anuncioLI), { documentos }));
+  const atual = assinaturaLI(normalizarDoRiseLI(produto, rascunhoDoAnuncio(anuncioLI, produto), { documentos }));
   return {
     ...estadoDoIconeLI({
       conferido: produto?.conferido,

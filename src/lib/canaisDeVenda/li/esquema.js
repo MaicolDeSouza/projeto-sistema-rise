@@ -31,6 +31,8 @@ export const RascunhoLISchema = z.object({
   slug: textoAte(LIMITES_LI.slug).default(""),
   marca: textoAte(LIMITES_LI.marca).default(""),
   destaque: z.boolean().default(false),
+  // O liga/desliga "Ativo na loja" (26/10/2026): nasce ligado; o Sincronizar poe a loja igual a ele.
+  ativo: z.boolean().default(true),
   videoUrl: z.preprocess(
     (valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
     z.string().max(LIMITES_LI.videoUrl).nullable().default(null),

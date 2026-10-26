@@ -37,7 +37,7 @@ const { estadoDoIconeLI, iconeLIDoProduto, produtoIdValido } = await import("../
 const { criarLojaIntegradaFalsa } = await import("./lib/lojaIntegradaFalsa.js");
 const { buscarNaLI, lerDetalheDaLI, lerParaPopupLI, listarCategoriasDaLI, listarMarcasDaLI } = await import("../src/lib/canaisDeVenda/li/leitura.js");
 const { cadastrarNaLI, completarCadastroLI, sincronizarProdutoLI } = await import("../src/lib/canaisDeVenda/li/envio.js");
-const { mudouNaLI, resumirEnvioLI, valorParaTela } = await import("../src/lib/canaisDeVenda/li/apresentacao.js");
+const { mudouNaLI, resumirEnvioLI, resumoDasDivergenciasLI, valorParaTela } = await import("../src/lib/canaisDeVenda/li/apresentacao.js");
 const { ROTULO_DO_TIPO_PRODUCAO, STATUS_LI } = await import("../src/lib/canaisDeVenda/li/rotulos.js");
 
 let falhas = 0;
@@ -177,7 +177,7 @@ try {
 
   {
     console.log("\nRegras puras: campos, assinatura e diferencas");
-    conferir("campos de envio, na ordem, sem os fiscais so de leitura", CAMPOS_DE_ENVIO_LI.map((c) => c.id), ["nome", "descricao", "ncm", "gtin", "mpn", "peso", "altura", "largura", "comprimento", "preco", "marca", "categorias", "video", "destaque", "seoTitulo", "seoDescription"]);
+    conferir("campos de envio, na ordem, sem os fiscais so de leitura", CAMPOS_DE_ENVIO_LI.map((c) => c.id), ["nome", "descricao", "ncm", "gtin", "mpn", "peso", "altura", "largura", "comprimento", "preco", "marca", "categorias", "video", "destaque", "seoTitulo", "seoDescription", "ativo"]);
     conferir("campos so de leitura: origem e tipo de producao", CAMPOS_SO_LEITURA_LI.map((c) => c.id), ["origem", "tipoProducao"]);
     conferir("texto do tipo de producao e o medido na LI", TEXTO_DO_TIPO_PRODUCAO, { REVENDA: "Revenda", FABRICACAO_PROPRIA: "Fabricação própria" });
     conferir("tipo de producao da LI pelo texto", [TIPO_PRODUCAO_DA_LI("Revenda"), TIPO_PRODUCAO_DA_LI("Fabricação própria"), TIPO_PRODUCAO_DA_LI("outro"), TIPO_PRODUCAO_DA_LI(null)], ["REVENDA", "FABRICACAO_PROPRIA", null, null]);
@@ -186,10 +186,18 @@ try {
     const rasc = { titulo: " CLP FX3U ", slug: "clp-fx3u", marca: "Mitsubishi", destaque: false, videoUrl: null };
     const rise = normalizarDoRiseLI(produtoRise, rasc, { frases: [], documentos: [] });
     conferir("slug do Rise sai SEMPRE do nome, nao do guardado", normalizarDoRiseLI(produtoRise, { ...rasc, titulo: "Relé 5V", slug: "outro" }, {}).slug, "rele-5v");
-    conferir("rise normalizado", rise, { nome: "CLP FX3U", slug: "clp-fx3u", descricao: "Texto", ncm: "85371020", gtin: "7894972605270", mpn: null, peso: 0.5, altura: 3, largura: 12, comprimento: 7, preco: null, marca: "MITSUBISHI", categorias: ["23983023", "5946305"], video: null, destaque: false, seoTitulo: "t".repeat(70), seoDescription: null, origem: 0, tipoProducao: "REVENDA" });
+    conferir("rise normalizado", rise, { nome: "CLP FX3U", slug: "clp-fx3u", descricao: "Texto", ncm: "85371020", gtin: "7894972605270", mpn: null, peso: 0.5, altura: 3, largura: 12, comprimento: 7, preco: null, marca: "MITSUBISHI", categorias: ["23983023", "5946305"], video: null, destaque: false, ativo: true, seoTitulo: "t".repeat(70), seoDescription: null, origem: 0, tipoProducao: "REVENDA" });
     const produtoLI = { id: 1, nome: "CLP FX3U", apelido: "/clp-fx3u", descricao_completa: "<div>Texto</div>", ncm: "8537.10.20", gtin: "7894972605270", mpn: null, peso: "0.500", altura: 3, largura: 12, profundidade: 7, marca: "/api/v1/marca/16306688", categorias: ["/api/v1/categoria/5946305", "/api/v1/categoria/23983023"], url_video_youtube: null, destaque: false, icms_origin_code: "0", production_type: TEXTO_DO_TIPO_PRODUCAO.REVENDA, seo_title: "", seo_description: "" };
     const li = normalizarDaLI(produtoLI, { title: "t".repeat(70), description: "" }, { marcaNome: "Mitsubishi" });
-    conferir("LI normalizada igual ao Rise", li, rise);
+    // O fixture nao traz `ativo` (a loja de verdade sempre traz): sem o campo nao ha o que comparar, e `diferencasLI` o pula.
+    conferir("LI normalizada igual ao Rise (o ativo do fixture e nulo)", [li, li.ativo], [{ ...rise, ativo: null }, null]);
+    conferir("liga/desliga: loja ativa x Rise ligado nao e diferenca; Rise desligado x loja ativa e", [
+      diferencasLI({ ...rise, ativo: true }, { ...li, ativo: true }).some((d) => d.campo === "ativo"),
+      diferencasLI({ ...rise, ativo: false }, { ...li, ativo: true }).filter((d) => d.campo === "ativo").map((d) => [d.tipo, d.rise, d.li]),
+      diferencasLI({ ...rise, ativo: true }, { ...li, ativo: false }).filter((d) => d.campo === "ativo").map((d) => [d.tipo, d.rise, d.li]),
+      diferencasLI(rise, li).some((d) => d.campo === "ativo"),
+    ], [false, [["diferente", false, true]], [["diferente", true, false]], false]);
+    conferir("liga/desliga fica FORA da assinatura (nenhum produto ja sincronizado ganha o '!')", [assinaturaLI({ ...rise, ativo: true }) === assinaturaLI({ ...rise, ativo: false }), normalizarDoRiseLI(produtoRise, { ...rasc, ativo: false }, {}).ativo, normalizarDoRiseLI(produtoRise, rasc, {}).ativo], [true, false, true]);
     conferir("MPN nunca sai do Modelo do cadastro (nao se aplica aos produtos da loja)", normalizarDoRiseLI({ ...produtoRise, modelo: "UNO R3" }, rasc, {}).mpn, null);
     conferir("MPN preenchido na loja e diferenca: o Rise o quer em branco", diferencasLI({ ...rise, mpn: null }, { ...li, mpn: "UNO R3 SMD CH340" }).filter((d) => d.campo === "mpn").map((d) => d.tipo), ["diferente"]);
     conferir("MPN em branco dos dois lados nao e diferenca", diferencasLI(rise, li).some((d) => d.campo === "mpn"), false);
@@ -247,8 +255,8 @@ try {
     // Categorias e SEO sao do PRODUTO (25/10/2026): este produto ja os tem preenchidos, e o rascunho nao os leva.
     const ctxProd = { id: "p1", sku: "100404", tituloBase: "CLP FX3U 24MR", descricaoBase: "Linha 1\n\nLinha 2", marca: "MITSUBISHI", conferido: true, ncm: "85371020", origem: 0, tipoProducao: "REVENDA", ean: "x", pesoKg: 0.5, alturaCm: 2, larguraCm: 12, comprimentoCm: 6, videoUrl: null, categoriasLI: ["1"], seoTituloLI: "CLP FX3U 24MR", seoDescricaoLI: "Linha 1" };
     const inicial = rascunhoInicialLI(ctxProd);
-    conferir("rascunho inicial", inicial, { produtoId: "p1", titulo: "CLP FX3U 24MR", slug: "clp-fx3u-24mr", marca: "MITSUBISHI", destaque: false, videoUrl: null, imagens: [] });
-    conferir("rascunho inicial de produto sem texto", rascunhoInicialLI({ id: "p2" }), { produtoId: "p2", titulo: "", slug: "", marca: "", destaque: false, videoUrl: null, imagens: [] });
+    conferir("rascunho inicial (o liga/desliga nasce ligado)", inicial, { produtoId: "p1", titulo: "CLP FX3U 24MR", slug: "clp-fx3u-24mr", marca: "MITSUBISHI", destaque: false, ativo: true, videoUrl: null, imagens: [] });
+    conferir("rascunho inicial de produto sem texto", rascunhoInicialLI({ id: "p2" }), { produtoId: "p2", titulo: "", slug: "", marca: "", destaque: false, ativo: true, videoUrl: null, imagens: [] });
     conferir("vinculo traz o destaque da LI; o slug segue o nome; as categorias vao para o produto", rascunhoDaLI(inicial, { slug: "clp-da-li", categorias: ["1", "2"], destaque: true, nome: "Outro" }), { ...inicial, destaque: true });
     conferir("rascunho guardado: slug refeito do titulo", rascunhoDoAnuncio({ produtoId: "p", titulo: "Fonte 12V 5A", dados: { slug: "velho" } }).slug, "fonte-12v-5a");
     conferir("titulo ate 255 (limite medido na LI)", LIMITES_LI.titulo, 255);
@@ -256,7 +264,8 @@ try {
     conferir("esquema descarta chave estranha e aceita o rascunho", [lido.success, "extra" in (lido.data ?? {})], [true, false]);
     conferir("esquema descarta categorias e SEO que a tela mandar (sao do produto)", Object.keys(RascunhoLISchema.parse({ ...inicial, categorias: ["9"], seo: { title: "t", description: "d" } })).filter((chave) => ["categorias", "seo"].includes(chave)), []);
     conferir("esquema recusa titulo acima de 255", RascunhoLISchema.safeParse({ ...inicial, titulo: "x".repeat(256) }).success, false);
-    conferir("esquema completa o que faltar", RascunhoLISchema.parse({ produtoId: "p3" }), { produtoId: "p3", titulo: "", slug: "", marca: "", destaque: false, videoUrl: null, imagens: [] });
+    conferir("esquema completa o que faltar (ativo ligado)", RascunhoLISchema.parse({ produtoId: "p3" }), { produtoId: "p3", titulo: "", slug: "", marca: "", destaque: false, ativo: true, videoUrl: null, imagens: [] });
+    conferir("esquema guarda o ativo desligado", RascunhoLISchema.parse({ produtoId: "p3", ativo: false }).ativo, false);
     conferir("rascunho inicial leva as fotos do produto, a principal na frente", rascunhoInicialLI(ctxProd, { fotos: [{ id: "f2", principal: false }, { id: "f1", principal: true }] }).imagens, ["f1", "f2"]);
     conferir("fotos escolhidas nao mudam a assinatura (o envio de foto espera a VPS)", assinaturaLI(normalizarDoRiseLI(ctxProd, { ...inicial, imagens: ["f1"] }, {})), assinaturaLI(normalizarDoRiseLI(ctxProd, inicial, {})));
     conferir("ABAS_LI na ordem do dono", ABAS_LI.map((a) => a.id), ["geral", "imagens", "descricao", "categorias", "envio", "fiscal", "seo", "previa"]);
@@ -306,7 +315,9 @@ try {
       conferir("segundo salvar sem id atualiza o mesmo anuncio (um por produto)", deNovo.id, salvo.id);
       const carregado = await carregarAnuncioLI(salvo.id);
       // Categorias e SEO sao do PRODUTO (25/10/2026): o contexto do editor os traz do cadastro e o que a tela mandar a mais e descartado.
-      conferir("carrega titulo da coluna; categorias e SEO vem do produto", [carregado.rascunho.titulo, carregado.contexto.produto.categoriasLI, [carregado.contexto.produto.seoTituloLI, carregado.contexto.produto.seoDescricaoLI], carregado.vinculo.idExterno], ["Fonte 12V 5A", ["10", "20"], ["T", "D"], null]);
+      // O NOME e a MARCA do anuncio sao os do produto (26/10/2026: a aba nao edita o nome e so mostra a marca), e nao a coluna.
+      conferir("carrega o nome do produto (nao a coluna); categorias e SEO vem do produto", [carregado.rascunho.titulo, carregado.contexto.produto.categoriasLI, [carregado.contexto.produto.seoTituloLI, carregado.contexto.produto.seoDescricaoLI], carregado.vinculo.idExterno], ["Fonte 12V", ["10", "20"], ["T", "D"], null]);
+      conferir("o liga/desliga nasce ligado e a marca e a do produto", [carregado.rascunho.ativo, carregado.rascunho.marca === (carregado.contexto.produto.marca ?? "")], [true, true]);
       const dadosSalvos = (await prisma.anuncio.findUnique({ where: { id: salvo.id } })).dados;
       conferir("o anuncio nao guarda categorias nem SEO", ["categorias" in dadosSalvos, "seo" in dadosSalvos], [false, false]);
       conferir("carregar id inexistente ou vazio", [(await carregarAnuncioLI("x")).ok, (await carregarAnuncioLI("")).ok], [false, false]);
@@ -315,7 +326,7 @@ try {
       conferir("salvar guarda o slug do titulo, nao o que a tela mandou", (await prisma.anuncio.findUnique({ where: { id: salvo.id } })).dados.slug, "fonte-12v-5a");
       await vincularPeloSku(p.id, { idItemExterno: "401", url: "https://loja/x", ativo: true, slug: "fonte-da-li", categorias: ["30"], destaque: true });
       const vinculado = await carregarAnuncioLI(salvo.id);
-      conferir("vinculo grava idExterno, url, ATIVA e traz o destaque da LI (slug do nome); as categorias do produto ficam", [vinculado.vinculo.idExterno, vinculado.vinculo.situacaoCanal, vinculado.rascunho.slug, vinculado.contexto.produto.categoriasLI, vinculado.rascunho.destaque, vinculado.rascunho.titulo], ["401", "ATIVA", "fonte-12v-5a", ["10", "20"], true, "Fonte 12V 5A"]);
+      conferir("vinculo grava idExterno, url, ATIVA e traz o destaque da LI (slug do nome); as categorias do produto ficam", [vinculado.vinculo.idExterno, vinculado.vinculo.situacaoCanal, vinculado.rascunho.slug, vinculado.contexto.produto.categoriasLI, vinculado.rascunho.destaque, vinculado.rascunho.titulo], ["401", "ATIVA", "fonte-12v", ["10", "20"], true, "Fonte 12V"]);
       conferir("vinculo deixa o anuncio PUBLICADO", vinculado.status, "PUBLICADO");
       conferir("urlLojaIntegrada preenchida pelo vinculo", (await prisma.produto.findUnique({ where: { id: p.id } })).urlLojaIntegrada, "https://loja/x");
       conferir("anuncio vinculado continua editavel", (await salvarRascunhoLI(salvo.id, { ...vinculado.rascunho, titulo: "Fonte 12V 5A bivolt" })).ok, true);
@@ -509,8 +520,8 @@ try {
     conferir("depois do envio, sem Bling: cinza e sem selo", iconeLIDoProduto(await prisma.produto.findUnique({ where: { id: pe.id } }), await anuncioLIDoProduto(pe.id), { documentos: [] }), { cor: "cinza", divergente: false, conferido: true, semBling: true });
     conferir("depois do envio, com Bling: verde e sem selo", iconeLIDoProduto({ ...(await prisma.produto.findUnique({ where: { id: pe.id } })), blingId: "1" }, await anuncioLIDoProduto(pe.id), { documentos: [] }), { cor: "verde", divergente: false, conferido: true, semBling: false });
     // URL: produto que ja esta na loja nunca muda de URL (decisao do dono em 07/10/2026), nem com nome novo.
-    const comSlug = await anuncioLIDoProduto(pe.id);
-    await salvarRascunhoLI(comSlug.id, { ...rascunhoDoAnuncio(comSlug), titulo: "Modulo Rele 5V", slug: "ignorado" });
+    // O nome do anuncio e o do produto (26/10/2026): o nome novo nasce no cadastro do produto.
+    await prisma.produto.update({ where: { id: pe.id }, data: { tituloBase: "Modulo Rele 5V" } });
     const envioSlug = await sincronizarProdutoLI(pe.id, li3);
     conferir("nome novo vai so como nome: a URL da loja fica a mesma", [envioSlug.alterados.map((a) => a.campo).sort(), li3.produtos().find((p) => p.id === 601).apelido, li3.chamadas.some((c) => String(c.caminho).includes("/alias"))], [["nome"], "/rele", false]);
     // Falha depois da trava: ERRO, etapa e assinatura intacta.
@@ -556,9 +567,13 @@ try {
       const { resumoDasDivergenciasLI } = await import("../src/lib/canaisDeVenda/li/apresentacao.js");
       const lida = { ok: true, situacao: "existe", diferencas: [], fiscais: [], ativoNaLI: true, cadastroFalhou: null };
       conferir("divergencias: loja igual, nada", resumoDasDivergenciasLI(lida).total, 0);
-      conferir("divergencias: origem e tipo vazios na loja abrem a aba", resumoDasDivergenciasLI({ ...lida, fiscais: [{ campo: "origem" }, { campo: "tipoProducao" }] }), { diferentes: 0, fiscais: 2, inativo: false, total: 2 });
-      conferir("divergencias: produto inativo abre a aba", resumoDasDivergenciasLI({ ...lida, ativoNaLI: false }).total, 1);
-      conferir("divergencias: inativo com o cadastro automatico falho nao conta (a faixa ja explica)", resumoDasDivergenciasLI({ ...lida, ativoNaLI: false, cadastroFalhou: { etapa: "estoque" } }).total, 0);
+      conferir("divergencias: origem e tipo vazios na loja abrem a aba", resumoDasDivergenciasLI({ ...lida, fiscais: [{ campo: "origem" }, { campo: "tipoProducao" }] }), { diferentes: 0, fiscais: 2, total: 2 });
+      // Desde 26/10/2026 o inativo na loja e o campo "Ativo na loja" contra o liga/desliga do Rise, e nao mais um aviso a parte.
+      const ativoDiferente = [{ campo: "ativo", rotulo: "Ativo na loja", tipo: "diferente", rise: true, li: false }];
+      conferir("divergencias: loja inativa com o Rise ligado abre a aba", resumoDasDivergenciasLI({ ...lida, ativoNaLI: false, diferencas: ativoDiferente }).total, 1);
+      conferir("divergencias: loja inativa com o Rise desligado (de proposito) nao acusa nada", resumoDasDivergenciasLI({ ...lida, ativoNaLI: false, diferencas: [] }).total, 0);
+      conferir("divergencias: ativo diferente com o cadastro automatico falho nao conta (a faixa ja explica)", resumoDasDivergenciasLI({ ...lida, ativoNaLI: false, diferencas: ativoDiferente, cadastroFalhou: { etapa: "estoque" } }).total, 0);
+      conferir("valor do campo ativo na tela", [valorParaTela("ativo", true), valorParaTela("ativo", false)], ["Ativo", "Inativo"]);
       conferir("divergencias: campo diferente e fotos continuam contando", resumoDasDivergenciasLI({ ...lida, diferencas: [{ tipo: "diferente" }, { tipo: "vazioNoRise" }], fotos: { estado: "faltam" } }).diferentes, 2);
       conferir("divergencias: produto fora da loja ou leitura com erro, nada", [resumoDasDivergenciasLI({ ...lida, situacao: "nao_existe", fiscais: [{}] }).total, resumoDasDivergenciasLI({ ok: false }).total], [0, 0]);
     }
@@ -602,12 +617,8 @@ try {
       });
     const pp = await prisma.produto.create({ data: { sku: "ZZ-LI-15", tituloBase: "Placa", ncm: "85364900", conferido: true } });
     const marcarNoRise = async (categorias, nome) => {
-      // Categorias e SEO sao do PRODUTO (25/10/2026); o SEO (title e description) e obrigatorio para sincronizar. O nome e do rascunho.
-      await prisma.produto.update({ where: { id: pp.id }, data: { categoriasLI: categorias, seoTituloLI: "Placa", seoDescricaoLI: "Descricao da placa" } });
-      if (nome) {
-        const an = await anuncioLIDoProduto(pp.id);
-        await salvarRascunhoLI(an.id, { ...rascunhoDoAnuncio(an), titulo: nome });
-      }
+      // Categorias, SEO (title e description, obrigatorio para sincronizar) e o NOME (26/10/2026) sao do PRODUTO.
+      await prisma.produto.update({ where: { id: pp.id }, data: { categoriasLI: categorias, seoTituloLI: "Placa", seoDescricaoLI: "Descricao da placa", ...(nome ? { tituloBase: nome } : {}) } });
     };
     const diferencaDeCategorias = async (cliente) => (await lerParaPopupLI(pp.id, cliente)).diferencas.find((d) => d.campo === "categorias");
 
@@ -1005,6 +1016,51 @@ try {
 
     const p4 = await novo("ZZ-LI-33");
     conferir("completar sem estar na LI: recusa", (await completarCadastroLI(p4.id, criarLojaIntegradaFalsa({}), criarBlingDaLI())).ok, false);
+
+    // O liga/desliga "Ativo na loja" (26/10/2026): desligado, o cadastro termina com o produto pausado, de proposito.
+    console.log("\nLiga/desliga Ativo na loja: cadastrar, sincronizar e o '!'");
+    const p5 = await novo("ZZ-LI-34");
+    const rascunhoDeP5 = (await novoRascunhoLI(p5.id)).rascunho;
+    await salvarRascunhoLI(null, { ...rascunhoDeP5, ativo: false });
+    const li5 = criarLojaIntegradaFalsa({});
+    const b5 = criarBlingDaLI({ saldo: 3 });
+    const pausado = await cadastrarNaLI(p5.id, li5, b5);
+    const an5 = await anuncioLIDoProduto(p5.id);
+    conferir("cadastrar com o Ativo desligado: sem a etapa ativar, nenhum PUT do produto, loja inativa", [pausado.ok, pausado.etapas, pausado.ativo, li5.produtos().at(-1).ativo, chamadaDe(li5, "PUT", `/produto/${pausado.idExterno}`)], [true, ["criar", "ligar_bling", "estoque", "gravar"], false, false, -1]);
+    conferir("cadastrar com o Ativo desligado: vinculo e estoque no lugar, anuncio PAUSADA sem cadastro pendente", [Object.values(b5.vinculos).flat().length, estoqueNaLI(li5), an5.situacaoCanal, an5.dados?.cadastroLI ?? null, an5.dados?.ativo], [1, [true, 3, -1], "PAUSADA", null, false]);
+    conferir("resumo do cadastro pausado diz que ficou pausado", resumirEnvioLI("cadastrar", pausado).titulo, "Produto cadastrado na Loja Integrada, pausado (Ativo na loja desligado).");
+    conferir("resumo do cadastro de sempre continua dizendo ativo", resumirEnvioLI("cadastrar", { ...pausado, ativo: true }).titulo, "Produto cadastrado e ativo na Loja Integrada.");
+    const semMudanca = await sincronizarProdutoLI(p5.id, li5);
+    conferir("sincronizar com o Ativo desligado e a loja inativa: nada para enviar", [semMudanca.ok, semMudanca.alterados.map((a) => a.campo), li5.produtos().at(-1).ativo], [true, [], false]);
+    const leituraPausada = await lerParaPopupLI(p5.id, li5);
+    conferir("a leitura nao acusa o produto pausado de proposito", [leituraPausada.diferencas.some((d) => d.campo === "ativo"), resumoDasDivergenciasLI(leituraPausada).diferentes], [false, 0]);
+    // Liga: o Sincronizar ativa a loja.
+    await salvarRascunhoLI(an5.id, { ...rascunhoDoAnuncio(an5, p5), ativo: true });
+    const ligar = await sincronizarProdutoLI(p5.id, li5);
+    const an5b = await anuncioLIDoProduto(p5.id);
+    conferir("ligar o Ativo e sincronizar: a loja fica ativa, o campo vai no envio e a situacao vira ATIVA", [ligar.ok, ligar.alterados.map((a) => [a.campo, a.de, a.para]), li5.produtos().at(-1).ativo, an5b.situacaoCanal], [true, [["ativo", false, true]], true, "ATIVA"]);
+    conferir("ligar o Ativo: o resto do produto da loja ficou como estava", [li5.produtos().at(-1).estoque_gerenciado, li5.produtos().at(-1).estoque_quantidade], [true, 3]);
+    // Desliga: o Sincronizar pausa a loja, e o icone nao ganha "!" por isso.
+    await salvarRascunhoLI(an5.id, { ...rascunhoDoAnuncio(an5b, p5), ativo: false });
+    const desligar = await sincronizarProdutoLI(p5.id, li5);
+    const an5c = await anuncioLIDoProduto(p5.id);
+    conferir("desligar o Ativo e sincronizar: a loja pausa e a situacao vira PAUSADA", [desligar.ok, desligar.alterados.map((a) => [a.campo, a.de, a.para]), li5.produtos().at(-1).ativo, an5c.situacaoCanal], [true, [["ativo", true, false]], false, "PAUSADA"]);
+    const iconePausado = iconeLIDoProduto({ ...(await prisma.produto.findUnique({ where: { id: p5.id } })), blingId: "1" }, an5c, { documentos: [] });
+    conferir("desligar de proposito nao acende o '!' do icone (assinatura sem o ativo; sem monitor ainda)", [iconePausado.divergente, iconePausado.alertaNaLoja ?? false], [false, false]);
+    // O Rise quer ligado e a loja esta pausada (alguem pausou no painel): diferenca de verdade, e o Sincronizar liga de novo.
+    await salvarRascunhoLI(an5.id, { ...rascunhoDoAnuncio(an5c, p5), ativo: true });
+    const pausadoNoPainel = await lerParaPopupLI(p5.id, li5);
+    conferir("Rise ligado e loja pausada: o campo Ativo na loja aparece como diferente e conta na aba", [pausadoNoPainel.diferencas.filter((d) => d.campo === "ativo").map((d) => [d.rise, d.li]), resumoDasDivergenciasLI(pausadoNoPainel).diferentes], [[[true, false]], 1]);
+    // Anuncio de antes do liga/desliga (sem `dados.ativo`): abre como a ultima situacao conhecida da loja.
+    conferir("rascunho de antes: sem dados.ativo vale a situacao da loja (PAUSADA desliga, o resto liga)", [rascunhoDoAnuncio({ produtoId: "p", titulo: "x", dados: {}, situacaoCanal: "PAUSADA" }).ativo, rascunhoDoAnuncio({ produtoId: "p", titulo: "x", dados: {}, situacaoCanal: "ATIVA" }).ativo, rascunhoDoAnuncio({ produtoId: "p", titulo: "x", dados: {}, situacaoCanal: null }).ativo, rascunhoDoAnuncio({ produtoId: "p", titulo: "x", dados: { ativo: true }, situacaoCanal: "PAUSADA" }).ativo], [false, true, true, true]);
+    conferir("nome e marca do anuncio sao os do produto, mesmo com outros guardados", [rascunhoDoAnuncio({ produtoId: "p", titulo: "Guardado", dados: { marca: "VELHA" } }, { tituloBase: "Do produto", marca: "NOVA" }).titulo, rascunhoDoAnuncio({ produtoId: "p", titulo: "Guardado", dados: { marca: "VELHA" } }, { tituloBase: "Do produto", marca: "NOVA" }).marca, rascunhoDoAnuncio({ produtoId: "p", titulo: "Guardado", dados: { marca: "VELHA" } }, { tituloBase: "Do produto", marca: "" }).marca], ["Do produto", "NOVA", "VELHA"]);
+
+    // Cadastro que parou no meio: o Sincronizar nao ativa (iria ao ar sem o estoque na loja); quem ativa e o Completar.
+    const p6 = await novo("ZZ-LI-35");
+    const li6 = criarLojaIntegradaFalsa({});
+    const parou = await cadastrarNaLI(p6.id, li6, criarBlingDaLI({ saldoAusente: true }));
+    const sincDoIncompleto = await sincronizarProdutoLI(p6.id, li6);
+    conferir("cadastro incompleto: o Sincronizar nao ativa o produto", [parou.etapa, sincDoIncompleto.alterados.some((a) => a.campo === "ativo"), li6.produtos().at(-1).ativo], ["estoque", false, false]);
   }
 
   {
@@ -1038,7 +1094,7 @@ try {
     mudarNaLoja({ nome: "Monitor da loja", ativo: false });
     await rodar("2026-10-25T12:00:00Z");
     const i3 = await icone();
-    conferir("monitor: inativo na loja acende o '!' e a situacao vira PAUSADA", [(await monitor()).ativo, i3.alertaNaLoja, (await prisma.anuncio.findUnique({ where: { id: an.id } })).situacaoCanal, texto(i3)], [false, true, "PAUSADA", "inativo na loja"]);
+    conferir("monitor: inativo na loja acende o '!' e a situacao vira PAUSADA", [(await monitor()).ativo, i3.alertaNaLoja, (await prisma.anuncio.findUnique({ where: { id: an.id } })).situacaoCanal, texto(i3)], [false, true, "PAUSADA", "diferente na loja: Ativo na loja"]);
     mudarNaLoja({ ativo: true });
 
     mudarNaLoja({ estoque_quantidade: 3 });

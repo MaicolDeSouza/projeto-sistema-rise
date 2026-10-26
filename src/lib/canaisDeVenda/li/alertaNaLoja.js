@@ -6,7 +6,8 @@ import { LEITURAS_PARA_DIVERGIR } from "../ml/estadoNoML";
  * leem daqui. O "!" do Rise que mudou desde o ultimo envio (a assinatura) continua em `estado.js`.
  *
  * Acende com: campo diferente na loja (os mesmos da aba Divergencias), origem ou tipo de producao vazios ou diferentes
- * (so pelo painel da LI), produto inativo, na lixeira, sumido ou duplicado na loja, e o estoque da loja diferente do
+ * (so pelo painel da LI), produto na lixeira, sumido ou duplicado na loja, o "Ativo na loja" diferente do Rise (entra em
+ * `diferentes`) e o estoque da loja diferente do
  * saldo do Bling em 2 leituras seguidas.
  */
 
@@ -20,12 +21,13 @@ export function alertaDoMonitorLI(monitor) {
   const diferentes = Array.isArray(monitor.diferentes) ? monitor.diferentes : [];
   const fiscais = Array.isArray(monitor.fiscais) ? monitor.fiscais : [];
   const fora = FORA_DA_LOJA[monitor.situacao] ?? null;
-  const inativo = monitor.situacao === "existe" && monitor.ativo === false;
+  // Produto inativo na loja so acusa quando o Rise o quer ativo: o "Ativo na loja" entra em `diferentes` (26/10/2026), e quem
+  // desligou o liga/desliga de proposito nao ganha "!".
   const estoque = (monitor.estoqueDiferenteSeguidas ?? 0) >= LEITURAS_PARA_DIVERGIR ? { loja: monitor.estoque, bling: monitor.estoqueBling } : null;
   return {
-    alertaNaLoja: Boolean(fora || inativo || estoque || diferentes.length > 0 || fiscais.length > 0),
+    alertaNaLoja: Boolean(fora || estoque || diferentes.length > 0 || fiscais.length > 0),
     estoqueDivergenteNaLoja: Boolean(estoque),
-    naLoja: { diferentes, fiscais, fora, inativo, estoque },
+    naLoja: { diferentes, fiscais, fora, estoque },
   };
 }
 
@@ -35,7 +37,6 @@ export function textosDoAlertaNaLoja(estado) {
   if (!naLoja) return [];
   const textos = [];
   if (naLoja.fora) textos.push(naLoja.fora);
-  if (naLoja.inativo) textos.push("inativo na loja");
   if (naLoja.diferentes?.length) textos.push(`diferente na loja: ${lista(naLoja.diferentes)}`);
   if (naLoja.fiscais?.length) {
     const itens = naLoja.fiscais.map((aviso) => `${aviso.rotulo} ${aviso.tipo === "vazioNaLI" ? "sem valor" : "diferente"}`);

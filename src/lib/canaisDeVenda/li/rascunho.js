@@ -4,7 +4,9 @@ import { slugDe } from "./slug";
  * O rascunho do anuncio da Loja Integrada, guardado em `Anuncio.dados` (canal LOJA_INTEGRADA,
  * um por produto). Sem imports de servidor: o editor o usa.
  *
- * Forma: { produtoId, titulo, slug (sempre slugDe(titulo), decisao do dono em 07/10/2026), marca, destaque, videoUrl, imagens }.
+ * Forma: { produtoId, titulo, slug (sempre slugDe(titulo), decisao do dono em 07/10/2026), marca, destaque, ativo, videoUrl, imagens }.
+ * O nome e a marca sao SEMPRE os do produto (`rascunhoDoAnuncio` em `banco.js`; pedido do dono em 26/10/2026: a aba so mostra a
+ * marca e nao tem mais o campo "Nome na loja"); o que o anuncio decide e destaque, ativo (liga/desliga na loja) e video.
  * A descricao, as categorias (ids da LI em texto) e o SEO (Tag Title e Meta Description) NAO sao do anuncio: vem sempre do
  * cadastro do PRODUTO (pedidos do dono em 07/10 e 25/10/2026). A marca e o NOME (a URI e achada no envio).
  */
@@ -23,6 +25,7 @@ export function rascunhoInicialLI(produto, { fotos = [] } = {}) {
     slug: slugDe(titulo),
     marca: texto(p.marca).trim(),
     destaque: false,
+    ativo: true,
     videoUrl: p.videoUrl ?? null,
     imagens,
   };
@@ -39,5 +42,7 @@ export function rascunhoDaLI(rascunho, produtoLINormalizado) {
     ...rascunho,
     slug: slugDe(rascunho.titulo),
     destaque: Boolean(li.destaque),
+    // Produto que ja esta na loja: o liga/desliga abre como a loja esta (quem pausou la nao e reativado sem querer).
+    ativo: typeof li.ativo === "boolean" ? li.ativo : rascunho.ativo !== false,
   };
 }

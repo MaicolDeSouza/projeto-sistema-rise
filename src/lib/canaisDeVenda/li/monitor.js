@@ -29,7 +29,11 @@ const mesmoMonitor = (a, b) => Boolean(a) && CHAVES.every((chave) => JSON.string
  * (o "so tem na loja" nao conta, como no editor) e "Fotos" quando a loja nao tem as do Rise.
  */
 export function monitorDaLeitura(leitura, { blingSaldo = null, anterior = null, agora = new Date(), manterConfirmacao = false } = {}) {
-  const diferentes = (leitura?.diferencas ?? []).filter((item) => item.tipo === "diferente").map((item) => item.rotulo);
+  // O "Ativo na loja" tambem: produto ligado no Rise e pausado na loja (ou o contrario) e diferenca. Cadastro automatico falho
+  // fica de fora (a faixa do editor explica, e o Sincronizar nao ativa).
+  const diferentes = (leitura?.diferencas ?? [])
+    .filter((item) => item.tipo === "diferente" && !(leitura?.cadastroFalhou && item.campo === "ativo"))
+    .map((item) => item.rotulo);
   if (["faltam", "diferentes"].includes(leitura?.fotos?.estado)) diferentes.push("Fotos");
   const estoque = leitura?.estoqueNaLI?.gerenciado ? leitura.estoqueNaLI.quantidade : null;
   const estoqueBling = typeof blingSaldo === "number" ? Math.max(0, blingSaldo) : null;

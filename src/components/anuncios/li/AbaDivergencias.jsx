@@ -60,10 +60,10 @@ export default function AbaDivergencias({ leitura, lerLoja, lendo, linkDoPainel 
   const iguais = leitura?.iguais ?? 0;
   const fotos = leitura?.fotos ?? null;
   const fotosMudam = ["diferentes", "faltam"].includes(fotos?.estado);
-  // Os motivos do "!" do icone: campos que o Sincronizar corrige, e o que so o painel da LI corrige (origem e tipo de
-  // producao, produto inativo). A aba abre com qualquer um deles (`resumoDasDivergenciasLI`).
-  const { diferentes, fiscais, inativo } = resumoDasDivergenciasLI(leitura);
-  const soNoPainel = fiscais + (inativo ? 1 : 0);
+  // Os motivos do "!" do icone: campos que o Sincronizar corrige (o "Ativo na loja" inclusive), e o que so o painel da LI
+  // corrige (origem e tipo de producao). A aba abre com qualquer um deles (`resumoDasDivergenciasLI`).
+  const { diferentes, fiscais } = resumoDasDivergenciasLI(leitura);
+  const soNoPainel = fiscais;
 
   return (
     <div className="space-y-4">
@@ -108,9 +108,8 @@ export default function AbaDivergencias({ leitura, lerLoja, lendo, linkDoPainel 
       </ul>
       {iguais > 0 && diferentes > 0 && <p className="text-xs text-suave">{iguais} campo(s) igual(is) no Rise e na loja.</p>}
 
-      {(avisos.length > 0 || inativo) && (
+      {avisos.length > 0 && (
         <ul className="space-y-1 rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-          {inativo && <li>O produto está inativo na Loja Integrada: ele não aparece para o cliente. Ative no painel da LI quando for vender.</li>}
           {avisos.map((aviso, indice) => (
             <li key={`${indice}-${aviso}`}>{aviso}</li>
           ))}

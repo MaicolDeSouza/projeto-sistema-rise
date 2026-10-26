@@ -232,7 +232,7 @@ export async function lerParaPopupLI(produtoId, cliente = clienteLI()) {
     }
 
     const documentos = await documentosDoProduto(produto);
-    const rascunho = rascunhoDoAnuncio(anuncio);
+    const rascunho = rascunhoDoAnuncio(anuncio, produto);
     const rise = normalizarDoRiseLI(produto, rascunho, { documentos });
     // As fotos nao entram em `diferencas` (nao sao campo do PUT): o resumo diz o que o Sincronizar faria com elas.
     const fotosDoCadastro = await fotosDoProduto(produto);

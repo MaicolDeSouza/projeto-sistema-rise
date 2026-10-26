@@ -5,14 +5,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { useRouter } from "next/navigation";
 import { CircleCheck, ExternalLink, Loader, X } from "lucide-react";
 
-import { abrirAnuncioLI, listarCategoriasLI, listarMarcasLI, salvarAnuncioLI, vinculoBlingLI } from "@/app/canais-de-venda/loja-integrada/acoes";
+import { abrirAnuncioLI, listarCategoriasLI, salvarAnuncioLI, vinculoBlingLI } from "@/app/canais-de-venda/loja-integrada/acoes";
 import { abrirJanelaLI, cadastrarProdutoNaLI, completarCadastroNaLI, confirmarAjusteFiscalNaLI, sincronizarComLI } from "@/app/produtos/acoes-li";
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
-import Badge from "@/components/ui/Badge";
 import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
 import { mudouNaLI, resumirEnvioLI, resumoDasDivergenciasLI } from "@/lib/canaisDeVenda/li/apresentacao";
 import { ROTULO_DA_ETAPA_LI, faltaNoCadastroLI, ofereceCompletar } from "@/lib/canaisDeVenda/li/etapasCadastro";
-import { STATUS_LI } from "@/lib/canaisDeVenda/li/rotulos";
 import { ABAS_LI, validarRascunhoLI } from "@/lib/canaisDeVenda/li/validacao";
 import AbaCategorias from "./AbaCategorias";
 import AbaDescricao from "./AbaDescricao";
@@ -61,8 +59,9 @@ async function chamarEnvio(acao, produtoId) {
 
 /** Diferenca de verdade (o selo do icone): "so tem na loja" nao e divergencia, vazio nunca apaga. */
 // As fotos contam como uma divergencia quando o Sincronizar mudaria as da loja (`resumoDasFotosLI`).
-// Desde 25/10/2026 conta tambem o que so o painel da LI corrige (origem e tipo de producao) e o produto inativo: o "!" do
-// icone acusa esses motivos, e a aba tem de mostra-los (`resumoDasDivergenciasLI`).
+// Desde 25/10/2026 conta tambem o que so o painel da LI corrige (origem e tipo de producao); e desde 26/10/2026 o "Ativo na
+// loja" diferente do Rise entra como campo: o "!" do icone acusa esses motivos, e a aba tem de mostra-los
+// (`resumoDasDivergenciasLI`).
 const divergenciasDe = (leitura) => resumoDasDivergenciasLI(leitura).total;
 
 /**
@@ -79,21 +78,20 @@ const divergenciasDe = (leitura) => resumoDasDivergenciasLI(leitura).total;
  * - "Editar produto" (Descricao, Fiscal, Envio) abre o cadastro na mesma aba e, com alteracao nao
  *   salva, pergunta antes.
  *
- * Tambem le as marcas e as categorias da loja (sugestoes e a validacao de categoria que sumiu).
+ * Tambem le as categorias da loja (a validacao de categoria que sumiu).
  * Falha em qualquer leitura nao impede editar nem salvar.
  */
 /// Sem `acessos` o editor e o de sempre, sem restricao. O calculo de verdade e `acessosDoEditorLI`
 /// (src/lib/acessos/projecoes.js), feito no servidor (paginas e acoes de abrir).
 const ACESSO_TOTAL_LI = { editar: true, sincronizar: true, concorrentes: true };
 
-export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoInicial, status, vinculo, modo = "pagina", aoSalvar, aoFechar, acessos = ACESSO_TOTAL_LI }) {
+export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoInicial, vinculo, modo = "pagina", aoSalvar, aoFechar, acessos = ACESSO_TOTAL_LI }) {
   const router = useRouter();
   const [rascunho, setRascunho] = useState(rascunhoInicial);
   const [contexto, setContexto] = useState(contextoInicial);
   const [aba, setAba] = useState(ABAS_LI[0].id);
   const [mensagem, setMensagem] = useState(null);
   const [idAtual, setIdAtual] = useState(anuncioId ?? null);
-  const [statusAtual, setStatusAtual] = useState(status);
   const [vinculoAtual, setVinculoAtual] = useState(vinculo ?? null);
   const [salvo, setSalvo] = useState(rascunhoInicial);
   const [leitura, setLeitura] = useState(null);
@@ -171,7 +169,6 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
         setRascunho(aberto.rascunho);
         setSalvo(aberto.rascunho);
         setIdAtual(aberto.anuncioId);
-        setStatusAtual(aberto.status);
         setVinculoAtual(aberto.vinculo);
       }
     }
@@ -181,14 +178,8 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
   useEffect(() => {
     montado.current = true;
     (async () => {
-      await Promise.all([
-        lerLoja(),
-        (async () => {
-          await recarregarCategorias();
-          const marcas = await chamar(listarMarcasLI);
-          if (montado.current && marcas.ok) setContexto((atual) => ({ ...atual, marcasDaLI: marcas.marcas }));
-        })(),
-      ]);
+      // A lista de marcas da loja saiu daqui (26/10/2026): a marca e so leitura e o Sincronizar a acha ou a cria.
+      await Promise.all([lerLoja(), recarregarCategorias()]);
     })();
     return () => {
       montado.current = false;
@@ -250,12 +241,20 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
     return resultado.id;
   }
 
-  function salvar() {
+  /** Sai do editor: a janela se fecha; a pagina volta para a lista de anuncios da LI. */
+  function fechar() {
+    if (janela) aoFechar?.();
+    else router.push("/canais-de-venda/loja-integrada");
+  }
+
+  /** "Salvar e fechar" (26/10/2026): grava e fecha; sem alteracao, so fecha. Falha ao gravar deixa o editor aberto com o erro. */
+  function salvarEFechar() {
     setMensagem(null);
     setQual("salvar");
     iniciarTrabalho(async () => {
-      if (await gravar()) setMensagem({ tipo: "ok", texto: "Rascunho salvo." });
+      const pronto = !alterado && idAtual !== null ? true : Boolean(await gravar({ avisar: false }));
       setQual(null);
+      if (pronto) fechar();
     });
   }
 
@@ -275,9 +274,6 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
       setEnvio(resumo ? { ok: false, titulo: resumo.titulo, linhas: resumo.linhas } : null);
     }
     if (!resultado.ok) setMensagem({ tipo: "erro", texto: resultado.erro ?? "O envio não foi concluído." });
-    if (resultado.ok) {
-      setStatusAtual("PUBLICADO");
-    }
     if (mudouNaLI(tipo, resultado)) {
       setQual("lendo");
       await lerLoja();
@@ -347,7 +343,6 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
     abrirProduto,
     acessos,
   };
-  const rotuloDoStatus = STATUS_LI[statusAtual] ?? (idAtual ? STATUS_LI.RASCUNHO : { rotulo: "Novo", tom: "neutro" });
 
   // Produto sem o canal da LI no Bling: aviso no topo (estoque e pedidos nao passam). Ligado, so na Previa.
   const estadoDoBling = situacaoDoBling(bling);
@@ -498,12 +493,13 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
   // e com endereco http(s) completo; sem o dominio da loja (LI_DOMINIO) a URL gravada e so o caminho e o botao nao nasce.
   const linkDoSite = vinculoAtual?.idExterno && /^https?:\/\//i.test(String(vinculoAtual.urlExterna ?? "")) ? vinculoAtual.urlExterna : null;
 
+  // O rodape no padrao da janela do Bling (pedido do dono em 26/10/2026): os links a esquerda; "Salvar e fechar" (contornado) e o
+  // envio (azul, a acao principal) a direita. Saiu o selo "Na loja" e o "Tudo salvo": o estado aparece no ícone e na aba Previa.
   const rodape = (
-    <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-      <div className="flex items-center gap-2 text-xs">
-        <Badge tom={rotuloDoStatus.tom}>{rotuloDoStatus.rotulo}</Badge>
-        {alterado ? <span className="text-amber-700">Alterações não salvas</span> : idAtual && <span className="text-suave">Tudo salvo</span>}
-        {somenteLeitura && <span className="text-suave">Seu acesso a este canal é de leitura.</span>}
+    <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3 text-sm">
+        {alterado && <span className="text-xs text-amber-700">Alterações não salvas</span>}
+        {somenteLeitura && <span className="text-xs text-suave">Seu acesso a este canal é de leitura.</span>}
         {/* O produto no painel da LI, em outra aba (pedido do dono em 24/10/2026): so com o produto ja na loja. */}
         {linkDoPainel && (
           <a
@@ -511,9 +507,9 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
             target="_blank"
             rel="noreferrer"
             title="Abre o produto no painel de controle da Loja Integrada"
-            className="inline-flex items-center gap-1 rounded border border-borda px-2.5 py-1 font-medium text-acento hover:bg-fundo"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-borda px-3.5 py-2 font-medium text-acento hover:bg-fundo"
           >
-            Abrir no painel da LI <ExternalLink size={12} />
+            Abrir no painel da LI <ExternalLink size={14} />
           </a>
         )}
         {linkDoSite && (
@@ -522,35 +518,34 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
             target="_blank"
             rel="noreferrer"
             title="Abre a página do produto no site da loja (produto pausado ainda não aparece para o cliente)"
-            className="inline-flex items-center gap-1 rounded border border-borda px-2.5 py-1 font-medium text-acento hover:bg-fundo"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-borda px-3.5 py-2 font-medium text-acento hover:bg-fundo"
           >
-            Abrir no site <ExternalLink size={12} />
+            Abrir no site <ExternalLink size={14} />
           </a>
         )}
       </div>
       <div className="flex items-center gap-2">
-        {acessos.sincronizar && (
+        {/* Sem permissao de editar nao ha o que salvar: o botao e so "Fechar". */}
         <button
           type="button"
-          onClick={pedirEnvio}
-          disabled={ocupado || (lendo && !leitura) || !produtoId}
-          title={leitura?.ok && leitura.escrita?.liberada === false ? leitura.escrita.motivo : undefined}
-          className="inline-flex items-center gap-1.5 rounded border border-acento bg-superficie px-4 py-2 text-sm font-medium text-acento hover:bg-fundo disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {(qual === "enviar" || qual === "lendo" || (lendo && !leitura)) && <Loader size={14} className="animate-spin" />}
-          {rotuloDoEnvio}
-        </button>
-        )}
-        {!somenteLeitura && (
-        <button
-          type="button"
-          onClick={salvar}
+          onClick={somenteLeitura ? fechar : salvarEFechar}
           disabled={ocupado}
-          className="inline-flex items-center gap-1.5 rounded bg-acento px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-md border border-borda px-5 py-2.5 text-base hover:bg-fundo disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {qual === "salvar" && <Loader size={14} className="animate-spin" />}
-          {qual === "salvar" ? "Salvando..." : "Salvar"}
+          {qual === "salvar" && <Loader size={16} className="animate-spin" />}
+          {somenteLeitura ? "Fechar" : qual === "salvar" ? "Salvando..." : "Salvar e fechar"}
         </button>
+        {acessos.sincronizar && (
+          <button
+            type="button"
+            onClick={pedirEnvio}
+            disabled={ocupado || (lendo && !leitura) || !produtoId}
+            title={leitura?.ok && leitura.escrita?.liberada === false ? leitura.escrita.motivo : undefined}
+            className="inline-flex items-center gap-2 rounded-md bg-acento px-5 py-2.5 text-base font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {(qual === "enviar" || qual === "lendo" || (lendo && !leitura)) && <Loader size={16} className="animate-spin" />}
+            {rotuloDoEnvio}
+          </button>
         )}
       </div>
     </div>

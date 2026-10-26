@@ -24,6 +24,7 @@ const ROTULO_DO_TIPO_PRODUCAO = { REVENDA: "Revenda", FABRICACAO_PROPRIA: "Fabri
 export function valorParaTela(campo, valor) {
   if (valor === null || valor === undefined || valor === "") return null;
   if (Array.isArray(valor)) return valor.length ? valor.join(", ") : null;
+  if (campo === "ativo" && typeof valor === "boolean") return valor ? "Ativo" : "Inativo";
   if (typeof valor === "boolean") return valor ? "sim" : "nao";
   if (campo === "tipoProducao") return ROTULO_DO_TIPO_PRODUCAO[valor] ?? String(valor);
   if (campo === "preco" && typeof valor === "number" && Number.isFinite(valor)) return MOEDA.format(valor);
@@ -68,8 +69,13 @@ export function resumirEnvioLI(tipo, resultado, rotulos = {}) {
   if (tipo === "cadastrar" || tipo === "completar") {
     const etapas = (Array.isArray(resultado.etapas) ? resultado.etapas : []).map((etapa) => `${ROTULO_DA_ETAPA_LI[etapa] ?? etapa}: feito.`);
     if (ok) {
+      // Com o liga/desliga "Ativo na loja" desligado (26/10/2026) o cadastro termina com o produto pausado, de proposito.
+      const pausado = resultado.ativo === false;
+      const titulos = pausado
+        ? { cadastrar: "Produto cadastrado na Loja Integrada, pausado (Ativo na loja desligado).", completar: "Cadastro completo: produto pausado na Loja Integrada (Ativo na loja desligado)." }
+        : { cadastrar: "Produto cadastrado e ativo na Loja Integrada.", completar: "Cadastro completo: produto ativo na Loja Integrada." };
       return {
-        titulo: tipo === "cadastrar" ? "Produto cadastrado e ativo na Loja Integrada." : "Cadastro completo: produto ativo na Loja Integrada.",
+        titulo: titulos[tipo],
         linhas: [...etapas, ...(resultado.fotos ? [resultado.fotos] : [])],
       };
     }
@@ -89,16 +95,18 @@ export function resumirEnvioLI(tipo, resultado, rotulos = {}) {
  * campos "diferente" e as fotos abriam a aba, e o "!" do icone podia vir de outro motivo (origem e tipo de producao vazios
  * na loja, produto inativo) com a aba sumida: o dono abria o editor e nao via o que o "!" acusava.
  *
- * - `diferentes`: campos diferentes na loja (o Sincronizar corrige), mais as fotos quando elas mudariam;
- * - `fiscais`: origem e tipo de producao vazios ou diferentes (so o painel da LI os grava);
- * - `inativo`: produto na loja mas inativo (nao vale quando o cadastro automatico falhou: a faixa do editor ja explica).
+ * - `diferentes`: campos diferentes na loja (o Sincronizar corrige), mais as fotos quando elas mudariam. O "Ativo na loja"
+ *   conta aqui (o liga/desliga do anuncio contra o estado da loja, 26/10/2026), menos com o cadastro automatico falho: a faixa
+ *   do editor ja explica, e o Sincronizar nao ativa nesse caso;
+ * - `fiscais`: origem e tipo de producao vazios ou diferentes (so o painel da LI os grava).
  */
 export function resumoDasDivergenciasLI(leitura) {
-  if (!leitura?.ok || leitura.situacao !== "existe") return { diferentes: 0, fiscais: 0, inativo: false, total: 0 };
-  const diferentes = (leitura.diferencas ?? []).filter((item) => item.tipo === "diferente").length + (["diferentes", "faltam"].includes(leitura.fotos?.estado) ? 1 : 0);
+  if (!leitura?.ok || leitura.situacao !== "existe") return { diferentes: 0, fiscais: 0, total: 0 };
+  const diferentes =
+    (leitura.diferencas ?? []).filter((item) => item.tipo === "diferente" && !(leitura.cadastroFalhou && item.campo === "ativo")).length +
+    (["diferentes", "faltam"].includes(leitura.fotos?.estado) ? 1 : 0);
   const fiscais = (leitura.fiscais ?? []).length;
-  const inativo = leitura.ativoNaLI === false && !leitura.cadastroFalhou;
-  return { diferentes, fiscais, inativo, total: diferentes + fiscais + (inativo ? 1 : 0) };
+  return { diferentes, fiscais, total: diferentes + fiscais };
 }
 
 /** Se o envio pode ter mudado algo (no Rise ou na LI): o pop-up le de novo e a lista e revalidada. */

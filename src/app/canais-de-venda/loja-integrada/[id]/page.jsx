@@ -45,7 +45,6 @@ export default async function AnuncioLIPage({ params }) {
           anuncioId={carregado.anuncioId}
           rascunhoInicial={carregado.rascunho}
           contextoInicial={carregado.contexto}
-          status={carregado.status}
           vinculo={carregado.vinculo}
           acessos={acessos}
         />

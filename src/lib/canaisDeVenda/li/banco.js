@@ -120,15 +120,21 @@ export async function anuncioLIDoProduto(produtoId) {
 }
 
 // Anuncio sem `dados` (gravado por fora do editor) abre com o que falta em branco.
-export function rascunhoDoAnuncio(anuncio) {
+// Com o `produto` (o contexto do cadastro), o NOME e a MARCA sao os dele (pedido do dono em 26/10/2026: a aba nao edita mais o
+// nome e so mostra a marca); sem ele, ficam os guardados. O `ativo` guardado vale; sem ele (anuncio de antes do liga/desliga) vem
+// da ultima situacao conhecida da loja, para o Sincronizar nao reativar o que o dono pausou la.
+export function rascunhoDoAnuncio(anuncio, produto = null) {
   const dados = anuncio?.dados ?? {};
+  const doProduto = (valor) => String(valor ?? "").trim();
+  const titulo = doProduto(produto?.tituloBase) || (anuncio.titulo ?? "");
   return {
     produtoId: anuncio.produtoId,
-    titulo: anuncio.titulo ?? "",
+    titulo,
     // O slug e sempre o do nome (07/10/2026): o guardado em `dados` e de antes da regra e nao vale.
-    slug: slugDe(anuncio.titulo ?? ""),
-    marca: dados.marca ?? "",
+    slug: slugDe(titulo),
+    marca: doProduto(produto?.marca) || (dados.marca ?? ""),
     destaque: Boolean(dados.destaque),
+    ativo: typeof dados.ativo === "boolean" ? dados.ativo : anuncio.situacaoCanal !== "PAUSADA",
     videoUrl: dados.videoUrl ?? null,
     imagens: Array.isArray(dados.imagens) ? dados.imagens : [],
   };
@@ -192,7 +198,7 @@ export async function carregarAnuncioLI(id) {
     ok: true,
     anuncioId: anuncio.id,
     status: anuncio.status,
-    rascunho: rascunhoDoAnuncio(anuncio),
+    rascunho: rascunhoDoAnuncio(anuncio, produto),
     contexto: await contextoDoEditor(produto),
     vinculo: {
       idExterno: anuncio.idExterno,
@@ -271,8 +277,8 @@ export async function vincularPeloSku(produtoId, { idItemExterno, url, ativo, sl
   const produto = await contextoDoProduto(produtoId);
   if (!produto) throw new Error("Produto não encontrado para vincular.");
   const existente = await anuncioLIDoProduto(produtoId);
-  const base = existente ? rascunhoDoAnuncio(existente) : rascunhoInicialLI(produto, { fotos: await fotosDoProduto(produto) });
-  const rascunho = rascunhoDaLI(base, { slug, categorias, destaque });
+  const base = existente ? rascunhoDoAnuncio(existente, produto) : rascunhoInicialLI(produto, { fotos: await fotosDoProduto(produto) });
+  const rascunho = rascunhoDaLI(base, { slug, categorias, destaque, ativo });
   const { colunas, dados } = colunasEDados(rascunho);
   const vinculo = {
     idExterno: String(idItemExterno),

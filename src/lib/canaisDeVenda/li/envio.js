@@ -223,7 +223,7 @@ async function finalizarCadastro(anuncioId, ativo) {
  * produto ativo nao recebe PUT. E isso que deixa o "Completar o cadastro" repetir sem escrever duas vezes.
  * As travas da LI e do Bling foram conferidas por quem chama. Devolve as etapas que passaram.
  */
-async function etapasDepoisDeCriar(cliente, bling, { sku, idExterno, feitas }) {
+async function etapasDepoisDeCriar(cliente, bling, { sku, idExterno, feitas, ativar = true }) {
   const ligado = await ligarNoBlingLI(bling, sku, idExterno);
   if (!ligado.ok) throw new FalhaDoEnvio("ligar_bling", ligado.erro ?? "O produto não foi ligado à Loja Integrada no Bling.");
   feitas.push("ligar_bling");
@@ -239,6 +239,9 @@ async function etapasDepoisDeCriar(cliente, bling, { sku, idExterno, feitas }) {
     await escrever("estoque", () => cliente.put(`/produto_estoque/${idExterno}`, corpoDoEstoqueInicialLI(doCodigo[0].saldo)));
   }
   feitas.push("estoque");
+
+  // O liga/desliga "Ativo na loja" desligado (26/10/2026): o produto fica pausado, com o vinculo e o estoque no lugar.
+  if (!ativar) return;
 
   const detalhe = await ler("ativar", () => lerDetalheDaLI(cliente, idExterno));
   if (detalhe.produto?.ativo !== true) {
@@ -293,7 +296,7 @@ export async function sincronizarProdutoLI(produtoId, cliente = clienteLI()) {
     if (!anuncio?.idExterno) {
       return recusa("Este produto ainda não está vinculado à Loja Integrada: abra o pop-up para vincular pelo SKU, ou use Cadastrar na LI.");
     }
-    const rascunho = rascunhoDoAnuncio(anuncio);
+    const rascunho = rascunhoDoAnuncio(anuncio, produto);
     const bloqueio = primeiroBloqueio(rascunho, produto);
     if (bloqueio) return recusa(bloqueio);
     try {
@@ -317,7 +320,10 @@ export async function sincronizarProdutoLI(produtoId, cliente = clienteLI()) {
       estado.categoriasIgnoradas = ignoradas;
       // A loja com o pai a mais (o 100101 tem pai + filha) e a mesma coisa que so a filha: nada de categoria a enviar.
       const liComparado = { ...li, categorias: semAncestraisRedundantes(li.categorias, arvore) };
-      const diferentes = diferencasLI(riseEnvio, liComparado).filter((item) => item.tipo === "diferente");
+      // Cadastro incompleto (parou no estoque, por exemplo): o Sincronizar nao ativa o produto, senao ele iria ao ar sem o
+      // estoque na loja. Quem ativa e o "Completar o cadastro".
+      const cadastroIncompleto = Boolean(anuncio.dados?.cadastroLI);
+      const diferentes = diferencasLI(riseEnvio, liComparado).filter((item) => item.tipo === "diferente" && !(cadastroIncompleto && item.campo === "ativo"));
       estado.alterados = diferentes.map(({ campo, li: de, rise: para }) => ({ campo, de, para }));
       const campos = new Set(diferentes.map((item) => item.campo));
       const payload = {};
@@ -410,7 +416,9 @@ export async function cadastrarNaLI(produtoId, cliente = clienteLI(), bling = cl
     }
     let anuncio = await anuncioLIDoProduto(produtoId);
     if (anuncio?.idExterno) return recusa(`Este produto já está na Loja Integrada (id ${anuncio.idExterno}): use Sincronizar.`);
-    const rascunho = anuncio ? rascunhoDoAnuncio(anuncio) : rascunhoInicialLI(produto);
+    const rascunho = anuncio ? rascunhoDoAnuncio(anuncio, produto) : rascunhoInicialLI(produto);
+    // O liga/desliga do anuncio (nasce ligado): desligado, o produto e cadastrado e fica pausado na loja.
+    const ativar = rascunho.ativo !== false;
     const bloqueio = primeiroBloqueio(rascunho, produto);
     if (bloqueio) return recusa(bloqueio);
     const travada = travaRecusada(cliente, bling, produto.sku);
@@ -462,10 +470,10 @@ export async function cadastrarNaLI(produtoId, cliente = clienteLI(), bling = cl
       conteudoEnviado = true;
       feitas.push("criar");
 
-      await etapasDepoisDeCriar(cliente, bling, { sku: produto.sku, idExterno, feitas });
-      await finalizarCadastro(anuncio.id, true);
+      await etapasDepoisDeCriar(cliente, bling, { sku: produto.sku, idExterno, feitas, ativar });
+      await finalizarCadastro(anuncio.id, ativar);
       feitas.push("gravar");
-      return { ok: true, idExterno, urlExterna: url, fotos: fotos.texto, etapas: feitas };
+      return { ok: true, idExterno, urlExterna: url, fotos: fotos.texto, etapas: feitas, ativo: ativar };
     } catch (erro) {
       const texto = erro instanceof FalhaDoEnvio ? erro.message : `Erro inesperado no cadastro na Loja Integrada: ${erro?.message ?? erro}`;
       const etapa = erro?.etapa ?? (conteudoEnviado ? "gravar" : "produto");
@@ -496,11 +504,12 @@ export async function completarCadastroLI(produtoId, cliente = clienteLI(), blin
     if (travada) return recusa(travada);
 
     const feitas = [];
+    const ativar = rascunhoDoAnuncio(anuncio, produto).ativo !== false;
     try {
-      await etapasDepoisDeCriar(cliente, bling, { sku: produto.sku, idExterno: anuncio.idExterno, feitas });
-      await finalizarCadastro(anuncio.id, true);
+      await etapasDepoisDeCriar(cliente, bling, { sku: produto.sku, idExterno: anuncio.idExterno, feitas, ativar });
+      await finalizarCadastro(anuncio.id, ativar);
       feitas.push("gravar");
-      return { ok: true, idExterno: anuncio.idExterno, etapas: feitas };
+      return { ok: true, idExterno: anuncio.idExterno, etapas: feitas, ativo: ativar };
     } catch (erro) {
       const texto = erro instanceof FalhaDoEnvio ? erro.message : `Erro inesperado ao completar o cadastro na Loja Integrada: ${erro?.message ?? erro}`;
       const etapa = erro?.etapa ?? "gravar";

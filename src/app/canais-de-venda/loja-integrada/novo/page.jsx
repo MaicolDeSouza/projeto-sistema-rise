@@ -69,7 +69,6 @@ export default async function NovoAnuncioLIPage({ searchParams }) {
           anuncioId={null}
           rascunhoInicial={aberto.rascunho}
           contextoInicial={aberto.contexto}
-          status={null}
           vinculo={null}
           acessos={acessosDoEditorLI(pode)}
         />

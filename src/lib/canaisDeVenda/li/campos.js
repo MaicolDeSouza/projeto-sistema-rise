@@ -34,7 +34,13 @@ export const CAMPOS_DE_ENVIO_LI = [
   { id: "destaque", rotulo: "Destaque" },
   { id: "seoTitulo", rotulo: "SEO: título" },
   { id: "seoDescription", rotulo: "SEO: description" },
+  // O liga/desliga do anuncio (26/10/2026). Fica FORA da assinatura (abaixo): entrar nela acenderia o "!" em todo produto ja
+  // sincronizado, e o estado da loja o monitor ja vigia pela comparacao.
+  { id: "ativo", rotulo: "Ativo na loja" },
 ];
+
+/** Campos comparados e enviados, mas que nao entram na assinatura do icone (ver o comentario acima). */
+const FORA_DA_ASSINATURA_LI = new Set(["ativo"]);
 
 export const CAMPOS_SO_LEITURA_LI = [
   { id: "origem", rotulo: "Origem (NF-e)" },
@@ -160,6 +166,7 @@ export function normalizarDoRiseLI(produto, rascunho, { documentos = [] } = {}) 
     categorias: idsOrdenados(p.categoriasLI),
     video: texto(r.videoUrl),
     destaque: Boolean(r.destaque),
+    ativo: r.ativo !== false,
     seoTitulo: seoTitulo(p.seoTituloLI),
     seoDescription: seoDescription(p.seoDescricaoLI),
     origem: origemInteira(p.origem),
@@ -195,6 +202,8 @@ export function normalizarDaLI(produtoLI, seo, { marcaNome = null } = {}) {
     categorias: idsOrdenados((l.categorias ?? []).map(idDaUri)),
     video: texto(l.url_video_youtube),
     destaque: Boolean(l.destaque),
+    // Sem o campo (fixture, resposta incompleta) nao ha o que comparar: nulo, e `diferencasLI` o pula.
+    ativo: typeof l.ativo === "boolean" ? l.ativo : null,
     seoTitulo: seoTitulo(seo?.title ?? l.seo_title),
     seoDescription: seoDescription(seo?.description ?? l.seo_description),
     origem: origemInteira(l.icms_origin_code),
@@ -204,7 +213,7 @@ export function normalizarDaLI(produtoLI, seo, { marcaNome = null } = {}) {
 
 /** SHA-256 dos campos de envio, na ordem fixa: os fiscais so de leitura ficam de fora. */
 export function assinaturaLI(campos) {
-  const pares = CAMPOS_DE_ENVIO_LI.map(({ id }) => [id, campos?.[id] ?? null]);
+  const pares = CAMPOS_DE_ENVIO_LI.filter(({ id }) => !FORA_DA_ASSINATURA_LI.has(id)).map(({ id }) => [id, campos?.[id] ?? null]);
   return createHash("sha256").update(JSON.stringify(pares)).digest("hex");
 }
 
@@ -223,6 +232,7 @@ export function diferencasLI(rise, li) {
   for (const { id, rotulo } of CAMPOS_DE_ENVIO_LI) {
     const deRise = rise?.[id] ?? null;
     const daLI = li?.[id] ?? null;
+    if (id === "ativo" && daLI === null) continue;
     if (vazio(deRise) && vazio(daLI)) continue;
     if (vazio(deRise)) {
       lista.push({ campo: id, rotulo, rise: deRise, li: daLI, tipo: CAMPOS_QUE_LIMPAM_LI.has(id) ? "diferente" : "vazioNoRise" });

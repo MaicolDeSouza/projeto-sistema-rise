@@ -82,6 +82,8 @@ function valorParaLI(campo, rise, { descricaoHtml, marcaUri, categoriasUris }) {
       return ["url_video_youtube", rise.video];
     case "destaque":
       return ["destaque", Boolean(rise.destaque)];
+    case "ativo":
+      return ["ativo", rise.ativo !== false];
     default:
       return null;
   }

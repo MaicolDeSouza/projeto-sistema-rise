@@ -85,7 +85,6 @@ export default function JanelaAnuncioLI({ produtoId, aoFechar, aoSalvar }) {
         anuncioId={editor.anuncioId}
         rascunhoInicial={editor.rascunho}
         contextoInicial={editor.contexto}
-        status={editor.status}
         vinculo={editor.vinculo}
         acessos={editor.acessos}
         modo="janela"
