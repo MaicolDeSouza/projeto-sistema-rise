@@ -244,6 +244,7 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Rise AI | **Mudança de rumo em 20/10/2026:** o chat interno saiu da tela e a equipe consulta o Rise pelo **Claude ou pelo ChatGPT**, pelo servidor MCP (`/mcp`, OAuth próprio, só leitura, nunca chama IA paga), pronto e **sem deploy**. Ficam a aba Conexões (o endereço e as conexões de cada pessoa), a Revisão do dia (com as dúvidas que o Claude e o ChatGPT anotam), o Consumo e as Configurações (Modelos, orçamento dos clientes e o prompt do cliente); a lib `src/lib/riseAi/` fica inteira como o motor do WhatsApp. A Entrega 1 está na VPS desde 13/10/2026; o chat da A1 nunca subiu e saiu. **Entrega C1 (avisos no Telegram) pronta em 23/10/2026, SEM deploy:** aba Canais com o bot, vínculo por código na tela do usuário e cinco avisos pelo worker. Ver "Servidor MCP (20/10/2026)", "Rise AI (Entrega 1)" e "Rise AI (Entrega C1, avisos no Telegram)" |
 | Configurações (Acessos) | Lançamento 1 pronto em 12/10/2026 e **no ar na VPS desde 13/10/2026**: usuários, funções com a matriz de permissões, exceções, quebra-vidro `RISE_AI_ADMINS` e segredo de borda; o Rise AI e Configurações conferem o acesso no servidor. Integrações virou cartão de Configurações. **Lançamento 2 pronto em 22/10/2026, SEM deploy:** o Rise inteiro confere o acesso (menu e Painel filtrados, telas em `ver` com o selo "Somente leitura", dados sensíveis cortados no servidor), "Ver como" e a aba Histórico. Ver "Acessos (lançamento 1)" e "Acessos (lançamento 2)" |
 | Relatórios | **Relatório semanal da coleta** em PDF (tela `/relatorios`, 20/10/2026, sem deploy): lista das rodadas, "Gerar agora" e baixar o PDF. Ver "Relatório semanal da coleta" |
+| Compras | Pedidos de compra e reposição do estoque mínimo (26/10/2026, sem deploy): lista dos conferidos abaixo do mínimo com popup de fornecedores e rascunho automático por fornecedor, editor do pedido no molde do Bling, estoque a caminho calculado, lançar estoque no Bling por item com Desfazer, proposta anexada e PDF para o fornecedor. Ver "Compras (26/10/2026)" |
 | Pedidos, Estoque, Financeiro | Esqueleto |
 
 **O que está no ar (24/10/2026):** o deploy 24.10.2026.29 (commit `5ede491`) subiu TUDO o que estava na main até esse commit
@@ -313,6 +314,7 @@ npm run teste:bling-sync          # 733 asserções da sincronização Rise <-> 
 npm run teste:rise-ai             # 616 asserções do Rise AI (Entrega 1 e A1; o chat da tela e a leitura do fluxo SSE saíram em 20/10/2026): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo e a coluna Outros, configuração e as quatro abas, orçamento e reserva, cotação do dia, Parar, texto seguro, perfil cliente, pesquisa na internet, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
 npm run teste:mcp                 # 231 asserções do servidor MCP (com o buscarNoMercado, os filtros do catálogo, anúncios, histórico de preço e os cadastros): sondagem do SDK, OAuth puro e no banco (só hash, rotação, revogação por família), portão 401/403/503, rotas do protocolo, tela Autorizar, as ferramentas com o pode() do login, o registro de cada chamada, anotarDuvida, a rota /mcp, o Caddyfile, a aba Conexões e a Revisão do dia. Postgres local, SEM rede e SEM IA; só escreve zz-mcp-*, ZZ-MCP * e ZZ-MCP-*
 npm run teste:telegram            # 96 asserções da Entrega C1 (avisos no Telegram): banco, texto dos avisos (4 linhas, neutralizado, mascarado), cliente da API do bot e o token mascarado no log, vínculo por código, a configuração e a aba Canais, e a rotina do worker (linha de base, zerou/voltou/zerou, orçamento 80/100%, varredura que falhou, resumo das 20h, bloqueado, 3 tentativas). Telegram FALSO (SEM rede); Postgres local, só escreve zz-tg-* e ZZ-TG-* e devolve a Conexao TELEGRAM, a configuração e a linha de base do dono
+npm run teste:compras             # 111 asserções do módulo Compras: regras (totais, desconto % ou R$, a caminho, carrinho, situação), lista do mínimo e rascunho automático (com concorrência), pedido (salvar, itens, situação, preço que não se apaga), lançamento contra o Bling falso (clique duplo, Bling que recusa, desfazer com estoque vendido), proposta pelos bytes, dados da empresa e o PDF. Postgres local, SEM rede; só escreve ZZ-COMPRA-* e "ZZ Compra *"
 npm run teste:saude               # 68 asserções da Saúde do Rise: regras (rotinas, worker, disco, backup, memória, banco, integrações, orçamento, varreduras, PC, healthchecks), o aviso do Telegram, a gravação em RotinaDoWorker e a coleta nos modos PC e VPS. Postgres local, SEM rede; só escreve zz-saude-*
 npm run teste:acessos             # 207 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição, as projeções do lançamento 2 (Painel, lista de Produtos, Cadastros, canais, Scraper, Indicadores), "Ver como", Histórico e o guarda estático de src/app (sem lista de exceções). Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
 npm run teste:proposta            # 319 asserções da proposta automática de produto (com as seções de categorias e SEO da loja): regras de preço/medidas/NCM, validação do plano, gravação por seção (fotos padronizadas em proposta/), aplicar ao formulário, Salvar marcando aplicadas, fotos para a reserva, Conferido com pergunta e o script de verdade (Postgres local, SEM rede; só escreve produtos ZZ-PROP-* e as pastas deles)
@@ -4833,6 +4835,43 @@ healthchecks.io. **Pronto e testado no PC, SEM DEPLOY** (leva a migration `20261
   desliga o aviso da saúde no bloco da rotina (ela lê o estado real do PC).
 - **Visto na tela (PC, servidor de outra sessão):** a página, o cartão e o "Testar integrações agora" (Bling, ML e LI ok). **Não
   visto:** a tela na VPS com as rotinas preenchidas, um aviso real no Telegram e a primeira batida do site.
+
+## Compras (26/10/2026)
+
+Pedido do dono (ditado em partes, com prints do pedido de compra do Bling). Spec `docs/superpowers/specs/2026-10-26-modulo-compras-design.md`,
+plano `docs/superpowers/plans/2026-10-26-modulo-compras.md` (12 tarefas, inline). **Pronto e testado no PC, SEM DEPLOY** (leva a migration
+`20261026_compras`, só aditiva, que semeia os Dados da empresa).
+
+- **Onde mora:** `src/lib/compras/` (`regras.js` puro: totais, `lerDesconto`, `aCaminho`, `estadoDoCarrinho`, `precoInicialDoItem`,
+  situações; `banco.js`; `esquema.js` zod; `lancamento.js`; `arquivos.js`; `pdf.js`; `empresa.js`; `projecao.js`), telas em
+  `src/app/compras/` (cartões, `estoque-minimo/`, `pedidos/`, `pedidos/[id]/`, `acoes.js`), rotas `src/app/api/compras/[id]/pdf` e
+  `/proposta`, componentes em `src/components/compras/`, e `src/app/configuracoes/empresa/`. Banco: `PedidoDeCompra`,
+  `ItemDoPedidoDeCompra`, `LancamentoDoItemDeCompra`, `DadosDaEmpresa`. Acessos: `tela.compras` (+ `estoqueMinimo` e `pedidos`) e
+  `acao.compras.lancarEstoque`; preço de compra é `dado.custo` (sem ele o servidor corta os preços e o Salvar não os apaga); a lista do
+  mínimo exige `dado.estoqueExato`.
+- **Estoque a caminho NÃO é coluna:** é a soma, na leitura, do que falta lançar dos itens de pedidos ENVIADO e PARCIAL. Rascunho não
+  conta (o produto continua na lista, com o carrinho azul); cancelado e finalizado deixam de contar.
+- **Lista do mínimo:** conferido, ativo, SIMPLES (kit fora) e com mínimo; `estoque + a caminho < mínimo`. "Adicionar ao pedido" põe o item
+  no rascunho aberto do fornecedor (um por fornecedor, sob `pg_advisory_xact_lock`; o número `PC-0001` sai de outra trava). A
+  quantidade sugerida é o **máximo cheio** (decisão do dono).
+- **Preço do item:** o `precoFornecedor` do vínculo já vem COM impostos da varredura; quando a coleta traz IPI, o item parte do preço SEM
+  imposto da coleta e guarda o IPI % (senão o IPI seria cobrado duas vezes). Lançar não mexe no custo de nada.
+- **Situação:** pela tela só RASCUNHO→ENVIADO/CANCELADO, ENVIADO→FINALIZADO/CANCELADO e PARCIAL→FINALIZADO; ENVIADO↔PARCIAL só pelo
+  lançamento. Enviado trava quantidade, preço, IPI, totais e pagamento (o PDF já foi); continuam prazo, frete, rastreio, proposta e
+  observações. Enviar recusa item sem preço citando o SKU.
+- **Lançar estoque:** item e pedido travados (`FOR UPDATE`) e a quantidade que ainda cabe lida depois da trava (o clique duplo cai na
+  recusa); a entrada é um `MovimentoEstoque` pelo `ajustarEstoqueNaTransacao` (extraído de `gravarAjusteDeEstoque`, mesmas mensagens) e o
+  lançamento guarda o `movimentoId` único. Um item aceita vários lançamentos (remessas). Depois do commit, `enviarAjustesDeEstoque` de
+  sempre (depósito padrão, travas, uma tentativa): Bling que recusa deixa a entrada no Rise como ajuste pendente, aviso âmbar com
+  "Reenviar" na linha, e o "!" do Bling na lista de Produtos. Desfazer (só em PARCIAL) é a SAÍDA do último lançamento e recusa se o
+  estoque já saiu ("Já saíram unidades...").
+- **Proposta:** arquivo conferido pelos BYTES (PDF, JPEG, PNG, 20 MB), num lote temporário até o Salvar (`dados/compras/<pedidoId>/proposta/`).
+- **PDF:** só o que interessa ao fornecedor (código e nome DELE, nunca o SKU do Rise), gerado na hora pelo pdfkit; rota exige ver pedidos E custo.
+- **Visto no navegador do PC:** lista do mínimo, popup e carrinho, novo pedido, busca de item, salvar com desconto, recusa de envio sem
+  preço, enviar, lançar 4 de 10 (o Bling do PC recusou pela trava: aviso âmbar) e desfazer, proposta (anexada por script: o navegador
+  embutido não envia arquivo), Dados da empresa e o PDF renderizado. **Não visto:** o envio real ao Bling (só contra o Bling falso), o
+  clique em "Enviar arquivo" da proposta, e a tela com login sem custo.
+- **Pendências menores:** excluir produto ou fornecedor que está num pedido cai no erro de chave estrangeira com mensagem genérica.
 
 ## Servidor MCP (20/10/2026)
 
