@@ -22,7 +22,8 @@ const FALHA = "Não foi possível falar com o servidor.";
  * acompanha sozinho o catalogo do anuncio (`seguirCatalogoDosAnuncios`); os concorrentes dele vao para o contexto do
  * editor, porque o selo "Nº de M no ML" mora ao lado do preco, na aba Preco e custos.
  */
-export default function AbaCatalogo({ rascunho, alterar, setContexto, visivel = false, acessos = { concorrentes: true, editar: true } }) {
+// `idExterno`: o MLB do anuncio aberto (nulo no rascunho), para separar o catalogo DELE dos de outros anuncios do produto.
+export default function AbaCatalogo({ rascunho, alterar, setContexto, visivel = false, idExterno = null, acessos = { concorrentes: true, editar: true } }) {
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState(null);
   const [aberto, setAberto] = useState(null);
@@ -85,14 +86,19 @@ export default function AbaCatalogo({ rascunho, alterar, setContexto, visivel = 
   if (!acessos.concorrentes) return <p className="text-sm text-suave">Seu acesso não mostra os concorrentes do Mercado Livre.</p>;
   if (!produtoId) return <p className="text-sm text-suave">Escolha o produto do anúncio.</p>;
 
-  const catalogos = dados?.catalogos ?? [];
+  const todos = dados?.catalogos ?? [];
+  // So os catalogos em que ESTE anuncio concorre (pedido do dono em 26/10/2026, ao ver o catalogo de um anuncio antigo do
+  // mesmo codigo aparecer no 170113 como se fosse o aberto). Os dos outros anuncios dele do produto viram uma linha discreta.
+  const desteAnuncio = (catalogo) => Boolean(idExterno) && catalogo.anuncios.some((anuncio) => anuncio.idExterno === idExterno);
+  const catalogos = todos.filter(desteAnuncio);
+  const deOutros = todos.filter((catalogo) => !desteAnuncio(catalogo));
   const tela = dados?.tela ?? null;
-  const catalogoAberto = catalogos.find((catalogo) => catalogo.id === aberto) ?? null;
+  const catalogoAberto = todos.find((catalogo) => catalogo.id === aberto) ?? null;
 
   return (
     <SecaoDoAnuncio
-      titulo="Catálogos em que você concorre"
-      ajuda="Os catálogos do Mercado Livre em que seus anúncios deste produto estão (os publicados pelo Rise e qualquer outro com o mesmo código). O Rise confere no ML ao abrir esta aba e de hora em hora; para entrar ou sair de um catálogo, use o painel do ML. Clique no catálogo para ver os concorrentes."
+      titulo="Catálogo deste anúncio"
+      ajuda="O catálogo do Mercado Livre em que este anúncio concorre. O Rise confere no ML ao abrir esta aba e de hora em hora; para entrar ou sair de um catálogo, use o painel do ML. Clique no catálogo para ver os concorrentes."
       acao={
         <span className="flex items-center gap-2">
           {buscadoEm && !buscando && <span className="text-xs text-suave">conferido às {HORA.format(buscadoEm)}</span>}
@@ -117,7 +123,10 @@ export default function AbaCatalogo({ rascunho, alterar, setContexto, visivel = 
           </p>
         )
       ) : catalogos.length === 0 ? (
-        <p className="text-sm text-suave">Nenhum anúncio deste produto está num catálogo do Mercado Livre{buscadoEm ? "" : " (ainda não conferido no ML)"}.</p>
+        <p className="text-sm text-suave">
+          {idExterno ? "Este anúncio não está em nenhum catálogo do Mercado Livre" : "O anúncio ainda não foi publicado"}
+          {buscadoEm || !idExterno ? "" : " (ainda não conferido no ML)"}.
+        </p>
       ) : (
         <ul className="divide-y divide-borda rounded border border-borda">
           {catalogos.map((catalogo) => {
@@ -167,6 +176,24 @@ export default function AbaCatalogo({ rascunho, alterar, setContexto, visivel = 
               </li>
             );
           })}
+        </ul>
+      )}
+
+      {/* Os catalogos dos OUTROS anuncios do dono com o mesmo codigo (publicados pelo Rise ou nao), so como informacao. */}
+      {deOutros.length > 0 && (
+        <ul className="mt-3 space-y-1">
+          {deOutros.map((catalogo) => (
+            <li key={catalogo.id} className="flex flex-wrap items-center gap-x-1.5 text-xs text-suave">
+              <span>
+                {catalogo.anuncios.length > 1 ? "Outros anúncios seus" : "Outro anúncio seu"} deste produto (
+                {catalogo.anuncios.map((anuncio) => anuncio.idExterno).join(", ")}) {catalogo.anuncios.length > 1 ? "estão" : "está"} no catálogo{" "}
+                <span className="text-texto">{catalogo.nome || catalogo.id}</span>.
+              </span>
+              <a href={urlDoCatalogo(catalogo.id)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 font-medium text-acento hover:underline">
+                Abrir no ML <ExternalLink size={11} />
+              </a>
+            </li>
+          ))}
         </ul>
       )}
 

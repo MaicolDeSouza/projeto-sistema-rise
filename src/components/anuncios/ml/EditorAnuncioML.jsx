@@ -471,7 +471,7 @@ export default function EditorAnuncioML({
               {...(id === "status"
                 ? { todosProblemas: problemas, situacao: { statusAtual, rotuloDoStatus, publicacao, idExterno: infoDoML.idExterno, urlExterna: infoDoML.urlExterna } }
                 : {})}
-              {...(id === "catalogo" ? { visivel: abaVisivel === "catalogo" } : {})}
+              {...(id === "catalogo" ? { visivel: abaVisivel === "catalogo", idExterno: infoDoML.idExterno ?? null } : {})}
             />
             </div>
           </Painel>

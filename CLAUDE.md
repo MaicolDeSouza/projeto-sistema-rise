@@ -3635,6 +3635,12 @@ Pedidos do dono (com print anotado e "usar UI/UX"):
   "▲ 30,5%" (vermelho quando você está mais caro, a cor da coluna Diferença; verde quando mais barato). Lido agora no ML pela
   busca da aba (`posicaoNoCatalogo` em `catalogo.js`). A linha com os MLB dos anúncios saiu. E o botão **Abrir no ML** em cada
   linha (fora do botão da linha: link dentro de botão é HTML inválido).
+- **A aba Catálogo mostra só o catálogo do anúncio ABERTO** (decisão do dono em 26/10/2026, opção "Só deste anúncio"): no
+  170113 aparecia o catálogo do MLB4340404927, um anúncio antigo dele com o mesmo código (não publicado pelo Rise), como se
+  fosse o MLB5462196083 aberto (que não está em catálogo). A lista filtra pelos catálogos cujo `anuncios` tem o `idExterno`
+  do editor (título "Catálogo deste anúncio"); os dos outros anúncios do produto viram uma linha discreta embaixo ("Outro
+  anúncio seu deste produto (MLB…) está no catálogo X · Abrir no ML"). A busca continua lendo todos pelo SKU, e o
+  acompanhamento do produto pode seguir o catálogo de outro anúncio dele.
 - **Selo "C" no ícone do ML da lista de Produtos** (26/10/2026: primeiro "C2", com a quantidade de catálogos diferentes;
   depois o dono pediu só "C"): algum anúncio publicado concorre num catálogo (`iconeML.catalogos > 0`). A quantidade fica no
   texto do ícone ("em 2 catálogos").
