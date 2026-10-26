@@ -919,21 +919,30 @@ try {
     conferir("valorDeLista: sem caixa e sem acento", [valorDeLista(micro, "atmega328p"), valorDeLista(micro, "ATMEGA2560 "), valorDeLista(micro, "Z80")], ["ATmega328P", "ATmega2560", null]);
     conferir("valorDeLista: booleano casa sem acento", valorDeLista(atributos.find((a) => a.id === "INCLUDES_USB_CABLE"), "nao"), "Não");
     conferir("valorDeLista: texto livre passa aparado", valorDeLista(atributos.find((a) => a.id === "BRAND"), " Arduino "), "Arduino");
+    // A ficha inteira preenchida para publicar (pedido do dono em 25/10/2026): opcional vazio tambem barra. Os testes de
+    // outras regras completam os opcionais com "Nao se aplica" (-1).
+    const OPCIONAIS = { MICROCONTROLLER: "-1", INCLUDES_USB_CABLE: "-1", OPERATING_VOLTAGE: "-1" };
     conferir(
-      "problemas: obrigatorio vazio e lista fora",
+      "problemas: obrigatorio vazio, lista fora e opcional vazio, todos bloqueantes",
       problemasDosAtributos({ BRAND: "X", MICROCONTROLLER: "Z80" }, atributos, { kit: false }).map((p) => [p.campo, p.bloqueante]),
-      [["MODEL", true], ["GTIN", true], ["MICROCONTROLLER", true]],
+      [["MODEL", true], ["GTIN", true], ["MICROCONTROLLER", true], ["INCLUDES_USB_CABLE", true], ["OPERATING_VOLTAGE", true]],
     );
-    conferir("problemas: texto da lista fora", problemasDosAtributos({ BRAND: "X", MODEL: "Y", GTIN: "1", MICROCONTROLLER: "Z80" }, atributos, { kit: false })[0].problema, "Microcontrolador: 'Z80' não está na lista da categoria.");
-    conferir("problemas: GTIN ou motivo", problemasDosAtributos({ BRAND: "X", MODEL: "Y", EMPTY_GTIN_REASON: "O produto não tem código cadastrado" }, atributos, { kit: false }), []);
+    conferir(
+      "problemas: o texto do opcional vazio manda preencher ou marcar Nao se aplica",
+      problemasDosAtributos({ BRAND: "X", MODEL: "Y", GTIN: "1", MICROCONTROLLER: "-1", INCLUDES_USB_CABLE: "-1" }, atributos, { kit: false }).map((p) => p.problema),
+      ['Preencha Tensão de operação (OPERATING_VOLTAGE) ou marque "Não se aplica".'],
+    );
+    conferir("problemas: GTIN sem motivo barra mesmo onde a categoria nao exige", problemasDosAtributos({ BRAND: "X", MODEL: "Y", ...OPCIONAIS }, atributos.map((a) => (a.id === "GTIN" ? { ...a, condicional: false } : a)), { kit: false }).map((p) => p.campo), ["GTIN"]);
+    conferir("problemas: texto da lista fora", problemasDosAtributos({ ...OPCIONAIS, BRAND: "X", MODEL: "Y", GTIN: "1", MICROCONTROLLER: "Z80" }, atributos, { kit: false })[0].problema, "Microcontrolador: 'Z80' não está na lista da categoria.");
+    conferir("problemas: GTIN ou motivo", problemasDosAtributos({ ...OPCIONAIS, BRAND: "X", MODEL: "Y", EMPTY_GTIN_REASON: "O produto não tem código cadastrado" }, atributos, { kit: false }), []);
     conferir(
       "problemas: kit com GTIN e alerta",
-      problemasDosAtributos({ BRAND: "X", MODEL: "Y", GTIN: "789", EMPTY_GTIN_REASON: "O produto é um kit ou pack" }, atributos, { kit: true }).map((p) => [p.campo, p.bloqueante]),
+      problemasDosAtributos({ ...OPCIONAIS, BRAND: "X", MODEL: "Y", GTIN: "789", EMPTY_GTIN_REASON: "O produto é um kit ou pack" }, atributos, { kit: true }).map((p) => [p.campo, p.bloqueante]),
       [["GTIN", false]],
     );
     conferir(
       "problemas: kit sem motivo e bloqueante mesmo sem GTIN",
-      problemasDosAtributos({ BRAND: "X", MODEL: "Y" }, atributos, { kit: true }).map((p) => [p.campo, p.bloqueante]),
+      problemasDosAtributos({ ...OPCIONAIS, BRAND: "X", MODEL: "Y" }, atributos, { kit: true }).map((p) => [p.campo, p.bloqueante]),
       [["GTIN", true]],
     );
     conferir(
@@ -965,12 +974,12 @@ try {
       conferir("nao se aplica: reconhece o -1 aparado, e so ele", [ehNaoSeAplica(" -1 "), ehNaoSeAplica("-1 V"), ehNaoSeAplica("")], [true, false, false]);
       conferir(
         "nao se aplica: opcional de lista nao vira 'fora da lista'",
-        problemasDosAtributos({ BRAND: "X", MODEL: "Y", GTIN: "1", MICROCONTROLLER: NAO_SE_APLICA, INCLUDES_USB_CABLE: NAO_SE_APLICA }, atributos, { kit: false }),
+        problemasDosAtributos({ BRAND: "X", MODEL: "Y", GTIN: "1", MICROCONTROLLER: NAO_SE_APLICA, INCLUDES_USB_CABLE: NAO_SE_APLICA, OPERATING_VOLTAGE: NAO_SE_APLICA }, atributos, { kit: false }),
         [],
       );
       conferir(
         "nao se aplica: obrigatorio recusa",
-        problemasDosAtributos({ BRAND: NAO_SE_APLICA, MODEL: "Y", GTIN: "1" }, atributos, { kit: false }).map((p) => [p.campo, p.bloqueante]),
+        problemasDosAtributos({ ...OPCIONAIS, BRAND: NAO_SE_APLICA, MODEL: "Y", GTIN: "1" }, atributos, { kit: false }).map((p) => [p.campo, p.bloqueante]),
         [["BRAND", true]],
       );
       conferir(
@@ -1546,7 +1555,7 @@ try {
       for (const produto of [s1, semBling, k1, k2, kitDoRise]) {
         await prisma.produtoArquivo.createMany({ data: ["a.jpg", "b.jpg"].map((arquivo, ordem) => ({ produtoId: produto.id, tipo: "IMAGEM", papel: "FOTO", arquivo: `${produto.sku}-${arquivo}`, ordem, principal: ordem === 0 })) });
       }
-      const ajustes = { titulo: "PLACA ZZ ML", categoriaId: "MLB99779", preco: 49.9, estoque: 5, atributos: { BRAND: "ZZ", MODEL: "M1", EMPTY_GTIN_REASON: "O produto não tem código cadastrado" } };
+      const ajustes = { titulo: "PLACA ZZ ML", categoriaId: "MLB99779", preco: 49.9, estoque: 5, atributos: { BRAND: "ZZ", MODEL: "M1", EMPTY_GTIN_REASON: "O produto não tem código cadastrado", ...{ MICROCONTROLLER: "-1", INCLUDES_USB_CABLE: "-1", OPERATING_VOLTAGE: "-1" } } };
       async function anuncioSimples(produto, extra = {}) {
         const { rascunho } = await novoRascunhoML(produto.id);
         const salvo = await salvarRascunhoML(null, { ...rascunho, ...ajustes, ...extra });
@@ -1557,7 +1566,7 @@ try {
         const { rascunho, contexto } = await novoRascunhoML(k1.id);
         const produtos = { ...contexto.produtos, ...(await contextoDosProdutos([k2.id])) };
         const comKit = aplicarComposicao(rascunho, { itens: [{ produtoId: k1.id, quantidade: 1 }, { produtoId: k2.id, quantidade: quantidadeDoSegundo }], codigo, blingProdutoId: null }, produtos);
-        const salvo = await salvarRascunhoML(null, { ...comKit, ...ajustes, estoque: 3, atributos: { BRAND: "ZZ", MODEL: "M1", EMPTY_GTIN_REASON: "O produto é um kit ou pack" } });
+        const salvo = await salvarRascunhoML(null, { ...comKit, ...ajustes, estoque: 3, atributos: { BRAND: "ZZ", MODEL: "M1", EMPTY_GTIN_REASON: "O produto é um kit ou pack", ...{ MICROCONTROLLER: "-1", INCLUDES_USB_CABLE: "-1", OPERATING_VOLTAGE: "-1" } } });
         if (!salvo.ok) throw new Error(`cenario: ${salvo.erro}`);
         return salvo.id;
       }
@@ -1731,7 +1740,7 @@ try {
       const id = await c.anuncioSimples(c.s1);
       const { itemId } = await publicarAnuncioML(id, { ml, bling: c.novoBling(), lerFoto });
       const enviadoNoPublicar = (await prisma.anuncio.findUnique({ where: { id }, select: { dados: true } })).dados.publicacao.enviado;
-      conferir("publicar: a impressao ja leva preco e ficha", [enviadoNoPublicar.preco, enviadoNoPublicar.ficha.map((a) => a.id)], [49.9, ["BRAND", "EMPTY_GTIN_REASON", "MODEL"]]);
+      conferir("publicar: a impressao ja leva preco e ficha", [enviadoNoPublicar.preco, enviadoNoPublicar.ficha.map((a) => a.id)], [49.9, ["BRAND", "EMPTY_GTIN_REASON", "INCLUDES_USB_CABLE", "MICROCONTROLLER", "MODEL", "OPERATING_VOLTAGE"]]);
 
       conferir("salvar publicado: recusa rascunho", (await salvarPublicadoML(await c.anuncioSimples(c.s1), { preco: 50, atributos: {} })).ok, false);
       conferir("salvar publicado: recusa preco invalido", [(await salvarPublicadoML(id, { preco: 0, atributos: {} })).ok, (await salvarPublicadoML(id, { preco: "abc", atributos: {} })).ok], [false, false]);

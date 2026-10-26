@@ -127,14 +127,22 @@ export function problemasDosAtributos(valores, atributos, { kit }) {
       // O GTIN e da peca avulsa: no kit ele e ignorado, e so o motivo vale.
       if (kit && valor) acrescentar("GTIN", "Kit não leva GTIN: o valor será ignorado.", false);
       const temGtin = !kit && Boolean(valor);
-      if (atributo.condicional && !temGtin && !texto(valores?.EMPTY_GTIN_REASON)) {
+      // A ficha inteira preenchida para publicar (pedido do dono em 25/10/2026): o GTIN ou o motivo, mesmo onde a categoria
+      // nao o exige.
+      if (!temGtin && !texto(valores?.EMPTY_GTIN_REASON)) {
         acrescentar("GTIN", "Informe o GTIN ou o motivo de não ter (EMPTY_GTIN_REASON).");
       }
       continue;
     }
 
     if (!valor) {
+      // O motivo de nao ter GTIN e conferido junto do GTIN (acima): com o GTIN preenchido, ele fica vazio mesmo.
+      if (atributo.id === "EMPTY_GTIN_REASON") continue;
       if (atributo.obrigatorio) acrescentar(atributo.id, `Informe ${atributo.nome} (${atributo.id}): obrigatório nesta categoria.`);
+      // Opcional vazio tambem barra o Publicar (pedido do dono em 25/10/2026: "nao deixar publicar se algum campo da ficha
+      // tecnica nao estiver preenchido"). O que nao existe no produto vai como "Nao se aplica". O Salvar continua livre.
+      else if (aceitaNaoSeAplica(atributo)) acrescentar(atributo.id, `Preencha ${atributo.nome} (${atributo.id}) ou marque "Não se aplica".`);
+      else acrescentar(atributo.id, `Preencha ${atributo.nome} (${atributo.id}).`);
       continue;
     }
     // "Nao se aplica" e resposta, nao valor de lista. No obrigatorio a tela nao mostra a caixa, mas pode chegar de um

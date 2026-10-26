@@ -3509,7 +3509,12 @@ publicou, os 1.007 antigos da conta ficam de fora):**
   leitura, e o 100111, publicado já no catálogo, não acendeu nada); fora do catálogo na 1ª leitura não avisa. Entrar, sair ou
   trocar grava `estadoML.catalogoAviso = {de, para, em, visto}`: "!" no ícone do ML ("saiu do catálogo X em 25/10"),
   rodapé do editor "No catálogo: X" / "Fora do catálogo" (em âmbar com a mudança), aviso no Telegram (tipo `catalogoML`) e
-  abrir o anúncio marca como visto (`marcarCatalogoVistoMLAcao`, basta ver o canal). O ranking passou a dizer "catálogo
+  abrir o anúncio marca como visto (`marcarCatalogoVistoMLAcao`, basta ver o canal).
+- **Ficha técnica inteira para publicar (25/10/2026, pedido do dono: "não deixar publicar o produto no ML se algum campo
+  da ficha técnica não estiver preenchido"):** `problemasDosAtributos` (`ml/atributos.js`) passou a dar problema
+  BLOQUEANTE também no atributo OPCIONAL vazio ("Preencha X ou marque 'Não se aplica'"), e o GTIN pede o código ou o
+  motivo mesmo onde a categoria não o exige. O Salvar continua livre (só o Publicar barra). O `EMPTY_GTIN_REASON` vazio
+  com GTIN preenchido não conta. A proposta do ML (roteiro v7) avisa cada campo em branco. O ranking passou a dizer "catálogo
   acompanhado" e, se o anúncio não está nele, "seu anúncio não está neste catálogo". SEM deploy.
 
 **Loja Integrada vigiada pelo worker e estoque comparado com o Bling (25/10/2026, pedido do dono, Opção 1):**

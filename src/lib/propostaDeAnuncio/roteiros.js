@@ -14,8 +14,9 @@
 // (fornecedor + taxas do ML + frete + imposto), pedido do dono. "4" em 24/10/2026: o titulo e o do produto base (a LLM
 // nao o escolhe), e so o produto com composicao (kit) aceita outro titulo, pedido do dono. "5" em 25/10/2026: o markup
 // minimo do preco e 30% e o desejado 40% (pedido do dono). "6" em 25/10/2026: "nao se aplica" ("-1") nos opcionais que o
-// produto nao tem, e o Microcontrolador e o chip ou, sem ele, o Processador/CPU da descricao (pedidos do dono).
-export const VERSAO_ROTEIRO_ML = "6";
+// produto nao tem, e o Microcontrolador e o chip ou, sem ele, o Processador/CPU da descricao (pedidos do dono). "7" em
+// 25/10/2026: o Publicar exige a ficha inteira preenchida (pedido do dono), e o roteiro diz isso a LLM.
+export const VERSAO_ROTEIRO_ML = "7";
 
 export const ROTEIRO_ML = `ROTEIRO DA PROPOSTA DE ANÚNCIO DO MERCADO LIVRE (Rise / 4hobby), versão ${VERSAO_ROTEIRO_ML}
 
@@ -46,6 +47,9 @@ CAMINHO (nesta ordem)
      NÃO SE APLICA: atributo OPCIONAL que o produto não tem (ex.: Capacidade de EEPROM numa placa ESP32, que não tem
      EEPROM): mande o valor "-1"; o Rise o envia ao ML como "não se aplica". Nunca nos obrigatórios (marcados como
      obrigatórios na leitura), e nunca para "não sei": o que você não sabe fica em branco.
+     FICHA COMPLETA: o Rise só deixa o dono PUBLICAR com todos os campos da ficha preenchidos (ou "-1"). Preencha tudo o
+     que puder provar; o que ficar em branco volta como aviso "Ficha: Preencha ..." e entra no relatório como pendência
+     para o dono, nunca como valor inventado.
    - CATÁLOGOS: até 10 do MESMO produto (não de um parecido), cada um com 5 ou mais anúncios. Use os candidatos da
      leitura; o Rise descarta os de menos de 5. Menos de 5 catálogos, tudo bem.
    - SEM NENHUM CATÁLOGO do mesmo produto: pesquise no navegador e ache 5 anúncios do MESMO produto no Mercado Livre;
