@@ -6,7 +6,6 @@ import { ArrowDown, ArrowUp, ChevronRight, ExternalLink, Loader, RefreshCw, X } 
 import { buscarCatalogosDoProdutoMLAcao, catalogosDoAnuncioMLAcao, preverCatalogoMLAcao, relerConcorrentesMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { textoDoResumo } from "@/lib/canaisDeVenda/ml/catalogo";
-import { ROTULO_DO_TIPO_ML } from "@/lib/canaisDeVenda/ml/rotulos";
 import { ResumoDaPosicao, TabelaDeConcorrentes, TabelaDoCatalogoAoVivo, urlDoCatalogo } from "./ConcorrentesDoML";
 import SecaoDoAnuncio from "./SecaoDoAnuncio";
 
@@ -127,16 +126,17 @@ export default function AbaCatalogo({ rascunho, alterar, setContexto, visivel = 
               // O link do catalogo fica FORA do botao da linha (link dentro de botao e HTML invalido): a linha abre a janela,
               // o "Abrir no ML" abre o catalogo no site em outra aba (pedido do dono em 26/10/2026).
               <li key={catalogo.id} className="flex items-center hover:bg-fundo">
-                <button type="button" onClick={() => setAberto(catalogo.id)} className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-left">
+                <button type="button" onClick={() => setAberto(catalogo.id)} className="flex min-w-0 flex-1 items-center gap-4 px-4 py-3 text-left">
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{catalogo.nome || catalogo.id}</span>
-                    <span className="mt-0.5 block text-sm text-suave">
-                      {catalogo.resumo ? <ResumoDaLinha resumo={catalogo.resumo} /> : acompanhado ? <ResumoDaPosicao posicao={tela.posicao} /> : catalogo.id}
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="truncate text-sm font-medium">{catalogo.nome || catalogo.id}</span>
+                      {catalogo.resumo && <SeloDaPosicao resumo={catalogo.resumo} />}
                     </span>
-                    <span className="block truncate text-xs text-suave">
-                      {catalogo.anuncios.map((anuncio) => `${ROTULO_DO_TIPO_ML[anuncio.tipoAnuncio] ?? "Anúncio"} ${anuncio.idExterno}`).join(", ")}
+                    <span className="mt-0.5 block text-xs text-suave">
+                      {catalogo.resumo ? textoDoResumo(catalogo.resumo) : acompanhado ? <ResumoDaPosicao posicao={tela.posicao} /> : "Clique em Buscar no ML para ler o catálogo."}
                     </span>
                   </span>
+                  {catalogo.resumo && <PrecosDaLinha resumo={catalogo.resumo} />}
                   {acompanhado && tela.avisos?.length > 0 && (
                     <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">
                       {tela.avisos.length} aviso{tela.avisos.length > 1 ? "s" : ""}
@@ -177,41 +177,61 @@ export default function AbaCatalogo({ rascunho, alterar, setContexto, visivel = 
 }
 
 /**
- * A linha de um catalogo (pedido do dono em 26/10/2026): "9 anúncios · 8 vendedores · você é o 2º de 9 · 1º R$ 28,90 (você
- * R$ 31,49 ▲ 9,0%)". A seta diz onde esta o SEU preco em relacao ao 1o colocado (pedido: "quantos % estou acima"), e a cor
- * segue a da coluna Diferenca da aba Concorrentes do produto: vermelho quando o concorrente esta mais barato que voce, verde
- * quando voce esta mais barato. Voce em 1o: verde, sem comparacao.
+ * "29º de 79": a posicao do dono no catalogo, no MESMO desenho e nas mesmas cores do selo de posicao de preco do produto
+ * (`SeloPosicaoDePreco`, pedido do dono em 26/10/2026): verde no 1o, ambar no ultimo, cinza no meio. A dica e outra: aqui e a
+ * ordem do Mercado Livre no catalogo, e nao o ranking de precos das lojas.
  */
-function ResumoDaLinha({ resumo }) {
-  const partes = [textoDoResumo(resumo)];
-  const posicao = resumo.minhaPosicao ? `você é o ${resumo.minhaPosicao}º de ${resumo.anuncios}` : "você não está neste catálogo";
-  const diferenca =
-    resumo.meuPreco > 0 && resumo.primeiroPreco > 0 && !resumo.primeiroEhMeu ? ((resumo.meuPreco - resumo.primeiroPreco) / resumo.primeiroPreco) * 100 : null;
+function SeloDaPosicao({ resumo }) {
+  const { minhaPosicao: posicao, anuncios: total } = resumo;
+  const cor = !posicao
+    ? "border-borda bg-fundo text-suave"
+    : posicao === 1
+      ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+      : posicao === total
+        ? "border-amber-300 bg-amber-50 text-amber-800"
+        : "border-borda bg-fundo text-suave";
+  const dica = posicao ? `Seu anúncio é o ${posicao}º de ${total} na ordem do Mercado Livre neste catálogo.` : "Nenhum anúncio seu está neste catálogo.";
+  return (
+    <span title={dica} aria-label={dica} className={`inline-flex shrink-0 items-center rounded border px-1.5 py-px text-[11px] font-semibold tabular-nums ${cor}`}>
+      {posicao ? `${posicao}º de ${total}` : "fora"}
+    </span>
+  );
+}
+
+/**
+ * O 1o colocado e voce, lado a lado (pedido do dono em 26/10/2026), com a diferenca do SEU preco para o do 1o numa etiqueta:
+ * seta para cima e vermelho quando voce esta mais caro (o 1o esta mais barato, a cor da coluna Diferenca da aba Concorrentes
+ * do produto), para baixo e verde quando voce esta mais barato. Voce em 1o: so o seu preco, em verde.
+ */
+function PrecosDaLinha({ resumo }) {
+  const souPrimeiro = resumo.primeiroEhMeu;
+  const diferenca = !souPrimeiro && resumo.meuPreco > 0 && resumo.primeiroPreco > 0 ? ((resumo.meuPreco - resumo.primeiroPreco) / resumo.primeiroPreco) * 100 : null;
   const maisCaro = diferenca !== null && diferenca >= 0.05;
   const maisBarato = diferenca !== null && diferenca <= -0.05;
   return (
-    <span className="inline-flex flex-wrap items-center gap-x-1.5">
-      <span>{partes.join(" · ")} ·</span>
-      <span className={resumo.minhaPosicao === 1 ? "font-medium text-emerald-700" : "font-medium text-texto"}>{posicao}</span>
-      {resumo.primeiroPreco > 0 && !resumo.primeiroEhMeu && (
-        <>
-          <span>· 1º {MOEDA.format(resumo.primeiroPreco)}</span>
-          {resumo.meuPreco > 0 && (
-            <span className="tabular-nums">
-              (você {MOEDA.format(resumo.meuPreco)}
-              {(maisCaro || maisBarato) && (
-                <span
-                  className={`ml-1 inline-flex items-center gap-0.5 font-medium ${maisCaro ? "text-red-700" : "text-emerald-700"}`}
-                  title={maisCaro ? "O 1º colocado está mais barato que você" : "Você está mais barato que o 1º colocado"}
-                >
-                  {maisCaro ? <ArrowUp size={12} aria-hidden="true" /> : <ArrowDown size={12} aria-hidden="true" />}
-                  {PERCENTUAL.format(Math.abs(diferenca))}%
-                </span>
-              )}
-              )
-            </span>
-          )}
-        </>
+    <span className="hidden shrink-0 items-center gap-5 text-right sm:flex">
+      {!souPrimeiro && resumo.primeiroPreco > 0 && (
+        <span>
+          <span className="block text-[11px] text-suave">1º colocado</span>
+          <span className="text-sm font-medium tabular-nums">{MOEDA.format(resumo.primeiroPreco)}</span>
+        </span>
+      )}
+      {resumo.meuPreco > 0 && (
+        <span>
+          <span className="block text-[11px] text-suave">Você</span>
+          <span className={`inline-flex items-center gap-1.5 text-sm font-medium tabular-nums ${souPrimeiro ? "text-emerald-700" : ""}`}>
+            {MOEDA.format(resumo.meuPreco)}
+            {(maisCaro || maisBarato) && (
+              <span
+                title={maisCaro ? "O 1º colocado está mais barato que você" : "Você está mais barato que o 1º colocado"}
+                className={`inline-flex items-center gap-0.5 rounded px-1 py-px text-[11px] font-semibold ${maisCaro ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}
+              >
+                {maisCaro ? <ArrowUp size={11} aria-hidden="true" /> : <ArrowDown size={11} aria-hidden="true" />}
+                {PERCENTUAL.format(Math.abs(diferenca))}%
+              </span>
+            )}
+          </span>
+        </span>
       )}
     </span>
   );
