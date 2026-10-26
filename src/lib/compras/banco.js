@@ -583,10 +583,11 @@ export async function salvarPedido(id, entrada) {
           }
           const data = { prazoDias: item.prazoDias ?? null };
           if (rascunho) {
+            // Campo de preco AUSENTE (quem nao ve custo) mantem o gravado; vazio de proposito vira null.
             Object.assign(data, {
               quantidade: item.quantidade,
-              precoUnitario: item.precoUnitario ?? null,
-              ipiPercentual: item.ipiPercentual ?? 0,
+              ...(item.precoUnitario !== undefined ? { precoUnitario: item.precoUnitario } : {}),
+              ...(item.ipiPercentual !== undefined ? { ipiPercentual: item.ipiPercentual ?? 0 } : {}),
               ordem: item.ordem,
               ...(item.nomeNoFornecedor !== undefined ? { nomeNoFornecedor: item.nomeNoFornecedor } : {}),
               ...(item.codigoNoFornecedor !== undefined ? { codigoNoFornecedor: item.codigoNoFornecedor } : {}),

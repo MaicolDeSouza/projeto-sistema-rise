@@ -1,0 +1,213 @@
+"use client";
+
+import { ExternalLink } from "lucide-react";
+
+import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
+import { lerDesconto } from "@/lib/compras/regras";
+import { moeda, soDecimal, soDigitos } from "./formato";
+
+const entrada =
+  "w-full rounded-md border border-borda bg-superficie px-2.5 py-2 text-sm tabular-nums focus:border-acento focus:outline-none focus:ring-2 focus:ring-acento/20 disabled:bg-fundo disabled:text-suave aria-[invalid=true]:border-rose-500";
+
+function Campo({ rotulo, erro, children, className = "" }) {
+  return (
+    <label className={`block ${className}`}>
+      <span className="mb-1 block text-xs font-medium text-suave">{rotulo}</span>
+      {children}
+      {erro && <span className="mt-1 block text-xs text-rose-600">{erro}</span>}
+    </label>
+  );
+}
+
+function Calculado({ rotulo, valor, destaque = false }) {
+  return (
+    <div className={destaque ? "rounded-md bg-acento/5 px-3 py-2" : "px-3 py-2"}>
+      <p className="text-xs text-suave">{rotulo}</p>
+      <p className={`tabular-nums ${destaque ? "text-xl font-semibold text-texto" : "font-medium"}`}>{valor}</p>
+    </div>
+  );
+}
+
+/** Totais da compra: os calculados das linhas e os tres editaveis (ICMS ST, desconto em % ou R$, frete). */
+export function BlocoTotais({ formulario, totais, editar, erros, aoMudar }) {
+  const desconto = lerDesconto(formulario.desconto);
+  return (
+    <SecaoDoAnuncio titulo="Totais da compra" ajuda="Desconto: digite 5% para percentual ou 50 para R$ 50,00. O percentual incide sobre os produtos.">
+      <div className="grid gap-4 lg:grid-cols-[1fr_1fr_auto]">
+        <div className="grid grid-cols-2 gap-1 rounded-md border border-borda sm:grid-cols-4 lg:grid-cols-2">
+          <Calculado rotulo="Total dos produtos" valor={moeda.format(totais.produtos)} />
+          <Calculado rotulo="Total do IPI" valor={moeda.format(totais.ipi)} />
+          <Calculado rotulo="Nº de itens" valor={totais.numeroDeItens} />
+          <Calculado rotulo="Soma das qtdes" valor={totais.somaDasQuantidades} />
+        </div>
+        <div className="grid grid-cols-3 gap-3 self-start">
+          <Campo rotulo="ICMS ST (R$)" erro={erros?.icmsSt}>
+            <input inputMode="decimal" value={formulario.icmsSt} disabled={!editar} aria-invalid={Boolean(erros?.icmsSt)} onChange={(evento) => aoMudar("icmsSt", soDecimal(evento.target.value))} className={`${entrada} text-right`} />
+          </Campo>
+          <Campo rotulo="Desconto" erro={erros?.desconto ?? ("erro" in desconto ? desconto.erro : null)}>
+            <input
+              value={formulario.desconto}
+              disabled={!editar}
+              placeholder="0 ou 5%"
+              aria-invalid={Boolean(erros?.desconto) || "erro" in desconto}
+              onChange={(evento) => aoMudar("desconto", evento.target.value.replace(/[^\d.,%]/g, "").slice(0, 14))}
+              className={`${entrada} text-right`}
+            />
+            {totais.desconto > 0 && <span className="mt-1 block text-right text-xs text-suave">− {moeda.format(totais.desconto)}</span>}
+          </Campo>
+          <Campo rotulo="Frete (R$)" erro={erros?.frete}>
+            <input inputMode="decimal" value={formulario.frete} disabled={!editar} aria-invalid={Boolean(erros?.frete)} onChange={(evento) => aoMudar("frete", soDecimal(evento.target.value))} className={`${entrada} text-right`} />
+          </Campo>
+        </div>
+        <div className="flex min-w-48 flex-col justify-center rounded-lg bg-texto px-5 py-4 text-white lg:text-right">
+          <p className="text-xs text-white/70">Total do pedido</p>
+          <p className="text-2xl font-semibold tabular-nums">{moeda.format(totais.total)}</p>
+        </div>
+      </div>
+    </SecaoDoAnuncio>
+  );
+}
+
+const FORMAS = [
+  { id: "PIX", texto: "Pix" },
+  { id: "BOLETO", texto: "Boleto" },
+  { id: "CARTAO", texto: "Cartão" },
+];
+
+/** Opcoes lado a lado com radio de verdade escondido (padrao `EscolhaDoTipo`): o teclado continua funcionando. */
+function Opcoes({ nome, opcoes, valor, disabled, aoMudar }) {
+  return (
+    <div className="inline-flex rounded-md border border-borda p-0.5" role="radiogroup">
+      {opcoes.map((opcao) => {
+        const marcada = valor === opcao.id;
+        return (
+          <label
+            key={opcao.id}
+            className={`cursor-pointer whitespace-nowrap rounded px-3 py-1.5 text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-acento/40 ${
+              marcada ? "bg-acento text-white" : "text-suave hover:text-texto"
+            } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+          >
+            <input type="radio" name={nome} value={opcao.id} checked={marcada} disabled={disabled} onChange={() => aoMudar(opcao.id)} className="sr-only" />
+            {opcao.texto}
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
+export function BlocoPagamento({ formulario, editar, erros, aoMudar }) {
+  const pix = formulario.formaPagamento === "PIX";
+  return (
+    <SecaoDoAnuncio titulo="Pagamento">
+      <div className="flex flex-wrap items-end gap-4">
+        <div>
+          <span className="mb-1 block text-xs font-medium text-suave">Forma</span>
+          <Opcoes nome="formaPagamento" opcoes={FORMAS} valor={formulario.formaPagamento} disabled={!editar} aoMudar={(valor) => aoMudar("formaPagamento", valor)} />
+        </div>
+        <Campo rotulo="Parcelas" erro={erros?.parcelas} className="w-24">
+          <input
+            inputMode="numeric"
+            value={pix ? "1" : formulario.parcelas}
+            disabled={!editar || pix}
+            title={pix ? "Pix é à vista" : undefined}
+            aria-invalid={Boolean(erros?.parcelas)}
+            onChange={(evento) => aoMudar("parcelas", soDigitos(evento.target.value, 2))}
+            className={`${entrada} text-right`}
+          />
+        </Campo>
+      </div>
+    </SecaoDoAnuncio>
+  );
+}
+
+export function BlocoFrete({ formulario, transportadoras, editar, aoMudar }) {
+  const escolhida = transportadoras.find((transportadora) => transportadora.id === formulario.transportadoraId);
+  const outra = !formulario.transportadoraId;
+  const linkDoRastreio =
+    escolhida?.urlRastreamento && formulario.rastreio ? escolhida.urlRastreamento.replace("{codigo}", encodeURIComponent(formulario.rastreio)) : null;
+  return (
+    <SecaoDoAnuncio titulo="Frete">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Campo rotulo="Transportadora">
+          <select
+            value={formulario.transportadoraId}
+            disabled={!editar}
+            onChange={(evento) => aoMudar("transportadoraId", evento.target.value)}
+            className={entrada}
+          >
+            <option value="">Outra (digitar)</option>
+            {transportadoras.map((transportadora) => (
+              <option key={transportadora.id} value={transportadora.id}>
+                {transportadora.nomeFantasia || transportadora.nome}
+              </option>
+            ))}
+          </select>
+          {outra && (
+            <input
+              value={formulario.transportadoraNome}
+              disabled={!editar}
+              placeholder="Nome da transportadora"
+              onChange={(evento) => aoMudar("transportadoraNome", evento.target.value.slice(0, 120))}
+              className={`${entrada} mt-2`}
+            />
+          )}
+        </Campo>
+        <div>
+          <span className="mb-1 block text-xs font-medium text-suave">Frete por conta</span>
+          <Opcoes
+            nome="fretePorConta"
+            opcoes={[
+              { id: "CIF", texto: "Fornecedor (CIF)" },
+              { id: "FOB", texto: "Nossa (FOB)" },
+            ]}
+            valor={formulario.fretePorConta}
+            disabled={!editar}
+            aoMudar={(valor) => aoMudar("fretePorConta", valor)}
+          />
+        </div>
+        <Campo rotulo="Código de rastreio" className="sm:col-span-2">
+          <div className="flex items-center gap-2">
+            <input
+              value={formulario.rastreio}
+              disabled={!editar}
+              onChange={(evento) => aoMudar("rastreio", evento.target.value.slice(0, 80))}
+              className={`${entrada} font-mono`}
+            />
+            {linkDoRastreio && /^https?:\/\//i.test(linkDoRastreio) && (
+              <a href={linkDoRastreio} target="_blank" rel="noreferrer" title="Rastrear" className="inline-flex shrink-0 rounded-md border border-borda p-2 text-suave hover:text-acento">
+                <ExternalLink size={16} />
+              </a>
+            )}
+          </div>
+        </Campo>
+      </div>
+    </SecaoDoAnuncio>
+  );
+}
+
+export function BlocoProposta({ formulario, editar, aoMudar, children = null }) {
+  return (
+    <SecaoDoAnuncio titulo="Proposta do fornecedor" ajuda="O número e o arquivo do orçamento que o fornecedor mandou.">
+      <Campo rotulo="Nº da proposta">
+        <input value={formulario.propostaNumero} disabled={!editar} onChange={(evento) => aoMudar("propostaNumero", evento.target.value.slice(0, 60))} className={entrada} />
+      </Campo>
+      {children}
+    </SecaoDoAnuncio>
+  );
+}
+
+export function BlocoObservacoes({ formulario, editar, aoMudar }) {
+  return (
+    <SecaoDoAnuncio titulo="Observações" ajuda="Vão no PDF para o fornecedor.">
+      <textarea
+        value={formulario.observacoes}
+        disabled={!editar}
+        rows={4}
+        onChange={(evento) => aoMudar("observacoes", evento.target.value.slice(0, 4000))}
+        aria-label="Observações"
+        className={`${entrada} resize-y`}
+      />
+    </SecaoDoAnuncio>
+  );
+}

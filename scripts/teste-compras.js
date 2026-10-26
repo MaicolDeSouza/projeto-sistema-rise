@@ -282,6 +282,10 @@ try {
     conferir("totais com desconto e frete", pedido.totais.total, 105.5);
     conferir("pix forca 1 parcela", [pedido.formaPagamento, pedido.parcelas, pedido.fretePorConta], ["PIX", 1, "FOB"]);
 
+    // Quem nao ve custo manda o item SEM os campos de preco: o banco tem de manter os gravados.
+    await banco.salvarPedido(criado.pedidoId, { itens: itens.map(({ precoUnitario, ipiPercentual, ...item }) => (void precoUnitario, void ipiPercentual, item)) });
+    conferir("salvar sem os campos de preco nao apaga o preco", (await banco.lerPedido(criado.pedidoId)).itens[0].precoUnitario, 10);
+
     const invalido = await banco.salvarPedido(criado.pedidoId, { itens: [{ ...itens[0], quantidade: "0" }, itens[1]], desconto: "abc" });
     conferir("salvar invalido devolve erros por campo", [invalido.ok, Boolean(invalido.erros?.["itens.0.quantidade"]), Boolean(invalido.erros?.desconto)], [false, true, true]);
 
