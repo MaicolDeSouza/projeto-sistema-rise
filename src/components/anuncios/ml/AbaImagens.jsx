@@ -5,6 +5,7 @@ import { ChevronDown, ChevronUp, ImageOff } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import MensagensDoCampo from "./MensagensDoCampo";
+import SecaoDoAnuncio from "./SecaoDoAnuncio";
 
 const AVISO_DO_KIT =
   "O kit pede fotos próprias (as dos produtos mostram uma unidade de cada). O envio de fotos do kit entra na fase 3.";
@@ -94,16 +95,12 @@ export function LinhaDeFoto({ id, foto, posicao, total, aoAlternar, aoMover }) {
 
 function FotosDoProduto({ fotos, problemas }) {
   return (
-    <div>
-      <div className="flex items-center gap-1 text-sm font-semibold">
-        Fotos do anúncio ({fotos.length})
-        <BolhaDeAjuda
-          variante="inline"
-          texto="As fotos do anúncio são as validadas do produto, na ordem do cadastro (a primeira é a capa). Para mudar, use Editar produto. Acima do que a categoria aceita, vão as primeiras."
-        />
-      </div>
+    <SecaoDoAnuncio
+      titulo={`Fotos do anúncio (${fotos.length})`}
+      ajuda="As fotos do anúncio são as validadas do produto, na ordem do cadastro (a primeira é a capa). Para mudar, use Editar produto. Acima do que a categoria aceita, vão as primeiras."
+    >
       {fotos.length > 0 ? (
-        <ul className="mt-2 grid grid-cols-3 gap-3 sm:grid-cols-6">
+        <ul className="grid grid-cols-3 gap-3 sm:grid-cols-6">
           {fotos.map((foto, posicao) => (
             <li key={foto.id} className="space-y-1">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -113,10 +110,10 @@ function FotosDoProduto({ fotos, problemas }) {
           ))}
         </ul>
       ) : (
-        <p className="mt-2 text-sm text-suave">O produto não tem foto validada.</p>
+        <p className="text-sm text-suave">O produto não tem foto validada.</p>
       )}
       <MensagensDoCampo problemas={problemas} campo="imagens" />
-    </div>
+    </SecaoDoAnuncio>
   );
 }
 
@@ -154,37 +151,29 @@ export default function AbaImagens({ rascunho, contexto, alterar, problemas }) {
         <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{AVISO_DO_KIT}</div>
       )}
 
-      <div>
-        <div className="flex items-center gap-1 text-sm font-semibold">
-          Fotos do anúncio ({marcadas.length})
-          <BolhaDeAjuda
-            variante="inline"
-            texto="A ordem daqui é a ordem de envio: a primeira é a capa do anúncio. Use as setas para mudar."
-          />
-        </div>
+      <SecaoDoAnuncio titulo={`Fotos do anúncio (${marcadas.length})`} ajuda="A ordem daqui é a ordem de envio: a primeira é a capa do anúncio. Use as setas para mudar.">
         {marcadas.length > 0 ? (
-          <ul className="mt-2 divide-y divide-borda rounded border border-borda">
+          <ul className="divide-y divide-borda rounded border border-borda">
             {marcadas.map((id, posicao) => (
               <LinhaDeFoto key={id} id={id} foto={porId.get(id)} posicao={posicao} total={marcadas.length} aoAlternar={alternar} aoMover={mover} />
             ))}
           </ul>
         ) : (
-          <p className="mt-2 text-sm text-suave">
+          <p className="text-sm text-suave">
             {disponiveis.length > 0 ? "Nenhuma foto marcada." : "Nenhuma foto cadastrada para este anúncio."}
           </p>
         )}
         <MensagensDoCampo problemas={problemas} campo="imagens" />
-      </div>
+      </SecaoDoAnuncio>
 
       {naoUsadas.length > 0 && (
-        <div>
-          <p className="text-sm font-semibold">Fotos disponíveis</p>
-          <ul className="mt-2 divide-y divide-borda rounded border border-borda">
+        <SecaoDoAnuncio titulo="Fotos disponíveis">
+          <ul className="divide-y divide-borda rounded border border-borda">
             {naoUsadas.map((foto) => (
               <LinhaDeFoto key={foto.id} id={foto.id} foto={foto} posicao={null} total={marcadas.length} aoAlternar={alternar} aoMover={mover} />
             ))}
           </ul>
-        </div>
+        </SecaoDoAnuncio>
       )}
     </div>
   );

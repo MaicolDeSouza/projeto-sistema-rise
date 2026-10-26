@@ -13,14 +13,21 @@ import { LIMITE_TITULO } from "../../anuncios/canais/mercadolivre";
 import { errosDaComposicao } from "../composicao";
 import { problemasDosAtributos } from "./atributos";
 
+/// O prazo de disponibilidade (MANUFACTURING_TIME) maximo, em dias. O ML nao publica o teto na categoria; 45 e o que o
+/// painel do vendedor oferece.
+export const PRAZO_MAXIMO_DIAS = 45;
+
+// O id "geral" ficou (a validacao e as abas o usam); o rotulo e "Caracteristicas" desde 26/10/2026 (pedido do dono).
+// "status" no lugar da "Previa e validacao", e a primeira (26/10/2026, pedido do dono); "garantia" e so leitura.
 export const ABAS_ML = [
-  { id: "geral", rotulo: "Geral" },
+  { id: "status", rotulo: "Status" },
+  { id: "geral", rotulo: "Características" },
   { id: "preco", rotulo: "Preço e custos" },
   { id: "imagens", rotulo: "Imagens" },
   { id: "descricao", rotulo: "Descrição" },
   { id: "ficha", rotulo: "Ficha técnica" },
-  { id: "envio", rotulo: "Envio" },
-  { id: "previa", rotulo: "Prévia e validação" },
+  { id: "envio", rotulo: "Peso, dimensões e envio" },
+  { id: "garantia", rotulo: "Garantia" },
 ];
 
 // Categoria do ML e o codigo (MLB1234), digitado nesta fase.
@@ -121,6 +128,13 @@ export function validarRascunhoML(rascunho, contexto) {
     acrescentar("categoria", "geral", "Esta categoria não é final: escolha uma subcategoria.");
   } else if (!lida && texto(contexto?.categoriaErro)) {
     acrescentar("categoria", "geral", `Categoria não conferida no Mercado Livre: ${texto(contexto.categoriaErro)}`, false);
+  }
+
+  // Prazo de disponibilidade (26/10/2026): dias inteiros, de 0 (pronta entrega) a 45. Rascunho de antes nao tem o campo
+  // e nao e acusado (abre com 1 dia).
+  const prazo = rascunho.prazoDisponibilidadeDias;
+  if (prazo !== undefined && prazo !== null && !(Number.isInteger(Number(prazo)) && Number(prazo) >= 0 && Number(prazo) <= PRAZO_MAXIMO_DIAS)) {
+    acrescentar("prazoDisponibilidade", "geral", `O prazo de disponibilidade é em dias inteiros, de 0 a ${PRAZO_MAXIMO_DIAS}.`);
   }
 
   // So produto Conferido entra num anuncio. Numa composicao o que conta sao os itens (o

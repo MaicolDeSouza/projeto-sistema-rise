@@ -146,6 +146,18 @@ export function fotosDoRise(rascunho, produtosPorId) {
  * no kit, o que as pecas montam. Negativo conta zero. `null` quando o produto nao esta em `produtosPorId`.
  * Abrir e salvar o anuncio usam esta conta, para o numero nunca ficar o de quando o rascunho foi criado.
  */
+/**
+ * O peso e as medidas do pacote do anuncio SIMPLES sao sempre os do produto (pedido do dono em 26/10/2026, no molde da
+ * Loja Integrada: a aba so os mostra, e o cadastro e onde se mudam). O kit monta os dele, editaveis: devolve null e o
+ * rascunho fica como esta.
+ */
+export function pacoteDoRise(rascunho, produtosPorId) {
+  if (rascunho?.composicao) return null;
+  const produto = produtosPorId?.[rascunho?.produtoId];
+  if (!produto) return null;
+  return { pesoKg: produto.pesoKg ?? null, alturaCm: produto.alturaCm ?? null, larguraCm: produto.larguraCm ?? null, comprimentoCm: produto.comprimentoCm ?? null };
+}
+
 export function estoqueDoRise(rascunho, produtosPorId) {
   const itens = itensDaComposicao(rascunho?.composicao);
   if (itens.length > 0) {
@@ -187,6 +199,8 @@ export function rascunhoInicial({ principal, produtosPorId, composicao }) {
     familyName: familyNameDoProduto(principal),
     tipoAnuncio: "gold_special",
     condicao: "new",
+    // Prazo de disponibilidade (pedido do dono em 26/10/2026): 1 dia de padrao.
+    prazoDisponibilidadeDias: 1,
     categoriaId: null,
     // So para mostrar: o nome que veio com a sugestao. Digitar o codigo a mao apaga o nome.
     categoriaNome: null,

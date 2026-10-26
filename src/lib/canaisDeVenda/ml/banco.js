@@ -9,7 +9,7 @@ import { impressaoDoConteudo } from "./impressao";
 import { montarRanking } from "./ranking";
 import { catalogosDeVariosProdutos } from "./referencias";
 import { RascunhoMLSchema } from "./esquema";
-import { descricaoDoRise, estoqueDoRise, fotosDoRise, rascunhoInicial } from "./rascunho";
+import { descricaoDoRise, estoqueDoRise, fotosDoRise, pacoteDoRise, rascunhoInicial } from "./rascunho";
 
 /**
  * O rascunho do anuncio do Mercado Livre no banco: ler o contexto dos produtos, abrir um
@@ -47,7 +47,7 @@ export async function contextoDosProdutos(ids) {
     select: {
       id: true, sku: true, tituloBase: true, descricaoBase: true, marca: true, modelo: true, ean: true,
       conferido: true, blingId: true, precoVenda: true, estoque: true,
-      pesoKg: true, alturaCm: true, larguraCm: true, comprimentoCm: true,
+      pesoKg: true, alturaCm: true, larguraCm: true, comprimentoCm: true, garantiaMeses: true,
       custo: true, fornecedorRascunho: true,
       fornecedores: { select: { padrao: true, precoCusto: true } },
       arquivos: { where: { tipo: "IMAGEM", papel: "FOTO" }, orderBy: [{ ordem: "asc" }, { criadoEm: "asc" }], select: { id: true, arquivo: true, principal: true } },
@@ -73,6 +73,8 @@ export async function contextoDosProdutos(ids) {
         alturaCm: numero(p.alturaCm),
         larguraCm: numero(p.larguraCm),
         comprimentoCm: numero(p.comprimentoCm),
+        // A garantia do produto base vai ao ML nos termos de venda (26/10/2026); no anuncio e so leitura.
+        garantiaMeses: p.garantiaMeses ?? null,
         custo: custoDoProduto({ fornecedores: p.fornecedores, fornecedorRascunho: p.fornecedorRascunho, custo: p.custo }),
         // `arquivo` e o nome no disco: a impressao do anuncio publicado compara as fotos por ele (acompanhar.js).
         imagens: p.arquivos.map((a) => ({ id: a.id, arquivo: a.arquivo, url: urlDe(p.sku, "IMAGEM", a.arquivo), principal: a.principal })),
@@ -119,6 +121,8 @@ function rascunhoDoAnuncio(anuncio) {
     familyName: dados.familyName ?? "",
     tipoAnuncio: dados.tipoAnuncio ?? "gold_special",
     condicao: dados.condicao ?? "new",
+    // Anuncio gravado antes do campo (26/10/2026) abre com o padrao de 1 dia.
+    prazoDisponibilidadeDias: dados.prazoDisponibilidadeDias ?? 1,
     categoriaId: anuncio.categoriaExternaId ?? null,
     categoriaNome: dados.categoriaNome ?? null,
     preco: dados.preco ?? null,
@@ -181,6 +185,9 @@ export async function carregarAnuncioML(id) {
   rascunho.estoque = estoqueDoRise(rascunho, produtos) ?? rascunho.estoque;
   rascunho.descricao = descricaoDoRise(rascunho, produtos) ?? rascunho.descricao;
   rascunho.imagens = fotosDoRise(rascunho, produtos) ?? rascunho.imagens;
+  // Peso e medidas do anuncio simples: os do produto (26/10/2026, no molde da LI).
+  const pacote = pacoteDoRise(rascunho, produtos);
+  if (pacote) rascunho.envio = { ...rascunho.envio, ...pacote };
   // Anuncio publicado: o que mudou no produto desde o ultimo envio (a faixa "Enviar mudancas ao ML" do editor).
   const mudancas =
     anuncio.status === "PUBLICADO"
@@ -446,7 +453,13 @@ export async function salvarRascunhoML(anuncioId, entrada) {
     rascunho.descricao = descricaoDoRise(rascunho, doRise) ?? rascunho.descricao;
     // As fotos do anuncio simples tambem: as validadas do produto, na ordem (spec 2026-10-24, "igual a LI"). O kit
     // continua com as que o dono escolheu entre as das pecas.
-    if (!rascunho.composicao) rascunho.imagens = fotosDoRise(rascunho, await contextoDosProdutos([rascunho.produtoId])) ?? rascunho.imagens;
+    if (!rascunho.composicao) {
+      const doProduto = await contextoDosProdutos([rascunho.produtoId]);
+      rascunho.imagens = fotosDoRise(rascunho, doProduto) ?? rascunho.imagens;
+      // Peso e medidas tambem (26/10/2026): a tela so os mostra; o que ela mandar nao vale.
+      const pacote = pacoteDoRise(rascunho, doProduto);
+      if (pacote) rascunho.envio = { ...rascunho.envio, ...pacote };
+    }
 
     const { produtoId, titulo, descricao, categoriaId, atributos, ...dados } = rascunho;
     const colunas = { produtoId, titulo, descricao, categoriaExternaId: categoriaId || null, atributos };

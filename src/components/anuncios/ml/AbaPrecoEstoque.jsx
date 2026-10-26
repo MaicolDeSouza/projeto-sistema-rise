@@ -13,6 +13,7 @@ import { posicaoDePreco } from "@/lib/posicaoDePreco";
 import CalculadoraDeMargem from "./CalculadoraDeMargem";
 import ConcorrentesDoML from "./ConcorrentesDoML";
 import RankingDosCatalogos from "./RankingDosCatalogos";
+import SecaoDoAnuncio from "./SecaoDoAnuncio";
 import CustosDoML from "./CustosDoML";
 import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
 import { filtrarDecimal, lerDecimal, mostrarDigitado } from "./numeros";
@@ -123,6 +124,7 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
 
   return (
     <div className="space-y-4">
+      <SecaoDoAnuncio titulo="Preço e custos">
       <div className="grid items-start gap-4 md:grid-cols-2">
         <Campo
           nome="ml-preco"
@@ -180,6 +182,7 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
 
         {acessos.custos && <CustosDoML rascunho={rascunho} contexto={contexto} setContexto={setContexto} custo={custo} conta={conta} />}
       </div>
+      </SecaoDoAnuncio>
 
       {rascunho.produtoId && acessos.concorrentes && (
         <ConcorrentesDoML produtoId={rascunho.produtoId} titulo={rascunho.titulo} alterar={alterar} aoMudarConcorrentes={setConcorrentesML} aoMudarTela={setTelaConcorrentes} />

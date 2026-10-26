@@ -98,6 +98,27 @@ export function atributosDaFicha(rascunho) {
     );
 }
 
+/// "Garantia do vendedor" na lista WARRANTY_TYPE do ML (medido na categoria MLB99779 em 26/10/2026; as outras opcoes sao
+/// "Garantia de fabrica" 2230279 e "Sem garantia" 6150835). A loja da a garantia dela, nao a do fabricante.
+export const GARANTIA_DO_VENDEDOR = "2230280";
+
+/**
+ * Os termos de venda (pedido do dono em 26/10/2026): a garantia do PRODUTO BASE (`garantiaMeses`, so leitura no anuncio)
+ * e o prazo de disponibilidade (MANUFACTURING_TIME, em dias; zero = pronta entrega, nao vai). Sem garantia no produto,
+ * nada de garantia vai (o ML mostra a padrao dele).
+ */
+export function termosDeVenda(rascunho, contexto) {
+  const termos = [];
+  const meses = Number(contexto?.produtos?.[rascunho.produtoId]?.garantiaMeses);
+  if (Number.isInteger(meses) && meses > 0) {
+    termos.push({ id: "WARRANTY_TYPE", value_id: GARANTIA_DO_VENDEDOR });
+    termos.push({ id: "WARRANTY_TIME", value_name: `${meses} ${meses === 1 ? "mês" : "meses"}` });
+  }
+  const dias = Number(rascunho.prazoDisponibilidadeDias);
+  if (Number.isInteger(dias) && dias > 0) termos.push({ id: "MANUFACTURING_TIME", value_name: `${dias} dias` });
+  return termos;
+}
+
 export function montarPayloadML(rascunho, contexto) {
   const titulo = texto(rascunho.titulo);
   const envio = rascunho.envio ?? {};
@@ -126,7 +147,9 @@ export function montarPayloadML(rascunho, contexto) {
       currency_id: "BRL",
       buying_mode: "buy_it_now",
       listing_type_id: rascunho.tipoAnuncio ?? "gold_special",
-      condition: rascunho.condicao ?? "new",
+      // Sempre novo (pedido do dono em 26/10/2026: o campo saiu da tela); um rascunho antigo em "usado" nao pesa mais.
+      condition: "new",
+      sale_terms: termosDeVenda(rascunho, contexto),
       // Publica pausado: falha no meio da sequencia nao deixa anuncio incompleto no ar.
       status: "paused",
       // A previa mostra os nomes; a publicacao sobe as fotos ANTES de criar o item e troca os nomes

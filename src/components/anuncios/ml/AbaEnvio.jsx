@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
+import { Pencil } from "lucide-react";
 
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
@@ -9,8 +11,10 @@ import { LOGISTICAS_ML } from "@/lib/canaisDeVenda/ml/rotulos";
 import { medidasFaltando } from "@/lib/canaisDeVenda/ml/validacao";
 import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
 import { filtrarDecimal, lerDecimal, mostrarDigitado } from "./numeros";
+import SecaoDoAnuncio, { LinhaDeDado } from "./SecaoDoAnuncio";
 
 const NOMES_DO_MODO = { me2: "Mercado Envios (me2)" };
+const MEDIDA = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 });
 
 // `nome` e como `medidasFaltando` chama a medida; `chave` e o campo do envio no rascunho.
 const PESO = {
@@ -47,6 +51,19 @@ const MEDIDAS = [
     ajuda: "Altura do pacote já embalado, em centímetros.",
   },
 ];
+
+/** "4,3 cm → 5 cm": o valor do cadastro e o inteiro de cima, que e o que vai ao ML (`SELLER_PACKAGE_*`). */
+function medidaParaTela(valor) {
+  if (!(Number(valor) > 0)) return null;
+  const inteiro = Math.ceil(Number(Number(valor).toFixed(3)));
+  return Number(valor) === inteiro ? `${inteiro} cm` : `${MEDIDA.format(Number(valor))} cm → ${inteiro} cm`;
+}
+
+/** "0,007 kg → 7 g": o ML recebe o peso em gramas. */
+function pesoParaTela(valor) {
+  if (!(Number(valor) > 0)) return null;
+  return `${MEDIDA.format(Number(valor))} kg → ${Math.round(Number(valor) * 1000)} g`;
+}
 
 /**
  * Campo de numero decimal (virgula ou ponto). Guarda o texto digitado para a virgula nao sumir
@@ -96,9 +113,38 @@ function CaixaDeOpcao({ rotulo, ajuda, marcada, aoMudar, travada = null }) {
 }
 
 /**
- * Aba Envio: peso e medidas do pacote (o Mercado Envios precisa dos quatro), o modo de envio e
- * as duas opcoes de entrega. O rascunho guarda o `envio` como um objeto so, e cada mudanca manda
- * o objeto inteiro.
+ * Peso e medidas do anuncio SIMPLES: so leitura, do cadastro do produto (pedido do dono em 26/10/2026, no formato da aba
+ * da Loja Integrada). O servidor os rele do produto ao abrir e ao salvar; mudar e no cadastro.
+ */
+function PesoEMedidasDoProduto({ envio, produtoId, problemas }) {
+  return (
+    <SecaoDoAnuncio
+      titulo="Peso e medidas (do cadastro do produto)"
+      ajuda="O Mercado Livre guarda as medidas do pacote em centímetro inteiro (sobe para o inteiro de cima) e o peso em gramas."
+      acao={
+        produtoId && (
+          <Link href={`/produtos/${produtoId}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-acento hover:bg-superficie">
+            <Pencil size={12} />
+            Editar no produto
+          </Link>
+        )
+      }
+    >
+      <div className="rounded border border-borda px-3">
+        <LinhaDeDado rotulo="Peso">{pesoParaTela(envio.pesoKg)}</LinhaDeDado>
+        <LinhaDeDado rotulo="Comprimento">{medidaParaTela(envio.comprimentoCm)}</LinhaDeDado>
+        <LinhaDeDado rotulo="Largura">{medidaParaTela(envio.larguraCm)}</LinhaDeDado>
+        <LinhaDeDado rotulo="Altura">{medidaParaTela(envio.alturaCm)}</LinhaDeDado>
+      </div>
+      <MensagensDoCampo problemas={problemas} campo={["peso", "dimensoes", "arredondamento"]} />
+    </SecaoDoAnuncio>
+  );
+}
+
+/**
+ * Aba "Peso, dimensoes e envio" (era "Envio"; pedido do dono em 26/10/2026): o peso e as medidas do pacote (o Mercado
+ * Envios precisa dos quatro; no anuncio simples sao os do produto, so leitura; no kit, editaveis) e as opcoes de entrega,
+ * cada assunto no seu cartao. O rascunho guarda o `envio` como um objeto so, e cada mudanca manda o objeto inteiro.
  */
 export default function AbaEnvio({ rascunho, alterar, problemas }) {
   const envio = rascunho.envio ?? {};
@@ -114,78 +160,74 @@ export default function AbaEnvio({ rascunho, alterar, problemas }) {
 
   return (
     <div className="space-y-4">
-      {emKit && (
-        <div className="rounded border border-borda bg-fundo px-3 py-2 text-sm text-suave">
-          Peso sugerido: soma dos itens. Confira as dimensões da caixa do kit.
-        </div>
+      {emKit ? (
+        <SecaoDoAnuncio titulo="Peso e medidas do kit" ajuda="Peso sugerido: a soma dos itens. Confira as dimensões da caixa do kit.">
+          <div className="grid gap-4 md:grid-cols-4">
+            <CampoDecimal medida={PESO} valor={envio[PESO.chave]} comErro={erroDoPeso} aoMudar={(chave, valor) => mudarEnvio({ [chave]: valor })}>
+              <MensagensDoCampo problemas={problemas} campo="peso" />
+            </CampoDecimal>
+            {MEDIDAS.map((medida) => (
+              <CampoDecimal
+                key={medida.chave}
+                medida={medida}
+                valor={envio[medida.chave]}
+                comErro={temErroDeMedida && faltando.includes(medida.nome)}
+                aoMudar={(chave, valor) => mudarEnvio({ [chave]: valor })}
+              />
+            ))}
+          </div>
+          <MensagensDoCampo problemas={problemas} campo={["dimensoes", "arredondamento"]} />
+        </SecaoDoAnuncio>
+      ) : (
+        <PesoEMedidasDoProduto envio={envio} produtoId={rascunho.produtoId} problemas={problemas} />
       )}
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <CampoDecimal
-          medida={PESO}
-          valor={envio[PESO.chave]}
-          comErro={erroDoPeso}
-          aoMudar={(chave, valor) => mudarEnvio({ [chave]: valor })}
-        >
-          <MensagensDoCampo problemas={problemas} campo="peso" />
-        </CampoDecimal>
-
-        {MEDIDAS.map((medida) => (
-          <CampoDecimal
-            key={medida.chave}
-            medida={medida}
-            valor={envio[medida.chave]}
-            comErro={temErroDeMedida && faltando.includes(medida.nome)}
-            aoMudar={(chave, valor) => mudarEnvio({ [chave]: valor })}
-          />
-        ))}
-      </div>
-      <MensagensDoCampo problemas={problemas} campo={["dimensoes", "arredondamento"]} />
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <Campo nome="ml-modo-de-envio" rotulo="Modo de envio" ajuda="Somente leitura. O envio é sempre pelo Mercado Envios.">
-          <input
-            id="ml-modo-de-envio"
-            readOnly
-            value={NOMES_DO_MODO[envio.modo] ?? envio.modo ?? ""}
-            className={`${CLASSE_CAMPO} border-borda bg-fundo text-suave`}
-          />
-        </Campo>
-        <Campo
-          nome="ml-logistica"
-          rotulo="Tipo de logística"
-          ajuda="Muda a tarifa fixa do ML (o Flex cobra tarifa fixa em preço baixo) e o frete do vendedor. Depois de trocar, atualize os custos na aba Preço e estoque."
-        >
-          <select
-            id="ml-logistica"
-            value={envio.logistica ?? "xd_drop_off"}
-            onChange={(evento) => mudarEnvio({ logistica: evento.target.value })}
-            className={`${CLASSE_CAMPO} border-borda`}
+      <SecaoDoAnuncio titulo="Envio">
+        <div className="grid gap-4 md:grid-cols-2">
+          <Campo nome="ml-modo-de-envio" rotulo="Modo de envio" ajuda="Somente leitura. O envio é sempre pelo Mercado Envios.">
+            <input
+              id="ml-modo-de-envio"
+              readOnly
+              value={NOMES_DO_MODO[envio.modo] ?? envio.modo ?? ""}
+              className={`${CLASSE_CAMPO} border-borda bg-fundo text-suave`}
+            />
+          </Campo>
+          <Campo
+            nome="ml-logistica"
+            rotulo="Tipo de logística"
+            ajuda="Muda a tarifa fixa do ML (o Flex cobra tarifa fixa em preço baixo) e o frete do vendedor. Depois de trocar, os custos da aba Preço e custos são relidos."
           >
-            {LOGISTICAS_ML.map((opcao) => (
-              <option key={opcao.valor} value={opcao.valor}>
-                {opcao.rotulo}
-              </option>
-            ))}
-          </select>
-        </Campo>
-      </div>
+            <select
+              id="ml-logistica"
+              value={envio.logistica ?? "xd_drop_off"}
+              onChange={(evento) => mudarEnvio({ logistica: evento.target.value })}
+              className={`${CLASSE_CAMPO} border-borda`}
+            >
+              {LOGISTICAS_ML.map((opcao) => (
+                <option key={opcao.valor} value={opcao.valor}>
+                  {opcao.rotulo}
+                </option>
+              ))}
+            </select>
+          </Campo>
+        </div>
 
-      <div className="space-y-2">
-        <CaixaDeOpcao
-          rotulo="Frete grátis"
-          ajuda="O frete fica por sua conta: o comprador não paga o envio. A partir de R$ 79 o Mercado Livre o exige, e ele fica marcado."
-          marcada={Boolean(envio.freteGratis) || freteGratisObrigatorio(rascunho.preco)}
-          travada={freteGratisObrigatorio(rascunho.preco) ? "O Mercado Livre exige frete grátis a partir de R$ 79." : null}
-          aoMudar={(freteGratis) => mudarEnvio({ freteGratis })}
-        />
-        <CaixaDeOpcao
-          rotulo="Retirada no local"
-          ajuda="O comprador também pode retirar o produto na sua loja."
-          marcada={Boolean(envio.retirada)}
-          aoMudar={(retirada) => mudarEnvio({ retirada })}
-        />
-      </div>
+        <div className="mt-4 space-y-2">
+          <CaixaDeOpcao
+            rotulo="Frete grátis"
+            ajuda="O frete fica por sua conta: o comprador não paga o envio. A partir de R$ 79 o Mercado Livre o exige, e ele fica marcado."
+            marcada={Boolean(envio.freteGratis) || freteGratisObrigatorio(rascunho.preco)}
+            travada={freteGratisObrigatorio(rascunho.preco) ? "O Mercado Livre exige frete grátis a partir de R$ 79." : null}
+            aoMudar={(freteGratis) => mudarEnvio({ freteGratis })}
+          />
+          <CaixaDeOpcao
+            rotulo="Retirada no local"
+            ajuda="O comprador também pode retirar o produto na sua loja."
+            marcada={Boolean(envio.retirada)}
+            aoMudar={(retirada) => mudarEnvio({ retirada })}
+          />
+        </div>
+      </SecaoDoAnuncio>
     </div>
   );
 }

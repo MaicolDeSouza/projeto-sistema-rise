@@ -3559,6 +3559,34 @@ publicou, os 1.007 antigos da conta ficam de fora):**
   foi oferecida e o dono não respondeu: não foi feita.
 - **Na VPS (25/10/2026):** 6 anúncios publicados na LI e 6 no ML pelo Rise.
 
+### Editor do ML em cartões, aba Status, prazo e garantia (26/10/2026, SEM deploy)
+
+Pedidos do dono (com print anotado e "usar UI/UX"):
+- **Abas** (`ABAS_ML`): **Status** (a primeira; depois da Divergências quando ela existe) · Características (era "Geral") ·
+  Preço e custos · Imagens · Descrição · Ficha técnica · **Peso, dimensões e envio** (era "Envio") · **Garantia**. A "Prévia e
+  validação" saiu (`AbaPrevia.jsx` apagado): o "Validar no ML", o que falta para publicar e o payload (num `<details>`) foram
+  para a Status.
+- **Status** (`AbaStatus.jsx`): cartão "No Mercado Livre" (situação, ID do anúncio com link, catálogo, última sincronização =
+  `publicacao.enviado.em`), "No Bling" (sincronizado = as etapas `vinculo` e `registrar_bling` feitas; estoque ML × Bling) e
+  "Publicação" (só antes de publicar). Status e Garantia são só leitura e não travam no publicado (`ABAS_DE_LEITURA`).
+- **Cartões** (`SecaoDoAnuncio.jsx`: borda, faixa de título com a bolha "i" e uma ação à direita; `LinhaDeDado` para linhas
+  rótulo/valor) em todas as abas. O quadro "Produto principal" saiu: o produto base vai no subtítulo, "100101 · NOME (Produto
+  base)", na página e na janela. Tipo de anúncio e categoria na mesma linha.
+- **Condição saiu**: o payload manda sempre `condition: "new"`.
+- **Prazo de disponibilidade** (dias, padrão 1; `prazoDisponibilidadeDias` em `dados`; 0 = pronta entrega, não vai): vai como
+  `sale_terms` `MANUFACTURING_TIME` ("N dias"); a validação recusa acima de 45 (`PRAZO_MAXIMO_DIAS`).
+- **Garantia** do cadastro do produto (`garantiaMeses`), só leitura: vai como `WARRANTY_TYPE` 2230280 (Garantia do vendedor) e
+  `WARRANTY_TIME` "N meses"; produto sem garantia não manda nada. Ids medidos na categoria MLB99779 em 26/10/2026.
+- **Peso e medidas do anúncio simples são SEMPRE os do produto** (`pacoteDoRise`, relidos ao abrir e no Salvar, como estoque,
+  descrição e fotos): a aba mostra a tabela só leitura no formato da LI ("6,8 cm → 7 cm", o arredondamento do ME2) com "Editar
+  no produto"; o kit continua editando as dele.
+- **Janela presa no topo** (`items-start pt-[4vh]`): trocar de aba não move mais o topo.
+- **Não vai a anúncio já publicado:** o "Enviar mudanças ao ML" não manda `sale_terms`; prazo e garantia valem no Publicar.
+- Visto na tela do PC (100101, rascunho): as oito abas, os cartões, a tabela de medidas, a garantia vazia com o aviso e a janela
+  presa no topo. **Não visto:** um Publicar real com os `sale_terms` (o ML pode recusar algum formato).
+- O `next dev` desta pasta ficou servindo o editor antigo depois das mudanças (até no servidor; o vigia de arquivos parou):
+  reiniciar o servidor resolveu.
+
 ## Sincronização Rise <-> Bling (04 a 05/10/2026)
 
 Pedido do dono em 04/10/2026: o Rise manda ao Bling os dados do produto (campos, fornecedores e ajustes de

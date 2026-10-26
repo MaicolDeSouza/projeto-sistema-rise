@@ -221,7 +221,7 @@ try {
     conferir("simples: family_name e a marca quando nao ha modelo", simples.familyName, "GENERICA");
     conferir("simples: produto e descricao inteira do produto", [simples.produtoId, simples.descricao], ["a", a.descricaoBase]);
     conferir("simples: os campos do rascunho", Object.keys(simples).sort(),
-      ["atributos", "categoriaId", "categoriaNome", "composicao", "condicao", "descricao", "envio", "estoque", "familyName", "imagens", "preco", "produtoId", "tipoAnuncio", "titulo"]);
+      ["atributos", "categoriaId", "categoriaNome", "composicao", "condicao", "descricao", "envio", "estoque", "familyName", "imagens", "prazoDisponibilidadeDias", "preco", "produtoId", "tipoAnuncio", "titulo"]);
     conferir("simples: envio pelo Mercado Envios 2, com as medidas do produto", simples.envio,
       { pesoKg: 0.001, alturaCm: 1, larguraCm: 1, comprimentoCm: 2, modo: "me2", logistica: "xd_drop_off", freteGratis: false, retirada: false });
     conferir("simples: sem composicao", simples.composicao, null);
@@ -323,7 +323,7 @@ try {
     const comProduto = (id, mudancas) => ({ ...ctx, produtos: { ...ctx.produtos, [id]: { ...ctx.produtos[id], ...mudancas } } });
     const comEnvio = (mudancas) => ({ ...base, envio: { ...base.envio, ...mudancas } });
 
-    conferir("abas do editor", ABAS_ML.map((x) => x.id), ["geral", "preco", "imagens", "descricao", "ficha", "envio", "previa"]);
+    conferir("abas do editor", ABAS_ML.map((x) => x.id), ["status", "geral", "preco", "imagens", "descricao", "ficha", "envio", "garantia"]);
     conferir("base simples: nenhum problema", validarRascunhoML(base, ctx), []);
     conferir("kit pronto: nenhum problema bloqueante", validarRascunhoML(kitOk, ctx).filter((p) => p.bloqueante), []);
     conferir("kit misto pronto: nenhum problema bloqueante", validarRascunhoML(mistoOk, ctx).filter((p) => p.bloqueante), []);
@@ -399,6 +399,44 @@ try {
       [{ id: "BRAND", value_name: "ARDUINO" }, { id: "MODEL", value_name: "UNO R3 AÇÃO" }, { id: "COLOR", value_name: "Azul" }, { id: "GTIN", value_name: "7890000000001" }, { id: "SELLER_SKU", value_name: "100101" }]);
     conferir("payload: marca em branco continua fora", montarPayloadML({ ...base, atributos: { BRAND: "  ", MODEL: "m1" } }, ctx).item.attributes.filter((x) => !x.id.startsWith("SELLER_PACKAGE_")).map((x) => x.id), ["MODEL", "SELLER_SKU"]);
     conferir("payload: titulo cortado em 60",montarPayloadML({ ...base, titulo: "X".repeat(70) }, ctx).item.family_name, "X".repeat(60));
+    // Pedido do dono em 26/10/2026: condicao sempre "novo"; o prazo de disponibilidade (MANUFACTURING_TIME, em dias) e a
+    // garantia do PRODUTO BASE (WARRANTY_TYPE "Garantia do vendedor" + WARRANTY_TIME em meses) vao ao ML. Medido na categoria
+    // MLB99779 em 26/10/2026: WARRANTY_TYPE 2230280 = Garantia do vendedor; WARRANTY_TIME em dias/meses/anos; MANUFACTURING_TIME
+    // em dias.
+    {
+      // Peso e medidas do anuncio SIMPLES sao sempre os do produto (26/10/2026, no molde da LI): a aba so os mostra. O kit
+      // monta os dele (editaveis).
+      const { pacoteDoRise } = await import("../src/lib/canaisDeVenda/ml/rascunho.js");
+      conferir(
+        "pacote do anuncio simples: o do produto",
+        pacoteDoRise({ ...base, envio: { pesoKg: 9, alturaCm: 9, larguraCm: 9, comprimentoCm: 9 } }, { a: { ...aOk, pesoKg: 0.007, alturaCm: 1.9, larguraCm: 1.8, comprimentoCm: 4.3 } }),
+        { pesoKg: 0.007, alturaCm: 1.9, larguraCm: 1.8, comprimentoCm: 4.3 },
+      );
+      conferir("pacote do kit: o do proprio kit (nulo = nao mexe)", pacoteDoRise(kitOk, ctx.produtos), null);
+    }
+    conferir("payload: condicao sempre novo, mesmo com o rascunho antigo em usado", montarPayloadML({ ...base, condicao: "used" }, ctx).item.condition, "new");
+    conferir(
+      "payload: garantia do produto e prazo de disponibilidade",
+      montarPayloadML({ ...base, prazoDisponibilidadeDias: 1 }, comProduto("a", { garantiaMeses: 3 })).item.sale_terms,
+      [{ id: "WARRANTY_TYPE", value_id: "2230280" }, { id: "WARRANTY_TIME", value_name: "3 meses" }, { id: "MANUFACTURING_TIME", value_name: "1 dias" }],
+    );
+    conferir(
+      "payload: sem garantia no produto e prazo zero, nada vai",
+      montarPayloadML({ ...base, prazoDisponibilidadeDias: 0 }, comProduto("a", { garantiaMeses: null })).item.sale_terms,
+      [],
+    );
+    conferir("payload: garantia de 1 mes no singular", montarPayloadML({ ...base, prazoDisponibilidadeDias: 0 }, comProduto("a", { garantiaMeses: 1 })).item.sale_terms[1], { id: "WARRANTY_TIME", value_name: "1 mês" });
+    {
+      const { RascunhoMLSchema: Esquema } = await import("../src/lib/canaisDeVenda/ml/esquema.js");
+      const semPrazo = { ...base };
+      delete semPrazo.prazoDisponibilidadeDias;
+      conferir(
+        "esquema: o prazo passa, e o rascunho de antes (sem o campo) ganha 1 dia",
+        [Esquema.safeParse({ ...base, prazoDisponibilidadeDias: 3 }).data?.prazoDisponibilidadeDias, Esquema.safeParse(semPrazo).data?.prazoDisponibilidadeDias],
+        [3, 1],
+      );
+    }
+    conferir("prazo de disponibilidade: inteiro de 0 a 45", [problema({ ...base, prazoDisponibilidadeDias: 46 }, ctx, "prazoDisponibilidade")?.aba, problema({ ...base, prazoDisponibilidadeDias: 1.5 }, ctx, "prazoDisponibilidade")?.bloqueante, problema({ ...base, prazoDisponibilidadeDias: 10 }, ctx, "prazoDisponibilidade")], ["geral", true, undefined]);
     // Primeiro Publicar real (08/10/2026): o validador do ML recusou `shipping.dimensions` com decimais
     // ("Dimensions do not follow the pattern 20x30x40,50") e avisou que a conta nao tem ME1. No ME2 as
     // medidas vao so nos SELLER_PACKAGE_* (investigacao A7); `dimensions` e do ME1, e so em inteiros.
@@ -522,7 +560,7 @@ try {
         conferir("contexto: custo do cadastro", ctx[p4.id].custo, { valor: 3, origem: "cadastro" });
         conferir("contexto: sem custo", ctx[p2.id].custo, { valor: null, origem: null });
         conferir("contexto: os campos que o rascunho le", Object.keys(ctx[p1.id]).sort(),
-          ["alturaCm", "blingId", "comprimentoCm", "conferido", "custo", "descricaoBase", "ean", "estoque", "id", "imagens", "larguraCm", "marca", "modelo", "pesoKg", "precoVenda", "sku", "tituloBase"]);
+          ["alturaCm", "blingId", "comprimentoCm", "conferido", "custo", "descricaoBase", "ean", "estoque", "garantiaMeses", "id", "imagens", "larguraCm", "marca", "modelo", "pesoKg", "precoVenda", "sku", "tituloBase"]);
         conferir("contexto: Decimal vira Number", [ctx[p1.id].precoVenda, ctx[p1.id].pesoKg, ctx[p1.id].alturaCm, ctx[p1.id].larguraCm, ctx[p1.id].comprimentoCm, ctx[p1.id].estoque], [10, 0.05, 2, 3, 4, 9]);
         conferir("contexto: sem preco nem peso e null, nao zero", [ctx[p2.id].precoVenda, ctx[p2.id].pesoKg], [null, null]);
         conferir("contexto: so fotos, na ordem do banco, com o endereco calculado", ctx[p1.id].imagens, [
@@ -606,7 +644,7 @@ try {
         const gravado = await anuncioDe(completo.id);
         conferir("cada campo mora na sua coluna", [gravado.titulo, gravado.descricao, gravado.categoriaExternaId, gravado.produtoId, ordenado(gravado.atributos)],
           [novo.rascunho.titulo, novo.rascunho.descricao, "MLB1234", p1.id, ordenado(novo.rascunho.atributos)]);
-        conferir("o resto do rascunho vai para dados", Object.keys(gravado.dados).sort(), ["categoriaNome", "composicao", "condicao", "envio", "estoque", "familyName", "imagens", "preco", "tipoAnuncio"]);
+        conferir("o resto do rascunho vai para dados", Object.keys(gravado.dados).sort(), ["categoriaNome", "composicao", "condicao", "envio", "estoque", "familyName", "imagens", "prazoDisponibilidadeDias", "preco", "tipoAnuncio"]);
         // O estoque do anuncio e sempre o do produto no Rise (pedido do dono em 22/10/2026): o que a tela manda nao vale.
         conferir("numero escrito como texto vira numero; o estoque e o do produto, nao o da tela", [gravado.dados.preco, gravado.dados.estoque], [12.5, 9]);
         await prisma.produto.update({ where: { id: p1.id }, data: { estoque: 4 } });

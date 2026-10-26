@@ -22,7 +22,8 @@ import AbaFichaTecnica from "./AbaFichaTecnica";
 import AbaGeral from "./AbaGeral";
 import AbaImagens from "./AbaImagens";
 import AbaPrecoEstoque from "./AbaPrecoEstoque";
-import AbaPrevia from "./AbaPrevia";
+import AbaGarantia from "./AbaGarantia";
+import AbaStatus from "./AbaStatus";
 import JanelaPublicarML from "./JanelaPublicarML";
 
 // Uma aba por id de `ABAS_ML`: aba nova na validacao pede o componente aqui.
@@ -33,7 +34,8 @@ const ABAS_PRONTAS = {
   descricao: AbaDescricao,
   ficha: AbaFichaTecnica,
   envio: AbaEnvio,
-  previa: AbaPrevia,
+  garantia: AbaGarantia,
+  status: AbaStatus,
 };
 
 const CLASSE_DA_MENSAGEM = {
@@ -47,6 +49,8 @@ const MOTIVO_DO_PUBLICADO = "Anúncio publicado: só preço e ficha técnica se 
 // Depois de publicado, so estas abas se editam (pedido do dono em 24/10/2026): o preco, os concorrentes e o ranking (na
 // aba Preco e custos) e a ficha tecnica. O resto (titulo, categoria, tipo, envio) fica como foi publicado.
 const ABAS_DO_PUBLICADO = new Set(["preco", "ficha"]);
+// Abas so de leitura (26/10/2026): nunca travam, nem no publicado (os links e o "Validar no ML" tem que funcionar).
+const ABAS_DE_LEITURA = new Set(["status", "garantia"]);
 const DATA_DO_ESTADO = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 
 const CATEGORIA_ML = /^MLB\d+$/;
@@ -172,7 +176,7 @@ export default function EditorAnuncioML({
   const bloqueado = publicado || travado || presoNaPublicacao || somenteLeitura;
   // O publicado libera so as abas de ABAS_DO_PUBLICADO (preco e ficha); o resto continua travado.
   const editaPublicado = publicado && !somenteLeitura && !travado;
-  const travaDaAba = (id) => bloqueado && !(editaPublicado && ABAS_DO_PUBLICADO.has(id));
+  const travaDaAba = (id) => !ABAS_DE_LEITURA.has(id) && bloqueado && !(editaPublicado && ABAS_DO_PUBLICADO.has(id));
   const problemas = useMemo(() => validarRascunhoML(rascunho, contexto), [rascunho, contexto]);
 
   // O anuncio entrou, saiu, trocou ou esta num catalogo e o dono ainda nao conferiu (25/10/2026). So o "Marcar como
@@ -374,7 +378,9 @@ export default function EditorAnuncioML({
             <Aba
               {...propsDasAbas}
               problemas={problemas.filter((problema) => problema.aba === id)}
-              {...(id === "previa" ? { todosProblemas: problemas } : {})}
+              {...(id === "status"
+                ? { todosProblemas: problemas, situacao: { statusAtual, rotuloDoStatus, publicacao, idExterno: infoDoML.idExterno, urlExterna: infoDoML.urlExterna } }
+                : {})}
               {...(id === "preco" ? { catalogoNoML: publicacao?.estadoML?.catalogo } : {})}
             />
             </div>
@@ -542,7 +548,8 @@ export default function EditorAnuncioML({
   const principal = contexto.produtos[rascunho.produtoId];
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 text-left font-normal normal-case"
+      // Presa no alto, como a janela da LI e a do Bling (pedido do dono em 26/10/2026): trocar de aba nao move o topo.
+      className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/50 p-4 pt-[4vh] text-left font-normal normal-case"
       {...propsDoFundo(() => pedirFechamento())}
     >
       <section
@@ -558,7 +565,7 @@ export default function EditorAnuncioML({
             <p className="text-sm font-semibold">Anúncio do Mercado Livre</p>
             {principal && (
               <p className="mt-0.5 truncate text-xs text-suave">
-                <span className="font-mono">{principal.sku}</span> · {principal.tituloBase}
+                <span className="font-mono">{principal.sku}</span> · {principal.tituloBase} <span className="text-suave/80">(Produto base)</span>
               </p>
             )}
           </div>

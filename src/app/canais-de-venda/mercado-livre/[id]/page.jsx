@@ -26,13 +26,15 @@ export default async function AnuncioMLPage({ params }) {
     erro = e;
   }
   if (!erro && !carregado.ok) notFound();
+  // O produto base no subtitulo (pedido do dono em 26/10/2026): o quadro "Produto principal" saiu da aba Caracteristicas.
+  const base = carregado?.contexto?.produtos?.[carregado.rascunho.produtoId];
 
   return (
     <>
       <LinkDeVolta href="/canais-de-venda/mercado-livre" rotulo="Mercado Livre" />
       <PageHeader
         titulo="Anúncio do Mercado Livre"
-        descricao={carregado?.rascunho.titulo || "Anúncio sem título"}
+        descricao={base ? `${base.sku} · ${base.tituloBase} (Produto base)` : carregado?.rascunho.titulo || "Anúncio sem título"}
         somenteLeitura={acessos.editar ? null : "Seu acesso ao Mercado Livre é de leitura"}
       />
 

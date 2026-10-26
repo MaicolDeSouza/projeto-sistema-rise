@@ -53,6 +53,9 @@ export const RascunhoMLSchema = z.object({
   tipoAnuncio: z.enum(["gold_special", "gold_pro"]),
   condicao: z.enum(["new", "used"]),
   categoriaId: z.string().nullable(),
+  // Prazo de disponibilidade em dias (26/10/2026, pedido do dono, padrao 1). O teto aqui so barra o absurdo: o limite do ML
+  // (45) e da validacao, que barra o Publicar e deixa o Salvar livre. Editor aberto antes do campo manda sem ele: 1.
+  prazoDisponibilidadeDias: z.number().int().min(0).max(999).nullable().default(1),
   // Os dois da fase 2 tem padrao: um editor aberto antes dela manda o rascunho sem eles.
   categoriaNome: z.string().max(LIMITES_ML.categoriaNome).nullable().default(null),
   preco: numeroOuNulo,

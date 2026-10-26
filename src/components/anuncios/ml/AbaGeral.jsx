@@ -1,23 +1,18 @@
 "use client";
 
 import { MarcaDaPropostaNoCampo, SugestaoDaProposta } from "@/components/anuncios/PropostaDoAnuncio";
-import { useId } from "react";
+import { useId, useState } from "react";
 
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
-import Badge from "@/components/ui/Badge";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { aplicarComposicao } from "@/lib/canaisDeVenda/ml/rascunho";
 import { TIPOS_DE_ANUNCIO_ML } from "@/lib/canaisDeVenda/ml/rotulos";
-import { limiteDoTitulo } from "@/lib/canaisDeVenda/ml/validacao";
+import { PRAZO_MAXIMO_DIAS, limiteDoTitulo } from "@/lib/canaisDeVenda/ml/validacao";
 import BlocoComposicao from "./BlocoComposicao";
 import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
+import SecaoDoAnuncio from "./SecaoDoAnuncio";
 import SugestaoDeCategoria from "./SugestaoDeCategoria";
 import SugestaoDeTitulo from "./SugestaoDeTitulo";
-
-const CONDICOES = [
-  { valor: "new", rotulo: "Novo" },
-  { valor: "used", rotulo: "Usado" },
-];
 
 // Ligar a caixa cria um kit de duas unidades do produto principal: a composicao precisa de ao
 // menos duas, e o dono ajusta a quantidade e inclui os demais itens.
@@ -68,36 +63,45 @@ function EscolhaEntre({ rotulo, opcoes, valor, aoMudar }) {
   );
 }
 
-function ProdutoPrincipal({ produto, problemas }) {
-  const blingId = String(produto?.blingId ?? "").trim();
+/**
+ * Prazo de disponibilidade em dias (pedido do dono em 26/10/2026, padrao 1): vai ao ML como MANUFACTURING_TIME. So
+ * digitos; o texto digitado fica na tela enquanto o rascunho recebe o numero (vazio = null, e a validacao acusa).
+ */
+function CampoPrazo({ valor, erro, aoMudar }) {
+  const [digitado, setDigitado] = useState(null);
+  const mostrado = digitado ?? (valor === null || valor === undefined ? "" : String(valor));
   return (
-    <div className="rounded border border-borda bg-fundo p-3">
-      <p className="text-xs text-suave">Produto principal</p>
-      {produto ? (
-        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
-          <span className="font-mono font-medium">{produto.sku}</span>
-          <span className="min-w-0 flex-1 truncate">{produto.tituloBase}</span>
-          <Badge tom={produto.conferido === true ? "sucesso" : "erro"}>
-            {produto.conferido === true ? "Conferido" : "Não conferido"}
-          </Badge>
-          <span className={`text-xs ${blingId ? "text-suave" : "font-medium text-amber-700"}`}>
-            {blingId ? `Bling ${blingId}` : "sem blingId"}
-          </span>
-        </div>
-      ) : (
-        <p className="mt-1 text-sm text-red-700">Produto não encontrado. Ele pode ter sido excluído.</p>
-      )}
-      <MensagensDoCampo problemas={problemas} campo={["produto", "blingId"]} />
-    </div>
+    <Campo
+      nome="ml-prazo"
+      rotulo="Prazo de disponibilidade (dias)"
+      ajuda={`Em quantos dias o produto fica pronto para envio depois da venda. 0 é pronta entrega. Vai ao Mercado Livre como disponibilidade de estoque; até ${PRAZO_MAXIMO_DIAS} dias.`}
+    >
+      {/* O CLASSE_CAMPO traz w-full: a largura curta vem do involucro. */}
+      <div className="w-28">
+        <input
+          id="ml-prazo"
+          inputMode="numeric"
+          autoComplete="off"
+          value={mostrado}
+          onChange={(evento) => {
+            const texto = evento.target.value.replace(/\D/g, "").slice(0, 3);
+            setDigitado(texto);
+            aoMudar(texto === "" ? null : Number(texto));
+          }}
+          onBlur={() => setDigitado(null)}
+          className={`${CLASSE_CAMPO} ${bordaDoCampo(erro)}`}
+        />
+      </div>
+    </Campo>
   );
 }
 
 /**
- * Aba Geral do editor: o produto principal, a caixa da composicao (kit) e os campos que
- * identificam o anuncio. Cada problema da aba aparece embaixo do campo a que se refere.
+ * Aba Caracteristicas do editor (era "Geral"; pedido do dono em 26/10/2026): um cartao por assunto. O produto base fica
+ * no cabecalho da janela, e a condicao saiu (o anuncio e sempre novo). Cada problema aparece embaixo do campo a que se
+ * refere; o do produto (nao Conferido, sem blingId) no topo, so quando existe.
  */
 export default function AbaGeral({ rascunho, contexto, alterar, setContexto, problemas, anuncioId, carregandoCategoria }) {
-  const produto = contexto.produtos[rascunho.produtoId];
   const primeiro = (campo) => problemasDoCampo(problemas, campo)[0]?.problema;
 
   const emKit = Boolean(rascunho.composicao);
@@ -119,102 +123,83 @@ export default function AbaGeral({ rascunho, contexto, alterar, setContexto, pro
 
   return (
     <div className="space-y-4">
-      <ProdutoPrincipal produto={produto} problemas={problemas} />
+      <MensagensDoCampo problemas={problemas} campo={["produto", "blingId"]} />
 
-      <div>
-        <div className="flex items-center gap-2">
-          <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
-            <input
-              type="checkbox"
-              checked={emKit}
-              onChange={(evento) => alternarComposicao(evento.target.checked)}
-              className="h-4 w-4 accent-acento"
-            />
-            Anúncio de composição (kit)
-          </label>
-          <BolhaDeAjuda
-            variante="inline"
-            texto="Vende várias unidades, ou produtos diferentes, num anúncio só. Desligar devolve a descrição, o estoque, as fotos e as medidas do produto principal."
-          />
+      <SecaoDoAnuncio
+        titulo="Título"
+        ajuda="Vai ao Mercado Livre como o nome da família (family_name). No modelo User Products, o ML monta o título final a partir dele e dos atributos da ficha técnica."
+      >
+        <input
+          id="ml-titulo"
+          aria-label="Título"
+          value={titulo}
+          onChange={(evento) => alterar({ titulo: evento.target.value })}
+          className={`${CLASSE_CAMPO} ${bordaDoCampo(erroDoTitulo)}`}
+        />
+        <div className="mt-1 flex items-start gap-3">
+          {erroDoTitulo && <p className="text-[11px] text-red-700">{erroDoTitulo}</p>}
+          <span className={`ml-auto shrink-0 text-[11px] tabular-nums ${tamanhoDoTitulo > LIMITE_TITULO ? "font-medium text-red-700" : "text-suave"}`}>
+            {tamanhoDoTitulo}/{LIMITE_TITULO}
+          </span>
         </div>
-        {emKit && (
-          <div className="mt-3">
-            <BlocoComposicao
-              rascunho={rascunho}
-              contexto={contexto}
-              alterar={alterar}
-              setContexto={setContexto}
-              problemas={problemas}
-              anuncioId={anuncioId}
+        <MarcaDaPropostaNoCampo proposta={contexto.proposta} caminho="titulo" valorAtual={rascunho.titulo} />
+        <SugestaoDaProposta proposta={contexto.proposta} caminho="titulo" valorAtual={rascunho.titulo} aoUsar={(valor) => alterar({ titulo: String(valor) })} />
+        <SugestaoDeTitulo rascunho={rascunho} contexto={contexto} alterar={alterar} limite={LIMITE_TITULO} />
+      </SecaoDoAnuncio>
+
+      <SecaoDoAnuncio titulo="Tipo e categoria">
+        <div className="grid items-start gap-4 md:grid-cols-[auto_minmax(0,1fr)]">
+          <EscolhaEntre rotulo="Tipo de anúncio" opcoes={TIPOS_DE_ANUNCIO_ML} valor={rascunho.tipoAnuncio} aoMudar={(tipoAnuncio) => alterar({ tipoAnuncio })} />
+          <div>
+            <Campo
+              nome="ml-categoria"
+              rotulo="Categoria do ML"
+              ajuda="Use 'Sugerir categoria' ou digite o código (MLB seguido de números). Só categoria final aceita anúncio."
+              erro={primeiro("categoria")}
+              value={rascunho.categoriaId ?? ""}
+              // O codigo da categoria e sempre MLB em maiusculas: "mlb1234" so daria erro na validacao.
+              // Digitado a mao, o nome que veio com a sugestao deixa de valer.
+              onChange={(evento) => alterar({ categoriaId: evento.target.value.toUpperCase() || null, categoriaNome: null })}
+              placeholder="MLB1234"
             />
+            {carregandoCategoria ? (
+              <p className="mt-1 text-[11px] text-suave">Lendo a categoria no Mercado Livre...</p>
+            ) : (
+              categoriaLida && <p className="mt-1 text-[11px] text-suave">{categoriaLida.caminho.join(" > ")}</p>
+            )}
+            <MarcaDaPropostaNoCampo proposta={contexto.proposta} caminho="categoriaId" valorAtual={rascunho.categoriaId} />
+            <SugestaoDaProposta proposta={contexto.proposta} caminho="categoriaId" valorAtual={rascunho.categoriaId} aoUsar={(valor) => alterar({ categoriaId: String(valor), categoriaNome: contexto.proposta?.sugestoes?.categoriaNome ?? null })} />
+            <SugestaoDeCategoria rascunho={rascunho} alterar={alterar} />
           </div>
-        )}
-      </div>
+        </div>
+      </SecaoDoAnuncio>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="md:col-span-2">
-          <Campo
-            nome="ml-titulo"
-            rotulo="Título"
-            ajuda="Vai ao Mercado Livre como o nome da família (family_name). No modelo User Products, o ML monta o título final a partir dele e dos atributos da ficha técnica."
-          >
-            <input
-              id="ml-titulo"
-              value={titulo}
-              onChange={(evento) => alterar({ titulo: evento.target.value })}
-              className={`${CLASSE_CAMPO} ${bordaDoCampo(erroDoTitulo)}`}
+      <SecaoDoAnuncio titulo="Disponibilidade">
+        <CampoPrazo valor={rascunho.prazoDisponibilidadeDias} erro={primeiro("prazoDisponibilidade")} aoMudar={(prazoDisponibilidadeDias) => alterar({ prazoDisponibilidadeDias })} />
+        <MensagensDoCampo problemas={problemas} campo="prazoDisponibilidade" />
+      </SecaoDoAnuncio>
+
+      <SecaoDoAnuncio
+        titulo="Composição (kit)"
+        acao={
+          <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+            <input type="checkbox" checked={emKit} onChange={(evento) => alternarComposicao(evento.target.checked)} className="h-4 w-4 accent-acento" />
+            Anúncio de composição
+          </label>
+        }
+      >
+        {emKit ? (
+          <BlocoComposicao rascunho={rascunho} contexto={contexto} alterar={alterar} setContexto={setContexto} problemas={problemas} anuncioId={anuncioId} />
+        ) : (
+          <p className="flex items-center gap-1.5 text-sm text-suave">
+            Anúncio de um produto só.
+            <BolhaDeAjuda
+              variante="inline"
+              texto="Marque para vender várias unidades, ou produtos diferentes, num anúncio só. Desmarcar devolve a descrição, o estoque, as fotos e as medidas do produto principal."
             />
-            <div className="mt-1 flex items-start gap-3">
-              {erroDoTitulo && <p className="text-[11px] text-red-700">{erroDoTitulo}</p>}
-              <span
-                className={`ml-auto shrink-0 text-[11px] tabular-nums ${
-                  tamanhoDoTitulo > LIMITE_TITULO ? "font-medium text-red-700" : "text-suave"
-                }`}
-              >
-                {tamanhoDoTitulo}/{LIMITE_TITULO}
-              </span>
-            </div>
-          </Campo>
-          <MarcaDaPropostaNoCampo proposta={contexto.proposta} caminho="titulo" valorAtual={rascunho.titulo} />
-          <SugestaoDaProposta proposta={contexto.proposta} caminho="titulo" valorAtual={rascunho.titulo} aoUsar={(valor) => alterar({ titulo: String(valor) })} />
-          <SugestaoDeTitulo rascunho={rascunho} contexto={contexto} alterar={alterar} limite={LIMITE_TITULO} />
-        </div>
-
-        <EscolhaEntre
-          rotulo="Tipo de anúncio"
-          opcoes={TIPOS_DE_ANUNCIO_ML}
-          valor={rascunho.tipoAnuncio}
-          aoMudar={(tipoAnuncio) => alterar({ tipoAnuncio })}
-        />
-        <EscolhaEntre
-          rotulo="Condição"
-          opcoes={CONDICOES}
-          valor={rascunho.condicao}
-          aoMudar={(condicao) => alterar({ condicao })}
-        />
-
-        <div className="md:col-span-2">
-          <Campo
-            nome="ml-categoria"
-            rotulo="Categoria do ML"
-            ajuda="Use 'Sugerir categoria' ou digite o código (MLB seguido de números). Só categoria final aceita anúncio."
-            erro={primeiro("categoria")}
-            value={rascunho.categoriaId ?? ""}
-            // O codigo da categoria e sempre MLB em maiusculas: "mlb1234" so daria erro na validacao.
-            // Digitado a mao, o nome que veio com a sugestao deixa de valer.
-            onChange={(evento) => alterar({ categoriaId: evento.target.value.toUpperCase() || null, categoriaNome: null })}
-            placeholder="MLB1234"
-          />
-          {carregandoCategoria ? (
-            <p className="mt-1 text-[11px] text-suave">Lendo a categoria no Mercado Livre...</p>
-          ) : (
-            categoriaLida && <p className="mt-1 text-[11px] text-suave">{categoriaLida.caminho.join(" > ")}</p>
-          )}
-          <MarcaDaPropostaNoCampo proposta={contexto.proposta} caminho="categoriaId" valorAtual={rascunho.categoriaId} />
-          <SugestaoDaProposta proposta={contexto.proposta} caminho="categoriaId" valorAtual={rascunho.categoriaId} aoUsar={(valor) => alterar({ categoriaId: String(valor), categoriaNome: contexto.proposta?.sugestoes?.categoriaNome ?? null })} />
-          <SugestaoDeCategoria rascunho={rascunho} alterar={alterar} />
-        </div>
-      </div>
+          </p>
+        )}
+      </SecaoDoAnuncio>
     </div>
   );
 }
