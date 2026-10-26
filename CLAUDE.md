@@ -3563,7 +3563,7 @@ publicou, os 1.007 antigos da conta ficam de fora):**
 
 Pedidos do dono (com print anotado e "usar UI/UX"):
 - **Abas** (`ABAS_ML`): **Status** (a primeira; depois da Divergências quando ela existe) · Características (era "Geral") ·
-  Preço e custos · Imagens · Descrição · Ficha técnica · **Peso, dimensões e envio** (era "Envio") · **Garantia**. A "Prévia e
+  Preço e custos · **Catálogo** · Imagens · Descrição · Ficha técnica · **Peso, dimensões e envio** (era "Envio") · **Garantia**. A "Prévia e
   validação" saiu (`AbaPrevia.jsx` apagado): o "Validar no ML", o que falta para publicar e o payload (num `<details>`) foram
   para a Status.
 - **Status** (`AbaStatus.jsx`): cartão "No Mercado Livre" (situação, ID do anúncio com link, catálogo, última sincronização =
@@ -3586,6 +3586,24 @@ Pedidos do dono (com print anotado e "usar UI/UX"):
   presa no topo. **Não visto:** um Publicar real com os `sale_terms` (o ML pode recusar algum formato).
 - O `next dev` desta pasta ficou servindo o editor antigo depois das mudanças (até no servidor; o vigia de arquivos parou):
   reiniciar o servidor resolveu.
+- **Calculadora do preço** (`CalculadoraDeMargem.jsx`, pedido do dono no mesmo dia, "igual temos hoje em produtos"): painel
+  flutuante "Margem" com o **Custo total** no topo (fornecedor + comissão + tarifa + frete + imposto, no preço da tela) e três
+  campos presos entre si: Preço de venda, % de lucro (markup sobre o custo total) e Lucro (R$). Mexer em qualquer um muda o
+  preço da aba NA HORA (conta local com as taxas já lidas, `precoPorMargem`/`custosDoAnuncio`; a caixa de custos relê as taxas
+  sozinha depois). Sem taxas lidas para a categoria/tipo/logística, o % e o R$ vão ao servidor (`precoPorMargemML`). Clique
+  fora, X e Esc fecham (o Esc não fecha o editor).
+- **Aba Catálogo** (depois de Preço e custos; pedido do dono: "bem simples, mostre os catálogos que estou concorrendo e se eu
+  clicar abre popup com todas as informações"): lista os catálogos em que os anúncios PUBLICADOS do produto estão no ML
+  (`estadoML.catalogo`, `catalogosDosAnuncios` em `estadoNoML.js`); o clique abre a janela do catálogo com os concorrentes
+  acompanhados (link do vendedor e do anúncio, preço, preço anterior, avisos, "Reler agora", clicar no preço copia) ou, num
+  segundo catálogo (o "C2"), os anúncios lidos agora no ML (`preverCatalogoMLAcao`, sem gravar). **A busca de catálogo, o
+  "Sugerir catálogos" e o ranking dos catálogos de referência saíram do editor** (`RankingDosCatalogos.jsx` apagado; o
+  `ConcorrentesDoML.jsx` ficou só com as peças). **O Rise acompanha sozinho o catálogo do anúncio** (decisão do dono, opção
+  "Lidos do ML, automático"): `seguirCatalogoDosAnuncios` (`concorrentes.js`) troca o `Produto.mlCatalogoId` para o primeiro
+  catálogo em que o dono concorre quando o acompanhado não é um deles; roda no fim do `relerEstadosML` (worker, de hora em hora)
+  e ao abrir a aba (`catalogosDoAnuncioMLAcao`, só quem edita o canal dispara a troca). Os concorrentes vão para
+  `contexto.concorrentesDoCatalogoML`, que o selo "Nº de M no ML" ao lado do preço lê. **A rodada diária continua relendo as
+  referências que já existiam** (a coluna "Concorrência" da lista de anúncios usa o ranking); não há mais como adicionar.
 
 ## Sincronização Rise <-> Bling (04 a 05/10/2026)
 

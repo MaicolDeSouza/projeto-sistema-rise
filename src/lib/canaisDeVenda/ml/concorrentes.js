@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 
 import { avisosDoML } from "./avisosConcorrentes";
+import { catalogoParaAcompanhar, catalogosDosAnuncios } from "./estadoNoML";
 import { contarVendedores, lerConcorrentesDoCatalogo, lerVendedores, minhaPosicao, topDoCatalogo } from "./catalogo";
 import { textoDoErroML } from "./leitura";
 
@@ -127,6 +128,29 @@ export async function acompanharCatalogoML(cliente, produtoId, { catalogoId, cat
   });
   const leitura = await relerCatalogoDoProduto(cliente, produtoId, { agora });
   return leitura.ok ? { ok: true, leitura } : { ok: false, erro: leitura.erro, leitura };
+}
+
+/**
+ * Os catalogos em que o dono concorre com o produto (lidos do ML de hora em hora em `estadoML.catalogo`) e, se o
+ * acompanhado nao for um deles, passa a acompanhar o primeiro (pedido do dono em 26/10/2026: a busca de catalogo saiu, o
+ * Rise segue sozinho o catalogo em que o anuncio entrou). Produto nao Conferido so lista. Erro na troca nao lanca: volta
+ * em `erro`.
+ */
+export async function seguirCatalogoDosAnuncios(cliente, produtoId, { agora = new Date(), acompanhar = true } = {}) {
+  const produto = await prisma.produto.findUnique({
+    where: { id: produtoId },
+    select: {
+      conferido: true,
+      mlCatalogoId: true,
+      anuncios: { where: { canal: "MERCADO_LIVRE" }, select: { idExterno: true, status: true, situacaoCanal: true, dados: true }, orderBy: { criadoEm: "asc" } },
+    },
+  });
+  if (!produto) return { catalogos: [], trocou: false };
+  const catalogos = catalogosDosAnuncios(produto.anuncios);
+  const novo = acompanhar && produto.conferido ? catalogoParaAcompanhar(produto.mlCatalogoId, catalogos) : null;
+  if (!novo) return { catalogos, trocou: false };
+  const feito = await acompanharCatalogoML(cliente, produtoId, { catalogoId: novo.id, catalogoNome: novo.nome }, { agora }).catch((erro) => ({ ok: false, erro: erro?.message ?? String(erro) }));
+  return { catalogos, trocou: true, erro: feito.ok ? null : feito.erro };
 }
 
 /** Para de acompanhar: zera o catalogo e marca todos como ausentes. Nada e apagado. */

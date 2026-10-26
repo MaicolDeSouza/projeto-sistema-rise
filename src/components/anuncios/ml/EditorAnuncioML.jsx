@@ -22,6 +22,7 @@ import AbaFichaTecnica from "./AbaFichaTecnica";
 import AbaGeral from "./AbaGeral";
 import AbaImagens from "./AbaImagens";
 import AbaPrecoEstoque from "./AbaPrecoEstoque";
+import AbaCatalogo from "./AbaCatalogo";
 import AbaGarantia from "./AbaGarantia";
 import AbaStatus from "./AbaStatus";
 import JanelaPublicarML from "./JanelaPublicarML";
@@ -30,6 +31,7 @@ import JanelaPublicarML from "./JanelaPublicarML";
 const ABAS_PRONTAS = {
   geral: AbaGeral,
   preco: AbaPrecoEstoque,
+  catalogo: AbaCatalogo,
   imagens: AbaImagens,
   descricao: AbaDescricao,
   ficha: AbaFichaTecnica,
@@ -46,9 +48,9 @@ const CLASSE_DA_MENSAGEM = {
 /// Os botoes do rodape (abrir no painel, no ML, clonar): o mesmo desenho dos "Abrir no painel da LI" e "Abrir no site".
 const CLASSE_DO_BOTAO = "inline-flex items-center gap-1 rounded border border-borda px-2.5 py-1 font-medium text-acento hover:bg-fundo";
 const MOTIVO_DO_PUBLICADO = "Anúncio publicado: só preço e ficha técnica se editam aqui.";
-// Depois de publicado, so estas abas se editam (pedido do dono em 24/10/2026): o preco, os concorrentes e o ranking (na
-// aba Preco e custos) e a ficha tecnica. O resto (titulo, categoria, tipo, envio) fica como foi publicado.
-const ABAS_DO_PUBLICADO = new Set(["preco", "ficha"]);
+// Depois de publicado, so estas abas se editam (pedido do dono em 24/10/2026): o preco, os concorrentes e o ranking (aba
+// Catalogo desde 26/10/2026) e a ficha tecnica. O resto (titulo, categoria, tipo, envio) fica como foi publicado.
+const ABAS_DO_PUBLICADO = new Set(["preco", "catalogo", "ficha"]);
 // Abas so de leitura (26/10/2026): nunca travam, nem no publicado (os links e o "Validar no ML" tem que funcionar).
 const ABAS_DE_LEITURA = new Set(["status", "garantia"]);
 const DATA_DO_ESTADO = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
@@ -381,7 +383,7 @@ export default function EditorAnuncioML({
               {...(id === "status"
                 ? { todosProblemas: problemas, situacao: { statusAtual, rotuloDoStatus, publicacao, idExterno: infoDoML.idExterno, urlExterna: infoDoML.urlExterna } }
                 : {})}
-              {...(id === "preco" ? { catalogoNoML: publicacao?.estadoML?.catalogo } : {})}
+              {...(id === "catalogo" ? { catalogoNoML: publicacao?.estadoML?.catalogo } : {})}
             />
             </div>
           </Painel>
@@ -495,7 +497,7 @@ export default function EditorAnuncioML({
   );
 
   const faixaDaProposta = !publicado && contexto.proposta && (
-    <FaixaDaProposta proposta={contexto.proposta} oQueFazer="Revise os campos marcados, adicione os catálogos sugeridos se quiser, e publique; o P some no Publicar." />
+    <FaixaDaProposta proposta={contexto.proposta} oQueFazer="Revise os campos marcados e publique; o P some no Publicar." />
   );
 
   const janelaDoPublicar = publicando && idAtual && (

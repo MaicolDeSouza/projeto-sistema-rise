@@ -11,8 +11,6 @@ import { custosDoAnuncio, custosValem, freteQueConta } from "@/lib/canaisDeVenda
 import { calcularMarkup, corDoMarkup, lucroLiquido } from "@/lib/margem";
 import { posicaoDePreco } from "@/lib/posicaoDePreco";
 import CalculadoraDeMargem from "./CalculadoraDeMargem";
-import ConcorrentesDoML from "./ConcorrentesDoML";
-import RankingDosCatalogos from "./RankingDosCatalogos";
 import SecaoDoAnuncio from "./SecaoDoAnuncio";
 import CustosDoML from "./CustosDoML";
 import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
@@ -87,19 +85,17 @@ function MargemDoPreco({ preco, custo, conta, mensagemSemCusto }) {
 }
 
 /**
- * Aba Preco e estoque: o preco de venda (com a calculadora dentro do campo e a margem embaixo) e o
- * estoque do anuncio, os concorrentes do catalogo e os Custos totais (fornecedor, taxas do ML e imposto).
+ * Aba Preco e custos: o preco de venda (com a calculadora dentro do campo e a margem embaixo) e os Custos totais
+ * (fornecedor, taxas do ML e imposto). Concorrentes e ranking do catalogo foram para a aba Catalogo (26/10/2026).
  */
 const MOEDA_DA_PROPOSTA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
-export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContexto, problemas, acessos = { custos: true, concorrentes: true }, catalogoNoML }) {
+export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContexto, problemas, acessos = { custos: true, concorrentes: true } }) {
   // Texto do preco como foi digitado (ver `numeros.js`); `null` = nada digitado, mostra o numero.
   const [precoDigitado, setPrecoDigitado] = useState(null);
-  // Os concorrentes do ML pelo catalogo (o bloco abaixo os le): o selo "Nº de M" ao lado do preco usa eles.
-  const [concorrentesML, setConcorrentesML] = useState([]);
-  // A tela inteira dos concorrentes: o ranking dos catalogos tira dela o 1o do catalogo do anuncio.
-  const [telaConcorrentes, setTelaConcorrentes] = useState(null);
-  const posicaoNoML = posicaoDePreco(rascunho.preco, concorrentesParaPosicao(concorrentesML));
+  // Os concorrentes do catalogo moram na aba Catalogo desde 26/10/2026: ela os poe no contexto, e o selo "Nº de M" ao
+  // lado do preco continua aqui.
+  const posicaoNoML = posicaoDePreco(rascunho.preco, concorrentesParaPosicao(contexto.concorrentesDoCatalogoML ?? []));
 
   const custosML = contexto.custosML ?? null;
   const preco = Number(rascunho.preco);
@@ -157,7 +153,7 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
             );
             // Sem Custo e Margem (Acessos) a calculadora e a margem nao existem: o campo fica sozinho.
             return acessos.custos ? (
-              <CalculadoraDeMargem rascunho={rascunho} alterar={alterar} setContexto={setContexto} custo={custo}>
+              <CalculadoraDeMargem rascunho={rascunho} contexto={contexto} alterar={alterar} setContexto={setContexto} custo={custo}>
                 {campo}
               </CalculadoraDeMargem>
             ) : (
@@ -183,15 +179,6 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
         {acessos.custos && <CustosDoML rascunho={rascunho} contexto={contexto} setContexto={setContexto} custo={custo} conta={conta} />}
       </div>
       </SecaoDoAnuncio>
-
-      {rascunho.produtoId && acessos.concorrentes && (
-        <ConcorrentesDoML produtoId={rascunho.produtoId} titulo={rascunho.titulo} alterar={alterar} aoMudarConcorrentes={setConcorrentesML} aoMudarTela={setTelaConcorrentes} />
-      )}
-
-      {rascunho.produtoId && acessos.concorrentes && (
-        <RankingDosCatalogos produtoId={rascunho.produtoId} titulo={rascunho.titulo} preco={rascunho.preco} categoriaId={rascunho.categoriaId} telaConcorrentes={telaConcorrentes} daProposta={contexto.proposta?.catalogosSugeridos ?? []} catalogoNoML={catalogoNoML} />
-      )}
-
     </div>
   );
 }

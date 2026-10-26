@@ -114,6 +114,33 @@ export function avisoDeCatalogoPendente(estado) {
   return Boolean(estado?.catalogoAviso && !estado.catalogoAviso.visto);
 }
 
+/**
+ * Os catalogos em que o dono concorre com um produto (pedido do dono em 26/10/2026, aba Catalogo): o `estadoML.catalogo`
+ * de cada anuncio publicado e nao encerrado, sem repetir, cada um com os anuncios que estao nele. Recebe linhas de
+ * `Anuncio` com `idExterno`, `status`, `situacaoCanal` e `dados`.
+ */
+export function catalogosDosAnuncios(anuncios) {
+  const porId = new Map();
+  for (const anuncio of anuncios ?? []) {
+    if (anuncio?.status !== "PUBLICADO" || anuncio.situacaoCanal === "ENCERRADA") continue;
+    const catalogo = anuncio.dados?.publicacao?.estadoML?.catalogo;
+    if (!catalogo?.id) continue;
+    if (!porId.has(catalogo.id)) porId.set(catalogo.id, { id: catalogo.id, nome: catalogo.nome ?? null, anuncios: [] });
+    porId.get(catalogo.id).anuncios.push({ idExterno: anuncio.idExterno, tipoAnuncio: anuncio.dados?.tipoAnuncio ?? null });
+  }
+  return [...porId.values()];
+}
+
+/**
+ * Qual catalogo o Rise deve passar a acompanhar (os concorrentes do top 10 sao de UM catalogo por produto): nenhum se o
+ * acompanhado ja e um dos catalogos em que o dono concorre, ou se ele nao concorre em nenhum; senao o primeiro deles.
+ */
+export function catalogoParaAcompanhar(acompanhadoId, catalogos) {
+  if (!Array.isArray(catalogos) || catalogos.length === 0) return null;
+  if (catalogos.some((catalogo) => catalogo.id === acompanhadoId)) return null;
+  return catalogos[0];
+}
+
 /** O ML barrou o anuncio e o dono precisa agir (o "!" do icone). */
 export function precisaAgirNoML(estado) {
   if (!estado?.status) return false;

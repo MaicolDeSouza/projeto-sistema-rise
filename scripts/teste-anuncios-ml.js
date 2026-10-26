@@ -323,7 +323,7 @@ try {
     const comProduto = (id, mudancas) => ({ ...ctx, produtos: { ...ctx.produtos, [id]: { ...ctx.produtos[id], ...mudancas } } });
     const comEnvio = (mudancas) => ({ ...base, envio: { ...base.envio, ...mudancas } });
 
-    conferir("abas do editor", ABAS_ML.map((x) => x.id), ["status", "geral", "preco", "imagens", "descricao", "ficha", "envio", "garantia"]);
+    conferir("abas do editor", ABAS_ML.map((x) => x.id), ["status", "geral", "preco", "catalogo", "imagens", "descricao", "ficha", "envio", "garantia"]);
     conferir("base simples: nenhum problema", validarRascunhoML(base, ctx), []);
     conferir("kit pronto: nenhum problema bloqueante", validarRascunhoML(kitOk, ctx).filter((p) => p.bloqueante), []);
     conferir("kit misto pronto: nenhum problema bloqueante", validarRascunhoML(mistoOk, ctx).filter((p) => p.bloqueante), []);
@@ -403,6 +403,25 @@ try {
     // garantia do PRODUTO BASE (WARRANTY_TYPE "Garantia do vendedor" + WARRANTY_TIME em meses) vao ao ML. Medido na categoria
     // MLB99779 em 26/10/2026: WARRANTY_TYPE 2230280 = Garantia do vendedor; WARRANTY_TIME em dias/meses/anos; MANUFACTURING_TIME
     // em dias.
+    {
+      // Aba Catalogo (26/10/2026): os catalogos em que o dono concorre sao os dos anuncios publicados, e o Rise acompanha
+      // sozinho o primeiro deles quando o acompanhado nao e um deles.
+      const { catalogosDosAnuncios, catalogoParaAcompanhar } = await import("../src/lib/canaisDeVenda/ml/estadoNoML.js");
+      const comCatalogo = (idExterno, id, extra = {}) => ({ idExterno, status: "PUBLICADO", situacaoCanal: "ATIVA", dados: { tipoAnuncio: "gold_special", publicacao: { estadoML: { catalogo: id ? { id, nome: `Cat ${id}` } : null } } }, ...extra });
+      const lidos = catalogosDosAnuncios([
+        comCatalogo("MLB1", "MLBA"),
+        comCatalogo("MLB2", "MLBA"),
+        comCatalogo("MLB3", "MLBB"),
+        comCatalogo("MLB4", null),
+        comCatalogo("MLB5", "MLBC", { situacaoCanal: "ENCERRADA" }),
+        comCatalogo("MLB6", "MLBD", { status: "RASCUNHO" }),
+      ]);
+      conferir("catalogos dos anuncios: sem repetir, so publicados e nao encerrados", lidos.map((c) => [c.id, c.anuncios.map((a) => a.idExterno)]), [["MLBA", ["MLB1", "MLB2"]], ["MLBB", ["MLB3"]]]);
+      conferir("acompanhar: o acompanhado ja e um deles, nada muda", catalogoParaAcompanhar("MLBB", lidos), null);
+      conferir("acompanhar: sem acompanhado, o primeiro", catalogoParaAcompanhar(null, lidos)?.id, "MLBA");
+      conferir("acompanhar: acompanhado antigo fora da lista, troca para o primeiro", catalogoParaAcompanhar("MLBZ", lidos)?.id, "MLBA");
+      conferir("acompanhar: fora de catalogo, nada", catalogoParaAcompanhar("MLBZ", []), null);
+    }
     {
       // Peso e medidas do anuncio SIMPLES sao sempre os do produto (26/10/2026, no molde da LI): a aba so os mostra. O kit
       // monta os dele (editaveis).

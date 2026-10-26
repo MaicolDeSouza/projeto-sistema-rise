@@ -26,6 +26,7 @@ import {
   marcarConcorrentesMLVistos,
   pararDeAcompanharML,
   relerCatalogoDoProduto,
+  seguirCatalogoDosAnuncios,
 } from "@/lib/canaisDeVenda/ml/concorrentes";
 import { LIMITES_ML, RascunhoMLSchema } from "@/lib/canaisDeVenda/ml/esquema";
 import { preencherFicha, sugerirCategoria, sugerirTitulos } from "@/lib/canaisDeVenda/ml/inteligencia";
@@ -465,6 +466,25 @@ export async function preverCatalogoMLAcao(catalogoId) {
   } catch (erro) {
     return falhaDeLeitura(erro, "prever catalogo");
   }
+}
+
+/**
+ * A aba Catalogo (pedido do dono em 26/10/2026): os catalogos em que o dono concorre com o produto (lidos do ML) e a tela
+ * dos concorrentes do acompanhado. Quem edita o canal tambem faz o Rise passar a acompanhar o catalogo do anuncio, se ainda
+ * nao acompanha (o worker faz o mesmo de hora em hora). Marca os avisos como vistos.
+ */
+export async function catalogosDoAnuncioMLAcao(produtoId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"], ["dado.concorrentes", "ver"]);
+  if (negado) return negado;
+  if (!ehId(produtoId)) return PEDIDO_INVALIDO;
+  return protegendo(async () => {
+    const { pode } = await sessaoDeAcessos();
+    const seguido = await seguirCatalogoDosAnuncios(clienteML(), produtoId, { acompanhar: pode("tela.canaisDeVenda.mercadoLivre", "editar") });
+    const tela = await lerConcorrentesML(produtoId);
+    if (!tela) return { ok: false, erro: "Produto não encontrado. Ele pode ter sido excluído." };
+    await marcarConcorrentesMLVistos(produtoId);
+    return { ok: true, catalogos: seguido.catalogos, tela, aviso: seguido.erro ?? null };
+  });
 }
 
 /** Le a tela dos concorrentes e marca como visto (os avisos passam a contar daqui). */

@@ -23,6 +23,8 @@ export const ABAS_ML = [
   { id: "status", rotulo: "Status" },
   { id: "geral", rotulo: "Características" },
   { id: "preco", rotulo: "Preço e custos" },
+  // Concorrentes e ranking do catalogo, fora da aba de preco desde 26/10/2026 (pedido do dono).
+  { id: "catalogo", rotulo: "Catálogo" },
   { id: "imagens", rotulo: "Imagens" },
   { id: "descricao", rotulo: "Descrição" },
   { id: "ficha", rotulo: "Ficha técnica" },

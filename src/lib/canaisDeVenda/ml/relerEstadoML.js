@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 
 import { gravarPublicacao } from "./banco";
 import { clienteML } from "./cliente";
+import { seguirCatalogoDosAnuncios } from "./concorrentes";
 import { catalogoDoItem, estadoDoItem, estadoMudou, seguidasComDiferenca, situacaoDoEstado } from "./estadoNoML";
 
 /**
@@ -84,7 +85,7 @@ export async function relerEstadosML({ ml, bling, agora = new Date(), anuncioIds
         situacaoCanal: { not: "ENCERRADA" },
         ...(Array.isArray(anuncioIds) ? { id: { in: anuncioIds } } : {}),
       },
-      select: { id: true, idExterno: true, situacaoCanal: true, dados: true, produto: { select: { blingSaldo: true } } },
+      select: { id: true, produtoId: true, idExterno: true, situacaoCanal: true, dados: true, produto: { select: { blingSaldo: true } } },
       orderBy: { id: "asc" },
     });
   } catch (erro) {
@@ -95,6 +96,8 @@ export async function relerEstadosML({ ml, bling, agora = new Date(), anuncioIds
   const cliente = ml ?? clienteML();
   const saldosDeKit = await saldosDosKits(anuncios.filter((anuncio) => anuncio.dados?.composicao?.codigo), bling);
   const nomes = new Map();
+  // Os produtos com anuncio num catalogo: no fim, o Rise passa a acompanhar esse catalogo se ainda nao acompanha (26/10/2026).
+  const produtosEmCatalogo = new Set();
 
   for (let inicio = 0; inicio < anuncios.length; inicio += POR_LOTE) {
     if (inicio > 0) await esperar(espera);
@@ -154,6 +157,7 @@ export async function relerEstadosML({ ml, bling, agora = new Date(), anuncioIds
         catalogo = catalogoId ? { id: catalogoId, nome: await nomeDoCatalogo(cliente, catalogoId, nomes) } : null;
       }
       const catalogoMudou = catalogoAnterior !== undefined && (catalogoAnterior?.id ?? null) !== (catalogo?.id ?? null);
+      if (catalogo?.id) produtosEmCatalogo.add(anuncio.produtoId);
       const inicial = !catalogoMudou && Boolean(catalogo) && !anterior?.catalogoAviso;
       let catalogoAviso = anterior?.catalogoAviso ?? null;
       if (catalogoMudou) catalogoAviso = { de: catalogoAnterior, para: catalogo, em: agora.toISOString(), visto: false };
@@ -169,6 +173,12 @@ export async function relerEstadosML({ ml, bling, agora = new Date(), anuncioIds
         resultado.falhas += 1;
       }
     }
+  }
+  // A busca de catalogo saiu do editor (26/10/2026): o Rise segue sozinho o catalogo em que o anuncio esta. Uma falha
+  // (ML, banco) fica no log e nao muda o resultado do estado.
+  for (const produtoId of produtosEmCatalogo) {
+    const seguido = await seguirCatalogoDosAnuncios(cliente, produtoId, { agora }).catch((erro) => ({ erro: erro?.message ?? String(erro) }));
+    if (seguido.erro) console.error("[ml estado] acompanhar o catalogo:", seguido.erro);
   }
   return resultado;
 }
