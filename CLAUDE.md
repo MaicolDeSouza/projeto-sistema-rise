@@ -3641,6 +3641,10 @@ Pedidos do dono (com print anotado e "usar UI/UX"):
   do editor (título "Catálogo deste anúncio"); os dos outros anúncios do produto viram uma linha discreta embaixo ("Outro
   anúncio seu deste produto (MLB…) está no catálogo X · Abrir no ML"). A busca continua lendo todos pelo SKU, e o
   acompanhamento do produto pode seguir o catálogo de outro anúncio dele.
+- **O popup do catálogo lê o catálogo AO VIVO** (pedido do dono em 26/10/2026: "estou em segundo mas meu anúncio não mostra
+  aqui"): a lista dos acompanhados (`ConcorrenteML`) tira os anúncios do dono por desenho, e o popup pulava as posições dele.
+  Agora mostra todos os anúncios na ordem do ML (`preverCatalogoMLAcao`, `TabelaDoCatalogoAoVivo`) com os do dono como "Você"
+  (verde, com o link); no acompanhado, os avisos e a seta do preço anterior vêm do guardado, e o "Reler agora" relê os dois.
 - **Selo "C" no ícone do ML da lista de Produtos** (26/10/2026: primeiro "C2", com a quantidade de catálogos diferentes;
   depois o dono pediu só "C"): algum anúncio publicado concorre num catálogo (`iconeML.catalogos > 0`). A quantidade fica no
   texto do ícone ("em 2 catálogos").
