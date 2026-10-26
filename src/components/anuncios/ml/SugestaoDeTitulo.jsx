@@ -23,7 +23,9 @@ function kitDoRascunho(rascunho, produtos) {
  * "Sugerir titulo" da aba Geral: ate 3 opcoes da IA no padrao da loja, com as palavras em alta da
  * categoria quando ela ja foi escolhida. Clicar numa opcao a poe no campo; nada muda sozinho.
  */
-export default function SugestaoDeTitulo({ rascunho, contexto, alterar, limite }) {
+// `children` e o campo do titulo: com ele, o botao fica AO LADO do campo (pedido do dono em 26/10/2026, para sobrar espaco na
+// aba) e as opcoes aparecem embaixo dos dois.
+export default function SugestaoDeTitulo({ rascunho, contexto, alterar, limite, children = null }) {
   const [opcoes, setOpcoes] = useState(null);
   const [erro, setErro] = useState(null);
   const [gerando, iniciarGeracao] = useTransition();
@@ -46,18 +48,29 @@ export default function SugestaoDeTitulo({ rascunho, contexto, alterar, limite }
     });
   }
 
+  const botao = (
+    <button
+      type="button"
+      onClick={sugerir}
+      disabled={gerando}
+      title={categoriaId ? "A IA usa o padrão da loja e as palavras em alta da categoria" : "Com a categoria escolhida, a IA usa as palavras em alta"}
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded border border-borda hover:bg-fundo disabled:opacity-50 ${children ? "h-10 px-3 text-sm" : "px-2.5 py-1.5 text-xs"}`}
+    >
+      {gerando ? <Loader size={12} className="animate-spin" /> : <Sparkles size={12} />}
+      {gerando ? "Gerando..." : "Sugerir título"}
+    </button>
+  );
+
   return (
-    <div className="mt-2">
-      <button
-        type="button"
-        onClick={sugerir}
-        disabled={gerando}
-        title={categoriaId ? "A IA usa o padrão da loja e as palavras em alta da categoria" : "Com a categoria escolhida, a IA usa as palavras em alta"}
-        className="inline-flex items-center gap-1.5 rounded border border-borda px-2.5 py-1.5 text-xs hover:bg-fundo disabled:opacity-50"
-      >
-        {gerando ? <Loader size={12} className="animate-spin" /> : <Sparkles size={12} />}
-        {gerando ? "Gerando..." : "Sugerir título"}
-      </button>
+    <div className={children ? "" : "mt-2"}>
+      {children ? (
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">{children}</div>
+          {botao}
+        </div>
+      ) : (
+        botao
+      )}
       {erro && <p className="mt-1 text-[11px] text-red-700">{erro}</p>}
       {opcoes && (
         <ul className="mt-2 space-y-1">

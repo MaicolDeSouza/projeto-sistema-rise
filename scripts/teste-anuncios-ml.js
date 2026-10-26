@@ -323,7 +323,7 @@ try {
     const comProduto = (id, mudancas) => ({ ...ctx, produtos: { ...ctx.produtos, [id]: { ...ctx.produtos[id], ...mudancas } } });
     const comEnvio = (mudancas) => ({ ...base, envio: { ...base.envio, ...mudancas } });
 
-    conferir("abas do editor", ABAS_ML.map((x) => x.id), ["status", "geral", "imagens", "descricao", "ficha", "preco", "catalogo", "envio", "garantia"]);
+    conferir("abas do editor", ABAS_ML.map((x) => x.id), ["status", "geral", "imagens", "descricao", "ficha", "preco", "catalogo", "envio"]);
     conferir("base simples: nenhum problema", validarRascunhoML(base, ctx), []);
     conferir("kit pronto: nenhum problema bloqueante", validarRascunhoML(kitOk, ctx).filter((p) => p.bloqueante), []);
     conferir("kit misto pronto: nenhum problema bloqueante", validarRascunhoML(mistoOk, ctx).filter((p) => p.bloqueante), []);

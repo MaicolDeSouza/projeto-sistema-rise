@@ -11,7 +11,7 @@ import Badge from "@/components/ui/Badge";
  * quando ha varias, e sem nenhuma a IA pesquisa na internet termos melhores. Os codigos vem
  * sempre do ML. A sugestao nunca preenche sozinha: o dono clica em "Usar".
  */
-export default function SugestaoDeCategoria({ rascunho, alterar }) {
+export default function SugestaoDeCategoria({ rascunho, alterar, children = null }) {
   const [resultado, setResultado] = useState(null);
   const [erro, setErro] = useState(null);
   const [buscando, iniciarBusca] = useTransition();
@@ -38,18 +38,30 @@ export default function SugestaoDeCategoria({ rascunho, alterar }) {
     setResultado(null);
   }
 
+  const botao = (
+    <button
+      type="button"
+      onClick={sugerir}
+      disabled={buscando}
+      title="O Mercado Livre procura pelo título; a IA ajuda a escolher"
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded border border-borda hover:bg-fundo disabled:opacity-50 ${children ? "h-10 px-3 text-sm" : "px-2.5 py-1.5 text-xs"}`}
+    >
+      {buscando ? <Loader size={12} className="animate-spin" /> : <Sparkles size={12} />}
+      {buscando ? "Buscando..." : "Sugerir categoria"}
+    </button>
+  );
+
+  // Com `children` (o campo da categoria), o botao fica ao lado dele (26/10/2026, para caber a aba na janela).
   return (
-    <div className="mt-2">
-      <button
-        type="button"
-        onClick={sugerir}
-        disabled={buscando}
-        title="O Mercado Livre procura pelo título; a IA ajuda a escolher"
-        className="inline-flex items-center gap-1.5 rounded border border-borda px-2.5 py-1.5 text-xs hover:bg-fundo disabled:opacity-50"
-      >
-        {buscando ? <Loader size={12} className="animate-spin" /> : <Sparkles size={12} />}
-        {buscando ? "Buscando..." : "Sugerir categoria"}
-      </button>
+    <div className={children ? "" : "mt-2"}>
+      {children ? (
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">{children}</div>
+          {botao}
+        </div>
+      ) : (
+        botao
+      )}
       {erro && <p className="mt-1 text-[11px] text-red-700">{erro}</p>}
 
       {resultado && (

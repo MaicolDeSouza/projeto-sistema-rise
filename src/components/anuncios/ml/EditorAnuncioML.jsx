@@ -24,7 +24,6 @@ import AbaGeral from "./AbaGeral";
 import AbaImagens from "./AbaImagens";
 import AbaPrecoEstoque from "./AbaPrecoEstoque";
 import AbaCatalogo from "./AbaCatalogo";
-import AbaGarantia from "./AbaGarantia";
 import AbaStatus from "./AbaStatus";
 import JanelaPublicarML from "./JanelaPublicarML";
 
@@ -37,7 +36,6 @@ const ABAS_PRONTAS = {
   descricao: AbaDescricao,
   ficha: AbaFichaTecnica,
   envio: AbaEnvio,
-  garantia: AbaGarantia,
   status: AbaStatus,
 };
 
@@ -61,7 +59,7 @@ const CLASSE_DA_ACAO = "inline-flex items-center gap-2 rounded-md bg-acento px-5
 // Catalogo desde 26/10/2026) e a ficha tecnica. O resto (titulo, categoria, tipo, envio) fica como foi publicado.
 const ABAS_DO_PUBLICADO = new Set(["preco", "catalogo", "ficha"]);
 // Abas so de leitura (26/10/2026): nunca travam, nem no publicado (os links e o "Validar no ML" tem que funcionar).
-const ABAS_DE_LEITURA = new Set(["status", "garantia"]);
+const ABAS_DE_LEITURA = new Set(["status"]);
 
 const CATEGORIA_ML = /^MLB\d+$/;
 // Espera o dono parar de digitar o codigo: cada tecla seria uma leitura no ML.

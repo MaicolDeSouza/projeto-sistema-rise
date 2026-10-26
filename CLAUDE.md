@@ -3621,6 +3621,10 @@ Pedidos do dono (com print anotado e "usar UI/UX"):
   fechar** e a ação principal (**Publicar** no rascunho, **Enviar ao ML** no publicado). O "Salvar" sozinho saiu: Publicar e
   Enviar com alteração na tela perguntam "Salvar antes de publicar/enviar?" (`gravar({ adiarAoSalvar })`: o anúncio novo só
   troca de endereço depois de a janela do Publicar fechar). Na página, fechar volta à lista (`aoFechar` do `EditorNaPagina`).
+- **Características compacta** (pedido do dono no mesmo dia, "que caiba tudo na mesma janela"): "Sugerir título" e "Sugerir
+  categoria" AO LADO dos campos (`children` dos dois componentes de sugestão); cartões lado a lado Tipo de anúncio | Garantia e
+  Categoria do ML | Disponibilidade; depois a Composição. **A aba Garantia saiu** (`AbaGarantia.jsx` apagado): a garantia do
+  produto é o cartão `GarantiaDoProduto` dentro de Características.
 - **Popup de etapas do "Enviar ao ML"** (pedido do dono, "igual foi implementado na LI"): `AndamentoDoEnvio` com `canal="ml"`,
   etapas em `ml/etapasDoEnvio.js` (permissão, ler o anúncio, descrição, fotos, peso e medidas, preço, ficha, conferir), marcadas
   pelo `enviarMudancasML` em `ml/progresso.js` (memória do processo) e lidas pela rota `/api/mercado-livre/progresso/<anuncioId>`

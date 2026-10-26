@@ -20,7 +20,7 @@ export const PRAZO_MAXIMO_DIAS = 45;
 // O id "geral" ficou (a validacao e as abas o usam); o rotulo e "Caracteristicas" desde 26/10/2026 (pedido do dono).
 // "status" no lugar da "Previa e validacao", e a primeira (26/10/2026, pedido do dono); "garantia" e so leitura.
 // Ordem pedida pelo dono em 26/10/2026: Status, Imagens, Descricao, Ficha tecnica, Custos, Envio (Divergencias na frente
-// quando ha). Caracteristicas, Catalogo e Garantia, que ele nao citou, ficam junto do assunto delas.
+// quando ha). Caracteristicas e Catalogo, que ele nao citou, ficam junto do assunto delas.
 export const ABAS_ML = [
   { id: "status", rotulo: "Status" },
   { id: "geral", rotulo: "Características" },
@@ -31,7 +31,7 @@ export const ABAS_ML = [
   // Concorrentes do catalogo, fora da aba de preco desde 26/10/2026 (pedido do dono).
   { id: "catalogo", rotulo: "Catálogo" },
   { id: "envio", rotulo: "Peso, dimensões e envio" },
-  { id: "garantia", rotulo: "Garantia" },
+  // A garantia virou um cartao em Caracteristicas (26/10/2026, pedido do dono): a aba saiu.
 ];
 
 // Categoria do ML e o codigo (MLB1234), digitado nesta fase.
