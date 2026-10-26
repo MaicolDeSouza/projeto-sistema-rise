@@ -9,7 +9,9 @@ import { abrirAnuncioLI, listarCategoriasLI, salvarAnuncioLI, vinculoBlingLI } f
 import { abrirJanelaLI, cadastrarProdutoNaLI, completarCadastroNaLI, confirmarAjusteFiscalNaLI, sincronizarComLI } from "@/app/produtos/acoes-li";
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
-import { mudouNaLI, resumirEnvioLI, resumoDasDivergenciasLI } from "@/lib/canaisDeVenda/li/apresentacao";
+import AndamentoDoEnvio from "@/components/produtos/AndamentoDoEnvio";
+import { etapasComOResultado, etapasIniciais, lerAndamentoNoServidor, mesclarEtapas } from "@/lib/andamentoDoEnvio";
+import { ETAPAS_DO_ENVIO_LI, mudouNaLI, resumirEnvioLI, resumoDasDivergenciasLI } from "@/lib/canaisDeVenda/li/apresentacao";
 import { ROTULO_DA_ETAPA_LI, faltaNoCadastroLI, ofereceCompletar } from "@/lib/canaisDeVenda/li/etapasCadastro";
 import { ABAS_LI, validarRascunhoLI } from "@/lib/canaisDeVenda/li/validacao";
 import AbaCategorias from "./AbaCategorias";
@@ -19,7 +21,11 @@ import AbaGeral from "./AbaGeral";
 import AbaImagens from "./AbaImagens";
 import AbaStatus, { situacaoDoBling } from "./AbaStatus";
 import AbaSEO from "./AbaSEO";
+import AcoesDoFimDoEnvio from "./AcoesDoFimDoEnvio";
 import { AbaEnvio, AbaFiscal, linkDoPainelLI } from "./AbasDeLeitura";
+
+/// A rota que devolve o andamento do envio que o servidor esta fazendo (`lib/canaisDeVenda/li/progresso.js`).
+const ROTA_DO_ANDAMENTO = "/api/loja-integrada/progresso";
 
 // Uma aba por id de `ABAS_LI`: aba nova na validacao pede o componente aqui.
 const ABAS_PRONTAS = {
@@ -100,6 +106,8 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
   const [envio, setEnvio] = useState(null);
   // O popup com OK de um envio que deu certo (padrao de sincronizacao, pedido do dono em 14/10/2026).
   const [conclusao, setConclusao] = useState(null);
+  // O popup de etapas do Sincronizar e do Cadastrar: `{ tipo, etapas, fim, resumo }`; `null` = fechado.
+  const [andamento, setAndamento] = useState(null);
   const [pergunta, setPergunta] = useState(null);
   const [confirmandoSaida, setConfirmandoSaida] = useState(false);
   const [ocupado, iniciarTrabalho] = useTransition();
@@ -260,24 +268,77 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
 
   const tipoDeEnvio = leitura?.ok && leitura.situacao === "nao_existe" ? "cadastrar" : "sincronizar";
 
+  /**
+   * Sincronizar e Cadastrar abrem o popup de etapas (pedido do dono em 26/10/2026, igual ao do Bling) e o mantem em dia lendo o
+   * andamento do servidor (uma rota, e nao uma Server Action: as acoes rodam uma de cada vez e a consulta esperaria o envio
+   * acabar). So vale o andamento de um envio NOVO (numero maior que o de antes de enviar): o de um envio anterior fica na
+   * memoria ate o servidor abrir o novo, e uma acao recusada antes de comecar nunca abre o dela. O fim do popup so vem depois da
+   * releitura da loja: o "Fechar" nao pode aparecer com a janela de tras ainda velha.
+   */
   async function enviar() {
     const tipo = tipoDeEnvio;
     setQual("enviar");
     const rotulos = Object.fromEntries((leitura?.diferencas ?? []).map((item) => [item.campo, item.rotulo]));
-    const resultado = await chamarEnvio(tipo === "cadastrar" ? cadastrarProdutoNaLI : sincronizarComLI, produtoId);
-    if (!montado.current) return;
-    const resumo = resumirEnvioLI(tipo, resultado, rotulos);
-    if (resultado.ok === true) {
-      // Deu certo: popup com OK. A falha continua no quadro da janela, que o operador le enquanto decide.
-      setConclusao({ titulo: tipo === "cadastrar" ? "Cadastro concluído" : "Sincronização concluída", mensagem: resumo?.titulo ?? null, linhas: resumo?.linhas ?? [] });
-    } else {
-      setEnvio(resumo ? { ok: false, titulo: resumo.titulo, linhas: resumo.linhas } : null);
+    setAndamento({ tipo, etapas: etapasIniciais(ETAPAS_DO_ENVIO_LI[tipo]), fim: null, resumo: null, aviso: null });
+    let relogio = null;
+    try {
+      const numeroDeAntes = (await lerAndamentoNoServidor(ROTA_DO_ANDAMENTO, produtoId))?.numero ?? 0;
+      relogio = setInterval(async () => {
+        const lido = await lerAndamentoNoServidor(ROTA_DO_ANDAMENTO, produtoId);
+        if (!lido || lido.numero <= numeroDeAntes || lido.terminou || !montado.current) return;
+        setAndamento((atual) => (atual && !atual.fim ? { ...atual, etapas: mesclarEtapas(atual.etapas, lido.etapas) } : atual));
+      }, 400);
+      const resultado = await chamarEnvio(tipo === "cadastrar" ? cadastrarProdutoNaLI : sincronizarComLI, produtoId);
+      clearInterval(relogio);
+      relogio = null;
+      if (!montado.current) return;
+      // A ultima palavra e a do servidor: o andamento final (com o envio terminado) e o resultado da acao.
+      const final = await lerAndamentoNoServidor(ROTA_DO_ANDAMENTO, produtoId);
+      if (!montado.current) return;
+      setAndamento((atual) => {
+        if (!atual) return atual;
+        const base = final && final.numero > numeroDeAntes ? mesclarEtapas(atual.etapas, final.etapas) : atual.etapas;
+        return { ...atual, etapas: etapasComOResultado(base, resultado) };
+      });
+      const resumo = resumirEnvioLI(tipo, resultado, rotulos);
+      // A falha tambem fica no quadro da janela, que o operador le depois de voltar do popup.
+      if (resultado.ok !== true) {
+        setEnvio(resumo ? { ok: false, titulo: resumo.titulo, linhas: resumo.linhas } : null);
+        setMensagem({ tipo: "erro", texto: resultado.erro ?? "O envio não foi concluído." });
+      }
+      // A ultima etapa do popup e a releitura da loja (so quando o envio mexeu la): "Conferir o resultado na loja".
+      const releu = mudouNaLI(tipo, resultado);
+      if (releu && resultado.ok === true) {
+        setAndamento((atual) => (atual ? { ...atual, etapas: atual.etapas.map((etapa) => (etapa.id === "conferir" ? { ...etapa, estado: "andando" } : etapa)) } : atual));
+      }
+      if (releu) {
+        setQual("lendo");
+        await lerLoja();
+      }
+      if (!montado.current) return;
+      const deuCerto = resultado.ok === true;
+      setAndamento((atual) =>
+        atual
+          ? {
+              ...atual,
+              etapas: deuCerto ? atual.etapas.map((etapa) => (etapa.id === "conferir" ? { ...etapa, estado: "feito" } : etapa)) : atual.etapas,
+              fim: deuCerto ? "ok" : "falhou",
+              // As linhas do resumo do cadastro repetem as etapas do popup ("Criar o anuncio pausado: feito."): ficam so no titulo.
+              resumo: tipo === "cadastrar" && resumo ? { ...resumo, linhas: [] } : resumo,
+            }
+          : atual,
+      );
+    } finally {
+      if (relogio) clearInterval(relogio);
+      // Rede de seguranca: se algo inesperado cortou o caminho de cima, o popup nao fica girando para sempre.
+      if (montado.current) setAndamento((atual) => (atual && !atual.fim ? { ...atual, fim: "falhou" } : atual));
     }
-    if (!resultado.ok) setMensagem({ tipo: "erro", texto: resultado.erro ?? "O envio não foi concluído." });
-    if (mudouNaLI(tipo, resultado)) {
-      setQual("lendo");
-      await lerLoja();
-    }
+  }
+
+  /** "Fechar" do fim do envio: fecha o popup e, na janela do icone, o editor tambem. Na pagina o editor continua onde esta. */
+  function fecharTudo() {
+    setAndamento(null);
+    if (janela) aoFechar?.();
   }
 
   /** Sincronizar/Cadastrar: com alteracao na tela (ou anuncio novo nunca salvo), salvar vem antes. */
@@ -450,6 +511,22 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
     </>
   );
   const caixaDeConclusao = conclusao && <ConclusaoDoEnvio {...conclusao} aoFechar={() => setConclusao(null)} />;
+  // O fim do Sincronizar e do Cadastrar: etapas e, quando deu certo, tres botoes (painel da loja, anuncio e Fechar). Quem falhou
+  // volta para a janela, com o erro a vista. O anuncio so abre com endereco http(s) completo.
+  const caixaDeAndamento = andamento && (
+    <AndamentoDoEnvio
+      canal="li"
+      larga
+      tipo={andamento.tipo}
+      sku={contexto.produto?.sku ?? ""}
+      etapas={andamento.etapas}
+      fim={andamento.fim}
+      resumo={andamento.resumo}
+      aoFechar={fecharTudo}
+      aoVoltar={() => setAndamento(null)}
+      acoesDoFim={<AcoesDoFimDoEnvio linkDoPainel={linkDoPainel} linkDoSite={linkDoSite} aoFechar={fecharTudo} />}
+    />
+  );
   const temAviso = Boolean(mensagem || envio || situacaoDaLoja || avisoDoBling || podeCompletar);
 
   const barra = (
@@ -607,6 +684,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
         <div className="sticky bottom-0 z-10 rounded-lg border border-borda bg-superficie shadow-lg">{rodape}</div>
         {caixaDePergunta}
         {caixaDeConclusao}
+        {caixaDeAndamento}
       </div>
     );
   }
@@ -669,6 +747,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
       )}
       {caixaDePergunta}
       {caixaDeConclusao}
+      {caixaDeAndamento}
     </div>
   );
 }

@@ -7,6 +7,33 @@
 
 import { ROTULO_DA_ETAPA_LI } from "./etapasCadastro";
 
+/**
+ * As etapas que o popup de andamento mostra no Sincronizar e no Cadastrar da LI (pedido do dono em 26/10/2026, igual ao do
+ * Bling). A ordem e a do envio de verdade; o servidor marca as dele em `progresso.js` (a tela as le por uma rota, porque as
+ * Server Actions rodam uma de cada vez) e "conferir" e da tela: a releitura da loja depois do envio. As do cadastro depois de
+ * "fotos" sao as de `ETAPAS_DO_CADASTRO_LI`.
+ */
+export const ETAPAS_DO_ENVIO_LI = {
+  sincronizar: [
+    { id: "permissao", rotulo: "Conferir permissão de envio" },
+    { id: "ler", rotulo: "Ler o produto na loja" },
+    { id: "campos", rotulo: "Enviar os campos" },
+    { id: "preco", rotulo: "Enviar o preço" },
+    { id: "fotos", rotulo: "Enviar as fotos" },
+    { id: "conferir", rotulo: "Conferir o resultado na loja" },
+  ],
+  cadastrar: [
+    { id: "permissao", rotulo: "Conferir permissão de envio" },
+    { id: "ler", rotulo: "Conferir o código na loja" },
+    { id: "criar", rotulo: "Criar o produto pausado" },
+    { id: "fotos", rotulo: "Enviar as fotos" },
+    { id: "ligar_bling", rotulo: "Ligar a loja no Bling" },
+    { id: "estoque", rotulo: "Gravar o estoque na loja" },
+    { id: "ativar", rotulo: "Ativar o produto" },
+    { id: "conferir", rotulo: "Conferir o resultado na loja" },
+  ],
+};
+
 /// Quanto de um valor entra numa frase: a descricao tem milhares de caracteres.
 const LIMITE_DO_VALOR_NA_FRASE = 60;
 

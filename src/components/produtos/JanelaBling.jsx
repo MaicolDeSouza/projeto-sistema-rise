@@ -12,6 +12,7 @@ import {
 import { BarraDeAbas } from "@/components/cadastros/Abas";
 import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
 import { ETAPAS_DO_ENVIO, mudouNoBling, resumirEnvio, valorParaTela } from "@/lib/blingSync/apresentacao";
+import { etapasComOResultado, etapasIniciais as etapasIniciaisDe, lerAndamentoNoServidor as lerAndamento, mesclarEtapas } from "@/lib/andamentoDoEnvio";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import AndamentoDoEnvio from "./AndamentoDoEnvio";
 
@@ -63,49 +64,9 @@ async function chamar(acao, argumentos, escreve) {
 /// Os envios que mostram as etapas; o do estoque e um passo so e segue com o aviso de conclusao.
 const ENVIOS_COM_ETAPAS = new Set(["sincronizar", "cadastrar"]);
 
-/// Todas as etapas esperando, com a primeira ja andando (o servidor so marca a dele alguns milissegundos depois).
-function etapasIniciais(tipo) {
-  return ETAPAS_DO_ENVIO[tipo].map((etapa, indice) => ({ ...etapa, estado: indice === 0 ? "andando" : "espera", detalhe: null }));
-}
-
-/// O estado que o servidor marcou, por cima das etapas da tela. Entre uma etapa terminar e a outra comecar passam milissegundos
-/// sem ninguem "andando": nesses instantes a primeira que falta fica andando, para o circulo nao piscar.
-function mesclarEtapas(etapas, doServidor) {
-  const porId = new Map(doServidor.map((etapa) => [etapa.id, etapa]));
-  const mescladas = etapas.map((etapa) => {
-    const lida = porId.get(etapa.id);
-    return lida ? { ...etapa, estado: lida.estado, detalhe: lida.detalhe } : etapa;
-  });
-  if (mescladas.some((etapa) => etapa.estado === "andando" || etapa.estado === "falhou")) return mescladas;
-  const proxima = mescladas.findIndex((etapa) => etapa.estado === "espera");
-  return mescladas.map((etapa, indice) => (indice === proxima ? { ...etapa, estado: "andando" } : etapa));
-}
-
-/// Fecha as etapas com o que a acao devolveu. Deu certo: as do servidor ficam todas concluidas. Falhou: a que o servidor marcou
-/// como falha leva o motivo; sem marca (a acao foi recusada antes de comecar, ou caiu por fora), a que estava andando falha.
-function etapasComOResultado(etapas, resultado) {
-  if (resultado.ok === true) return etapas.map((etapa) => (etapa.id === "conferir" ? etapa : { ...etapa, estado: "feito" }));
-  if (etapas.some((etapa) => etapa.estado === "falhou")) {
-    return etapas.map((etapa) => (etapa.estado === "falhou" && !etapa.detalhe ? { ...etapa, detalhe: resultado.erro ?? "O envio não foi concluído." } : etapa));
-  }
-  const andando = etapas.findIndex((etapa) => etapa.estado === "andando");
-  const alvo = andando >= 0 ? andando : Math.max(0, etapas.findIndex((etapa) => etapa.estado !== "feito"));
-  return etapas.map((etapa, indice) => {
-    if (indice === alvo) return { ...etapa, estado: "falhou", detalhe: resultado.erro ?? "O envio não foi concluído." };
-    return etapa.estado === "andando" ? { ...etapa, estado: "espera" } : etapa;
-  });
-}
-
-/// O andamento que o servidor guardou, ou null (rota fora do ar, sem acesso, nada aberto). So le a memoria do servidor.
-async function lerAndamentoNoServidor(produtoId) {
-  try {
-    const resposta = await fetch(`/api/bling/progresso/${encodeURIComponent(produtoId)}`, { cache: "no-store" });
-    if (!resposta.ok) return null;
-    return (await resposta.json()).progresso ?? null;
-  } catch {
-    return null;
-  }
-}
+/// As contas das etapas (comuns ao Bling e a Loja Integrada) moram em `lib/andamentoDoEnvio.js`; aqui so a lista do Bling e a rota.
+const etapasIniciais = (tipo) => etapasIniciaisDe(ETAPAS_DO_ENVIO[tipo]);
+const lerAndamentoNoServidor = (produtoId) => lerAndamento("/api/bling/progresso", produtoId);
 
 /// O titulo do aviso de conclusao de cada envio.
 const TITULO_DA_CONCLUSAO = {

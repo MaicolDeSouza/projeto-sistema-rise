@@ -4359,7 +4359,32 @@ Bling, Fechar vira Salvar e fechar, 'Na loja' e 'Tudo salvo' saem").
   corrigir:** o erro do último envio (vermelho), "Envio bloqueado agora" (âmbar) e os problemas das outras abas, cada um com o
   botão que leva à aba. Saíram os parágrafos fixos sobre o botão do rodapé. "Sincronizado" no Bling é o VÍNCULO do canal (o
   que leva estoque e pedidos), não a comparação de campos Rise × Bling, que continua no ícone do Bling.
-- **Testes:** `teste:li-sync` foi de 356 para 390 asserções (liga/desliga no campo, na assinatura, no Cadastrar pausado, no
+- **Popup de etapas do Sincronizar e do Cadastrar** (pedido do dono no mesmo dia, "como foi implementado no Bling", "usar UI/UX";
+  o do Bling é o `AndamentoDoEnvio`, `65cc504`): ao clicar em "Sincronizar com a LI" ou "Cadastrar na LI" (depois do "Salvar
+  antes de sincronizar?", se houver), abre o popup com as etapas e um check verde em cada uma que termina (círculo girando na atual,
+  cinza nas que esperam, X vermelho e o motivo na que falhou). Nada fecha enquanto roda (Esc e fundo engolidos).
+  - **Etapas** (`ETAPAS_DO_ENVIO_LI`, `li/apresentacao.js`): Sincronizar = Conferir permissão de envio · Ler o produto na loja ·
+    Enviar os campos · Enviar o preço · Enviar as fotos · Conferir o resultado na loja; Cadastrar = Conferir permissão · Conferir o
+    código na loja · Criar o produto pausado · Enviar as fotos · Ligar a loja no Bling · Gravar o estoque na loja · Ativar o produto ·
+    Conferir o resultado na loja. A última de cada lista é da tela (a releitura da loja); as outras o servidor marca. Cada etapa
+    concluída traz o que fez ("2 campo(s)", "nada mudou", "id 204930845", "5 un.", "mantido pausado").
+  - **Servidor:** `li/progresso.js` (memória do processo no `globalThis`, como `blingSync/progresso.js`; `comProgresso` envolve o
+    envio e marca a etapa que falhou com o `erro` de qualquer retorno `ok: false`), instrumentando `sincronizarProdutoLI`,
+    `cadastrarNaLI` e `etapasDepoisDeCriar` (o "Completar o cadastro" continua sem popup, com o aviso de conclusão). A tela lê pela
+    rota `GET /api/loja-integrada/progresso/<produtoId>` a cada 400 ms (recurso `acao.lojaIntegrada.sincronizar`), e só confia no
+    andamento de número maior que o de antes de enviar. As contas comuns (etapas iniciais, mesclar, fechar com o resultado, ler a
+    rota) foram para `lib/andamentoDoEnvio.js`, que a `JanelaBling` também usa; `AndamentoDoEnvio.jsx` ganhou `canal` ("li" muda os
+    títulos), `larga` e `acoesDoFim`.
+  - **O fim, quando deu certo** (`AcoesDoFimDoEnvio.jsx`): três botões que não se confundem. Dois contornados, com o ícone de "abre
+    outra aba" e uma linha pequena embaixo: **Abrir painel da loja** (ajustar dados fiscais; origem e tipo de produção só o painel
+    grava) e **Abrir anúncio na loja** (ver como o cliente vê; desabilitado sem endereço http(s)). O terceiro, azul e largo no pé,
+    **Fechar**, que fecha o popup E a janela do editor (na página só o popup; o foco já cai nele para o Enter). Falhou: só **Voltar
+    à janela**, com o erro à vista, como no Bling. O resumo do cadastro não repete as etapas (só o título).
+  - **Visto na tela (PC):** o fim com os três botões, numa página temporária com dados de exemplo (apagada). **Não visto:** um
+    Sincronizar ou Cadastrar de verdade com o popup (o clique foi barrado por escrever na loja real; só depois do deploy, na VPS) e
+    a cena de falha na tela (testada pelas regras e pelo servidor).
+- **Testes:** `teste:li-sync` foi de 356 para 401 asserções (andamento do Sincronizar, do Cadastrar, do que falhou e do recusado;
+  contas comuns do popup; liga/desliga no campo, na assinatura, no Cadastrar pausado, no
   Sincronizar ligando e desligando, na leitura, no cadastro incompleto e no nome e marca do produto); lint limpo.
 - **Visto na tela (PC, servidor de outra sessão, anúncio do 100101):** a aba só com os campos marcados, a marca travada, o
   interruptor trocando e o "Alterações não salvas" aparecendo, e o rodapé com os dois botões. **Não visto:** o Salvar e fechar

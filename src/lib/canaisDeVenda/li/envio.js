@@ -20,6 +20,7 @@ import { clienteLI } from "./cliente";
 import { mesclarCorpoLI, montarCorpoDeCadastroLI } from "./corpo";
 import { montarDescricaoLI } from "./descricao";
 import { buscarNaLI, lerDetalheDaLI, lerEstoqueDaLI, listarCategoriasDaLI, listarMarcasDaLI, mesmaMarca, textoDoErroLI, urlNaLoja } from "./leitura";
+import { comProgresso } from "./progresso";
 import { rascunhoInicialLI } from "./rascunho";
 import { validarRascunhoLI } from "./validacao";
 
@@ -223,12 +224,16 @@ async function finalizarCadastro(anuncioId, ativo) {
  * produto ativo nao recebe PUT. E isso que deixa o "Completar o cadastro" repetir sem escrever duas vezes.
  * As travas da LI e do Bling foram conferidas por quem chama. Devolve as etapas que passaram.
  */
-async function etapasDepoisDeCriar(cliente, bling, { sku, idExterno, feitas, ativar = true }) {
+async function etapasDepoisDeCriar(cliente, bling, { sku, idExterno, feitas, ativar = true, progresso = null }) {
+  progresso?.andando("ligar_bling");
   const ligado = await ligarNoBlingLI(bling, sku, idExterno);
   if (!ligado.ok) throw new FalhaDoEnvio("ligar_bling", ligado.erro ?? "O produto não foi ligado à Loja Integrada no Bling.");
   feitas.push("ligar_bling");
+  progresso?.feita("ligar_bling");
 
+  progresso?.andando("estoque");
   const estoque = await ler("estoque", () => lerEstoqueDaLI(cliente, idExterno));
+  let detalheDoEstoque = "já na loja";
   if (!estoque.gerenciado) {
     const saldos = await lerSaldosDoBling(bling, [sku]);
     if (!saldos.ok) throw new FalhaDoEnvio("estoque", saldos.erro);
@@ -236,13 +241,20 @@ async function etapasDepoisDeCriar(cliente, bling, { sku, idExterno, feitas, ati
     if (doCodigo.length !== 1) {
       throw new FalhaDoEnvio("estoque", `O Bling não devolveu um saldo único para o código ${sku}: o estoque não foi gravado na Loja Integrada e o anúncio ficou pausado.`);
     }
-    await escrever("estoque", () => cliente.put(`/produto_estoque/${idExterno}`, corpoDoEstoqueInicialLI(doCodigo[0].saldo)));
+    const corpoDoEstoque = corpoDoEstoqueInicialLI(doCodigo[0].saldo);
+    await escrever("estoque", () => cliente.put(`/produto_estoque/${idExterno}`, corpoDoEstoque));
+    detalheDoEstoque = `${corpoDoEstoque.quantidade} un.`;
   }
   feitas.push("estoque");
+  progresso?.feita("estoque", detalheDoEstoque);
 
   // O liga/desliga "Ativo na loja" desligado (26/10/2026): o produto fica pausado, com o vinculo e o estoque no lugar.
-  if (!ativar) return;
+  if (!ativar) {
+    progresso?.feita("ativar", "mantido pausado");
+    return;
+  }
 
+  progresso?.andando("ativar");
   const detalhe = await ler("ativar", () => lerDetalheDaLI(cliente, idExterno));
   if (detalhe.produto?.ativo !== true) {
     // O PUT da LI exige o produto inteiro (medido): o GET sem as chaves so de leitura, com `ativo: true`.
@@ -252,6 +264,7 @@ async function etapasDepoisDeCriar(cliente, bling, { sku, idExterno, feitas, ati
     if (relido.produto?.ativo !== true) throw new FalhaDoEnvio("ativar", "A Loja Integrada aceitou, mas a releitura mostra o produto inativo. Confira na loja.");
   }
   feitas.push("ativar");
+  progresso?.feita("ativar");
 }
 
 async function gravarSucesso(anuncioId, produtoId, { assinatura, payload, url, ativo, idExterno }) {
@@ -288,7 +301,9 @@ export async function sincronizarProdutoLI(produtoId, cliente = clienteLI()) {
   const vazio = { alterados: [], marcaCriada: null, categoriasIgnoradas: [] };
   const recusa = (erro, etapa = "trava") => ({ ok: false, erro, etapa, ...vazio });
 
-  return umPorVez(produtoId, recusa, async () => {
+  // O popup de andamento do editor le estas marcas (`progresso.js`); elas nao mudam o envio.
+  return umPorVez(produtoId, recusa, () => comProgresso(produtoId, "sincronizar", async (progresso) => {
+    progresso.andando("permissao");
     const produto = await contextoDoProduto(produtoId);
     if (!produto) return recusa("Produto não encontrado.");
     if (!produto.conferido) return recusa(`O produto ${produto.sku} não está Conferido. Só produto Conferido vai para a Loja Integrada.`);
@@ -305,8 +320,11 @@ export async function sincronizarProdutoLI(produtoId, cliente = clienteLI()) {
       return recusa(erro?.message ?? String(erro));
     }
 
+    progresso.feita("permissao");
+
     const estado = { etapa: "leitura", alterados: [], marcaCriada: null, categoriasIgnoradas: [] };
     try {
+      progresso.andando("ler");
       const busca = await ler("leitura", () => buscarNaLI(cliente, produto.sku));
       if (busca.situacao === "removido") throw new FalhaDoEnvio("leitura", `O código ${produto.sku} está na lixeira da Loja Integrada: restaure-o lá antes de sincronizar.`);
       if (busca.situacao === "duplicado") throw new FalhaDoEnvio("leitura", `Há mais de um produto com o código ${produto.sku} na Loja Integrada. Deixe um só antes de sincronizar.`);
@@ -327,6 +345,8 @@ export async function sincronizarProdutoLI(produtoId, cliente = clienteLI()) {
       estado.alterados = diferentes.map(({ campo, li: de, rise: para }) => ({ campo, de, para }));
       const campos = new Set(diferentes.map((item) => item.campo));
       const payload = {};
+      progresso.feita("ler");
+      progresso.andando("campos");
 
       let marcaUri = null;
       if (campos.has("marca")) {
@@ -353,11 +373,17 @@ export async function sincronizarProdutoLI(produtoId, cliente = clienteLI()) {
         payload.seo = seo;
       }
 
+      const camposEnviados = estado.alterados.filter((item) => item.campo !== "preco").length;
+      progresso.feita("campos", camposEnviados > 0 ? `${camposEnviados} campo(s)` : "nada mudou");
+
+      progresso.andando("preco");
       if (campos.has("preco")) {
         estado.etapa = "preco";
         payload.preco = await gravarPreco(cliente, produtoId, anuncio.idExterno, riseEnvio.preco, estado.alterados.filter((item) => item.campo === "preco"));
       }
+      progresso.feita("preco", campos.has("preco") ? "atualizado" : "já igual");
 
+      progresso.andando("fotos");
       estado.etapa = "fotos";
       estado.fotos = await enviarFotosLI(cliente, {
         produto,
@@ -366,6 +392,7 @@ export async function sincronizarProdutoLI(produtoId, cliente = clienteLI()) {
         produtoLI: detalhe.produto,
       });
       if (estado.fotos.enviadas || estado.fotos.apagadas) payload.fotos = { apagadas: estado.fotos.apagadas, enviadas: estado.fotos.enviadas };
+      progresso.feita("fotos", estado.fotos.enviadas ? `${estado.fotos.enviadas} foto(s)` : estado.fotos.apagadas ? "trocadas" : "já iguais");
 
       estado.etapa = "gravacao";
       const final = Object.keys(payload).length ? await ler("gravacao", () => lerDetalheDaLI(cliente, anuncio.idExterno)) : detalhe;
@@ -382,7 +409,7 @@ export async function sincronizarProdutoLI(produtoId, cliente = clienteLI()) {
       await gravarFalha(anuncio.id, etapa, texto);
       return { ok: false, erro: texto, etapa, alterados: estado.alterados, marcaCriada: estado.marcaCriada, categoriasIgnoradas: estado.categoriasIgnoradas, fotos: estado.fotos?.texto ?? null };
     }
-  });
+  }));
 }
 
 /// As duas travas (LI e Bling) de um codigo, antes da primeira escrita: o recado da que recusar, ou null.
@@ -407,7 +434,9 @@ function travaRecusada(cliente, bling, sku) {
 export async function cadastrarNaLI(produtoId, cliente = clienteLI(), bling = clienteBling()) {
   const recusa = (erro) => ({ ok: false, erro });
 
-  return umPorVez(produtoId, recusa, async () => {
+  // O popup de andamento do editor le estas marcas (`progresso.js`); elas nao mudam o cadastro.
+  return umPorVez(produtoId, recusa, () => comProgresso(produtoId, "cadastrar", async (progresso) => {
+    progresso.andando("permissao");
     const produto = await contextoDoProduto(produtoId);
     if (!produto) return recusa("Produto não encontrado.");
     if (!produto.conferido) return recusa(`O produto ${produto.sku} não está Conferido. Só produto Conferido vai para a Loja Integrada.`);
@@ -423,15 +452,19 @@ export async function cadastrarNaLI(produtoId, cliente = clienteLI(), bling = cl
     if (bloqueio) return recusa(bloqueio);
     const travada = travaRecusada(cliente, bling, produto.sku);
     if (travada) return recusa(travada);
+    progresso.feita("permissao");
 
     let idExterno = null;
     let conteudoEnviado = false;
     const feitas = [];
     try {
+      progresso.andando("ler");
       const busca = await ler("leitura", () => buscarNaLI(cliente, produto.sku));
       if (busca.situacao === "existe") return recusa(`O código ${produto.sku} já existe na Loja Integrada: abra o pop-up do ícone para vincular.`);
       if (busca.situacao === "removido") return recusa(`O código ${produto.sku} está na lixeira da Loja Integrada: restaure-o lá em vez de cadastrar de novo.`);
       if (busca.situacao === "duplicado") return recusa(`Há mais de um produto com o código ${produto.sku} na Loja Integrada.`);
+      progresso.feita("ler");
+      progresso.andando("criar");
 
       if (!anuncio) {
         const salvo = await salvarRascunhoLI(null, rascunho);
@@ -462,15 +495,19 @@ export async function cadastrarNaLI(produtoId, cliente = clienteLI(), bling = cl
         payload.preco = await gravarPreco(cliente, produtoId, idExterno, riseEnvio.preco, [{ campo: "preco", de: null, para: riseEnvio.preco }]);
       }
 
+      progresso.feita("criar", `id ${idExterno}`);
+
       // O produto acabou de nascer sem foto na loja: o plano so envia.
+      progresso.andando("fotos");
       const fotos = await enviarFotosLI(cliente, { produto, anuncioId: anuncio.id, idExterno, produtoLI: criado });
       if (fotos.enviadas) payload.fotos = { apagadas: 0, enviadas: fotos.enviadas };
+      progresso.feita("fotos", fotos.enviadas ? `${fotos.enviadas} foto(s)` : "sem fotos");
 
       await gravarSucesso(anuncio.id, produtoId, { assinatura: assinaturaLI(rise), payload, url, ativo: false, idExterno });
       conteudoEnviado = true;
       feitas.push("criar");
 
-      await etapasDepoisDeCriar(cliente, bling, { sku: produto.sku, idExterno, feitas, ativar });
+      await etapasDepoisDeCriar(cliente, bling, { sku: produto.sku, idExterno, feitas, ativar, progresso });
       await finalizarCadastro(anuncio.id, ativar);
       feitas.push("gravar");
       return { ok: true, idExterno, urlExterna: url, fotos: fotos.texto, etapas: feitas, ativo: ativar };
@@ -483,7 +520,7 @@ export async function cadastrarNaLI(produtoId, cliente = clienteLI(), bling = cl
       else if (anuncio) await gravarFalha(anuncio.id, etapa, texto);
       return { ok: false, erro: texto, etapa, etapas: feitas, ...(idExterno ? { idExterno } : {}) };
     }
-  });
+  }));
 }
 
 /**

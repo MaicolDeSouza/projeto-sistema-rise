@@ -37,7 +37,9 @@ const { estadoDoIconeLI, iconeLIDoProduto, produtoIdValido } = await import("../
 const { criarLojaIntegradaFalsa } = await import("./lib/lojaIntegradaFalsa.js");
 const { buscarNaLI, lerDetalheDaLI, lerParaPopupLI, listarCategoriasDaLI, listarMarcasDaLI } = await import("../src/lib/canaisDeVenda/li/leitura.js");
 const { cadastrarNaLI, completarCadastroLI, sincronizarProdutoLI } = await import("../src/lib/canaisDeVenda/li/envio.js");
-const { mudouNaLI, resumirEnvioLI, resumoDasDivergenciasLI, valorParaTela } = await import("../src/lib/canaisDeVenda/li/apresentacao.js");
+const { ETAPAS_DO_ENVIO_LI, mudouNaLI, resumirEnvioLI, resumoDasDivergenciasLI, valorParaTela } = await import("../src/lib/canaisDeVenda/li/apresentacao.js");
+const { lerProgresso } = await import("../src/lib/canaisDeVenda/li/progresso.js");
+const { etapasComOResultado, etapasIniciais, mesclarEtapas } = await import("../src/lib/andamentoDoEnvio.js");
 const { ROTULO_DO_TIPO_PRODUCAO, STATUS_LI } = await import("../src/lib/canaisDeVenda/li/rotulos.js");
 
 let falhas = 0;
@@ -985,6 +987,10 @@ try {
     conferir("feliz: todas as etapas, ativo, estoque do Bling", [ok1.ok, ok1.etapas, li1.produtos().at(-1).ativo, estoqueNaLI(li1)], [true, ["criar", "ligar_bling", "estoque", "ativar", "gravar"], true, [true, 5, -1]]);
     conferir("feliz: ligado no Bling com o id da LI", Object.values(b1.vinculos).flat().map((v) => [v.codigo, v.loja.id]), [[ok1.idExterno, 203478870]]);
     conferir("feliz: anuncio ATIVA, PUBLICADO, sem cadastro pendente", [an1.situacaoCanal, an1.status, an1.dados?.cadastroLI ?? null, an1.erro], ["ATIVA", "PUBLICADO", null, null]);
+    // O popup de etapas (26/10/2026): o servidor marca cada etapa do cadastro e a tela le por /api/loja-integrada/progresso.
+    const prog1 = lerProgresso(p1.id);
+    conferir("andamento do cadastro: etapas na ordem do envio, todas concluidas, envio terminado", [prog1.tipo, prog1.terminou, prog1.etapas.map((e) => e.id), prog1.etapas.every((e) => e.estado === "feito")], ["cadastrar", true, ["permissao", "ler", "criar", "fotos", "ligar_bling", "estoque", "ativar"], true]);
+    conferir("andamento do cadastro: o que cada etapa fez", Object.fromEntries(prog1.etapas.map((e) => [e.id, e.detalhe])), { permissao: null, ler: null, criar: `id ${ok1.idExterno}`, fotos: "sem fotos", ligar_bling: null, estoque: "5 un.", ativar: null });
     conferir("ordem na LI: POST do produto, PUT do estoque, PUT do produto (ativar)", chamadaDe(li1, "POST", "/produto") < chamadaDe(li1, "PUT", "/produto_estoque") && chamadaDe(li1, "PUT", "/produto_estoque") < chamadaDe(li1, "PUT", `/produto/${ok1.idExterno}`), true);
     const lido = await lerParaPopupLI(p1.id, li1);
     conferir("editor le o ativo e o estoque da loja", [lido.ativoNaLI, lido.estoqueGerenciado, lido.cadastroFalhou], [true, true, null]);
@@ -1002,6 +1008,8 @@ try {
     conferir("Bling recusa o vinculo: para em ligar_bling, produto pausado", [falhou.ok, falhou.etapa, falhou.etapas, li2.produtos().at(-1).ativo], [false, "ligar_bling", ["criar"], false]);
     conferir("falha depois de criar: o '!' fica gravado e o status nao vira ERRO", [an2.dados?.cadastroLI?.etapa, an2.status, an2.situacaoCanal, /HTTP 400/.test(an2.erro ?? "")], ["ligar_bling", "PUBLICADO", "PAUSADA", true]);
     conferir("o editor ve a falha gravada", (await lerParaPopupLI(p2.id, li2)).cadastroFalhou?.etapa, "ligar_bling");
+    const prog2 = lerProgresso(p2.id);
+    conferir("andamento do cadastro que falhou: a etapa que parou leva o motivo e as seguintes esperam", [prog2.terminou, prog2.etapas.map((e) => [e.id, e.estado]), /HTTP 400/.test(prog2.etapas.find((e) => e.estado === "falhou")?.detalhe ?? "")], [true, [["permissao", "feito"], ["ler", "feito"], ["criar", "feito"], ["fotos", "feito"], ["ligar_bling", "falhou"], ["estoque", "espera"], ["ativar", "espera"]], true]);
     const iconeFalhou = iconeLIDoProduto({ ...(await prisma.produto.findUnique({ where: { id: p2.id } })), blingId: "1" }, an2, { documentos: [] });
     conferir("o icone acende o '!' com a etapa em que parou", iconeFalhou.incompleto, { etapa: "ligar_bling", rotulo: "Ligar à Loja Integrada no Bling" });
     const completou = await completarCadastroLI(p2.id, li2, criarBlingDaLI({ saldo: -2 }));
@@ -1028,6 +1036,7 @@ try {
     const an5 = await anuncioLIDoProduto(p5.id);
     conferir("cadastrar com o Ativo desligado: sem a etapa ativar, nenhum PUT do produto, loja inativa", [pausado.ok, pausado.etapas, pausado.ativo, li5.produtos().at(-1).ativo, chamadaDe(li5, "PUT", `/produto/${pausado.idExterno}`)], [true, ["criar", "ligar_bling", "estoque", "gravar"], false, false, -1]);
     conferir("cadastrar com o Ativo desligado: vinculo e estoque no lugar, anuncio PAUSADA sem cadastro pendente", [Object.values(b5.vinculos).flat().length, estoqueNaLI(li5), an5.situacaoCanal, an5.dados?.cadastroLI ?? null, an5.dados?.ativo], [1, [true, 3, -1], "PAUSADA", null, false]);
+    conferir("andamento do cadastro pausado: a etapa ativar conta como feita e diz que ficou pausado", lerProgresso(p5.id).etapas.find((e) => e.id === "ativar"), { id: "ativar", estado: "feito", detalhe: "mantido pausado" });
     conferir("resumo do cadastro pausado diz que ficou pausado", resumirEnvioLI("cadastrar", pausado).titulo, "Produto cadastrado na Loja Integrada, pausado (Ativo na loja desligado).");
     conferir("resumo do cadastro de sempre continua dizendo ativo", resumirEnvioLI("cadastrar", { ...pausado, ativo: true }).titulo, "Produto cadastrado e ativo na Loja Integrada.");
     const semMudanca = await sincronizarProdutoLI(p5.id, li5);
@@ -1038,6 +1047,8 @@ try {
     await salvarRascunhoLI(an5.id, { ...rascunhoDoAnuncio(an5, p5), ativo: true });
     const ligar = await sincronizarProdutoLI(p5.id, li5);
     const an5b = await anuncioLIDoProduto(p5.id);
+    const progLigar = lerProgresso(p5.id);
+    conferir("andamento do sincronizar: etapas na ordem, concluidas, com o que cada uma fez", [progLigar.tipo, progLigar.terminou, progLigar.etapas.map((e) => [e.id, e.estado, e.detalhe])], ["sincronizar", true, [["permissao", "feito", null], ["ler", "feito", null], ["campos", "feito", "1 campo(s)"], ["preco", "feito", "já igual"], ["fotos", "feito", "já iguais"]]]);
     conferir("ligar o Ativo e sincronizar: a loja fica ativa, o campo vai no envio e a situacao vira ATIVA", [ligar.ok, ligar.alterados.map((a) => [a.campo, a.de, a.para]), li5.produtos().at(-1).ativo, an5b.situacaoCanal], [true, [["ativo", false, true]], true, "ATIVA"]);
     conferir("ligar o Ativo: o resto do produto da loja ficou como estava", [li5.produtos().at(-1).estoque_gerenciado, li5.produtos().at(-1).estoque_quantidade], [true, 3]);
     // Desliga: o Sincronizar pausa a loja, e o icone nao ganha "!" por isso.
@@ -1060,6 +1071,21 @@ try {
     const li6 = criarLojaIntegradaFalsa({});
     const parou = await cadastrarNaLI(p6.id, li6, criarBlingDaLI({ saldoAusente: true }));
     const sincDoIncompleto = await sincronizarProdutoLI(p6.id, li6);
+    // Sincronizar recusado (produto nao vinculado): o andamento marca a primeira etapa como a que falhou, com o motivo.
+    const semVinculo = await novo("ZZ-LI-36");
+    await sincronizarProdutoLI(semVinculo.id, criarLojaIntegradaFalsa({}));
+    const progRecusa = lerProgresso(semVinculo.id);
+    conferir("andamento do sincronizar recusado: falha na permissao com o motivo, o resto espera", [progRecusa.terminou, progRecusa.etapas.map((e) => e.estado), /Cadastrar na LI/.test(progRecusa.etapas[0].detalhe ?? "")], [true, ["falhou", "espera", "espera", "espera", "espera"], true]);
+    conferir("etapas da tela: a conferencia da loja e so da tela, e o cadastro leva as etapas depois de criar", [ETAPAS_DO_ENVIO_LI.sincronizar.at(-1).id, ETAPAS_DO_ENVIO_LI.cadastrar.map((e) => e.id).slice(4)], ["conferir", ["ligar_bling", "estoque", "ativar", "conferir"]]);
+    {
+      // As contas comuns do popup (Bling e LI): mesclar o que o servidor marcou e fechar com o que a acao devolveu.
+      const iniciais = etapasIniciais(ETAPAS_DO_ENVIO_LI.sincronizar);
+      conferir("etapas iniciais: so a primeira anda", iniciais.map((e) => e.estado), ["andando", "espera", "espera", "espera", "espera", "espera"]);
+      const mescladas = mesclarEtapas(iniciais, [{ id: "permissao", estado: "feito", detalhe: null }, { id: "ler", estado: "feito", detalhe: null }]);
+      conferir("mesclar: entre uma etapa e a outra a primeira que falta fica andando", mescladas.map((e) => e.estado), ["feito", "feito", "andando", "espera", "espera", "espera"]);
+      conferir("fechar com sucesso: tudo concluido menos a conferencia, que e da tela", etapasComOResultado(mescladas, { ok: true }).map((e) => e.estado), ["feito", "feito", "feito", "feito", "feito", "espera"]);
+      conferir("fechar com falha sem marca do servidor: a que andava falha com o erro", etapasComOResultado(mescladas, { ok: false, erro: "Deu ruim" }).map((e) => [e.estado, e.detalhe]), [["feito", null], ["feito", null], ["falhou", "Deu ruim"], ["espera", null], ["espera", null], ["espera", null]]);
+    }
     conferir("cadastro incompleto: o Sincronizar nao ativa o produto", [parou.etapa, sincDoIncompleto.alterados.some((a) => a.campo === "ativo"), li6.produtos().at(-1).ativo], ["estoque", false, false]);
   }
 

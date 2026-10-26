@@ -6,8 +6,15 @@ import { Circle, CircleCheck, CircleX, Loader } from "lucide-react";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 
 const TEXTOS = {
-  sincronizar: { andando: "Sincronizando com o Bling", ok: "Sincronização concluída", falhou: "Sincronização interrompida" },
-  cadastrar: { andando: "Cadastrando no Bling", ok: "Cadastro concluído", falhou: "Cadastro interrompido" },
+  bling: {
+    sincronizar: { andando: "Sincronizando com o Bling", ok: "Sincronização concluída", falhou: "Sincronização interrompida" },
+    cadastrar: { andando: "Cadastrando no Bling", ok: "Cadastro concluído", falhou: "Cadastro interrompido" },
+  },
+  // O mesmo popup serve ao editor da Loja Integrada (26/10/2026).
+  li: {
+    sincronizar: { andando: "Sincronizando com a Loja Integrada", ok: "Sincronização concluída", falhou: "Sincronização interrompida" },
+    cadastrar: { andando: "Cadastrando na Loja Integrada", ok: "Cadastro concluído", falhou: "Cadastro interrompido" },
+  },
 };
 
 /// O ícone de cada estado de etapa: o check verde de quem terminou, o círculo girando de quem está rodando, o X de quem falhou
@@ -32,13 +39,19 @@ function IconeDaEtapa({ estado }) {
  * Enquanto roda, nada fecha: o Esc e o clique no fundo são engolidos, para não largar a janela no meio de uma escrita no Bling.
  * O Esc é ouvido na CAPTURA e para ali (a janela de baixo o escuta no `document`).
  *
- * @param {{tipo: "sincronizar"|"cadastrar", sku: string, etapas: {id: string, rotulo: string, estado: "espera"|"andando"|"feito"|"falhou", detalhe?: string|null}[],
- *   fim: null|"ok"|"falhou", resumo: {titulo: string, linhas: string[]}|null, aviso?: string|null, aoFechar: () => void, aoVoltar: () => void}} props
+ * `canal` ("bling" ou "li") escolhe os titulos. `acoesDoFim`, quando passado, desenha no lugar do botao unico "Fechar" quando o
+ * envio deu certo (a Loja Integrada traz tres: abrir o painel, abrir o anuncio e fechar); o foco vai ao elemento com
+ * `data-fechar` dentro dele. `larga` abre o popup um pouco mais largo (as tres acoes lado a lado).
+ *
+ * @param {{canal?: "bling"|"li", tipo: "sincronizar"|"cadastrar", sku: string, etapas: {id: string, rotulo: string, estado: "espera"|"andando"|"feito"|"falhou", detalhe?: string|null}[],
+ *   fim: null|"ok"|"falhou", resumo: {titulo: string, linhas: string[]}|null, aviso?: string|null, aoFechar: () => void, aoVoltar: () => void,
+ *   acoesDoFim?: import("react").ReactNode, larga?: boolean}} props
  */
-export default function AndamentoDoEnvio({ tipo, sku, etapas, fim, resumo, aviso = null, aoFechar, aoVoltar }) {
-  const textos = TEXTOS[tipo] ?? TEXTOS.sincronizar;
+export default function AndamentoDoEnvio({ canal = "bling", tipo, sku, etapas, fim, resumo, aviso = null, aoFechar, aoVoltar, acoesDoFim = null, larga = false }) {
+  const textos = (TEXTOS[canal] ?? TEXTOS.bling)[tipo] ?? TEXTOS.bling.sincronizar;
   const acaoFinal = fim === "ok" ? aoFechar : fim === "falhou" ? aoVoltar : null;
   const botao = useRef(null);
+  const caixa = useRef(null);
 
   useEffect(() => {
     function aoTeclar(evento) {
@@ -53,7 +66,7 @@ export default function AndamentoDoEnvio({ tipo, sku, etapas, fim, resumo, aviso
 
   // O foco vai ao botão quando o envio termina, para o Enter fechar sem o mouse.
   useEffect(() => {
-    if (fim) botao.current?.focus();
+    if (fim) (botao.current ?? caixa.current?.querySelector("[data-fechar]"))?.focus();
   }, [fim]);
 
   const titulo = fim === "ok" ? textos.ok : fim === "falhou" ? textos.falhou : textos.andando;
@@ -65,11 +78,12 @@ export default function AndamentoDoEnvio({ tipo, sku, etapas, fim, resumo, aviso
       {...propsDoFundo(() => acaoFinal?.())}
     >
       <section
+        ref={caixa}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="andamento-do-envio-titulo"
         aria-busy={!fim}
-        className="w-full max-w-md rounded-lg border border-borda bg-superficie p-6 shadow-2xl"
+        className={`w-full ${larga ? "max-w-xl" : "max-w-md"} rounded-lg border border-borda bg-superficie p-6 shadow-2xl`}
       >
         <p id="andamento-do-envio-titulo" className={`text-lg font-semibold ${corDoTitulo}`}>
           {titulo}
@@ -109,7 +123,8 @@ export default function AndamentoDoEnvio({ tipo, sku, etapas, fim, resumo, aviso
         {fim === "ok" && aviso && <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{aviso}</p>}
 
         <div className="mt-5 flex justify-end">
-          {fim === "ok" && (
+          {fim === "ok" && acoesDoFim}
+          {fim === "ok" && !acoesDoFim && (
             <button ref={botao} type="button" onClick={aoFechar} className="min-w-28 rounded-md bg-acento px-5 py-2.5 text-base font-medium text-white hover:opacity-90">
               Fechar
             </button>
