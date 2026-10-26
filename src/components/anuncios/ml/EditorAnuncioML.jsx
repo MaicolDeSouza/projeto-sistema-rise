@@ -11,10 +11,12 @@ import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import Badge from "@/components/ui/Badge";
 import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
 import { NOMES_DAS_PARTES, textoDasPartes } from "@/lib/canaisDeVenda/ml/acompanhar";
+import { divergenciasDoAnuncioML } from "@/lib/canaisDeVenda/ml/divergencias";
 import { avisoDeCatalogoPendente, precisaAgirNoML, textoDoAvisoDeCatalogo, textoDoCatalogo, textoDoEstadoML } from "@/lib/canaisDeVenda/ml/estadoNoML";
 import { AGUARDANDO_BLING, AGUARDANDO_ESTOQUE, STATUS_ML, linkDoAnuncioML, linkDoPainelML } from "@/lib/canaisDeVenda/ml/rotulos";
 import { ABAS_ML, validarRascunhoML } from "@/lib/canaisDeVenda/ml/validacao";
 import AbaDescricao from "./AbaDescricao";
+import AbaDivergenciasML from "./AbaDivergenciasML";
 import AbaEnvio from "./AbaEnvio";
 import AbaFichaTecnica from "./AbaFichaTecnica";
 import AbaGeral from "./AbaGeral";
@@ -94,7 +96,10 @@ export default function EditorAnuncioML({
 }) {
   const [rascunho, setRascunho] = useState(rascunhoInicial);
   const [contexto, setContexto] = useState(contextoInicial);
-  const [aba, setAba] = useState(ABAS_ML[0].id);
+  // Com divergencia no anuncio publicado, a aba Divergencias abre primeiro (como na Loja Integrada).
+  const [aba, setAba] = useState(() =>
+    divergenciasDoAnuncioML({ publicado: status === "PUBLICADO", publicacao: publicacaoInicial?.publicacao, mudancas: publicacaoInicial?.mudancas }).length > 0 ? "divergencias" : ABAS_ML[0].id,
+  );
   const [mensagem, setMensagem] = useState(null);
   // `null` e "anuncio novo"; as acoes recusam `undefined` (prop esquecida) como "Pedido invalido.".
   const [idAtual, setIdAtual] = useState(anuncioId ?? null);
@@ -170,12 +175,20 @@ export default function EditorAnuncioML({
   const travaDaAba = (id) => bloqueado && !(editaPublicado && ABAS_DO_PUBLICADO.has(id));
   const problemas = useMemo(() => validarRascunhoML(rascunho, contexto), [rascunho, contexto]);
 
-  // O anuncio entrou, saiu ou trocou de catalogo no ML (25/10/2026): abrir o anuncio e ver o aviso; o "!" da lista apaga.
-  // O texto continua no rodape nesta abertura (o estado da tela nao muda).
+  // O anuncio entrou, saiu, trocou ou esta num catalogo e o dono ainda nao conferiu (25/10/2026). So o "Marcar como
+  // revisado" da aba Divergencias apaga o "!" (pedido do dono): abrir o anuncio nao basta.
   const catalogoPendente = idAtual && avisoDeCatalogoPendente(publicacao?.estadoML) ? idAtual : null;
-  useEffect(() => {
-    if (catalogoPendente) marcarCatalogoVistoMLAcao(catalogoPendente).catch(() => {});
-  }, [catalogoPendente]);
+  async function revisarCatalogo() {
+    const resultado = await marcarCatalogoVistoMLAcao(idAtual);
+    if (resultado?.ok) {
+      setInfoDoML((atual) => {
+        const estadoML = atual.publicacao?.estadoML;
+        if (!estadoML?.catalogoAviso) return atual;
+        return { ...atual, publicacao: { ...atual.publicacao, estadoML: { ...estadoML, catalogoAviso: { ...estadoML.catalogoAviso, visto: true } } } };
+      });
+    }
+    return resultado;
+  }
 
   // O erro aparece no topo: com o rodape fixo, o dono clica em Salvar com a pagina rolada.
   useEffect(() => {
@@ -278,6 +291,10 @@ export default function EditorAnuncioML({
   // "Enviar mudancas ao ML" (spec 2026-10-24): so no anuncio publicado que ficou para tras do produto.
   const mudancas = publicado ? (infoDoML.mudancas ?? null) : null;
   const temMudancas = (mudancas?.partes?.length ?? 0) > 0;
+  // A aba Divergencias (25/10/2026): os motivos do "!" do icone do ML, so no anuncio publicado e so quando ha algum.
+  const divergencias = useMemo(() => divergenciasDoAnuncioML({ publicado, publicacao, mudancas }), [publicado, publicacao, mudancas]);
+  const abas = useMemo(() => (divergencias.length > 0 ? [{ id: "divergencias", rotulo: `Divergências (${divergencias.length})` }, ...ABAS_ML] : ABAS_ML), [divergencias]);
+  const abaVisivel = abas.some((item) => item.id === aba) ? aba : ABAS_ML[0].id;
   function enviarMudancas() {
     setErroDasMudancas(null);
     iniciarEnvioDasMudancas(async () => {
@@ -287,6 +304,20 @@ export default function EditorAnuncioML({
       await relerDoML();
     });
   }
+
+  // O mesmo botao na faixa das mudancas e na aba Divergencias.
+  const botaoDeEnviar = temMudancas && (
+    <button
+      type="button"
+      onClick={enviarMudancas}
+      disabled={enviandoMudancas || !acessos.publicar || alterado}
+      title={!acessos.publicar ? "Seu acesso não permite enviar ao Mercado Livre." : alterado ? "Salve antes de enviar: vai o que está salvo." : `Manda ao Mercado Livre: ${textoDasPartes(mudancas.partes)}`}
+      className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {enviandoMudancas && <Loader size={14} className="animate-spin" />}
+      {enviandoMudancas ? "Enviando..." : "Enviar mudanças ao ML"}
+    </button>
+  );
 
   // "Validar no ML" (Previa) valida o anuncio GRAVADO: so com ele salvo e sem alteracao pendente.
   const podeValidar = Boolean(idAtual) && !alterado && !bloqueado;
@@ -314,21 +345,31 @@ export default function EditorAnuncioML({
   const barra = (
     <div inert={travado}>
       <BarraDeAbas
-        abas={ABAS_ML}
-        aba={aba}
+        abas={abas}
+        aba={abaVisivel}
         aoMudar={setAba}
-        comErro={(id) => problemas.some((problema) => problema.aba === id && problema.bloqueante)}
+        comErro={(id) => id === "divergencias" || problemas.some((problema) => problema.aba === id && problema.bloqueante)}
       />
     </div>
   );
 
   const paineis = (
     <div aria-busy={travado}>
+      {divergencias.length > 0 && (
+        <Painel id="divergencias" aba={abaVisivel}>
+          <AbaDivergenciasML
+            itens={divergencias}
+            linkDoPainel={linkDoPainelML(infoDoML.idExterno)}
+            enviar={botaoDeEnviar}
+            revisarCatalogo={acessos.editar ? revisarCatalogo : null}
+          />
+        </Painel>
+      )}
       {ABAS_ML.map(({ id }) => {
         const Aba = ABAS_PRONTAS[id];
         const trava = travaDaAba(id);
         return (
-          <Painel key={id} id={id} aba={aba}>
+          <Painel key={id} id={id} aba={abaVisivel}>
             <div inert={trava} className={trava && !somenteLeitura ? "opacity-70" : undefined}>
             <Aba
               {...propsDasAbas}
@@ -369,7 +410,8 @@ export default function EditorAnuncioML({
             title="Catálogo do anúncio no Mercado Livre, relido com o estado"
           >
             {textoDoCatalogo(publicacao.estadoML.catalogo)}
-            {catalogoPendente && ` (${textoDoAvisoDeCatalogo(publicacao.estadoML.catalogoAviso)})`}
+            {/* "esta no catalogo X" repetiria o texto: so a mudanca (entrou, saiu, trocou) vai entre parenteses. */}
+            {catalogoPendente && !publicacao.estadoML.catalogoAviso?.inicial && ` (${textoDoAvisoDeCatalogo(publicacao.estadoML.catalogoAviso)})`}
           </span>
         )}
         {publicado && <span className="text-suave">{MOTIVO_DO_PUBLICADO}</span>}
@@ -459,16 +501,7 @@ export default function EditorAnuncioML({
     <div role="status" className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span>{mudancas.naoConferido ? "Ainda não conferido com o produto." : `Mudou depois de publicar, falta enviar ao ML: ${textoDasPartes(mudancas.partes)}.`}</span>
-        <button
-          type="button"
-          onClick={enviarMudancas}
-          disabled={enviandoMudancas || !acessos.publicar || alterado}
-          title={!acessos.publicar ? "Seu acesso não permite enviar ao Mercado Livre." : alterado ? "Salve antes de enviar: vai o que está salvo." : `Manda ao Mercado Livre: ${textoDasPartes(mudancas.partes)}`}
-          className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {enviandoMudancas && <Loader size={14} className="animate-spin" />}
-          {enviandoMudancas ? "Enviando..." : "Enviar mudanças ao ML"}
-        </button>
+        {botaoDeEnviar}
       </div>
       {erroDasMudancas && (
         <p role="alert" className="mt-1 text-red-700">

@@ -2956,6 +2956,41 @@ try {
   }
 
   {
+    console.log("\nAba Divergencias do ML (pedido do dono em 25/10/2026, no molde da LI)");
+    const { divergenciasDoAnuncioML } = await import("../src/lib/canaisDeVenda/ml/divergencias.js");
+    const estado = (extra = {}) => ({ status: "active", subStatus: [], estoque: 5, estoqueBling: 5, estoqueDiferenteSeguidas: 0, ...extra });
+    conferir("rascunho nao tem divergencia", divergenciasDoAnuncioML({ publicado: false, publicacao: { estadoML: estado({ status: "under_review" }) } }), []);
+    conferir("publicado em dia: nenhuma", divergenciasDoAnuncioML({ publicado: true, publicacao: { estadoML: estado() }, mudancas: { partes: [], naoConferido: false } }), []);
+    const todas = divergenciasDoAnuncioML({
+      publicado: true,
+      mudancas: { partes: ["descricao", "preco"], naoConferido: false },
+      publicacao: {
+        estadoML: estado({
+          status: "under_review",
+          subStatus: ["waiting_for_patch"],
+          estoque: 3,
+          estoqueDiferenteSeguidas: 2,
+          catalogo: { id: "MLB9", nome: "Wemos" },
+          catalogoAviso: { de: null, para: { id: "MLB9", nome: "Wemos" }, em: "2026-10-25T15:00:00Z", visto: false, inicial: true },
+        }),
+      },
+    });
+    conferir("as quatro, com a acao de cada uma", todas.map((item) => [item.id, item.acao]), [["envio", "enviar"], ["estado", "painel"], ["estoque", null], ["catalogo", "revisarCatalogo"]]);
+    conferir(
+      "os textos",
+      todas.map((item) => item.titulo),
+      ["Falta enviar ao ML: descrição e preço", "Em revisão: precisa corrigir", "Estoque no ML 3, no Bling 5", "Está no catálogo Wemos"],
+    );
+    conferir("estoque diferente numa leitura so ainda nao e divergencia", divergenciasDoAnuncioML({ publicado: true, publicacao: { estadoML: estado({ estoque: 3, estoqueDiferenteSeguidas: 1 }) } }).length, 0);
+    conferir(
+      "catalogo revisado sai da lista",
+      divergenciasDoAnuncioML({ publicado: true, publicacao: { estadoML: estado({ catalogoAviso: { de: { id: "MLB9", nome: "Wemos" }, para: null, em: "2026-10-25T15:00:00Z", visto: true } }) } }).length,
+      0,
+    );
+    conferir("ainda nao conferido com o produto", divergenciasDoAnuncioML({ publicado: true, publicacao: { estadoML: estado() }, mudancas: { partes: ["descricao"], naoConferido: true } })[0].titulo, "Ainda não conferido com o produto");
+  }
+
+  {
     console.log("\nLinks do rodape do editor: o anuncio no ML e o painel do vendedor");
     const { linkDoAnuncioML, linkDoPainelML } = await import("../src/lib/canaisDeVenda/ml/rotulos.js");
     conferir("anuncio: usa o link gravado", linkDoAnuncioML("MLB5458577821", "https://produto.mercadolivre.com.br/MLB-5458577821-placa-_JM"), "https://produto.mercadolivre.com.br/MLB-5458577821-placa-_JM");

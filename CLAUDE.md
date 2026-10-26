@@ -3509,7 +3509,13 @@ publicou, os 1.007 antigos da conta ficam de fora):**
   leitura, e o 100111, publicado já no catálogo, não acendeu nada); fora do catálogo na 1ª leitura não avisa. Entrar, sair ou
   trocar grava `estadoML.catalogoAviso = {de, para, em, visto}`: "!" no ícone do ML ("saiu do catálogo X em 25/10"),
   rodapé do editor "No catálogo: X" / "Fora do catálogo" (em âmbar com a mudança), aviso no Telegram (tipo `catalogoML`) e
-  abrir o anúncio marca como visto (`marcarCatalogoVistoMLAcao`, basta ver o canal).
+  **só o botão "Marcar como revisado" da aba Divergências apaga o "!"** (pedido do dono no mesmo dia;
+  `marcarCatalogoVistoMLAcao`, pede editar o canal; abrir o anúncio não basta mais). Mudança nova no ML acende de novo.
+- **Aba Divergências do ML (25/10/2026, pedido do dono, no molde da LI):** a primeira aba do editor, só no anúncio
+  publicado e só com algo a olhar, e abre selecionada. Lista os motivos do "!" do ícone (`divergenciasDoAnuncioML`, em
+  `ml/divergencias.js`, pura): falta enviar ao ML (com o botão "Enviar mudanças ao ML"), barrado pelo ML ("Abrir no painel
+  do ML"), estoque diferente do Bling em leituras seguidas, e o catálogo ("Marcar como revisado").
+  `AbaDivergenciasML.jsx`. Visto no PC com um rascunho marcado como publicado (desfeito depois).
 - **Ficha técnica inteira para publicar (25/10/2026, pedido do dono: "não deixar publicar o produto no ML se algum campo
   da ficha técnica não estiver preenchido"):** `problemasDosAtributos` (`ml/atributos.js`) passou a dar problema
   BLOQUEANTE também no atributo OPCIONAL vazio ("Preencha X ou marque 'Não se aplica'"), e o GTIN pede o código ou o

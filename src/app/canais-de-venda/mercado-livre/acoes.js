@@ -162,11 +162,12 @@ export async function salvarAnuncioML(id, rascunho) {
  * Nada vai ao ML aqui: o "!" acende e o "Enviar mudancas ao ML" leva.
  */
 /**
- * O editor abriu um anuncio com o aviso de catalogo pendente (entrou, saiu ou trocou, 25/10/2026): marca como visto, e o
- * "!" da lista de Produtos apaga. Ver o canal basta: e o dono olhando o anuncio, nao mudando nada nele.
+ * "Marcar como revisado" da aba Divergencias (pedido do dono em 25/10/2026): o dono conferiu o catalogo em que o anuncio
+ * esta (entrou, saiu, trocou) e o "!" da lista de Produtos apaga; uma mudanca nova no ML o acende de novo. E uma decisao,
+ * nao so uma leitura: pede editar o canal.
  */
 export async function marcarCatalogoVistoMLAcao(id) {
-  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"]);
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"]);
   if (negado) return negado;
   if (!ehId(id)) return PEDIDO_INVALIDO;
   const marcou = await marcarCatalogoVistoML(id);
