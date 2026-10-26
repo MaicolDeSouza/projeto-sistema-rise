@@ -1,7 +1,7 @@
 import CartaoDeAtalho from "@/components/ui/CartaoDeAtalho";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
-import { contarAbaixoDoMinimo } from "@/lib/compras/banco";
+import { contarAbaixoDoMinimo, contarPedidosPorStatus } from "@/lib/compras/banco";
 import { CARTOES_DE_COMPRAS } from "@/lib/compras/catalogo";
 
 export const metadata = { title: "Compras | Sistema Rise" };
@@ -14,6 +14,16 @@ async function detalhe(href) {
     if (href === "/compras/estoque-minimo") {
       const total = await contarAbaixoDoMinimo();
       return total === 0 ? "Nada abaixo do mínimo" : `${total} ${total === 1 ? "produto" : "produtos"}`;
+    }
+    if (href === "/compras/pedidos") {
+      const contagem = await contarPedidosPorStatus();
+      const partes = [
+        [contagem.RASCUNHO, "rascunho", "rascunhos"],
+        [contagem.ENVIADO + contagem.PARCIAL, "a caminho", "a caminho"],
+      ]
+        .filter(([quantos]) => quantos > 0)
+        .map(([quantos, um, varios]) => `${quantos} ${quantos === 1 ? um : varios}`);
+      return partes.length ? partes.join(" · ") : "Nenhum pedido aberto";
     }
   } catch (erro) {
     console.error(`[compras] detalhe de ${href} não lido:`, erro?.message ?? erro);

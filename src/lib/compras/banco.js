@@ -8,9 +8,12 @@ import {
   entraNaListaDeMinimo,
   estadoDoCarrinho,
   numeroDoPedido,
+  podeIrPara,
   precoInicialDoItem,
   quantidadeSugerida,
+  totaisDoPedido,
 } from "@/lib/compras/regras";
+import { conferirPedido } from "@/lib/compras/esquema";
 
 /**
  * Banco do modulo Compras (spec 2026-10-26-modulo-compras-design.md). Sem conferencia de acesso: quem chama (as
@@ -293,5 +296,342 @@ export async function adicionarAoPedido({ produtoId, vinculoId, quantidade }) {
     return resultado;
   } catch (erro) {
     return { ok: false, erro: `Não foi possível adicionar: ${erro.message}` };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// O pedido: listar, ler, criar, salvar, itens e status
+// ---------------------------------------------------------------------------
+
+/** O pedido com os numeros como numero (o Prisma devolve Decimal), pronto para a tela e o PDF. */
+function pedidoParaTela(pedido) {
+  const itens = pedido.itens.map((item) => ({
+    id: item.id,
+    produtoId: item.produtoId,
+    vinculoId: item.vinculoId,
+    sku: item.produto.sku,
+    nome: item.produto.tituloBase,
+    foto: item.produto.arquivos?.[0] ? urlDe(item.produto.sku, "IMAGEM", item.produto.arquivos[0].arquivo) : null,
+    nomeNoFornecedor: item.nomeNoFornecedor,
+    codigoNoFornecedor: item.codigoNoFornecedor,
+    link: item.link,
+    quantidade: item.quantidade,
+    precoUnitario: numero(item.precoUnitario),
+    ipiPercentual: numero(item.ipiPercentual) ?? 0,
+    prazoDias: item.prazoDias,
+    ordem: item.ordem,
+    quantidadeLancada: item.quantidadeLancada,
+    lancamentos: (item.lancamentos ?? []).map((lancamento) => ({
+      id: lancamento.id,
+      quantidade: lancamento.quantidade,
+      lancadoEm: lancamento.lancadoEm,
+      movimentoId: lancamento.movimentoId,
+    })),
+  }));
+  const editaveis = {
+    icmsSt: numero(pedido.icmsSt) ?? 0,
+    descontoTipo: pedido.descontoTipo,
+    descontoValor: numero(pedido.descontoValor) ?? 0,
+    frete: numero(pedido.frete) ?? 0,
+  };
+  return {
+    id: pedido.id,
+    numero: pedido.numero,
+    codigo: numeroDoPedido(pedido.numero),
+    status: pedido.status,
+    fornecedor: pedido.fornecedor,
+    ...editaveis,
+    formaPagamento: pedido.formaPagamento,
+    parcelas: pedido.parcelas,
+    transportadoraId: pedido.transportadoraId,
+    transportadora: pedido.transportadora,
+    transportadoraNome: pedido.transportadoraNome,
+    fretePorConta: pedido.fretePorConta,
+    rastreio: pedido.rastreio,
+    propostaNumero: pedido.propostaNumero,
+    propostaArquivo: pedido.propostaArquivo,
+    propostaNomeOriginal: pedido.propostaNomeOriginal,
+    observacoes: pedido.observacoes,
+    enviadoEm: pedido.enviadoEm,
+    finalizadoEm: pedido.finalizadoEm,
+    canceladoEm: pedido.canceladoEm,
+    criadoEm: pedido.criadoEm,
+    atualizadoEm: pedido.atualizadoEm,
+    itens,
+    totais: totaisDoPedido({ itens, ...editaveis }),
+  };
+}
+
+const FOTO_PRINCIPAL = { where: { tipo: "IMAGEM", papel: "FOTO" }, orderBy: { ordem: "asc" }, take: 1, select: { arquivo: true } };
+
+const INCLUIR_NO_PEDIDO = {
+  fornecedor: {
+    select: { id: true, nome: true, cnpj: true, contato: true, telefone: true, email: true, prazoEntregaDias: true, condicoesPagamento: true },
+  },
+  transportadora: { select: { id: true, nome: true, nomeFantasia: true, urlRastreamento: true } },
+  itens: {
+    orderBy: { ordem: "asc" },
+    include: {
+      produto: { select: { sku: true, tituloBase: true, tipo: true, arquivos: FOTO_PRINCIPAL } },
+      lancamentos: { where: { desfeitoEm: null }, orderBy: { lancadoEm: "asc" } },
+    },
+  },
+};
+
+export async function lerPedido(id) {
+  const pedido = await prisma.pedidoDeCompra.findUnique({ where: { id: String(id ?? "") }, include: INCLUIR_NO_PEDIDO });
+  return pedido ? pedidoParaTela(pedido) : null;
+}
+
+export async function listarPedidos({ status, busca, pagina = 1, porPagina = 25 } = {}) {
+  const texto = String(busca ?? "").trim();
+  const numeroBuscado = /^(pc-?)?\d+$/i.test(texto) ? Number(texto.replace(/\D/g, "")) : null;
+  const where = {
+    ...(status?.length ? { status: { in: status } } : {}),
+    ...(texto
+      ? {
+          OR: [
+            { fornecedor: { nome: { contains: texto, mode: "insensitive" } } },
+            ...(numeroBuscado ? [{ numero: numeroBuscado }] : []),
+          ],
+        }
+      : {}),
+  };
+  const [total, pedidos] = await Promise.all([
+    prisma.pedidoDeCompra.count({ where }),
+    prisma.pedidoDeCompra.findMany({
+      where,
+      orderBy: { numero: "desc" },
+      skip: (Math.max(1, pagina) - 1) * porPagina,
+      take: porPagina,
+      include: {
+        fornecedor: { select: { nome: true } },
+        itens: { select: { quantidade: true, precoUnitario: true, ipiPercentual: true } },
+      },
+    }),
+  ]);
+  return {
+    total,
+    linhas: pedidos.map((pedido) => ({
+      id: pedido.id,
+      numero: pedido.numero,
+      codigo: numeroDoPedido(pedido.numero),
+      fornecedor: pedido.fornecedor.nome,
+      status: pedido.status,
+      itens: pedido.itens.length,
+      total: totaisDoPedido({
+        itens: pedido.itens.map((item) => ({ ...item, precoUnitario: numero(item.precoUnitario), ipiPercentual: numero(item.ipiPercentual) })),
+        icmsSt: numero(pedido.icmsSt),
+        descontoTipo: pedido.descontoTipo,
+        descontoValor: numero(pedido.descontoValor),
+        frete: numero(pedido.frete),
+      }).total,
+      enviadoEm: pedido.enviadoEm,
+      atualizadoEm: pedido.atualizadoEm,
+    })),
+  };
+}
+
+export async function contarPedidosPorStatus() {
+  const grupos = await prisma.pedidoDeCompra.groupBy({ by: ["status"], _count: { _all: true } });
+  const contagem = { RASCUNHO: 0, ENVIADO: 0, PARCIAL: 0, FINALIZADO: 0, CANCELADO: 0 };
+  for (const grupo of grupos) contagem[grupo.status] = grupo._count._all;
+  return contagem;
+}
+
+/** Um pedido novo para o fornecedor; se ja ha rascunho dele, devolve o rascunho (um por fornecedor). */
+export async function criarPedido(fornecedorId) {
+  const fornecedor = await prisma.fornecedor.findUnique({ where: { id: String(fornecedorId ?? "") }, select: { id: true } });
+  if (!fornecedor) return { ok: false, erro: "Fornecedor não encontrado." };
+  const pedido = await prisma.$transaction((tx) => rascunhoDoFornecedor(tx, fornecedor.id));
+  return { ok: true, pedidoId: pedido.id, numero: pedido.numero, jaExistia: !pedido.criado };
+}
+
+/** "+ Adicionar outro item": so em rascunho. Usa o vinculo do produto com o fornecedor do pedido, quando existe. */
+export async function adicionarItem(pedidoId, produtoId) {
+  const pedido = await prisma.pedidoDeCompra.findUnique({
+    where: { id: String(pedidoId ?? "") },
+    include: { fornecedor: { select: { nome: true, prazoEntregaDias: true } } },
+  });
+  if (!pedido) return { ok: false, erro: "Pedido não encontrado." };
+  if (pedido.status !== "RASCUNHO") return { ok: false, erro: "Pedido já enviado: não aceita item novo." };
+  const produto = await prisma.produto.findUnique({ where: { id: String(produtoId ?? "") }, select: { id: true, tipo: true } });
+  if (!produto) return { ok: false, erro: "Produto não encontrado." };
+  if (produto.tipo === "COMPOSICAO") return { ok: false, erro: "Kit não entra em pedido de compra: compre as peças." };
+
+  const vinculo = await prisma.produtoFornecedor.findFirst({
+    where: { produtoId: produto.id, fornecedorId: pedido.fornecedorId },
+    orderBy: [{ padrao: "desc" }, { criadoEm: "asc" }],
+  });
+  const preco = vinculo ? await precoDoVinculo(vinculo, pedido.fornecedor.nome) : { precoUnitario: null, ipiPercentual: 0 };
+
+  try {
+    const maiorOrdem = await prisma.itemDoPedidoDeCompra.aggregate({ where: { pedidoId: pedido.id }, _max: { ordem: true } });
+    const item = await prisma.itemDoPedidoDeCompra.create({
+      data: {
+        pedidoId: pedido.id,
+        produtoId: produto.id,
+        vinculoId: vinculo?.id ?? null,
+        nomeNoFornecedor: vinculo?.descricao ?? null,
+        codigoNoFornecedor: vinculo?.codigo ?? null,
+        link: vinculo?.link ?? null,
+        quantidade: 1,
+        precoUnitario: preco.precoUnitario,
+        ipiPercentual: preco.ipiPercentual,
+        prazoDias: pedido.fornecedor.prazoEntregaDias,
+        ordem: (maiorOrdem._max.ordem ?? -1) + 1,
+      },
+    });
+    return { ok: true, itemId: item.id };
+  } catch (erro) {
+    if (erro?.code === "P2002") return { ok: false, erro: "Este produto já está no pedido." };
+    return { ok: false, erro: `Não foi possível adicionar: ${erro.message}` };
+  }
+}
+
+/** A busca do "+ Adicionar outro item": nome, codigo do Rise e codigo/nome no fornecedor do pedido. */
+export async function buscarItensParaPedido(pedidoId, texto) {
+  const termo = String(texto ?? "").trim();
+  if (termo.length < 2) return [];
+  const pedido = await prisma.pedidoDeCompra.findUnique({
+    where: { id: String(pedidoId ?? "") },
+    select: { fornecedorId: true, itens: { select: { produtoId: true } } },
+  });
+  if (!pedido) return [];
+  const contem = { contains: termo, mode: "insensitive" };
+  const produtos = await prisma.produto.findMany({
+    where: {
+      tipo: "SIMPLES",
+      ativo: true,
+      OR: [
+        { sku: contem },
+        { tituloBase: contem },
+        { fornecedores: { some: { fornecedorId: pedido.fornecedorId, OR: [{ codigo: contem }, { descricao: contem }] } } },
+      ],
+    },
+    orderBy: { sku: "asc" },
+    take: 20,
+    select: {
+      id: true,
+      sku: true,
+      tituloBase: true,
+      arquivos: FOTO_PRINCIPAL,
+      fornecedores: { where: { fornecedorId: pedido.fornecedorId }, orderBy: { padrao: "desc" }, take: 1, select: { codigo: true, descricao: true } },
+    },
+  });
+  const noPedido = new Set(pedido.itens.map((item) => item.produtoId));
+  return produtos.map((produto) => ({
+    produtoId: produto.id,
+    sku: produto.sku,
+    nome: produto.tituloBase,
+    foto: produto.arquivos[0] ? urlDe(produto.sku, "IMAGEM", produto.arquivos[0].arquivo) : null,
+    vinculo: produto.fornecedores[0] ?? null,
+    jaNoPedido: noPedido.has(produto.id),
+  }));
+}
+
+/**
+ * Salvar o pedido. Em RASCUNHO grava tudo (os itens que nao vieram saem; a ordem e a da lista). Depois de ENVIADO o
+ * PDF ja foi ao fornecedor: so prazo dos itens, frete, rastreio, proposta e observacoes mudam, e o resto recebido e
+ * ignorado. Fechado (finalizado, cancelado) recusa.
+ */
+export async function salvarPedido(id, entrada) {
+  const conferido = conferirPedido(entrada);
+  if (!conferido.ok) return conferido;
+  const { dados, desconto } = conferido;
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const [linha] = await tx.$queryRaw`SELECT "status"::text AS "status" FROM "PedidoDeCompra" WHERE "id" = ${String(id ?? "")} FOR UPDATE`;
+      if (!linha) return { ok: false, erro: "Pedido não encontrado." };
+      if (["FINALIZADO", "CANCELADO"].includes(linha.status)) return { ok: false, erro: "Pedido fechado: não muda mais." };
+      const rascunho = linha.status === "RASCUNHO";
+
+      const pedido = {};
+      const definir = (campo, valor) => {
+        if (valor !== undefined) pedido[campo] = valor;
+      };
+      definir("transportadoraId", dados.transportadoraId);
+      definir("transportadoraNome", dados.transportadoraNome);
+      definir("fretePorConta", dados.fretePorConta);
+      definir("rastreio", dados.rastreio);
+      definir("propostaNumero", dados.propostaNumero);
+      definir("observacoes", dados.observacoes);
+      if (rascunho) {
+        if (dados.icmsSt !== undefined) pedido.icmsSt = dados.icmsSt ?? 0;
+        if (dados.frete !== undefined) pedido.frete = dados.frete ?? 0;
+        if (desconto) {
+          pedido.descontoTipo = desconto.valor ? desconto.tipo : null;
+          pedido.descontoValor = desconto.valor;
+        }
+        definir("formaPagamento", dados.formaPagamento);
+        if (dados.formaPagamento === "PIX") pedido.parcelas = 1;
+        else if (dados.parcelas !== undefined) pedido.parcelas = dados.parcelas ?? 1;
+      }
+      // Transportadora do cadastro tira o texto livre.
+      if (pedido.transportadoraId) pedido.transportadoraNome = null;
+      await tx.pedidoDeCompra.update({ where: { id }, data: pedido });
+
+      if (dados.itens) {
+        const atuais = await tx.itemDoPedidoDeCompra.findMany({ where: { pedidoId: id }, select: { id: true } });
+        const recebidos = new Map(dados.itens.map((item, indice) => [item.id, { ...item, ordem: indice }]));
+        for (const atual of atuais) {
+          const item = recebidos.get(atual.id);
+          if (!item) {
+            if (rascunho) await tx.itemDoPedidoDeCompra.delete({ where: { id: atual.id } });
+            continue;
+          }
+          const data = { prazoDias: item.prazoDias ?? null };
+          if (rascunho) {
+            Object.assign(data, {
+              quantidade: item.quantidade,
+              precoUnitario: item.precoUnitario ?? null,
+              ipiPercentual: item.ipiPercentual ?? 0,
+              ordem: item.ordem,
+              ...(item.nomeNoFornecedor !== undefined ? { nomeNoFornecedor: item.nomeNoFornecedor } : {}),
+              ...(item.codigoNoFornecedor !== undefined ? { codigoNoFornecedor: item.codigoNoFornecedor } : {}),
+            });
+          }
+          await tx.itemDoPedidoDeCompra.update({ where: { id: atual.id }, data });
+        }
+      }
+      return { ok: true };
+    });
+  } catch (erro) {
+    return { ok: false, erro: `Não foi possível salvar: ${erro.message}` };
+  }
+}
+
+/** As mudancas de situacao que o dono faz pela tela. PARCIAL <-> ENVIADO e so pelo lancamento (lancamento.js). */
+const PELO_DONO = { RASCUNHO: ["ENVIADO", "CANCELADO"], ENVIADO: ["FINALIZADO", "CANCELADO"], PARCIAL: ["FINALIZADO"] };
+
+export async function mudarStatus(id, para) {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const [linha] = await tx.$queryRaw`SELECT "status"::text AS "status" FROM "PedidoDeCompra" WHERE "id" = ${String(id ?? "")} FOR UPDATE`;
+      if (!linha) return { ok: false, erro: "Pedido não encontrado." };
+      if (!podeIrPara(linha.status, para) || !(PELO_DONO[linha.status] ?? []).includes(para)) {
+        return { ok: false, erro: "Esta mudança de situação não é permitida." };
+      }
+      const itens = await tx.itemDoPedidoDeCompra.findMany({
+        where: { pedidoId: id },
+        select: { precoUnitario: true, produto: { select: { sku: true } }, lancamentos: { where: { desfeitoEm: null }, select: { id: true } } },
+      });
+      const agora = new Date();
+      if (para === "ENVIADO") {
+        if (itens.length === 0) return { ok: false, erro: "Pedido sem itens." };
+        const semPreco = itens.filter((item) => item.precoUnitario === null).map((item) => item.produto.sku);
+        if (semPreco.length) return { ok: false, erro: `Item sem preço: ${semPreco.join(", ")}.` };
+        await tx.pedidoDeCompra.update({ where: { id }, data: { status: "ENVIADO", enviadoEm: agora } });
+      } else if (para === "CANCELADO") {
+        if (itens.some((item) => item.lancamentos.length)) return { ok: false, erro: "Já há estoque lançado: finalize o pedido." };
+        await tx.pedidoDeCompra.update({ where: { id }, data: { status: "CANCELADO", canceladoEm: agora } });
+      } else {
+        await tx.pedidoDeCompra.update({ where: { id }, data: { status: "FINALIZADO", finalizadoEm: agora } });
+      }
+      return { ok: true };
+    });
+  } catch (erro) {
+    return { ok: false, erro: `Não foi possível mudar a situação: ${erro.message}` };
   }
 }

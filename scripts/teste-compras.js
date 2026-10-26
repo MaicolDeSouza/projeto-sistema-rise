@@ -253,6 +253,69 @@ try {
     conferir("numeros distintos sob concorrencia", new Set(pedidos.map((resultado) => resultado.numero)).size, 5);
   }
 
+  {
+    console.log("\nBanco: pedido");
+    await limpar();
+    const fornecedor = await criarFornecedor("ZZ Compra Pedido", 7);
+    const p1 = await criarProduto("ZZ-COMPRA-P1");
+    const p2 = await criarProduto("ZZ-COMPRA-P2");
+    const p3 = await criarProduto("ZZ-COMPRA-P3");
+    await vincular(p1, fornecedor, { precoFornecedor: 10, padrao: true });
+    await vincular(p2, fornecedor, { precoFornecedor: null, precoCusto: null });
+    await vincular(p3, fornecedor, { codigo: "ZZCF-ACHE", descricao: "Peça especial do fornecedor" });
+
+    const criado = await banco.criarPedido(fornecedor.id);
+    const deNovo = await banco.criarPedido(fornecedor.id);
+    conferir("criar de novo devolve o mesmo rascunho", [criado.ok, deNovo.pedidoId === criado.pedidoId, deNovo.jaExistia], [true, true, true]);
+
+    conferir("adicionar item", (await banco.adicionarItem(criado.pedidoId, p1.id)).ok, true);
+    conferir("adicionar item sem preco", (await banco.adicionarItem(criado.pedidoId, p2.id)).ok, true);
+    conferir("duplicado recusado", (await banco.adicionarItem(criado.pedidoId, p1.id)).ok, false);
+
+    let pedido = await banco.lerPedido(criado.pedidoId);
+    conferir("le o pedido com dois itens", [pedido.status, pedido.itens.length, pedido.fornecedor.nome], ["RASCUNHO", 2, "ZZ Compra Pedido"]);
+
+    const itens = pedido.itens.map((item, indice) => ({ id: item.id, quantidade: indice === 0 ? "10" : "5", precoUnitario: indice === 0 ? "10,00" : "", ipiPercentual: "0", prazoDias: "3" }));
+    const salvo = await banco.salvarPedido(criado.pedidoId, { itens, desconto: "10%", frete: "15,50", icmsSt: "0", formaPagamento: "PIX", parcelas: "3", fretePorConta: "FOB" });
+    conferir("salvar rascunho", salvo.ok, true);
+    pedido = await banco.lerPedido(criado.pedidoId);
+    conferir("totais com desconto e frete", pedido.totais.total, 105.5);
+    conferir("pix forca 1 parcela", [pedido.formaPagamento, pedido.parcelas, pedido.fretePorConta], ["PIX", 1, "FOB"]);
+
+    const invalido = await banco.salvarPedido(criado.pedidoId, { itens: [{ ...itens[0], quantidade: "0" }, itens[1]], desconto: "abc" });
+    conferir("salvar invalido devolve erros por campo", [invalido.ok, Boolean(invalido.erros?.["itens.0.quantidade"]), Boolean(invalido.erros?.desconto)], [false, true, true]);
+
+    const semPreco = await banco.mudarStatus(criado.pedidoId, "ENVIADO");
+    conferir("enviar com item sem preco recusa citando o SKU", [semPreco.ok, /ZZ-COMPRA-P2/.test(semPreco.erro ?? "")], [false, true]);
+
+    await banco.salvarPedido(criado.pedidoId, { itens: [itens[0]], desconto: "", frete: "0", icmsSt: "0" });
+    conferir("item tirado da lista sai do pedido", (await banco.lerPedido(criado.pedidoId)).itens.length, 1);
+
+    const enviado = await banco.mudarStatus(criado.pedidoId, "ENVIADO");
+    pedido = await banco.lerPedido(criado.pedidoId);
+    conferir("enviado com data", [enviado.ok, pedido.status, Boolean(pedido.enviadoEm)], [true, "ENVIADO", true]);
+
+    await banco.salvarPedido(criado.pedidoId, { itens: [{ ...itens[0], quantidade: "999", prazoDias: "9" }], rastreio: "BR123", desconto: "50" });
+    pedido = await banco.lerPedido(criado.pedidoId);
+    conferir("enviado: so prazo e frete mudam", [pedido.itens[0].quantidade, pedido.itens[0].prazoDias, pedido.rastreio, pedido.descontoValor], [10, 9, "BR123", 0]);
+    conferir("enviado nao aceita item novo", (await banco.adicionarItem(criado.pedidoId, p3.id)).ok, false);
+
+    const outro = await banco.criarPedido(fornecedor.id);
+    const achados = await banco.buscarItensParaPedido(outro.pedidoId, "ache");
+    conferir("busca pelo codigo no fornecedor", achados.map((achado) => achado.sku), ["ZZ-COMPRA-P3"]);
+    await banco.adicionarItem(outro.pedidoId, p3.id);
+    conferir("busca marca o que ja esta no pedido", (await banco.buscarItensParaPedido(outro.pedidoId, "ZZ-COMPRA-P3"))[0]?.jaNoPedido, true);
+
+    conferir("finalizar", (await banco.mudarStatus(criado.pedidoId, "FINALIZADO")).ok, true);
+    conferir("finalizado nao volta", (await banco.mudarStatus(criado.pedidoId, "ENVIADO")).ok, false);
+    conferir("finalizado nao salva", (await banco.salvarPedido(criado.pedidoId, { observacoes: "x" })).ok, false);
+    conferir("cancelar rascunho", (await banco.mudarStatus(outro.pedidoId, "CANCELADO")).ok, true);
+
+    const lista = await banco.listarPedidos({ busca: "ZZ Compra Pedido" });
+    conferir("lista por fornecedor", [lista.total, lista.linhas[0].status], [2, "CANCELADO"]);
+    conferir("lista filtra status", (await banco.listarPedidos({ status: ["FINALIZADO"], busca: "ZZ Compra Pedido" })).total, 1);
+  }
+
   // Marcador: os blocos de banco seguintes entram acima desta linha.
 } finally {
   await limpar();
