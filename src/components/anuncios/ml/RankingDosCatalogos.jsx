@@ -177,7 +177,7 @@ export default function RankingDosCatalogos({ produtoId, titulo, preco, categori
           ) : (
             <>
               <Resumo ranking={ranking} />
-              <Tabela ranking={ranking} aoRemover={setRemovendo} ocupado={ocupado} />
+              <Tabela ranking={ranking} aoRemover={setRemovendo} ocupado={ocupado} catalogoNoML={catalogoNoML} />
             </>
           )}
 
@@ -230,7 +230,8 @@ function Resumo({ ranking }) {
   );
 }
 
-function Tabela({ ranking, aoRemover, ocupado }) {
+// `catalogoNoML` vem do componente de cima: sem a prop, a linha "Voce" derrubava a aba Preco e custos (ReferenceError).
+function Tabela({ ranking, aoRemover, ocupado, catalogoNoML }) {
   const agora = new Date();
   return (
     <table className="w-full text-sm">
