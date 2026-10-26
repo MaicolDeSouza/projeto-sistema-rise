@@ -9,6 +9,7 @@ import {
   enviarEstoqueAoBling,
   sincronizarComBling,
 } from "@/app/produtos/acoes-bling";
+import { BarraDeAbas } from "@/components/cadastros/Abas";
 import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
 import { mudouNoBling, resumirEnvio, valorParaTela } from "@/lib/blingSync/apresentacao";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
@@ -291,20 +292,29 @@ function BlocoDeFornecedores({ fornecedores }) {
   );
 }
 
-function Diferencas({ existe, diferencas, fotos, fornecedores, iguais, lerDeNovo, lendo, children }) {
-  const fornecedoresDiferentes = (fornecedores?.itens ?? []).filter((item) => item.situacao !== "igual").length + (fornecedores?.erro ? 1 : 0);
-  const diferentes = diferencas.filter((item) => item.tipo === "diferente").length + (fotos?.diferente ? 1 : 0) + fornecedoresDiferentes;
+/// Quantos itens divergem entre o Rise e o Bling: campo "diferente" (o "so tem no Bling" nao conta, como na LI), fotos,
+/// fornecedores e ajuste de estoque ainda nao enviado (e o unico jeito de o estoque do Rise diferir do saldo do Bling).
+/// Sem nenhum, a janela mostra so a frase "Nenhuma diferenca" (pedido do dono em 26/10/2026).
+function contarDivergencias(leitura, estoque) {
+  const fornecedores = leitura.fornecedores;
+  const nosFornecedores = (fornecedores?.itens ?? []).filter((item) => item.situacao !== "igual").length + (fornecedores?.erro ? 1 : 0);
+  const nosCampos = (leitura.diferencas ?? []).filter((item) => item.tipo === "diferente").length;
+  return nosCampos + (leitura.fotos?.diferente ? 1 : 0) + nosFornecedores + ((estoque?.pendentes ?? 0) > 0 ? 1 : 0);
+}
+
+function Diferencas({ existe, divergencias, diferencas, fotos, fornecedores, iguais, lerDeNovo, lendo, children }) {
   const textoDosIguais = `${iguais} ${iguais === 1 ? "campo igual" : "campos iguais"}`;
+  const semDivergencia = existe && divergencias === 0;
 
   return (
     <section aria-label="Comparação entre o Rise e o Bling" className="space-y-4 pt-5">
       {existe && (
         <div className="flex flex-wrap items-center justify-between gap-3">
-          {diferentes === 0 && diferencas.length === 0 ? (
+          {semDivergencia ? (
             <p className={`rounded-md border px-4 py-2 text-base ${CLASSE_DO_TOM.ok}`}>Nenhuma diferença: {textoDosIguais} no Rise e no Bling.</p>
           ) : (
             <p className="text-base">
-              <span className="font-semibold">{diferentes} item(ns) diferente(s)</span> entre o produto salvo no Rise e o Bling.
+              <span className="font-semibold">{divergencias} item(ns) diferente(s)</span> entre o produto salvo no Rise e o Bling.
             </p>
           )}
           <button
@@ -319,18 +329,19 @@ function Diferencas({ existe, diferencas, fotos, fornecedores, iguais, lerDeNovo
         </div>
       )}
 
-      <CabecalhoDasColunas existe={existe} />
+      {!semDivergencia && <CabecalhoDasColunas existe={existe} />}
 
-      {diferencas.length > 0 && (
+      {/* Igual dos dois lados: nada de fotos, estoque nem campos, so a frase de cima (e os avisos, que sao de verdade). */}
+      {!semDivergencia && diferencas.length > 0 && (
         <ul className="space-y-3">
           {diferencas.map((item) => (
             <LinhaDeDiferenca key={item.campo} item={item} />
           ))}
         </ul>
       )}
-      <BlocoDeFotos fotos={fotos} />
-      <BlocoDeFornecedores fornecedores={fornecedores} />
-      {iguais > 0 && diferencas.length > 0 && <p className="text-sm text-suave">{textoDosIguais} no Rise e no Bling.</p>}
+      {!semDivergencia && <BlocoDeFotos fotos={fotos?.diferente ? fotos : null} />}
+      {!semDivergencia && <BlocoDeFornecedores fornecedores={fornecedores} />}
+      {!semDivergencia && iguais > 0 && diferencas.length > 0 && <p className="text-sm text-suave">{textoDosIguais} no Rise e no Bling.</p>}
       {children}
     </section>
   );
@@ -472,6 +483,9 @@ export default function JanelaBling({ produto, aoFechar }) {
   // Sem o sku a leitura falhou antes de achar o produto no Rise: nao ha estoque a mostrar.
   const mostraEstoque = Boolean(estoque && leitura?.sku);
   const existeNoBling = Boolean(leitura?.ok && leitura.situacao === "existe");
+  const divergencias = existeNoBling ? contarDivergencias(leitura, estoque) : 0;
+  // Com o Bling lido e igual, o estoque nao aparece (so a frase "Nenhuma diferenca"); com divergencia, so se ha ajuste a enviar.
+  const mostraEstoqueNaTela = mostraEstoque && (!existeNoBling || estoque.pendentes > 0);
   const escritaBloqueada = leitura?.ok && leitura.escrita?.liberada === false;
   // Edicao do produto no Bling (`produtos.php#edit/<id>`), so com o id numerico lido do proprio Bling.
   const linkDoBling = /^\d+$/.test(String(leitura?.blingId ?? "")) ? `https://www.bling.com.br/produtos.php#edit/${leitura.blingId}` : null;
@@ -532,6 +546,13 @@ export default function JanelaBling({ produto, aoFechar }) {
           </div>
         )}
 
+        {/* A aba "Divergencias (N)" so existe quando o Rise e o Bling diferem, no molde do editor da LI e do ML. */}
+        {!carregando && divergencias > 0 && (
+          <div className="shrink-0 px-2">
+            <BarraDeAbas abas={[{ id: "divergencias", rotulo: `Divergências (${divergencias})` }]} aba="divergencias" aoMudar={() => {}} comErro={() => true} />
+          </div>
+        )}
+
         {/* Sem padding em cima: a faixa Rise/Bling gruda no topo ao rolar, e o espaco acima dela vem de cada bloco. */}
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pb-6">
           {carregando ? (
@@ -558,9 +579,10 @@ export default function JanelaBling({ produto, aoFechar }) {
                 </section>
               )}
 
-              {(existeNoBling || mostraEstoque) && (
+              {(existeNoBling || mostraEstoqueNaTela) && (
                 <Diferencas
                   existe={existeNoBling}
+                  divergencias={divergencias}
                   diferencas={leitura.diferencas ?? []}
                   fotos={leitura.fotos ?? null}
                   fornecedores={leitura.fornecedores ?? null}
@@ -576,7 +598,7 @@ export default function JanelaBling({ produto, aoFechar }) {
                     </ul>
                   )}
 
-                  {mostraEstoque && (
+                  {mostraEstoqueNaTela && (
                     <section aria-label="Estoque" className="overflow-hidden rounded-lg border border-borda">
                       <p className="px-4 pt-3 text-base font-semibold">Estoque</p>
                       <Par
@@ -655,7 +677,7 @@ export default function JanelaBling({ produto, aoFechar }) {
                 </Diferencas>
               )}
 
-              {!existeNoBling && !mostraEstoque && avisos.length > 0 && (
+              {!existeNoBling && !mostraEstoqueNaTela && avisos.length > 0 && (
                 <ul className={`mt-5 space-y-1 rounded-lg border p-4 text-sm ${CLASSE_DO_TOM.atencao}`}>
                   {avisos.map((aviso, indice) => (
                     <li key={`${indice}-${aviso}`}>{aviso}</li>

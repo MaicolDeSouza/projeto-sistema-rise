@@ -3807,7 +3807,10 @@ agora" **presa no topo ao rolar** (`CabecalhoDasColunas`, por isso o contêiner 
 repetem "No Rise/No Bling" (só `sr-only`). Letras maiores: título `text-xl`, texto `text-base`, rótulos `text-sm` (eram `text-xs` e
 `text-[11px]`), números do estoque `text-2xl`, miniaturas de 64 px, botões `text-base`. Estoque agora aparece dentro da mesma
 comparação (também com o código fora do Bling, com "último saldo lido"). Visto na tela (1366x768, 100101, só leitura); o envio
-não mudou.
+não mudou. **Igual dos dois lados mostra SÓ a frase "Nenhuma diferença: N campos iguais no Rise e no Bling."** (e o "Ler o Bling de
+novo"; pedido do dono no mesmo dia: nada de Fotos nem Estoque): só com divergência aparece a aba "Divergências (N)" (a mesma
+`BarraDeAbas` do editor da LI) e, nela, os campos "diferente", as Fotos só se diferem, os Fornecedores e o Estoque só se há ajuste
+pendente (`contarDivergencias`; "só tem no Bling" não conta). Avisos reais da leitura continuam aparecendo.
 
 **Custo:** abrir a janela de um produto com foto baixa as fotos do Bling uma vez (md5; ~250 KB cada) e as do Rise
 vêm do disco; depois fica na memória do processo (teto de 2.000 por lado).
