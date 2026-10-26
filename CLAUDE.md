@@ -3582,6 +3582,12 @@ Pedidos do dono (com print anotado e "usar UI/UX"):
   no produto"; o kit continua editando as dele.
 - **Janela presa no topo** (`items-start pt-[4vh]`): trocar de aba não move mais o topo.
 - **Não vai a anúncio já publicado:** o "Enviar mudanças ao ML" não manda `sale_terms`; prazo e garantia valem no Publicar.
+  **Os 12 anúncios que o Rise já tinha publicado (100101 a 170106) foram acertados à mão em 26/10/2026** (pedido do dono: garantia
+  de 3 meses e prazo de 1 dia), pelo `scripts/ml-termos-de-venda.js` (`ler` só consulta, `aplicar [--so=SKU]` escreve; roda na VPS
+  pela entrada do SSH). Medido no ML real: `PUT /items/{id}` com `sale_terms` = 200 e grava; **o `WARRANTY_TYPE` mandado só com
+  `value_id` é descartado em silêncio (200 e nada gravado), com o `value_name` "Garantia do vendedor" junto grava**; o PUT troca a
+  lista inteira (o script mantém os outros termos que o anúncio tem). O Publicar passou a mandar o tipo com os dois campos. Os 12
+  tinham os termos vazios no ML; depois do PUT todos mostram Garantia do vendedor / 3 meses / 1 dia, e o status não mudou.
 - Visto na tela do PC (100101, rascunho): as oito abas, os cartões, a tabela de medidas, a garantia vazia com o aviso e a janela
   presa no topo. **Não visto:** um Publicar real com os `sale_terms` (o ML pode recusar algum formato).
 - O `next dev` desta pasta ficou servindo o editor antigo depois das mudanças (até no servidor; o vigia de arquivos parou):

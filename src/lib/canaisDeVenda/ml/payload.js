@@ -111,7 +111,9 @@ export function termosDeVenda(rascunho, contexto) {
   const termos = [];
   const meses = Number(contexto?.produtos?.[rascunho.produtoId]?.garantiaMeses);
   if (Number.isInteger(meses) && meses > 0) {
-    termos.push({ id: "WARRANTY_TYPE", value_id: GARANTIA_DO_VENDEDOR });
+    // Num PUT em anuncio ja publicado o ML descartou o termo mandado so com `value_id` (200 e nada gravado, medido em
+    // 26/10/2026); com o nome junto ele grava.
+    termos.push({ id: "WARRANTY_TYPE", value_id: GARANTIA_DO_VENDEDOR, value_name: "Garantia do vendedor" });
     termos.push({ id: "WARRANTY_TIME", value_name: `${meses} ${meses === 1 ? "mês" : "meses"}` });
   }
   const dias = Number(rascunho.prazoDisponibilidadeDias);

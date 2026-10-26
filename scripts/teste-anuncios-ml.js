@@ -437,7 +437,7 @@ try {
     conferir(
       "payload: garantia do produto e prazo de disponibilidade",
       montarPayloadML({ ...base, prazoDisponibilidadeDias: 1 }, comProduto("a", { garantiaMeses: 3 })).item.sale_terms,
-      [{ id: "WARRANTY_TYPE", value_id: "2230280" }, { id: "WARRANTY_TIME", value_name: "3 meses" }, { id: "MANUFACTURING_TIME", value_name: "1 dias" }],
+      [{ id: "WARRANTY_TYPE", value_id: "2230280", value_name: "Garantia do vendedor" }, { id: "WARRANTY_TIME", value_name: "3 meses" }, { id: "MANUFACTURING_TIME", value_name: "1 dias" }],
     );
     conferir(
       "payload: sem garantia no produto e prazo zero, nada vai",
