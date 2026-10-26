@@ -16,7 +16,7 @@ PADRONIZAÇÃO DOS NOMES
 
 Use exatamente os nomes dos campos definidos neste prompt. Não crie nomes alternativos para a mesma propriedade. As lojas usam nomes variados; converta-os assim:
 
-Marca: a marca do cadastro do produto; nunca o nome da loja.
+Fabricante: substitui Marca. Quem fabrica a placa, como está na marca do cadastro do produto (ARDUINO numa placa original); placa compatível ou genérica, sem fabricante declarado: OEM. Nunca o nome da loja.
 
 Modelo: família, revisão e variante, como “UNO R3 SMD”, “Mega 2560 R3”, “Nano V3”, “Pro Mini 5V 16MHz”, “UNO R4 WiFi”. Escreva “Arduino” no modelo somente quando o cadastro indicar produto original; placa compatível é “compatível com Arduino UNO R3”.
 
@@ -56,7 +56,7 @@ Cada item contém nome, valor e referencias. Use nome sem dois-pontos e valor se
 Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Ausência comprovada pode ser “Não possui”. Não acrescente campos fora das listas abaixo, mesmo que uma loja os publique (ex.: Regulador de Tensão).
 
 Campos obrigatórios:
-Marca; Microcontrolador; Modelo; Arquitetura; Frequência de Clock; Montagem do Microcontrolador; Memória Flash; Memória RAM; Memória EEPROM; Tensão de Alimentação; Conector de Alimentação; Tensão de Operação; Nível Lógico; Pinos Digitais I/O; Saídas PWM; Entradas Analógicas; Resolução do ADC; Pinos Soldados; Corrente Contínua por Pino; Limite Absoluto de Corrente por Pino; Corrente Total nos Pinos I/O; Corrente Disponível na Saída 3,3V; Interfaces de Comunicação; Conector USB; Chip de Interface USB; Ambiente de Programação; Compatibilidade com Shields.
+Fabricante; Microcontrolador; Modelo; Arquitetura; Frequência de Clock; Montagem do Microcontrolador; Memória Flash; Memória RAM; Memória EEPROM; Tensão de Alimentação; Conector de Alimentação; Tensão de Operação; Nível Lógico; Pinos Digitais I/O; Saídas PWM; Entradas Analógicas; Resolução do ADC; Pinos Soldados; Corrente Contínua por Pino; Limite Absoluto de Corrente por Pino; Corrente Total nos Pinos I/O; Corrente Disponível na Saída 3,3V; Interfaces de Comunicação; Conector USB; Chip de Interface USB; Ambiente de Programação; Compatibilidade com Shields.
 
 Campos condicionais (só quando a placa tem o recurso; com o recurso e sem valor confirmado, omita o campo):
 Processador; Coprocessador; Saídas DAC; Resolução do DAC; Consumo de Corrente; Wi-Fi; Bluetooth; Recursos Integrados; Comprimento do Cabo USB.
@@ -70,7 +70,7 @@ Comprimento do Cabo USB entra só quando o cabo USB acompanha o produto e o comp
 
 Dimensões (CxLxA) e Peso são sempre os dois últimos campos de Características, depois dos condicionais. Devolva os números em dimensoesMm e pesoGramas; o Rise escreve as duas linhas no fim da seção e omite medida desconhecida. Não os repita como itens de caracteristicas.
 
-Não entram em caracteristicas: Cor, Material, Fabricante, Origem, País, Categoria, Subcategoria, Unidade de venda, Tipo de produto, Garantia, Peso com embalagem, Acompanha, Inclui, Compatibilidade de acessório com placas, Informação, Obs e textos de propaganda. Acessórios vão em itensInclusos.
+Não entram em caracteristicas: Cor, Material, Origem, País, Categoria, Subcategoria, Unidade de venda, Tipo de produto, Garantia, Peso com embalagem, Acompanha, Inclui, Compatibilidade de acessório com placas, Informação, Obs e textos de propaganda. Acessórios vão em itensInclusos.
 
 No modo sem referências, respeite a instrução acrescentada pelo Rise: inclua apenas especificações confirmadas nos dados próprios do produto. Se não houver nenhuma, retorne caracteristicas vazia.
 

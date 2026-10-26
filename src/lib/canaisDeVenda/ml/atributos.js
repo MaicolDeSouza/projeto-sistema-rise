@@ -23,6 +23,22 @@ const EM_MAIUSCULAS = new Set(["BRAND", "MODEL"]);
 
 const texto = (valor) => String(valor ?? "").trim();
 
+/**
+ * "Nao se aplica" (pedido do dono em 25/10/2026): o atributo que o produto nao tem (a EEPROM do ESP32). O rascunho guarda
+ * "-1", o mesmo `value_id` que o site do ML grava quando o vendedor marca "Nao se aplica": medido em 25/10/2026, 698
+ * atributos assim nos 389 anuncios ativos da conta, todos com `value_id: "-1"` e `value_name: null`. O payload manda nesse
+ * formato (`atributosDaFicha`).
+ */
+export const NAO_SE_APLICA = "-1";
+
+export const ehNaoSeAplica = (valor) => texto(valor) === NAO_SE_APLICA;
+
+// O codigo de barras tem o motivo proprio de nao ter (EMPTY_GTIN_REASON): "nao se aplica" nao vale nos dois.
+const SEM_NAO_SE_APLICA = new Set(["GTIN", "EMPTY_GTIN_REASON"]);
+
+/** So os opcionais aceitam: o obrigatorio pede um valor (decisao do dono). */
+export const aceitaNaoSeAplica = (atributo) => Boolean(atributo?.id) && !atributo.obrigatorio && !SEM_NAO_SE_APLICA.has(atributo.id);
+
 // Unidades que o Rise escreve COLADAS ao numero ("5V", "16MHz": padrao da loja, pedido do dono em
 // 24/10/2026). Lista fechada, a mais longa primeiro: "3D" ou "R3" nunca viram numero com unidade.
 const UNIDADES = "mAh|VDC|VAC|Vcc|mV|kV|V|mA|A|mW|kW|W|GHz|MHz|kHz|Hz|mm|cm|m|kg|g|KB|MB|GB|TB|Ω|ohms?|°C";
@@ -119,6 +135,12 @@ export function problemasDosAtributos(valores, atributos, { kit }) {
 
     if (!valor) {
       if (atributo.obrigatorio) acrescentar(atributo.id, `Informe ${atributo.nome} (${atributo.id}): obrigatório nesta categoria.`);
+      continue;
+    }
+    // "Nao se aplica" e resposta, nao valor de lista. No obrigatorio a tela nao mostra a caixa, mas pode chegar de um
+    // rascunho antigo ou da proposta.
+    if (ehNaoSeAplica(valor)) {
+      if (!aceitaNaoSeAplica(atributo)) acrescentar(atributo.id, `${atributo.nome}: obrigatório nesta categoria, não aceita "não se aplica".`);
       continue;
     }
     if (temLista(atributo) && valorDeLista(atributo, valor) === null) {

@@ -952,6 +952,33 @@ try {
       conferir("colarUnidade: 5 V, faixa e MHz; R3 e 3D intactos", ["5 V", "7 V a 12 V", "16 MHz", "UNO R3", "3D"].map(colarUnidade), ["5V", "7V a 12V", "16MHz", "UNO R3", "3D"]);
       conferir("separarUnidade: so numero e unidade ganha o espaco do ML", ["5V", "16MHz", "7V a 12V", "3D"].map(separarUnidade), ["5 V", "16 MHz", "7V a 12V", "3D"]);
     }
+    {
+      // "Nao se aplica" (pedido do dono em 25/10/2026): o rascunho guarda "-1" e o ML recebe value_id "-1" e value_name nulo.
+      const { NAO_SE_APLICA, ehNaoSeAplica, aceitaNaoSeAplica } = await import("../src/lib/canaisDeVenda/ml/atributos.js");
+      const { atributosDaFicha } = await import("../src/lib/canaisDeVenda/ml/payload.js");
+      const porId = (id) => atributos.find((a) => a.id === id);
+      conferir(
+        "nao se aplica: so opcional, nunca obrigatorio nem codigo de barras",
+        ["MICROCONTROLLER", "OPERATING_VOLTAGE", "BRAND", "MODEL", "GTIN", "EMPTY_GTIN_REASON"].map((id) => aceitaNaoSeAplica(porId(id))),
+        [true, true, false, false, false, false],
+      );
+      conferir("nao se aplica: reconhece o -1 aparado, e so ele", [ehNaoSeAplica(" -1 "), ehNaoSeAplica("-1 V"), ehNaoSeAplica("")], [true, false, false]);
+      conferir(
+        "nao se aplica: opcional de lista nao vira 'fora da lista'",
+        problemasDosAtributos({ BRAND: "X", MODEL: "Y", GTIN: "1", MICROCONTROLLER: NAO_SE_APLICA, INCLUDES_USB_CABLE: NAO_SE_APLICA }, atributos, { kit: false }),
+        [],
+      );
+      conferir(
+        "nao se aplica: obrigatorio recusa",
+        problemasDosAtributos({ BRAND: NAO_SE_APLICA, MODEL: "Y", GTIN: "1" }, atributos, { kit: false }).map((p) => [p.campo, p.bloqueante]),
+        [["BRAND", true]],
+      );
+      conferir(
+        "nao se aplica: vai ao ML como value_id -1 e value_name nulo",
+        atributosDaFicha({ atributos: { MODEL: "uno", MICROCONTROLLER: NAO_SE_APLICA, OPERATING_VOLTAGE: "5V" } }),
+        [{ id: "MODEL", value_name: "UNO" }, { id: "MICROCONTROLLER", value_id: "-1", value_name: null }, { id: "OPERATING_VOLTAGE", value_name: "5 V" }],
+      );
+    }
     const pedidoDaFicha = montarPedidoDaFicha({ titulo: "PLACA UNO", marca: "ARDUINO", modelo: "", descricao: "", especificacoes: [{ nome: "Tensão", valor: "5V" }], atributos, valoresAtuais: { BRAND: "ARDUINO" } });
     conferir(
       "pedido da ficha: so atributos em branco, com valores da lista",

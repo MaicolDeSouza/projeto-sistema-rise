@@ -8,7 +8,7 @@
  */
 
 import { LIMITE_TITULO } from "../../anuncios/canais/mercadolivre";
-import { separarUnidade } from "./atributos";
+import { NAO_SE_APLICA, ehNaoSeAplica, separarUnidade } from "./atributos";
 import { freteGratisObrigatorio } from "./custos";
 import { montarDescricaoML } from "./descricao";
 import { medidasFaltando } from "./validacao";
@@ -90,7 +90,12 @@ export function atributosDaFicha(rascunho) {
         !(levaGtin && id === "EMPTY_GTIN_REASON") &&
         texto(valor),
     )
-    .map(([id, valor]) => ({ id, value_name: EM_MAIUSCULAS.has(id) ? maiusculas(valor) : separarUnidade(valor) }));
+    // "Nao se aplica" vai como o site do ML grava: `value_id` "-1" e `value_name` nulo (ver `NAO_SE_APLICA`).
+    .map(([id, valor]) =>
+      ehNaoSeAplica(valor)
+        ? { id, value_id: NAO_SE_APLICA, value_name: null }
+        : { id, value_name: EM_MAIUSCULAS.has(id) ? maiusculas(valor) : separarUnidade(valor) },
+    );
 }
 
 export function montarPayloadML(rascunho, contexto) {

@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
-import { motivoSemGtin } from "@/lib/canaisDeVenda/ml/atributos";
+import { aceitaNaoSeAplica, motivoSemGtin } from "@/lib/canaisDeVenda/ml/atributos";
 import { linhasDeEspecificacao } from "@/lib/medidas";
 import CampoDeAtributo from "./CampoDeAtributo";
 import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
@@ -103,7 +103,14 @@ export default function AbaFichaTecnica({ rascunho, contexto, alterar, problemas
           />
         )}
         {outros.map((atributo) => (
-          <CampoDeAtributo key={atributo.id} atributo={atributo} valor={atributos[atributo.id]} problemas={problemas} aoMudar={(valor) => mudar(atributo.id, valor)} />
+          <CampoDeAtributo
+            key={atributo.id}
+            atributo={atributo}
+            valor={atributos[atributo.id]}
+            problemas={problemas}
+            aoMudar={(valor) => mudar(atributo.id, valor)}
+            permiteNaoSeAplica={aceitaNaoSeAplica(atributo)}
+          />
         ))}
       </CaixaDoML>
       {doRise}

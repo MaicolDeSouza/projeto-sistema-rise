@@ -13,8 +13,9 @@
 // "2" em 24/10/2026: o preco passa a ser por markup, nao por margem; "3" no mesmo dia: o markup e sobre o CUSTO TOTAL
 // (fornecedor + taxas do ML + frete + imposto), pedido do dono. "4" em 24/10/2026: o titulo e o do produto base (a LLM
 // nao o escolhe), e so o produto com composicao (kit) aceita outro titulo, pedido do dono. "5" em 25/10/2026: o markup
-// minimo do preco e 30% e o desejado 40% (pedido do dono).
-export const VERSAO_ROTEIRO_ML = "5";
+// minimo do preco e 30% e o desejado 40% (pedido do dono). "6" em 25/10/2026: "nao se aplica" ("-1") nos opcionais que o
+// produto nao tem, e o Microcontrolador e o chip ou, sem ele, o Processador/CPU da descricao (pedidos do dono).
+export const VERSAO_ROTEIRO_ML = "6";
 
 export const ROTEIRO_ML = `ROTEIRO DA PROPOSTA DE ANÚNCIO DO MERCADO LIVRE (Rise / 4hobby), versão ${VERSAO_ROTEIRO_ML}
 
@@ -41,6 +42,10 @@ CAMINHO (nesta ordem)
      modelo ou o chip, a especificação principal e a compatibilidade, sem preço, sem "promoção", sem emoji.
    - FICHA: só o que o cadastro do produto ou as referências PROVAM. Nunca invente. Os valores de lista escritos como
      estão na lista da categoria. Não mande GTIN nem o motivo de não ter (são do dono).
+     Microcontrolador: o Chip(SoC) da descrição do produto; sem o chip, a linha Processador/CPU da descrição.
+     NÃO SE APLICA: atributo OPCIONAL que o produto não tem (ex.: Capacidade de EEPROM numa placa ESP32, que não tem
+     EEPROM): mande o valor "-1"; o Rise o envia ao ML como "não se aplica". Nunca nos obrigatórios (marcados como
+     obrigatórios na leitura), e nunca para "não sei": o que você não sabe fica em branco.
    - CATÁLOGOS: até 10 do MESMO produto (não de um parecido), cada um com 5 ou mais anúncios. Use os candidatos da
      leitura; o Rise descarta os de menos de 5. Menos de 5 catálogos, tudo bem.
    - SEM NENHUM CATÁLOGO do mesmo produto: pesquise no navegador e ache 5 anúncios do MESMO produto no Mercado Livre;

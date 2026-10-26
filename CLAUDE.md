@@ -304,7 +304,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 863 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 868 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # 356 asserções da sincronização Rise -> Loja Integrada (com o cadastro automático e as categorias e o SEO que vêm do produto): slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio, ícone e as etapas do Cadastrar (LI falsa e Bling de mentira, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
@@ -2690,6 +2690,9 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       "Tensão de Operação" saiu (no ESP32 é o mesmo 3,3V do Nível Lógico, que fica só), "Consumo de Corrente" virou "Consumo de
       Corrente da Placa", "Processador" virou "Processador/CPU" (passou por "Arquitetura" no mesmo dia; valor "Xtensa LX6 dual-core de 32 bits") e "Chip Espressif (SoC)" virou
       "Chip(SoC)" (sem espaço) com o fabricante no valor ("ESP32-D0WD (Espressif)"); Corrente por Pino no formato "20mA (40mA máximo)".
+      **Fabricante no lugar de Marca** (25/10/2026, pedido do dono: "mudar de Marca=genérica para Fabricante=OEM, apenas onde realmente
+      não tem fabricante"): no Arduino e no ESP32 o primeiro campo é "Fabricante" (o fabricante real; placa compatível ou genérica sem
+      fabricante declarado: OEM), e o roteiro da proposta de produto (v13) propõe a marca OEM no lugar de GENÉRICA, só sem fabricante.
       28 obrigatórios. Regras próprias: placa > módulo > SoC são três coisas; não copiar entre variantes (clássico, S2, S3, C3, C6,
       H2); USB-C não prova USB nativo; sufixo U = U.FL sem antena; CAM não tem USB; GPIO 6-11 da placa de 38 pinos não contam. Ficaram
       de fora de propósito: Taxa de Transferência, RTC, Cor, textos de aplicação. **LoRa continua no `03-esp32-lora.txt`, não revisado**
@@ -3155,7 +3158,9 @@ Conferido no navegador com dados reais (100101, `MLB99779`): o `LogIntegracao` s
   partir de 60%), mas sobre a margem **já com** as taxas; o `corDaMargem` ignoraria as taxas.
 
 **Armadilha vista aqui:** o ESLint do projeto **não tem `no-undef`**: um import que faltou passou no lint e só quebrou
-no navegador. Conferir a tela depois de mexer em componente.
+no navegador. Conferir a tela depois de mexer em componente. Aconteceu de novo e chegou à VPS (deploy 25.10.2026.32): a
+`Tabela` do `RankingDosCatalogos` usava `catalogoNoML` sem recebê-la e a aba Preço e custos do editor do ML caía
+(corrigido em `47b83d9`). Para achar isso antes: `npx eslint --rule '{"no-undef":"error"}' src/` (limpo em 25/10/2026).
 
 ## Canais de Venda: Mercado Livre (fase 3, publicar)
 
@@ -3342,6 +3347,14 @@ plano: `docs/superpowers/plans/2026-10-21-concorrentes-ml-catalogo.md` (inline).
 - **Ficha técnica em 2 colunas** (pedido do dono): à esquerda os atributos do ML numa caixa só, um por linha, `*` nos
   obrigatórios, com a sugestão da IA no topo (`CaixaDoML`); à direita, fixa ao rolar, o que o Rise tem do produto
   (marca, modelo, EAN, peso, medidas e as especificações da descrição, `CaracteristicasDoRise`).
+- **"Não se aplica" na Ficha técnica** (pedido do dono em 25/10/2026: "marcar como não se aplica e isso ser mandado para
+  ML"): caixa embaixo de cada atributo OPCIONAL (`aceitaNaoSeAplica`: nunca nos obrigatórios, nem no GTIN e no motivo de não
+  ter); marcada, o campo fica cinza e o rascunho guarda `NAO_SE_APLICA` ("-1", `ml/atributos.js`). O envio
+  (`atributosDaFicha`, usado pelo Publicar e pelo "Enviar mudanças ao ML") manda `{ id, value_id: "-1", value_name: null }`,
+  o formato que o site do ML grava: medido nos 389 anúncios ativos da conta, 698 atributos assim. A validação aceita como
+  resposta (não vira "fora da lista") e recusa no obrigatório. A proposta do ML (roteiro v6) pode mandar "-1" nos opcionais
+  que o produto não tem, e o Microcontrolador é o Chip(SoC) da descrição ou, sem ele, a linha Processador/CPU (dono).
+  Visto na tela do PC (marcar e desmarcar); **o envio de um "-1" ao ML real ainda não foi visto** (o primeiro Publicar mostra).
 - **Aba "Preço e custos"** (era "Preço e estoque", pedidos do dono no mesmo dia): os Custos totais ficam à DIREITA do
   Preço de venda, no formato de campo; o campo Estoque saiu. **Estoque e descrição do anúncio são SEMPRE os do Rise**
   (`estoqueDoRise` e `descricaoDoRise` em `rascunho.js`): o do produto ou, no kit, o que as peças montam e a descrição do

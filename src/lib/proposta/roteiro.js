@@ -7,7 +7,8 @@
  *
  * Texto para a LLM, com acento. Sem crase dentro do texto (ele mora numa string de crase).
  */
-export const VERSAO_DO_ROTEIRO = "12";
+// "13" em 25/10/2026: a marca sem fabricante e OEM (era GENERICA), e a descricao chama o campo de Fabricante (pedido do dono).
+export const VERSAO_DO_ROTEIRO = "13";
 
 export const ROTEIRO = `ROTEIRO DA PROPOSTA DE PRODUTO (Rise / 4hobby), versão ${VERSAO_DO_ROTEIRO}
 
@@ -81,8 +82,9 @@ conteudo: { "candidatas": [{ "id", "arquivo" (o de baixarCandidatas) ou "fotoAtu
   tipoProducao, ncm, cest, percentualTributos, spedTipoItem). Preço, EAN e descrição seguem as seções deles e também
   entram por cima. Proponha o campo mesmo que o produto já tenha valor, quando a fonte disser outro valor; se a fonte
   disser o mesmo valor do produto, deixe o campo fora. O relatório diz o que vai trocar (campo, de quanto, para quanto).
-- marca: fabricante claro vira a marca (NEXTION, ESPRESSIF); placa compatível com Arduino = GENÉRICA; dúvida =
-  GENÉRICA; MAIÚSCULAS; nome de loja nunca é marca.
+- marca: o FABRICANTE. Fabricante claro vira a marca (NEXTION, ESPRESSIF, ARDUINO numa placa original); só quando a
+  placa realmente não tem fabricante (compatível ou genérica, que as lojas chamam de OEM, IMP ou Genérica): OEM. Nunca
+  mais GENÉRICA; MAIÚSCULAS; nome de loja nunca é marca. Na descrição esse campo se chama Fabricante.
 - modelo: pelo mesmo processo (NANO V3); sem evidência, fora.
 - unidade: KIT só em composição; MT quando vendido por comprimento; UN no resto (só UN, MT, KIT ou HR).
 - codigo: só se o produto estiver sem código; use o proximoCodigo da leitura. localizacao nunca.

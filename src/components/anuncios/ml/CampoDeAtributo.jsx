@@ -1,6 +1,7 @@
 "use client";
 
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
+import { NAO_SE_APLICA, ehNaoSeAplica } from "@/lib/canaisDeVenda/ml/atributos";
 import MensagensDoCampo from "./MensagensDoCampo";
 
 // Marca e Modelo sao sempre MAIUSCULAS (padrao de dado do CLAUDE.md).
@@ -19,13 +20,36 @@ function separarUnidade(valor, unidades) {
  * `<select>` com os valores oficiais (grava o NOME do valor, que e o que o anuncio manda); numero com
  * unidade vira numero + unidade ("5 V"); o resto e texto. `aoMudar(texto)` recebe o valor final,
  * vazio quando o dono apagou.
+ *
+ * `permiteNaoSeAplica` (so nos opcionais) poe a caixa "Nao se aplica" embaixo do campo: marcada, o campo fica cinza e
+ * vazio e o valor vira `NAO_SE_APLICA`; desmarcada, o campo volta vazio.
  */
-export default function CampoDeAtributo({ atributo, valor, problemas, aoMudar }) {
+export default function CampoDeAtributo({ atributo, valor, problemas, aoMudar, permiteNaoSeAplica = false }) {
   const id = `ml-atributo-${atributo.id}`;
   const comErro = (problemas ?? []).some((problema) => problema.campo === atributo.id && problema.bloqueante);
   const classe = `${CLASSE_CAMPO} ${bordaDoCampo(comErro)}`;
   const rotulo = `${atributo.nome}${atributo.obrigatorio ? " *" : ""}`;
-  const mensagens = <MensagensDoCampo problemas={problemas} campo={atributo.id} />;
+  const naoAplica = permiteNaoSeAplica && ehNaoSeAplica(valor);
+  const mensagens = (
+    <>
+      {permiteNaoSeAplica && (
+        <label className="mt-1 inline-flex cursor-pointer items-center gap-1.5 text-xs text-suave">
+          <input type="checkbox" checked={naoAplica} onChange={(evento) => aoMudar(evento.target.checked ? NAO_SE_APLICA : "")} />
+          Não se aplica
+        </label>
+      )}
+      <MensagensDoCampo problemas={problemas} campo={atributo.id} />
+    </>
+  );
+
+  if (naoAplica) {
+    return (
+      <Campo nome={id} rotulo={rotulo} ajuda={atributo.dica ?? undefined}>
+        <input id={id} disabled value="" placeholder="Não se aplica" className={`${CLASSE_CAMPO} cursor-not-allowed border-borda bg-fundo text-suave`} />
+        {mensagens}
+      </Campo>
+    );
+  }
 
   if ((atributo.tipo === "lista" || atributo.tipo === "booleano") && atributo.valores.length > 0) {
     const atual = String(valor ?? "");
