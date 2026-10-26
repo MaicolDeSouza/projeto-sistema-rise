@@ -3635,6 +3635,9 @@ Pedidos do dono (com print anotado e "usar UI/UX"):
   "▲ 30,5%" (vermelho quando você está mais caro, a cor da coluna Diferença; verde quando mais barato). Lido agora no ML pela
   busca da aba (`posicaoNoCatalogo` em `catalogo.js`). A linha com os MLB dos anúncios saiu. E o botão **Abrir no ML** em cada
   linha (fora do botão da linha: link dentro de botão é HTML inválido).
+- **Selo "C" no ícone do ML da lista de Produtos** (26/10/2026: primeiro "C2", com a quantidade de catálogos diferentes;
+  depois o dono pediu só "C"): algum anúncio publicado concorre num catálogo (`iconeML.catalogos > 0`). A quantidade fica no
+  texto do ícone ("em 2 catálogos").
 - **O título do anúncio publicado NÃO muda pela API, nem sem vendas** (medido em 26/10/2026 com OK do dono, no MLB7881037020
   do 100104, pausado e sem vendas): `PUT /items/{id}` com `title` → 400 "You cannot modify the title if the item has a
   family_name"; com `family_name` → 400 "The field family name is invalid". Nada mudou (`last_updated` igual). O título fica
