@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useEffectEvent, useRef, useState, useTransition } from "react";
 import { ChevronRight, ExternalLink, Loader, RefreshCw, X } from "lucide-react";
 
-import { catalogosDoAnuncioMLAcao, preverCatalogoMLAcao, relerConcorrentesMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
+import { buscarCatalogosDoProdutoMLAcao, catalogosDoAnuncioMLAcao, preverCatalogoMLAcao, relerConcorrentesMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { textoDoResumo } from "@/lib/canaisDeVenda/ml/catalogo";
 import { ROTULO_DO_TIPO_ML } from "@/lib/canaisDeVenda/ml/rotulos";
@@ -11,6 +11,7 @@ import { ResumoDaPosicao, TabelaDeConcorrentes, TabelaDoCatalogoAoVivo, urlDoCat
 import SecaoDoAnuncio from "./SecaoDoAnuncio";
 
 const DATA_HORA = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+const HORA = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 const FALHA = "Não foi possível falar com o servidor.";
 
 /**
@@ -20,11 +21,41 @@ const FALHA = "Não foi possível falar com o servidor.";
  * acompanha sozinho o catalogo do anuncio (`seguirCatalogoDosAnuncios`); os concorrentes dele vao para o contexto do
  * editor, porque o selo "Nº de M no ML" mora ao lado do preco, na aba Preco e custos.
  */
-export default function AbaCatalogo({ rascunho, alterar, setContexto, acessos = { concorrentes: true, editar: true } }) {
+export default function AbaCatalogo({ rascunho, alterar, setContexto, visivel = false, acessos = { concorrentes: true, editar: true } }) {
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState(null);
   const [aberto, setAberto] = useState(null);
+  const [buscadoEm, setBuscadoEm] = useState(null);
+  const [buscando, iniciarBusca] = useTransition();
+  const jaBuscou = useRef(false);
   const produtoId = rascunho.produtoId;
+
+  // "Buscar no ML" (pedido do dono em 26/10/2026): rele os anuncios no ML e procura os do dono pelo SKU. Roda sozinho na
+  // primeira vez que a aba aparece (todas as abas ficam montadas, entao nao na abertura do editor) e de novo pelo botao.
+  function buscar() {
+    iniciarBusca(async () => {
+      let resposta;
+      try {
+        resposta = await buscarCatalogosDoProdutoMLAcao(produtoId);
+      } catch {
+        resposta = { ok: false, erro: FALHA };
+      }
+      if (!resposta?.ok) {
+        setErro(resposta?.erro ?? FALHA);
+        return;
+      }
+      setDados({ catalogos: resposta.catalogos, tela: resposta.tela });
+      setContexto((atual) => ({ ...atual, concorrentesDoCatalogoML: resposta.tela.concorrentes ?? [] }));
+      setBuscadoEm(new Date(resposta.buscadoEm));
+      setErro(resposta.aviso ? `Não foi possível acompanhar o catálogo do anúncio: ${resposta.aviso}` : null);
+    });
+  }
+  const buscarSozinho = useEffectEvent(buscar);
+  useEffect(() => {
+    if (!visivel || jaBuscou.current || !produtoId || !acessos.concorrentes) return;
+    jaBuscou.current = true;
+    buscarSozinho();
+  }, [visivel, produtoId, acessos.concorrentes]);
 
   function receberTela(tela) {
     setDados((atual) => ({ ...atual, tela }));
@@ -60,17 +91,32 @@ export default function AbaCatalogo({ rascunho, alterar, setContexto, acessos = 
   return (
     <SecaoDoAnuncio
       titulo="Catálogos em que você concorre"
-      ajuda="Os catálogos do Mercado Livre em que os anúncios publicados deste produto estão, relidos de hora em hora. Para entrar ou sair de um catálogo, use o painel do ML: o Rise passa a acompanhar os concorrentes dele sozinho. Clique no catálogo para ver os concorrentes."
+      ajuda="Os catálogos do Mercado Livre em que seus anúncios deste produto estão (os publicados pelo Rise e qualquer outro com o mesmo código). O Rise confere no ML ao abrir esta aba e de hora em hora; para entrar ou sair de um catálogo, use o painel do ML. Clique no catálogo para ver os concorrentes."
+      acao={
+        <span className="flex items-center gap-2">
+          {buscadoEm && !buscando && <span className="text-xs text-suave">conferido às {HORA.format(buscadoEm)}</span>}
+          <button
+            type="button"
+            onClick={buscar}
+            disabled={buscando}
+            title="Confere no Mercado Livre se algum anúncio deste produto está num catálogo"
+            className="inline-flex items-center gap-1 rounded border border-borda bg-superficie px-2.5 py-1 text-xs font-medium text-acento hover:bg-fundo disabled:opacity-60"
+          >
+            <RefreshCw size={12} className={buscando ? "animate-spin" : ""} />
+            {buscando ? "Buscando..." : "Buscar no ML"}
+          </button>
+        </span>
+      }
     >
       {erro && <p role="alert" className="mb-2 text-sm text-red-700">{erro}</p>}
-      {dados === null ? (
+      {dados === null || (buscando && catalogos.length === 0) ? (
         !erro && (
           <p className="flex items-center gap-2 text-sm text-suave">
-            <Loader size={14} className="animate-spin" /> Lendo...
+            <Loader size={14} className="animate-spin" /> {buscando ? "Conferindo no Mercado Livre..." : "Lendo..."}
           </p>
         )
       ) : catalogos.length === 0 ? (
-        <p className="text-sm text-suave">Nenhum anúncio publicado deste produto está num catálogo do Mercado Livre.</p>
+        <p className="text-sm text-suave">Nenhum anúncio deste produto está num catálogo do Mercado Livre{buscadoEm ? "" : " (ainda não conferido no ML)"}.</p>
       ) : (
         <ul className="divide-y divide-borda rounded border border-borda">
           {catalogos.map((catalogo) => {

@@ -73,7 +73,7 @@ const esperar = (ms) => (ms > 0 ? new Promise((resolver) => setTimeout(resolver,
  * @param {{ ml?, agora?: Date, anuncioIds?: string[], espera?: number }} [opcoes] `anuncioIds` limita a rodada (o teste).
  * @returns {Promise<{ conferidos: number, mudaram: number, falhas: number, parou?: string }>}
  */
-export async function relerEstadosML({ ml, bling, agora = new Date(), anuncioIds, espera = ESPERA_ENTRE_LOTES_MS } = {}) {
+export async function relerEstadosML({ ml, bling, agora = new Date(), anuncioIds, espera = ESPERA_ENTRE_LOTES_MS, seguirCatalogo = true } = {}) {
   const resultado = { conferidos: 0, mudaram: 0, falhas: 0 };
   let anuncios;
   try {
@@ -176,7 +176,8 @@ export async function relerEstadosML({ ml, bling, agora = new Date(), anuncioIds
   }
   // A busca de catalogo saiu do editor (26/10/2026): o Rise segue sozinho o catalogo em que o anuncio esta. Uma falha
   // (ML, banco) fica no log e nao muda o resultado do estado.
-  for (const produtoId of produtosEmCatalogo) {
+  // `seguirCatalogo: false`: quem chama decide se acompanha (a busca da aba Catalogo, pela permissao de quem a abriu).
+  for (const produtoId of seguirCatalogo ? produtosEmCatalogo : []) {
     const seguido = await seguirCatalogoDosAnuncios(cliente, produtoId, { agora }).catch((erro) => ({ erro: erro?.message ?? String(erro) }));
     if (seguido.erro) console.error("[ml estado] acompanhar o catalogo:", seguido.erro);
   }

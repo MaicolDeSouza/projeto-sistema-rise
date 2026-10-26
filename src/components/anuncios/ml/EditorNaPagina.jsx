@@ -39,6 +39,8 @@ export default function EditorNaPagina({ anuncioId, rascunhoInicial, contextoIni
         aoSalvar={(id) => {
           if (!anuncioId) iniciarNavegacao(() => router.replace(`/canais-de-venda/mercado-livre/${id}`));
         }}
+        // "Salvar e fechar" e o "Fechar" do popup de envio (26/10/2026, no padrao da LI): na pagina, voltam a lista.
+        aoFechar={() => iniciarNavegacao(() => router.push("/canais-de-venda/mercado-livre"))}
       />
     </div>
   );

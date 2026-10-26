@@ -323,7 +323,7 @@ try {
     const comProduto = (id, mudancas) => ({ ...ctx, produtos: { ...ctx.produtos, [id]: { ...ctx.produtos[id], ...mudancas } } });
     const comEnvio = (mudancas) => ({ ...base, envio: { ...base.envio, ...mudancas } });
 
-    conferir("abas do editor", ABAS_ML.map((x) => x.id), ["status", "geral", "preco", "catalogo", "imagens", "descricao", "ficha", "envio", "garantia"]);
+    conferir("abas do editor", ABAS_ML.map((x) => x.id), ["status", "geral", "imagens", "descricao", "ficha", "preco", "catalogo", "envio", "garantia"]);
     conferir("base simples: nenhum problema", validarRascunhoML(base, ctx), []);
     conferir("kit pronto: nenhum problema bloqueante", validarRascunhoML(kitOk, ctx).filter((p) => p.bloqueante), []);
     conferir("kit misto pronto: nenhum problema bloqueante", validarRascunhoML(mistoOk, ctx).filter((p) => p.bloqueante), []);
@@ -1759,6 +1759,18 @@ try {
       mlFalha.itens.set(itemId, structuredClone(ml.itens.get(itemId)));
       r = await enviarMudancasML(id, { ml: mlFalha, lerFoto });
       conferir("enviar: falha nas fotos para ali, descricao gravada", [r.ok, r.parte, r.enviadas, /Fotos recusadas/.test(r.erro), (await mudancasDe(id)).partes], [false, "fotos", ["descricao"], true, ["fotos"]]);
+      // O popup de etapas (26/10/2026) le o andamento que o envio deixou na memoria: a descricao foi, as fotos falharam com o
+      // motivo, as partes sem mudanca ficaram marcadas e o envio terminou.
+      {
+        const { lerProgressoML } = await import("../src/lib/canaisDeVenda/ml/progresso.js");
+        const andamento = lerProgressoML(id);
+        const estado = Object.fromEntries(andamento.etapas.map((etapa) => [etapa.id, etapa.estado]));
+        conferir(
+          "enviar: andamento do popup",
+          [andamento.terminou, estado, /Fotos recusadas/.test(andamento.etapas.find((etapa) => etapa.id === "fotos").detalhe)],
+          [true, { permissao: "feito", ler: "feito", descricao: "feito", fotos: "falhou", pacote: "feito", preco: "feito", ficha: "feito" }, true],
+        );
+      }
 
       // Encerrado no ML: recusa sem escrever.
       ml.itens.get(itemId).status = "closed";

@@ -3562,8 +3562,9 @@ publicou, os 1.007 antigos da conta ficam de fora):**
 ### Editor do ML em cartões, aba Status, prazo e garantia (26/10/2026, SEM deploy)
 
 Pedidos do dono (com print anotado e "usar UI/UX"):
-- **Abas** (`ABAS_ML`): **Status** (a primeira; depois da Divergências quando ela existe) · Características (era "Geral") ·
-  Preço e custos · **Catálogo** · Imagens · Descrição · Ficha técnica · **Peso, dimensões e envio** (era "Envio") · **Garantia**. A "Prévia e
+- **Abas** (`ABAS_ML`, na ordem pedida pelo dono no mesmo dia): Divergências (quando há) · **Status** · Características (era
+  "Geral") · Imagens · Descrição · Ficha técnica · Preço e custos · **Catálogo** · **Peso, dimensões e envio** (era "Envio") ·
+  **Garantia**. Características, Catálogo e Garantia ele não citou: ficaram junto do assunto delas. A "Prévia e
   validação" saiu (`AbaPrevia.jsx` apagado): o "Validar no ML", o que falta para publicar e o payload (num `<details>`) foram
   para a Status.
 - **Status** (`AbaStatus.jsx`): cartão "No Mercado Livre" (situação, ID do anúncio com link, catálogo, última sincronização =
@@ -3610,6 +3611,22 @@ Pedidos do dono (com print anotado e "usar UI/UX"):
   e ao abrir a aba (`catalogosDoAnuncioMLAcao`, só quem edita o canal dispara a troca). Os concorrentes vão para
   `contexto.concorrentesDoCatalogoML`, que o selo "Nº de M no ML" ao lado do preço lê. **A rodada diária continua relendo as
   referências que já existiam** (a coluna "Concorrência" da lista de anúncios usa o ranking); não há mais como adicionar.
+- **"Buscar no ML" da aba Catálogo** (pedido do dono: "um botão para buscar se o meu produto está em algum catálogo, mas
+  preferencialmente já deve vir sem pressionar"): roda sozinho na primeira vez que a aba aparece (prop `visivel`) e pelo botão.
+  `buscarCatalogosDoProduto` (`ml/catalogosDoProduto.js`): relê no ML os anúncios publicados do produto (`relerEstadosML` com
+  `seguirCatalogo: false`), procura TODOS os anúncios do dono pelo SKU (`catalogosDosMeusAnuncios`, que agora entende também
+  o anúncio de catálogo ligado por `item_relations`), junta (`juntarCatalogos`) e, para quem edita, passa a acompanhar.
+- **Rodapé no padrão da LI e do Bling** (pedido do dono: status, "Tudo salvo", estado, catálogo e o aviso do publicado saíram):
+  à esquerda "Alterações não salvas" e os links Abrir no painel do ML · Abrir no ML · Clonar anúncio; à direita **Salvar e
+  fechar** e a ação principal (**Publicar** no rascunho, **Enviar ao ML** no publicado). O "Salvar" sozinho saiu: Publicar e
+  Enviar com alteração na tela perguntam "Salvar antes de publicar/enviar?" (`gravar({ adiarAoSalvar })`: o anúncio novo só
+  troca de endereço depois de a janela do Publicar fechar). Na página, fechar volta à lista (`aoFechar` do `EditorNaPagina`).
+- **Popup de etapas do "Enviar ao ML"** (pedido do dono, "igual foi implementado na LI"): `AndamentoDoEnvio` com `canal="ml"`,
+  etapas em `ml/etapasDoEnvio.js` (permissão, ler o anúncio, descrição, fotos, peso e medidas, preço, ficha, conferir), marcadas
+  pelo `enviarMudancasML` em `ml/progresso.js` (memória do processo) e lidas pela rota `/api/mercado-livre/progresso/<anuncioId>`
+  (só quem publica). Parte sem mudança fica marcada "sem mudança". Deu certo: Abrir painel do ML, Abrir anúncio no ML e Fechar
+  (fecha o popup e o editor; o `AcoesDoFimDoEnvio` da LI ganhou `textos`); falhou: "Voltar à janela", com o erro na faixa. O
+  `ConclusaoDoEnvio` saiu do ML. **Nada disso foi visto com clique na tela** (o painel do navegador estava escondido).
 
 ## Sincronização Rise <-> Bling (04 a 05/10/2026)
 

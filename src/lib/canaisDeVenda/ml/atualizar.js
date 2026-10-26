@@ -1,5 +1,7 @@
 import { conteudoAtualDoAnuncio, mudancasDoAnuncio } from "./acompanhar";
 import { carregarAnuncioML, gravarPublicacao } from "./banco";
+import { PARTES_DO_ENVIO_ML } from "./etapasDoEnvio";
+import { iniciarProgressoML } from "./progresso";
 import { impressaoDoConteudo } from "./impressao";
 import { lerCategoriaCompleta } from "./leitura";
 import { nomeDaFoto } from "./payload";
@@ -23,17 +25,23 @@ const textoDe = (erro) => erro?.message ?? String(erro);
 export async function enviarMudancasML(anuncioId, { ml, lerFoto = lerFotoDoDisco } = {}) {
   if (emAndamento.has(anuncioId)) return { ok: false, enviadas: [], erro: "Envio em andamento." };
   emAndamento.add(anuncioId);
+  // O andamento do popup do editor (26/10/2026): cada etapa marcada aqui, lida pela rota `/api/mercado-livre/progresso`.
+  const progresso = iniciarProgressoML(anuncioId);
   try {
-    return await enviarUmaVez(anuncioId, { ml, lerFoto });
+    const resultado = await enviarUmaVez(anuncioId, { ml, lerFoto, progresso });
+    if (!resultado.ok) progresso.falhou(resultado.erro ?? "O envio não foi concluído.");
+    return resultado;
   } catch (erro) {
     console.error("[ml atualizar]", erro);
+    progresso.falhou(textoDe(erro));
     return { ok: false, enviadas: [], erro: `Não foi possível enviar: ${textoDe(erro)}` };
   } finally {
+    progresso.fim();
     emAndamento.delete(anuncioId);
   }
 }
 
-async function enviarUmaVez(anuncioId, { ml, lerFoto }) {
+async function enviarUmaVez(anuncioId, { ml, lerFoto, progresso }) {
   const carregado = await carregarAnuncioML(anuncioId);
   if (!carregado.ok) return { ok: false, enviadas: [], erro: carregado.erro };
   const { rascunho, contexto, publicacao } = carregado;
@@ -43,19 +51,28 @@ async function enviarUmaVez(anuncioId, { ml, lerFoto }) {
   const conteudo = conteudoAtualDoAnuncio(rascunho, contexto.produtos);
   const atual = impressaoDoConteudo(conteudo);
   const { partes } = mudancasDoAnuncio(publicacao.enviado ?? null, atual);
-  if (partes.length === 0) return { ok: true, enviadas: [] };
+  if (partes.length === 0) {
+    for (const etapa of ["permissao", "ler", ...PARTES_DO_ENVIO_ML]) progresso.feita(etapa, "nada a enviar");
+    return { ok: true, enviadas: [] };
+  }
 
   const principal = contexto.produtos[rascunho.produtoId];
   const codigo = String(rascunho.composicao ? rascunho.composicao.codigo : principal?.sku ?? "").trim();
+  progresso.andando("permissao");
   try {
     ml.exigirEscrita(codigo);
   } catch (erro) {
     return { ok: false, enviadas: [], erro: textoDe(erro) };
   }
+  progresso.feita("permissao");
 
+  progresso.andando("ler");
   const lido = await ml.get(`/items/${itemId}`);
   if (!lido?.ok) return { ok: false, enviadas: [], erro: textoDaRecusaML(lido, `a leitura do anúncio ${itemId}`) };
   if (lido.dados?.status === "closed") return { ok: false, enviadas: [], erro: `O anúncio ${itemId} está encerrado no Mercado Livre: não dá para atualizar.` };
+  progresso.feita("ler", itemId);
+  // As partes que nao mudaram ficam marcadas de uma vez; as outras, uma a uma, no laco.
+  for (const parte of PARTES_DO_ENVIO_ML) if (!partes.includes(parte)) progresso.feita(parte, "sem mudança");
 
   // A impressao vai sendo completada parte a parte: sem impressao (anuncio publicado antes de 24/10/2026), comeca vazia.
   let enviado = { ...(publicacao.enviado ?? {}) };
@@ -69,6 +86,7 @@ async function enviarUmaVez(anuncioId, { ml, lerFoto }) {
   const falhar = (parte, erro) => ({ ok: false, enviadas, parte, erro });
 
   for (const parte of partes) {
+    progresso.andando(parte);
     if (parte === "descricao") {
       let resposta;
       try {
@@ -147,6 +165,7 @@ async function enviarUmaVez(anuncioId, { ml, lerFoto }) {
       if (!resposta?.ok) return falhar(parte, textoDaRecusaML(resposta, "a ficha técnica"));
     }
     await gravarParte(parte);
+    progresso.feita(parte, "enviado");
   }
   return { ok: true, enviadas };
 }

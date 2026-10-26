@@ -15,6 +15,10 @@ const TEXTOS = {
     sincronizar: { andando: "Sincronizando com a Loja Integrada", ok: "Sincronização concluída", falhou: "Sincronização interrompida" },
     cadastrar: { andando: "Cadastrando na Loja Integrada", ok: "Cadastro concluído", falhou: "Cadastro interrompido" },
   },
+  // E ao "Enviar ao ML" do anuncio publicado (26/10/2026).
+  ml: {
+    sincronizar: { andando: "Enviando ao Mercado Livre", ok: "Envio concluído", falhou: "Envio interrompido" },
+  },
 };
 
 /// O ícone de cada estado de etapa: o check verde de quem terminou, o círculo girando de quem está rodando, o X de quem falhou

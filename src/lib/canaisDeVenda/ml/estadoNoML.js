@@ -132,6 +132,24 @@ export function catalogosDosAnuncios(anuncios) {
 }
 
 /**
+ * Junta os catalogos dos anuncios do Rise (`catalogosDosAnuncios`) com os achados pelo SKU nos anuncios do dono no ML
+ * (`catalogosDosMeusAnuncios`, que pega tambem os anuncios que o Rise nao publicou), sem repetir catalogo nem anuncio.
+ */
+export function juntarCatalogos(doRise, peloSku) {
+  const porId = new Map((doRise ?? []).map((catalogo) => [catalogo.id, { ...catalogo, anuncios: [...catalogo.anuncios] }]));
+  for (const achado of peloSku ?? []) {
+    if (!achado?.id) continue;
+    if (!porId.has(achado.id)) porId.set(achado.id, { id: achado.id, nome: achado.nome ?? null, anuncios: [] });
+    const catalogo = porId.get(achado.id);
+    if (!catalogo.nome && achado.nome) catalogo.nome = achado.nome;
+    for (const idExterno of achado.meusAnuncios ?? []) {
+      if (!catalogo.anuncios.some((anuncio) => anuncio.idExterno === idExterno)) catalogo.anuncios.push({ idExterno, tipoAnuncio: null });
+    }
+  }
+  return [...porId.values()];
+}
+
+/**
  * Qual catalogo o Rise deve passar a acompanhar (os concorrentes do top 10 sao de UM catalogo por produto): nenhum se o
  * acompanhado ja e um dos catalogos em que o dono concorre, ou se ele nao concorre em nenhum; senao o primeiro deles.
  */

@@ -7,6 +7,7 @@
  * `/users/{id}` da o apelido e a reputacao do vendedor. Toda funcao recebe o `cliente` (`clienteML()` ou o ML falso).
  */
 
+import { catalogoDoItem } from "./estadoNoML";
 import { falhou } from "./leitura";
 
 /** Quantos anuncios do catalogo (sem contar os do dono) viram concorrentes acompanhados. */
@@ -85,9 +86,21 @@ export async function catalogosDosMeusAnuncios(cliente, sku, { maximoDeAnuncios 
   if (!busca.ok) throw falhou(busca);
   const porCatalogo = new Map();
   for (const itemId of (busca.dados?.results ?? []).slice(0, maximoDeAnuncios)) {
-    const item = await cliente.get(`/items/${encodeURIComponent(itemId)}`, { attributes: "id,status,catalog_product_id" });
-    if (!item.ok || item.dados?.status === "closed" || !item.dados?.catalog_product_id) continue;
-    const id = String(item.dados.catalog_product_id);
+    const item = await cliente.get(`/items/${encodeURIComponent(itemId)}`, { attributes: "id,status,catalog_product_id,item_relations" });
+    if (!item.ok || item.dados?.status === "closed") continue;
+    // O anuncio pode estar no catalogo pelo jeito antigo do ML: um anuncio de catalogo SEPARADO ligado a ele (26/10/2026,
+    // a mesma regra da releitura de hora em hora, `catalogoDoItem`).
+    let catalogoId = catalogoDoItem(item.dados);
+    if (!catalogoId && Array.isArray(item.dados?.item_relations) && item.dados.item_relations.length > 0) {
+      const ligados = [];
+      for (const relacao of item.dados.item_relations.slice(0, 5)) {
+        const lido = await cliente.get(`/items/${encodeURIComponent(String(relacao?.id ?? ""))}`, { attributes: "id,status,catalog_product_id,catalog_listing" });
+        if (lido.ok && lido.dados) ligados.push(lido.dados);
+      }
+      catalogoId = catalogoDoItem(item.dados, ligados);
+    }
+    if (!catalogoId) continue;
+    const id = String(catalogoId);
     porCatalogo.set(id, [...(porCatalogo.get(id) ?? []), String(itemId)]);
   }
   const resultado = [];

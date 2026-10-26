@@ -8,11 +8,12 @@ import { Copy, ExternalLink, Loader, X } from "lucide-react";
 
 import { abrirAnuncioML, enviarMudancasMLAcao, lerCategoriaML, marcarCatalogoVistoMLAcao, salvarAnuncioML, salvarPublicadoMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
-import Badge from "@/components/ui/Badge";
-import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
+import AcoesDoFimDoEnvio from "@/components/anuncios/li/AcoesDoFimDoEnvio";
+import AndamentoDoEnvio from "@/components/produtos/AndamentoDoEnvio";
+import { etapasComOResultado, etapasIniciais, lerAndamentoNoServidor, mesclarEtapas } from "@/lib/andamentoDoEnvio";
+import { ETAPAS_DO_ENVIO_ML } from "@/lib/canaisDeVenda/ml/etapasDoEnvio";
 import { NOMES_DAS_PARTES, textoDasPartes } from "@/lib/canaisDeVenda/ml/acompanhar";
 import { divergenciasDoAnuncioML } from "@/lib/canaisDeVenda/ml/divergencias";
-import { avisoDeCatalogoPendente, precisaAgirNoML, textoDoAvisoDeCatalogo, textoDoCatalogo, textoDoEstadoML } from "@/lib/canaisDeVenda/ml/estadoNoML";
 import { AGUARDANDO_BLING, AGUARDANDO_ESTOQUE, STATUS_ML, linkDoAnuncioML, linkDoPainelML } from "@/lib/canaisDeVenda/ml/rotulos";
 import { ABAS_ML, validarRascunhoML } from "@/lib/canaisDeVenda/ml/validacao";
 import AbaDescricao from "./AbaDescricao";
@@ -46,14 +47,21 @@ const CLASSE_DA_MENSAGEM = {
 };
 
 /// Os botoes do rodape (abrir no painel, no ML, clonar): o mesmo desenho dos "Abrir no painel da LI" e "Abrir no site".
-const CLASSE_DO_BOTAO = "inline-flex items-center gap-1 rounded border border-borda px-2.5 py-1 font-medium text-acento hover:bg-fundo";
-const MOTIVO_DO_PUBLICADO = "Anúncio publicado: só preço e ficha técnica se editam aqui.";
+const CLASSE_DO_BOTAO = "inline-flex shrink-0 items-center gap-1.5 rounded-md border border-borda px-3.5 py-2 font-medium text-acento hover:bg-fundo";
+// A rota que devolve o andamento do "Enviar ao ML" que o servidor esta fazendo (`lib/canaisDeVenda/ml/progresso.js`).
+const ROTA_DO_ANDAMENTO = "/api/mercado-livre/progresso";
+// Os dois botoes de link do fim do popup, com os nomes do Mercado Livre (o componente e o da LI).
+const TEXTOS_DO_FIM = {
+  painel: { titulo: "Abrir painel do ML", subtitulo: "conferir o anúncio no painel", dica: "Abre o anúncio no painel de vendas do Mercado Livre, em outra aba" },
+  site: { titulo: "Abrir anúncio no ML", subtitulo: "ver como o cliente vê", dica: "Abre a página do anúncio no Mercado Livre, em outra aba" },
+};
+// A acao principal do rodape (Publicar, Enviar ao ML), no tamanho do "Sincronizar com a LI".
+const CLASSE_DA_ACAO = "inline-flex items-center gap-2 rounded-md bg-acento px-5 py-2.5 text-base font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50";
 // Depois de publicado, so estas abas se editam (pedido do dono em 24/10/2026): o preco, os concorrentes e o ranking (aba
 // Catalogo desde 26/10/2026) e a ficha tecnica. O resto (titulo, categoria, tipo, envio) fica como foi publicado.
 const ABAS_DO_PUBLICADO = new Set(["preco", "catalogo", "ficha"]);
 // Abas so de leitura (26/10/2026): nunca travam, nem no publicado (os links e o "Validar no ML" tem que funcionar).
 const ABAS_DE_LEITURA = new Set(["status", "garantia"]);
-const DATA_DO_ESTADO = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 
 const CATEGORIA_ML = /^MLB\d+$/;
 // Espera o dono parar de digitar o codigo: cada tecla seria uma leitura no ML.
@@ -94,10 +102,7 @@ export default function EditorAnuncioML({
   aoSalvar,
   aoFechar,
   // Clonar (22/10/2026): na pagina e um link para `/novo?clonar=`; na janela, `aoClonar(id)` abre o clone nela mesma.
-  // `origem` e de onde o rascunho novo foi clonado (so para mostrar).
   aoClonar,
-  // Na janela do produto (pedido do dono em 24/10/2026): "Novo anuncio" no rodape, ja que a janela abre direto no anuncio.
-  origem = null,
   acessos = ACESSO_TOTAL_ML,
 }) {
   const [rascunho, setRascunho] = useState(rascunhoInicial);
@@ -120,9 +125,13 @@ export default function EditorAnuncioML({
   const [publicando, setPublicando] = useState(false);
   const [enviandoMudancas, iniciarEnvioDasMudancas] = useTransition();
   const [erroDasMudancas, setErroDasMudancas] = useState(null);
-  // As partes enviadas, para o popup de sucesso (`null` = popup fechado).
-  const [conclusaoDasMudancas, setConclusaoDasMudancas] = useState(null);
+  // O popup de etapas do "Enviar ao ML" (`null` = fechado): `{ etapas, fim: null|"ok"|"falhou", resumo }`.
+  const [andamento, setAndamento] = useState(null);
   const [salvando, iniciarSalvamento] = useTransition();
+  // "Salvar antes de publicar/enviar?" (`null` = fechada).
+  const [pergunta, setPergunta] = useState(null);
+  // Id do anuncio novo salvo antes do Publicar: o `aoSalvar` (troca de endereco) espera a janela do Publicar fechar.
+  const trocaPendente = useRef(null);
   const [carregandoCategoria, iniciarLeituraDaCategoria] = useTransition();
   const caixaDaMensagem = useRef(null);
   const secaoDaJanela = useRef(null);
@@ -183,7 +192,6 @@ export default function EditorAnuncioML({
 
   // O anuncio entrou, saiu, trocou ou esta num catalogo e o dono ainda nao conferiu (25/10/2026). So o "Marcar como
   // revisado" da aba Divergencias apaga o "!" (pedido do dono): abrir o anuncio nao basta.
-  const catalogoPendente = idAtual && avisoDeCatalogoPendente(publicacao?.estadoML) ? idAtual : null;
   async function revisarCatalogo() {
     const resultado = await marcarCatalogoVistoMLAcao(idAtual);
     if (resultado?.ok) {
@@ -218,14 +226,18 @@ export default function EditorAnuncioML({
       // Esc segurado repete o evento: sem ignorar, o aviso abriria e fecharia a cada repeticao.
       if (evento.key !== "Escape" || evento.repeat) return;
       // A janela do Publicar ouve o proprio Esc: aqui ele nao pode fechar o editor por baixo dela.
-      if (publicando) return;
+      if (publicando || andamento) return;
+      if (pergunta) {
+        setPergunta(null);
+        return;
+      }
       // Esc fecha so o aviso quando ele esta aberto, e nao a janela inteira por baixo.
       if (confirmandoSaida) setConfirmandoSaida(false);
       else pedirFechamento();
     }
     document.addEventListener("keydown", aoTeclar);
     return () => document.removeEventListener("keydown", aoTeclar);
-  }, [janela, confirmandoSaida, pedirFechamento, publicando]);
+  }, [janela, confirmandoSaida, pedirFechamento, publicando, andamento, pergunta]);
 
   function alterar(parcial) {
     setRascunho((atual) => ({ ...atual, ...(typeof parcial === "function" ? parcial(atual) : parcial) }));
@@ -233,34 +245,70 @@ export default function EditorAnuncioML({
     setMensagem((atual) => (atual?.tipo === "ok" ? null : atual));
   }
 
-  function salvar() {
+  // Grava o rascunho (ou, no publicado, o preco e a ficha). O rodape nao tem mais o "Salvar" sozinho (26/10/2026, no
+  // padrao da LI e do Bling): "Salvar e fechar", e o Publicar e o "Enviar mudancas" salvam antes. `adiarAoSalvar` guarda
+  // a troca de endereco do anuncio novo (a pagina vai para /[id], a janela volta a lista) para depois: senao a janela do
+  // Publicar, aberta logo apos salvar, sumiria com a remontagem.
+  async function gravar({ adiarAoSalvar = false } = {}) {
     setMensagem(null);
     const enviado = rascunho;
+    let resultado;
+    try {
+      resultado = publicado
+        ? await salvarPublicadoMLAcao(idAtual, { preco: enviado.preco, atributos: enviado.atributos })
+        : await salvarAnuncioML(idAtual, enviado);
+    } catch {
+      // Excecao solta numa transicao iria ao error boundary e levaria o que foi digitado.
+      resultado = { ok: false, erro: "Não foi possível falar com o servidor. O que está na tela continua aqui: tente salvar de novo." };
+    }
+    // Recusa (produto que deixou de ser Conferido, por exemplo): so o recado. Nada do estado muda.
+    if (!resultado.ok) {
+      setMensagem({ tipo: "erro", texto: resultado.erro });
+      return resultado;
+    }
+    setSalvo(enviado);
+    if (publicado) {
+      // O id nao muda; a faixa "Enviar mudancas ao ML" e o "!" saem da releitura.
+      await relerDoML();
+      return resultado;
+    }
+    setIdAtual(resultado.id);
+    if (adiarAoSalvar) trocaPendente.current = resultado.id;
+    else aoSalvar?.(resultado.id);
+    return resultado;
+  }
+
+  // Fecha a janela, ou volta a lista na pagina (o `aoFechar` do EditorNaPagina).
+  function fechar() {
+    trocaPendente.current = null;
+    aoFechar?.();
+  }
+
+  function salvarEFechar() {
+    if (!alterado) return fechar();
     iniciarSalvamento(async () => {
-      let resultado;
-      try {
-        resultado = publicado
-          ? await salvarPublicadoMLAcao(idAtual, { preco: enviado.preco, atributos: enviado.atributos })
-          : await salvarAnuncioML(idAtual, enviado);
-      } catch {
-        // Excecao solta numa transicao iria ao error boundary e levaria o que foi digitado.
-        resultado = { ok: false, erro: "Não foi possível falar com o servidor. O que está na tela continua aqui: tente salvar de novo." };
-      }
-      // Recusa (produto que deixou de ser Conferido, por exemplo): so o recado. Nada do estado muda.
-      if (!resultado.ok) {
-        setMensagem({ tipo: "erro", texto: resultado.erro });
-        return;
-      }
-      setSalvo(enviado);
-      if (publicado) {
-        // O id nao muda; a faixa "Enviar mudancas ao ML" e o "!" saem da releitura.
-        setMensagem({ tipo: "ok", texto: "Salvo. Falta enviar ao Mercado Livre." });
-        await relerDoML();
-        return;
-      }
-      setIdAtual(resultado.id);
-      setMensagem({ tipo: "ok", texto: "Rascunho salvo." });
-      aoSalvar?.(resultado.id);
+      const resultado = await gravar({ adiarAoSalvar: true });
+      if (resultado.ok) fechar();
+    });
+  }
+
+  // Publicar e "Enviar mudancas" levam o anuncio SALVO: com alteracao na tela, perguntam antes (como a LI).
+  function pedirPublicar() {
+    if (alterado || !idAtual) setPergunta("publicar");
+    else setPublicando(true);
+  }
+  function pedirEnvio() {
+    if (alterado) setPergunta("enviar");
+    else enviarMudancas();
+  }
+  function salvarEContinuar() {
+    const depois = pergunta;
+    setPergunta(null);
+    iniciarSalvamento(async () => {
+      const resultado = await gravar({ adiarAoSalvar: true });
+      if (!resultado.ok) return;
+      if (depois === "publicar") setPublicando(true);
+      else enviarMudancas();
     });
   }
 
@@ -269,11 +317,8 @@ export default function EditorAnuncioML({
   // Bling (ML_PUBLICACAO, BLING_ESCRITA) nao desabilitam o botao: a recusa do servidor aparece na janela.
   const retomando = Boolean(publicacao) && (presoNaPublicacao || statusAtual === "ERRO");
   const rotuloPublicar = publicacao?.etapaComErro === "kit_bling" ? "Verificar no Bling" : retomando ? "Retomar publicação" : "Publicar";
-  const motivosSemPublicar = [
-    ...(idAtual ? [] : ["Salve antes de publicar."]),
-    ...(alterado ? ["Salve as alterações antes de publicar."] : []),
-    ...(!publicacao?.itemId && bloqueantes > 0 ? [`${bloqueantes} problema(s) bloqueante(s) na Prévia.`] : []),
-  ];
+  // Sem o "Salve antes": o Publicar salva antes de abrir a janela (pergunta, como a LI).
+  const motivosSemPublicar = !publicacao?.itemId && bloqueantes > 0 ? [`${bloqueantes} problema(s) bloqueante(s): veja a aba Status.`] : [];
 
   // Le de novo o status, o anuncio no ML e o que mudou no produto (depois do Publicar e do "Enviar mudancas ao ML").
   async function relerDoML() {
@@ -290,6 +335,13 @@ export default function EditorAnuncioML({
   // Fechou a janela do Publicar: se algo foi enviado, le de novo o status e o anuncio no ML.
   async function aoFecharPublicacao(houveEnvio) {
     setPublicando(false);
+    // O anuncio novo salvo pelo Publicar: agora sim troca de endereco (a pagina remonta lendo do banco, ja atualizado).
+    if (trocaPendente.current) {
+      const id = trocaPendente.current;
+      trocaPendente.current = null;
+      aoSalvar?.(id);
+      return;
+    }
     if (!houveEnvio || !idAtual) return;
     await relerDoML();
   }
@@ -301,13 +353,51 @@ export default function EditorAnuncioML({
   const divergencias = useMemo(() => divergenciasDoAnuncioML({ publicado, publicacao, mudancas }), [publicado, publicacao, mudancas]);
   const abas = useMemo(() => (divergencias.length > 0 ? [{ id: "divergencias", rotulo: `Divergências (${divergencias.length})` }, ...ABAS_ML] : ABAS_ML), [divergencias]);
   const abaVisivel = abas.some((item) => item.id === aba) ? aba : ABAS_ML[0].id;
+  /**
+   * "Enviar ao ML" com o popup de etapas (pedido do dono em 26/10/2026, igual ao da LI): o envio marca cada etapa no servidor
+   * e a tela le pela rota (uma Server Action esperaria o envio acabar). So vale o andamento de numero maior que o de antes de
+   * enviar. O fim vem depois da releitura do anuncio ("Conferir o resultado no ML"): o Fechar nao aparece com a tela velha.
+   */
   function enviarMudancas() {
     setErroDasMudancas(null);
+    setAndamento({ etapas: etapasIniciais(ETAPAS_DO_ENVIO_ML), fim: null, resumo: null });
     iniciarEnvioDasMudancas(async () => {
-      const resultado = await enviarMudancasMLAcao(idAtual);
-      if (resultado?.ok) setConclusaoDasMudancas(resultado.enviadas ?? []);
-      else setErroDasMudancas(resultado?.parte ? `${NOMES_DAS_PARTES[resultado.parte]}: ${resultado.erro}` : (resultado?.erro ?? "Não foi possível enviar."));
+      const numeroDeAntes = (await lerAndamentoNoServidor(ROTA_DO_ANDAMENTO, idAtual))?.numero ?? 0;
+      const relogio = setInterval(async () => {
+        const lido = await lerAndamentoNoServidor(ROTA_DO_ANDAMENTO, idAtual);
+        if (!lido || lido.numero <= numeroDeAntes || lido.terminou) return;
+        setAndamento((atual) => (atual && !atual.fim ? { ...atual, etapas: mesclarEtapas(atual.etapas, lido.etapas) } : atual));
+      }, 400);
+      let resultado;
+      try {
+        resultado = await enviarMudancasMLAcao(idAtual);
+      } catch {
+        resultado = { ok: false, erro: "Não foi possível falar com o servidor." };
+      } finally {
+        clearInterval(relogio);
+      }
+      const final = await lerAndamentoNoServidor(ROTA_DO_ANDAMENTO, idAtual);
+      setAndamento((atual) => {
+        if (!atual) return atual;
+        const base = final && final.numero > numeroDeAntes ? mesclarEtapas(atual.etapas, final.etapas) : atual.etapas;
+        const etapas = etapasComOResultado(base, resultado);
+        return { ...atual, etapas: resultado?.ok ? etapas.map((etapa) => (etapa.id === "conferir" ? { ...etapa, estado: "andando" } : etapa)) : etapas };
+      });
+      if (!resultado?.ok) setErroDasMudancas(resultado?.parte ? `${NOMES_DAS_PARTES[resultado.parte]}: ${resultado.erro}` : (resultado?.erro ?? "Não foi possível enviar."));
       await relerDoML();
+      const enviadas = resultado?.enviadas ?? [];
+      setAndamento((atual) =>
+        atual
+          ? {
+              ...atual,
+              etapas: resultado?.ok ? atual.etapas.map((etapa) => (etapa.id === "conferir" ? { ...etapa, estado: "feito" } : etapa)) : atual.etapas,
+              fim: resultado?.ok ? "ok" : "falhou",
+              resumo: resultado?.ok
+                ? { titulo: enviadas.length > 0 ? "Enviado ao Mercado Livre:" : "Nada a enviar: o anúncio já estava igual ao produto.", linhas: enviadas.map((parte) => NOMES_DAS_PARTES[parte] ?? parte) }
+                : null,
+            }
+          : atual,
+      );
     });
   }
 
@@ -383,7 +473,7 @@ export default function EditorAnuncioML({
               {...(id === "status"
                 ? { todosProblemas: problemas, situacao: { statusAtual, rotuloDoStatus, publicacao, idExterno: infoDoML.idExterno, urlExterna: infoDoML.urlExterna } }
                 : {})}
-              {...(id === "catalogo" ? { catalogoNoML: publicacao?.estadoML?.catalogo } : {})}
+              {...(id === "catalogo" ? { visivel: abaVisivel === "catalogo" } : {})}
             />
             </div>
           </Painel>
@@ -396,56 +486,27 @@ export default function EditorAnuncioML({
   const linkDoAnuncio = linkDoAnuncioML(infoDoML.idExterno, infoDoML.urlExterna);
 
   const rodape = (
-    <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-      <div className="flex items-center gap-2 text-xs">
-        <Badge tom={rotuloDoStatus.tom}>{rotuloDoStatus.rotulo}</Badge>
-        {alterado ? (
-          <span className="text-amber-700">Alterações não salvas</span>
-        ) : (
-          idAtual && <span className="text-suave">Tudo salvo</span>
-        )}
-        {publicado && publicacao?.estadoML?.status && (
-          // O estado no ML relido de hora em hora pelo worker; "desde" e quando ficou assim.
-          <span className={precisaAgirNoML(publicacao.estadoML) ? "font-medium text-red-700" : "text-suave"} title="Estado no Mercado Livre, relido de hora em hora">
-            {textoDoEstadoML(publicacao.estadoML)}
-            {publicacao.estadoML.desde && ` desde ${DATA_DO_ESTADO.format(new Date(publicacao.estadoML.desde))}`}
-          </span>
-        )}
-        {publicado && textoDoCatalogo(publicacao?.estadoML?.catalogo) && (
-          // O catalogo em que o anuncio esta no ML, relido com o estado; a mudanca ainda nao vista vem em ambar.
-          <span
-            className={catalogoPendente ? "font-medium text-amber-700" : "text-suave"}
-            title="Catálogo do anúncio no Mercado Livre, relido com o estado"
-          >
-            {textoDoCatalogo(publicacao.estadoML.catalogo)}
-            {/* "esta no catalogo X" repetiria o texto: so a mudanca (entrou, saiu, trocou) vai entre parenteses. */}
-            {catalogoPendente && !publicacao.estadoML.catalogoAviso?.inicial && ` (${textoDoAvisoDeCatalogo(publicacao.estadoML.catalogoAviso)})`}
-          </span>
-        )}
-        {publicado && <span className="text-suave">{MOTIVO_DO_PUBLICADO}</span>}
-        {somenteLeitura && !publicado && <span className="text-suave">{MOTIVO_DA_LEITURA}</span>}
-        {/* O anuncio no painel do vendedor e no site do ML, em outra aba (pedido do dono em 25/10/2026, no molde dos botoes
-            da LI): so depois de o anuncio existir no ML. */}
+    // No padrao do rodape da LI e da janela do Bling (pedido do dono em 26/10/2026: "essas informacoes devem sair"): links
+    // a esquerda, "Salvar e fechar" e a acao principal a direita. Status, estado e catalogo moram na aba Status.
+    <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3 text-sm">
+        {alterado && <span className="text-xs text-amber-700">Alterações não salvas</span>}
+        {somenteLeitura && <span className="text-xs text-suave">{MOTIVO_DA_LEITURA}</span>}
+        {/* O anuncio no painel do vendedor e no site do ML, em outra aba: so depois de o anuncio existir no ML. */}
         {linkDoPainel && (
           <a href={linkDoPainel} target="_blank" rel="noreferrer" title={`Abre ${infoDoML.idExterno} na lista de anúncios do painel do Mercado Livre`} className={CLASSE_DO_BOTAO}>
-            Abrir no painel do ML <ExternalLink size={12} />
+            Abrir no painel do ML <ExternalLink size={14} />
           </a>
         )}
         {linkDoAnuncio && (
           <a href={linkDoAnuncio} target="_blank" rel="noreferrer" title={`Abre a página do anúncio ${infoDoML.idExterno} no Mercado Livre`} className={CLASSE_DO_BOTAO}>
-            Abrir no ML <ExternalLink size={12} />
+            Abrir no ML <ExternalLink size={14} />
           </a>
-        )}
-        {!idAtual && origem && (
-          <span className="text-suave">
-            Clonado de <span className="font-mono">{origem.codigo}</span>
-            {origem.idExterno && <span className="font-mono"> ({origem.idExterno})</span>}
-          </span>
         )}
         {idAtual && acessos.editar && !travado && (
           modo === "pagina" ? (
             <Link href={`/canais-de-venda/mercado-livre/novo?clonar=${idAtual}`} className={CLASSE_DO_BOTAO} title="Abre um anúncio novo igual a este, do mesmo produto">
-              <Copy size={12} /> Clonar anúncio
+              <Copy size={14} /> Clonar anúncio
             </Link>
           ) : (
             <button
@@ -455,33 +516,43 @@ export default function EditorAnuncioML({
               title={alterado ? "Salve as alterações antes de clonar." : "Abre um anúncio novo igual a este, do mesmo produto"}
               className={`${CLASSE_DO_BOTAO} disabled:cursor-not-allowed disabled:opacity-50`}
             >
-              <Copy size={12} /> Clonar anúncio
+              <Copy size={14} /> Clonar anúncio
             </button>
           )
         )}
       </div>
       <div className="flex items-center gap-2">
-        {!somenteLeitura && (
+        {/* Sem permissao de editar nao ha o que salvar: o botao e so "Fechar" (na pagina, volta a lista). */}
         <button
           type="button"
-          onClick={salvar}
-          disabled={salvando || (publicado && !editaPublicado)}
-          title={publicado ? MOTIVO_DO_PUBLICADO : undefined}
-          className="inline-flex items-center gap-1.5 rounded bg-acento px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          onClick={somenteLeitura || (publicado && !editaPublicado) ? fechar : salvarEFechar}
+          disabled={salvando || enviandoMudancas}
+          className="inline-flex items-center gap-2 rounded-md border border-borda px-5 py-2.5 text-base hover:bg-fundo disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {salvando && <Loader size={14} className="animate-spin" />}
-          {salvando ? "Salvando..." : "Salvar"}
+          {salvando && <Loader size={16} className="animate-spin" />}
+          {somenteLeitura || (publicado && !editaPublicado) ? "Fechar" : salvando ? "Salvando..." : "Salvar e fechar"}
         </button>
-        )}
         {!publicado && acessos.publicar && (
           <button
             type="button"
-            onClick={() => setPublicando(true)}
+            onClick={pedirPublicar}
             disabled={salvando || motivosSemPublicar.length > 0}
             title={motivosSemPublicar.join(" ") || undefined}
-            className="rounded border border-acento px-4 py-2 text-sm font-medium text-acento hover:bg-fundo disabled:cursor-not-allowed disabled:border-borda disabled:text-suave disabled:opacity-60"
+            className={CLASSE_DA_ACAO}
           >
             {rotuloPublicar}
+          </button>
+        )}
+        {publicado && acessos.publicar && (
+          <button
+            type="button"
+            onClick={pedirEnvio}
+            disabled={salvando || enviandoMudancas || (!temMudancas && !alterado)}
+            title={!temMudancas && !alterado ? "Nada a enviar: o anúncio está igual ao produto." : `Manda ao Mercado Livre o que mudou${temMudancas ? `: ${textoDasPartes(mudancas.partes)}` : ""}`}
+            className={CLASSE_DA_ACAO}
+          >
+            {enviandoMudancas && <Loader size={16} className="animate-spin" />}
+            {enviandoMudancas ? "Enviando..." : "Enviar ao ML"}
           </button>
         )}
       </div>
@@ -519,13 +590,45 @@ export default function EditorAnuncioML({
     </div>
   );
 
-  const popupDasMudancas = conclusaoDasMudancas && (
-    <ConclusaoDoEnvio
-      titulo="Anúncio atualizado no Mercado Livre"
-      mensagem={conclusaoDasMudancas.length === 0 ? "Nada a enviar: o anúncio já estava igual ao produto." : null}
-      linhas={conclusaoDasMudancas.map((parte) => `Enviado: ${NOMES_DAS_PARTES[parte] ?? parte}`)}
-      aoFechar={() => setConclusaoDasMudancas(null)}
+  // O popup de etapas do "Enviar ao ML": deu certo, os botoes do painel, do anuncio e o Fechar, que fecha o popup E o editor;
+  // falhou, "Voltar a janela" fecha so o popup, com o erro a vista na faixa.
+  const fecharTudo = () => {
+    setAndamento(null);
+    fechar();
+  };
+  const popupDasMudancas = andamento && (
+    <AndamentoDoEnvio
+      canal="ml"
+      larga
+      tipo="sincronizar"
+      sku={infoDoML.idExterno ?? contexto.produtos[rascunho.produtoId]?.sku ?? ""}
+      etapas={andamento.etapas}
+      fim={andamento.fim}
+      resumo={andamento.resumo}
+      aoFechar={fecharTudo}
+      aoVoltar={() => setAndamento(null)}
+      acoesDoFim={<AcoesDoFimDoEnvio linkDoPainel={linkDoPainel} linkDoSite={linkDoAnuncio} aoFechar={fecharTudo} textos={TEXTOS_DO_FIM} />}
     />
+  );
+
+  // "Salvar antes de publicar/enviar?" (como a LI): o envio leva o anuncio salvo.
+  const caixaDePergunta = pergunta && (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4 text-left font-normal normal-case" {...propsDoFundo(() => setPergunta(null))}>
+      <section role="alertdialog" aria-modal="true" aria-labelledby="ml-pergunta-titulo" className="w-full max-w-md rounded-lg border border-borda bg-superficie p-4 shadow-2xl">
+        <p id="ml-pergunta-titulo" className="text-sm font-semibold">
+          Salvar antes de {pergunta === "publicar" ? "publicar" : "enviar"}?
+        </p>
+        <p className="mt-1 text-sm text-suave">{pergunta === "publicar" ? "A publicação" : "O envio"} leva o anúncio salvo. As alterações da tela precisam ser salvas antes.</p>
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" autoFocus onClick={() => setPergunta(null)} className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo">
+            Cancelar
+          </button>
+          <button type="button" onClick={salvarEContinuar} className="rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90">
+            {pergunta === "publicar" ? "Salvar e publicar" : "Salvar e enviar"}
+          </button>
+        </div>
+      </section>
+    </div>
   );
 
   if (!janela) {
@@ -543,6 +646,7 @@ export default function EditorAnuncioML({
         <div className="sticky bottom-0 z-10 rounded-lg border border-borda bg-superficie shadow-lg">{rodape}</div>
         {janelaDoPublicar}
         {popupDasMudancas}
+        {caixaDePergunta}
       </div>
     );
   }
@@ -586,6 +690,7 @@ export default function EditorAnuncioML({
 
       {janelaDoPublicar}
       {popupDasMudancas}
+      {caixaDePergunta}
 
       {confirmandoSaida && (
         <div

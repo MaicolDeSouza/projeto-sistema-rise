@@ -41,24 +41,18 @@ function BotaoDeLink({ href, titulo, subtitulo, dica, semEndereco }) {
  * origem e tipo de producao, que a API nao grava) e o anuncio no site. O terceiro, azul e no pe, fecha este popup E a janela
  * do editor. O `data-fechar` e por onde o popup leva o foco ao que fecha, para o Enter fechar sem o mouse.
  */
-export default function AcoesDoFimDoEnvio({ linkDoPainel, linkDoSite, aoFechar }) {
+// Os textos da Loja Integrada; o editor do Mercado Livre passa os dele em `textos` (26/10/2026).
+const TEXTOS_DA_LI = {
+  painel: { titulo: "Abrir painel da loja", subtitulo: "ajustar dados fiscais", dica: "Abre o produto no painel de controle da Loja Integrada, em outra aba" },
+  site: { titulo: "Abrir anúncio na loja", subtitulo: "ver como o cliente vê", dica: "Abre a página do produto no site da loja, em outra aba (produto pausado ainda não aparece para o cliente)" },
+};
+
+export default function AcoesDoFimDoEnvio({ linkDoPainel, linkDoSite, aoFechar, textos = TEXTOS_DA_LI }) {
   return (
     <div className="w-full space-y-3">
       <div className="grid gap-2 sm:grid-cols-2">
-        <BotaoDeLink
-          href={linkDoPainel}
-          titulo="Abrir painel da loja"
-          subtitulo="ajustar dados fiscais"
-          dica="Abre o produto no painel de controle da Loja Integrada, em outra aba"
-          semEndereco="painel indisponível"
-        />
-        <BotaoDeLink
-          href={linkDoSite}
-          titulo="Abrir anúncio na loja"
-          subtitulo="ver como o cliente vê"
-          dica="Abre a página do produto no site da loja, em outra aba (produto pausado ainda não aparece para o cliente)"
-          semEndereco="endereço ainda indisponível"
-        />
+        <BotaoDeLink href={linkDoPainel} {...textos.painel} semEndereco="painel indisponível" />
+        <BotaoDeLink href={linkDoSite} {...textos.site} semEndereco="endereço ainda indisponível" />
       </div>
       <button
         data-fechar

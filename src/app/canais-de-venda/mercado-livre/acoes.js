@@ -44,6 +44,7 @@ import {
   salvarRascunhoML,
   sugerirCodigoDeKit,
 } from "@/lib/canaisDeVenda/ml/banco";
+import { buscarCatalogosDoProduto } from "@/lib/canaisDeVenda/ml/catalogosDoProduto";
 import { adicionarReferenciaML, catalogosUsadosDoProduto, lerReferenciasML, relerReferenciasDoProduto, removerReferenciaML } from "@/lib/canaisDeVenda/ml/referencias";
 
 /**
@@ -484,6 +485,24 @@ export async function catalogosDoAnuncioMLAcao(produtoId) {
     if (!tela) return { ok: false, erro: "Produto não encontrado. Ele pode ter sido excluído." };
     await marcarConcorrentesMLVistos(produtoId);
     return { ok: true, catalogos: seguido.catalogos, tela, aviso: seguido.erro ?? null };
+  });
+}
+
+/**
+ * "Buscar no ML" da aba Catalogo, que a aba tambem dispara sozinha ao ser aberta (pedido do dono em 26/10/2026): rele no ML
+ * os anuncios do produto e procura os do dono pelo SKU, e devolve os catalogos e a tela dos concorrentes. Quem edita o canal
+ * tambem faz o Rise passar a acompanhar o catalogo achado. So GET no ML.
+ */
+export async function buscarCatalogosDoProdutoMLAcao(produtoId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"], ["dado.concorrentes", "ver"]);
+  if (negado) return negado;
+  if (!ehId(produtoId)) return PEDIDO_INVALIDO;
+  return protegendo(async () => {
+    const { pode } = await sessaoDeAcessos();
+    const achado = await buscarCatalogosDoProduto(clienteML(), produtoId, { acompanhar: pode("tela.canaisDeVenda.mercadoLivre", "editar"), bling: clienteBling() });
+    if (!achado.ok) return achado;
+    const tela = await lerConcorrentesML(produtoId);
+    return { ok: true, catalogos: achado.catalogos, buscadoEm: achado.buscadoEm, tela, aviso: achado.aviso };
   });
 }
 
