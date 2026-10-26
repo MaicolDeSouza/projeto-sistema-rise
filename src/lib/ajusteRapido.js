@@ -80,6 +80,23 @@ export async function gravarPrecoVenda(id, valor) {
  * @param {{tipo: string, quantidade: number|string, motivo?: string, observacao?: string}} dados
  */
 export async function gravarAjusteDeEstoque(id, dados = {}) {
+  try {
+    const resultado = await prisma.$transaction((tx) => ajustarEstoqueNaTransacao(tx, id, dados));
+    if (!resultado.ok) return resultado;
+    return { ok: true, saldoAnterior: resultado.saldoAnterior, saldoNovo: resultado.saldoNovo };
+  } catch (erro) {
+    return falha(erro);
+  }
+}
+
+/**
+ * O mesmo ajuste DENTRO de uma transacao de quem chama (o lancamento do pedido de compra trava o item do pedido e
+ * grava o movimento na mesma transacao: um lancamento sem movimento, ou o contrario, nunca existe). Devolve tambem o
+ * id do movimento criado. As validacoes e as mensagens sao as de `gravarAjusteDeEstoque`.
+ *
+ * @returns {Promise<{ok: true, saldoAnterior: number, saldoNovo: number, movimentoId: string} | {ok: false, erro: string}>}
+ */
+export async function ajustarEstoqueNaTransacao(tx, id, dados = {}) {
   const { tipo, quantidade, motivo, observacao } = dados;
 
   if (!tipoValido(tipo)) return { ok: false, erro: "Escolha entrada, saída ou balanço." };
@@ -104,46 +121,41 @@ export async function gravarAjusteDeEstoque(id, dados = {}) {
     return { ok: false, erro: `A observação aceita até ${MAXIMO_OBSERVACAO} caracteres.` };
   }
 
-  try {
-    return await prisma.$transaction(async (tx) => {
-      const linhas = await tx.$queryRaw`SELECT "estoque", "tipo"::text AS "tipo" FROM "Produto" WHERE "id" = ${id} FOR UPDATE`;
-      if (linhas.length === 0) {
-        return { ok: false, erro: "Produto não encontrado. Ele pode ter sido excluído." };
-      }
-      // Kit: o estoque e calculado pelas pecas (decisao do dono em 07/10/2026). Um ajuste aqui seria
-      // apagado no proximo recalculo, e no Bling o kit nem recebe lancamento.
-      if (linhas[0].tipo === "COMPOSICAO") {
-        return { ok: false, erro: "O estoque de um kit é calculado pelas peças. Ajuste o estoque das peças." };
-      }
-
-      const anterior = linhas[0].estoque;
-      const novo = novoSaldo(tipo, anterior, numero);
-      if (novo < 0) {
-        return { ok: false, erro: `A saída (${numero}) é maior que o saldo (${anterior}).` };
-      }
-      if (novo > MAXIMO_ESTOQUE) {
-        return { ok: false, erro: `O saldo passaria do limite de ${MAXIMO_ESTOQUE}.` };
-      }
-
-      await tx.produto.update({ where: { id }, data: { estoque: novo } });
-      await tx.movimentoEstoque.create({
-        data: {
-          produtoId: id,
-          tipo,
-          quantidade: numero,
-          saldoAnterior: anterior,
-          saldoNovo: novo,
-          motivo: motivoLimpo || null,
-          observacao: observacaoLimpa || null,
-        },
-      });
-      // Os kits que usam esta peca mudam junto, na mesma transacao: uma queda no meio nao deixa a
-      // peca com um saldo e o kit com outro.
-      await recalcularKitsDaPeca(id, tx);
-
-      return { ok: true, saldoAnterior: anterior, saldoNovo: novo };
-    });
-  } catch (erro) {
-    return falha(erro);
+  const linhas = await tx.$queryRaw`SELECT "estoque", "tipo"::text AS "tipo" FROM "Produto" WHERE "id" = ${id} FOR UPDATE`;
+  if (linhas.length === 0) {
+    return { ok: false, erro: "Produto não encontrado. Ele pode ter sido excluído." };
   }
+  // Kit: o estoque e calculado pelas pecas (decisao do dono em 07/10/2026). Um ajuste aqui seria
+  // apagado no proximo recalculo, e no Bling o kit nem recebe lancamento.
+  if (linhas[0].tipo === "COMPOSICAO") {
+    return { ok: false, erro: "O estoque de um kit é calculado pelas peças. Ajuste o estoque das peças." };
+  }
+
+  const anterior = linhas[0].estoque;
+  const novo = novoSaldo(tipo, anterior, numero);
+  if (novo < 0) {
+    return { ok: false, erro: `A saída (${numero}) é maior que o saldo (${anterior}).` };
+  }
+  if (novo > MAXIMO_ESTOQUE) {
+    return { ok: false, erro: `O saldo passaria do limite de ${MAXIMO_ESTOQUE}.` };
+  }
+
+  await tx.produto.update({ where: { id }, data: { estoque: novo } });
+  const movimento = await tx.movimentoEstoque.create({
+    data: {
+      produtoId: id,
+      tipo,
+      quantidade: numero,
+      saldoAnterior: anterior,
+      saldoNovo: novo,
+      motivo: motivoLimpo || null,
+      observacao: observacaoLimpa || null,
+    },
+    select: { id: true },
+  });
+  // Os kits que usam esta peca mudam junto, na mesma transacao: uma queda no meio nao deixa a
+  // peca com um saldo e o kit com outro.
+  await recalcularKitsDaPeca(id, tx);
+
+  return { ok: true, saldoAnterior: anterior, saldoNovo: novo, movimentoId: movimento.id };
 }

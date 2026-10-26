@@ -321,6 +321,7 @@ function pedidoParaTela(pedido) {
     prazoDias: item.prazoDias,
     ordem: item.ordem,
     quantidadeLancada: item.quantidadeLancada,
+    estoqueAtual: item.produto.estoque,
     lancamentos: (item.lancamentos ?? []).map((lancamento) => ({
       id: lancamento.id,
       quantidade: lancamento.quantidade,
@@ -372,7 +373,7 @@ const INCLUIR_NO_PEDIDO = {
   itens: {
     orderBy: { ordem: "asc" },
     include: {
-      produto: { select: { sku: true, tituloBase: true, tipo: true, arquivos: FOTO_PRINCIPAL } },
+      produto: { select: { sku: true, tituloBase: true, tipo: true, estoque: true, arquivos: FOTO_PRINCIPAL } },
       lancamentos: { where: { desfeitoEm: null }, orderBy: { lancadoEm: "asc" } },
     },
   },

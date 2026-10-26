@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { negarSemAcesso, podeAgora } from "@/lib/acessos/servidor";
+import { negarSemAcesso, negarSemAcessos, podeAgora } from "@/lib/acessos/servidor";
+import { desfazerUltimoLancamento, lancarEstoqueDoItem, reenviarPendentes } from "@/lib/compras/lancamento";
 import {
   adicionarAoPedido,
   adicionarItem,
@@ -14,6 +15,7 @@ import {
   salvarPedido,
 } from "@/lib/compras/banco";
 import { semPrecos, semPrecosNaEntrada } from "@/lib/compras/projecao";
+import { prisma } from "@/lib/db";
 
 const revalidar = () => revalidatePath("/compras", "layout");
 
@@ -101,4 +103,43 @@ export async function adicionarAoPedidoAcao(dados) {
   });
   if (resultado.ok) revalidatePath("/compras", "layout");
   return resultado;
+}
+
+// ---------------------------------------------------------------------------
+// Lancar estoque (Rise + Bling) e desfazer
+// ---------------------------------------------------------------------------
+
+const PODE_LANCAR = [
+  ["tela.compras.pedidos", "editar"],
+  ["acao.compras.lancarEstoque", "executar"],
+];
+
+/** Lanca o que chegou de um item; devolve tambem o pedido relido para a tela. */
+export async function lancarEstoqueAcao(itemId, quantidade, depositoId = null) {
+  const negado = await negarSemAcessos(...PODE_LANCAR);
+  if (negado) return negado;
+  const resultado = await lancarEstoqueDoItem(String(itemId ?? ""), quantidade, depositoId ? { depositoId } : {});
+  if (!resultado.ok) return resultado;
+  revalidar();
+  revalidatePath("/produtos");
+  const item = await prisma.itemDoPedidoDeCompra.findUnique({ where: { id: String(itemId) }, select: { pedidoId: true } });
+  return { ...resultado, pedido: item ? await pedidoParaQuemVe(item.pedidoId) : null };
+}
+
+export async function desfazerLancamentoAcao(itemId) {
+  const negado = await negarSemAcessos(...PODE_LANCAR);
+  if (negado) return negado;
+  const resultado = await desfazerUltimoLancamento(String(itemId ?? ""));
+  if (!resultado.ok) return resultado;
+  revalidar();
+  revalidatePath("/produtos");
+  const item = await prisma.itemDoPedidoDeCompra.findUnique({ where: { id: String(itemId) }, select: { pedidoId: true } });
+  return { ...resultado, pedido: item ? await pedidoParaQuemVe(item.pedidoId) : null };
+}
+
+/** "Enviar neste depósito" e "Reenviar": so os ajustes pendentes do produto vao ao Bling. */
+export async function reenviarAoBlingAcao(produtoId, depositoId = null) {
+  const negado = await negarSemAcessos(...PODE_LANCAR);
+  if (negado) return negado;
+  return reenviarPendentes(String(produtoId ?? ""), depositoId);
 }

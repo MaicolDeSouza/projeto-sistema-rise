@@ -320,6 +320,82 @@ try {
     conferir("lista filtra status", (await banco.listarPedidos({ status: ["FINALIZADO"], busca: "ZZ Compra Pedido" })).total, 1);
   }
 
+  {
+    console.log("\nLançamento de estoque (Bling falso)");
+    await limpar();
+    const { criarBlingFalso } = await import("./lib/blingFalso.js");
+    const lancamento = await import("../src/lib/compras/lancamento.js");
+    const { gravarAjusteDeEstoque } = await import("../src/lib/ajusteRapido.js");
+
+    const noBling = (codigo, id) => ({ id, codigo, nome: `Produto ${codigo}`, preco: 10, situacao: "A", formato: "S", tipo: "P" });
+    const fornecedor = await criarFornecedor("ZZ Compra Lancar");
+    const produto = await criarProduto("ZZ-COMPRA-L1", { estoque: 5, blingSaldo: 5 });
+    await vincular(produto, fornecedor);
+
+    async function pedidoEnviado(quantidade) {
+      const novo = await banco.adicionarAoPedido({ produtoId: produto.id, vinculoId: (await prisma.produtoFornecedor.findFirst({ where: { produtoId: produto.id } })).id, quantidade });
+      await banco.mudarStatus(novo.pedidoId, "ENVIADO");
+      const item = await prisma.itemDoPedidoDeCompra.findFirst({ where: { pedidoId: novo.pedidoId } });
+      return { pedidoId: novo.pedidoId, itemId: item.id };
+    }
+    const estoque = async () => (await prisma.produto.findUnique({ where: { id: produto.id } })).estoque;
+    const statusDe = async (pedidoId) => (await prisma.pedidoDeCompra.findUnique({ where: { id: pedidoId } })).status;
+
+    const falso = criarBlingFalso({ produtos: [noBling("ZZ-COMPRA-L1", 15000000901)], saldos: { "ZZ-COMPRA-L1": 5 }, codigosLiberados: ["ZZ-COMPRA-L1"] });
+    const { pedidoId, itemId } = await pedidoEnviado(10);
+
+    const rascunho = await banco.criarPedido((await criarFornecedor("ZZ Compra Rascunho")).id);
+    void rascunho;
+
+    let resultado = await lancamento.lancarEstoqueDoItem(itemId, 4, { cliente: falso });
+    conferir("lancar 4: ok e Bling ok", [resultado.ok, resultado.bling?.ok], [true, true]);
+    conferir("estoque do Rise subiu", await estoque(), 9);
+    conferir("Bling falso com o saldo novo", falso.saldo("ZZ-COMPRA-L1"), 9);
+    conferir("pedido parcial", await statusDe(pedidoId), "PARCIAL");
+    const movimento = await prisma.movimentoEstoque.findFirst({ where: { produtoId: produto.id }, orderBy: { criadoEm: "desc" } });
+    conferir("movimento de entrada com o numero do pedido", [movimento.tipo, movimento.quantidade, /^PC-\d{4}$/.test(movimento.observacao ?? ""), movimento.motivo], ["ENTRADA", 4, true, "Compra de fornecedor"]);
+
+    resultado = await lancamento.lancarEstoqueDoItem(itemId, 7, { cliente: falso });
+    conferir("lancar mais do que falta: recusa", [resultado.ok, await estoque()], [false, 9]);
+
+    // Clique duplo: dois lancamentos de 6 ao mesmo tempo, so um passa.
+    const duplos = await Promise.all([
+      lancamento.lancarEstoqueDoItem(itemId, 6, { cliente: falso }),
+      lancamento.lancarEstoqueDoItem(itemId, 6, { cliente: falso }),
+    ]);
+    conferir("clique duplo: exatamente um ok", duplos.filter((item) => item.ok).length, 1);
+    conferir("clique duplo: estoque 15", await estoque(), 15);
+    conferir("dois lancamentos vivos", await prisma.lancamentoDoItemDeCompra.count({ where: { itemId, desfeitoEm: null } }), 2);
+
+    resultado = await lancamento.desfazerUltimoLancamento(itemId, { cliente: falso });
+    conferir("desfazer o ultimo (6)", [resultado.ok, await estoque(), await statusDe(pedidoId)], [true, 9, "PARCIAL"]);
+    resultado = await lancamento.desfazerUltimoLancamento(itemId, { cliente: falso });
+    conferir("desfazer o outro (4): volta a enviado", [resultado.ok, await estoque(), await statusDe(pedidoId)], [true, 5, "ENVIADO"]);
+    conferir("Bling acompanha", falso.saldo("ZZ-COMPRA-L1"), 5);
+
+    // Saldo ja consumido: lanca 10, sai 12 pela lista de Produtos, desfazer recusa sem mexer.
+    await lancamento.lancarEstoqueDoItem(itemId, 10, { cliente: falso });
+    await gravarAjusteDeEstoque(produto.id, { tipo: "SAIDA", quantidade: 12, motivo: "Venda fora dos canais" });
+    const antes = await estoque();
+    resultado = await lancamento.desfazerUltimoLancamento(itemId, { cliente: falso });
+    conferir("desfazer com o estoque ja vendido: recusa", [resultado.ok, /Já saíram/.test(resultado.erro ?? ""), await estoque()], [false, true, antes]);
+
+    // Bling recusa (codigo fora da trava): a entrada fica no Rise, pendente, e nada repete.
+    const travado = criarBlingFalso({ produtos: [noBling("ZZ-COMPRA-L1", 15000000901)], saldos: { "ZZ-COMPRA-L1": 5 }, codigosLiberados: ["OUTRO-CODIGO"] });
+    const segundo = await pedidoEnviado(3);
+    const estoqueAntes = await estoque();
+    resultado = await lancamento.lancarEstoqueDoItem(segundo.itemId, 3, { cliente: travado });
+    conferir("Bling recusa: lancado no Rise, aviso do Bling", [resultado.ok, resultado.bling?.ok, await estoque()], [true, false, estoqueAntes + 3]);
+    const pendente = await prisma.movimentoEstoque.findFirst({ where: { produtoId: produto.id }, orderBy: { criadoEm: "desc" } });
+    conferir("movimento fica pendente", pendente.enviadoAoBlingEm, null);
+    conferir("nenhum POST /estoques no Bling travado", travado.chamadas.filter((chamada) => chamada.metodo === "post").length, 0);
+
+    // Pedido em rascunho nao lanca.
+    const outroRascunho = await banco.adicionarAoPedido({ produtoId: produto.id, vinculoId: (await vincular(produto, await criarFornecedor("ZZ Compra Rascunho 2"))).id, quantidade: 2 });
+    const itemRascunho = await prisma.itemDoPedidoDeCompra.findFirst({ where: { pedidoId: outroRascunho.pedidoId } });
+    conferir("rascunho nao lanca", (await lancamento.lancarEstoqueDoItem(itemRascunho.id, 1, { cliente: falso })).ok, false);
+  }
+
   // Marcador: os blocos de banco seguintes entram acima desta linha.
 } finally {
   await limpar();
