@@ -410,10 +410,11 @@ try {
   {
     const { CARTOES_DE_CONFIGURACOES } = await import("../src/lib/configuracoes/catalogo.js");
     const { detalheDeUsuarios, detalheDeIntegracoes, detalheDoRiseAi } = await import("../src/lib/configuracoes/detalhes.js");
-    conferir("os quatro cartoes, cada um com o seu recurso (a Saude so para o Administrador)", CARTOES_DE_CONFIGURACOES.map((cartao) => [cartao.href, cartao.recurso]), [
+    conferir("os cinco cartoes, cada um com o seu recurso (Dados da empresa e Saude so para o Administrador)", CARTOES_DE_CONFIGURACOES.map((cartao) => [cartao.href, cartao.recurso]), [
       ["/configuracoes/usuarios", "tela.configuracoes.usuarios"],
       ["/integracoes", "tela.integracoes"],
       ["/rise-ai/configuracoes", "riseAi.configuracoes"],
+      ["/configuracoes/empresa", "tela.configuracoes.usuarios"],
       ["/configuracoes/saude", "tela.configuracoes.usuarios"],
     ]);
     conferir("usuarios e funcoes, no plural e no singular", [detalheDeUsuarios({ usuarios: 2, funcoes: 2 }), detalheDeUsuarios({ usuarios: 1, funcoes: 1 }), detalheDeUsuarios({ usuarios: 0, funcoes: 2 })], ["2 usuários · 2 funções", "1 usuário · 1 função", "0 usuários · 2 funções"]);

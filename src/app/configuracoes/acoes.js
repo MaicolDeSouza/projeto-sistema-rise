@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { carregarUsuario, excluirFuncao, historicoDoUsuario, salvarFuncao, salvarUsuario, verComo } from "@/lib/acessos/banco";
 import { definirSenha, removerLogin } from "@/lib/acessos/loginTinyauth";
 import { executarComAcesso } from "@/lib/acessos/servidor";
+import { salvarDadosDaEmpresa } from "@/lib/compras/empresa";
 import { ErroDeUso } from "@/lib/riseAi/erros";
 import { ambienteDoRise } from "@/lib/sessao";
 import { lerSegredo } from "@/lib/integracoes/conexoes";
@@ -177,5 +178,14 @@ export async function desvincularTelegramAcao(usuarioId) {
     await desvincular(String(usuarioId), { quem: acesso.login ?? "pc" });
     atualizarTelas();
     return {};
+  });
+}
+
+/** Dados da empresa (o cabecalho do pedido de compra). So o Administrador, como o resto da empresa. */
+export async function salvarDadosDaEmpresaAcao(dados) {
+  return executarComAcesso("tela.configuracoes.usuarios", "editar", async () => {
+    const resultado = await salvarDadosDaEmpresa(dados);
+    if (resultado.ok) revalidatePath("/configuracoes/empresa");
+    return resultado;
   });
 }

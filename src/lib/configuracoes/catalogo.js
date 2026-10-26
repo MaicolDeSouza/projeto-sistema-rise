@@ -1,4 +1,4 @@
-import { Cable, HeartPulse, Sparkles, UsersRound } from "lucide-react";
+import { Building2, Cable, HeartPulse, Sparkles, UsersRound } from "lucide-react";
 
 /**
  * Os cartoes da pagina Configuracoes (spec de Acessos, §5.2), no desenho de Ferramentas: o cartao inteiro e o link.
@@ -30,6 +30,14 @@ export const CARTOES_DE_CONFIGURACOES = [
     rotulo: "Rise AI",
     icone: Sparkles,
     resumo: "Modelos, chaves, limites e o texto do assistente.",
+  },
+  {
+    // Os dados da 4hobby do cabecalho do pedido de compra (modulo Compras, 26/10/2026). So o Administrador.
+    href: "/configuracoes/empresa",
+    recurso: "tela.configuracoes.usuarios",
+    rotulo: "Dados da empresa",
+    icone: Building2,
+    resumo: "Razão social, CNPJ e endereço que vão no pedido de compra.",
   },
   {
     // So o Administrador: mostra as travas e o estado das conexoes da conta inteira (recurso nao delegavel).

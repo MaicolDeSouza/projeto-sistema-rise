@@ -424,6 +424,24 @@ try {
     await arquivos.apagarPastaDoPedido(pedido.pedidoId);
   }
 
+  {
+    console.log("\nDados da empresa");
+    const empresa = await import("../src/lib/compras/empresa.js");
+    const original = await empresa.lerDadosDaEmpresa();
+    try {
+      conferir("semente da Receita", [original.cnpj, original.razaoSocial, original.cidade], ["30.010.376/0001-48", "Maicol de Souza", "Caxias do Sul"]);
+      const invalido = await empresa.salvarDadosDaEmpresa({ ...original, cnpj: "11.111.111/1111-11" });
+      conferir("CNPJ invalido recusado no campo", [invalido.ok, Boolean(invalido.erros?.cnpj)], [false, true]);
+      const semNome = await empresa.salvarDadosDaEmpresa({ ...original, razaoSocial: "  " });
+      conferir("razao social obrigatoria", Boolean(semNome.erros?.razaoSocial), true);
+      const salvo = await empresa.salvarDadosDaEmpresa({ ...original, cnpj: "30010376000148", telefone: "(54) 3284-1632", cep: "95090970" });
+      const lido = await empresa.lerDadosDaEmpresa();
+      conferir("grava CNPJ e CEP formatados, telefone em digitos", [salvo.ok, lido.cnpj, lido.cep, lido.telefone], [true, "30.010.376/0001-48", "95090-970", "5432841632"]);
+    } finally {
+      await prisma.dadosDaEmpresa.update({ where: { id: "empresa" }, data: { ...original, id: undefined, atualizadoEm: undefined } });
+    }
+  }
+
   // Marcador: os blocos de banco seguintes entram acima desta linha.
 } finally {
   await limpar();
