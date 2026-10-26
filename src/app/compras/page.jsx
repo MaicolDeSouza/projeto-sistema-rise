@@ -1,6 +1,7 @@
 import CartaoDeAtalho from "@/components/ui/CartaoDeAtalho";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
+import { contarAbaixoDoMinimo } from "@/lib/compras/banco";
 import { CARTOES_DE_COMPRAS } from "@/lib/compras/catalogo";
 
 export const metadata = { title: "Compras | Sistema Rise" };
@@ -10,7 +11,10 @@ export const dynamic = "force-dynamic";
 /** Le so o detalhe dos cartoes que a pessoa ve; um detalhe que falha nao derruba a pagina (o cartao fica sem ele). */
 async function detalhe(href) {
   try {
-    void href;
+    if (href === "/compras/estoque-minimo") {
+      const total = await contarAbaixoDoMinimo();
+      return total === 0 ? "Nada abaixo do mínimo" : `${total} ${total === 1 ? "produto" : "produtos"}`;
+    }
   } catch (erro) {
     console.error(`[compras] detalhe de ${href} não lido:`, erro?.message ?? erro);
   }
