@@ -136,6 +136,46 @@ conferir(
   [true, false, false, false],
 );
 
+{
+  console.log("\nPDF do pedido");
+  const { pdfDoPedido } = await import("../src/lib/compras/pdf.js");
+  const { PDFParse } = await import("pdf-parse");
+  const itensDoPdf = Array.from({ length: 60 }, (_, indice) => ({
+    id: `i${indice}`,
+    sku: `ZZ-COMPRA-SKU-${indice}`,
+    nome: `Produto do Rise ${indice}`,
+    nomeNoFornecedor: indice === 0 ? null : `Peça no fornecedor ${indice}`,
+    codigoNoFornecedor: `FORN-${indice}`,
+    quantidade: 10,
+    precoUnitario: 1.5,
+    ipiPercentual: indice % 2 ? 10 : 0,
+  }));
+  const pedidoDoPdf = {
+    numero: 7,
+    codigo: "PC-0007",
+    status: "ENVIADO",
+    enviadoEm: new Date("2026-10-26T15:00:00Z"),
+    criadoEm: new Date("2026-10-25T15:00:00Z"),
+    fornecedor: { nome: "Fornecedor Teste", cnpj: "17.142.314/0001-21", contato: "Fulano", telefone: "5432841632", email: "vendas@exemplo.com.br" },
+    itens: itensDoPdf,
+    icmsSt: 0, descontoTipo: "PERCENTUAL", descontoValor: 5, frete: 20,
+    formaPagamento: "BOLETO", parcelas: 3,
+    transportadora: null, transportadoraNome: "Transportes X", fretePorConta: "FOB",
+    propostaNumero: "4512", observacoes: "Entregar em horário comercial.",
+  };
+  const empresaDoPdf = { razaoSocial: "Maicol de Souza", nomeFantasia: "4Hobby", cnpj: "30.010.376/0001-48", endereco: "Estrada Municipal Domingos Forner", numero: "2135", bairro: "Galópolis", cidade: "Caxias do Sul", uf: "RS", cep: "95090-970", telefone: "5432841632" };
+  const bytes = await pdfDoPedido(pedidoDoPdf, empresaDoPdf);
+  conferir("PDF valido", bytes.subarray(0, 5).toString("latin1"), "%PDF-");
+  const leitor = new PDFParse({ data: new Uint8Array(bytes) });
+  const { text, total } = await leitor.getText();
+  await leitor.destroy?.();
+  conferir("mais de uma pagina", (total ?? 0) >= 2, true);
+  conferir("numero, CNPJ da 4hobby e codigo no fornecedor", [text.includes("PC-0007"), text.includes("30.010.376/0001-48"), text.includes("FORN-59")], [true, true, true]);
+  conferir("sem nome no fornecedor usa o nome do Rise", text.includes("Produto do Rise 0"), true);
+  conferir("nunca o SKU do Rise", text.includes("ZZ-COMPRA-SKU"), false);
+  conferir("pagamento, frete e proposta", [text.includes("Boleto em 3x"), /destinat[aá]rio \(FOB\)/.test(text), text.includes("4512")], [true, true, true]);
+}
+
 // ---------------------------------------------------------------------------
 // Banco (Postgres local). Tudo o que e criado leva ZZ-COMPRA / "ZZ Compra" e sai no comeco e no fim.
 // ---------------------------------------------------------------------------

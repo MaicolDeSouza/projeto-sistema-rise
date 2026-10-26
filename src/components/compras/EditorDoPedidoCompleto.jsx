@@ -8,6 +8,7 @@ import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
 import { todosLancados } from "@/lib/compras/regras";
 import ArquivoDaProposta from "./ArquivoDaProposta";
 import CelulaDeLancamento from "./CelulaDeLancamento";
+import LinkDoPdf from "./LinkDoPdf";
 import EditorPedido from "./EditorPedido";
 import Pergunta from "./Pergunta";
 import PopupLancarEstoque from "./PopupLancarEstoque";
@@ -38,6 +39,7 @@ export default function EditorDoPedidoCompleto({ pedidoInicial, transportadoras,
 
   const extras = {
     arquivoDaProposta: (props) => <ArquivoDaProposta {...props} />,
+    linkDoPdf: (props) => <LinkDoPdf {...props} />,
     colunaDeChegada: (item, { pedido, aplicar, alterado }) => (
       <CelulaDeLancamento
         item={item}
