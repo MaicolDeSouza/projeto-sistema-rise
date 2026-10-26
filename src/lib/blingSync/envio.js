@@ -15,6 +15,7 @@ import { montarCorpoDeCadastro, montarCorpoDeFotos, montarCorpoParcial } from "@
 import { fotosDoBling, fotosDoRise, md5DasFotosDoBling, md5DasFotosDoRise, planoDasFotos } from "@/lib/blingSync/fotos";
 import { config } from "@/lib/integracoes/config";
 import { buscarNoBling, codigosDasPecasNoBling, lerProdutoDoRise } from "@/lib/blingSync/leitura";
+import { iniciarProgresso } from "@/lib/blingSync/progresso";
 import { lerSaldosDoBling } from "@/lib/blingSync/saldos";
 import { prisma } from "@/lib/db";
 
@@ -626,13 +627,18 @@ export async function sincronizarProduto(produtoId, cliente = clienteBling(), de
   const falhou = (erro) => ({ ok: false, erro, ...saida });
 
   return umPorVez(produtoId, falhou, async () => {
+    // O popup de andamento da janela do Bling le estas marcas (`progresso.js`); nao mudam o envio.
+    const progresso = iniciarProgresso(produtoId, "sincronizar");
     try {
+      progresso.andando("permissao");
       const produto = await lerDoRise(produtoId);
       const sku = produto.sku;
       saida.fornecedores.avisos = avisosSemCnpj(produto);
 
       exigirEscrita(cliente, sku);
+      progresso.feita("permissao");
 
+      progresso.andando("ler");
       const achado = await buscar(cliente, sku);
       // A busca so ve ativos: o codigo pode estar inativo no Bling, e cadastrar de novo o duplicaria.
       if (achado.situacao === "nao_existe") {
@@ -660,7 +666,9 @@ export async function sincronizarProduto(produtoId, cliente = clienteBling(), de
 
       // As fotos: decide antes de escrever (foto sumida do disco recusa tudo, sem mexer no Bling).
       const planoDasFotos = await prepararFotos(produto, achado.produto, dependencias);
+      progresso.feita("ler");
 
+      progresso.andando("campos");
       if (mudaram.length > 0) {
         const corpo = montarCorpoParcial(achado.produto, campos, mudaram.map((diferenca) => diferenca.campo), { pecasNoBling });
         if ("nome" in corpo) exigirNomeNoLimite(corpo.nome);
@@ -668,19 +676,28 @@ export async function sincronizarProduto(produtoId, cliente = clienteBling(), de
         saida.alterados = mudaram.map((diferenca) => ({ campo: diferenca.campo, de: diferenca.bling, para: diferenca.rise }));
         await gravarCopia(produto.id, achado.produto, saida.alterados);
       }
+      progresso.feita("campos", mudaram.length > 0 ? `${mudaram.length} campo(s)` : "nada mudou");
 
+      progresso.andando("fotos");
       const fotos = await executarFotosDoEnvio(cliente, achado.id, planoDasFotos, saida, dependencias);
       if (fotos.aviso) saida.aviso = fotos.aviso;
+      progresso.feita("fotos", saida.fotos?.enviadas > 0 ? `${saida.fotos.enviadas} foto(s)` : "já iguais");
 
+      progresso.andando("fornecedores");
       const fornecedores = normalizarFornecedoresDoRise(produto.fornecedores);
       const envio = await enviarFornecedores(cliente, achado.id, fornecedores);
       saida.fornecedores.enviados = envio.enviados;
       if (envio.falhas.length) throw falhaDosFornecedores(envio.falhas);
 
       await gravarSincronizado(produto, campos, fornecedores);
+      progresso.feita("fornecedores", envio.enviados > 0 ? `${envio.enviados} fornecedor(es)` : "nada a enviar");
       return { ok: true, ...saida };
     } catch (erro) {
-      return falhou(textoDaFalha(erro));
+      const motivo = textoDaFalha(erro);
+      progresso.falhou(motivo);
+      return falhou(motivo);
+    } finally {
+      progresso.fim();
     }
   });
 }
@@ -753,12 +770,16 @@ export async function cadastrarNoBling(produtoId, cliente = clienteBling(), depe
 
   return umPorVez(produtoId, falhou, async () => {
     let blingId = null;
+    const progresso = iniciarProgresso(produtoId, "cadastrar");
     try {
+      progresso.andando("permissao");
       const produto = await lerDoRise(produtoId);
       const sku = produto.sku;
 
       exigirEscrita(cliente, sku);
+      progresso.feita("permissao");
 
+      progresso.andando("ler");
       const achado = await buscar(cliente, sku);
       if (achado.situacao === "existe") throw new FalhaDoEnvio(`O produto ${sku} já existe no Bling; use Sincronizar.`);
       if (achado.situacao === "duplicado") throw recusaPorDuplicado(sku, achado.quantidade);
@@ -776,7 +797,9 @@ export async function cadastrarNoBling(produtoId, cliente = clienteBling(), depe
 
       // As fotos: decide antes do POST (foto sumida do disco recusa o cadastro, sem criar nada).
       const planoDasFotos = await prepararFotos(produto, null, dependencias);
+      progresso.feita("ler");
 
+      progresso.andando("cadastrar");
       const criado =await escrever(() => cliente.post("/produtos", montarCorpoDeCadastro(sku, campos, { pecasNoBling })), "o cadastro do produto");
       blingId = idOuNull(criado.dados?.data?.id);
       if (!blingId) {
@@ -793,22 +816,32 @@ export async function cadastrarNoBling(produtoId, cliente = clienteBling(), depe
         throw new FalhaDoEnvio(`O produto foi cadastrado no Bling (id ${blingId}), mas foi alterado no Rise durante o envio e o id não foi gravado. Use Sincronizar.`);
       }
 
+      progresso.feita("cadastrar", `id ${blingId}`);
+
       const saida = {};
+      progresso.andando("fotos");
       try {
         const fotos = await executarFotosDoEnvio(cliente, blingId, planoDasFotos, saida, dependencias);
         if (fotos.aviso) saida.aviso = fotos.aviso;
       } catch (erro) {
         throw new FalhaDoEnvio(`O produto foi cadastrado no Bling (id ${blingId}), mas as fotos não foram enviadas: ${textoDaFalha(erro)} Use Sincronizar.`);
       }
+      progresso.feita("fotos", saida.fotos?.enviadas > 0 ? `${saida.fotos.enviadas} foto(s)` : "sem fotos");
 
+      progresso.andando("fornecedores");
       const fornecedores = normalizarFornecedoresDoRise(produto.fornecedores);
       const envio = await enviarFornecedores(cliente, blingId, fornecedores);
       if (envio.falhas.length) throw falhaDosFornecedores(envio.falhas, `O produto foi cadastrado no Bling (id ${blingId}), mas `);
 
       await gravarSincronizado(produto, campos, fornecedores);
+      progresso.feita("fornecedores", envio.enviados > 0 ? `${envio.enviados} fornecedor(es)` : "nada a enviar");
       return { ok: true, blingId, ...saida };
     } catch (erro) {
-      return falhou(textoDaFalha(erro), blingId);
+      const motivo = textoDaFalha(erro);
+      progresso.falhou(motivo);
+      return falhou(motivo, blingId);
+    } finally {
+      progresso.fim();
     }
   });
 }

@@ -3812,6 +3812,23 @@ novo"; pedido do dono no mesmo dia: nada de Fotos nem Estoque): só com divergê
 `BarraDeAbas` do editor da LI) e, nela, os campos "diferente", as Fotos só se diferem, os Fornecedores e o Estoque só se há ajuste
 pendente (`contarDivergencias`; "só tem no Bling" não conta). Avisos reais da leitura continuam aparecendo.
 
+**Popup de etapas do Sincronizar e do Cadastrar** (pedido do dono em 26/10/2026, desenho aprovado por ele: "um popup mostrando cada
+etapa e um check conforme for finalizando, no final um botão Fechar que fecha os popups"; `AndamentoDoEnvio.jsx`, o estoque segue
+com o aviso `ConclusaoDoEnvio`). Etapas na ordem real do envio (`ETAPAS_DO_ENVIO`, em `apresentacao.js`): Conferir permissão de envio,
+Ler o produto no Bling (no Cadastrar, "Conferir o código no Bling"), Enviar os campos (no Cadastrar, "Cadastrar o produto"), Enviar as
+fotos, Enviar os fornecedores e Conferir o resultado no Bling (a releitura da tela). Check verde, círculo girando na atual, cinza nas
+que esperam e X vermelho com o motivo na que falhou. **Deu certo:** título verde, resumo e **Fechar** (fecha o popup e a janela do Bling).
+**Falhou:** "Voltar à janela" fecha só o popup, e o erro continua em vermelho na janela. Enquanto roda, Esc e clique fora não fecham.
+- **O andamento vem do servidor por uma ROTA, não por Server Action** (`/api/bling/progresso/<id>`, `progresso.js`): as Server Actions
+  rodam uma de cada vez e a consulta esperaria o envio acabar. `sincronizarProduto` e `cadastrarNoBling` marcam cada etapa
+  (`iniciarProgresso`, na MEMÓRIA do processo em `globalThis`, 15 min de validade; nada vai ao banco), e a tela consulta a cada 400 ms.
+  Cada envio tem um número e a tela só confia no de número maior que o de antes de enviar (o de um envio anterior fica na memória, e uma
+  ação recusada antes de começar nunca abre o dela). A rota exige `acao.produtos.sincronizarBling` em executar.
+- **A ordem de "fotos" e "fornecedores" é a do envio de verdade** (fotos primeiro), e não a do desenho. Testes: 3 asserções no
+  `teste:bling-sync` (andamento do sucesso, da falha e sem envio). **Visto na tela:** os três estados do popup numa página de
+  demonstração (apagada depois) e a rota respondendo. **NÃO visto:** o envio de verdade pela janela (clicar em Sincronizar escreve no
+  Bling; o PC tem a trava fechada, e o clique foi barrado nesta sessão): o dono vê no primeiro Sincronizar da VPS.
+
 **Custo:** abrir a janela de um produto com foto baixa as fotos do Bling uma vez (md5; ~250 KB cada) e as do Rise
 vêm do disco; depois fica na memória do processo (teto de 2.000 por lado).
 

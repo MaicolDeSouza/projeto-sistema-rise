@@ -11,8 +11,9 @@ import {
 } from "@/app/produtos/acoes-bling";
 import { BarraDeAbas } from "@/components/cadastros/Abas";
 import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
-import { mudouNoBling, resumirEnvio, valorParaTela } from "@/lib/blingSync/apresentacao";
+import { ETAPAS_DO_ENVIO, mudouNoBling, resumirEnvio, valorParaTela } from "@/lib/blingSync/apresentacao";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
+import AndamentoDoEnvio from "./AndamentoDoEnvio";
 
 /**
  * Janela aberta pelo icone do Bling na lista de Produtos: o que o Bling tem sob o codigo do produto,
@@ -52,6 +53,57 @@ async function chamar(acao, argumentos, escreve) {
         ? "A resposta do servidor se perdeu. O Bling pode ter recebido o envio: confira no Bling antes de tentar de novo."
         : "Não foi possível falar com o servidor. Tente de novo.",
     };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// O popup de etapas do Sincronizar e do Cadastrar (`AndamentoDoEnvio`)
+// ---------------------------------------------------------------------------
+
+/// Os envios que mostram as etapas; o do estoque e um passo so e segue com o aviso de conclusao.
+const ENVIOS_COM_ETAPAS = new Set(["sincronizar", "cadastrar"]);
+
+/// Todas as etapas esperando, com a primeira ja andando (o servidor so marca a dele alguns milissegundos depois).
+function etapasIniciais(tipo) {
+  return ETAPAS_DO_ENVIO[tipo].map((etapa, indice) => ({ ...etapa, estado: indice === 0 ? "andando" : "espera", detalhe: null }));
+}
+
+/// O estado que o servidor marcou, por cima das etapas da tela. Entre uma etapa terminar e a outra comecar passam milissegundos
+/// sem ninguem "andando": nesses instantes a primeira que falta fica andando, para o circulo nao piscar.
+function mesclarEtapas(etapas, doServidor) {
+  const porId = new Map(doServidor.map((etapa) => [etapa.id, etapa]));
+  const mescladas = etapas.map((etapa) => {
+    const lida = porId.get(etapa.id);
+    return lida ? { ...etapa, estado: lida.estado, detalhe: lida.detalhe } : etapa;
+  });
+  if (mescladas.some((etapa) => etapa.estado === "andando" || etapa.estado === "falhou")) return mescladas;
+  const proxima = mescladas.findIndex((etapa) => etapa.estado === "espera");
+  return mescladas.map((etapa, indice) => (indice === proxima ? { ...etapa, estado: "andando" } : etapa));
+}
+
+/// Fecha as etapas com o que a acao devolveu. Deu certo: as do servidor ficam todas concluidas. Falhou: a que o servidor marcou
+/// como falha leva o motivo; sem marca (a acao foi recusada antes de comecar, ou caiu por fora), a que estava andando falha.
+function etapasComOResultado(etapas, resultado) {
+  if (resultado.ok === true) return etapas.map((etapa) => (etapa.id === "conferir" ? etapa : { ...etapa, estado: "feito" }));
+  if (etapas.some((etapa) => etapa.estado === "falhou")) {
+    return etapas.map((etapa) => (etapa.estado === "falhou" && !etapa.detalhe ? { ...etapa, detalhe: resultado.erro ?? "O envio não foi concluído." } : etapa));
+  }
+  const andando = etapas.findIndex((etapa) => etapa.estado === "andando");
+  const alvo = andando >= 0 ? andando : Math.max(0, etapas.findIndex((etapa) => etapa.estado !== "feito"));
+  return etapas.map((etapa, indice) => {
+    if (indice === alvo) return { ...etapa, estado: "falhou", detalhe: resultado.erro ?? "O envio não foi concluído." };
+    return etapa.estado === "andando" ? { ...etapa, estado: "espera" } : etapa;
+  });
+}
+
+/// O andamento que o servidor guardou, ou null (rota fora do ar, sem acesso, nada aberto). So le a memoria do servidor.
+async function lerAndamentoNoServidor(produtoId) {
+  try {
+    const resposta = await fetch(`/api/bling/progresso/${encodeURIComponent(produtoId)}`, { cache: "no-store" });
+    if (!resposta.ok) return null;
+    return (await resposta.json()).progresso ?? null;
+  } catch {
+    return null;
   }
 }
 
@@ -359,6 +411,8 @@ export default function JanelaBling({ produto, aoFechar }) {
   const [envio, setEnvio] = useState(null);
   // O aviso de conclusao (popup com OK) de um envio que deu certo; `null` = nenhum aberto.
   const [conclusao, setConclusao] = useState(null);
+  // O popup de etapas do Sincronizar e do Cadastrar: `{ tipo, etapas, fim, resumo, aviso }`; `null` = fechado.
+  const [andamento, setAndamento] = useState(null);
   // O Bling tem mais de um deposito e nenhum padrao: `{lista, motivo}` ate o operador escolher.
   const [depositos, setDepositos] = useState(null);
   const [deposito, setDeposito] = useState(null);
@@ -414,12 +468,42 @@ export default function JanelaBling({ produto, aoFechar }) {
     setQual(tipo);
     const rotulos = Object.fromEntries((leitura?.diferencas ?? []).map((item) => [item.campo, item.rotulo]));
 
+    // Sincronizar e Cadastrar abrem o popup de etapas e o mantem em dia lendo o andamento do servidor (uma rota, e nao uma
+    // Server Action: as acoes rodam uma de cada vez e a consulta esperaria o envio acabar). So vale o andamento de um envio
+    // NOVO (numero maior que o de antes de enviar): o de um envio anterior fica na memoria ate o servidor abrir o novo, e uma
+    // acao recusada antes de comecar nunca abre o dela.
+    const comEtapas = ENVIOS_COM_ETAPAS.has(tipo);
+    if (comEtapas) setAndamento({ tipo, etapas: etapasIniciais(tipo), fim: null, resumo: null, aviso: null });
+    let relogio = null;
+
     iniciarTransicao(async () => {
       try {
+        let numeroDeAntes = 0;
+        if (comEtapas) {
+          numeroDeAntes = (await lerAndamentoNoServidor(produto.id))?.numero ?? 0;
+          relogio = setInterval(async () => {
+            const lido = await lerAndamentoNoServidor(produto.id);
+            if (!lido || lido.numero <= numeroDeAntes || lido.terminou || !montada.current) return;
+            setAndamento((atual) => (atual && !atual.fim ? { ...atual, etapas: mesclarEtapas(atual.etapas, lido.etapas) } : atual));
+          }, 400);
+        }
         const resultado = await executar();
         const resumo = resumirEnvio(tipo, resultado, rotulos);
         const aviso = resultado.aviso ?? null;
-        if (resultado.ok === true) {
+        if (relogio) {
+          clearInterval(relogio);
+          relogio = null;
+          // A ultima palavra e a do servidor: o andamento final (com o envio terminado) e o resultado da acao.
+          const final = await lerAndamentoNoServidor(produto.id);
+          if (montada.current) {
+            setAndamento((atual) => {
+              if (!atual) return atual;
+              const base = final && final.numero > numeroDeAntes ? mesclarEtapas(atual.etapas, final.etapas) : atual.etapas;
+              return { ...atual, etapas: etapasComOResultado(base, resultado) };
+            });
+          }
+        }
+        if (resultado.ok === true && !comEtapas) {
           // Deu certo: o popup com OK conta o que foi feito (pedido do dono em 14/10/2026). A falha, ou o que foi
           // enviado antes dela, continua no quadro da janela, onde o operador a le enquanto decide.
           setConclusao({
@@ -428,7 +512,7 @@ export default function JanelaBling({ produto, aoFechar }) {
             linhas: resumo?.linhas ?? [],
             aviso,
           });
-        } else {
+        } else if (resultado.ok !== true) {
           setEnvio(resumo || aviso ? { ok: false, titulo: resumo?.titulo ?? null, linhas: resumo?.linhas ?? [], aviso } : null);
         }
 
@@ -442,11 +526,35 @@ export default function JanelaBling({ produto, aoFechar }) {
           }
         }
 
-        if (mudouNoBling(tipo, resultado)) {
+        // A ultima etapa do popup e a releitura do Bling (so quando o envio mexeu la): "Conferir o resultado no Bling".
+        const releu = mudouNoBling(tipo, resultado);
+        if (comEtapas && releu && resultado.ok === true) {
+          setAndamento((atual) => (atual ? { ...atual, etapas: atual.etapas.map((etapa) => (etapa.id === "conferir" ? { ...etapa, estado: "andando" } : etapa)) } : atual));
+        }
+        if (releu) {
           setQual("lendo");
           setLeitura(await chamar(abrirJanelaBling, [produto.id], false));
         }
+
+        // O fim do popup so depois da releitura: o "Fechar" nao pode aparecer com a janela de tras ainda velha.
+        if (comEtapas && montada.current) {
+          const deuCerto = resultado.ok === true;
+          setAndamento((atual) =>
+            atual
+              ? {
+                  ...atual,
+                  etapas: deuCerto ? atual.etapas.map((etapa) => (etapa.id === "conferir" ? { ...etapa, estado: "feito" } : etapa)) : atual.etapas,
+                  fim: deuCerto ? "ok" : "falhou",
+                  resumo,
+                  aviso,
+                }
+              : atual,
+          );
+        }
       } finally {
+        if (relogio) clearInterval(relogio);
+        // Rede de seguranca: se algo inesperado cortou o caminho de cima, o popup nao fica girando para sempre.
+        if (comEtapas && montada.current) setAndamento((atual) => (atual && !atual.fim ? { ...atual, fim: "falhou" } : atual));
         setQual(null);
       }
     });
@@ -735,6 +843,20 @@ export default function JanelaBling({ produto, aoFechar }) {
       </section>
 
       {conclusao && <ConclusaoDoEnvio {...conclusao} aoFechar={() => setConclusao(null)} />}
+
+      {/* O andamento do Sincronizar e do Cadastrar: "Fechar" (deu certo) fecha este popup e a janela; "Voltar à janela" (falhou) so este. */}
+      {andamento && (
+        <AndamentoDoEnvio
+          tipo={andamento.tipo}
+          sku={produto.sku}
+          etapas={andamento.etapas}
+          fim={andamento.fim}
+          resumo={andamento.resumo}
+          aviso={andamento.aviso}
+          aoFechar={aoFechar}
+          aoVoltar={() => setAndamento(null)}
+        />
+      )}
     </div>
   );
 }

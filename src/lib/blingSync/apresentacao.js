@@ -16,6 +16,31 @@
 /// lote que falha geraria 100 linhas iguais, e a tela nao e lugar de despejar um log.
 export const LIMITE_DE_FALHAS_VISIVEIS = 10;
 
+/**
+ * As etapas que o popup de andamento mostra no Sincronizar e no Cadastrar (pedido do dono em 26/10/2026: "um popup
+ * mostrando cada etapa e um check conforme for finalizando"). A ordem e a do envio de verdade. O servidor marca as
+ * etapas dele em `progresso.js` (a tela as le por uma rota, porque as Server Actions rodam uma de cada vez e uma
+ * consulta por ela esperaria o envio acabar); "conferir" e da tela: e a releitura do Bling depois do envio.
+ */
+export const ETAPAS_DO_ENVIO = {
+  sincronizar: [
+    { id: "permissao", rotulo: "Conferir permissão de envio" },
+    { id: "ler", rotulo: "Ler o produto no Bling" },
+    { id: "campos", rotulo: "Enviar os campos" },
+    { id: "fotos", rotulo: "Enviar as fotos" },
+    { id: "fornecedores", rotulo: "Enviar os fornecedores" },
+    { id: "conferir", rotulo: "Conferir o resultado no Bling" },
+  ],
+  cadastrar: [
+    { id: "permissao", rotulo: "Conferir permissão de envio" },
+    { id: "ler", rotulo: "Conferir o código no Bling" },
+    { id: "cadastrar", rotulo: "Cadastrar o produto" },
+    { id: "fotos", rotulo: "Enviar as fotos" },
+    { id: "fornecedores", rotulo: "Enviar os fornecedores" },
+    { id: "conferir", rotulo: "Conferir o resultado no Bling" },
+  ],
+};
+
 /// Quanto de um valor entra numa frase ("de X para Y"): a descricao de um produto tem milhares de
 /// caracteres, e a lista completa de diferencas ja esta na janela.
 const LIMITE_DO_VALOR_NA_FRASE = 60;

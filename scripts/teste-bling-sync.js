@@ -39,6 +39,7 @@ const { gravarAjusteDeEstoque } = await import("../src/lib/ajusteRapido.js");
 const { config, separarLista } = await import("../src/lib/integracoes/config.js");
 const { blingGet, blingPatch, blingPost, blingPut, urlDoBling } = await import("../src/lib/integracoes/bling.js");
 const { clienteBling, exigirCodigoLiberado } = await import("../src/lib/blingSync/cliente.js");
+const { lerProgresso } = await import("../src/lib/blingSync/progresso.js");
 const { buscarNoBling, lerParaPopup, lerProdutoDoRise } = await import("../src/lib/blingSync/leitura.js");
 const { cadastrarNoBling, enviarAjustesDeEstoque, enviarCustoDoFornecedor, sincronizarProduto } = await import("../src/lib/blingSync/envio.js");
 const { produtosEmDiaComOBling, enviarCustosAoBling } = await import("../src/lib/blingSync/custosDaVarredura.js");
@@ -1654,6 +1655,28 @@ try {
         { cor: "verde", divergente: false, motivos: [] },
       );
       conferir("sem diferenca: nenhuma copia de seguranca (nada mudou no Bling)", (await copiasDe(produto.id)).length, 0);
+
+      // O andamento que o popup de etapas le (`progresso.js`): todas concluidas, com o detalhe de cada uma.
+      const andamento = lerProgresso(produto.id);
+      conferir(
+        "andamento: sincronizar sem diferenca fecha todas as etapas do servidor, terminou, e diz o que nao precisou enviar",
+        [andamento.tipo, andamento.terminou, andamento.etapas.map((etapa) => `${etapa.id}:${etapa.estado}:${etapa.detalhe ?? ""}`)],
+        ["sincronizar", true, ["permissao:feito:", "ler:feito:", "campos:feito:nada mudou", "fotos:feito:já iguais", "fornecedores:feito:nada a enviar"]],
+      );
+    }
+
+    // --- O andamento de uma sincronizacao que FALHA: a etapa marcada e a que parou, as seguintes ficam esperando ---
+    {
+      const produto = await criarNoRise("ZZ-BS-E1F");
+      const falso = novoFalso({ produtos: [] });
+      const resultado = await sincronizarProduto(produto.id, falso);
+      const andamento = lerProgresso(produto.id);
+      conferir(
+        "andamento: codigo que nao existe no Bling para na etapa de ler, com o motivo, e as demais esperam",
+        [resultado.ok, andamento.terminou, andamento.etapas.map((etapa) => `${etapa.id}:${etapa.estado}`), andamento.etapas[1].detalhe === resultado.erro],
+        [false, true, ["permissao:feito", "ler:falhou", "campos:espera", "fotos:espera", "fornecedores:espera"], true],
+      );
+      conferir("andamento: produto sem envio aberto nao tem andamento", lerProgresso("nao-existe"), null);
     }
 
     // --- Preço diferente: PATCH so com o preco, no id da busca, e copia de seguranca ---
