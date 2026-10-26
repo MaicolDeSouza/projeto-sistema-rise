@@ -396,6 +396,34 @@ try {
     conferir("rascunho nao lanca", (await lancamento.lancarEstoqueDoItem(itemRascunho.id, 1, { cliente: falso })).ok, false);
   }
 
+  {
+    console.log("\nProposta do fornecedor (arquivo)");
+    await limpar();
+    const { existsSync } = await import("node:fs");
+    const { randomUUID } = await import("node:crypto");
+    const arquivos = await import("../src/lib/compras/arquivos.js");
+    const fornecedor = await criarFornecedor("ZZ Compra Proposta");
+    const pedido = await banco.criarPedido(fornecedor.id);
+    const lote = randomUUID();
+
+    const pdf = new File([Buffer.from("%PDF-1.4\n% teste\n")], "Orçamento 123.pdf", { type: "application/pdf" });
+    const falso = new File([Buffer.from("isto nao e pdf")], "x.pdf", { type: "application/pdf" });
+    conferir("texto com nome .pdf recusado", (await arquivos.guardarPropostaTemporaria(lote, falso)).ok, false);
+    conferir("lote invalido recusado", (await arquivos.guardarPropostaTemporaria("../../x", pdf)).ok, false);
+
+    const enviado = await arquivos.guardarPropostaTemporaria(lote, pdf);
+    conferir("pdf aceito no lote", [enviado.ok, enviado.nomeOriginal], [true, "Orçamento 123.pdf"]);
+    await banco.salvarPedido(pedido.pedidoId, { propostaTemporaria: { lote, nome: enviado.nome, nomeOriginal: enviado.nomeOriginal } });
+    let lido = await banco.lerPedido(pedido.pedidoId);
+    const caminho = arquivos.caminhoDaPropostaDoPedido(pedido.pedidoId, lido.propostaArquivo);
+    conferir("proposta no pedido, arquivo no disco", [lido.propostaNomeOriginal, existsSync(caminho)], ["Orçamento 123.pdf", true]);
+
+    await banco.salvarPedido(pedido.pedidoId, { removerProposta: true });
+    lido = await banco.lerPedido(pedido.pedidoId);
+    conferir("remover apaga linha e arquivo", [lido.propostaArquivo, existsSync(caminho)], [null, false]);
+    await arquivos.apagarPastaDoPedido(pedido.pedidoId);
+  }
+
   // Marcador: os blocos de banco seguintes entram acima desta linha.
 } finally {
   await limpar();

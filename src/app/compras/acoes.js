@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { negarSemAcesso, negarSemAcessos, podeAgora } from "@/lib/acessos/servidor";
+import { guardarPropostaTemporaria } from "@/lib/compras/arquivos";
 import { desfazerUltimoLancamento, lancarEstoqueDoItem, reenviarPendentes } from "@/lib/compras/lancamento";
 import {
   adicionarAoPedido,
@@ -142,4 +143,11 @@ export async function reenviarAoBlingAcao(produtoId, depositoId = null) {
   const negado = await negarSemAcessos(...PODE_LANCAR);
   if (negado) return negado;
   return reenviarPendentes(String(produtoId ?? ""), depositoId);
+}
+
+/** Envio do arquivo da proposta para o lote temporario (o Salvar do pedido o leva para a pasta dele). */
+export async function enviarPropostaAcao(formData) {
+  const negado = await negarSemAcesso("tela.compras.pedidos", "editar");
+  if (negado) return negado;
+  return guardarPropostaTemporaria(String(formData?.get("lote") ?? ""), formData?.get("arquivo"));
 }

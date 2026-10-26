@@ -14,6 +14,7 @@ import {
   totaisDoPedido,
 } from "@/lib/compras/regras";
 import { conferirPedido } from "@/lib/compras/esquema";
+import { apagarPropostaDoPedido, moverPropostaParaPedido } from "@/lib/compras/arquivos";
 
 /**
  * Banco do modulo Compras (spec 2026-10-26-modulo-compras-design.md). Sem conferencia de acesso: quem chama (as
@@ -540,15 +541,34 @@ export async function salvarPedido(id, entrada) {
   const conferido = conferirPedido(entrada);
   if (!conferido.ok) return conferido;
   const { dados, desconto } = conferido;
+  const pedidoId = String(id ?? "");
 
+  // A proposta nova sai do lote ANTES da transacao (nome novo, nunca sobrescreve); a antiga so e apagada depois do commit.
+  let propostaNova = null;
+  const temporaria = entrada?.propostaTemporaria;
+  if (temporaria?.nome) {
+    try {
+      propostaNova = { nome: await moverPropostaParaPedido(pedidoId, temporaria.lote, temporaria.nome), nomeOriginal: temporaria.nomeOriginal ?? null };
+    } catch (erro) {
+      return { ok: false, erro: `Não foi possível guardar a proposta: ${erro.message}` };
+    }
+  }
+  const removerProposta = entrada?.removerProposta === true;
+
+  let propostaAntiga = null;
   try {
-    return await prisma.$transaction(async (tx) => {
-      const [linha] = await tx.$queryRaw`SELECT "status"::text AS "status" FROM "PedidoDeCompra" WHERE "id" = ${String(id ?? "")} FOR UPDATE`;
+    const resultado = await prisma.$transaction(async (tx) => {
+      const [linha] = await tx.$queryRaw`SELECT "status"::text AS "status", "propostaArquivo" FROM "PedidoDeCompra" WHERE "id" = ${pedidoId} FOR UPDATE`;
       if (!linha) return { ok: false, erro: "Pedido não encontrado." };
       if (["FINALIZADO", "CANCELADO"].includes(linha.status)) return { ok: false, erro: "Pedido fechado: não muda mais." };
       const rascunho = linha.status === "RASCUNHO";
 
       const pedido = {};
+      if (propostaNova || removerProposta) {
+        propostaAntiga = linha.propostaArquivo;
+        pedido.propostaArquivo = propostaNova?.nome ?? null;
+        pedido.propostaNomeOriginal = propostaNova?.nomeOriginal ?? null;
+      }
       const definir = (campo, valor) => {
         if (valor !== undefined) pedido[campo] = valor;
       };
@@ -599,7 +619,16 @@ export async function salvarPedido(id, entrada) {
       }
       return { ok: true };
     });
+    if (!resultado.ok) {
+      if (propostaNova) await apagarPropostaDoPedido(pedidoId, propostaNova.nome).catch(() => {});
+      return resultado;
+    }
+    if (propostaAntiga && propostaAntiga !== propostaNova?.nome) {
+      await apagarPropostaDoPedido(pedidoId, propostaAntiga).catch((erro) => console.error("[compras] proposta antiga não apagada:", erro.message));
+    }
+    return resultado;
   } catch (erro) {
+    if (propostaNova) await apagarPropostaDoPedido(pedidoId, propostaNova.nome).catch(() => {});
     return { ok: false, erro: `Não foi possível salvar: ${erro.message}` };
   }
 }

@@ -234,7 +234,7 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
           <BlocoPagamento formulario={formulario} editar={rascunho} erros={erros} aoMudar={mudar} />
           <BlocoFrete formulario={formulario} transportadoras={transportadoras} editar={!fechado} aoMudar={mudar} />
           <BlocoProposta formulario={formulario} editar={!fechado} aoMudar={mudar}>
-            {extras.arquivoDaProposta?.({ pedido, editar: !fechado })}
+            {extras.arquivoDaProposta?.({ pedido, editar: !fechado, formulario, mudar })}
           </BlocoProposta>
           <BlocoObservacoes formulario={formulario} editar={!fechado} aoMudar={mudar} />
         </div>

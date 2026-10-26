@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { desfazerLancamentoAcao, mudarStatusAcao, reenviarAoBlingAcao } from "@/app/compras/acoes";
 import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
 import { todosLancados } from "@/lib/compras/regras";
+import ArquivoDaProposta from "./ArquivoDaProposta";
 import CelulaDeLancamento from "./CelulaDeLancamento";
 import EditorPedido from "./EditorPedido";
 import Pergunta from "./Pergunta";
@@ -36,6 +37,7 @@ export default function EditorDoPedidoCompleto({ pedidoInicial, transportadoras,
   }
 
   const extras = {
+    arquivoDaProposta: (props) => <ArquivoDaProposta {...props} />,
     colunaDeChegada: (item, { pedido, aplicar, alterado }) => (
       <CelulaDeLancamento
         item={item}
