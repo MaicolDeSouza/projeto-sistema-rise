@@ -83,7 +83,10 @@ export function seguidasComDiferenca(anteriores, doCanal, doBling) {
  * pausado. `relacionados` sao os itens ligados ja lidos (o `body` do lote).
  */
 export function catalogoDoItem(item, relacionados = []) {
-  if (typeof item?.catalog_product_id === "string" && item.catalog_product_id) return item.catalog_product_id;
+  // So conta com `catalog_listing: true` (medido em 26/10/2026 no MLB5461526965, do 100111): o ML poe o `catalog_product_id`
+  // em anuncio que ele so IDENTIFICOU com um produto de catalogo (a ficha), com `catalog_listing: false`, e o anuncio nao
+  // concorre ali (o catalogo MLB49572808 nem tinha anuncios). Contar so pelo id mostrava ao dono um catalogo "dele" vazio.
+  if (item?.catalog_listing === true && typeof item?.catalog_product_id === "string" && item.catalog_product_id) return item.catalog_product_id;
   const ligados = new Set((Array.isArray(item?.item_relations) ? item.item_relations : []).map((relacao) => String(relacao?.id)));
   const deCatalogo = (relacionados ?? []).find((outro) => ligados.has(String(outro?.id)) && outro?.catalog_listing === true && outro?.catalog_product_id && outro?.status !== "closed");
   return deCatalogo?.catalog_product_id ?? null;

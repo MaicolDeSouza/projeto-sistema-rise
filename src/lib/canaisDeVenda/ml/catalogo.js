@@ -86,7 +86,7 @@ export async function catalogosDosMeusAnuncios(cliente, sku, { maximoDeAnuncios 
   if (!busca.ok) throw falhou(busca);
   const porCatalogo = new Map();
   for (const itemId of (busca.dados?.results ?? []).slice(0, maximoDeAnuncios)) {
-    const item = await cliente.get(`/items/${encodeURIComponent(itemId)}`, { attributes: "id,status,catalog_product_id,item_relations" });
+    const item = await cliente.get(`/items/${encodeURIComponent(itemId)}`, { attributes: "id,status,catalog_product_id,catalog_listing,item_relations" });
     if (!item.ok || item.dados?.status === "closed") continue;
     // O anuncio pode estar no catalogo pelo jeito antigo do ML: um anuncio de catalogo SEPARADO ligado a ele (26/10/2026,
     // a mesma regra da releitura de hora em hora, `catalogoDoItem`).

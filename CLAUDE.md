@@ -3621,6 +3621,14 @@ Pedidos do dono (com print anotado e "usar UI/UX"):
   fechar** e a ação principal (**Publicar** no rascunho, **Enviar ao ML** no publicado). O "Salvar" sozinho saiu: Publicar e
   Enviar com alteração na tela perguntam "Salvar antes de publicar/enviar?" (`gravar({ adiarAoSalvar })`: o anúncio novo só
   troca de endereço depois de a janela do Publicar fechar). Na página, fechar volta à lista (`aoFechar` do `EditorNaPagina`).
+- **"No catálogo" exige `catalog_listing: true`** (achado do dono no 100111 em 26/10/2026, medido no ML): o MLB5461526965
+  tinha `catalog_product_id` MLB49572808 com `catalog_listing: false`, ou seja, o ML só o IDENTIFICOU com aquele produto de
+  catálogo (a ficha) e ele não concorre ali (o catálogo nem tinha anúncios: 404). O anúncio que concorre de verdade, o
+  MLB5404254696, tem `catalog_listing: true` (catálogo MLB2038465565). `catalogoDoItem` passou a exigir isso (o anúncio
+  ligado por `item_relations` continua valendo). O estado gravado pela regra antiga sai na próxima leitura SEM o aviso de
+  "saiu do catálogo" (`soIdentificado` em `relerEstadoML.js`), e o acompanhado troca sozinho para o catálogo de verdade.
+  **A medição de 25/10 (catalog_product_id null depois de sair) continua valendo; o erro foi supor o contrário.**
+- **Janela do editor sempre na altura da tela** (`h-full`, pedido do dono: a calculadora abria e ficava cortada pela rolagem).
 - **Características compacta** (pedido do dono no mesmo dia, "que caiba tudo na mesma janela"): "Sugerir título" e "Sugerir
   categoria" AO LADO dos campos (`children` dos dois componentes de sugestão); cartões lado a lado Tipo de anúncio | Garantia e
   Categoria do ML | Disponibilidade; depois a Composição. **A aba Garantia saiu** (`AbaGarantia.jsx` apagado): a garantia do

@@ -2143,10 +2143,12 @@ try {
     const comMeus = criarMLFalso({
       meusItens: {
         100101: [
-          { id: "MLBA", status: "active", catalog_product_id: "MLB44072268" },
-          { id: "MLBB", status: "active", catalog_product_id: "MLB44072268" },
-          { id: "MLBC", status: "closed", catalog_product_id: "MLB60092501" },
+          { id: "MLBA", status: "active", catalog_product_id: "MLB44072268", catalog_listing: true },
+          { id: "MLBB", status: "active", catalog_product_id: "MLB44072268", catalog_listing: true },
+          { id: "MLBC", status: "closed", catalog_product_id: "MLB60092501", catalog_listing: true },
           { id: "MLBD", status: "paused", catalog_product_id: null },
+          // So identificado com um produto de catalogo (26/10/2026, o MLB5461526965 do 100111): nao concorre, fica de fora.
+          { id: "MLBE", status: "active", catalog_product_id: "MLB49572808", catalog_listing: false },
         ],
       },
     });
@@ -2952,7 +2954,8 @@ try {
     const { estadoDoIconeML, rotuloDoIconeML } = await import("../src/lib/canaisDeVenda/ml/icone.js");
     const { marcarCatalogoVistoML } = await import("../src/lib/canaisDeVenda/ml/banco.js");
 
-    conferir("catalogo: o proprio catalog_product_id", catalogoDoItem({ catalog_product_id: "MLB1" }, []), "MLB1");
+    conferir("catalogo: o proprio catalog_product_id, concorrendo", catalogoDoItem({ catalog_product_id: "MLB1", catalog_listing: true }, []), "MLB1");
+    conferir("catalogo: so identificado (catalog_listing false) nao conta", catalogoDoItem({ catalog_product_id: "MLB1", catalog_listing: false }, []), null);
     conferir(
       "catalogo: pelo anuncio de catalogo ligado (item_relations), so se ativo ou pausado",
       [
@@ -2977,7 +2980,7 @@ try {
     const produto = await prisma.produto.create({ data: { sku: "ZZ-ML-CAT1", tituloBase: "catalogo", conferido: true } });
     const anuncio = await prisma.anuncio.create({ data: { produtoId: produto.id, canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "ATIVA", idExterno: "MLB920001", dados: { publicacao: { itemId: "MLB920001" } } } });
     const ml = criarMLFalso();
-    ml.itens.set("MLB920001", { id: "MLB920001", status: "active", sub_status: [], available_quantity: 1, sold_quantity: 0, catalog_product_id: "MLB44072268", catalog_listing: false, item_relations: [] });
+    ml.itens.set("MLB920001", { id: "MLB920001", status: "active", sub_status: [], available_quantity: 1, sold_quantity: 0, catalog_product_id: "MLB44072268", catalog_listing: true, item_relations: [] });
     const so = { ml, anuncioIds: [anuncio.id] };
     const estado = async () => (await prisma.anuncio.findUnique({ where: { id: anuncio.id }, select: { dados: true } })).dados.publicacao.estadoML;
     const icone = async () => estadoDoIconeML(await prisma.anuncio.findMany({ where: { id: anuncio.id }, select: { canal: true, status: true, situacaoCanal: true, dados: true } }));
@@ -3001,7 +3004,21 @@ try {
     const estadoFora = (await prisma.anuncio.findUnique({ where: { id: fora.id }, select: { dados: true } })).dados.publicacao.estadoML;
     conferir("1a leitura fora do catalogo: grava fora, sem '!'", [estadoFora.catalogo, estadoFora.catalogoAviso], [null, null]);
 
+    // Correcao da regra (26/10/2026): anuncio que a leitura antiga gravou "no catalogo" so porque o ML o identificou com um
+    // produto de catalogo (catalog_listing false) sai dele SEM o aviso de "saiu", e o aviso que apontava para ele some.
+    const identificado = await prisma.anuncio.create({
+      data: {
+        produtoId: produto.id, canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "ATIVA", idExterno: "MLB920003",
+        dados: { publicacao: { itemId: "MLB920003", estadoML: { status: "active", subStatus: [], estoque: 1, vendidos: 0, catalogo: { id: "MLB49572808", nome: "Pro Mini" }, catalogoAviso: { de: null, para: { id: "MLB49572808", nome: "Pro Mini" }, em: "2026-10-25T10:00:00.000Z", visto: false, inicial: true } } } },
+      },
+    });
+    ml.itens.set("MLB920003", { id: "MLB920003", status: "active", sub_status: [], available_quantity: 1, sold_quantity: 0, catalog_product_id: "MLB49572808", catalog_listing: false, item_relations: [] });
+    await relerEstadosML({ ml, anuncioIds: [identificado.id], agora: new Date("2026-10-26T10:00:00Z"), seguirCatalogo: false });
+    const estadoIdentificado = (await prisma.anuncio.findUnique({ where: { id: identificado.id }, select: { dados: true } })).dados.publicacao.estadoML;
+    conferir("so identificado: sai do catalogo sem '!' e sem aviso", [estadoIdentificado.catalogo, estadoIdentificado.catalogoAviso], [null, null]);
+
     ml.itens.get("MLB920001").catalog_product_id = null;
+    ml.itens.get("MLB920001").catalog_listing = false;
     const saiu = await relerEstadosML({ ...so, agora: new Date("2026-10-25T15:20:00Z") });
     const iconeSaiu = await icone();
     conferir("saiu do catalogo: grava fora, o aviso e o '!' com o texto", [saiu.mudaram, (await estado()).catalogo, (await estado()).catalogoAviso?.visto, iconeSaiu.catalogoMudouNoML, /saiu do catálogo Cabo USB compat.* em 25\/10/.test(rotuloDoIconeML(iconeSaiu))], [1, null, false, true, true]);

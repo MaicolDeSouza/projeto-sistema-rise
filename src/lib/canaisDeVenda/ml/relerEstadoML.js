@@ -150,19 +150,24 @@ export async function relerEstadosML({ ml, bling, agora = new Date(), anuncioIds
       // (`inicial`): o dono quer conferir todo catalogo em que o anuncio esta, e o 100111, publicado ja no catalogo, nao
       // acendeu nada. Fora do catalogo na 1a leitura nao avisa.
       const catalogoAnterior = anterior?.catalogo;
-      const semLeitura = ligadosFalharam && !item.catalog_product_id && (item.item_relations ?? []).length > 0;
+      const proprioNoCatalogo = item.catalog_listing === true && Boolean(item.catalog_product_id);
+      const semLeitura = ligadosFalharam && !proprioNoCatalogo && (item.item_relations ?? []).length > 0;
       const catalogoId = semLeitura ? (catalogoAnterior?.id ?? null) : catalogoDoItem(item, ligados);
+      // Correcao da regra (26/10/2026): o catalogo gravado antes era so o produto que o ML IDENTIFICOU (`catalog_listing:
+      // false`), e o anuncio nunca concorreu nele. Sai sem aviso de "saiu do catalogo", e o aviso que apontava para ele some.
+      const soIdentificado = !semLeitura && !catalogoId && Boolean(catalogoAnterior?.id) && catalogoAnterior.id === item.catalog_product_id;
       let catalogo = catalogoAnterior;
       if (!semLeitura && (catalogoAnterior === undefined || (catalogoAnterior?.id ?? null) !== catalogoId)) {
         catalogo = catalogoId ? { id: catalogoId, nome: await nomeDoCatalogo(cliente, catalogoId, nomes) } : null;
       }
-      const catalogoMudou = catalogoAnterior !== undefined && (catalogoAnterior?.id ?? null) !== (catalogo?.id ?? null);
+      const catalogoMudou = !soIdentificado && catalogoAnterior !== undefined && (catalogoAnterior?.id ?? null) !== (catalogo?.id ?? null);
       if (catalogo?.id) produtosEmCatalogo.add(anuncio.produtoId);
       const inicial = !catalogoMudou && Boolean(catalogo) && !anterior?.catalogoAviso;
       let catalogoAviso = anterior?.catalogoAviso ?? null;
+      if (soIdentificado && catalogoAviso?.para?.id === catalogoAnterior.id) catalogoAviso = null;
       if (catalogoMudou) catalogoAviso = { de: catalogoAnterior, para: catalogo, em: agora.toISOString(), visto: false };
       else if (inicial) catalogoAviso = { de: null, para: catalogo, em: agora.toISOString(), visto: false, inicial: true };
-      const gravarCatalogo = catalogoMudou || inicial || (catalogoAnterior === undefined && catalogo !== undefined);
+      const gravarCatalogo = catalogoMudou || inicial || soIdentificado || (catalogoAnterior === undefined && catalogo !== undefined);
       if (!mudou && !gravarCatalogo && situacao === anuncio.situacaoCanal && seguidas === (anterior?.estoqueDiferenteSeguidas ?? 0) && estoqueBling === (anterior?.estoqueBling ?? null)) continue;
       try {
         const desde = mudou || !anterior?.desde ? agora.toISOString() : anterior.desde;
