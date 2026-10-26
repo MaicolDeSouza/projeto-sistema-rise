@@ -662,7 +662,9 @@ export default function EditorAnuncioML({
         role="dialog"
         aria-modal="true"
         aria-label="Anúncio do Mercado Livre"
-        className="flex max-h-full w-full max-w-5xl flex-col rounded-lg border border-borda bg-superficie shadow-2xl focus:outline-none"
+        // Sempre na altura da tela (pedido do dono em 26/10/2026): com a janela do tamanho da aba, a calculadora do preco
+        // abria e ficava cortada pela rolagem do corpo. Alta, o corpo tem espaco e a aba curta nao encolhe a janela.
+        className="flex h-full w-full max-w-5xl flex-col rounded-lg border border-borda bg-superficie shadow-2xl focus:outline-none"
       >
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-borda px-5 py-3">
           <div className="min-w-0">
