@@ -164,7 +164,10 @@ export default function AbaGeral({ rascunho, contexto, alterar, setContexto, pro
 
       <SecaoDoAnuncio
         titulo="Título"
-        ajuda="Vai ao Mercado Livre como o nome da família (family_name). No modelo User Products, o ML monta o título final a partir dele e dos atributos da ficha técnica."
+        // Medido em 26/10/2026 no MLB7881037020 (100104, pausado, sem vendas): PUT de `title` da 400 "You cannot modify the
+        // title if the item has a family_name" e PUT de `family_name` da 400 "The field family name is invalid". Na conta
+        // User Products o titulo nao muda pela API depois de publicado, com ou sem venda.
+        ajuda="Vai ao Mercado Livre como o nome da família (family_name). No modelo User Products, o ML monta o título final a partir dele e dos atributos da ficha técnica. Depois de publicado, o Mercado Livre não aceita trocar o título (nem sem vendas): para outro título, clone o anúncio."
         acao={
           <span className={`text-[11px] tabular-nums ${tamanhoDoTitulo > LIMITE_TITULO ? "font-medium text-red-700" : "text-suave"}`}>
             {tamanhoDoTitulo}/{LIMITE_TITULO}

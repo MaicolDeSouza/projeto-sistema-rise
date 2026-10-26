@@ -3628,6 +3628,10 @@ Pedidos do dono (com print anotado e "usar UI/UX"):
   ligado por `item_relations` continua valendo). O estado gravado pela regra antiga sai na próxima leitura SEM o aviso de
   "saiu do catálogo" (`soIdentificado` em `relerEstadoML.js`), e o acompanhado troca sozinho para o catálogo de verdade.
   **A medição de 25/10 (catalog_product_id null depois de sair) continua valendo; o erro foi supor o contrário.**
+- **O título do anúncio publicado NÃO muda pela API, nem sem vendas** (medido em 26/10/2026 com OK do dono, no MLB7881037020
+  do 100104, pausado e sem vendas): `PUT /items/{id}` com `title` → 400 "You cannot modify the title if the item has a
+  family_name"; com `family_name` → 400 "The field family name is invalid". Nada mudou (`last_updated` igual). O título fica
+  travado no publicado (a bolha "i" do Título diz isso: para outro título, clonar). Não testado: trocar pelo painel do ML.
 - **Janela do editor sempre na altura da tela** (`h-full`, pedido do dono: a calculadora abria e ficava cortada pela rolagem).
 - **Características compacta** (pedido do dono no mesmo dia, "que caiba tudo na mesma janela"): "Sugerir título" e "Sugerir
   categoria" AO LADO dos campos (`children` dos dois componentes de sugestão); cartões lado a lado Tipo de anúncio | Garantia e
