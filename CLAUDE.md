@@ -3643,8 +3643,10 @@ Pedidos do dono (com print anotado e "usar UI/UX"):
   acompanhamento do produto pode seguir o catálogo de outro anúncio dele.
 - **O popup do catálogo lê o catálogo AO VIVO** (pedido do dono em 26/10/2026: "estou em segundo mas meu anúncio não mostra
   aqui"): a lista dos acompanhados (`ConcorrenteML`) tira os anúncios do dono por desenho, e o popup pulava as posições dele.
-  Agora mostra todos os anúncios na ordem do ML (`preverCatalogoMLAcao`, `TabelaDoCatalogoAoVivo`) com os do dono como "Você"
-  (verde, com o link); no acompanhado, os avisos e a seta do preço anterior vêm do guardado, e o "Reler agora" relê os dois.
+  Agora mostra os 10 primeiros na ordem do ML (`preverCatalogoMLAcao`, `TabelaDoCatalogoAoVivo`, `linhasDoCatalogo` em
+  `catalogo.js`); **verde só na linha do anúncio aberto** (o vinculado ao Rise: "Você (este anúncio)"), e se ele estiver abaixo
+  do 10º entra no fim depois de "⋯"; outro anúncio do dono no catálogo aparece como "Outro anúncio seu", sem verde. No
+  acompanhado, os avisos e a seta do preço anterior vêm do guardado, e o "Reler agora" relê os dois.
 - **Selo "C" no ícone do ML da lista de Produtos** (26/10/2026: primeiro "C2", com a quantidade de catálogos diferentes;
   depois o dono pediu só "C"): algum anúncio publicado concorre num catálogo (`iconeML.catalogos > 0`). A quantidade fica no
   texto do ícone ("em 2 catálogos").

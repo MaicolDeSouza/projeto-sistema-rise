@@ -2,7 +2,7 @@
 
 import { ArrowDown, ArrowUp, ExternalLink } from "lucide-react";
 
-import { textoDaReputacao, textoDoResumo } from "@/lib/canaisDeVenda/ml/catalogo";
+import { linhasDoCatalogo, textoDaReputacao, textoDoResumo } from "@/lib/canaisDeVenda/ml/catalogo";
 import { ROTULO_DO_TIPO_ML } from "@/lib/canaisDeVenda/ml/rotulos";
 
 /**
@@ -121,19 +121,25 @@ export function TabelaDeConcorrentes({ linhas, alterar, apagados = false }) {
  * `anteriores` (itemId -> preco anterior, dos acompanhados) poe a seta de subiu/baixou; com `alterar`, clicar num preco de
  * concorrente o copia para o anuncio.
  */
-export function TabelaDoCatalogoAoVivo({ itens, alterar = null, anteriores = null }) {
+export function TabelaDoCatalogoAoVivo({ itens, alterar = null, anteriores = null, meuItemId = null }) {
   if (itens.length === 0) return <p className="text-sm text-suave">Este catálogo não tem anúncios abertos.</p>;
   return (
     <table className="w-full text-sm">
       {CABECALHO}
       <tbody className="divide-y divide-borda">
-        {itens.map((item) => (
-          <tr key={item.itemId} className={item.meu ? "bg-emerald-50 font-medium" : ""}>
+        {linhasDoCatalogo(itens, meuItemId).map((item) =>
+          item.reticencias ? (
+            <tr key="reticencias">
+              <td colSpan={4} className="py-1 text-center text-suave">⋯</td>
+            </tr>
+          ) : (
+          // Verde so na linha do anuncio aberto, o vinculado ao Rise; outro anuncio do dono no catalogo fica sem destaque.
+          <tr key={item.itemId} className={item.itemId === meuItemId ? "bg-emerald-50 font-medium" : ""}>
             <td className="py-1.5 pl-1 tabular-nums">{item.posicao}º</td>
             <td className="py-1.5">
               {item.meu ? (
-                <span className="flex items-center gap-1 text-emerald-800">
-                  Você
+                <span className={`flex items-center gap-1 ${item.itemId === meuItemId ? "text-emerald-800" : "text-suave"}`}>
+                  {item.itemId === meuItemId ? "Você (este anúncio)" : "Outro anúncio seu"}
                   <a href={urlDoAnuncio(item.itemId)} target="_blank" rel="noreferrer" title={`Abrir o seu anúncio ${item.itemId} no Mercado Livre`} aria-label={`Abrir o seu anúncio ${item.itemId} no Mercado Livre`} className="rounded p-0.5 text-suave hover:text-acento">
                     <ExternalLink size={12} />
                   </a>
@@ -157,7 +163,8 @@ export function TabelaDoCatalogoAoVivo({ itens, alterar = null, anteriores = nul
               {item.precoCheio > item.preco && <span className="ml-1 text-[11px] text-suave line-through">{MOEDA.format(item.precoCheio)}</span>}
             </td>
           </tr>
-        ))}
+          ),
+        )}
       </tbody>
     </table>
   );

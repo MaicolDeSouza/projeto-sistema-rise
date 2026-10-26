@@ -268,6 +268,16 @@ export function posicaoNoCatalogo(lido) {
   };
 }
 
+/**
+ * As linhas da tabela do popup do catalogo (pedido do dono em 26/10/2026): os `limite` primeiros e, se o anuncio aberto
+ * (`meuItemId`) estiver mais abaixo, uma linha `{ reticencias: true }` e a dele no fim.
+ */
+export function linhasDoCatalogo(itens, meuItemId, limite = 10) {
+  const primeiros = (itens ?? []).slice(0, limite);
+  const meu = meuItemId ? (itens ?? []).slice(limite).find((item) => item.itemId === meuItemId) : null;
+  return meu ? [...primeiros, { reticencias: true, itemId: "…" }, meu] : primeiros;
+}
+
 /** Os `n` primeiros que nao sao do dono, na ordem do ML. */
 export function topDoCatalogo(itens, n = TOP_DO_CATALOGO) {
   return (itens ?? []).filter((item) => !item.meu).slice(0, n);

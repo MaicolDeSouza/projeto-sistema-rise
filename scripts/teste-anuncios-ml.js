@@ -437,6 +437,13 @@ try {
         anuncios: 4, vendedores: 3, completo: true, minhaPosicao: 3, primeiroPreco: 28.9, primeiroEhMeu: false, meuPreco: 31.49,
       });
       conferir("linha do catalogo: catalogo vazio", posicaoNoCatalogo({ total: 0, itens: [] }).minhaPosicao, null);
+
+      // O popup: os 10 primeiros e, se o anuncio aberto estiver abaixo, "⋯" e a linha dele no fim.
+      const { linhasDoCatalogo } = await import("../src/lib/canaisDeVenda/ml/catalogo.js");
+      const vinte = Array.from({ length: 20 }, (_, i) => ({ itemId: `MLB${i + 1}`, posicao: i + 1 }));
+      conferir("popup: aberto em 20o vai no fim, depois do 10o", linhasDoCatalogo(vinte, "MLB20").map((l) => l.posicao ?? "..."), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "...", 20]);
+      conferir("popup: aberto entre os 10, sem linha a mais", linhasDoCatalogo(vinte, "MLB2").length, 10);
+      conferir("popup: anuncio fora do catalogo, so os 10", linhasDoCatalogo(vinte, "MLB99").length, 10);
     }
     {
       // Peso e medidas do anuncio SIMPLES sao sempre os do produto (26/10/2026, no molde da LI): a aba so os mostra. O kit

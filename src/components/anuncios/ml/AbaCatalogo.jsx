@@ -198,6 +198,7 @@ export default function AbaCatalogo({ rascunho, alterar, setContexto, visivel = 
 
       {catalogoAberto && (
         <JanelaDoCatalogo
+          meuItemId={idExterno}
           catalogo={catalogoAberto}
           tela={tela?.catalogoId === catalogoAberto.id ? tela : null}
           produtoId={produtoId}
@@ -276,7 +277,7 @@ function PrecosDaLinha({ resumo }) {
  * dono em 26/10/2026: ele era o 2o e a lista dos acompanhados, que tira os dele, pulava a linha). No catalogo acompanhado,
  * os avisos e o preco anterior (a seta) vem do que o Rise guardou, e o "Reler agora" renova o guardado e a leitura.
  */
-function JanelaDoCatalogo({ catalogo, tela, produtoId, alterar, podeReler, aoReler, aoFechar }) {
+function JanelaDoCatalogo({ catalogo, tela, produtoId, alterar, podeReler, aoReler, aoFechar, meuItemId = null }) {
   const [aoVivo, setAoVivo] = useState(null);
   const [erro, setErro] = useState(null);
   const [ocupado, iniciar] = useTransition();
@@ -357,14 +358,14 @@ function JanelaDoCatalogo({ catalogo, tela, produtoId, alterar, podeReler, aoRel
           )}
           {aoVivo ? (
             <>
-              <TabelaDoCatalogoAoVivo itens={aoVivo.itens} alterar={alterar} anteriores={anteriores} />
+              <TabelaDoCatalogoAoVivo itens={aoVivo.itens} alterar={alterar} anteriores={anteriores} meuItemId={meuItemId} />
               {ausentes.length > 0 && (
                 <details className="text-sm">
                   <summary className="cursor-pointer text-suave">{ausentes.length} saíram do top 10 acompanhado</summary>
                   <TabelaDeConcorrentes linhas={ausentes} alterar={alterar} apagados />
                 </details>
               )}
-              <p className="text-[11px] text-suave">Todos os anúncios do catálogo, na ordem do Mercado Livre, lidos agora. Clique num preço para usá-lo no anúncio.</p>
+              <p className="text-[11px] text-suave">Os 10 primeiros do catálogo, na ordem do Mercado Livre, lidos agora; este anúncio aparece em verde, no fim se estiver abaixo do 10º. Clique num preço para usá-lo no anúncio.</p>
             </>
           ) : (
             !erro && (
