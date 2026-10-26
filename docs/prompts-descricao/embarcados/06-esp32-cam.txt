@@ -1,0 +1,114 @@
+Escreva a descrição de uma placa ESP32 com câmera (ESP32-CAM, ESP32-S3-CAM e kits com a base de gravação ESP32-CAM-MB) em português brasileiro, no JSON exigido pelo Rise: paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm e decisoes. Não acrescente outros campos. Placas ESP32 sem câmera têm prompt próprio.
+
+Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use informações confirmadas no cadastro ou nas referências. Não complete especificações por suposição.
+
+PARÁGRAFOS
+
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 330 caracteres, o segundo até 550.
+
+Primeiro parágrafo, UMA frase, na fórmula da loja: “A Placa <nome completo> é uma placa de desenvolvimento compacta com Wi-Fi, Bluetooth e câmera <sensor e megapixels> integrados, baseada no <módulo>, indicada para <3 ou 4 aplicações: câmera IP, monitoramento remoto, reconhecimento facial, fotos em timelapse> que exigem <capturar e enviar imagens pela rede>, oferecendo <o diferencial: gravação pela base USB, cartão microSD, LED de flash>.” Só o que estiver confirmado.
+
+Segundo parágrafo: o porquê de ela ser boa, em 3 ou 4 frases. Comece pela câmera e pela memória (“Equipada com o sensor OV2640 de 2MP e 4MB de PSRAM...”) e, a cada recurso citado, diga o que ele permite ou dispensa: a PSRAM guarda a imagem inteira e permite fotos em alta resolução; o slot microSD salva fotos sem computador; o LED de flash ilumina a cena de perto; a antena; a base de gravação ESP32-CAM-MB grava e alimenta pela USB, sem conversor e sem jumpers (sem a base, diga que a gravação pede um conversor USB-serial de 3,3V). Feche com a programação (Arduino IDE, ESP-IDF, MicroPython) ou com “é a escolha ideal para quem...”. Acessórios só quando confirmados.
+
+Fale com o comprador: “possui”, não “tem”; “você” quando couber. Ao voltar a falar do produto, use o nome dele ou “a placa”, nunca “ela” no início da frase. Tom: o da Smartkits (explica e ensina, sem vender), sem copiar. Varie o foco e a ordem dos fatos entre as opções. Evite elogios vazios, repetir o título inteiro ou enumerar especificações. Não mencione valores desconhecidos ou divergentes.
+
+PADRONIZAÇÃO DOS NOMES
+
+Use exatamente os nomes dos campos definidos neste prompt. As lojas usam nomes variados; converta-os assim:
+
+Fabricante: substitui Marca. Quem fabrica a placa, como está na marca do cadastro do produto; placa compatível ou genérica, sem fabricante declarado: OEM. Nunca o nome da loja.
+
+Modelo: a PLACA, como “ESP32-CAM”, “ESP32-S3-CAM N16R8”; no kit, a placa e a base: “ESP32-CAM + ESP32-CAM-MB”. Não confunda com o módulo, o chip ou a câmera.
+
+Módulo: o módulo da placa, como “ESP32-S (AI-Thinker)” ou “ESP32-S3”. Chip(SoC): o chip dentro do módulo, com o fabricante: “ESP32-D0WDQ6 (Espressif)”; substitui Chip e Microcontrolador. Só com fonte; não deduza o chip pelo módulo.
+
+Processador/CPU: “Xtensa LX6 dual-core de 32 bits”; substitui CPU e Processador. Frequência de Clock: “até 240MHz”.
+
+Memória Flash: “4MB”. Memória RAM: “520KB SRAM”. Memória ROM: “448KB”. Memória PSRAM: “4MB”; substitui “4 MB PSRAM” escrito na Flash e a PSRAM somada na RAM: separe as três memórias.
+
+Sensor da Câmera: substitui Câmera, Sensor e Sensor de imagem: “OV2640 de 2MP”, “OV3660 de 3MP”. Resolução Máxima de Imagem: “1600x1200 (UXGA)”. Formatos de Imagem: “JPEG, RGB565 e YUV422”. Taxa de Quadros: “15fps em UXGA / 30fps em VGA”. Ângulo de Visão: “66°”. Os quatro, só com fonte.
+
+Slot para Cartão: substitui Suporte para cartão SD e Armazenamento: “microSD até 4GB (cartão não incluso)”.
+
+Flash LED: “LED branco de alta intensidade”.
+
+Wi-Fi: “802.11 b/g/n, 2,4GHz”. Bluetooth: “4.2 BR/EDR e BLE”. Modos Wi-Fi: substitui Modos de operação: “Station, SoftAP e Station+SoftAP”. Segurança: “WPA, WPA2, WPA2-Enterprise e WPS”.
+
+Antena: “PCB integrada” ou “PCB integrada / conector IPEX para antena externa (não inclusa)”.
+
+Tensão de Alimentação: por entrada: “5V no pino 5V / 5V pela USB da base ESP32-CAM-MB / 3,3V no pino 3V3”. Nível Lógico: “3,3V (não tolera 5V)”.
+
+Consumo de Corrente da Placa: “180mA com o LED desligado / 310mA com o flash ligado”. Consumo em Deep Sleep: “6mA”.
+
+Pinos Digitais I/O: os GPIO livres na placa, com o total de pinos: “10 GPIO (placa de 16 pinos)”. Entradas Analógicas e Saídas PWM: só com fonte.
+
+Interfaces de Comunicação: “UART, SPI e I2C”; PWM tem campo próprio.
+
+Gravador USB: “ESP32-CAM-MB incluso” ou “não incluso (grave com conversor USB-serial de 3,3V)”. Conector USB: o da placa ou, no kit, o da base: “Micro USB (na base ESP32-CAM-MB)”; sem base, “Não possui”. Chip de Interface USB: com CH340, escreva exatamente “CH340 (Necessário instalação do drive no PC)”; sem base, “Não possui”.
+
+Botões: “RST na placa / RST e IO0 (BOOT) na base”. Pinos Soldados: “Sim” ou “Não”.
+
+Temperatura de Operação: “-20°C a 85°C”. Ambiente de Programação: “Arduino IDE (placa AI Thinker ESP32-CAM), ESP-IDF e MicroPython”.
+
+Use Tensão, nunca Voltagem; Corrente, nunca Amperagem.
+
+CARACTERÍSTICAS
+
+Cada item contém nome, valor e referencias: nome “Memória PSRAM”, valor “4MB”, sem dois-pontos no nome.
+
+Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Ausência comprovada pode ser “Não possui”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: Taxa de transferência, Wi-Fi Direct, Distância entre pinos).
+
+Campos obrigatórios:
+Fabricante; Modelo; Módulo; Chip(SoC); Processador/CPU; Frequência de Clock; Memória Flash; Memória RAM; Memória PSRAM; Memória ROM; Sensor da Câmera; Resolução Máxima de Imagem; Slot para Cartão; Flash LED; Wi-Fi; Bluetooth; Modos Wi-Fi; Antena; Tensão de Alimentação; Nível Lógico; Consumo de Corrente da Placa; Pinos Digitais I/O; Interfaces de Comunicação; Gravador USB; Conector USB; Chip de Interface USB; Botões; Pinos Soldados; Temperatura de Operação; Ambiente de Programação.
+
+Campos condicionais (só quando o produto tem o recurso; com o recurso e sem valor confirmado, omita o campo):
+Formatos de Imagem; Taxa de Quadros; Ângulo de Visão; Comprimento do Cabo da Câmera; Segurança; Consumo em Deep Sleep; Entradas Analógicas; Saídas PWM; Corrente por Pino; Tela; Sensor de Presença; Suporte a Bateria.
+
+Campos finais:
+Dimensões (CxLxA); Peso.
+
+Dimensões (CxLxA) e Peso são sempre os dois últimos campos. Devolva os números em dimensoesMm e pesoGramas; o Rise escreve as duas linhas. Não os repita em caracteristicas.
+
+Não entram em caracteristicas: Cor, Material, Origem, Garantia, Peso com embalagem, Acompanha, Inclui, textos de aplicação e propaganda. Acessórios vão em itensInclusos.
+
+No modo sem referências, respeite a instrução acrescentada pelo Rise: inclua apenas especificações confirmadas nos dados próprios do produto. Se não houver nenhuma, retorne caracteristicas vazia.
+
+Números colados às unidades: 3,3V, 180mA, 4MB, 240MHz, 2MP. Use vírgula decimal e diferencie bytes de bits. Nunca use ponto e vírgula dentro de um valor. Informações distintas no mesmo valor se separam por “ / ”; itens da mesma lista, por vírgula.
+
+REGRAS ESPECÍFICAS
+
+Placa, módulo, chip e câmera são quatro coisas (ESP32-CAM > ESP32-S > ESP32-D0WDQ6 > OV2640).
+
+Não copie entre variantes. ESP32-CAM: módulo ESP32-S, LX6 dual-core, 4MB de PSRAM, sem USB. ESP32-S3-CAM: chip S3, LX7, Bluetooth 5.0 LE, USB nativo, memórias pelo sufixo (N16R8 = 16MB de flash e 8MB de PSRAM). Câmera OV3660 (3MP) ou GC2145 é outra variante da OV2640. TTGO T-Camera e ESP32-WROVER-DEV são outras placas.
+
+A ESP32-CAM não tem USB: grava pela base ESP32-CAM-MB (conversor CH340, Micro USB, botões RST e IO0) ou por conversor USB-serial de 3,3V. A base acompanha só quando o cadastro ou o título confirmar (“com gravador”, “+ ESP32-CAM-MB”).
+
+A alimentação da ESP32-CAM é 5V no pino 5V (ou 3,3V no 3V3). “6 a 12V” e “4,5 a 12V” publicados por lojas são de outras placas: não use. Com o flash ligado o consumo passa de 300mA: avise no parágrafo só se a fonte confirmar.
+
+Os pinos do cartão microSD (GPIO2, 4, 12, 13, 14 e 15) são os mesmos de vários GPIO livres, e o GPIO4 também acende o LED de flash: usar o cartão ocupa esses pinos. Não informe Saídas DAC: os GPIO25 e 26 do DAC ligam a câmera.
+
+A câmera vem pelo cabo flat e pode chegar desconectada: ela só entra nos itens quando o cadastro confirmar.
+
+Consumo do chip em deep sleep não é o da placa. Não apresente o máximo como típico.
+
+Lista de fornecedor sem ficha técnica não comprova especificação.
+
+FONTES
+
+Em referencias, registre só os números das referências fornecidas que sustentam o valor daquele campo. Para valores vindos só do cadastro ou título, e para valores desconhecidos, use referencias []. Resultado da web só vale se consultado de fato e informado como referência; prefira o datasheet do fabricante. Não invente consultas, fontes, URLs ou números de referência.
+
+ITENS INCLUSOS
+
+O primeiro item é o próprio produto, com quantidade e nome técnico, sem acessórios no nome. Depois, cada peça confirmada pelo cadastro ou título, com quantidade e escrita normal: “Câmera OV2640 2MP”, “Base de gravação ESP32-CAM-MB”, “Antena 2,4GHz”. Componente integrado à placa não é acessório. A embalagem de outro vendedor não comprova o conteúdo vendido pela Rise.
+
+PESO E DIMENSÕES
+
+pesoGramas: número em gramas. dimensoesMm: comprimento, largura e altura em milímetros. Use medidas do corpo do mesmo produto e variante (no kit, a placa encaixada na base). Não use embalagem nem produto semelhante. Dado desconhecido é null, nunca zero.
+
+DIVERGÊNCIAS
+
+Para cada divergência fornecida, retorne id, opcao, motivo breve e campo com o nome padronizado deste prompt. opcao é o índice a partir de zero, ou null quando faltar evidência suficiente. Prefira o mesmo modelo e variante e fontes independentes. Exceto para peso e dimensões, reserve a posição do campo divergente em caracteristicas com valor "" e referencias []. Não coloque valores divergentes nos parágrafos ou características antes da escolha do operador.
+
+GARANTIA
+
+O Rise acrescenta automaticamente: Garantia Legal de 90 dias (contra defeitos de fabricação). Não gere campo extra de garantia nem copie garantias das referências. Não escreva preço, prazo ou nome de loja.

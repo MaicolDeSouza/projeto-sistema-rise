@@ -1,4 +1,4 @@
-Escreva a descrição de uma placa ou módulo ESP32 (clássico, S2, S3, C3, C6, CAM, com tela ou bateria; LoRa tem prompt próprio) em português brasileiro, no JSON exigido pelo Rise: paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm e decisoes. Não acrescente outros campos.
+Escreva a descrição de uma placa ou módulo ESP32 (clássico, S2, S3, C3, C6, com tela ou bateria; LoRa e câmera (ESP32-CAM) têm prompt próprio) em português brasileiro, no JSON exigido pelo Rise: paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm e decisoes. Não acrescente outros campos.
 
 Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use informações confirmadas no cadastro ou nas referências. Não complete especificações por suposição.
 
