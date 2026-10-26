@@ -9,6 +9,7 @@ import {
   PieChart,
   Sparkles,
   Settings,
+  ShoppingBag,
   ShoppingCart,
   Store,
   Wallet,
@@ -83,6 +84,15 @@ export const blocos = [
     rotulo: "Produtos",
     icone: Package,
     resumo: "Catálogo central da loja",
+    pronto: true,
+  },
+  {
+    // Compras (pedido do dono em 26/10/2026): pedidos de compra e a reposicao do estoque minimo. So icone e texto; os
+    // dois assuntos sao CARTOES na pagina (`src/lib/compras/catalogo.js`). "Pedidos" fica para as vendas.
+    href: "/compras",
+    rotulo: "Compras",
+    icone: ShoppingBag,
+    resumo: "Pedidos de compra e reposição do estoque mínimo",
     pronto: true,
   },
   {

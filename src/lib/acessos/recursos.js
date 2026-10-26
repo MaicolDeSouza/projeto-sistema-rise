@@ -80,6 +80,12 @@ const LISTA = [
   acao("acao.fotos.nanoBanana", "Gerar foto com Nano Banana", "tela.produtos.cadastro", "Chamada paga ao Google."),
   acao("acao.fotos.photoroom", "Melhorar foto com Photoroom", "tela.produtos.cadastro", "Chamada paga ao Photoroom."),
 
+  // Compras (spec 2026-10-26-modulo-compras-design.md): logo depois de Produtos, como no menu.
+  tela("tela.compras", "Compras", "/compras"),
+  sub("tela.compras.estoqueMinimo", "Compras › Abaixo do estoque mínimo", "tela.compras"),
+  sub("tela.compras.pedidos", "Compras › Pedidos de compra", "tela.compras"),
+  acao("acao.compras.lancarEstoque", "Lançar estoque do pedido no Bling", "tela.compras.pedidos", "Grava a entrada no Rise e manda ao Bling; o Desfazer manda a saída."),
+
   tela("tela.scraper", "Scraper", "/mercados"),
   sub("tela.scraper.fontes", "Scraper › Fontes", "tela.scraper"),
   acao("acao.scraper.varrer", "Varrer fontes", "tela.scraper.fontes"),
