@@ -14,8 +14,10 @@ import { slugDe, slugValido } from "./slug";
 
 // Ordem pedida pelo dono em 07/10/2026; os nomes seguem os das abas do cadastro de Produto (Peso e
 // dimensoes, Tributacao), pedido do mesmo dia. A aba "Divergencias" nao esta aqui: o editor a poe na
-// frente so quando a leitura da loja acha diferencas.
+// frente so quando a leitura da loja acha diferencas. A aba "Status" (era "Previa e sincronizacao", 26/10/2026) e a
+// primeira daqui, logo depois da Divergencias quando ela existe.
 export const ABAS_LI = [
+  { id: "status", rotulo: "Status" },
   { id: "geral", rotulo: "Características" },
   { id: "imagens", rotulo: "Imagens" },
   { id: "descricao", rotulo: "Descrição" },
@@ -23,7 +25,6 @@ export const ABAS_LI = [
   { id: "envio", rotulo: "Peso e dimensões" },
   { id: "fiscal", rotulo: "Tributação" },
   { id: "seo", rotulo: "SEO" },
-  { id: "previa", rotulo: "Prévia e sincronização" },
 ];
 
 const vazio = (valor) => valor === null || valor === undefined || String(valor).trim() === "";

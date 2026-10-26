@@ -4350,6 +4350,15 @@ Bling, Fechar vira Salvar e fechar, 'Na loja' e 'Tudo salvo' saem").
   (não troca a URL), e fecha: a janela chama `aoFechar`, a página volta para `/canais-de-venda/loja-integrada`; sem alteração só
   fecha; falha ao gravar deixa o editor aberto com o erro. Quem só pode ver (Acessos) tem o botão "Fechar". A lista de marcas
   da loja não é mais lida ao abrir o editor.
+- **Aba Status** (era "Prévia e sincronização", `AbaStatus.jsx`; pedido do dono no mesmo dia, "usar UI/UX"): é a primeira de
+  `ABAS_LI` (id `status`), logo depois da Divergências quando ela existe, e é a que abre por padrão. Quatro cartões de relance
+  (o padrão da caixa do Produto: rótulo pequeno e valor em destaque): **ID na LI** (com o ícone que abre o produto no site),
+  **Situação na loja** (Ativo / Inativo, com ponto de cor), **Última sincronização** (data e hora, ou "Nunca sincronizado") e
+  **Bling** ("Sincronizado" quando o produto está ligado à loja Loja_Integrada no Bling, ou o que falta; a frase inteira de
+  `situacaoDoBling` vai na bolha "i"). Sem vínculo, o ID diz "Ainda não está na loja". **Só aparece mais quando há o que
+  corrigir:** o erro do último envio (vermelho), "Envio bloqueado agora" (âmbar) e os problemas das outras abas, cada um com o
+  botão que leva à aba. Saíram os parágrafos fixos sobre o botão do rodapé. "Sincronizado" no Bling é o VÍNCULO do canal (o
+  que leva estoque e pedidos), não a comparação de campos Rise × Bling, que continua no ícone do Bling.
 - **Testes:** `teste:li-sync` foi de 356 para 390 asserções (liga/desliga no campo, na assinatura, no Cadastrar pausado, no
   Sincronizar ligando e desligando, na leitura, no cadastro incompleto e no nome e marca do produto); lint limpo.
 - **Visto na tela (PC, servidor de outra sessão, anúncio do 100101):** a aba só com os campos marcados, a marca travada, o

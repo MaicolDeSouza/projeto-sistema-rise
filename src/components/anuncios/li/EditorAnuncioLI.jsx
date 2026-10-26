@@ -17,12 +17,13 @@ import AbaDescricao from "./AbaDescricao";
 import AbaDivergencias from "./AbaDivergencias";
 import AbaGeral from "./AbaGeral";
 import AbaImagens from "./AbaImagens";
-import AbaPrevia, { situacaoDoBling } from "./AbaPrevia";
+import AbaStatus, { situacaoDoBling } from "./AbaStatus";
 import AbaSEO from "./AbaSEO";
 import { AbaEnvio, AbaFiscal, linkDoPainelLI } from "./AbasDeLeitura";
 
 // Uma aba por id de `ABAS_LI`: aba nova na validacao pede o componente aqui.
 const ABAS_PRONTAS = {
+  status: AbaStatus,
   geral: AbaGeral,
   imagens: AbaImagens,
   descricao: AbaDescricao,
@@ -30,7 +31,6 @@ const ABAS_PRONTAS = {
   envio: AbaEnvio,
   fiscal: AbaFiscal,
   seo: AbaSEO,
-  previa: AbaPrevia,
 };
 
 const CLASSE_DA_MENSAGEM = {
@@ -344,7 +344,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
     acessos,
   };
 
-  // Produto sem o canal da LI no Bling: aviso no topo (estoque e pedidos nao passam). Ligado, so na Previa.
+  // Produto sem o canal da LI no Bling: aviso no topo (estoque e pedidos nao passam). Ligado, so na aba Status.
   const estadoDoBling = situacaoDoBling(bling);
   // O que falta no cadastro automatico (24/10/2026): a falha gravada ou o que a leitura da loja e do Bling mostra.
   const cadastroFalhou = leitura?.ok ? leitura.cadastroFalhou : null;
@@ -476,7 +476,7 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
         const Aba = ABAS_PRONTAS[id];
         return (
           <Painel key={id} id={id} aba={abaVisivel}>
-            <Aba {...propsDasAbas} problemas={problemas.filter((problema) => problema.aba === id)} {...(id === "previa" ? { todosProblemas: problemas } : {})} />
+            <Aba {...propsDasAbas} problemas={problemas.filter((problema) => problema.aba === id)} {...(id === "status" ? { todosProblemas: problemas } : {})} />
           </Painel>
         );
       })}

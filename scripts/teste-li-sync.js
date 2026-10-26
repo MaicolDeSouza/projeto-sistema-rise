@@ -268,10 +268,10 @@ try {
     conferir("esquema guarda o ativo desligado", RascunhoLISchema.parse({ produtoId: "p3", ativo: false }).ativo, false);
     conferir("rascunho inicial leva as fotos do produto, a principal na frente", rascunhoInicialLI(ctxProd, { fotos: [{ id: "f2", principal: false }, { id: "f1", principal: true }] }).imagens, ["f1", "f2"]);
     conferir("fotos escolhidas nao mudam a assinatura (o envio de foto espera a VPS)", assinaturaLI(normalizarDoRiseLI(ctxProd, { ...inicial, imagens: ["f1"] }, {})), assinaturaLI(normalizarDoRiseLI(ctxProd, inicial, {})));
-    conferir("ABAS_LI na ordem do dono", ABAS_LI.map((a) => a.id), ["geral", "imagens", "descricao", "categorias", "envio", "fiscal", "seo", "previa"]);
+    conferir("ABAS_LI na ordem do dono", ABAS_LI.map((a) => a.id), ["status", "geral", "imagens", "descricao", "categorias", "envio", "fiscal", "seo"]);
     conferir("abas com os nomes do cadastro de Produto", ABAS_LI.filter((a) => ["geral", "envio", "fiscal"].includes(a.id)).map((a) => a.rotulo), ["Características", "Peso e dimensões", "Tributação"]);
     conferir("alerta de categoria mora na aba Categorias", validarRascunhoLI(inicial, { produto: { ...ctxProd, categoriasLI: [] }, categoriasDaLI: null }).find((p) => p.campo === "categorias")?.aba, "categorias");
-    conferir("rotulo da ultima aba", ABAS_LI.at(-1).rotulo, "Prévia e sincronização");
+    conferir("rotulo da primeira aba (era Previa e sincronizacao, 26/10/2026)", ABAS_LI[0].rotulo, "Status");
     const problemas = validarRascunhoLI({ ...inicial, titulo: "", slug: "Ré" }, { produto: { ...ctxProd, conferido: false, ncm: null, categoriasLI: ["9"], seoTituloLI: "t".repeat(71), seoDescricaoLI: "" }, categoriasDaLI: [{ id: "1" }] });
     conferir("bloqueantes: titulo e nao conferido (sem nome nao ha slug a acusar)", problemas.filter((p) => p.bloqueante).map((p) => p.campo), ["titulo", "produto", "seoDescription"]);
     conferir(
