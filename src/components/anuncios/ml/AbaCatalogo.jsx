@@ -87,10 +87,9 @@ export default function AbaCatalogo({ rascunho, alterar, setContexto, visivel = 
 
   const todos = dados?.catalogos ?? [];
   // So os catalogos em que ESTE anuncio concorre (pedido do dono em 26/10/2026, ao ver o catalogo de um anuncio antigo do
-  // mesmo codigo aparecer no 170113 como se fosse o aberto). Os dos outros anuncios dele do produto viram uma linha discreta.
+  // mesmo codigo aparecer no 170113 como se fosse o aberto). Os dos outros anuncios dele do produto nao aparecem (opcao 2).
   const desteAnuncio = (catalogo) => Boolean(idExterno) && catalogo.anuncios.some((anuncio) => anuncio.idExterno === idExterno);
   const catalogos = todos.filter(desteAnuncio);
-  const deOutros = todos.filter((catalogo) => !desteAnuncio(catalogo));
   const tela = dados?.tela ?? null;
   const catalogoAberto = todos.find((catalogo) => catalogo.id === aberto) ?? null;
 
@@ -175,24 +174,6 @@ export default function AbaCatalogo({ rascunho, alterar, setContexto, visivel = 
               </li>
             );
           })}
-        </ul>
-      )}
-
-      {/* Os catalogos dos OUTROS anuncios do dono com o mesmo codigo (publicados pelo Rise ou nao), so como informacao. */}
-      {deOutros.length > 0 && (
-        <ul className="mt-3 space-y-1">
-          {deOutros.map((catalogo) => (
-            <li key={catalogo.id} className="flex flex-wrap items-center gap-x-1.5 text-xs text-suave">
-              <span>
-                {catalogo.anuncios.length > 1 ? "Outros anúncios seus" : "Outro anúncio seu"} deste produto (
-                {catalogo.anuncios.map((anuncio) => anuncio.idExterno).join(", ")}) {catalogo.anuncios.length > 1 ? "estão" : "está"} no catálogo{" "}
-                <span className="text-texto">{catalogo.nome || catalogo.id}</span>.
-              </span>
-              <a href={urlDoCatalogo(catalogo.id)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 font-medium text-acento hover:underline">
-                Abrir no ML <ExternalLink size={11} />
-              </a>
-            </li>
-          ))}
         </ul>
       )}
 

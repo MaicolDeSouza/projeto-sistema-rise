@@ -3638,9 +3638,9 @@ Pedidos do dono (com print anotado e "usar UI/UX"):
 - **A aba Catálogo mostra só o catálogo do anúncio ABERTO** (decisão do dono em 26/10/2026, opção "Só deste anúncio"): no
   170113 aparecia o catálogo do MLB4340404927, um anúncio antigo dele com o mesmo código (não publicado pelo Rise), como se
   fosse o MLB5462196083 aberto (que não está em catálogo). A lista filtra pelos catálogos cujo `anuncios` tem o `idExterno`
-  do editor (título "Catálogo deste anúncio"); os dos outros anúncios do produto viram uma linha discreta embaixo ("Outro
-  anúncio seu deste produto (MLB…) está no catálogo X · Abrir no ML"). A busca continua lendo todos pelo SKU, e o
-  acompanhamento do produto pode seguir o catálogo de outro anúncio dele.
+  do editor (título "Catálogo deste anúncio"); os dos outros anúncios do produto NÃO aparecem (chegou a haver uma linha
+  discreta "Outro anúncio seu…"; o dono escolheu tirar, opção 2). A busca continua lendo todos pelo SKU, e o acompanhamento do
+  produto pode seguir o catálogo de outro anúncio dele.
 - **O popup do catálogo lê o catálogo AO VIVO** (pedido do dono em 26/10/2026: "estou em segundo mas meu anúncio não mostra
   aqui"): a lista dos acompanhados (`ConcorrenteML`) tira os anúncios do dono por desenho, e o popup pulava as posições dele.
   Agora mostra os 10 primeiros na ordem do ML (`preverCatalogoMLAcao`, `TabelaDoCatalogoAoVivo`, `linhasDoCatalogo` em
