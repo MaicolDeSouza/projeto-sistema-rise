@@ -283,6 +283,9 @@ model Produto {
   /// O trabalho da sessao do Claude para este produto, ate o dono aprovar (Conferido). Ver PropostaDeProduto.
   proposta PropostaDeProduto?
 
+  /// Em que pedidos de compra este produto esta (modulo Compras, 26/10/2026).
+  itensDeCompra ItemDoPedidoDeCompra[]
+
   @@index([marca])
   @@index([ativo])
 }
@@ -1180,6 +1183,7 @@ model Fornecedor {
   atualizadoEm DateTime @updatedAt
 
   produtos ProdutoFornecedor[]
+  pedidosDeCompra PedidoDeCompra[]
 
   @@index([fonteId])
 }
@@ -1363,6 +1367,7 @@ model Transportadora {
 
   clientes Cliente[]
   contatos TransportadoraContato[]
+  pedidosDeCompra PedidoDeCompra[]
 }
 
 /// Pessoas da transportadora (atendimento, financeiro), com telefone e e-mail
@@ -1966,4 +1971,152 @@ model AvisoTelegram {
   erro       String?
 
   @@index([enviadoEm, criadoEm])
+}
+
+// ---------------------------------------------------------------------------
+// Compras (spec 2026-10-26-modulo-compras-design.md)
+// ---------------------------------------------------------------------------
+
+enum StatusDoPedidoDeCompra {
+  RASCUNHO
+  ENVIADO
+  PARCIAL
+  FINALIZADO
+  CANCELADO
+}
+
+enum FormaDePagamentoDaCompra {
+  PIX
+  BOLETO
+  CARTAO
+}
+
+enum FretePorConta {
+  /// Por conta do remetente (o fornecedor paga).
+  CIF
+  /// Por conta do destinatario (a loja paga).
+  FOB
+}
+
+enum TipoDeDesconto {
+  PERCENTUAL
+  VALOR
+}
+
+/// Pedido de compra a um fornecedor. O estoque "a caminho" de um produto NAO e gravado em lugar nenhum: e a soma,
+/// calculada na leitura, dos itens ainda nao lancados de pedidos ENVIADO e PARCIAL. Gravar um contador no produto
+/// pediria acerta-lo em cada mudanca de status, item e lancamento, e um esquecido esconderia um produto da lista do
+/// estoque minimo. Os totais tambem sao calculados das linhas (lib/compras/regras.js); so os editaveis sao gravados.
+model PedidoDeCompra {
+  id     String                 @id @default(cuid())
+  /// Mostrado como PC-0001. Um por pedido; o proximo sai sob trava do Postgres (lib/compras/banco.js).
+  numero Int                    @unique
+  status StatusDoPedidoDeCompra @default(RASCUNHO)
+
+  /// Restrict: apagar um fornecedor com pedido levaria o historico de compras junto.
+  fornecedorId String
+  fornecedor   Fornecedor @relation(fields: [fornecedorId], references: [id], onDelete: Restrict)
+
+  icmsSt        Decimal         @default(0) @db.Decimal(12, 2)
+  descontoTipo  TipoDeDesconto?
+  descontoValor Decimal         @default(0) @db.Decimal(12, 2)
+  frete         Decimal         @default(0) @db.Decimal(12, 2)
+
+  formaPagamento FormaDePagamentoDaCompra?
+  parcelas       Int                       @default(1)
+
+  transportadoraId   String?
+  transportadora     Transportadora? @relation(fields: [transportadoraId], references: [id], onDelete: SetNull)
+  /// Texto livre quando a transportadora nao e do cadastro.
+  transportadoraNome String?
+  fretePorConta      FretePorConta   @default(CIF)
+  rastreio           String?
+
+  propostaNumero       String?
+  /// Nome gerado (32 hex) em dados/compras/<id>/; o nome real em `propostaNomeOriginal`.
+  propostaArquivo      String?
+  propostaNomeOriginal String?
+
+  observacoes  String?
+  enviadoEm    DateTime?
+  finalizadoEm DateTime?
+  canceladoEm  DateTime?
+  criadoEm     DateTime  @default(now())
+  atualizadoEm DateTime  @updatedAt
+
+  itens ItemDoPedidoDeCompra[]
+
+  @@index([status])
+  @@index([fornecedorId, status])
+}
+
+/// Um produto do pedido. Guarda COPIA do nome, codigo e link no fornecedor: o vinculo (ProdutoFornecedor) pode mudar
+/// ou sumir depois, e o pedido enviado tem de continuar dizendo o que foi pedido.
+model ItemDoPedidoDeCompra {
+  id       String         @id @default(cuid())
+  pedidoId String
+  pedido   PedidoDeCompra @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+
+  /// Restrict: produto com compra registrada nao some sem decisao.
+  produtoId String
+  produto   Produto @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+
+  /// O ProdutoFornecedor de origem, sem relacao: e so a referencia de onde vieram os dados.
+  vinculoId          String?
+  nomeNoFornecedor   String?
+  codigoNoFornecedor String?
+  link               String?
+
+  quantidade    Int
+  /// 4 casas: fornecedor cobra R$ 0,0385 a peca.
+  precoUnitario Decimal? @db.Decimal(12, 4)
+  ipiPercentual Decimal  @default(0) @db.Decimal(5, 2)
+  prazoDias     Int?
+  ordem         Int      @default(0)
+
+  /// Soma dos lancamentos vivos (nao desfeitos), regravada a cada lancar/desfazer; a verdade esta em `lancamentos`.
+  quantidadeLancada Int @default(0)
+
+  lancamentos LancamentoDoItemDeCompra[]
+
+  @@unique([pedidoId, produtoId])
+  @@index([produtoId, pedidoId])
+}
+
+/// Uma remessa que chegou e foi lancada no estoque (Rise + Bling). Um item pode ter varios (chegaram 100 de 225 hoje,
+/// o resto depois). O `movimentoId` unico e a trava do "duas vezes": o mesmo MovimentoEstoque nunca serve a dois
+/// lancamentos, e lancar de novo exige quantidade que ainda cabe no item.
+model LancamentoDoItemDeCompra {
+  id          String               @id @default(cuid())
+  itemId      String
+  item        ItemDoPedidoDeCompra @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  quantidade  Int
+  /// O MovimentoEstoque ENTRADA gravado no Rise (sem relacao: o historico de estoque e do produto).
+  movimentoId String               @unique
+  lancadoEm   DateTime             @default(now())
+  /// Preenchido pelo Desfazer, que grava a SAIDA em outro MovimentoEstoque.
+  desfeitoEm  DateTime?
+
+  @@index([itemId])
+}
+
+/// Os dados da loja que vao no pedido de compra (PDF). Uma linha so, id fixo "empresa", semeada pela migration com os
+/// dados da Receita e editavel em Configuracoes.
+model DadosDaEmpresa {
+  id                String   @id
+  razaoSocial       String
+  nomeFantasia      String?
+  cnpj              String
+  inscricaoEstadual String?
+  endereco          String
+  numero            String?
+  complemento       String?
+  bairro            String?
+  cidade            String
+  uf                String
+  cep               String
+  /// So digitos, com DDD (padrao do telefone do Rise).
+  telefone          String?
+  email             String?
+  atualizadoEm      DateTime @updatedAt
 }
