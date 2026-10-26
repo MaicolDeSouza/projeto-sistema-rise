@@ -58,7 +58,8 @@
     "teste:mcp": "node scripts/teste-mcp.js",
     "teste:telegram": "node scripts/teste-telegram.js",
     "teste:saude": "node scripts/teste-saude.js",
-    "acessos:admin": "node scripts/acessos-admin.js"
+    "acessos:admin": "node scripts/acessos-admin.js",
+    "teste:compras": "node scripts/teste-compras.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",
