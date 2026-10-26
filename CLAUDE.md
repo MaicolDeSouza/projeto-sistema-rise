@@ -3354,7 +3354,10 @@ plano: `docs/superpowers/plans/2026-10-21-concorrentes-ml-catalogo.md` (inline).
   o formato que o site do ML grava: medido nos 389 anúncios ativos da conta, 698 atributos assim. A validação aceita como
   resposta (não vira "fora da lista") e recusa no obrigatório. A proposta do ML (roteiro v6) pode mandar "-1" nos opcionais
   que o produto não tem, e o Microcontrolador é o Chip(SoC) da descrição ou, sem ele, a linha Processador/CPU (dono).
-  Visto na tela do PC (marcar e desmarcar); **o envio de um "-1" ao ML real ainda não foi visto** (o primeiro Publicar mostra).
+  Visto na tela do PC (marcar e desmarcar). **Medido no ML real em 25/10/2026:** o dono publicou o 170106 (MLB7885336422) com a
+  EEPROM marcada, e o `GET /items` devolve `EEPROM_CAPACITY` com `value_id "-1"` e `value_name` nulo; o 170113 e o 170110 ficaram
+  com a EEPROM marcada no rascunho. Prompt novo **Embarcados-ESP32-CAM** (`06-esp32-cam.txt`, `ba9e042`), ainda não gravado na
+  biblioteca da VPS.
 - **Aba "Preço e custos"** (era "Preço e estoque", pedidos do dono no mesmo dia): os Custos totais ficam à DIREITA do
   Preço de venda, no formato de campo; o campo Estoque saiu. **Estoque e descrição do anúncio são SEMPRE os do Rise**
   (`estoqueDoRise` e `descricaoDoRise` em `rascunho.js`): o do produto ou, no kit, o que as peças montam e a descrição do
