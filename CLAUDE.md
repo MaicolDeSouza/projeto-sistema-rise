@@ -2731,6 +2731,11 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       com 1 ou 2 frases até 300. **Roteiro da proposta v14:** o tamanho dos parágrafos é o do prompt, e o 330/550 da Smartkits só vale
       quando o prompt não diz. O código não precisou mudar (o teto de 550 do `LIMITE_PARAGRAFO` fica acima). Nome na biblioteca da
       VPS: "Componentes-Bornes" (o dono cria pela tela; a escrita por SSH foi barrada nesta sessão).
+    - **Prompt de mini fontes AC-DC** (`docs/prompts-descricao/fontes/01-mini-fontes-ac-dc.txt`, 27/10/2026, pedido do dono com o
+      220505, Hi-Link HLK-PM01; feito a partir de 110 mini fontes de 17 lojas e do datasheet da Hi-Link): encapsuladas para placa
+      (HLK-PM, 5M, 10M, 20M, IRM) e abertas; fora as de tomada, colmeia/DIN, DC-DC e carregadores. Mesmo molde dos de Componentes
+      (parágrafos até 200 e 300, peso e dimensões obrigatórios). Corrente contínua e de pico separadas, tensão nominal e faixa
+      separadas, a versão "L" é outro modelo. Nome na biblioteca da VPS: "Fontes-Mini Fontes AC-DC". Esperando a aprovação do dono.
     - **Origem da linha que nenhuma loja confirma** (13/10/2026, pedido do dono: "se veio pela IA, deve mostrar de onde
       veio a fonte"): antes a linha ficava sem nada ao lado. `origemSemLoja` (`divergencias.js`) diz **"Cadastro"** quando o
       valor está no título, na marca, no modelo, na descrição atual ou nas peças do kit (número solto, como "6", nunca conta),

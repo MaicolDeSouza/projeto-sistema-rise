@@ -1,0 +1,128 @@
+Escreva a descrição de uma mini fonte AC-DC para placa em português brasileiro, no JSON exigido pelo Rise: paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm e decisoes. Não acrescente outros campos. Vale para as mini fontes que convertem a tensão da rede em tensão contínua baixa: encapsuladas, para soldar na placa (Hi-Link HLK-PM01, HLK-PM03, HLK-PM12, HLK-PM24, HLK-PM01L, HLK-5M05, HLK-10M12, HLK-20M05; Mean Well IRM-03 e IRM-05; SHB-5W), e abertas, uma placa sem invólucro (ex.: XL-007, “mini fonte aberta 5V 700mA”). Fontes de tomada com plugue (P4, USB, carregadores), fontes chaveadas de caixa metálica ou de trilho DIN (colmeia, industriais), conversores DC-DC (step down, step up) e módulos carregadores de bateria não entram neste prompt.
+
+Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use informações confirmadas no cadastro ou nas referências. Não complete especificações por suposição.
+
+PARÁGRAFOS
+
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Simples e direto: diga o que a fonte faz e para que serve, sem propaganda. Tamanho, contando espaços: o primeiro até 200 caracteres, o segundo até 300.
+
+Primeiro parágrafo, UMA frase: “A Mini Fonte <fabricante> <modelo> converte a tensão da rede, de <entrada>, em <saída> com até <potência>, num módulo <encapsulado para soldar na placa de circuito impresso / aberto, sem invólucro>.” Só o que estiver confirmado.
+
+Segundo parágrafo, uma ou duas frases práticas, só com recursos confirmados: a corrente contínua que a fonte entrega, a entrada que aceita 127V e 220V sem chave (só quando a faixa de entrada cobre 100 a 240VAC), a isolação entre a rede e a saída, a proteção contra curto-circuito com retorno automático e o uso típico: alimentar ESP32, Arduino, relés e sensores direto da rede, dentro de caixas de automação.
+
+Fale com o comprador: “possui”, não “tem”. Ao voltar a falar do produto, use “a fonte”, nunca “ela” no início da frase. Varie a ordem dos fatos entre as opções. Sem elogios vazios (“excelente”, “alta qualidade”, “ideal para qualquer projeto”) e sem repetir o título inteiro.
+
+PADRONIZAÇÃO DOS NOMES
+
+Use exatamente os nomes dos campos definidos neste prompt. As lojas usam nomes variados; converta-os assim:
+
+Fabricante: substitui Marca. Quem fabrica o módulo, como está impresso nele e confirmado no título, no cadastro ou nas referências: “Hi-Link” (também para “Hi-Link Electronic”), “Mean Well”. “GENÉRICA” no cadastro não vale quando o título nomeia o fabricante. Fonte sem fabricante declarado: OEM. Nunca o nome da loja.
+
+Modelo: o código do fabricante, como “HLK-PM01”, “HLK-5M05”, “IRM-03-5”; substitui Código, Part Number e P/N. Corrija a grafia errada de loja (“HLK-PM012” é HLK-PM12).
+
+Tipo de Fonte: substitui Tipo, Formato e Tipo de produto: “Encapsulada (módulo para placa)” ou “Aberta (placa sem invólucro)”. “Regulador de tensão” ou “Conversor step down” estão errados para estas fontes: ignore.
+
+Tensão de Entrada: substitui Tensão entrada, Tensão nominal de entrada, Faixa de tensão de entrada, Faixa limite e Entrada AC. Quando a fonte separa a nominal da faixa, escreva as duas: “100 a 240VAC (nominal) / 90 a 264VAC (faixa)”. Entrada em corrente contínua só quando publicada para o mesmo modelo: “85 a 265VAC / 100 a 370VDC”.
+
+Frequência de Entrada: substitui Frequência e Frequência da rede: “50/60Hz”.
+
+Tensão de Saída: substitui Tensão nominal de saída e Saída: “5VDC”; com a precisão publicada, “5VDC (±0,2V)”.
+
+Corrente de Saída: substitui Corrente máxima na saída, Corrente de saída máx., Corrente nominal e Corrente avaliada. A contínua (de longo prazo) primeiro; o pico, quando publicado, depois: “600mA contínua / 1000mA de pico”.
+
+Potência de Saída: substitui Potência, Potência máx. e Potência nominal: “3W”.
+
+Corrente Máxima de Entrada: substitui Corrente de entrada: “0,2A”.
+
+Eficiência: substitui Eficiência de conversão. Com a tensão de entrada quando a fonte separar: “69% em 110VAC / 70% em 220VAC”; senão, “70%”.
+
+Consumo sem Carga: substitui Consumo de energia sem carga, Consumo em stand-by e Corrente em repouso: “Menor que 0,1W”.
+
+Proteções: substitui Proteção contra curto-circuito, Proteção contra sobrecorrente e Proteções integradas, em uma linha: “Curto-circuito e sobrecorrente na saída, com retorno automático”. Só as confirmadas.
+
+Isolação Entrada/Saída: substitui Tensão de isolamento, Tensão de isolação, Isolação de entrada para saída e Isolamento galvânico: “3000VAC”.
+
+Montagem: “Solda em placa (PTH), 4 pinos”, “SMD” ou, na fonte aberta, como a fonte descreve a ligação dos fios.
+
+Temperatura de Operação: substitui Temperatura de trabalho: “-20°C a 60°C”.
+
+Ripple e Ruído: substitui Ripple, Ondulação e Tensão de saída de ruído: “50mV”. Regulação de Linha: “±0,2%”. Regulação de Carga: “±0,5%”. Corrente de Partida: substitui Surto de corrente de entrada e Inrush: “Até 10A”.
+
+Pinagem: “1 e 2: AC / 3: -Vo / 4: +Vo”, só com o desenho do fabricante do mesmo modelo.
+
+Fusível Externo Recomendado: “1A 250VAC”, só quando o fabricante o recomenda.
+
+Temperatura de Armazenamento: “-40°C a 80°C”. Umidade de Operação: substitui Umidade relativa: “5 a 95%”. MTBF: substitui Confiabilidade a longo prazo: “100.000h”.
+
+Certificações: só as que o fabricante declara como obtidas, como ele escreve. “Projetada para atender UL e CE” não é certificação: omita.
+
+Use Tensão, nunca Voltagem; Corrente, nunca Amperagem. Troque ≤ e < por “até” ou “menor que”, e ≥ e > por “mínimo” ou “maior que”.
+
+CARACTERÍSTICAS
+
+Cada item contém nome, valor e referencias: nome “Tensão de Saída”, valor “5VDC”, sem dois-pontos no nome.
+
+Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: Material, Origem, Pressão atmosférica, Altitude, Vibração, Tempo de retenção, Coeficiente de temperatura, Datasheet).
+
+Campos obrigatórios:
+Fabricante; Modelo; Tipo de Fonte; Tensão de Entrada; Frequência de Entrada; Tensão de Saída; Corrente de Saída; Potência de Saída; Corrente Máxima de Entrada; Eficiência; Consumo sem Carga; Proteções; Isolação Entrada/Saída; Montagem; Temperatura de Operação.
+
+Campos condicionais (só quando a fonte confirma o dado do mesmo modelo):
+Ripple e Ruído; Regulação de Linha; Regulação de Carga; Corrente de Partida; Pinagem; Fusível Externo Recomendado; Temperatura de Armazenamento; Umidade de Operação; MTBF; Certificações.
+
+Campos finais:
+Dimensões (CxLxA); Peso.
+
+Dimensões (CxLxA) e Peso são sempre os dois últimos campos e são OBRIGATÓRIOS (o Rise calcula o frete com eles; ver PESO E DIMENSÕES). Devolva os números em dimensoesMm e pesoGramas; o Rise escreve as duas linhas. Não os repita em caracteristicas.
+
+Não entram em caracteristicas: Origem, Garantia, Unidade de venda, Quantidade do pacote, Peso com embalagem, textos de aplicação e propaganda (“Baixo consumo”, “Alta confiabilidade”, “Ideal para automação”).
+
+No modo sem referências, respeite a instrução acrescentada pelo Rise: inclua apenas especificações confirmadas nos dados próprios do produto. Se não houver nenhuma, retorne caracteristicas vazia.
+
+Números colados às unidades: 5VDC, 600mA, 3W, 240VAC, 50/60Hz. Use vírgula decimal. Nunca use ponto e vírgula dentro de um valor. Informações distintas no mesmo valor se separam por “ / ”; itens da mesma lista, por vírgula.
+
+REGRAS ESPECÍFICAS
+
+A tensão de saída e a corrente contínua decidem a compra. O modelo ajuda a conferir, nunca a inventar números: na série PM o final diz a tensão (PM01 é 5V, PM03 é 3,3V, PM12 é 12V, PM24 é 24V); nas séries 5M, 10M e 20M o primeiro número é a potência e o final a tensão (5M05 é 5W e 5V, 10M12 é 10W e 12V). Se o título, o cadastro e a referência discordarem da tensão, não escreva o valor e registre a divergência.
+
+Contínua e pico são coisas diferentes: a contínua é o que a fonte entrega sempre; o pico, só por instantes. Nunca escreva o pico como corrente de saída sozinho.
+
+Não copie entre modelos: corrente, eficiência, ripple, medidas e peso mudam com a tensão e a potência. A versão “L” (HLK-PM01L, HLK-5M05L) é outro modelo, menor: não copie nada entre PM01 e PM01L.
+
+As lojas misturam a tensão nominal (100 a 240VAC), a faixa do fabricante (90 a 264VAC) e a de outras séries (85 a 265VAC): escreva a do mesmo modelo, com nominal e faixa separadas.
+
+Corrente de entrada, isolação e eficiência variam entre lojas e entre versões do datasheet (0,1A e 0,2A; 2500VAC e 3000VAC; 70% e 73%): prefira o datasheet do fabricante para o mesmo modelo, e registre a divergência.
+
+Fonte aberta: não diga “isolada” nem “com proteção” sem fonte que confirme para o mesmo modelo.
+
+Lista de fornecedor sem ficha técnica não comprova especificação.
+
+FONTES
+
+Em referencias, registre só os números das referências fornecidas que sustentam o valor daquele campo. Para valores vindos só do cadastro ou título, e para valores desconhecidos, use referencias []. Resultado da web só vale se consultado de fato e informado como referência; prefira o datasheet do fabricante. Não invente consultas, fontes, URLs ou números de referência.
+
+ITENS INCLUSOS
+
+O primeiro item é o próprio produto, com quantidade e nome técnico: “01 Mini fonte Hi-Link HLK-PM01 5V 3W”. Pacote com várias fontes: a quantidade do cadastro (“05 Mini fontes Hi-Link HLK-PM01 5V 3W”). A embalagem de outro vendedor não comprova o conteúdo vendido pela Rise.
+
+PESO E DIMENSÕES (OBRIGATÓRIOS)
+
+O Rise usa o peso e as medidas para calcular o frete: pesoGramas e dimensoesMm são obrigatórios e só ficam null quando nenhum passo abaixo der resultado, e então decisoes diz o que foi procurado.
+
+pesoGramas: número em gramas, com uma casa decimal quando for menor que 10. dimensoesMm: comprimento (o lado maior), largura e altura em milímetros, do corpo da fonte sem os pinos de solda (na encapsulada, a altura é a espessura acima da placa). Nunca a embalagem.
+
+Procure nesta ordem e pare no primeiro que der o número:
+1. As referências fornecidas, do mesmo modelo.
+2. O datasheet ou o desenho do fabricante do mesmo modelo (o da Hi-Link traz o desenho com as medidas e o peso). Pesquise na internet quando as referências não trouxerem: o modelo e “datasheet”.
+3. Uma loja na internet do mesmo modelo.
+4. O modelo da mesma série com o mesmo invólucro no desenho do fabricante (HLK-PM01, PM03 e PM12 dividem a caixa de 34 x 20,2 x 15mm), só quando 1 a 3 não derem o número. Registre em decisoes o campo, o modelo usado e a fonte (“Peso do HLK-PM03 (20g, Curto Circuito): mesma caixa da série PM”). O relatório da proposta diz que o valor veio de outro modelo.
+
+Datasheet que publica peso máximo (“até 20g”) dá o teto, não o peso: prefira o peso medido numa referência do mesmo modelo. Arredonde ao décimo de milímetro e de grama. Não deduza medida pela foto.
+
+DIVERGÊNCIAS
+
+Para cada divergência fornecida, retorne id, opcao, motivo breve e campo com o nome padronizado deste prompt. opcao é o índice a partir de zero, ou null quando faltar evidência suficiente. Prefira o datasheet do fabricante, o mesmo modelo e fontes independentes. Exceto para peso e dimensões, reserve a posição do campo divergente em caracteristicas com valor "" e referencias []. Não coloque valores divergentes nos parágrafos ou características antes da escolha do operador.
+
+GARANTIA
+
+O Rise acrescenta automaticamente: Garantia Legal de 90 dias (contra defeitos de fabricação). Não gere campo extra de garantia nem copie garantias das referências. Não escreva preço, prazo ou nome de loja.
