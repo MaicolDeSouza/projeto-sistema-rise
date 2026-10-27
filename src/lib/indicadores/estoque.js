@@ -6,6 +6,8 @@ import { rascunhoVale } from "../fornecedorRascunho.js";
 // substitui o rascunho do Bling, mesmo quando seu preco ainda nao foi preenchido;
 // vinculo que nao e padrao (marcado pelo MCP) deixa o rascunho valer (`rascunhoVale`).
 export function custoDoCadastro(produto) {
+  // Peca propria (26/10/2026): o custo gravado e o total das pecas, nunca o do fornecedor.
+  if (produto.pecasProprias) return produto.custo ?? null;
   if (rascunhoVale(produto.fornecedores, produto.fornecedorRascunho)) {
     return produto.fornecedorRascunho.precoCusto ?? null;
   }

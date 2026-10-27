@@ -89,7 +89,98 @@ conferir("produzida acima", validarQuantidadeProduzida("4", 3).ok, false);
 conferir("produzida zero", validarQuantidadeProduzida("0", 3).ok, false);
 conferir("produzida ok", validarQuantidadeProduzida("2", 3), { ok: true, quantidade: 2 });
 
-// (blocos de banco entram aqui)
+// ---------------------------------------------------------------------------
+// Banco
+// ---------------------------------------------------------------------------
+
+const { prisma } = await import("../src/lib/db.js");
+const { custoDoProduto } = await import("../src/lib/canaisDeVenda/custo.js");
+const { gravarPecasProprias, lerPecasDoProduto, recalcularCustoDosProdutosQueUsam, buscarPecasProprias } = await import(
+  "../src/lib/producao/pecas.js"
+);
+const { ajustarEstoqueNaTransacao } = await import("../src/lib/ajusteRapido.js");
+
+const ZZ = { sku: { startsWith: "ZZ-PROD" } };
+async function limpar() {
+  await prisma.ordemDeProducao.deleteMany({ where: { produto: ZZ } });
+  await prisma.pecaPropriaDoProduto.deleteMany({ where: { OR: [{ produto: ZZ }, { componente: ZZ }] } });
+  await prisma.produtoComponente.deleteMany({ where: { OR: [{ kit: ZZ }, { componente: ZZ }] } });
+  await prisma.produto.deleteMany({ where: ZZ });
+}
+function criarProduto(sku, dados = {}) {
+  return prisma.produto.create({ data: { sku, tituloBase: `Produto ${sku}`, ...dados } });
+}
+
+try {
+  await limpar();
+
+  console.log("\nCusto pelas pecas e trava da entrada");
+  conferir(
+    "custoDoProduto pecas",
+    custoDoProduto({ pecasProprias: true, custo: 12.5, fornecedores: [{ padrao: true, precoCusto: 99 }] }),
+    { valor: 12.5, origem: "peças próprias" },
+  );
+  conferir(
+    "custoDoProduto pecas incompleto",
+    custoDoProduto({ pecasProprias: true, custo: null, fornecedores: [{ padrao: true, precoCusto: 99 }] }).valor,
+    null,
+  );
+
+  const a = await criarProduto("ZZ-PROD-A", { custo: 10, estoque: 10, estoqueMinimo: 2 });
+  const b = await criarProduto("ZZ-PROD-B", { estoque: 5 });
+  const final = await criarProduto("ZZ-PROD-FINAL", { custo: 99 });
+
+  await prisma.$transaction((tx) =>
+    gravarPecasProprias(tx, final.id, {
+      pecasProprias: true,
+      pecas: [
+        { componenteId: a.id, descricao: null, custoManual: null, quantidade: 2, ordem: 0 },
+        { componenteId: null, descricao: "cola", custoManual: 1, quantidade: 1, ordem: 1 },
+      ],
+    }),
+  );
+  let lido = await prisma.produto.findUnique({ where: { id: final.id } });
+  conferir("custo gravado", [lido.pecasProprias, Number(lido.custo)], [true, 21]);
+  const pecas = await lerPecasDoProduto(final.id);
+  conferir("le as pecas", pecas.map((peca) => [peca.sku, peca.nome, peca.custo, peca.quantidade, peca.estoqueMinimo]), [
+    ["ZZ-PROD-A", "Produto ZZ-PROD-A", 10, 2, 2],
+    [null, "cola", 1, 1, null],
+  ]);
+
+  await prisma.produto.update({ where: { id: a.id }, data: { custo: 15 } });
+  const antes = (await prisma.produto.findUnique({ where: { id: final.id } })).atualizadoEm;
+  conferir("recalcula quem usa", await recalcularCustoDosProdutosQueUsam(a.id), 1);
+  lido = await prisma.produto.findUnique({ where: { id: final.id } });
+  conferir("custo da peca muda", Number(lido.custo), 31);
+  conferir("atualizadoEm nao sobe", lido.atualizadoEm.getTime(), antes.getTime());
+
+  // Peca sem custo (B) deixa o total incompleto: custo nulo, sem cair no fornecedor.
+  await prisma.$transaction((tx) =>
+    gravarPecasProprias(tx, final.id, {
+      pecasProprias: true,
+      pecas: [{ componenteId: b.id, descricao: null, custoManual: null, quantidade: 1, ordem: 0 }],
+    }),
+  );
+  conferir("peca sem custo zera", (await prisma.produto.findUnique({ where: { id: final.id } })).custo, null);
+
+  const buscados = await buscarPecasProprias("ZZ-PROD", [final.id, b.id]);
+  conferir("busca sem o proprio e os da lista", buscados.map((peca) => peca.sku), ["ZZ-PROD-A"]);
+
+  const ajustar = (dados) => prisma.$transaction((tx) => ajustarEstoqueNaTransacao(tx, final.id, dados));
+  conferir("entrada manual recusada", (await ajustar({ tipo: "ENTRADA", quantidade: 1 })).erro, "A entrada deste produto vem da ordem de produção.");
+  conferir("entrada pela ordem", (await ajustar({ tipo: "ENTRADA", quantidade: 1, motivo: "Produção", ordemDeProducao: true })).ok, true);
+  conferir("saida manual continua", (await ajustar({ tipo: "SAIDA", quantidade: 1 })).ok, true);
+
+  await prisma.$transaction((tx) => gravarPecasProprias(tx, final.id, { pecasProprias: false, pecas: [] }));
+  lido = await prisma.produto.findUnique({ where: { id: final.id } });
+  conferir("desligar apaga e libera a entrada", [lido.pecasProprias, await prisma.pecaPropriaDoProduto.count({ where: { produtoId: final.id } })], [false, 0]);
+  conferir("entrada manual volta", (await ajustar({ tipo: "ENTRADA", quantidade: 1 })).ok, true);
+
+  // (proximos blocos)
+} finally {
+  await limpar();
+  await prisma.$disconnect();
+}
 
 console.log(falhas ? `\n${falhas} falha(s).` : "\nTudo certo.");
 process.exit(falhas ? 1 : 0);

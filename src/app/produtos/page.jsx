@@ -242,7 +242,8 @@ export default async function ProdutosPage({ searchParams }) {
       // do rascunho do Bling (e la que esta o custo da maioria dos produtos importados).
       custo: produto.custo
         ? Number(produto.custo)
-        : Number(produto.fornecedorRascunho?.precoCusto) > 0
+        // Peca propria: o custo e so o total das pecas; sem ele (alguma peca sem custo), nada de rascunho do Bling.
+        : !produto.pecasProprias && Number(produto.fornecedorRascunho?.precoCusto) > 0
           ? Number(produto.fornecedorRascunho.precoCusto)
           : null,
       estoque: produto.estoque,

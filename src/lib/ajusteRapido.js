@@ -121,7 +121,7 @@ export async function ajustarEstoqueNaTransacao(tx, id, dados = {}) {
     return { ok: false, erro: `A observação aceita até ${MAXIMO_OBSERVACAO} caracteres.` };
   }
 
-  const linhas = await tx.$queryRaw`SELECT "estoque", "tipo"::text AS "tipo" FROM "Produto" WHERE "id" = ${id} FOR UPDATE`;
+  const linhas = await tx.$queryRaw`SELECT "estoque", "tipo"::text AS "tipo", "pecasProprias" FROM "Produto" WHERE "id" = ${id} FOR UPDATE`;
   if (linhas.length === 0) {
     return { ok: false, erro: "Produto não encontrado. Ele pode ter sido excluído." };
   }
@@ -129,6 +129,12 @@ export async function ajustarEstoqueNaTransacao(tx, id, dados = {}) {
   // apagado no proximo recalculo, e no Bling o kit nem recebe lancamento.
   if (linhas[0].tipo === "COMPOSICAO") {
     return { ok: false, erro: "O estoque de um kit é calculado pelas peças. Ajuste o estoque das peças." };
+  }
+
+  // Peca propria (26/10/2026): a entrada do produto montado so vem da ordem de producao concluida; saida e balanco
+  // continuam (venda fora dos canais, contagem).
+  if (linhas[0].pecasProprias && tipo === "ENTRADA" && !dados.ordemDeProducao) {
+    return { ok: false, erro: "A entrada deste produto vem da ordem de produção." };
   }
 
   const anterior = linhas[0].estoque;

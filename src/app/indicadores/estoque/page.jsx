@@ -27,6 +27,8 @@ export default async function IndicadoresEstoquePage() {
         // O kit fica fora das somas (o estoque dele e o das pecas): ver `calcularIndicadoresEstoque`.
         tipo: true,
         precoVenda: true,
+        custo: true,
+        pecasProprias: true,
         fornecedorRascunho: true,
         fornecedores: {
           select: { padrao: true, precoCusto: true },

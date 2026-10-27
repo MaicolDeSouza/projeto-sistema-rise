@@ -23,7 +23,11 @@ function valorPositivo(valor) {
  * }} produto
  * @returns {{valor: number|null, origem: "fornecedor padrao"|"rascunho do Bling"|"cadastro"|null}}
  */
-export function custoDoProduto({ fornecedores, fornecedorRascunho, custo } = {}) {
+export function custoDoProduto({ fornecedores, fornecedorRascunho, custo, pecasProprias } = {}) {
+  // Peca propria (26/10/2026): o `custo` do cadastro e o total das pecas, gravado no Salvar. Nulo = alguma peca sem
+  // custo, e NAO cai no fornecedor: o fornecedor de um produto montado em casa nao e o custo dele.
+  if (pecasProprias) return { valor: valorPositivo(custo), origem: "peças próprias" };
+
   // Padrao com custo invalido nao trava a busca: cai para o proximo da ordem, como o
   // COALESCE da foto mensal faz com o custo nulo.
   const doPadrao = (Array.isArray(fornecedores) ? fornecedores : [])

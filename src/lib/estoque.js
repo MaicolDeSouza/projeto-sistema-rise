@@ -12,8 +12,8 @@ export const TIPOS_DE_MOVIMENTO = [
 
 /// Motivos oferecidos por tipo; o primeiro e o padrao da tela.
 export const MOTIVOS = {
-  ENTRADA: ["Compra de fornecedor", "Devolução de cliente", "Outro"],
-  SAIDA: ["Venda fora dos canais", "Perda ou avaria", "Uso interno", "Outro"],
+  ENTRADA: ["Compra de fornecedor", "Devolução de cliente", "Outro", "Produção", "Produção cancelada"],
+  SAIDA: ["Venda fora dos canais", "Perda ou avaria", "Uso interno", "Outro", "Produção"],
   BALANCO: ["Contagem de inventário"],
 };
 

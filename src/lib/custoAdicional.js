@@ -29,7 +29,7 @@ export async function custosDosProdutos(ids, cliente = prisma) {
   const produtos = await cliente.produto.findMany({
     where: { id: { in: unicos } },
     select: {
-      id: true, sku: true, tituloBase: true, custo: true, fornecedorRascunho: true,
+      id: true, sku: true, tituloBase: true, custo: true, pecasProprias: true, fornecedorRascunho: true,
       fornecedores: { where: { padrao: true }, select: { padrao: true, precoCusto: true } },
     },
   });
