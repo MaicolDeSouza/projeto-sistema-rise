@@ -26,18 +26,41 @@ function contagemSegura(valor) {
  * @param {string|null} entrada.assinaturaGuardada assinatura dos campos no ultimo envio.
  * @param {string} entrada.assinaturaAtual assinatura dos campos como o Rise os tem agora.
  * @param {number} entrada.pendentes quantos ajustes de estoque ainda nao foram ao Bling.
- * @returns {{cor: "cinza"|"verde", divergente: boolean, motivos: ("campos"|"estoque")[]}}
+ * @param {string|null} [entrada.fotosGuardadas] as fotos do ultimo Sincronizar (`assinaturaDasFotos`); nulo = nunca gravadas.
+ * @param {string} [entrada.fotosAtuais] as fotos validadas do produto agora (`assinaturaDasFotos`).
+ * @returns {{cor: "cinza"|"verde", divergente: boolean, motivos: ("campos"|"estoque"|"fotos")[]}}
  */
-export function estadoDoIconeBling({ sincronizadoEm, assinaturaGuardada, assinaturaAtual, pendentes }) {
+export function estadoDoIconeBling({ sincronizadoEm, assinaturaGuardada, assinaturaAtual, pendentes, fotosGuardadas = null, fotosAtuais = "" }) {
   const sincronizado = Boolean(sincronizadoEm);
   const motivos = [];
 
   // Sem sincronizacao nao ha o que comparar: nunca enviado nao e "campo mudou".
   if (sincronizado && assinaturaGuardada !== assinaturaAtual) motivos.push("campos");
   if (contagemSegura(pendentes) > 0) motivos.push("estoque");
+  // Fotos (27/10/2026, pedido do dono, Opcao 1): so compara quando o ultimo Sincronizar gravou as fotos (os produtos de
+  // antes ficam sem o "!" ate o proximo envio). Produto sem foto nao acende: o Sincronizar nunca apaga as do Bling.
+  if (sincronizado && fotosGuardadas !== null && fotosGuardadas !== undefined && fotosAtuais && fotosGuardadas !== fotosAtuais) motivos.push("fotos");
 
   return { cor: sincronizado ? "verde" : "cinza", divergente: motivos.length > 0, motivos };
 }
+
+/**
+ * As fotos validadas do produto como texto comparavel: os nomes dos arquivos (gerados, nunca reutilizados) na
+ * ordem em que o Bling as recebe (a principal primeiro). O envio grava este texto e o icone o refaz do banco.
+ */
+export function assinaturaDasFotos(arquivos) {
+  return (Array.isArray(arquivos) ? arquivos : [])
+    .map((foto) => foto?.arquivo)
+    .filter(Boolean)
+    .join("|");
+}
+
+/// A mesma ordem de `lerProdutoDoRise` (leitura.js): a principal primeiro, depois a ordem do cadastro.
+export const FOTOS_DO_PRODUTO = {
+  where: { tipo: "IMAGEM", papel: "FOTO" },
+  orderBy: [{ principal: "desc" }, { ordem: "asc" }, { criadoEm: "asc" }],
+  select: { arquivo: true },
+};
 
 /**
  * O que a lista de Produtos carrega a mais, junto da linha do produto, para `iconeBlingDoProduto`:
@@ -59,6 +82,8 @@ export const INCLUDE_DO_ICONE_BLING = {
     select: { quantidade: true, componente: { select: { sku: true } } },
     orderBy: [{ ordem: "asc" }, { criadoEm: "asc" }],
   },
+  // As fotos validadas, para o "!" de fotos (27/10/2026). A lista de Produtos usa a primeira como miniatura.
+  arquivos: FOTOS_DO_PRODUTO,
 };
 
 /**
@@ -71,7 +96,7 @@ export const INCLUDE_DO_ICONE_BLING = {
  * tem que carregar os dois, ou o produto que os tem apareceria como divergente.
  *
  * @param {object} produto linha de `Produto` com `fornecedores` e `_count.movimentosEstoque` (so os pendentes).
- * @returns {{cor: "cinza"|"verde", divergente: boolean, motivos: ("campos"|"estoque")[]}}
+ * @returns {{cor: "cinza"|"verde", divergente: boolean, motivos: ("campos"|"estoque"|"fotos")[]}}
  */
 export function iconeBlingDoProduto(produto) {
   const assinaturaAtual = assinaturaDoRise(normalizarDoRise(produto), normalizarFornecedoresDoRise(produto?.fornecedores));
@@ -80,6 +105,8 @@ export function iconeBlingDoProduto(produto) {
     assinaturaGuardada: produto?.blingAssinatura,
     assinaturaAtual,
     pendentes: produto?._count?.movimentosEstoque,
+    fotosGuardadas: produto?.blingFotos ?? null,
+    fotosAtuais: assinaturaDasFotos(produto?.arquivos),
   });
 }
 

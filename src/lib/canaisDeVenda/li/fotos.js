@@ -54,6 +54,18 @@ export function fotosEnviadas(dados) {
   return lista.filter((item) => item && typeof item.arquivo === "string" && item.liId).map((item) => ({ arquivo: item.arquivo, liId: String(item.liId) }));
 }
 
+/**
+ * O "!" de fotos da LI, so do banco (27/10/2026, pedido do dono: ao salvar o produto o Rise ja deve acusar): as fotos
+ * validadas do produto agora (`arquivos`, na ordem do envio) diferem das que o Rise registrou como mandadas. Sem registro
+ * (produto que o Rise nunca mandou foto) e produto sem foto (o Sincronizar nao apaga as da loja) nao acendem.
+ */
+export function fotosMudaramLI(arquivos, dados) {
+  const atuais = (Array.isArray(arquivos) ? arquivos : []).map((foto) => foto?.arquivo).filter(Boolean);
+  const enviadas = fotosEnviadas(dados).map((item) => item.arquivo);
+  if (!atuais.length || !enviadas.length) return false;
+  return !iguais(atuais, enviadas);
+}
+
 const iguais = (a, b) => a.length === b.length && a.every((valor, indice) => valor === b[indice]);
 const comecaCom = (lista, inicio) => inicio.length <= lista.length && inicio.every((valor, indice) => valor === lista[indice]);
 

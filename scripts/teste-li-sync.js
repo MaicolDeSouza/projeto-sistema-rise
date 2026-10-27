@@ -440,6 +440,14 @@ try {
     conferir("iconeLIDoProduto: documento novo acende o selo", iconeLIDoProduto(produtoIcone, { ...anuncioIcone, hashConteudo: assinaturaCerta }, { documentos: [{ url: "https://x/a.pdf", nome: "a.pdf" }] }).divergente, true);
     conferir("iconeLIDoProduto: frase passada nao muda nada", iconeLIDoProduto(produtoIcone, { ...anuncioIcone, hashConteudo: assinaturaCerta }, { frases: ["Com nota"], documentos: [] }).divergente, false);
     conferir("iconeLIDoProduto: sem anuncio e cinza", iconeLIDoProduto(produtoIcone, null, {}), { cor: "cinza", divergente: false, conferido: true, semBling: false });
+    // Fotos (27/10/2026): o "!" acende so do banco quando as fotos do produto mudam depois do envio.
+    const comFotos = { ...produtoIcone, arquivos: [{ arquivo: "a.jpg" }, { arquivo: "b.jpg" }] };
+    const anuncioComFotos = { ...anuncioIcone, hashConteudo: assinaturaCerta, dados: { ...anuncioIcone.dados, fotosLI: [{ arquivo: "a.jpg", liId: "1" }, { arquivo: "b.jpg", liId: "2" }] } };
+    conferir("iconeLIDoProduto: fotos iguais as enviadas, sem selo de fotos", iconeLIDoProduto(comFotos, anuncioComFotos, {}).fotosMudaram, undefined);
+    conferir("iconeLIDoProduto: foto nova no produto acende o selo de fotos", iconeLIDoProduto({ ...comFotos, arquivos: [...comFotos.arquivos, { arquivo: "c.jpg" }] }, anuncioComFotos, {}).fotosMudaram, true);
+    conferir("iconeLIDoProduto: outra ordem (outra capa) acende", iconeLIDoProduto({ ...comFotos, arquivos: [...comFotos.arquivos].reverse() }, anuncioComFotos, {}).fotosMudaram, true);
+    conferir("iconeLIDoProduto: sem registro de fotos enviadas nao acende", iconeLIDoProduto(comFotos, { ...anuncioIcone, hashConteudo: assinaturaCerta }, {}).fotosMudaram, undefined);
+    conferir("iconeLIDoProduto: produto sem foto nao acende", iconeLIDoProduto({ ...comFotos, arquivos: [] }, anuncioComFotos, {}).fotosMudaram, undefined);
     conferir("produtoIdValido reexportado", typeof produtoIdValido, "function");
   }
 

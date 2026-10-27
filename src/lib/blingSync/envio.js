@@ -11,6 +11,7 @@ import {
   pecasDoRise,
 } from "@/lib/blingSync/campos";
 import { clienteBling } from "@/lib/blingSync/cliente";
+import { assinaturaDasFotos } from "@/lib/blingSync/estado";
 import { montarCorpoDeCadastro, montarCorpoDeFotos, montarCorpoParcial } from "@/lib/blingSync/corpo";
 import { fotosDoBling, fotosDoRise, md5DasFotosDoBling, md5DasFotosDoRise, planoDasFotos } from "@/lib/blingSync/fotos";
 import { config } from "@/lib/integracoes/config";
@@ -444,11 +445,26 @@ async function gravarNoProduto(produto, dados) {
   return gravados.count > 0;
 }
 
-/// O icone verde: a data e a assinatura do que acabou de ser enviado.
-async function gravarSincronizado(produto, campos, fornecedores) {
+/**
+ * As fotos que o envio deixou no Bling, para o "!" de fotos (27/10/2026). So quando elas foram de fato conferidas ou
+ * enviadas: produto sem foto ("nenhuma") e envio sem link publico ("pulada") nao mexem no Bling, entao mantem o que
+ * estava gravado (`undefined` = nao grava).
+ */
+function fotosDoEnvio(produto, planoDasFotos) {
+  if (!planoDasFotos || planoDasFotos.acao === "nenhuma" || planoDasFotos.acao === "pulada") return undefined;
+  return assinaturaDasFotos(produto.arquivos);
+}
+
+/// O icone verde: a data e a assinatura do que acabou de ser enviado (e as fotos, quando foram).
+async function gravarSincronizado(produto, campos, fornecedores, planoDasFotos = null) {
   let gravou;
   try {
-    gravou = await gravarNoProduto(produto, { blingSincronizadoEm: new Date(), blingAssinatura: assinaturaDoRise(campos, fornecedores) });
+    const fotos = fotosDoEnvio(produto, planoDasFotos);
+    gravou = await gravarNoProduto(produto, {
+      blingSincronizadoEm: new Date(),
+      blingAssinatura: assinaturaDoRise(campos, fornecedores),
+      ...(fotos === undefined ? {} : { blingFotos: fotos }),
+    });
   } catch (erro) {
     throw new FalhaDoEnvio(`O Bling recebeu o envio, mas o Rise não gravou que o produto foi sincronizado: ${mensagemDe(erro)}`);
   }
@@ -689,7 +705,7 @@ export async function sincronizarProduto(produtoId, cliente = clienteBling(), de
       saida.fornecedores.enviados = envio.enviados;
       if (envio.falhas.length) throw falhaDosFornecedores(envio.falhas);
 
-      await gravarSincronizado(produto, campos, fornecedores);
+      await gravarSincronizado(produto, campos, fornecedores, planoDasFotos);
       progresso.feita("fornecedores", envio.enviados > 0 ? `${envio.enviados} fornecedor(es)` : "nada a enviar");
       return { ok: true, ...saida };
     } catch (erro) {
@@ -833,7 +849,7 @@ export async function cadastrarNoBling(produtoId, cliente = clienteBling(), depe
       const envio = await enviarFornecedores(cliente, blingId, fornecedores);
       if (envio.falhas.length) throw falhaDosFornecedores(envio.falhas, `O produto foi cadastrado no Bling (id ${blingId}), mas `);
 
-      await gravarSincronizado(produto, campos, fornecedores);
+      await gravarSincronizado(produto, campos, fornecedores, planoDasFotos);
       progresso.feita("fornecedores", envio.enviados > 0 ? `${envio.enviados} fornecedor(es)` : "nada a enviar");
       return { ok: true, blingId, ...saida };
     } catch (erro) {

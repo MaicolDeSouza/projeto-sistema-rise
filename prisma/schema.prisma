@@ -219,6 +219,9 @@ model Produto {
   /// Resumo dos campos enviados no ULTIMO envio. A tela compara com o resumo de
   /// hoje para saber se o Rise mudou depois, sem reler o Bling. Nulo = nunca enviado.
   blingAssinatura     String?
+  /// As fotos (nomes dos arquivos, na ordem) que o ULTIMO Sincronizar deixou no Bling. Fora da
+  /// assinatura de proposito: nulo = produto sincronizado antes de 27/10/2026, e ele nao acende o "!".
+  blingFotos          String?
   /// Saldo de estoque lido do Bling (o saldoVirtualTotal) na ultima vez que o
   /// operador usou o botao da lista. Pode ser NEGATIVO: o saldo virtual desconta
   /// reservas. Nulo = nunca lido. O estoque do Rise e este saldo mais os ajustes

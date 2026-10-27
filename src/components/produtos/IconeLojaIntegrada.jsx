@@ -16,7 +16,7 @@ import MarcaNaoAnunciar from "./MarcaNaoAnunciar";
 const CANAL_LI = CANAIS.find((canal) => canal.id === "LOJA_INTEGRADA");
 
 /** O estado em palavras: vai no nome acessivel e na dica (cor e selo sozinhos nao dizem nada). */
-export function rotuloDoIconeLI({ cor, divergente, conferido, semBling, incompleto, naLoja }) {
+export function rotuloDoIconeLI({ cor, divergente, conferido, semBling, incompleto, naLoja, fotosMudaram }) {
   if (!conferido) return "Loja Integrada: só Produto Conferido";
   const partes = [];
   // O cadastro automatico parou numa etapa (24/10/2026): vem primeiro, e o editor tem o "Completar o cadastro".
@@ -25,6 +25,7 @@ export function rotuloDoIconeLI({ cor, divergente, conferido, semBling, incomple
   if (semBling) partes.push("sem vínculo com o Bling (estoque e pedidos não chegam)");
   else if (cor === "cinza") partes.push("nunca sincronizado");
   if (divergente) partes.push("divergência em campos");
+  if (fotosMudaram) partes.push("fotos mudaram no produto");
   // O que o worker leu na loja (25/10/2026): campo mudado no painel, inativo, estoque diferente do Bling...
   partes.push(...textosDoAlertaNaLoja({ naLoja }));
   if (partes.length === 0) partes.push("em dia");
@@ -44,7 +45,7 @@ export default function IconeLojaIntegrada({ iconeLI, aoClicar, naoAnunciar = fa
     >
       <Image src={CANAL_LI.logo} alt="" width={22} height={22} className={`rounded ${iconeLI.cor === "verde" && !naoAnunciar ? "" : "opacity-70 brightness-50 grayscale"}`} />
       {naoAnunciar && <MarcaNaoAnunciar />}
-      {(iconeLI.divergente || iconeLI.incompleto || iconeLI.alertaNaLoja) && (
+      {(iconeLI.divergente || iconeLI.incompleto || iconeLI.alertaNaLoja || iconeLI.fotosMudaram) && (
         <span
           aria-hidden="true"
           className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[10px] leading-none font-bold text-amber-950 ring-2 ring-superficie"

@@ -28,6 +28,7 @@ function rotuloDoIconeBling({ cor, motivos }) {
   if (cor === "cinza") partes.push("nunca sincronizado");
   if (motivos.includes("campos")) partes.push("divergência em campos");
   if (motivos.includes("estoque")) partes.push("ajuste de estoque pendente");
+  if (motivos.includes("fotos")) partes.push("fotos mudaram no produto");
   if (partes.length === 0) partes.push("em dia");
   return `Bling: ${partes.join(" e ")}`;
 }

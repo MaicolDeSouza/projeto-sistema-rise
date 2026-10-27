@@ -668,6 +668,12 @@ try {
     conferir("icone: sincronizado sem assinatura guardada conta como campos diferentes", estado({ sincronizadoEm, assinaturaGuardada: null, assinaturaAtual: "b" }), { cor: "verde", divergente: true, motivos: ["campos"] });
     conferir("icone: pendentes ausente ou nao numerico conta 0", [estado({ pendentes: undefined }), estado({ pendentes: "x" }), estado({ pendentes: NaN })].map((e) => e.divergente), [false, false, false]);
     conferir("icone: pendentes negativo nao e pendente", estado({ pendentes: -1 }).divergente, false);
+    // Fotos (27/10/2026): so com o registro do ultimo Sincronizar; produto sem foto nao acende.
+    conferir("icone: fotos iguais as do ultimo envio = sem selo", estado({ sincronizadoEm, assinaturaGuardada: "a", fotosGuardadas: "f1|f2", fotosAtuais: "f1|f2" }).motivos, []);
+    conferir("icone: fotos diferentes do ultimo envio = selo de fotos", estado({ sincronizadoEm, assinaturaGuardada: "a", fotosGuardadas: "f1|f2", fotosAtuais: "f1|f3" }), { cor: "verde", divergente: true, motivos: ["fotos"] });
+    conferir("icone: sem registro de fotos (sincronizado antes de 27/10) = sem selo de fotos", estado({ sincronizadoEm, assinaturaGuardada: "a", fotosGuardadas: null, fotosAtuais: "f1" }).motivos, []);
+    conferir("icone: produto que ficou sem foto nao acende (o Sincronizar nao apaga as do Bling)", estado({ sincronizadoEm, assinaturaGuardada: "a", fotosGuardadas: "f1", fotosAtuais: "" }).motivos, []);
+    conferir("icone: nunca sincronizado nao tem selo de fotos", estado({ fotosGuardadas: "f1", fotosAtuais: "f2" }).motivos, []);
   }
 
   // -------------------------------------------------------------------------
@@ -3444,6 +3450,13 @@ try {
         conferir("sincronizar: UM PATCH de fotos, com os 3 links publicos na ordem do cadastro (principal primeiro) e o video do produto", [envios.length, linksDe(envios[0]), envios[0].corpo.midia.video], [1, ORDEM.map((n) => urlDe("ZZ-BS-FOTO", n)), { url: "" }]);
         conferir("sincronizar: o Bling guardou as 3 (conteudo e ordem do Rise)", conteudosNoBling(falso), ORDEM.map((n) => conteudoDe(n).toString()));
         conferir("sincronizar: so o PATCH de fotos (os campos ja estavam iguais)", doMetodoBs(falso, "PATCH").length, 1);
+        const depoisDasFotos = await prisma.produto.findUnique({ where: { id: produto.id }, include: INCLUDE_DO_ICONE_BLING });
+        conferir("sincronizar: grava as fotos enviadas (na ordem) e o icone fica sem selo", [depoisDasFotos.blingFotos, iconeBlingDoProduto(depoisDasFotos).motivos], [ORDEM.map((n) => arquivoDe(n)).join("|"), []]);
+        conferir(
+          "fotos mudam no Rise depois do envio: o icone acende o selo de fotos (sem ler o Bling)",
+          iconeBlingDoProduto({ ...depoisDasFotos, arquivos: [...depoisDasFotos.arquivos].reverse() }).motivos,
+          ["fotos"],
+        );
 
         // Clique seguinte: o Bling ja tem tudo, nada sai.
         const antes = falso.chamadas.length;
@@ -3530,6 +3543,7 @@ try {
           [resultado.ok, resultado.alterados.map((item) => item.campo), resultado.fotos, casaTexto(resultado.aviso, /APP_URL_PUBLICA/), patchesDeFotos(falso).length],
           [true, ["preco"], { acao: "pulada", enviadas: 0 }, true, 0],
         );
+        conferir("sem endereco publico: as fotos puladas NAO entram no registro (fica o do envio anterior)", (await prisma.produto.findUnique({ where: { id: produto.id } })).blingFotos, ORDEM.map((n) => arquivoDe(n)).join("|"));
       }
 
       // --- Rise sem foto: nunca mexe nas do Bling ---

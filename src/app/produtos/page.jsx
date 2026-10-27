@@ -134,11 +134,8 @@ export default async function ProdutosPage({ searchParams }) {
       skip: (pagina - 1) * porPagina,
       take: porPagina,
       include: {
-        arquivos: {
-          where: { tipo: "IMAGEM", papel: "FOTO" },
-          orderBy: { ordem: "asc" },
-          take: 1,
-        },
+        // As fotos vem do INCLUDE_DO_ICONE_BLING (todas as validadas, a principal primeiro): o "!" de fotos do Bling e da
+        // LI compara a lista inteira, e a miniatura e a primeira dela.
         anuncios: {
           select: {
             id: true,

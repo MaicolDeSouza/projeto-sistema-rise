@@ -2,6 +2,7 @@ import { assinaturaLI, normalizarDoRiseLI } from "./campos";
 import { rascunhoDoAnuncio } from "./banco";
 import { alertaDoMonitorLI } from "./alertaNaLoja";
 import { ROTULO_DA_ETAPA_LI } from "./etapasCadastro";
+import { fotosMudaramLI } from "./fotos";
 
 export { produtoIdValido } from "@/lib/blingSync/estado";
 
@@ -46,6 +47,9 @@ export function iconeLIDoProduto(produto, anuncioLI, { documentos = [] } = {}) {
       assinaturaAtual: atual,
     }),
     ...cadastroIncompleto(anuncioLI),
+    // As fotos do produto mudaram depois do ultimo envio (27/10/2026): `produto.arquivos` vem do INCLUDE_DO_ICONE_BLING.
+    // So conta com o produto ja sincronizado e Conferido (o resto do icone ja e cinza e sem selo).
+    ...(produto?.conferido && anuncioLI.sincronizadoEm && fotosMudaramLI(produto?.arquivos, anuncioLI.dados) ? { fotosMudaram: true } : {}),
     // O que o worker leu na loja e nao bate com o Rise (25/10/2026): so aparece com o monitor gravado.
     ...alertaDoMonitorLI(anuncioLI.dados?.monitorLI ?? null),
   };

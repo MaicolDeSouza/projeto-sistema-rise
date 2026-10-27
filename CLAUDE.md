@@ -308,10 +308,10 @@ npm run teste:estoque             # 57 asserções da edição rápida da lista 
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
 npm run teste:anuncios-ml         # 868 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
-npm run teste:li-sync             # 356 asserções da sincronização Rise -> Loja Integrada (com o cadastro automático e as categorias e o SEO que vêm do produto): slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio, ícone e as etapas do Cadastrar (LI falsa e Bling de mentira, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
+npm run teste:li-sync             # 408 asserções da sincronização Rise -> Loja Integrada (com o cadastro automático e as categorias e o SEO que vêm do produto): slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio, ícone e as etapas do Cadastrar (LI falsa e Bling de mentira, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
 npm run teste:composicao          # 136 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças (com o que falta a cada produto), a descrição só com referências cadastradas e os ajustes de 10/10/2026 (código sugerido, localização da peça, peça de origem, documentos e descrições das peças, o "!" do kit e o "Anexar a este produto") (Postgres, SEM rede; só escreve produtos ZZ-KIT-* e a pasta dados/produtos/ZZ-KIT-C3, que apaga)
-npm run teste:bling-sync          # 733 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos e de fotos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
+npm run teste:bling-sync          # 754 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos e de fotos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 npm run teste:rise-ai             # 616 asserções do Rise AI (Entrega 1 e A1; o chat da tela e a leitura do fluxo SSE saíram em 20/10/2026): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo e a coluna Outros, configuração e as quatro abas, orçamento e reserva, cotação do dia, Parar, texto seguro, perfil cliente, pesquisa na internet, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
 npm run teste:mcp                 # 231 asserções do servidor MCP (com o buscarNoMercado, os filtros do catálogo, anúncios, histórico de preço e os cadastros): sondagem do SDK, OAuth puro e no banco (só hash, rotação, revogação por família), portão 401/403/503, rotas do protocolo, tela Autorizar, as ferramentas com o pode() do login, o registro de cada chamada, anotarDuvida, a rota /mcp, o Caddyfile, a aba Conexões e a Revisão do dia. Postgres local, SEM rede e SEM IA; só escreve zz-mcp-*, ZZ-MCP * e ZZ-MCP-*
 npm run teste:telegram            # 96 asserções da Entrega C1 (avisos no Telegram): banco, texto dos avisos (4 linhas, neutralizado, mascarado), cliente da API do bot e o token mascarado no log, vínculo por código, a configuração e a aba Canais, e a rotina do worker (linha de base, zerou/voltou/zerou, orçamento 80/100%, varredura que falhou, resumo das 20h, bloqueado, 3 tentativas). Telegram FALSO (SEM rede); Postgres local, só escreve zz-tg-* e ZZ-TG-* e devolve a Conexao TELEGRAM, a configuração e a linha de base do dono
@@ -3940,8 +3940,18 @@ fotos públicas do 100101; o produto de teste ficou sem foto no fim):
 rodapé; diferenças no molde da aba Divergências): o bloco **Fotos** mostra miniaturas dos dois lados (as do Rise pelo
 caminho relativo; as do Bling pela `linkMiniatura` do S3) e o estado: "iguais", "faltam no Bling", "diferentes" ou
 "só tem no Bling" (Rise sem foto). Foto **não entra em `CAMPOS_DE_ENVIO` nem na assinatura do ícone**: quase todo
-produto tem foto, e entrar lá acenderia o "!" em todo produto já sincronizado. O ícone da lista **não** acusa
-diferença de foto (só campos e estoque).
+produto tem foto, e entrar lá acenderia o "!" em todo produto já sincronizado.
+
+**"!" de fotos no Salvar (27/10/2026, pedido do dono: "cada vez que eu salvar o produto, o Rise deve verificar
+divergências"; Opção 1):** o ícone do Bling e o da LI acendem o "!" ("fotos mudaram no produto") só do banco, sem ler o
+canal, quando as fotos validadas (nomes dos arquivos, a principal primeiro) diferem das que o Rise mandou da última vez.
+Bling: coluna `Produto.blingFotos` (migration `20261027d_bling_fotos`), gravada pelo Sincronizar e pelo Cadastrar junto
+da assinatura, só quando as fotos foram conferidas ou enviadas (Rise sem foto e "pulada" sem `APP_URL_PUBLICA` mantêm o
+registro); nula nos produtos sincronizados antes, que só passam a comparar depois do próximo Sincronizar
+(`assinaturaDasFotos`, `FOTOS_DO_PRODUTO` e o motivo `fotos` em `blingSync/estado.js`). LI: compara com o registro que já
+existia (`dados.fotosLI`, `fotosMudaramLI` em `li/fotos.js`). Produto que ficou sem foto não acende (o Sincronizar não apaga
+as do canal). A lista de Produtos lê as fotos pelo `INCLUDE_DO_ICONE_BLING` (todas, a principal primeiro; a miniatura é a
+primeira). O ML já acendia assim (impressão do Publicar); a Shopee não tem integração.
 
 **Duas colunas fixas (pedido do dono em 26/10/2026: "na esquerda sempre dados do Rise e na direita dados do Bling, aumentar o
 tamanho das letras"):** a janela é uma comparação com o **Rise sempre à esquerda e o Bling sempre à direita** em toda seção
