@@ -19,30 +19,35 @@ function Campo({ rotulo, erro, children, className = "" }) {
   );
 }
 
-function Calculado({ rotulo, valor, destaque = false }) {
+/** Um valor calculado das linhas, no mesmo desenho dos campos (so leitura), para a linha dos totais ler como uma so. */
+function Calculado({ rotulo, valor }) {
   return (
-    <div className={destaque ? "rounded-md bg-acento/5 px-3 py-2" : "px-3 py-2"}>
-      <p className="text-xs text-suave">{rotulo}</p>
-      <p className={`tabular-nums ${destaque ? "text-xl font-semibold text-texto" : "font-medium"}`}>{valor}</p>
+    <div>
+      <span className="mb-1 block text-xs font-medium text-suave">{rotulo}</span>
+      <p className="rounded-md border border-borda bg-fundo px-2.5 py-2 text-right text-sm tabular-nums">{valor}</p>
     </div>
   );
 }
 
-/** Totais da compra: os calculados das linhas e os tres editaveis (ICMS ST, desconto em % ou R$, frete). */
+/**
+ * Totais da compra (desenho do dono em 26/10/2026): a esquerda os impostos (IPI calculado e ICMS ST), depois frete,
+ * desconto e o preco dos produtos, e o total num verde suave. Numero de itens e soma das quantidades sairam.
+ */
 export function BlocoTotais({ formulario, totais, editar, erros, aoMudar }) {
   const desconto = lerDesconto(formulario.desconto);
   return (
     <SecaoDoAnuncio titulo="Totais da compra" ajuda="Desconto: digite 5% para percentual ou 50 para R$ 50,00. O percentual incide sobre os produtos.">
-      <div className="grid gap-4 lg:grid-cols-[1fr_1fr_auto]">
-        <div className="grid grid-cols-2 gap-1 rounded-md border border-borda sm:grid-cols-4 lg:grid-cols-2">
-          <Calculado rotulo="Total dos produtos" valor={moeda.format(totais.produtos)} />
-          <Calculado rotulo="Total do IPI" valor={moeda.format(totais.ipi)} />
-          <Calculado rotulo="Nº de itens" valor={totais.numeroDeItens} />
-          <Calculado rotulo="Soma das qtdes" valor={totais.somaDasQuantidades} />
-        </div>
-        <div className="grid grid-cols-3 gap-3 self-start">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_auto]">
+        <div className="grid grid-cols-2 gap-3 rounded-md border border-borda p-3">
+          <p className="col-span-2 -mt-0.5 text-xs font-semibold text-texto">Impostos</p>
+          <Calculado rotulo="IPI" valor={moeda.format(totais.ipi)} />
           <Campo rotulo="ICMS ST (R$)" erro={erros?.icmsSt}>
             <input inputMode="decimal" value={formulario.icmsSt} disabled={!editar} aria-invalid={Boolean(erros?.icmsSt)} onChange={(evento) => aoMudar("icmsSt", soDecimal(evento.target.value))} className={`${entrada} text-right`} />
+          </Campo>
+        </div>
+        <div className="grid grid-cols-3 gap-3 pt-3 lg:pt-[39px]">
+          <Campo rotulo="Frete (R$)" erro={erros?.frete}>
+            <input inputMode="decimal" value={formulario.frete} disabled={!editar} aria-invalid={Boolean(erros?.frete)} onChange={(evento) => aoMudar("frete", soDecimal(evento.target.value))} className={`${entrada} text-right`} />
           </Campo>
           <Campo rotulo="Desconto" erro={erros?.desconto ?? ("erro" in desconto ? desconto.erro : null)}>
             <input
@@ -55,13 +60,12 @@ export function BlocoTotais({ formulario, totais, editar, erros, aoMudar }) {
             />
             {totais.desconto > 0 && <span className="mt-1 block text-right text-xs text-suave">− {moeda.format(totais.desconto)}</span>}
           </Campo>
-          <Campo rotulo="Frete (R$)" erro={erros?.frete}>
-            <input inputMode="decimal" value={formulario.frete} disabled={!editar} aria-invalid={Boolean(erros?.frete)} onChange={(evento) => aoMudar("frete", soDecimal(evento.target.value))} className={`${entrada} text-right`} />
-          </Campo>
+          <Calculado rotulo="Preço dos produtos" valor={moeda.format(totais.produtos)} />
         </div>
-        <div className="flex min-w-48 flex-col justify-center rounded-lg bg-texto px-5 py-4 text-white lg:text-right">
-          <p className="text-xs text-white/70">Total do pedido</p>
-          <p className="text-2xl font-semibold tabular-nums">{moeda.format(totais.total)}</p>
+        {/* Verde suave (pedido do dono): o total se destaca sem pesar como a caixa escura de antes. */}
+        <div className="flex min-w-48 flex-col justify-center self-stretch rounded-lg border border-emerald-200 bg-emerald-50 px-5 py-4 lg:text-right">
+          <p className="text-xs font-medium text-emerald-700">Total do pedido</p>
+          <p className="text-2xl font-semibold tabular-nums text-emerald-800">{moeda.format(totais.total)}</p>
         </div>
       </div>
     </SecaoDoAnuncio>
