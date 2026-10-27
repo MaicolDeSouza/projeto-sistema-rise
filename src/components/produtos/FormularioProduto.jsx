@@ -63,6 +63,7 @@ import { DocumentosDasPecas, FornecedoresDoKit, MedidasDoKit } from "./AbasDoKit
 import BuscarPorCodigo from "./BuscarPorCodigo";
 import Composicao from "./Composicao";
 import Concorrentes from "./Concorrentes";
+import PecasProprias from "./PecasProprias";
 import EditorDescricao from "./EditorDescricao";
 import Fornecedores from "./Fornecedores";
 import JanelaDescricao from "./JanelaDescricao";
@@ -266,6 +267,73 @@ function SeloDaProposta({ tipo = "proposta" }) {
     <span className="shrink-0 rounded bg-slate-200 px-1.5 py-0.5 text-[11px] font-semibold text-slate-700">Original</span>
   ) : (
     <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-800">Proposta</span>
+  );
+}
+
+/** Liga/desliga "Peças próprias" (26/10/2026), na altura dos campos de estoque minimo e maximo. */
+function InterruptorPecasProprias({ ligado, aoTrocar }) {
+  return (
+    <div>
+      <span className="flex items-center gap-1 text-sm font-semibold">
+        Peças próprias
+        <BolhaDeAjuda
+          variante="inline"
+          texto="Para produto que você monta: o custo vem das peças, e o estoque entra só pela ordem de produção. Ligado, fornecedores e concorrentes ficam escondidos."
+        />
+      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={ligado}
+        aria-label="Peças próprias"
+        onClick={aoTrocar}
+        className="mt-1 flex h-[42px] items-center gap-2.5 text-sm"
+      >
+        <span className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${ligado ? "bg-emerald-600" : "bg-slate-300"}`}>
+          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-[left] ${ligado ? "left-[22px]" : "left-0.5"}`} />
+        </span>
+        <span className={ligado ? "font-medium text-emerald-700" : "text-suave"}>{ligado ? "Ligado" : "Desligado"}</span>
+      </button>
+    </div>
+  );
+}
+
+/** Desligar com itens: popup que lista as pecas antes de apagar a lista (pedido do dono, para nao perder o feito). */
+function JanelaDesligarPecas({ pecas, aoCancelar, aoConfirmar }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" {...propsDoFundo(aoCancelar)}>
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="titulo-desligar-pecas"
+        onKeyDown={(evento) => evento.key === "Escape" && aoCancelar()}
+        className="w-full max-w-md rounded-lg bg-superficie p-5 shadow-xl"
+      >
+        <h2 id="titulo-desligar-pecas" className="text-base font-semibold">
+          Desligar peças próprias?
+        </h2>
+        <p className="mt-1 text-sm text-suave">
+          {pecas.length === 1 ? "A peça abaixo sai" : `As ${pecas.length} peças abaixo saem`} da lista ao salvar o produto.
+        </p>
+        <ul className="mt-3 max-h-56 divide-y divide-borda overflow-y-auto rounded border border-borda text-sm">
+          {pecas.map((peca, indice) => (
+            <li key={peca.chave ?? peca.id ?? indice} className="flex gap-2 px-3 py-1.5">
+              <span className="w-20 shrink-0 font-mono text-xs leading-5">{peca.sku ?? "manual"}</span>
+              <span className="min-w-0 flex-1 truncate">{peca.nome ?? peca.descricao ?? "item manual"}</span>
+              <span className="shrink-0 text-suave">× {peca.quantidade}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" autoFocus onClick={aoCancelar} className="rounded border border-borda px-3 py-2 text-sm hover:bg-fundo">
+            Cancelar
+          </button>
+          <button type="button" onClick={aoConfirmar} className="rounded bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700">
+            Desligar e apagar
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -2019,6 +2087,11 @@ export default function FormularioProduto({
   // ("Clonar a partir de um codigo", IA) nao pode trocar o tipo nem perder as pecas.
   const [tipo, setTipo] = useState(produto?.tipo ?? clone?.tipo ?? "SIMPLES");
   const [pecas, setPecas] = useState(() => produto?.composicao ?? clone?.composicao ?? []);
+  // Pecas proprias (26/10/2026): o liga/desliga da aba Fornecedores / Concorrentes e a lista. Como o kit, so o
+  // Salvar grava; desligar com itens pergunta antes (o Salvar apagaria a lista).
+  const [pecasLigadas, setPecasLigadas] = useState(() => Boolean(produto?.pecasProprias ?? clone?.campos?.pecasProprias));
+  const [pecasProprias, setPecasProprias] = useState(() => produto?.pecas ?? clone?.pecas ?? []);
+  const [confirmarDesligar, setConfirmarDesligar] = useState(false);
   // Trocar um kit com pecas para Simples apaga as pecas no Salvar: a tela pergunta antes.
   const [confirmarSimples, setConfirmarSimples] = useState(false);
   // Produto do Rise de onde este cadastro NOVO veio (o "Clonar" da lista ou o "Clonar a partir de um codigo"):
@@ -2590,6 +2663,7 @@ export default function FormularioProduto({
       alterado: alterado && (mexeuDepoisDeAbrir || !preencheuPelaProposta),
       tipo,
       pecas,
+      pecasProprias: { ligado: pecasLigadas, pecas: pecasProprias },
       fornecedores: fornecedoresRascunho,
       concorrentes: concorrentesRascunho,
       lote: loteTemporario,
@@ -2610,6 +2684,10 @@ export default function FormularioProduto({
     setVersao((anterior) => anterior + 1);
     setTipo(guardado.tipo);
     setPecas(guardado.pecas);
+    if (guardado.pecasProprias) {
+      setPecasLigadas(Boolean(guardado.pecasProprias.ligado));
+      setPecasProprias(Array.isArray(guardado.pecasProprias.pecas) ? guardado.pecasProprias.pecas : []);
+    }
     setFornecedoresRascunho(guardado.fornecedores);
     setConcorrentesRascunho(guardado.concorrentes);
     // As fotos e os documentos enviados so voltam se o lote temporario ainda existe (rascunho de mais de 20 h perde).
@@ -3428,6 +3506,23 @@ export default function FormularioProduto({
         name="composicao"
         value={JSON.stringify(pecas.map((peca) => ({ componenteId: peca.componenteId, quantidade: peca.quantidade })))}
       />
+      {/* Pecas proprias: o liga/desliga e a lista (so o essencial; o servidor le custo e estoque do banco). Sem o dado
+          Custo o campo nao vai, e o Salvar nao mexe nelas. */}
+      {acessos.custo && (
+        <input
+          type="hidden"
+          name="pecasProprias"
+          value={JSON.stringify({
+            ligado: pecasLigadas,
+            pecas: pecasProprias.map((peca) => ({
+              componenteId: peca.componenteId ?? null,
+              descricao: peca.componenteId ? null : peca.descricao,
+              custoManual: peca.componenteId ? null : peca.custoManual,
+              quantidade: peca.quantidade,
+            })),
+          })}
+        />
+      )}
       {/* Concorrentes adicionados antes de o produto existir (ver Concorrentes.jsx). */}
       {acessos.concorrentes && (
         <input
@@ -4219,7 +4314,23 @@ export default function FormularioProduto({
             </div>
 
             <div className={aba === "fornecedores" ? "space-y-5" : "hidden"}>
-              <div className="grid gap-4 sm:grid-cols-4">
+              <div className="grid items-end gap-4 sm:grid-cols-5">
+                {!ehKit && acessos.custo && (
+                  <InterruptorPecasProprias
+                    ligado={pecasLigadas}
+                    aoTrocar={() => {
+                      if (!pecasLigadas) {
+                        setPecasLigadas(true);
+                        marcarAlterado();
+                      } else if (pecasProprias.length > 0) {
+                        setConfirmarDesligar(true);
+                      } else {
+                        setPecasLigadas(false);
+                        marcarAlterado();
+                      }
+                    }}
+                  />
+                )}
                 <Campo
                   nome="estoqueMinimo"
                   rotulo="Estoque mínimo"
@@ -4242,9 +4353,31 @@ export default function FormularioProduto({
               {/* Kit: a tabela de fornecedores e a das PECAS, so leitura (pedido do dono em 07/10/2026; sem
                   "Padrão" nem "Adicionar fornecedor"). A tabela editavel fica montada e escondida: os
                   vinculos que o kit ja tinha continuam indo no envio, e nada some no Salvar. */}
+              {pecasLigadas && !ehKit && acessos.custo && (
+                <PecasProprias
+                  pecas={pecasProprias}
+                  setPecas={setPecasProprias}
+                  produtoId={produto?.id ?? null}
+                  aoAlterar={() => marcarAlterado()}
+                />
+              )}
+              {confirmarDesligar && (
+                <JanelaDesligarPecas
+                  pecas={pecasProprias}
+                  aoCancelar={() => setConfirmarDesligar(false)}
+                  aoConfirmar={() => {
+                    setPecasProprias([]);
+                    setPecasLigadas(false);
+                    setConfirmarDesligar(false);
+                    marcarAlterado();
+                  }}
+                />
+              )}
               {ehKit && acessos.custo && <FornecedoresDoKit pecas={pecas} ativo={aba === "fornecedores"} />}
+              {/* Pecas proprias ligadas: fornecedores e concorrentes ficam montados e escondidos (os dados nao se
+                  perdem; desligar os mostra de volta). */}
               {acessos.custo && (
-              <div className={ehKit ? "hidden" : ""}>
+              <div className={ehKit || (pecasLigadas && !ehKit) ? "hidden" : ""}>
                 <Fornecedores
                   ref={fornecedoresRef}
                   podeCadastrar={acessos.cadastrarFornecedor}
@@ -4261,6 +4394,7 @@ export default function FormularioProduto({
               )}
 
               {acessos.concorrentes && (
+              <div className={pecasLigadas && !ehKit ? "hidden" : ""}>
               <Concorrentes
                 ref={concorrentesRef}
                 podeCadastrar={acessos.cadastrarConcorrente}
@@ -4274,6 +4408,7 @@ export default function FormularioProduto({
                 precoProduto={precoVendaAtual}
                 seloDoTitulo={<SeloPosicaoDePreco posicao={posicaoDoPreco} />}
               />
+              </div>
               )}
             </div>
           </fieldset>
