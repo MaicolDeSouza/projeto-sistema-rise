@@ -26,7 +26,7 @@ Número de Vias: substitui Vias, Posições, Número de pinos, Quantidade de pin
 
 Fileiras: substitui Número de fileiras e Simples/Dupla: “1” ou “2”.
 
-Passo: substitui Espaçamento, Passo entre os pinos e Pitch: “2,54mm”, “2,0mm”, “1,27mm”.
+Passo (Distância entre Pinos): o nome do campo é exatamente este, com o parêntese, para o comprador leigo entender o que é passo. Substitui Passo, Espaçamento, Passo entre os pinos e Pitch: “2,54mm”, “2,0mm”, “1,27mm”.
 
 Ângulo: substitui Configuração e Ângulo do conector: “180° (reta)” ou “90°”, como a fonte publica.
 
@@ -50,12 +50,12 @@ Use Tensão, nunca Voltagem; Corrente, nunca Amperagem.
 
 CARACTERÍSTICAS
 
-Cada item contém nome, valor e referencias: nome “Passo”, valor “2,54mm”, sem dois-pontos no nome.
+Cada item contém nome, valor e referencias: nome “Passo (Distância entre Pinos)”, valor “2,54mm”, sem dois-pontos no nome.
 
 Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: Categoria, Unidade Venda, Aplicação, Origem, Diâmetro, Dimensões 1x40 como campo).
 
 Campos obrigatórios:
-Fabricante; Modelo; Tipo; Número de Vias; Fileiras; Passo; Ângulo; Montagem; Corrente Nominal; Tensão Nominal; Material do Corpo; Material dos Contatos; Cor; Temperatura de Operação.
+Fabricante; Modelo; Tipo; Número de Vias; Fileiras; Passo (Distância entre Pinos); Ângulo; Montagem; Corrente Nominal; Tensão Nominal; Material do Corpo; Material dos Contatos; Cor; Temperatura de Operação.
 
 Campos condicionais (só quando o produto tem o recurso; com o recurso e sem valor confirmado, omita o campo):
 Altura do Corpo; Comprimento do Pino; Divisível; Resistência de Contato; Resistência de Isolação; Rigidez Dielétrica.

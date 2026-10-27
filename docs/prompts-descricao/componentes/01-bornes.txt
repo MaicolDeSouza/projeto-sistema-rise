@@ -24,7 +24,7 @@ Tipo de Borne: substitui Tipo, Tipo de Conector e Subcategoria: “Parafuso (fix
 
 Número de Vias: substitui Vias, Terminais, Número de polos, Número de contatos, Quantidade de terminais e Pinos: “2”, “3”.
 
-Passo: substitui Espaçamento, Distância entre terminais, Passo entre terminais e Pitch: “5,08mm”, “5,0mm”, “3,81mm”, “3,5mm”.
+Passo (Distância entre Terminais): o nome do campo é exatamente este, com o parêntese, para o comprador leigo entender o que é passo. Substitui Passo, Espaçamento, Distância entre terminais, Passo entre terminais e Pitch: “5,08mm”, “5,0mm”, “3,81mm”, “3,5mm”.
 
 Ângulo: substitui Configuração e Ângulo de conexão: “90°” ou “180°”, como a fonte do mesmo modelo publica.
 
@@ -54,12 +54,12 @@ Use Tensão, nunca Voltagem; Corrente, nunca Amperagem.
 
 CARACTERÍSTICAS
 
-Cada item contém nome, valor e referencias: nome “Passo”, valor “5,08mm”, sem dois-pontos no nome.
+Cada item contém nome, valor e referencias: nome “Passo (Distância entre Terminais)”, valor “5,08mm”, sem dois-pontos no nome.
 
 Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: Categoria, Unidade Venda, Aplicação, Origem, Durabilidade, Distância entre os terminais extremos).
 
 Campos obrigatórios:
-Fabricante; Modelo; Tipo de Borne; Número de Vias; Passo; Ângulo; Montagem; Fixação do Fio; Bitola do Fio; Corrente Nominal; Tensão Nominal; Material do Corpo; Material dos Contatos; Cor; Temperatura de Operação.
+Fabricante; Modelo; Tipo de Borne; Número de Vias; Passo (Distância entre Terminais); Ângulo; Montagem; Fixação do Fio; Bitola do Fio; Corrente Nominal; Tensão Nominal; Material do Corpo; Material dos Contatos; Cor; Temperatura de Operação.
 
 Campos condicionais (só quando o produto tem o recurso; com o recurso e sem valor confirmado, omita o campo):
 Encaixe Lateral; Laterais; Compatibilidade; Torque de Aperto; Resistência de Contato; Resistência de Isolação; Rigidez Dielétrica.
