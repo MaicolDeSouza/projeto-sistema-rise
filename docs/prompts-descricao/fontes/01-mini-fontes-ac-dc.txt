@@ -32,8 +32,6 @@ Corrente de Saída: substitui Corrente máxima na saída, Corrente de saída má
 
 Potência de Saída: substitui Potência, Potência máx. e Potência nominal: “3W”.
 
-Corrente Máxima de Entrada: substitui Corrente de entrada: “0,2A”.
-
 Eficiência: substitui Eficiência de conversão. Com a tensão de entrada quando a fonte separar: “69% em 110VAC / 70% em 220VAC”; senão, “70%”.
 
 Consumo sem Carga: substitui Consumo de energia sem carga, Consumo em stand-by e Corrente em repouso: “Menor que 0,1W”.
@@ -46,13 +44,9 @@ Montagem: “Solda em placa (PTH), 4 pinos”, “SMD” ou, na fonte aberta, co
 
 Temperatura de Operação: substitui Temperatura de trabalho: “-20°C a 60°C”.
 
-Ripple e Ruído: substitui Ripple, Ondulação e Tensão de saída de ruído: “50mV”. Regulação de Linha: “±0,2%”. Regulação de Carga: “±0,5%”. Corrente de Partida: substitui Surto de corrente de entrada e Inrush: “Até 10A”.
-
-Pinagem: “1 e 2: AC / 3: -Vo / 4: +Vo”, só com o desenho do fabricante do mesmo modelo.
-
 Fusível Externo Recomendado: “1A 250VAC”, só quando o fabricante o recomenda.
 
-Temperatura de Armazenamento: “-40°C a 80°C”. Umidade de Operação: substitui Umidade relativa: “5 a 95%”. MTBF: substitui Confiabilidade a longo prazo: “100.000h”.
+MTBF: substitui Confiabilidade a longo prazo: “100.000h”.
 
 Certificações: só as que o fabricante declara como obtidas, como ele escreve. “Projetada para atender UL e CE” não é certificação: omita.
 
@@ -62,13 +56,13 @@ CARACTERÍSTICAS
 
 Cada item contém nome, valor e referencias: nome “Tensão de Saída”, valor “5VDC”, sem dois-pontos no nome.
 
-Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: Material, Origem, Pressão atmosférica, Altitude, Vibração, Tempo de retenção, Coeficiente de temperatura, Datasheet).
+Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: Corrente de entrada, Corrente de partida, Ripple, Regulação de linha e de carga, Pinagem, Temperatura de armazenamento, Umidade, Material, Origem, Pressão atmosférica, Altitude, Vibração, Tempo de retenção, Coeficiente de temperatura, Datasheet).
 
 Campos obrigatórios:
-Fabricante; Modelo; Tipo de Fonte; Tensão de Entrada; Frequência de Entrada; Tensão de Saída; Corrente de Saída; Potência de Saída; Corrente Máxima de Entrada; Eficiência; Consumo sem Carga; Proteções; Isolação Entrada/Saída; Montagem; Temperatura de Operação.
+Fabricante; Modelo; Tipo de Fonte; Tensão de Entrada; Frequência de Entrada; Tensão de Saída; Corrente de Saída; Potência de Saída; Eficiência; Consumo sem Carga; Proteções; Isolação Entrada/Saída; Montagem; Temperatura de Operação.
 
 Campos condicionais (só quando a fonte confirma o dado do mesmo modelo):
-Ripple e Ruído; Regulação de Linha; Regulação de Carga; Corrente de Partida; Pinagem; Fusível Externo Recomendado; Temperatura de Armazenamento; Umidade de Operação; MTBF; Certificações.
+Fusível Externo Recomendado; MTBF; Certificações.
 
 Campos finais:
 Dimensões (CxLxA); Peso.
@@ -87,11 +81,11 @@ A tensão de saída e a corrente contínua decidem a compra. O modelo ajuda a co
 
 Contínua e pico são coisas diferentes: a contínua é o que a fonte entrega sempre; o pico, só por instantes. Nunca escreva o pico como corrente de saída sozinho.
 
-Não copie entre modelos: corrente, eficiência, ripple, medidas e peso mudam com a tensão e a potência. A versão “L” (HLK-PM01L, HLK-5M05L) é outro modelo, menor: não copie nada entre PM01 e PM01L.
+Não copie entre modelos: corrente, eficiência, medidas e peso mudam com a tensão e a potência. A versão “L” (HLK-PM01L, HLK-5M05L) é outro modelo, menor: não copie nada entre PM01 e PM01L.
 
 As lojas misturam a tensão nominal (100 a 240VAC), a faixa do fabricante (90 a 264VAC) e a de outras séries (85 a 265VAC): escreva a do mesmo modelo, com nominal e faixa separadas.
 
-Corrente de entrada, isolação e eficiência variam entre lojas e entre versões do datasheet (0,1A e 0,2A; 2500VAC e 3000VAC; 70% e 73%): prefira o datasheet do fabricante para o mesmo modelo, e registre a divergência.
+Isolação e eficiência variam entre lojas e entre versões do datasheet (2500VAC e 3000VAC; 70% e 73%): prefira o datasheet do fabricante para o mesmo modelo, e registre a divergência.
 
 Fonte aberta: não diga “isolada” nem “com proteção” sem fonte que confirme para o mesmo modelo.
 

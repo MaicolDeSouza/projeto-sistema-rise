@@ -10,11 +10,13 @@
   até 300) e peso e dimensões OBRIGATÓRIOS, como no de barras de pinos. Ficam de fora as fontes de tomada com plugue,
   as de caixa metálica ou de trilho DIN (colmeia, industriais, Andeli), os conversores DC-DC e os carregadores de
   bateria. Na biblioteca da VPS, o nome "Fontes-Mini Fontes AC-DC". Esperando a aprovação do dono.
+  Depois de ver a descrição do 220505, o dono tirou (27/10/2026) corrente de entrada, corrente de partida, ripple,
+  regulação de linha e de carga, pinagem, temperatura de armazenamento e umidade: o prompt manda não escrevê-los.
 
 Regras próprias, porque as lojas erram aqui: a corrente contínua e a de pico são coisas diferentes (o pico nunca vira
 a corrente de saída); a tensão nominal (100 a 240VAC) e a faixa do fabricante (90 a 264VAC) ficam separadas; a versão
-"L" (HLK-PM01L) é outro modelo, menor; e corrente de entrada, isolação e eficiência divergem entre lojas e entre versões
-do datasheet (0,1A e 0,2A; 2500VAC e 3000VAC), então vale o datasheet do mesmo modelo.
+"L" (HLK-PM01L) é outro modelo, menor; e isolação e eficiência divergem entre lojas e entre versões do datasheet
+(2500VAC e 3000VAC; 70% e 73%), então vale o datasheet do mesmo modelo.
 
 Segue as regras dos prompts de Embarcados e de Componentes (ver `../embarcados/LEIA-ME.md` e
 `../componentes/LEIA-ME.md`): campo sem dado confirmado sai da descrição, nomes padronizados por campo, "possui" em vez
