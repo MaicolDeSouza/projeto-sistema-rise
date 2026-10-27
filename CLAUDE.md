@@ -245,7 +245,8 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Configurações (Acessos) | Lançamento 1 pronto em 12/10/2026 e **no ar na VPS desde 13/10/2026**: usuários, funções com a matriz de permissões, exceções, quebra-vidro `RISE_AI_ADMINS` e segredo de borda; o Rise AI e Configurações conferem o acesso no servidor. Integrações virou cartão de Configurações. **Lançamento 2 pronto em 22/10/2026, SEM deploy:** o Rise inteiro confere o acesso (menu e Painel filtrados, telas em `ver` com o selo "Somente leitura", dados sensíveis cortados no servidor), "Ver como" e a aba Histórico. Ver "Acessos (lançamento 1)" e "Acessos (lançamento 2)" |
 | Relatórios | **Relatório semanal da coleta** em PDF (tela `/relatorios`, 20/10/2026, sem deploy): lista das rodadas, "Gerar agora" e baixar o PDF. Ver "Relatório semanal da coleta" |
 | Compras | Pedidos de compra e reposição do estoque mínimo (26/10/2026, sem deploy): lista dos conferidos abaixo do mínimo com popup de fornecedores e rascunho automático por fornecedor, editor do pedido no molde do Bling, estoque a caminho calculado, lançar estoque no Bling por item com Desfazer, proposta anexada e PDF para o fornecedor. Ver "Compras (26/10/2026)" |
-| Pedidos, Estoque, Financeiro | Esqueleto |
+| Estoque | Ordens de produção dos produtos com peças próprias (26/10/2026, sem deploy): baixa das peças, conclusão com perda, cancelamento que devolve. Saldo e movimentações ainda não. Ver "Peças próprias e ordem de produção (26/10/2026)" |
+| Pedidos, Financeiro | Esqueleto |
 
 **O que está no ar (24/10/2026):** o deploy 24.10.2026.29 (commit `5ede491`) subiu TUDO o que estava na main até esse commit
 (conferido com `git merge-base --is-ancestor`: concorrentes do ML e o ranking pelos catálogos de referência, o anúncio publicado
@@ -314,7 +315,8 @@ npm run teste:bling-sync          # 733 asserções da sincronização Rise <-> 
 npm run teste:rise-ai             # 616 asserções do Rise AI (Entrega 1 e A1; o chat da tela e a leitura do fluxo SSE saíram em 20/10/2026): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo e a coluna Outros, configuração e as quatro abas, orçamento e reserva, cotação do dia, Parar, texto seguro, perfil cliente, pesquisa na internet, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
 npm run teste:mcp                 # 231 asserções do servidor MCP (com o buscarNoMercado, os filtros do catálogo, anúncios, histórico de preço e os cadastros): sondagem do SDK, OAuth puro e no banco (só hash, rotação, revogação por família), portão 401/403/503, rotas do protocolo, tela Autorizar, as ferramentas com o pode() do login, o registro de cada chamada, anotarDuvida, a rota /mcp, o Caddyfile, a aba Conexões e a Revisão do dia. Postgres local, SEM rede e SEM IA; só escreve zz-mcp-*, ZZ-MCP * e ZZ-MCP-*
 npm run teste:telegram            # 96 asserções da Entrega C1 (avisos no Telegram): banco, texto dos avisos (4 linhas, neutralizado, mascarado), cliente da API do bot e o token mascarado no log, vínculo por código, a configuração e a aba Canais, e a rotina do worker (linha de base, zerou/voltou/zerou, orçamento 80/100%, varredura que falhou, resumo das 20h, bloqueado, 3 tentativas). Telegram FALSO (SEM rede); Postgres local, só escreve zz-tg-* e ZZ-TG-* e devolve a Conexao TELEGRAM, a configuração e a linha de base do dono
-npm run teste:compras             # 141 asserções do módulo Compras: regras (totais, desconto % ou R$, a caminho, carrinho, situação), lista do mínimo e rascunho automático (com concorrência), pedido (salvar, itens, situação, preço que não se apaga), lançamento contra o Bling falso (clique duplo, Bling que recusa, desfazer com estoque vendido), proposta pelos bytes, dados da empresa, o PDF e as ferramentas de Compras do MCP. Postgres local, SEM rede; só escreve ZZ-COMPRA-* e "ZZ Compra *"
+npm run teste:producao            # 80 asserções das peças próprias e da ordem de produção: regras (custo, cor do estoque, validação, arredondamento), custo pelas peças e o recálculo, trava da entrada manual, preparo do Salvar, clone, rascunho, a ordem (cria, baixa com falta, baixa, clique duplo, conclui com perda, cancela devolvendo, kit recalculado) contra o Bling falso. Postgres local, SEM rede; só escreve ZZ-PROD-*
+npm run teste:compras             # 142 asserções do módulo Compras: regras (totais, desconto % ou R$, a caminho, carrinho, situação), lista do mínimo e rascunho automático (com concorrência), pedido (salvar, itens, situação, preço que não se apaga), lançamento contra o Bling falso (clique duplo, Bling que recusa, desfazer com estoque vendido), proposta pelos bytes, dados da empresa, o PDF e as ferramentas de Compras do MCP. Postgres local, SEM rede; só escreve ZZ-COMPRA-* e "ZZ Compra *"
 npm run teste:saude               # 68 asserções da Saúde do Rise: regras (rotinas, worker, disco, backup, memória, banco, integrações, orçamento, varreduras, PC, healthchecks), o aviso do Telegram, a gravação em RotinaDoWorker e a coleta nos modos PC e VPS. Postgres local, SEM rede; só escreve zz-saude-*
 npm run teste:acessos             # 207 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição, as projeções do lançamento 2 (Painel, lista de Produtos, Cadastros, canais, Scraper, Indicadores), "Ver como", Histórico e o guarda estático de src/app (sem lista de exceções). Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
 npm run teste:proposta            # 319 asserções da proposta automática de produto (com as seções de categorias e SEO da loja): regras de preço/medidas/NCM, validação do plano, gravação por seção (fotos padronizadas em proposta/), aplicar ao formulário, Salvar marcando aplicadas, fotos para a reserva, Conferido com pergunta e o script de verdade (Postgres local, SEM rede; só escreve produtos ZZ-PROP-* e as pastas deles)
@@ -4906,6 +4908,43 @@ plano `docs/superpowers/plans/2026-10-26-modulo-compras.md` (12 tarefas, inline)
   mesmo `conferirPedido` da tela antes de gravar; preço só com `dado.custo`. `mudarSituacaoDoPedidoDeCompra` usa o
   `mudarStatus` da tela (enviar exige preço em todos os itens). Ambas pedem `tela.compras.pedidos` editar, sem o lembrete
   de `anotarDuvida`. **Lançar estoque NÃO existe no MCP** (escreve no Bling real; só na tela).
+
+## Peças próprias e ordem de produção (26/10/2026)
+
+Pedido do dono (prints da aba Fornecedores / Concorrentes e da dica de estoque do Bling): produto que ele mesmo monta ganha a
+lista de peças próprias e a produção em duas etapas. Spec `docs/superpowers/specs/2026-10-26-producao-pecas-proprias-design.md`,
+plano `docs/superpowers/plans/2026-10-26-producao-pecas-proprias.md` (inline). **Pronto e testado no PC, SEM DEPLOY** (migration
+`20261026c_producao_pecas_proprias`, só aditiva).
+
+- **Decisões do dono:** Opção 3 (custo + baixa de estoque), abordagem A (ordem em 2 etapas: "Dar baixa nas peças" quando ele
+  mandar, o produto final só entra no "Concluir"). Aprovou as propostas: cada peça é produto simples do Rise OU item manual (nome,
+  custo, quantidade); o custo total vira o custo do produto; ícone de estoque como o do Bling; ordens no bloco Estoque; a ordem copia
+  as peças do momento; baixa recusa inteira se faltar uma peça; o produto não aceita ENTRADA manual.
+- **Decisões minhas (a conferir):** quantidade da peça com até 3 casas, total da ordem arredondado para cima; peça não precisa ser
+  Conferida nem estar no Bling; fornecedores e concorrentes ficam GUARDADOS (escondidos) com o botão ligado; produto com peças
+  próprias sai da lista do mínimo de Compras (as peças ficam); o custo das peças não vai ao Bling; sem cascata de produção; peça sem
+  mínimo só fica vermelha (zero) ou verde.
+- **Banco:** `Produto.pecasProprias`; `PecaPropriaDoProduto` (componente Restrict, Cascade no produto); `OrdemDeProducao` (OP-0001,
+  número sob `pg_advisory_xact_lock`, produto Restrict) e `ItemDaOrdemDeProducao` (cópia: sku, descrição, custo, quantidade por
+  unidade e total, os ids dos movimentos de saída e de devolução).
+- **Onde mora:** `src/lib/producao/` (`regras.js` puro; `pecas.js` leitura, busca, `prepararPecasDoCadastro`, `gravarPecasProprias`,
+  `recalcularCustoDosProdutosQueUsam`; `banco.js` a ordem). Tela: `PecasProprias.jsx` e `IconeDeEstoque.jsx` (`components/produtos/`),
+  `components/producao/` (ordem, Produzir, selo), `src/app/estoque/producao/` (lista, ordem, ações). Acessos: `tela.estoque.producao`
+  (editar = criar ordem) e `acao.producao.movimentar` (baixa, concluir, cancelar, reenviar).
+- **Custo:** com as peças ligadas, `Produto.custo` é o total das peças, gravado no Salvar (nulo se alguma peça não tem custo: nunca
+  soma parcial); `custoDoProduto` devolve a origem "peças próprias" e não cai no fornecedor; `recalcularCusto` (fornecedor padrão) não
+  sobrescreve. O Salvar de uma peça recalcula quem a usa (SQL cru, sem subir o `atualizadoEm`). **A varredura que muda o custo de uma
+  peça NÃO recalcula** o produto montado: só no próximo Salvar da peça ou do produto.
+- **Trava:** `ajustarEstoqueNaTransacao` recusa ENTRADA em produto com peças próprias ("A entrada deste produto vem da ordem de
+  produção."), a menos que venha da ordem (`ordemDeProducao: true`). Saída e balanço continuam. Motivos novos: "Produção" e "Produção
+  cancelada".
+- **Ordem:** a ordem é travada (`FOR UPDATE`) e as peças também, em ordem de id; recusa no meio é `throw` (desfaz tudo); o Bling recebe
+  depois do commit pelo `enviarAjustesDeEstoque`, e o que ele recusa vira aviso âmbar com "Reenviar ao Bling" (o ajuste fica pendente,
+  com o "!" do Bling). Kit que usa a peça é recalculado na mesma transação.
+- **Visto na tela (PC, produto de teste apagado depois):** ligar, buscar, item manual, custo total, dica do estoque, Salvar, popup
+  "Desligar peças próprias?", Produzir → OP-0001, baixa recusada por falta, baixa com o aviso do Bling travado, Concluir 1 de 2 (perda
+  1), lista e cartão do Estoque. **Não visto:** o envio real ao Bling (só contra o falso); a escolha de depósito quando o Bling não tem
+  padrão (o "Reenviar" usa o padrão).
 
 ## Servidor MCP (20/10/2026)
 
