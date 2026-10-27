@@ -2725,6 +2725,12 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       gravados na biblioteca da VPS** (25/10/2026, pela lib do Rise dentro do contêiner): o texto novo do Arduino foi para o
       "Embarcados-Arduino" que o dono já tinha (12.111 caracteres) e o ESP32 entrou como "Embarcados-ESP32" (12.210), no mesmo
       padrão de nome. Nenhum dos dois é o padrão da janela; a proposta escolhe pelo nome exato.
+    - **Prompt de bornes de placa** (`docs/prompts-descricao/componentes/01-bornes.txt`, 27/10/2026, pedido do dono com os exemplos
+      900902, 902202 e 900904_z, aprovado no mesmo dia; feito a partir de 284 bornes de 15 concorrentes): parafuso, plugável macho e
+      fêmea e pressão de placa (DIN, banana e sindal fora); Cor e materiais entram; parágrafos simples, o 1º UMA frase até 200 e o 2º
+      com 1 ou 2 frases até 300. **Roteiro da proposta v14:** o tamanho dos parágrafos é o do prompt, e o 330/550 da Smartkits só vale
+      quando o prompt não diz. O código não precisou mudar (o teto de 550 do `LIMITE_PARAGRAFO` fica acima). Nome na biblioteca da
+      VPS: "Componentes-Bornes" (o dono cria pela tela; a escrita por SSH foi barrada nesta sessão).
     - **Origem da linha que nenhuma loja confirma** (13/10/2026, pedido do dono: "se veio pela IA, deve mostrar de onde
       veio a fonte"): antes a linha ficava sem nada ao lado. `origemSemLoja` (`divergencias.js`) diz **"Cadastro"** quando o
       valor está no título, na marca, no modelo, na descrição atual ou nas peças do kit (número solto, como "6", nunca conta),

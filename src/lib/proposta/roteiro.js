@@ -8,7 +8,9 @@
  * Texto para a LLM, com acento. Sem crase dentro do texto (ele mora numa string de crase).
  */
 // "13" em 25/10/2026: a marca sem fabricante e OEM (era GENERICA), e a descricao chama o campo de Fabricante (pedido do dono).
-export const VERSAO_DO_ROTEIRO = "13";
+// "14" em 27/10/2026: o tamanho dos paragrafos e o do prompt; 330/550 so quando o prompt nao diz (pedido do dono, com o
+// prompt Componentes-Bornes, que quer paragrafos simples: o 1o ate 200 e o 2o com 1 ou 2 frases ate 300).
+export const VERSAO_DO_ROTEIRO = "14";
 
 export const ROTEIRO = `ROTEIRO DA PROPOSTA DE PRODUTO (Rise / 4hobby), versão ${VERSAO_DO_ROTEIRO}
 
@@ -46,8 +48,10 @@ REGRAS QUE VALEM SEMPRE
 
 1. DESCRIÇÃO (primeiro: alimenta o resto)
 - Siga o prompt escolhido (o texto vem em lerParaProposta). Fonte: todos os concorrentes e fornecedores vinculados.
-- Formato da loja: título em MAIÚSCULAS; 2 parágrafos no estilo da Smartkits que a seção PARÁGRAFOS do prompt descreve
-  (o 1º é UMA frase de até 330 caracteres; o 2º tem 3 ou 4 frases, até 550), sem linha em branco entre eles;
+- Formato da loja: título em MAIÚSCULAS; 2 parágrafos, sem linha em branco entre eles, com o TAMANHO e o estilo que a
+  seção PARÁGRAFOS do prompt descreve. O prompt vence este roteiro (ex.: o de bornes pede o 1º com UMA frase de até 200
+  caracteres e o 2º com 1 ou 2 frases, até 300). Só quando o prompt não diz o tamanho: o 1º é UMA frase de até 330
+  caracteres e o 2º tem 3 ou 4 frases, até 550 (o estilo da Smartkits);
   "Especificações técnicas:" com "- Nome: valor;" (as duas últimas: "- Dimensões(CxLxA): 43x18x19mm;" e "- Peso: 7g;",
   com os valores dos campos do produto); "Itens inclusos: (Cod:SKU)" com "- 01 ITEM;"; "Garantia:" com
   "- Garantia Legal de 90 dias (contra defeitos de fabricação);". Quebra de linha \\r\\n.
