@@ -197,6 +197,32 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
     };
   }, [recarregarCategorias, lerLoja]);
 
+  // O painel da LI e onde se corrigem origem e tipo de producao (a API nao os grava). Pedido do dono em 27/10/2026: ele ajustava
+  // la, voltava, clicava em Fechar, e o icone seguia com o "!" ate abrir o editor de novo. Agora quem clicou num link do painel
+  // faz o Rise reler a loja ao voltar para esta aba e, se fechar o editor antes disso, na saida. A leitura do editor
+  // (`abrirJanelaLI`) e a que atualiza o monitor e a lista.
+  const abriuPainel = useRef(false);
+  useEffect(() => {
+    function aoClicar(evento) {
+      if (evento.target instanceof Element && evento.target.closest('a[href*="app.lojaintegrada.com.br"]')) abriuPainel.current = true;
+    }
+    function aoVoltar() {
+      if (!abriuPainel.current || !montado.current) return;
+      abriuPainel.current = false;
+      lerLoja();
+    }
+    document.addEventListener("click", aoClicar, true);
+    window.addEventListener("focus", aoVoltar);
+    return () => {
+      document.removeEventListener("click", aoClicar, true);
+      window.removeEventListener("focus", aoVoltar);
+      if (abriuPainel.current && produtoId) {
+        abriuPainel.current = false;
+        chamar(abrirJanelaLI, produtoId);
+      }
+    };
+  }, [lerLoja, produtoId]);
+
   useEffect(() => {
     if (mensagem?.tipo === "erro") caixaDaMensagem.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [mensagem]);

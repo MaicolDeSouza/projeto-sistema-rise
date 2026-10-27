@@ -4514,6 +4514,11 @@ Bling, Fechar vira Salvar e fechar, 'Na loja' e 'Tudo salvo' saem").
   `envio.js`) e o botão do rodapé do editor fica desabilitado com o motivo no `title` (`primeiroBloqueioDaTela`; vale para qualquer
   problema bloqueante, não só estes). O "Completar o cadastro" não confere (o conteúdo já está na loja). O Salvar continua livre. Não
   visto na tela (o servidor da pasta era de outra sessão); coberto pelo `teste:li-sync`.
+- **O Rise relê a loja depois de o dono ir ao painel da LI** (pedido do dono em 27/10/2026: ele ajustava os dados fiscais no painel,
+  voltava, clicava em Fechar e o ícone seguia com o "!" até abrir o editor de novo): o editor marca quando se clica em qualquer link
+  `app.lojaintegrada.com.br` (painel do rodapé, do popup de etapas e da aba Divergências) e, ao voltar para a aba do Rise
+  (`focus`) ou, se o editor fechar antes disso, na saída, chama `abrirJanelaLI` (a leitura que atualiza o monitor e a lista).
+  Não visto com clique na tela (depende do painel real da LI).
 - **Testes:** `teste:li-sync` foi de 356 para 401 asserções (andamento do Sincronizar, do Cadastrar, do que falhou e do recusado;
   contas comuns do popup; liga/desliga no campo, na assinatura, no Cadastrar pausado, no
   Sincronizar ligando e desligando, na leitura, no cadastro incompleto e no nome e marca do produto); lint limpo.
