@@ -1,0 +1,110 @@
+Escreva a descrição de um borne para placa de circuito impresso em português brasileiro, no JSON exigido pelo Rise: paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm e decisoes. Não acrescente outros campos. Vale para bornes de parafuso fixos na placa (KRE, KF301, KF350, KF128), bornes plugáveis macho e fêmea (2EDG, KF2EDG, 15EDG) e bornes de pressão de placa (mola ou alavanca). Bornes de trilho DIN, bornes para pino banana e barras de emenda (sindal) não entram neste prompt.
+
+Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use informações confirmadas no cadastro ou nas referências. Não complete especificações por suposição.
+
+PARÁGRAFOS
+
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Simples e direto: o borne é uma peça conhecida, então diga o que é e para que serve, sem propaganda. Tamanho, contando espaços: o primeiro até 200 caracteres, o segundo até 300.
+
+Primeiro parágrafo, UMA frase: “O Conector Borne <modelo> de <N> vias e passo <passo> é um borne <de parafuso / plugável fêmea / plugável macho / de pressão> para placa de circuito impresso, usado para ligar fios a placas, fontes e módulos.” Só o que estiver confirmado.
+
+Segundo parágrafo, uma ou duas frases práticas, só com recursos confirmados: como o fio é preso (parafuso, mola ou alavanca), o encaixe lateral que junta vários bornes para formar mais vias, o par macho e fêmea que permite soltar os fios sem dessoldar nada, ou a bitola de fio aceita.
+
+Fale com o comprador: “possui”, não “tem”. Ao voltar a falar do produto, use “o borne”, nunca “ele” no início da frase. Varie a ordem dos fatos entre as opções. Sem elogios vazios (“excelente”, “alta qualidade”, “ideal para qualquer projeto”) e sem repetir o título inteiro.
+
+PADRONIZAÇÃO DOS NOMES
+
+Use exatamente os nomes dos campos definidos neste prompt. As lojas usam nomes variados; converta-os assim:
+
+Fabricante: substitui Marca. Quem fabrica o borne, como está na marca do cadastro do produto (ex.: Phoenix Contact, Degson); borne genérico, sem fabricante declarado: OEM. Nunca o nome da loja.
+
+Modelo: a série e a variante, como “KF301-2P”, “KF350-3P”, “KF2EDGK-5.08-2P”; substitui Modelo técnico/comercial, Código e Part Number. Sem a variante confirmada, só a série (“KF301”).
+
+Tipo de Borne: substitui Tipo, Tipo de Conector e Subcategoria: “Parafuso (fixo na placa)”, “Plugável fêmea”, “Plugável macho”, “Plugável macho e fêmea” (o par), “Pressão (mola)” ou “Pressão (alavanca)”.
+
+Número de Vias: substitui Vias, Terminais, Número de polos, Número de contatos, Quantidade de terminais e Pinos: “2”, “3”.
+
+Passo: substitui Espaçamento, Distância entre terminais, Passo entre terminais e Pitch: “5,08mm”, “5,0mm”, “3,81mm”, “3,5mm”.
+
+Ângulo: substitui Configuração e Ângulo de conexão: “90°” ou “180°”, como a fonte do mesmo modelo publica.
+
+Montagem: “Solda em placa (PTH)” para o borne fixo e o macho plugável; “No cabo, sem solda” para a fêmea plugável.
+
+Fixação do Fio: substitui Método de conexão, Conexão dos fios, Fixação do cabo e Tipo de parafuso: “Parafuso M3”, “Parafuso”, “Mola” ou “Alavanca”.
+
+Bitola do Fio: substitui Bitola, Faixa de fiação, Fio aplicável, Seção do condutor e Alojamento para cabo. Escreva como a fonte publica e, quando ela der as duas unidades, as duas: “0,2 a 2,5mm² / 24 a 12 AWG”. Não converta AWG em mm² por conta própria.
+
+Corrente Nominal: substitui Corrente, Corrente máxima e Corrente suportada: “10A”. Tensão Nominal: substitui Tensão, Tensão máxima e Tensão suportada: “300V”. Quando a fonte separa as normas, mantenha: “250V (VDE) / 300V (UL)”.
+
+Material do Corpo: substitui Material e Material do isolador: “Poliamida PA66 (UL94 V-0)”. Material dos Contatos: substitui Material dos terminais: “Latão estanhado”. “Plástico e metal” não diz o material: omita.
+
+Cor: a do corpo: “Azul”, “Verde”, “Preto”.
+
+Temperatura de Operação: substitui Temperatura de trabalho: “-40°C a 105°C”.
+
+Encaixe Lateral: “Sim (junta vários bornes lado a lado)”, quando a fonte confirmar o encaixe para empilhar.
+
+Laterais: só no plugável: “Abertas” ou “Fechadas”.
+
+Compatibilidade: só na peça plugável vendida sozinha: o par em que ela encaixa, com o mesmo passo e o mesmo número de vias: “Borne macho KF2EDGR-5.08 de 2 vias”.
+
+Torque de Aperto: “0,4N.m”. Resistência de Contato: “20mΩ”. Resistência de Isolação: “500MΩ a 1000V DC”. Rigidez Dielétrica: “2000V AC por 1 minuto”. Os quatro, só com fonte do mesmo modelo.
+
+Use Tensão, nunca Voltagem; Corrente, nunca Amperagem.
+
+CARACTERÍSTICAS
+
+Cada item contém nome, valor e referencias: nome “Passo”, valor “5,08mm”, sem dois-pontos no nome.
+
+Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: Categoria, Unidade Venda, Aplicação, Origem, Durabilidade, Distância entre os terminais extremos).
+
+Campos obrigatórios:
+Fabricante; Modelo; Tipo de Borne; Número de Vias; Passo; Ângulo; Montagem; Fixação do Fio; Bitola do Fio; Corrente Nominal; Tensão Nominal; Material do Corpo; Material dos Contatos; Cor; Temperatura de Operação.
+
+Campos condicionais (só quando o produto tem o recurso; com o recurso e sem valor confirmado, omita o campo):
+Encaixe Lateral; Laterais; Compatibilidade; Torque de Aperto; Resistência de Contato; Resistência de Isolação; Rigidez Dielétrica.
+
+Campos finais:
+Dimensões (CxLxA); Peso.
+
+Dimensões (CxLxA) e Peso são sempre os dois últimos campos. Devolva os números em dimensoesMm e pesoGramas; o Rise escreve as duas linhas. Não os repita em caracteristicas.
+
+Não entram em caracteristicas: Origem, Garantia, Unidade de venda, Quantidade do pacote, Peso com embalagem, textos de aplicação e propaganda (“Construção robusta”, “Conexões rápidas”).
+
+No modo sem referências, respeite a instrução acrescentada pelo Rise: inclua apenas especificações confirmadas nos dados próprios do produto. Se não houver nenhuma, retorne caracteristicas vazia.
+
+Números colados às unidades: 5,08mm, 10A, 300V, 2,5mm². Use vírgula decimal. Nunca use ponto e vírgula dentro de um valor. Informações distintas no mesmo valor se separam por “ / ”; itens da mesma lista, por vírgula.
+
+REGRAS ESPECÍFICAS
+
+O passo decide a compra: 5,0mm e 5,08mm são passos diferentes, assim como 3,5mm e 3,81mm. Nunca arredonde nem troque um pelo outro, e não deduza o passo pela série: escreva o publicado para o mesmo modelo.
+
+Número de vias vem do título ou do cadastro. Medidas, peso e modelo mudam com as vias: não copie de outra quantidade (2 vias não é 3 vias).
+
+Plugável: o macho fica soldado na placa e a fêmea recebe os fios; o par só encaixa com o mesmo passo e o mesmo número de vias. Kit “macho e fêmea”: as duas peças vão nos itens inclusos.
+
+Corrente e tensão variam entre lojas para o mesmo modelo (10A, 8A, 15A; 300V, 250V, 125V): prefira o datasheet do fabricante; sem ele, o valor mais repetido entre lojas do mesmo modelo, e registre a divergência.
+
+Ângulo é como a fonte do mesmo modelo chama: não deduza pela foto nem converta 90° em 180°.
+
+Lista de fornecedor sem ficha técnica não comprova especificação.
+
+FONTES
+
+Em referencias, registre só os números das referências fornecidas que sustentam o valor daquele campo. Para valores vindos só do cadastro ou título, e para valores desconhecidos, use referencias []. Resultado da web só vale se consultado de fato e informado como referência; prefira o datasheet do fabricante. Não invente consultas, fontes, URLs ou números de referência.
+
+ITENS INCLUSOS
+
+O primeiro item é o próprio produto, com quantidade e nome técnico: “01 Conector borne KF350 de 3 vias”. No kit macho e fêmea, uma linha para cada peça: “01 Borne macho 90° de 2 vias”, “01 Borne fêmea de 2 vias”. Pacote com várias peças: a quantidade do cadastro (“05 Conector borne KF301 de 2 vias”). A embalagem de outro vendedor não comprova o conteúdo vendido pela Rise.
+
+PESO E DIMENSÕES
+
+pesoGramas: número em gramas. dimensoesMm: comprimento (ao longo das vias), largura e altura em milímetros, do corpo do borne do mesmo modelo e número de vias, sem os terminais de solda; no par plugável, macho e fêmea encaixados. Não use embalagem nem produto semelhante. Dado desconhecido é null, nunca zero.
+
+DIVERGÊNCIAS
+
+Para cada divergência fornecida, retorne id, opcao, motivo breve e campo com o nome padronizado deste prompt. opcao é o índice a partir de zero, ou null quando faltar evidência suficiente. Prefira o mesmo modelo, o mesmo número de vias e fontes independentes. Exceto para peso e dimensões, reserve a posição do campo divergente em caracteristicas com valor "" e referencias []. Não coloque valores divergentes nos parágrafos ou características antes da escolha do operador.
+
+GARANTIA
+
+O Rise acrescenta automaticamente: Garantia Legal de 90 dias (contra defeitos de fabricação). Não gere campo extra de garantia nem copie garantias das referências. Não escreva preço, prazo ou nome de loja.
