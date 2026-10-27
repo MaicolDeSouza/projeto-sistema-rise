@@ -36,6 +36,8 @@ export default function JanelaProduzir({ produtoId, nome, motivo = null }) {
 
   return (
     <>
+      {/* Recusa vira estado (regra 8 do padrao visual): o motivo escrito ao lado, nao so no `title`. */}
+      {motivo && <span className="max-w-56 text-xs text-amber-700">{motivo}</span>}
       <button
         type="button"
         onClick={() => setAberta(true)}

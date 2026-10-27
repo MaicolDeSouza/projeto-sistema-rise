@@ -63,7 +63,7 @@ import { DocumentosDasPecas, FornecedoresDoKit, MedidasDoKit } from "./AbasDoKit
 import BuscarPorCodigo from "./BuscarPorCodigo";
 import Composicao from "./Composicao";
 import Concorrentes from "./Concorrentes";
-import PecasProprias from "./PecasProprias";
+import PecasProprias, { linhaVazia } from "./PecasProprias";
 import JanelaProduzir from "@/components/producao/JanelaProduzir";
 import EditorDescricao from "./EditorDescricao";
 import Fornecedores from "./Fornecedores";
@@ -3517,7 +3517,8 @@ export default function FormularioProduto({
           name="pecasProprias"
           value={JSON.stringify({
             ligado: pecasLigadas,
-            pecas: pecasProprias.map((peca) => ({
+            // A linha recem-adicionada e ainda vazia nao vai: o Salvar a recusaria por falta de nome.
+            pecas: pecasProprias.filter((peca) => !linhaVazia(peca)).map((peca) => ({
               componenteId: peca.componenteId ?? null,
               descricao: peca.componenteId ? null : peca.descricao,
               custoManual: peca.componenteId ? null : peca.custoManual,
@@ -4368,10 +4369,10 @@ export default function FormularioProduto({
                         produtoId={produto.id}
                         nome={produto.tituloBase}
                         motivo={
-                          pecasProprias.length === 0
-                            ? "Adicione as peças antes de produzir."
+                          pecasProprias.filter((peca) => !linhaVazia(peca)).length === 0
+                            ? "Adicione os itens antes de produzir."
                             : JSON.stringify({ ligado: pecasLigadas, pecas: pecasProprias }) !== pecasGravadas
-                              ? "Salve o produto antes de produzir: a ordem usa as peças gravadas."
+                              ? "Salve o produto antes de produzir: a ordem usa os itens gravados."
                               : null
                         }
                       />

@@ -4913,7 +4913,9 @@ plano `docs/superpowers/plans/2026-10-26-modulo-compras.md` (12 tarefas, inline)
 
 Pedido do dono (prints da aba Fornecedores / Concorrentes e da dica de estoque do Bling): produto que ele mesmo monta ganha a
 lista de peças próprias e a produção em duas etapas. **Na tela o botão e as mensagens se chamam "Lista personalizada"** (nome pedido pelo dono em 27/10/2026); o código
-continua `pecasProprias`. Spec `docs/superpowers/specs/2026-10-26-producao-pecas-proprias-design.md`,
+continua `pecasProprias`. **Adicionar item** cria uma linha vazia com uma lupa no fim do nome: a lupa (ou o Enter) busca o produto do Rise, com
+a miniatura, e o escolhido toma o lugar da linha; sem a lupa a linha fica como item manual, com o custo digitado. A linha
+ainda vazia não vai no Salvar. O Produzir desabilitado diz o motivo numa linha ao lado (lista vazia ou não salva). Spec `docs/superpowers/specs/2026-10-26-producao-pecas-proprias-design.md`,
 plano `docs/superpowers/plans/2026-10-26-producao-pecas-proprias.md` (inline). **Pronto e testado no PC, SEM DEPLOY** (migration
 `20261026c_producao_pecas_proprias`, só aditiva).
 
