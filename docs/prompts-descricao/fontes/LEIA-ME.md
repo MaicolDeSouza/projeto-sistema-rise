@@ -9,7 +9,7 @@
   que mais aparecem. Mesmo molde e mesmo tamanho de parágrafo dos prompts de Componentes (o 1º até 200 caracteres, o 2º
   até 300) e peso e dimensões OBRIGATÓRIOS, como no de barras de pinos. Ficam de fora as fontes de tomada com plugue,
   as de caixa metálica ou de trilho DIN (colmeia, industriais, Andeli), os conversores DC-DC e os carregadores de
-  bateria. Na biblioteca da VPS, o nome "Fontes-Mini Fontes AC-DC". Esperando a aprovação do dono.
+  bateria. Na biblioteca da VPS, o nome "Fontes-Mini Fontes AC-DC". Aprovado pelo dono em 27/10/2026.
   Depois de ver a descrição do 220505, o dono tirou (27/10/2026) corrente de entrada, corrente de partida, ripple,
   regulação de linha e de carga, pinagem, temperatura de armazenamento, umidade e MTBF: o prompt manda não escrevê-los.
 

@@ -2735,7 +2735,10 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       220505, Hi-Link HLK-PM01; feito a partir de 110 mini fontes de 17 lojas e do datasheet da Hi-Link): encapsuladas para placa
       (HLK-PM, 5M, 10M, 20M, IRM) e abertas; fora as de tomada, colmeia/DIN, DC-DC e carregadores. Mesmo molde dos de Componentes
       (parágrafos até 200 e 300, peso e dimensões obrigatórios). Corrente contínua e de pico separadas, tensão nominal e faixa
-      separadas, a versão "L" é outro modelo. Nome na biblioteca da VPS: "Fontes-Mini Fontes AC-DC". Esperando a aprovação do dono.
+      separadas, a versão "L" é outro modelo. **Aprovado pelo dono em 27/10/2026**, depois de ver a descrição do 220505 e mandar
+      tirar corrente de entrada e de partida, ripple, regulação de linha e de carga, pinagem, armazenamento, umidade e MTBF (o prompt
+      manda não escrevê-los). Nome na biblioteca da VPS: "Fontes-Mini Fontes AC-DC" (o dono cria pela tela; a escrita por SSH foi
+      barrada nesta sessão).
     - **Origem da linha que nenhuma loja confirma** (13/10/2026, pedido do dono: "se veio pela IA, deve mostrar de onde
       veio a fonte"): antes a linha ficava sem nada ao lado. `origemSemLoja` (`divergencias.js`) diz **"Cadastro"** quando o
       valor está no título, na marca, no modelo, na descrição atual ou nas peças do kit (número solto, como "6", nunca conta),
