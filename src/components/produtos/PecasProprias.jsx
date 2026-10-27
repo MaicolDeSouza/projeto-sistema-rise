@@ -136,7 +136,7 @@ export default function PecasProprias({ pecas, setPecas, produtoId, aoAlterar, r
               <th className="w-14 px-3 py-2">Foto</th>
               <th className="px-3 py-2">Nome</th>
               <th className="px-3 py-2">Fornecedor</th>
-              <th className="px-3 py-2">Código</th>
+              <th className="whitespace-nowrap px-3 py-2">Código Rise</th>
               <th className="w-32 px-3 py-2">Custo</th>
               <th className="w-28 px-3 py-2">Quantidade</th>
               <th className="px-3 py-2">Localização</th>
