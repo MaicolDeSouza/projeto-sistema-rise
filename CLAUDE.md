@@ -2053,6 +2053,11 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   código válido que não fazia nada, e o lint passou. Patch com regex vai por arquivo.
 - **Não canalize teste com `| head`.** O SIGPIPE mata o processo antes da limpeza, deixa
   linhas no banco e envenena a execução seguinte. Redirecione para arquivo e leia depois.
+- **Constante usada antes da linha que a declara, no mesmo componente, derruba a página em produção** ("Cannot access 'as'
+  before initialization", página inteira em branco). Caso real em 26/10/2026: o popup de etapas do Sincronizar da LI usava
+  `linkDoPainel`/`linkDoSite`, declarados mais abaixo em `EditorAnuncioLI.jsx`; só quebrava no instante em que o popup abria.
+  Desde então o `eslint.config.mjs` tem `no-use-before-define` com `variables: false` (só o uso no MESMO escopo; dentro de função
+  de clique é seguro e passa). O minificado da VPS se lê por SSH em `.next/static/chunks/` no contêiner `app`.
 - **React 19 barra `setState` dentro de efeito.** Para ler `localStorage`, use
   `useSyncExternalStore` (ver `src/lib/preferenciaMenu.js`); para reagir ao resultado de uma
   ação, trate dentro do próprio `useActionState`.
