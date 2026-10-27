@@ -130,6 +130,9 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
     () => validarRascunhoLI(rascunho, { produto: contexto.produto, categoriasDaLI: contexto.categoriasDaLI ?? null, gtinDaLI: leitura?.daLoja?.gtin ?? null }),
     [rascunho, contexto, leitura],
   );
+  // Problema que impede o envio (peso e medidas, SEO, produto nao Conferido): o botao fica desabilitado com o motivo no
+  // title, e a aba Status lista (pedido do dono em 26/10/2026, sobre peso e dimensoes).
+  const primeiroBloqueioDaTela = problemas.find((problema) => problema.bloqueante) ?? null;
   const divergencias = divergenciasDe(leitura);
   const abas = useMemo(() => (divergencias > 0 ? [{ id: "divergencias", rotulo: `Divergências (${divergencias})` }, ...ABAS_LI] : ABAS_LI), [divergencias]);
   const abaVisivel = abas.some((item) => item.id === aba) ? aba : ABAS_LI[0].id;
@@ -617,8 +620,8 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
           <button
             type="button"
             onClick={pedirEnvio}
-            disabled={ocupado || (lendo && !leitura) || !produtoId}
-            title={leitura?.ok && leitura.escrita?.liberada === false ? leitura.escrita.motivo : undefined}
+            disabled={ocupado || (lendo && !leitura) || !produtoId || Boolean(primeiroBloqueioDaTela)}
+            title={primeiroBloqueioDaTela?.problema ?? (leitura?.ok && leitura.escrita?.liberada === false ? leitura.escrita.motivo : undefined)}
             className="inline-flex items-center gap-2 rounded-md bg-acento px-5 py-2.5 text-base font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {(qual === "enviar" || qual === "lendo" || (lendo && !leitura)) && <Loader size={16} className="animate-spin" />}

@@ -43,6 +43,9 @@ const { etapasComOResultado, etapasIniciais, mesclarEtapas } = await import("../
 const { ROTULO_DO_TIPO_PRODUCAO, STATUS_LI } = await import("../src/lib/canaisDeVenda/li/rotulos.js");
 
 let falhas = 0;
+// Peso e medidas completos: sem eles o envio e bloqueado (26/10/2026); os testes de envio partem de um produto que os tem.
+const MEDIDAS = { pesoKg: 0.2, alturaCm: 1, larguraCm: 2, comprimentoCm: 3 };
+
 function conferir(nome, obtido, esperado) {
   const ok = JSON.stringify(obtido) === JSON.stringify(esperado);
   if (!ok) falhas++;
@@ -290,6 +293,10 @@ try {
     const gtinLoja = validarRascunhoLI(inicial, { produto: { ...ctxProd, ean: null }, categoriasDaLI: null, gtinDaLI: "7894382766950" }).find((p) => p.campo === "gtin");
     conferir("sem GTIN no Rise mas com GTIN na loja: a nota sai com o da loja", [Boolean(gtinLoja), /7894382766950/.test(gtinLoja?.problema ?? ""), /SEM GTIN/.test(gtinLoja?.problema ?? "")], [true, true, false]);
     conferir("alertas: sem gtin, marca, categoria, peso e medida", ["gtin", "marca", "categorias", "peso", "medidas"].every((c) => faltas.includes(c)), true);
+    // Peso e medidas bloqueiam o envio (pedido do dono em 26/10/2026).
+    const bloqueioPeso = validarRascunhoLI(inicial, { produto: { ...ctxProd, pesoKg: null }, categoriasDaLI: null }).find((p) => p.campo === "peso");
+    const bloqueioMedidas = validarRascunhoLI(inicial, { produto: { ...ctxProd, comprimentoCm: 0 }, categoriasDaLI: null }).find((p) => p.campo === "medidas");
+    conferir("sem peso ou sem uma medida: bloqueia o envio", [bloqueioPeso?.bloqueante, bloqueioPeso?.aba, bloqueioMedidas?.bloqueante, bloqueioMedidas?.aba], [true, "envio", true, "envio"]);
   }
 
   {
@@ -333,7 +340,7 @@ try {
       conferir("urlLojaIntegrada preenchida pelo vinculo", (await prisma.produto.findUnique({ where: { id: p.id } })).urlLojaIntegrada, "https://loja/x");
       conferir("anuncio vinculado continua editavel", (await salvarRascunhoLI(salvo.id, { ...vinculado.rascunho, titulo: "Fonte 12V 5A bivolt" })).ok, true);
       conferir("editar nao apaga o vinculo", (await carregarAnuncioLI(salvo.id)).vinculo.idExterno, "401");
-      const r = await prisma.produto.create({ data: { sku: "ZZ-LI-5", tituloBase: "Sem rascunho", conferido: true } });
+      const r = await prisma.produto.create({ data: { ...MEDIDAS, sku: "ZZ-LI-5", tituloBase: "Sem rascunho", conferido: true } });
       const { anuncioId } = await vincularPeloSku(r.id, { idItemExterno: "402", url: "https://loja/y", ativo: false, slug: "sem-rascunho-li", categorias: ["7"], destaque: false });
       const criadoNoVinculo = await carregarAnuncioLI(anuncioId);
       conferir("vinculo leva as categorias da loja para o PRODUTO quando ele nao tem nenhuma", (await prisma.produto.findUnique({ where: { id: r.id }, select: { categoriasLI: true } })).categoriasLI, ["7"]);
@@ -439,11 +446,11 @@ try {
   {
     console.log("\nLeitura: busca por SKU, detalhe e pop-up");
     await limpar();
-    const prodL = await prisma.produto.create({ data: { sku: "ZZ-LI-5", tituloBase: "Sensor", marca: "ACME", ncm: "90261000", conferido: true } });
+    const prodL = await prisma.produto.create({ data: { ...MEDIDAS, sku: "ZZ-LI-5", tituloBase: "Sensor", marca: "ACME", ncm: "90261000", conferido: true } });
     const naoConf = await prisma.produto.create({ data: { sku: "ZZ-LI-6", tituloBase: "Outro" } });
-    const lixo = await prisma.produto.create({ data: { sku: "ZZ-LI-7", tituloBase: "Lixo", conferido: true } });
-    const dup = await prisma.produto.create({ data: { sku: "ZZ-LI-10", tituloBase: "Dup", conferido: true } });
-    const novoNaLI = await prisma.produto.create({ data: { sku: "ZZ-LI-8", tituloBase: "Novo", conferido: true } });
+    const lixo = await prisma.produto.create({ data: { ...MEDIDAS, sku: "ZZ-LI-7", tituloBase: "Lixo", conferido: true } });
+    const dup = await prisma.produto.create({ data: { ...MEDIDAS, sku: "ZZ-LI-10", tituloBase: "Dup", conferido: true } });
+    const novoNaLI = await prisma.produto.create({ data: { ...MEDIDAS, sku: "ZZ-LI-8", tituloBase: "Novo", conferido: true } });
     const li2 = criarLojaIntegradaFalsa({
       produtos: [
         { id: 501, sku: "zz-li-5", nome: "Sensor", apelido: "/sensor", ativo: true, removido: false, ncm: "9026.10.00", marca: "/api/v1/marca/7", categorias: ["/api/v1/categoria/3"], seo: "/api/v1/seo/900", production_type: "Revenda", icms_origin_code: "0" },
@@ -527,7 +534,7 @@ try {
     const envioSlug = await sincronizarProdutoLI(pe.id, li3);
     conferir("nome novo vai so como nome: a URL da loja fica a mesma", [envioSlug.alterados.map((a) => a.campo).sort(), li3.produtos().find((p) => p.id === 601).apelido, li3.chamadas.some((c) => String(c.caminho).includes("/alias"))], [["nome"], "/rele", false]);
     // Falha depois da trava: ERRO, etapa e assinatura intacta.
-    const pf = await prisma.produto.create({ data: { sku: "ZZ-LI-12", tituloBase: "Falha", ncm: "85364900", conferido: true, seoTituloLI: "Titulo", seoDescricaoLI: "Resumo" } });
+    const pf = await prisma.produto.create({ data: { sku: "ZZ-LI-12", tituloBase: "Falha", ncm: "85364900", conferido: true, pesoKg: 0.1, alturaCm: 1, larguraCm: 2, comprimentoCm: 3, seoTituloLI: "Titulo", seoDescricaoLI: "Resumo" } });
     const li4 = criarLojaIntegradaFalsa({ produtos: [{ id: 701, sku: "ZZ-LI-12", nome: "Antigo", apelido: "/antigo", seo: "/api/v1/seo/71" }], seos: { 71: { title: "", description: "" } }, falhas: { "PUT /seo/71": 500 } });
     await lerParaPopupLI(pf.id, li4);
     const falhou = await sincronizarProdutoLI(pf.id, li4);
@@ -535,11 +542,14 @@ try {
     conferir("falha no SEO: etapa seo, anuncio em ERRO, assinatura intacta", [falhou.ok, falhou.etapa, anDepois.status, anDepois.erro !== null, anDepois.dados.etapa, anDepois.hashConteudo], [false, "seo", "ERRO", true, "seo", null]);
     conferir("falha no SEO: o PUT do produto ja tinha ido (aparece nos alterados)", falhou.alterados.some((a) => a.campo === "nome"), true);
     // Cadastro
-    const pc = await prisma.produto.create({ data: { sku: "ZZ-LI-10", tituloBase: "Novo na LI", descricaoBase: "O produto novo na loja.", marca: "NOVAMARCA", ncm: "85364900", conferido: true, categoriasLI: ["5"], seoTituloLI: "Novo na LI", seoDescricaoLI: "O produto novo na loja." } });
-    const semSeo = await prisma.produto.create({ data: { sku: "ZZ-LI-14", tituloBase: "Sem SEO", ncm: "85364900", conferido: true } });
+    const pc = await prisma.produto.create({ data: { sku: "ZZ-LI-10", tituloBase: "Novo na LI", descricaoBase: "O produto novo na loja.", marca: "NOVAMARCA", ncm: "85364900", conferido: true, pesoKg: 0.2, alturaCm: 1, larguraCm: 2, comprimentoCm: 3, categoriasLI: ["5"], seoTituloLI: "Novo na LI", seoDescricaoLI: "O produto novo na loja." } });
+    const semPeso = await prisma.produto.create({ data: { sku: "ZZ-LI-15", tituloBase: "Sem peso", descricaoBase: "Texto.", ncm: "85364900", conferido: true, alturaCm: 1, larguraCm: 2, comprimentoCm: 3, categoriasLI: ["5"], seoTituloLI: "Sem peso", seoDescricaoLI: "Texto." } });
+    const recusaPeso = await cadastrarNaLI(semPeso.id, li3, criarBlingDaLI());
+    conferir("cadastrar sem peso recusa antes do POST", [recusaPeso.ok, /peso/i.test(recusaPeso.erro ?? ""), li3.chamadas.filter((c) => c.metodo === "POST" && c.caminho === "/produto").length], [false, true, 0]);
+    const semSeo = await prisma.produto.create({ data: { ...MEDIDAS, sku: "ZZ-LI-14", tituloBase: "Sem SEO", ncm: "85364900", conferido: true } });
     const recusaSeo = await cadastrarNaLI(semSeo.id, li3, criarBlingDaLI());
     conferir("cadastrar de produto sem SEO recusa mandando preencher no produto, antes do POST", [recusaSeo.ok, /produto/.test(recusaSeo.erro ?? ""), li3.chamadas.filter((c) => c.metodo === "POST" && c.caminho === "/produto").length], [false, true, 0]);
-    const semNcm = await prisma.produto.create({ data: { sku: "ZZ-LI-11", tituloBase: "Sem NCM", conferido: true } });
+    const semNcm = await prisma.produto.create({ data: { ...MEDIDAS, sku: "ZZ-LI-11", tituloBase: "Sem NCM", conferido: true } });
     conferir("cadastrar sem NCM recusa antes do POST", [/NCM/.test((await cadastrarNaLI(semNcm.id, li3, criarBlingDaLI())).erro ?? ""), li3.chamadas.filter((c) => c.metodo === "POST" && c.caminho === "/produto").length], [true, 0]);
     const cad = await cadastrarNaLI(pc.id, li3, criarBlingDaLI());
     // Desde 24/10/2026 o cadastro liga no Bling, grava o estoque e ATIVA (era inativo e parava).
@@ -597,7 +607,7 @@ try {
   {
     console.log("\nRevisao final: categoria morta no pop-up");
     await limpar();
-    const pm = await prisma.produto.create({ data: { sku: "ZZ-LI-14", tituloBase: "Morta", ncm: "85364900", conferido: true, categoriasLI: ["5", "999"] } });
+    const pm = await prisma.produto.create({ data: { ...MEDIDAS, sku: "ZZ-LI-14", tituloBase: "Morta", ncm: "85364900", conferido: true, categoriasLI: ["5", "999"] } });
     const li5 = criarLojaIntegradaFalsa({ produtos: [{ id: 801, sku: "ZZ-LI-14", nome: "Morta", apelido: "/morta", categorias: ["/api/v1/categoria/5"], seo: "/api/v1/seo/81" }], categorias: [{ id: 5, nome: "Reles" }], seos: { 81: { title: "", description: "" } } });
     await lerParaPopupLI(pm.id, li5); // vincula
     const popM = await lerParaPopupLI(pm.id, li5);
@@ -617,7 +627,7 @@ try {
         categorias: arvoreFalsa,
         seos: { 91: { title: "", description: "" } },
       });
-    const pp = await prisma.produto.create({ data: { sku: "ZZ-LI-15", tituloBase: "Placa", ncm: "85364900", conferido: true } });
+    const pp = await prisma.produto.create({ data: { ...MEDIDAS, sku: "ZZ-LI-15", tituloBase: "Placa", ncm: "85364900", conferido: true } });
     const marcarNoRise = async (categorias, nome) => {
       // Categorias, SEO (title e description, obrigatorio para sincronizar) e o NOME (26/10/2026) sao do PRODUTO.
       await prisma.produto.update({ where: { id: pp.id }, data: { categoriasLI: categorias, seoTituloLI: "Placa", seoDescricaoLI: "Descricao da placa", ...(nome ? { tituloBase: nome } : {}) } });
@@ -653,7 +663,7 @@ try {
     conferir("sincronizar categoria diferente: vai so a filha", [sinc3.alterados.find((a) => a.campo === "categorias")?.para, lojaOutra.produtos().find((p) => p.id === 901).categorias], [["6"], ["/api/v1/categoria/6"]]);
 
     // Cadastrar: o produto novo nasce so com a filha.
-    const pn = await prisma.produto.create({ data: { sku: "ZZ-LI-16", tituloBase: "Placa Nova na LI", descricaoBase: "Placa nova.", ncm: "85364900", conferido: true, categoriasLI: ["5", "6"], seoTituloLI: "Placa Nova na LI", seoDescricaoLI: "Placa nova." } });
+    const pn = await prisma.produto.create({ data: { ...MEDIDAS, sku: "ZZ-LI-16", tituloBase: "Placa Nova na LI", descricaoBase: "Placa nova.", ncm: "85364900", conferido: true, categoriasLI: ["5", "6"], seoTituloLI: "Placa Nova na LI", seoDescricaoLI: "Placa nova." } });
     const lojaNova = criarLojaIntegradaFalsa({ categorias: arvoreFalsa });
     const cadastro = await cadastrarNaLI(pn.id, lojaNova, criarBlingDaLI());
     conferir("cadastrar: nasce so com a filha", [cadastro.ok, lojaNova.produtos().at(-1).categorias], [true, ["/api/v1/categoria/6"]]);
@@ -682,7 +692,7 @@ try {
     const { FAIXA_DESCRIPTION_SEO, limparDescriptionsSeo, montarPedidoSeo } = await import("../src/lib/ia/anuncio.js");
     const fonte = await prisma.fonteColeta.create({ data: { nome: "ZZ-LI Fonte SEO", dominio: "zz-li-seo.invalid", tipo: "CONCORRENTE", ativa: false, proximaVarreduraEm: new Date(Date.now() + 1e12) } });
     try {
-      const p = await prisma.produto.create({ data: { sku: "ZZ-LI-SEO", tituloBase: "Placa Uno R3", conferido: true } });
+      const p = await prisma.produto.create({ data: { ...MEDIDAS, sku: "ZZ-LI-SEO", tituloBase: "Placa Uno R3", conferido: true } });
       const coletadoEm = new Date("2026-10-01T12:00:00Z");
       const comSeo = await prisma.produtoColetado.create({ data: { fonteId: fonte.id, chave: "codigo:A1", origem: "site", nome: "Uno R3 Concorrente", url: "https://zz-li-seo.invalid/uno", coletadoEm, seo: { title: "  Placa Uno R3 |\n Loja  ", description: "Compre a Placa Uno R3.\nFrete rapido.", canonical: "https://zz-li-seo.invalid/uno" } } });
       const semSeo = await prisma.produtoColetado.create({ data: { fonteId: fonte.id, chave: "codigo:A2", origem: "site", nome: "Sem SEO", seo: {} } });
@@ -834,8 +844,8 @@ try {
     conferir("preço vazio no Rise não apaga o da loja", diferencasLI({ preco: null }, { preco: 10 }).find((d) => d.campo === "preco")?.tipo, "vazioNoRise");
     conferir("preço na loja vazio com preço no Rise é diferença", diferencasLI({ preco: 16 }, { preco: null }).find((d) => d.campo === "preco")?.tipo, "diferente");
 
-    const pp = await prisma.produto.create({ data: { sku: "ZZ-LI-20", tituloBase: "Placa", ncm: "85364900", conferido: true, precoVenda: 16, seoTituloLI: "T", seoDescricaoLI: "D" } });
-    const liP = criarLojaIntegradaFalsa({ produtos: [{ id: 801, sku: "ZZ-LI-20", nome: "Placa", apelido: "/placa", ncm: "8536.49.00", seo: "/api/v1/seo/81", preco_cheio: "15.0000", preco_custo: "5.0000", preco_promocional: null, estoque_quantidade: 6 }], seos: { 81: { title: "T", description: "D" } } });
+    const pp = await prisma.produto.create({ data: { ...MEDIDAS, sku: "ZZ-LI-20", tituloBase: "Placa", ncm: "85364900", conferido: true, precoVenda: 16, seoTituloLI: "T", seoDescricaoLI: "D" } });
+    const liP = criarLojaIntegradaFalsa({ produtos: [{ id: 801, sku: "ZZ-LI-20", nome: "Placa", apelido: "/placa", ncm: "8536.49.00", peso: "0.200", altura: 1, largura: 2, profundidade: 3, seo: "/api/v1/seo/81", preco_cheio: "15.0000", preco_custo: "5.0000", preco_promocional: null, estoque_quantidade: 6 }], seos: { 81: { title: "T", description: "D" } } });
     await lerParaPopupLI(pp.id, liP); // vincula
     const envioP = await sincronizarProdutoLI(pp.id, liP);
     const naLIP = liP.produtos().find((p) => p.id === 801);
@@ -855,7 +865,7 @@ try {
     conferir("falha no preço: etapa preco, ERRO, assinatura intacta", [falhaP.ok, falhaP.etapa, anFalha.status, anFalha.hashConteudo === hashAntes], [false, "preco", "ERRO", true]);
 
     // Cadastro com preço: POST do produto e, em seguida, o preço.
-    const pn = await prisma.produto.create({ data: { sku: "ZZ-LI-21", tituloBase: "Novo com preço", descricaoBase: "A placa nova na loja.", ncm: "85364900", conferido: true, precoVenda: 29.9, seoTituloLI: "Novo", seoDescricaoLI: "A placa nova na loja." } });
+    const pn = await prisma.produto.create({ data: { ...MEDIDAS, sku: "ZZ-LI-21", tituloBase: "Novo com preço", descricaoBase: "A placa nova na loja.", ncm: "85364900", conferido: true, precoVenda: 29.9, seoTituloLI: "Novo", seoDescricaoLI: "A placa nova na loja." } });
     const liN = criarLojaIntegradaFalsa({});
     const cadN = await cadastrarNaLI(pn.id, liN, criarBlingDaLI());
     const novoN = liN.produtos().at(-1);
@@ -880,7 +890,7 @@ try {
     await limpar();
     const urlPublicaAntes = config.appUrlPublica;
     try {
-      const pf = await prisma.produto.create({ data: { sku: "ZZ-LI-30", tituloBase: "Placa", ncm: "85364900", conferido: true, seoTituloLI: "T", seoDescricaoLI: "D" } });
+      const pf = await prisma.produto.create({ data: { ...MEDIDAS, sku: "ZZ-LI-30", tituloBase: "Placa", ncm: "85364900", conferido: true, seoTituloLI: "T", seoDescricaoLI: "D" } });
       const f1 = await prisma.produtoArquivo.create({ data: { produtoId: pf.id, tipo: "IMAGEM", arquivo: "f1.jpg", principal: true, ordem: 0 } });
       const f2 = await prisma.produtoArquivo.create({ data: { produtoId: pf.id, tipo: "IMAGEM", arquivo: "f2.jpg", ordem: 1 } });
       const liF = criarLojaIntegradaFalsa({ produtos: [{ id: 901, sku: "ZZ-LI-30", nome: "Placa", apelido: "/placa", ncm: "8536.49.00", seo: "/api/v1/seo/91", imagens: [{ id: 50, principal: true, posicao: null }] }], seos: { 91: { title: "T", description: "D" } } });
@@ -915,7 +925,7 @@ try {
       conferir("retomar so acrescenta a que faltou", [retomou.ok, retomou.fotos, liF.produtos().find((p) => p.id === 901).imagens.map((i) => i.url.split("/").pop())], [true, "Fotos: 1 acrescentada(s) na loja.", ["f2.jpg", "f1.jpg"]]);
 
       // Cadastrar: o produto nasce na loja com as fotos do anuncio.
-      const pn = await prisma.produto.create({ data: { sku: "ZZ-LI-31", tituloBase: "Novo com foto", descricaoBase: "A placa nova na loja.", ncm: "85364900", conferido: true, seoTituloLI: "Novo", seoDescricaoLI: "A placa nova na loja." } });
+      const pn = await prisma.produto.create({ data: { ...MEDIDAS, sku: "ZZ-LI-31", tituloBase: "Novo com foto", descricaoBase: "A placa nova na loja.", ncm: "85364900", conferido: true, seoTituloLI: "Novo", seoDescricaoLI: "A placa nova na loja." } });
       await prisma.produtoArquivo.create({ data: { produtoId: pn.id, tipo: "IMAGEM", arquivo: "n1.jpg", principal: true, ordem: 0 } });
       const liN = criarLojaIntegradaFalsa({});
       const cad = await cadastrarNaLI(pn.id, liN, criarBlingDaLI());
@@ -975,7 +985,7 @@ try {
   {
     console.log("\nCadastro automatico: criar pausado, ligar no Bling, estoque, ativar");
     await limpar();
-    const novo = (sku) => prisma.produto.create({ data: { sku, tituloBase: `Auto ${sku}`, descricaoBase: "O produto do cadastro automatico.", ncm: "85364900", conferido: true, seoTituloLI: "Auto", seoDescricaoLI: "O produto do cadastro automatico." } });
+    const novo = (sku) => prisma.produto.create({ data: { ...MEDIDAS, sku, tituloBase: `Auto ${sku}`, descricaoBase: "O produto do cadastro automatico.", ncm: "85364900", conferido: true, seoTituloLI: "Auto", seoDescricaoLI: "O produto do cadastro automatico." } });
     const estoqueNaLI = (li) => { const p = li.produtos().at(-1); return [p.estoque_gerenciado, p.estoque_quantidade, p.estoque_situacao_sem_estoque]; };
     const chamadaDe = (li, metodo, inicio) => li.chamadas.findIndex((c) => c.metodo === metodo && String(c.caminho).startsWith(inicio));
 
@@ -1095,7 +1105,7 @@ try {
     const { relerMonitorLI } = await import("../src/lib/canaisDeVenda/li/monitor.js");
     const { textosDoAlertaNaLoja } = await import("../src/lib/canaisDeVenda/li/alertaNaLoja.js");
     const texto = (estado) => textosDoAlertaNaLoja(estado).join(" e ");
-    const p = await prisma.produto.create({ data: { sku: "ZZ-LI-40", tituloBase: "Monitor da loja", descricaoBase: "Texto do monitor.", ncm: "85364900", conferido: true, seoTituloLI: "Monitor", seoDescricaoLI: "Texto do monitor." } });
+    const p = await prisma.produto.create({ data: { ...MEDIDAS, sku: "ZZ-LI-40", tituloBase: "Monitor da loja", descricaoBase: "Texto do monitor.", ncm: "85364900", conferido: true, seoTituloLI: "Monitor", seoDescricaoLI: "Texto do monitor." } });
     const li = criarLojaIntegradaFalsa({});
     const cadastro = await cadastrarNaLI(p.id, li, criarBlingDaLI({ saldo: 5 }));
     await prisma.produto.update({ where: { id: p.id }, data: { blingId: "77", blingSaldo: 5, estoque: 5 } });
@@ -1141,7 +1151,7 @@ try {
 
     // Fiscal (opcao 1 do dono em 25/10/2026): origem e tipo de producao so mudam pelo painel da LI. Vazios ou diferentes na
     // loja acendem o "!", e a releitura o apaga sozinha depois de o dono corrigir no painel.
-    const fiscal = await prisma.produto.create({ data: { sku: "ZZ-LI-41", tituloBase: "Monitor fiscal", descricaoBase: "Texto fiscal.", ncm: "85364900", conferido: true, origem: 0, seoTituloLI: "Fiscal", seoDescricaoLI: "Texto fiscal." } });
+    const fiscal = await prisma.produto.create({ data: { ...MEDIDAS, sku: "ZZ-LI-41", tituloBase: "Monitor fiscal", descricaoBase: "Texto fiscal.", ncm: "85364900", conferido: true, origem: 0, seoTituloLI: "Fiscal", seoDescricaoLI: "Texto fiscal." } });
     const cadFiscal = await cadastrarNaLI(fiscal.id, li, criarBlingDaLI({ saldo: 5 }));
     li.mudarProduto(cadFiscal.idExterno, { icms_origin_code: null, production_type: "Revenda" });
     const anFiscal = await anuncioLIDoProduto(fiscal.id);

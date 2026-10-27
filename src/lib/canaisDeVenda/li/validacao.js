@@ -46,6 +46,12 @@ export function validarRascunhoLI(rascunho, contexto) {
   if (!produto.conferido) {
     acusar("produto", "geral", "Só produto Conferido vai para a Loja Integrada. Confira o cadastro antes.", true);
   }
+  // Peso e medidas sao obrigatorios (pedido do dono em 26/10/2026: "nao pode deixar sincronizar com a LI se tiver
+  // faltando peso e dimensoes"): sem eles o frete da loja nao calcula, e o produto iria ao ar sem entrega.
+  if (semNumero(produto.pesoKg)) acusar("peso", "envio", "Preencha o peso no cadastro do produto: sem ele o frete da loja não calcula.", true);
+  if (semNumero(produto.alturaCm) || semNumero(produto.larguraCm) || semNumero(produto.comprimentoCm)) {
+    acusar("medidas", "envio", "Preencha altura, largura e comprimento no cadastro do produto: sem eles o frete da loja não calcula.", true);
+  }
   // SEO obrigatorio antes de enviar (pedido do dono em 07/10/2026): sem title e description o Google
   // monta o resultado sozinho.
   // Categorias e SEO sao do PRODUTO (25/10/2026): o texto manda ir ao cadastro, nas abas Categorias e SEO.
@@ -83,10 +89,6 @@ export function validarRascunhoLI(rascunho, contexto) {
         ? `Sem GTIN/EAN no Rise: a nota sai com o GTIN que já está na loja (${daLoja}). Para mudar, preencha no cadastro do produto.`
         : "Sem GTIN/EAN: a nota sai SEM GTIN.",
     );
-  }
-  if (semNumero(produto.pesoKg)) acusar("peso", "envio", "Sem peso: o frete da loja não calcula.");
-  if (semNumero(produto.alturaCm) || semNumero(produto.larguraCm) || semNumero(produto.comprimentoCm)) {
-    acusar("medidas", "envio", "Falta altura, largura ou comprimento: o frete da loja não calcula.");
   }
   return problemas;
 }

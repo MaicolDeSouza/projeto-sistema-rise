@@ -4499,6 +4499,12 @@ Bling, Fechar vira Salvar e fechar, 'Na loja' e 'Tudo salvo' saem").
   - **Visto na tela (PC):** o fim com os três botões, numa página temporária com dados de exemplo (apagada). **Não visto:** um
     Sincronizar ou Cadastrar de verdade com o popup (o clique foi barrado por escrever na loja real; só depois do deploy, na VPS) e
     a cena de falha na tela (testada pelas regras e pelo servidor).
+- **Peso e medidas bloqueiam o envio** (pedido do dono em 26/10/2026: "não pode deixar sincronizar com LI se tiver faltando peso e
+  dimensões"): sem peso, ou sem altura, largura ou comprimento maiores que zero no cadastro do produto, `validarRascunhoLI` dá problema
+  BLOQUEANTE (aba "Peso e dimensões"; eram alertas). O Sincronizar e o Cadastrar recusam antes de escrever (`primeiroBloqueio`, em
+  `envio.js`) e o botão do rodapé do editor fica desabilitado com o motivo no `title` (`primeiroBloqueioDaTela`; vale para qualquer
+  problema bloqueante, não só estes). O "Completar o cadastro" não confere (o conteúdo já está na loja). O Salvar continua livre. Não
+  visto na tela (o servidor da pasta era de outra sessão); coberto pelo `teste:li-sync`.
 - **Testes:** `teste:li-sync` foi de 356 para 401 asserções (andamento do Sincronizar, do Cadastrar, do que falhou e do recusado;
   contas comuns do popup; liga/desliga no campo, na assinatura, no Cadastrar pausado, no
   Sincronizar ligando e desligando, na leitura, no cadastro incompleto e no nome e marca do produto); lint limpo.
