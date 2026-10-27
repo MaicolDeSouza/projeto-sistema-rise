@@ -13,18 +13,20 @@ export function semPrecos(pedido) {
     descontoTipo: SEM,
     descontoValor: SEM,
     frete: SEM,
+    entrada: SEM,
     itens: pedido.itens.map((item) => ({ ...item, precoUnitario: SEM, ipiPercentual: SEM })),
-    totais: { ...pedido.totais, produtos: SEM, ipi: SEM, desconto: SEM, total: SEM },
+    totais: { ...pedido.totais, produtos: SEM, ipi: SEM, desconto: SEM, total: SEM, entrada: SEM, faltaPagar: SEM },
     semPrecos: true,
   };
 }
 
 /** O que a tela manda ao Salvar, sem os campos de preco (o `undefined` faz o servidor nao mexer neles). */
 export function semPrecosNaEntrada(entrada) {
-  const { icmsSt, desconto, frete, ...resto } = entrada ?? {};
+  const { icmsSt, desconto, frete, entrada: pago, ...resto } = entrada ?? {};
   void icmsSt;
   void desconto;
   void frete;
+  void pago;
   return {
     ...resto,
     itens: resto.itens?.map(({ precoUnitario, ipiPercentual, ...item }) => {

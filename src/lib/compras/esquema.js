@@ -46,6 +46,7 @@ export const EsquemaDoPedido = z.object({
   icmsSt: numero("Valor inválido.", { maximo: 99_999_999 }).optional(),
   desconto: z.preprocess((valor) => (valor === undefined ? undefined : String(valor ?? "")), z.string().max(30).optional()),
   frete: numero("Valor inválido.", { maximo: 99_999_999 }).optional(),
+  entrada: numero("Valor inválido.", { maximo: 99_999_999 }).optional(),
   formaPagamento: z.enum(["PIX", "BOLETO", "CARTAO"]).nullable().optional(),
   parcelas: numero("De 1 a 24 parcelas.", { minimo: 1, maximo: 24, inteiro: true }).optional(),
   transportadoraId: textoOpcional(40).optional(),

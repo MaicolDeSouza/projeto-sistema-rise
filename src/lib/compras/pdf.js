@@ -5,7 +5,7 @@ import { formatarTelefone } from "@/lib/telefone";
 
 /**
  * O PDF do pedido de compra para o FORNECEDOR (spec §7.6). So o que interessa a ele: o codigo e o nome DELE para cada
- * item, quantidades, precos, totais, pagamento, frete, proposta e observacoes. Nunca o SKU do Rise, foto, estoque ou
+ * item, quantidades, precos, totais, pagamento, proposta e observacoes. Nunca o SKU do Rise, foto, estoque ou
  * prazo interno. Fonte padrao (Helvetica), A4; a tabela quebra de pagina repetindo o cabecalho. Devolve um Buffer.
  */
 
@@ -34,14 +34,10 @@ const COLUNAS = [
 
 function textoDoPagamento(pedido) {
   const forma = { PIX: "Pix", BOLETO: "Boleto", CARTAO: "Cartão" }[pedido.formaPagamento];
-  if (!forma) return null;
-  return pedido.formaPagamento !== "PIX" && pedido.parcelas > 1 ? `${forma} em ${pedido.parcelas}x` : forma;
-}
-
-function textoDoFrete(pedido) {
-  const quem = pedido.fretePorConta === "FOB" ? "Frete por conta do destinatário (FOB)" : "Frete por conta do remetente (CIF)";
-  const transportadora = pedido.transportadora?.nomeFantasia || pedido.transportadora?.nome || pedido.transportadoraNome;
-  return transportadora ? `${transportadora} · ${quem}` : quem;
+  const comParcelas = forma && pedido.formaPagamento !== "PIX" && pedido.parcelas > 1 ? `${forma} em ${pedido.parcelas}x` : forma;
+  // A entrada vai no PDF: o fornecedor precisa saber o que ja recebeu.
+  const entrada = Number(pedido.entrada) > 0 ? `Entrada paga: ${reais(pedido.entrada)}` : null;
+  return [comParcelas, entrada].filter(Boolean).join(" · ") || null;
 }
 
 /**
@@ -156,9 +152,10 @@ export function pdfDoPedido(pedido, empresa) {
     doc.y = yTotal + 22;
 
     // Condicoes.
+    // O campo Frete (transportadora, CIF/FOB) nao vai ao fornecedor (pedido do dono em 26/10/2026); o valor do frete
+    // continua na soma dos totais, senao o total do PDF nao fecharia.
     const condicoes = [
       ["Pagamento", textoDoPagamento(pedido)],
-      ["Frete", textoDoFrete(pedido)],
       ["Proposta nº", pedido.propostaNumero],
       ["Observações", pedido.observacoes],
     ].filter(([, valor]) => valor);

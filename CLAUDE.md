@@ -4875,7 +4875,11 @@ plano `docs/superpowers/plans/2026-10-26-modulo-compras.md` (12 tarefas, inline)
   mostra "Pedido salvo."; Cancelar volta à lista e pergunta "Sair sem salvar?"), e a ação da situação (Marcar como enviado / Finalizar
   pedido) no outro extremo da linha da trilha; o rodapé saiu. O cartão Fornecedor mostra só o nome. Na busca de item a linha inteira
   adiciona (sem botão "Adicionar"). A coluna "Chegada" só aparece depois de enviado. Totais em uma linha: Impostos (IPI calculado e ICMS ST), Frete, Desconto, Preço dos
-  produtos e o Total num verde suave; "Nº de itens" e "Soma das qtdes" saíram (pedido do dono).
+  produtos e o Total num verde suave; "Nº de itens" e "Soma das qtdes" saíram (pedido do dono). **Entrada** no Pagamento (coluna
+  `PedidoDeCompra.entrada`, migration `20261026b_compras_entrada`): o que já foi pago ao fazer o pedido, muda até o pedido fechar, mostra
+  "Falta pagar" (`totaisDoPedido` devolve `entrada` e `faltaPagar`) e vai no PDF como "Entrada paga". O campo **Frete** (transportadora,
+  CIF/FOB) saiu do PDF; o valor do frete continua nos totais. **Lixeira** na lista de pedidos (nível excluir da tela): só Rascunho e
+  Cancelado (`PODE_EXCLUIR`); enviado pede cancelar antes, parcial e finalizado guardam o histórico do estoque lançado.
 - **Pendências menores:** excluir produto ou fornecedor que está num pedido cai no erro de chave estrangeira com mensagem genérica.
 
 ## Servidor MCP (20/10/2026)

@@ -57,7 +57,7 @@ const itens = [
 conferir(
   "totais do print do Bling + IPI",
   totaisDoPedido({ itens, icmsSt: 0, descontoTipo: "VALOR", descontoValor: 0, frete: 0 }),
-  { produtos: 5655, ipi: 467.63, desconto: 0, total: 6122.63, numeroDeItens: 2, somaDasQuantidades: 440 },
+  { produtos: 5655, ipi: 467.63, desconto: 0, total: 6122.63, entrada: 0, faltaPagar: 6122.63, numeroDeItens: 2, somaDasQuantidades: 440 },
 );
 conferir(
   "desconto 10% sobre produtos",
@@ -68,6 +68,14 @@ conferir(
   "total nunca negativo",
   totaisDoPedido({ itens: [{ quantidade: 1, precoUnitario: 10, ipiPercentual: 0 }], icmsSt: 0, descontoTipo: "VALOR", descontoValor: 50, frete: 0 }).total,
   0,
+);
+conferir(
+  "falta pagar = total - entrada, nunca negativo",
+  [
+    totaisDoPedido({ itens: [{ quantidade: 10, precoUnitario: 10, ipiPercentual: 0 }], entrada: 30 }).faltaPagar,
+    totaisDoPedido({ itens: [{ quantidade: 1, precoUnitario: 10, ipiPercentual: 0 }], entrada: 50 }).faltaPagar,
+  ],
+  [70, 0],
 );
 conferir(
   "item sem preco conta zero",
@@ -159,7 +167,7 @@ conferir(
     fornecedor: { nome: "Fornecedor Teste", cnpj: "17.142.314/0001-21", contato: "Fulano", telefone: "5432841632", email: "vendas@exemplo.com.br" },
     itens: itensDoPdf,
     icmsSt: 0, descontoTipo: "PERCENTUAL", descontoValor: 5, frete: 20,
-    formaPagamento: "BOLETO", parcelas: 3,
+    formaPagamento: "BOLETO", parcelas: 3, entrada: 30,
     transportadora: null, transportadoraNome: "Transportes X", fretePorConta: "FOB",
     propostaNumero: "4512", observacoes: "Entregar em horário comercial.",
   };
@@ -173,7 +181,11 @@ conferir(
   conferir("numero, CNPJ da 4hobby e codigo no fornecedor", [text.includes("PC-0007"), text.includes("30.010.376/0001-48"), text.includes("FORN-59")], [true, true, true]);
   conferir("sem nome no fornecedor usa o nome do Rise", text.includes("Produto do Rise 0"), true);
   conferir("nunca o SKU do Rise", text.includes("ZZ-COMPRA-SKU"), false);
-  conferir("pagamento, frete e proposta", [text.includes("Boleto em 3x"), /destinat[aá]rio \(FOB\)/.test(text), text.includes("4512")], [true, true, true]);
+  conferir("entrada paga no pagamento", text.includes("Entrada paga: R$"), true);
+  conferir("pagamento e proposta", [text.includes("Boleto em 3x"), text.includes("4512")], [true, true]);
+  // O campo Frete (transportadora, CIF/FOB) saiu do PDF (pedido do dono em 26/10/2026); o valor do frete fica nos totais.
+  conferir("sem o campo Frete no PDF", [/\(FOB\)|\(CIF\)/.test(text), text.includes("Transportes X")], [false, false]);
+  conferir("valor do frete continua nos totais", text.includes("R$ 20,00"), true);
 }
 
 // ---------------------------------------------------------------------------
@@ -354,6 +366,28 @@ try {
     conferir("finalizado nao volta", (await banco.mudarStatus(criado.pedidoId, "ENVIADO")).ok, false);
     conferir("finalizado nao salva", (await banco.salvarPedido(criado.pedidoId, { observacoes: "x" })).ok, false);
     conferir("cancelar rascunho", (await banco.mudarStatus(outro.pedidoId, "CANCELADO")).ok, true);
+
+    // Entrada: o valor ja pago ao fazer o pedido (pedido do dono em 26/10/2026). Muda ate o pedido fechar.
+    const comEntrada = await banco.criarPedido((await criarFornecedor("ZZ Compra Entrada")).id);
+    await banco.adicionarItem(comEntrada.pedidoId, p1.id);
+    const itemEntrada = (await banco.lerPedido(comEntrada.pedidoId)).itens[0];
+    await banco.salvarPedido(comEntrada.pedidoId, { itens: [{ id: itemEntrada.id, quantidade: "10", precoUnitario: "10", ipiPercentual: "0" }], entrada: "30,50" });
+    let lidoEntrada = await banco.lerPedido(comEntrada.pedidoId);
+    conferir("entrada gravada e falta pagar", [lidoEntrada.entrada, lidoEntrada.totais.faltaPagar], [30.5, 69.5]);
+    const entradaInvalida = await banco.salvarPedido(comEntrada.pedidoId, { entrada: "-5" });
+    conferir("entrada negativa recusada no campo", Boolean(entradaInvalida.erros?.entrada), true);
+    await banco.mudarStatus(comEntrada.pedidoId, "ENVIADO");
+    await banco.salvarPedido(comEntrada.pedidoId, { entrada: "100" });
+    lidoEntrada = await banco.lerPedido(comEntrada.pedidoId);
+    conferir("entrada muda depois de enviado; falta pagar nao fica negativo", [lidoEntrada.entrada, lidoEntrada.totais.faltaPagar], [100, 0]);
+
+    // Excluir (pedido do dono em 26/10/2026): so rascunho e cancelado; enviado pede cancelar antes.
+    conferir("excluir pedido enviado recusa", (await banco.excluirPedido(comEntrada.pedidoId)).ok, false);
+    const paraExcluir = await banco.criarPedido((await criarFornecedor("ZZ Compra Excluir")).id);
+    await banco.adicionarItem(paraExcluir.pedidoId, p1.id);
+    const excluido = await banco.excluirPedido(paraExcluir.pedidoId);
+    conferir("excluir rascunho apaga o pedido e os itens", [excluido.ok, await prisma.pedidoDeCompra.count({ where: { id: paraExcluir.pedidoId } }), await prisma.itemDoPedidoDeCompra.count({ where: { pedidoId: paraExcluir.pedidoId } })], [true, 0, 0]);
+    conferir("excluir de novo: nao encontrado", (await banco.excluirPedido(paraExcluir.pedidoId)).ok, false);
 
     const lista = await banco.listarPedidos({ busca: "ZZ Compra Pedido" });
     conferir("lista por fornecedor", [lista.total, lista.linhas[0].status], [2, "CANCELADO"]);

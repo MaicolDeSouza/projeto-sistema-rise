@@ -2024,6 +2024,8 @@ model PedidoDeCompra {
 
   formaPagamento FormaDePagamentoDaCompra?
   parcelas       Int                       @default(1)
+  /// O que ja foi pago ao fazer o pedido (pedido do dono em 26/10/2026); o "falta pagar" e calculado (regras.js).
+  entrada        Decimal                   @default(0) @db.Decimal(12, 2)
 
   transportadoraId   String?
   transportadora     Transportadora? @relation(fields: [transportadoraId], references: [id], onDelete: SetNull)

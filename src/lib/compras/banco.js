@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { urlDe } from "@/lib/arquivos";
 import { estoqueDosFornecedores } from "@/lib/estoqueDoFornecedor";
 import {
+  PODE_EXCLUIR,
   STATUS_ABERTOS,
   STATUS_A_CAMINHO,
   aCaminho,
@@ -14,7 +15,7 @@ import {
   totaisDoPedido,
 } from "@/lib/compras/regras";
 import { conferirPedido } from "@/lib/compras/esquema";
-import { apagarPropostaDoPedido, moverPropostaParaPedido } from "@/lib/compras/arquivos";
+import { apagarPastaDoPedido, apagarPropostaDoPedido, moverPropostaParaPedido } from "@/lib/compras/arquivos";
 
 /**
  * Banco do modulo Compras (spec 2026-10-26-modulo-compras-design.md). Sem conferencia de acesso: quem chama (as
@@ -335,6 +336,7 @@ function pedidoParaTela(pedido) {
     descontoTipo: pedido.descontoTipo,
     descontoValor: numero(pedido.descontoValor) ?? 0,
     frete: numero(pedido.frete) ?? 0,
+    entrada: numero(pedido.entrada) ?? 0,
   };
   return {
     id: pedido.id,
@@ -578,6 +580,8 @@ export async function salvarPedido(id, entrada) {
       definir("rastreio", dados.rastreio);
       definir("propostaNumero", dados.propostaNumero);
       definir("observacoes", dados.observacoes);
+      // A entrada pode ser paga depois de o pedido sair: muda ate o pedido fechar.
+      if (dados.entrada !== undefined) pedido.entrada = dados.entrada ?? 0;
       if (rascunho) {
         if (dados.icmsSt !== undefined) pedido.icmsSt = dados.icmsSt ?? 0;
         if (dados.frete !== undefined) pedido.frete = dados.frete ?? 0;
@@ -630,6 +634,35 @@ export async function salvarPedido(id, entrada) {
   } catch (erro) {
     if (propostaNova) await apagarPropostaDoPedido(pedidoId, propostaNova.nome).catch(() => {});
     return { ok: false, erro: `Não foi possível salvar: ${erro.message}` };
+  }
+}
+
+/**
+ * Exclui o pedido (pedido do dono em 26/10/2026: lixeira na lista). So rascunho e cancelado: o enviado conta como
+ * estoque a caminho (cancele antes), e o parcial e o finalizado guardam o historico do estoque que foi lancado.
+ * Leva junto os itens e o arquivo da proposta.
+ */
+export async function excluirPedido(id) {
+  const pedidoId = String(id ?? "");
+  try {
+    const resultado = await prisma.$transaction(async (tx) => {
+      const [linha] = await tx.$queryRaw`SELECT "status"::text AS "status", "numero" FROM "PedidoDeCompra" WHERE "id" = ${pedidoId} FOR UPDATE`;
+      if (!linha) return { ok: false, erro: "Pedido não encontrado. Ele pode já ter sido excluído." };
+      if (!PODE_EXCLUIR.includes(linha.status)) {
+        return {
+          ok: false,
+          erro: linha.status === "ENVIADO" ? "Pedido enviado: cancele antes de excluir." : "Pedido com estoque lançado não é excluído: ele guarda o histórico.",
+        };
+      }
+      const vivos = await tx.lancamentoDoItemDeCompra.count({ where: { item: { pedidoId }, desfeitoEm: null } });
+      if (vivos) return { ok: false, erro: "Pedido com estoque lançado não é excluído: ele guarda o histórico." };
+      await tx.pedidoDeCompra.delete({ where: { id: pedidoId } });
+      return { ok: true, numero: linha.numero };
+    });
+    if (resultado.ok) await apagarPastaDoPedido(pedidoId).catch((erro) => console.error("[compras] pasta do pedido não apagada:", erro.message));
+    return resultado;
+  } catch (erro) {
+    return { ok: false, erro: `Não foi possível excluir: ${erro.message}` };
   }
 }
 

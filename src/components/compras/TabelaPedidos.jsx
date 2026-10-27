@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ClipboardList, Plus } from "lucide-react";
+import { ClipboardList, Plus, Trash2 } from "lucide-react";
+
+import { excluirPedidoAcao } from "@/app/compras/acoes";
+import { PODE_EXCLUIR } from "@/lib/compras/regras";
 
 import JanelaNovoPedido from "./JanelaNovoPedido";
+import Pergunta from "./Pergunta";
 import SeloDoStatus, { TEXTO_DO_STATUS } from "./SeloDoStatus";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -33,10 +37,21 @@ export function BotaoNovoPedido({ fornecedores }) {
  * A lista de pedidos de compra. Linha-guia: o operador ve primeiro a situacao e o fornecedor de cada pedido; a acao
  * principal e abrir um. Os chips no topo filtram pela situacao (parametro repetido `?status=`; nenhum = todos).
  */
-export default function TabelaPedidos({ linhas, status, veCusto }) {
+export default function TabelaPedidos({ linhas, status, veCusto, podeExcluir = false }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [excluindo, setExcluindo] = useState(null);
+  const [erroAoExcluir, setErroAoExcluir] = useState(null);
+  const [ocupado, iniciar] = useTransition();
+
+  const confirmarExclusao = () =>
+    iniciar(async () => {
+      const resposta = await excluirPedidoAcao(excluindo.id);
+      setExcluindo(null);
+      if (!resposta?.ok) setErroAoExcluir(resposta?.erro ?? "Não foi possível excluir.");
+      router.refresh();
+    });
 
   function alternar(filtro) {
     const params = new URLSearchParams(searchParams);
@@ -84,6 +99,7 @@ export default function TabelaPedidos({ linhas, status, veCusto }) {
                 {veCusto && <th className="w-32 px-3 py-2.5 text-right font-medium">Total</th>}
                 <th className="w-28 px-3 py-2.5 font-medium">Enviado em</th>
                 <th className="w-28 px-3 py-2.5 font-medium">Atualizado</th>
+                {podeExcluir && <th className="w-12 px-2 py-2.5"><span className="sr-only">Excluir</span></th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-borda">
@@ -102,11 +118,49 @@ export default function TabelaPedidos({ linhas, status, veCusto }) {
                   {veCusto && <td className="px-3 py-2.5 text-right tabular-nums">{moeda.format(linha.total)}</td>}
                   <td className="px-3 py-2.5 tabular-nums text-suave">{data(linha.enviadoEm)}</td>
                   <td className="px-3 py-2.5 tabular-nums text-suave">{data(linha.atualizadoEm)}</td>
+                  {podeExcluir && (
+                    <td className="px-2 py-1.5" onClick={(evento) => evento.stopPropagation()}>
+                      {(() => {
+                        const pode = PODE_EXCLUIR.includes(linha.status);
+                        const motivo = pode
+                          ? `Excluir ${linha.codigo}`
+                          : linha.status === "ENVIADO"
+                            ? "Pedido enviado: cancele antes de excluir"
+                            : "Pedido com estoque lançado guarda o histórico e não é excluído";
+                        return (
+                          <button
+                            type="button"
+                            disabled={!pode}
+                            onClick={() => setExcluindo(linha)}
+                            aria-label={motivo}
+                            title={motivo}
+                            className="inline-flex rounded-md p-2 text-suave transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-suave"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        );
+                      })()}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+      {erroAoExcluir && <p className="mt-3 text-sm text-rose-600" role="alert">{erroAoExcluir}</p>}
+      {excluindo && (
+        <Pergunta
+          titulo={`Excluir ${excluindo.codigo}?`}
+          confirmar="Excluir pedido"
+          destrutiva
+          ocupado={ocupado}
+          aoRecuar={() => setExcluindo(null)}
+          aoConfirmar={confirmarExclusao}
+        >
+          Pedido de {excluindo.fornecedor}, com {excluindo.itens} {excluindo.itens === 1 ? "item" : "itens"}. O pedido, os itens e o arquivo da proposta
+          somem; não dá para desfazer.
+        </Pergunta>
       )}
     </>
   );

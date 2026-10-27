@@ -100,11 +100,11 @@ function Opcoes({ nome, opcoes, valor, disabled, aoMudar }) {
   );
 }
 
-export function BlocoPagamento({ formulario, editar, erros, aoMudar }) {
+export function BlocoPagamento({ formulario, editar, erros, aoMudar, totais = null, editarEntrada = false }) {
   const pix = formulario.formaPagamento === "PIX";
   return (
-    <SecaoDoAnuncio titulo="Pagamento">
-      <div className="flex flex-wrap items-end gap-4">
+    <SecaoDoAnuncio titulo="Pagamento" ajuda="Entrada: o valor que já foi pago ao fazer o pedido. Pode ser lançada depois de enviado.">
+      <div className="flex flex-wrap items-start gap-4">
         <div>
           <span className="mb-1 block text-xs font-medium text-suave">Forma</span>
           <Opcoes nome="formaPagamento" opcoes={FORMAS} valor={formulario.formaPagamento} disabled={!editar} aoMudar={(valor) => aoMudar("formaPagamento", valor)} />
@@ -120,6 +120,24 @@ export function BlocoPagamento({ formulario, editar, erros, aoMudar }) {
             className={`${entrada} text-right`}
           />
         </Campo>
+        {totais && (
+          <Campo rotulo="Entrada (R$)" erro={erros?.entrada} className="w-36">
+            <input
+              inputMode="decimal"
+              value={formulario.entrada}
+              disabled={!editarEntrada}
+              placeholder="0"
+              aria-invalid={Boolean(erros?.entrada)}
+              onChange={(evento) => aoMudar("entrada", soDecimal(evento.target.value))}
+              className={`${entrada} text-right`}
+            />
+            {totais.entrada > 0 && (
+              <span className="mt-1 block text-right text-xs text-suave">
+                Falta pagar <span className="font-medium tabular-nums text-texto">{moeda.format(totais.faltaPagar)}</span>
+              </span>
+            )}
+          </Campo>
+        )}
       </div>
     </SecaoDoAnuncio>
   );

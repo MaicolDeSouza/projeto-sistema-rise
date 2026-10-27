@@ -40,6 +40,7 @@ export function formularioDoPedido(pedido) {
     icmsSt: paraTexto(pedido.icmsSt),
     desconto: textoDoDesconto(pedido.descontoTipo, pedido.descontoValor),
     frete: paraTexto(pedido.frete),
+    entrada: paraTexto(pedido.entrada),
     formaPagamento: pedido.formaPagamento ?? null,
     parcelas: String(pedido.parcelas ?? 1),
     transportadoraId: pedido.transportadoraId ?? "",
@@ -83,6 +84,7 @@ export function totaisDoFormulario(formulario) {
     descontoTipo: "erro" in desconto ? null : desconto.tipo,
     descontoValor: "erro" in desconto ? 0 : desconto.valor,
     frete: doTexto(formulario.frete) ?? 0,
+    entrada: doTexto(formulario.entrada) ?? 0,
   });
 }
 

@@ -10,6 +10,7 @@ import {
   adicionarItem,
   buscarItensParaPedido,
   criarPedido,
+  excluirPedido,
   fornecedoresParaCompra,
   lerPedido,
   mudarStatus,
@@ -150,4 +151,13 @@ export async function enviarPropostaAcao(formData) {
   const negado = await negarSemAcesso("tela.compras.pedidos", "editar");
   if (negado) return negado;
   return guardarPropostaTemporaria(String(formData?.get("lote") ?? ""), formData?.get("arquivo"));
+}
+
+/** Lixeira da lista de pedidos: so rascunho e cancelado (a regra mora em `excluirPedido`). */
+export async function excluirPedidoAcao(id) {
+  const negado = await negarSemAcesso("tela.compras.pedidos", "excluir");
+  if (negado) return negado;
+  const resultado = await excluirPedido(String(id ?? ""));
+  if (resultado.ok) revalidar();
+  return resultado;
 }
