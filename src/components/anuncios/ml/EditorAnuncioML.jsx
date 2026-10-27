@@ -403,13 +403,13 @@ export default function EditorAnuncioML({
   const botaoDeEnviar = temMudancas && (
     <button
       type="button"
-      onClick={enviarMudancas}
-      disabled={enviandoMudancas || !acessos.publicar || alterado}
-      title={!acessos.publicar ? "Seu acesso não permite enviar ao Mercado Livre." : alterado ? "Salve antes de enviar: vai o que está salvo." : `Manda ao Mercado Livre: ${textoDasPartes(mudancas.partes)}`}
-      className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+      onClick={pedirEnvio}
+      disabled={enviandoMudancas || salvando || !acessos.publicar}
+      title={!acessos.publicar ? "Seu acesso não permite enviar ao Mercado Livre." : `Manda ao Mercado Livre: ${textoDasPartes(mudancas.partes)}`}
+      className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-1.5 text-sm font-medium text-white transition-opacity duration-150 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
     >
       {enviandoMudancas && <Loader size={14} className="animate-spin" />}
-      {enviandoMudancas ? "Enviando..." : "Enviar mudanças ao ML"}
+      {enviandoMudancas ? "Sincronizando..." : "Sincronizar com o ML"}
     </button>
   );
 
@@ -545,12 +545,14 @@ export default function EditorAnuncioML({
           <button
             type="button"
             onClick={pedirEnvio}
-            disabled={salvando || enviandoMudancas || (!temMudancas && !alterado)}
-            title={!temMudancas && !alterado ? "Nada a enviar: o anúncio está igual ao produto." : `Manda ao Mercado Livre o que mudou${temMudancas ? `: ${textoDasPartes(mudancas.partes)}` : ""}`}
+            // Sempre ativo no publicado, como o "Sincronizar com a LI" (pedido do dono em 26/10/2026): abre o popup de etapas
+            // mesmo sem mudanca, que termina em "Nada a enviar" (antes o botao ficava cinza e o popup nunca aparecia).
+            disabled={salvando || enviandoMudancas}
+            title={temMudancas ? `Manda ao Mercado Livre o que mudou: ${textoDasPartes(mudancas.partes)}` : "Confere o anúncio com o produto e manda ao Mercado Livre o que mudou"}
             className={CLASSE_DA_ACAO}
           >
             {enviandoMudancas && <Loader size={16} className="animate-spin" />}
-            {enviandoMudancas ? "Enviando..." : "Enviar ao ML"}
+            {enviandoMudancas ? "Sincronizando..." : "Sincronizar com o ML"}
           </button>
         )}
       </div>

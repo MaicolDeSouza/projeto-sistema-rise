@@ -18,7 +18,7 @@ export function divergenciasDoAnuncioML({ publicado, publicacao, mudancas } = {}
     itens.push({
       id: "envio",
       titulo: mudancas.naoConferido ? "Ainda não conferido com o produto" : `Falta enviar ao ML: ${textoDasPartes(mudancas.partes)}`,
-      detalhe: "O Enviar mudanças ao ML manda o que está no Rise.",
+      detalhe: "O Sincronizar com o ML manda o que está no Rise.",
       acao: "enviar",
     });
   }

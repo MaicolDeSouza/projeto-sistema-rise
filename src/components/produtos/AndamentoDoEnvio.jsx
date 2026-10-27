@@ -17,7 +17,7 @@ const TEXTOS = {
   },
   // E ao "Enviar ao ML" do anuncio publicado (26/10/2026).
   ml: {
-    sincronizar: { andando: "Enviando ao Mercado Livre", ok: "Envio concluído", falhou: "Envio interrompido" },
+    sincronizar: { andando: "Sincronizando com o Mercado Livre", ok: "Sincronização concluída", falhou: "Sincronização interrompida" },
   },
 };
 

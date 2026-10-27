@@ -3667,7 +3667,8 @@ Pedidos do dono (com print anotado e "usar UI/UX"):
   categoria" AO LADO dos campos (`children` dos dois componentes de sugestão); cartões lado a lado Tipo de anúncio | Garantia e
   Categoria do ML | Disponibilidade; depois a Composição. **A aba Garantia saiu** (`AbaGarantia.jsx` apagado): a garantia do
   produto é o cartão `GarantiaDoProduto` dentro de Características.
-- **Popup de etapas do "Enviar ao ML"** (pedido do dono, "igual foi implementado na LI"): `AndamentoDoEnvio` com `canal="ml"`,
+- **Popup de etapas do "Sincronizar com o ML"** (o botão se chamava "Enviar ao ML" e ficava cinza sem mudança; desde o
+  mesmo dia é **sempre ativo** no publicado, como o "Sincronizar com a LI", e sem mudança o popup termina em "Nada a enviar") (pedido do dono, "igual foi implementado na LI"): `AndamentoDoEnvio` com `canal="ml"`,
   etapas em `ml/etapasDoEnvio.js` (permissão, ler o anúncio, descrição, fotos, peso e medidas, preço, ficha, conferir), marcadas
   pelo `enviarMudancasML` em `ml/progresso.js` (memória do processo) e lidas pela rota `/api/mercado-livre/progresso/<anuncioId>`
   (só quem publica). Parte sem mudança fica marcada "sem mudança". Deu certo: Abrir painel do ML, Abrir anúncio no ML e Fechar
