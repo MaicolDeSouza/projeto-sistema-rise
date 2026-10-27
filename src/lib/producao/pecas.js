@@ -2,7 +2,7 @@ import { urlDe } from "@/lib/arquivos";
 import { custoDoProduto } from "@/lib/canaisDeVenda/custo";
 import { prisma } from "@/lib/db";
 
-import { custoDasPecas, validarPecas } from "./regras.js";
+import { casasDaUnidade, custoDasPecas, quantidadeCabe, validarPecas } from "./regras.js";
 
 /**
  * Pecas proprias de um produto no banco (spec 2026-10-26-producao-pecas-proprias-design.md): leitura no formato da
@@ -16,6 +16,7 @@ const PECA = {
   sku: true,
   tituloBase: true,
   localizacao: true,
+  unidade: true,
   estoque: true,
   estoqueMinimo: true,
   estoqueMaximo: true,
@@ -37,6 +38,7 @@ function produtoComoPeca(produto) {
     nome: produto.tituloBase,
     foto: produto.arquivos?.[0] ? urlDe(produto.sku, "IMAGEM", produto.arquivos[0].arquivo) : null,
     localizacao: produto.localizacao ?? null,
+    unidade: produto.unidade ?? "UN",
     estoque: produto.estoque,
     estoqueMinimo: produto.estoqueMinimo ?? null,
     estoqueMaximo: produto.estoqueMaximo ?? null,
@@ -119,10 +121,17 @@ export async function prepararPecasDoCadastro({ produtoId, tipo, campo }, client
   if (!conferida.ok) return conferida;
   const ids = conferida.pecas.map((peca) => peca.componenteId).filter(Boolean);
   if (ids.length > 0) {
-    const achados = await cliente.produto.findMany({ where: { id: { in: ids } }, select: { id: true, sku: true, tipo: true } });
+    const achados = await cliente.produto.findMany({ where: { id: { in: ids } }, select: { id: true, sku: true, tipo: true, unidade: true } });
     if (achados.length !== ids.length) return { ok: false, erro: "Uma peça foi excluída do Rise. Revise a lista personalizada." };
     const kit = achados.find((produto) => produto.tipo !== "SIMPLES");
     if (kit) return { ok: false, erro: `O kit ${kit.sku} não pode entrar na lista personalizada.` };
+    // A unidade da peca decide as casas (27/10/2026): UN e KIT so inteiras, MT e HR ate 2 casas.
+    for (const peca of conferida.pecas.filter((item) => item.componenteId)) {
+      const produto = achados.find((achado) => achado.id === peca.componenteId);
+      if (!quantidadeCabe(peca.quantidade, casasDaUnidade(produto.unidade))) {
+        return { ok: false, erro: `${produto.sku} é vendido em ${produto.unidade ?? "UN"}: a quantidade tem de ser inteira.` };
+      }
+    }
   }
   return { ok: true, gravar: { pecasProprias: true, pecas: conferida.pecas } };
 }

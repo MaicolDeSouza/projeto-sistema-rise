@@ -84,7 +84,7 @@ export function validarPecas(lista, produtoId = null) {
     if (quantidade === null || quantidade <= 0 || quantidade > MAXIMO_QUANTIDADE) {
       return { ok: false, erro: `${posicao}: informe a quantidade, maior que zero.` };
     }
-    if (/\.\d{4,}$/.test(quantidadeTexto)) return { ok: false, erro: `${posicao}: a quantidade aceita até 3 casas decimais.` };
+    if (/\.\d{3,}$/.test(quantidadeTexto)) return { ok: false, erro: `${posicao}: a quantidade aceita até 2 casas decimais.` };
 
     const componenteId = bruta?.componenteId ? String(bruta.componenteId) : null;
     if (componenteId) {
@@ -103,6 +103,25 @@ export function validarPecas(lista, produtoId = null) {
     pecas.push({ componenteId: null, descricao, custoManual, quantidade, ordem: indice });
   }
   return { ok: true, pecas };
+}
+
+/// Unidades que se quebram (metro, hora): a quantidade anda de 0,01 em 0,01. As outras (UN, KIT) so inteiras.
+const UNIDADES_FRACIONADAS = ["MT", "HR"];
+
+/** Casas decimais da quantidade pela unidade do produto (pedido do dono em 27/10/2026): UN e KIT 0, MT e HR 2. */
+export function casasDaUnidade(unidade) {
+  return UNIDADES_FRACIONADAS.includes(String(unidade ?? "").toUpperCase()) ? 2 : 0;
+}
+
+/** Casas da quantidade de uma linha: o item manual nao tem unidade, entao aceita 2 casas. */
+export function casasDaPeca(peca) {
+  return peca?.componenteId ? casasDaUnidade(peca.unidade) : 2;
+}
+
+/** A quantidade respeita as casas da unidade? (2 com 0 casas sim; 1,5 com 0 casas nao). */
+export function quantidadeCabe(quantidade, casas) {
+  const fator = 10 ** casas;
+  return Math.abs(Math.round(Number(quantidade) * fator) - Number(quantidade) * fator) < 1e-6;
 }
 
 /** Quanto da peca a ordem consome: o estoque e inteiro, entao o total vai para cima (0,5 x 3 = 2). */

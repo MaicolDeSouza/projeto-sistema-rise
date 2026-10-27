@@ -23,6 +23,9 @@ const {
   numeroDaOrdem,
   podeIrPara,
   validarQuantidadeProduzida,
+  casasDaUnidade,
+  casasDaPeca,
+  quantidadeCabe,
 } = await import("../src/lib/producao/regras.js");
 
 let falhas = 0;
@@ -77,7 +80,11 @@ conferir("valida peca manual", validarPecas([{ descricao: " cola ", custoManual:
 conferir("valida repetida", validarPecas([{ componenteId: "a", quantidade: 1 }, { componenteId: "a", quantidade: 2 }]).ok, false);
 conferir("valida proprio", validarPecas([{ componenteId: "eu", quantidade: 1 }], "eu").ok, false);
 conferir("valida quantidade zero", validarPecas([{ componenteId: "a", quantidade: 0 }]).ok, false);
-conferir("valida 4 casas", validarPecas([{ componenteId: "a", quantidade: "0.0001" }]).ok, false);
+conferir("valida 3 casas", validarPecas([{ componenteId: "a", quantidade: "0.001" }]).ok, false);
+conferir("valida 2 casas", validarPecas([{ componenteId: "a", quantidade: "1,25" }]).ok, true);
+conferir("casas por unidade", [casasDaUnidade("UN"), casasDaUnidade("KIT"), casasDaUnidade("MT"), casasDaUnidade("HR"), casasDaUnidade(null)], [0, 0, 2, 2, 0]);
+conferir("casas da peca", [casasDaPeca({ componenteId: "a", unidade: "UN" }), casasDaPeca({ componenteId: "a", unidade: "MT" }), casasDaPeca({ componenteId: null })], [0, 2, 2]);
+conferir("quantidade cabe na unidade", [quantidadeCabe(2, 0), quantidadeCabe(1.5, 0), quantidadeCabe(1.25, 2)], [true, false, true]);
 conferir("valida acima de 50", validarPecas(Array.from({ length: 51 }, (_, i) => ({ componenteId: `p${i}`, quantidade: 1 }))).ok, false);
 conferir("numero", numeroDaOrdem(7), "OP-0007");
 conferir(
@@ -209,6 +216,11 @@ try {
     "peca excluida recusa",
     (await prepararPecasDoCadastro({ produtoId: final.id, tipo: "SIMPLES", campo: campo({ ligado: true, pecas: [{ componenteId: "nao-existe", quantidade: 1 }] }) })).ok,
     false,
+  );
+  conferir(
+    "peca em UN recusa quantidade quebrada",
+    (await prepararPecasDoCadastro({ produtoId: final.id, tipo: "SIMPLES", campo: campo({ ligado: true, pecas: [{ componenteId: a.id, quantidade: "1,5" }] }) })).erro,
+    "ZZ-PROD-A é vendido em UN: a quantidade tem de ser inteira.",
   );
   conferir("json quebrado recusa", (await prepararPecasDoCadastro({ produtoId: final.id, tipo: "SIMPLES", campo: "{" })).ok, false);
 

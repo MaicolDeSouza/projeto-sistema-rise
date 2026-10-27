@@ -6,7 +6,7 @@ import { ExternalLink, Loader, Plus, Search, Trash2, X } from "lucide-react";
 
 import { buscarPecasPropriasAcao } from "@/app/produtos/acoes";
 import FotoComLupa from "@/components/ui/FotoComLupa";
-import { custoDasPecas } from "@/lib/producao/regras";
+import { casasDaPeca, custoDasPecas } from "@/lib/producao/regras";
 import IconeDeEstoque from "./IconeDeEstoque";
 
 const reais = (valor) => Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -47,7 +47,10 @@ export default function PecasProprias({ pecas, setPecas, produtoId, aoAlterar, r
     if (busca?.chave === chave) setBusca(null);
   };
 
-  const adicionar = () => alterar([...pecas, { chave: novaChave(), componenteId: null, descricao: "", custoManual: "", quantidade: 1 }]);
+  const adicionar = () => {
+    setBusca(null);
+    alterar([...pecas, { chave: novaChave(), componenteId: null, descricao: "", custoManual: "", quantidade: 1 }]);
+  };
 
   const procurar = (peca) => {
     const chave = chaveDaPeca(peca);
@@ -70,7 +73,12 @@ export default function PecasProprias({ pecas, setPecas, produtoId, aoAlterar, r
 
   // O produto escolhido toma o lugar da linha (mantem a quantidade digitada).
   const escolher = (chave, item) => {
-    alterar(pecas.map((peca) => (chaveDaPeca(peca) === chave ? { ...item, chave, quantidade: peca.quantidade || 1 } : peca)));
+    // A unidade do produto escolhido decide as casas: em UN/KIT uma quantidade quebrada vira o inteiro de cima.
+    const quantidadeDe = (atual) => {
+      const valor = Number(String(atual ?? "").replace(",", ".")) || 1;
+      return casasDaPeca(item) === 0 ? Math.max(1, Math.ceil(valor)) : valor;
+    };
+    alterar(pecas.map((peca) => (chaveDaPeca(peca) === chave ? { ...item, chave, quantidade: quantidadeDe(peca.quantidade) } : peca)));
     setBusca(null);
   };
 
@@ -105,9 +113,11 @@ export default function PecasProprias({ pecas, setPecas, produtoId, aoAlterar, r
                 </td>
               </tr>
             )}
-            {pecas.map((peca) => {
+            {pecas.map((peca, indice) => {
               const chave = chaveDaPeca(peca);
               const manual = !peca.componenteId;
+              // So a ULTIMA linha busca (pedido do dono em 27/10/2026): ao adicionar outra, a de cima fica como item manual.
+              const buscavel = manual && indice === pecas.length - 1;
               const rotulo = peca.sku ?? (peca.descricao || "item");
               const buscaDaLinha = busca?.chave === chave ? busca : null;
               return (
@@ -127,13 +137,14 @@ export default function PecasProprias({ pecas, setPecas, produtoId, aoAlterar, r
                               // Enter busca, como a lupa; nunca envia o formulario do produto.
                               if (evento.key === "Enter") {
                                 evento.preventDefault();
-                                procurar(peca);
+                                if (buscavel) procurar(peca);
                               }
                             }}
-                            placeholder="Nome ou código"
+                            placeholder={buscavel ? "Nome ou código" : "Nome do item"}
                             aria-label="Nome do item"
                             className={`${campo} min-w-0 flex-1`}
                           />
+                          {buscavel && (
                           <button
                             type="button"
                             onClick={() => procurar(peca)}
@@ -144,6 +155,7 @@ export default function PecasProprias({ pecas, setPecas, produtoId, aoAlterar, r
                           >
                             {procurando && buscaDaLinha ? <Loader size={16} className="animate-spin" /> : <Search size={16} />}
                           </button>
+                          )}
                         </div>
                       ) : (
                         // Abre a peca em outra aba: sair daqui perderia o que nao foi salvo.
@@ -153,7 +165,7 @@ export default function PecasProprias({ pecas, setPecas, produtoId, aoAlterar, r
                         </Link>
                       )}
                     </td>
-                    <td className="px-3 py-2 font-mono text-xs">{peca.sku ?? <span className="text-suave">—</span>}</td>
+                    <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">{peca.sku ?? <span className="text-suave">—</span>}</td>
                     <td className="px-3 py-2">
                       {manual ? (
                         <input
@@ -173,16 +185,23 @@ export default function PecasProprias({ pecas, setPecas, produtoId, aoAlterar, r
                       )}
                     </td>
                     <td className="px-3 py-2">
-                      <input
-                        type="number"
-                        min="0.001"
-                        step="0.001"
-                        value={peca.quantidade}
-                        onChange={(evento) => mudar(chave, { quantidade: evento.target.value })}
-                        onKeyDown={semTeclasDeNumero}
-                        aria-label={`Quantidade de ${rotulo}`}
-                        className={`${campo} w-24`}
-                      />
+                      {/* UN e KIT andam de 1 em 1; MT, HR e o item manual de 0,01 em 0,01 (pedido do dono em 27/10/2026). */}
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          min={casasDaPeca(peca) === 0 ? "1" : "0.01"}
+                          step={casasDaPeca(peca) === 0 ? "1" : "0.01"}
+                          value={peca.quantidade}
+                          onChange={(evento) => mudar(chave, { quantidade: evento.target.value })}
+                          onKeyDown={(evento) => {
+                            semTeclasDeNumero(evento);
+                            if (casasDaPeca(peca) === 0 && [".", ","].includes(evento.key)) evento.preventDefault();
+                          }}
+                          aria-label={`Quantidade de ${rotulo}`}
+                          className={`${campo} w-24`}
+                        />
+                        {!manual && <span className="text-xs text-suave">{peca.unidade ?? "UN"}</span>}
+                      </div>
                     </td>
                     <td className="px-3 py-2 text-suave">{peca.localizacao || "—"}</td>
                     <td className="px-3 py-2 text-center">
