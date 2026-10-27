@@ -176,6 +176,64 @@ try {
   conferir("desligar apaga e libera a entrada", [lido.pecasProprias, await prisma.pecaPropriaDoProduto.count({ where: { produtoId: final.id } })], [false, 0]);
   conferir("entrada manual volta", (await ajustar({ tipo: "ENTRADA", quantidade: 1 })).ok, true);
 
+  console.log("\nSalvar do cadastro");
+  const { prepararPecasDoCadastro, produtosQueUsamComoPeca } = await import("../src/lib/producao/pecas.js");
+  const { dadosParaClone } = await import("../src/lib/produtoParaFormulario.js");
+  const { montarRascunho, lerRascunho } = await import("../src/lib/rascunhoDoCadastro.js");
+  const kitProduto = await criarProduto("ZZ-PROD-KITX", { tipo: "COMPOSICAO" });
+  const campo = (valor) => JSON.stringify(valor);
+
+  conferir("sem o campo mantem", await prepararPecasDoCadastro({ produtoId: final.id, tipo: "SIMPLES", campo: null }), { ok: true, gravar: null });
+  conferir(
+    "desligado apaga",
+    await prepararPecasDoCadastro({ produtoId: final.id, tipo: "SIMPLES", campo: campo({ ligado: false, pecas: [{ componenteId: a.id, quantidade: 1 }] }) }),
+    { ok: true, gravar: { pecasProprias: false, pecas: [] } },
+  );
+  const ligado = await prepararPecasDoCadastro({
+    produtoId: final.id,
+    tipo: "SIMPLES",
+    campo: campo({ ligado: true, pecas: [{ componenteId: a.id, quantidade: "2" }, { descricao: "cola", custoManual: "1", quantidade: "1" }] }),
+  });
+  conferir("ligado confere", [ligado.ok, ligado.gravar?.pecas.length], [true, 2]);
+  conferir(
+    "kit recusa",
+    (await prepararPecasDoCadastro({ produtoId: final.id, tipo: "COMPOSICAO", campo: campo({ ligado: true, pecas: [] }) })).ok,
+    false,
+  );
+  conferir(
+    "kit como peca recusa",
+    (await prepararPecasDoCadastro({ produtoId: final.id, tipo: "SIMPLES", campo: campo({ ligado: true, pecas: [{ componenteId: kitProduto.id, quantidade: 1 }] }) })).erro,
+    "O kit ZZ-PROD-KITX não pode ser peça própria.",
+  );
+  conferir(
+    "peca excluida recusa",
+    (await prepararPecasDoCadastro({ produtoId: final.id, tipo: "SIMPLES", campo: campo({ ligado: true, pecas: [{ componenteId: "nao-existe", quantidade: 1 }] }) })).ok,
+    false,
+  );
+  conferir("json quebrado recusa", (await prepararPecasDoCadastro({ produtoId: final.id, tipo: "SIMPLES", campo: "{" })).ok, false);
+
+  await prisma.$transaction((tx) => gravarPecasProprias(tx, final.id, ligado.gravar));
+  conferir("excluir peca usada", await produtosQueUsamComoPeca(a.id), ["ZZ-PROD-FINAL"]);
+  let excluiu = true;
+  try {
+    await prisma.produto.delete({ where: { id: a.id } });
+  } catch {
+    excluiu = false;
+  }
+  conferir("banco recusa excluir peca (Restrict)", excluiu, false);
+
+  const clone = dadosParaClone({
+    produto: { id: final.id, sku: "ZZ-PROD-FINAL", tituloBase: "x", tipo: "SIMPLES", pecasProprias: true, pecas: await lerPecasDoProduto(final.id) },
+    fornecedores: [],
+    concorrentes: [],
+  });
+  conferir("clone leva pecas sem id", [clone.pecas.length, clone.pecas.every((peca) => !("id" in peca)), clone.campos.pecasProprias], [2, true, true]);
+
+  const rascunho = lerRascunho(
+    JSON.stringify(montarRascunho({ campos: { tituloBase: "x" }, estado: { pecasProprias: { ligado: true, pecas: [{ descricao: "cola" }] } } })),
+  );
+  conferir("rascunho guarda pecas proprias", rascunho?.pecasProprias, { ligado: true, pecas: [{ descricao: "cola" }] });
+
   // (proximos blocos)
 } finally {
   await limpar();

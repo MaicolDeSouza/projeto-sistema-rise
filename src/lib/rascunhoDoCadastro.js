@@ -35,6 +35,7 @@ const CAMPOS_DE_ESTADO = new Set([
   "gastoIA",
   "imagensDoLote",
   "loteTemporario",
+  "pecasProprias",
   "reservaExcluida",
   "tipo",
 ]);
@@ -78,6 +79,8 @@ export function montarRascunho({ campos, estado, baseEm = null, agora = Date.now
     campos: camposParaRascunho(campos),
     tipo: estado.tipo === "COMPOSICAO" ? "COMPOSICAO" : "SIMPLES",
     pecas: lista(estado.pecas),
+    // Pecas proprias (26/10/2026): o liga/desliga e a lista, num objeto (`pecas` acima e a composicao do kit).
+    pecasProprias: objeto(estado.pecasProprias),
     fornecedores: lista(estado.fornecedores),
     concorrentes: lista(estado.concorrentes),
     fotos: {
@@ -130,6 +133,7 @@ export function lerRascunho(texto, { agora = Date.now(), baseEmAtual = null } = 
     campos,
     tipo: bruto.tipo === "COMPOSICAO" ? "COMPOSICAO" : "SIMPLES",
     pecas: lista(bruto.pecas),
+    pecasProprias: objeto(bruto.pecasProprias),
     fornecedores: lista(bruto.fornecedores),
     concorrentes: lista(bruto.concorrentes),
     fotos: arquivosExpiraram

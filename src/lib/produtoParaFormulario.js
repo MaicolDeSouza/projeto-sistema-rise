@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { urlDe } from "@/lib/arquivos";
 import { lerPecasDoKit, mudancasDosKits, pecaParaTela } from "@/lib/composicaoBanco";
+import { lerPecasDoProduto } from "@/lib/producao/pecas";
 import { propostaParaFormulario } from "@/lib/proposta/banco";
 import { custosDosProdutos } from "@/lib/custoAdicional";
 import { fornecedoresComRascunho } from "@/lib/fornecedorRascunho";
@@ -63,6 +64,9 @@ export async function carregarProdutoParaFormulario(id) {
     tipo: registro.tipo,
     composicao,
     mudancasDasPecas,
+    // Pecas proprias (26/10/2026): o liga/desliga e a lista da aba Fornecedores / Concorrentes.
+    pecasProprias: registro.pecasProprias,
+    pecas: registro.pecasProprias ? await lerPecasDoProduto(registro.id) : [],
     garantiaMeses: registro.garantiaMeses ?? "",
     urlLojaIntegrada: registro.urlLojaIntegrada,
     estoqueMinimo: registro.estoqueMinimo ?? "",
@@ -218,6 +222,8 @@ export function projetarParaAcessos(dados, acessos) {
   if (semCusto) {
     produto.fornecedorRascunho = null;
     produto.composicao = (produto.composicao ?? []).map((peca) => ({ ...peca, custo: null, fornecedor: null }));
+    // Sem custo a tabela de pecas nem aparece, e o formulario nao manda o campo (o Salvar nao mexe nela).
+    produto.pecas = [];
   }
   return {
     ...dados,
@@ -256,6 +262,7 @@ export function dadosParaClone({ produto, fornecedores, concorrentes }) {
     atualizadoEm: _atualizadoEm,
     // A proposta automatica e do original (e apagada no Conferido dele): o clone nasce sem.
     proposta: _proposta,
+    pecas,
     ...campos
   } = produto;
 
@@ -267,6 +274,8 @@ export function dadosParaClone({ produto, fornecedores, concorrentes }) {
     campos: { ...campos, sku: "", localizacao: "", urlLojaIntegrada: "", seoTituloLI: "", seoDescricaoLI: "" },
     tipo,
     composicao,
+    // As pecas proprias vao com o clone, sem o id da linha do original.
+    pecas: (pecas ?? []).map(({ id: _linha, ...peca }) => peca),
     fornecedores: listaDeFornecedores.map((item, posicao) => ({ ...item, id: `clone-fornecedor-${posicao}` })),
     concorrentes: concorrentes.map((item, posicao) => ({ ...item, id: `clone-concorrente-${posicao}` })),
   };

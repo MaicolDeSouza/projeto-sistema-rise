@@ -22,6 +22,13 @@ import {
   prepararComposicaoDoCadastro,
   propagarLocalizacaoDaPeca,
 } from "@/lib/composicaoBanco";
+import {
+  buscarPecasProprias,
+  gravarPecasProprias,
+  prepararPecasDoCadastro,
+  produtosQueUsamComoPeca,
+  recalcularCustoDosProdutosQueUsam,
+} from "@/lib/producao/pecas";
 import { listarDocumentosDasReferencias } from "@/lib/documentosReferencias";
 import { lerCamposDasReferencias, lerDetalhesDasReferencias } from "@/lib/camposDasReferencias";
 import {
@@ -724,7 +731,10 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
   // a lista, e se mandasse ela seria ignorada. O Salvar RECONCILIA a lista inteira (remove quem saiu), entao uma lista
   // ausente quer dizer "nao mexer", nunca "esvaziar": sem isto, salvar apagaria fornecedores e concorrentes que a pessoa
   // nem via. Ver `gravarFornecedoresRascunho` e `gravarConcorrentesRascunho`.
-  if (!(await podeAgora("dado.custo", "ver"))) formData.delete("fornecedoresRascunho");
+  if (!(await podeAgora("dado.custo", "ver"))) {
+    formData.delete("fornecedoresRascunho");
+    formData.delete("pecasProprias");
+  }
   if (!(await podeAgora("dado.concorrentes", "ver"))) formData.delete("concorrentesRascunho");
   const bruto = Object.fromEntries(formData.entries());
   const resultado = ProdutoSchema.safeParse({
@@ -812,6 +822,15 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
     });
     if (!composicao.ok) return { ok: false, erro: composicao.erro };
 
+    // Pecas proprias (26/10/2026): conferidas antes de gravar e gravadas na mesma transacao do produto. Ligadas, o
+    // custo e o total das pecas (gravarPecasProprias o escreve depois do update, por cima do que o formulario mandou).
+    const pecasDoCadastro = await prepararPecasDoCadastro({
+      produtoId: id,
+      tipo: composicao.tipo,
+      campo: formData.get("pecasProprias"),
+    });
+    if (!pecasDoCadastro.ok) return { ok: false, erro: pecasDoCadastro.erro };
+
     // Kit: a localizacao e automatica, a das pecas (pedido do dono em 10/10/2026). O campo vem travado na tela, mas
     // quem decide e o servidor, lendo as pecas agora. Produto simples grava o digitado.
     const localizacaoDoKit = await localizacaoDoKitNoSalvar(id, composicao);
@@ -828,6 +847,7 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
       const produto = await prisma.$transaction(async (tx) => {
         const criado = await tx.produto.create({ data: { ...dados, ...comGasto(null) } });
         await gravarComposicaoDoCadastro(criado.id, composicao, tx);
+        if (pecasDoCadastro.gravar) await gravarPecasProprias(tx, criado.id, pecasDoCadastro.gravar);
         return criado;
       });
 
@@ -920,6 +940,7 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
         : null;
       const salvo = await tx.produto.update({ where: { id }, data: { ...dados, ...comGasto(guardado) } });
       await gravarComposicaoDoCadastro(id, composicao, tx);
+      if (pecasDoCadastro.gravar) await gravarPecasProprias(tx, id, pecasDoCadastro.gravar);
       // Peca que mudou de lugar (ou de codigo) leva junto os kits que a usam (no mesmo commit da peca).
       if (composicao.tipo !== "COMPOSICAO") await propagarLocalizacaoDaPeca(id, tx);
       return salvo;
@@ -1021,6 +1042,12 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
       }
     } catch (erro) {
       console.error("Falha ao guardar as decisoes da proposta:", erro.message);
+    }
+    // Este produto pode ser peca propria de outro: o custo de quem o usa acompanha (fornecedor ou custo novo).
+    try {
+      await recalcularCustoDosProdutosQueUsam(id);
+    } catch (erro) {
+      console.error("Falha ao recalcular o custo de quem usa a peca:", erro.message);
     }
 
     revalidatePath("/produtos");
@@ -1219,6 +1246,11 @@ export async function excluirProduto(id) {
 
   // Peca de kit: apagar deixaria o kit sem o que vende. O banco ja recusa (Restrict), mas o
   // erro dele nao diz QUAIS kits; aqui o recado nomeia cada um, para o operador saber onde tirar.
+  const comoPeca = await produtosQueUsamComoPeca(id);
+  if (comoPeca.length > 0) {
+    return { ok: false, erro: `Este produto é peça própria de ${comoPeca.join(", ")}. Tire-o da lista de peças antes de excluir.` };
+  }
+
   const kits = await kitsQueUsam(id);
   if (kits.length > 0) {
     const nomes = kits.map((kit) => kit.sku).join(", ");
@@ -1310,6 +1342,9 @@ const FornecedorSchema = z.object({
  * exigiria mudar todos.
  */
 async function recalcularCusto(produtoId) {
+  // Peca propria: o custo e o total das pecas, gravado no Salvar; o fornecedor nao o substitui.
+  const { pecasProprias } = (await prisma.produto.findUnique({ where: { id: produtoId }, select: { pecasProprias: true } })) ?? {};
+  if (pecasProprias) return;
   const padrao = await prisma.produtoFornecedor.findFirst({
     where: { produtoId, padrao: true },
     select: { precoCusto: true },
@@ -1815,6 +1850,18 @@ export async function buscarPecasParaKit(termo, excluir = []) {
     return { ok: true, itens: await semCustoDasPecas(itens), barrados };
   } catch (erro) {
     console.error("[composicao] busca de pecas", erro);
+    return { ok: false, erro: "Não foi possível buscar os produtos. Tente de novo." };
+  }
+}
+
+/** Busca de pecas proprias (26/10/2026): produto simples por codigo ou nome, com custo, foto e estoque. */
+export async function buscarPecasPropriasAcao(termo, excluir = []) {
+  const negado = (await negarSemAcesso("tela.produtos.cadastro", "editar")) ?? (await negarSemAcesso("dado.custo", "ver"));
+  if (negado) return negado;
+  try {
+    return { ok: true, itens: await buscarPecasProprias(termo, excluir) };
+  } catch (erro) {
+    console.error("[producao] busca de pecas", erro);
     return { ok: false, erro: "Não foi possível buscar os produtos. Tente de novo." };
   }
 }
