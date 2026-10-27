@@ -11,7 +11,7 @@
   as de caixa metálica ou de trilho DIN (colmeia, industriais, Andeli), os conversores DC-DC e os carregadores de
   bateria. Na biblioteca da VPS, o nome "Fontes-Mini Fontes AC-DC". Esperando a aprovação do dono.
   Depois de ver a descrição do 220505, o dono tirou (27/10/2026) corrente de entrada, corrente de partida, ripple,
-  regulação de linha e de carga, pinagem, temperatura de armazenamento e umidade: o prompt manda não escrevê-los.
+  regulação de linha e de carga, pinagem, temperatura de armazenamento, umidade e MTBF: o prompt manda não escrevê-los.
 
 Regras próprias, porque as lojas erram aqui: a corrente contínua e a de pico são coisas diferentes (o pico nunca vira
 a corrente de saída); a tensão nominal (100 a 240VAC) e a faixa do fabricante (90 a 264VAC) ficam separadas; a versão

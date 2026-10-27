@@ -46,8 +46,6 @@ Temperatura de Operação: substitui Temperatura de trabalho: “-20°C a 60°C�
 
 Fusível Externo Recomendado: “1A 250VAC”, só quando o fabricante o recomenda.
 
-MTBF: substitui Confiabilidade a longo prazo: “100.000h”.
-
 Certificações: só as que o fabricante declara como obtidas, como ele escreve. “Projetada para atender UL e CE” não é certificação: omita.
 
 Use Tensão, nunca Voltagem; Corrente, nunca Amperagem. Troque ≤ e < por “até” ou “menor que”, e ≥ e > por “mínimo” ou “maior que”.
@@ -56,13 +54,13 @@ CARACTERÍSTICAS
 
 Cada item contém nome, valor e referencias: nome “Tensão de Saída”, valor “5VDC”, sem dois-pontos no nome.
 
-Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: Corrente de entrada, Corrente de partida, Ripple, Regulação de linha e de carga, Pinagem, Temperatura de armazenamento, Umidade, Material, Origem, Pressão atmosférica, Altitude, Vibração, Tempo de retenção, Coeficiente de temperatura, Datasheet).
+Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: Corrente de entrada, Corrente de partida, Ripple, MTBF, Regulação de linha e de carga, Pinagem, Temperatura de armazenamento, Umidade, Material, Origem, Pressão atmosférica, Altitude, Vibração, Tempo de retenção, Coeficiente de temperatura, Datasheet).
 
 Campos obrigatórios:
 Fabricante; Modelo; Tipo de Fonte; Tensão de Entrada; Frequência de Entrada; Tensão de Saída; Corrente de Saída; Potência de Saída; Eficiência; Consumo sem Carga; Proteções; Isolação Entrada/Saída; Montagem; Temperatura de Operação.
 
 Campos condicionais (só quando a fonte confirma o dado do mesmo modelo):
-Fusível Externo Recomendado; MTBF; Certificações.
+Fusível Externo Recomendado; Certificações.
 
 Campos finais:
 Dimensões (CxLxA); Peso.
