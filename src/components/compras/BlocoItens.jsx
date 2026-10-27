@@ -45,9 +45,9 @@ export default function BlocoItens({
             <thead className="border-b border-borda text-left text-xs text-suave">
               <tr>
                 <th className="w-14 px-3 py-2 font-medium">Foto</th>
-                <th className="min-w-48 px-3 py-2 font-medium">Produto</th>
-                <th className="min-w-44 px-3 py-2 font-medium">Nome no fornecedor</th>
-                <th className="w-32 px-3 py-2 font-medium">Código fornecedor</th>
+                <th className="min-w-40 px-3 py-2 font-medium">Produto</th>
+                <th className="min-w-32 px-3 py-2 font-medium">Nome no fornecedor</th>
+                <th className="w-24 px-3 py-2 font-medium">Código fornecedor</th>
                 <th className="w-20 px-3 py-2 text-right font-medium">Qtde</th>
                 {veCusto && <th className="w-28 px-3 py-2 text-right font-medium">Preço un.</th>}
                 {veCusto && <th className="w-16 px-3 py-2 text-right font-medium">IPI %</th>}
@@ -64,7 +64,7 @@ export default function BlocoItens({
                   <td className="px-3 py-2">
                     {item.foto ? <FotoComLupa src={item.foto} alt={item.nome} className="h-10 w-10" /> : <span className="block h-10 w-10 rounded border border-dashed border-borda" />}
                   </td>
-                  <td className="max-w-64 px-3 py-2">
+                  <td className="max-w-52 px-3 py-2">
                     <p className="truncate font-medium" title={item.nome}>{item.nome}</p>
                     <p className="font-mono text-xs text-suave">{item.sku}</p>
                   </td>
@@ -97,7 +97,7 @@ export default function BlocoItens({
                       title={erro(indice, "quantidade")}
                       onChange={(evento) => aoMudar(indice, "quantidade", soDigitos(evento.target.value))}
                       aria-label={`Quantidade de ${item.sku}`}
-                      className={`${campo} text-right`}
+                      className={`${campo} min-w-16 text-right`}
                     />
                   </td>
                   {veCusto && (
@@ -111,7 +111,7 @@ export default function BlocoItens({
                         title={erro(indice, "precoUnitario") ?? (item.precoUnitario ? undefined : "Sem preço: o pedido não pode ser enviado assim")}
                         onChange={(evento) => aoMudar(indice, "precoUnitario", soDecimal(evento.target.value))}
                         aria-label={`Preço unitário de ${item.sku}`}
-                        className={`${campo} text-right`}
+                        className={`${campo} min-w-24 text-right`}
                       />
                     </td>
                   )}
@@ -125,7 +125,7 @@ export default function BlocoItens({
                         title={erro(indice, "ipiPercentual")}
                         onChange={(evento) => aoMudar(indice, "ipiPercentual", soDecimal(evento.target.value))}
                         aria-label={`IPI de ${item.sku}`}
-                        className={`${campo} text-right`}
+                        className={`${campo} min-w-14 text-right`}
                       />
                     </td>
                   )}
@@ -143,7 +143,7 @@ export default function BlocoItens({
                         aria-invalid={Boolean(erro(indice, "prazoDias"))}
                         onChange={(evento) => aoMudar(indice, "prazoDias", soDigitos(evento.target.value, 4))}
                         aria-label={`Prazo de entrega de ${item.sku}, em dias`}
-                        className={`${campo} text-right`}
+                        className={`${campo} min-w-12 text-right`}
                       />
                       <span className="text-xs text-suave">d</span>
                     </div>

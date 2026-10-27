@@ -4871,6 +4871,10 @@ plano `docs/superpowers/plans/2026-10-26-modulo-compras.md` (12 tarefas, inline)
   preço, enviar, lançar 4 de 10 (o Bling do PC recusou pela trava: aviso âmbar) e desfazer, proposta (anexada por script: o navegador
   embutido não envia arquivo), Dados da empresa e o PDF renderizado. **Não visto:** o envio real ao Bling (só contra o Bling falso), o
   clique em "Enviar arquivo" da proposta, e a tela com login sem custo.
+- **Ajustes do dono no mesmo dia:** Salvar e Cancelar no topo do editor, no padrão do cadastro de Produto (Salvar fica na página e
+  mostra "Pedido salvo."; Cancelar volta à lista e pergunta "Sair sem salvar?"), e a ação da situação (Marcar como enviado / Finalizar
+  pedido) no outro extremo da linha da trilha; o rodapé saiu. O cartão Fornecedor mostra só o nome. Na busca de item a linha inteira
+  adiciona (sem botão "Adicionar"). A coluna "Chegada" só aparece depois de enviado.
 - **Pendências menores:** excluir produto ou fornecedor que está num pedido cai no erro de chave estrangeira com mensagem genérica.
 
 ## Servidor MCP (20/10/2026)

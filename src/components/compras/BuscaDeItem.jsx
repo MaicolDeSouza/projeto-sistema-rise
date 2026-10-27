@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Plus, Search } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 
 import { buscarItensAcao } from "@/app/compras/acoes";
 
@@ -62,34 +62,31 @@ export default function BuscaDeItem({ pedidoId, fornecedor, aoEscolher, aoFechar
       {!curto && (
         <ul className="mt-2 max-h-72 divide-y divide-borda overflow-y-auto rounded-md border border-borda bg-superficie">
           {achados.length === 0 && !buscando && <li className="px-3 py-4 text-center text-sm text-suave">Nada encontrado.</li>}
+          {/* A linha inteira adiciona (pedido do dono em 26/10/2026: "ao clicar sobre o produto ja seleciona"). */}
           {achados.map((achado) => (
-            <li key={achado.produtoId} className="flex items-center gap-3 px-3 py-2">
-              {achado.foto ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={achado.foto} alt="" className="h-9 w-9 rounded border border-borda object-cover" />
-              ) : (
-                <span className="h-9 w-9 rounded border border-dashed border-borda" />
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{achado.nome}</p>
-                <p className="truncate text-xs text-suave">
-                  <span className="font-mono">{achado.sku}</span>
-                  {achado.vinculo ? ` · na ${fornecedor}: ${achado.vinculo.codigo ?? "sem código"}` : ` · sem vínculo com a ${fornecedor}`}
-                </p>
-              </div>
-              {achado.jaNoPedido ? (
-                <span className="text-xs text-suave">Já no pedido</span>
-              ) : (
-                <button
-                  type="button"
-                  disabled={escolhendo !== null}
-                  onClick={() => escolher(achado)}
-                  className="inline-flex items-center gap-1 rounded-md border border-borda px-2.5 py-1.5 text-xs font-semibold hover:border-acento hover:text-acento disabled:opacity-50"
-                >
-                  {escolhendo === achado.produtoId ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
-                  Adicionar
-                </button>
-              )}
+            <li key={achado.produtoId}>
+              <button
+                type="button"
+                disabled={achado.jaNoPedido || escolhendo !== null}
+                onClick={() => escolher(achado)}
+                className="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-acento/5 focus-visible:bg-acento/5 focus-visible:outline-none disabled:cursor-default disabled:hover:bg-transparent"
+              >
+                {achado.foto ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={achado.foto} alt="" className="h-9 w-9 rounded border border-borda object-cover" />
+                ) : (
+                  <span className="h-9 w-9 rounded border border-dashed border-borda" />
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className={`block truncate text-sm font-medium ${achado.jaNoPedido ? "text-suave" : ""}`}>{achado.nome}</span>
+                  <span className="block truncate text-xs text-suave">
+                    <span className="font-mono">{achado.sku}</span>
+                    {achado.vinculo ? ` · na ${fornecedor}: ${achado.vinculo.codigo ?? "sem código"}` : ` · sem vínculo com a ${fornecedor}`}
+                  </span>
+                </span>
+                {achado.jaNoPedido && <span className="text-xs text-suave">Já no pedido</span>}
+                {escolhendo === achado.produtoId && <Loader2 size={15} className="animate-spin text-acento" />}
+              </button>
             </li>
           ))}
         </ul>

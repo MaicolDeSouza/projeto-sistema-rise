@@ -3,10 +3,10 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, FileDown, Loader2, MoreVertical } from "lucide-react";
+import { ArrowLeft, CheckCheck, FileDown, Loader2, MoreVertical, Send } from "lucide-react";
 
 import { adicionarItemAcao, mudarStatusAcao, salvarPedidoAcao } from "@/app/compras/acoes";
-import SecaoDoAnuncio, { LinhaDeDado } from "@/components/anuncios/ml/SecaoDoAnuncio";
+import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
 import { faltaLancar } from "@/lib/compras/regras";
 import BlocoItens from "./BlocoItens";
 import { BlocoFrete, BlocoObservacoes, BlocoPagamento, BlocoProposta, BlocoTotais } from "./BlocosDoPedido";
@@ -33,6 +33,7 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
   const [buscando, setBuscando] = useState(false);
   const [pergunta, setPergunta] = useState(null);
   const [menu, setMenu] = useState(false);
+  const [salvo, setSalvo] = useState(false);
   const [ocupado, iniciar] = useTransition();
 
   const veCusto = !pedido.semPrecos;
@@ -91,12 +92,6 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
     return resposta.pedido;
   }
 
-  const salvarEFechar = () =>
-    iniciar(async () => {
-      if (alterado && !(await salvar())) return;
-      router.push("/compras/pedidos");
-    });
-
   const mudarStatus = (para) =>
     iniciar(async () => {
       if (alterado && !(await salvar())) {
@@ -152,14 +147,41 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
   };
 
   const podeCancelar = !fechado && ["RASCUNHO", "ENVIADO"].includes(pedido.status);
+  const voltarALista = () => (alterado ? setPergunta("sair") : router.push("/compras/pedidos"));
+  const salvarAqui = () =>
+    iniciar(async () => {
+      if (await salvar()) setSalvo(true);
+    });
+
+  // A acao da situacao mora no fim da linha da trilha (pedido do dono em 26/10/2026): o proximo passo ao lado do caminho.
+  const acaoDaSituacao = rascunho ? (
+    <button
+      type="button"
+      onClick={() => setPergunta("enviar")}
+      disabled={ocupado || formulario.itens.length === 0}
+      title={formulario.itens.length === 0 ? "Pedido sem itens" : undefined}
+      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-acento px-3.5 py-1.5 text-sm font-semibold text-acento transition-[background-color,transform] duration-150 hover:bg-acento/5 active:scale-[0.97] disabled:opacity-50"
+    >
+      <Send size={15} /> Marcar como enviado
+    </button>
+  ) : aCaminho ? (
+    <button
+      type="button"
+      onClick={() => setPergunta("finalizar")}
+      disabled={ocupado}
+      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-acento px-3.5 py-1.5 text-sm font-semibold text-acento transition-[background-color,transform] duration-150 hover:bg-acento/5 active:scale-[0.97] disabled:opacity-50"
+    >
+      <CheckCheck size={15} /> Finalizar pedido
+    </button>
+  ) : null;
 
   return (
     <div>
-      <div className="mb-4 flex items-start justify-between gap-4">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
-            onClick={() => (alterado ? setPergunta("sair") : router.push("/compras/pedidos"))}
+            onClick={voltarALista}
             aria-label="Voltar aos pedidos"
             title="Voltar aos pedidos"
             className="rounded-md p-1.5 text-suave hover:bg-superficie hover:text-texto"
@@ -171,7 +193,34 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
           </h1>
           <SeloDoStatus status={pedido.status} />
         </div>
-        {podeCancelar && (
+        {/* Salvar e Cancelar no topo, no padrao do cadastro de Produto (pedido do dono em 26/10/2026). */}
+        <div className="flex flex-wrap items-center gap-2">
+          {alterado && <span className="text-sm font-medium text-amber-700">Alterações não salvas</span>}
+          {!alterado && salvo && <span className="text-sm text-emerald-700">Pedido salvo.</span>}
+          <span className="mx-1 text-sm">
+            {extras.linkDoPdf ? (
+              extras.linkDoPdf({ pedido, alterado, salvar })
+            ) : (
+              <span className="inline-flex cursor-not-allowed items-center gap-1.5 text-suave">
+                <FileDown size={16} /> Baixar PDF
+              </span>
+            )}
+          </span>
+          {!fechado && (
+            <button
+              type="button"
+              onClick={salvarAqui}
+              disabled={ocupado}
+              className="inline-flex items-center gap-1.5 rounded bg-acento px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+            >
+              {ocupado && <Loader2 size={14} className="animate-spin" />}
+              Salvar
+            </button>
+          )}
+          <button type="button" onClick={voltarALista} className="rounded border border-borda px-4 py-2 text-sm hover:bg-fundo">
+            {fechado ? "Voltar" : "Cancelar"}
+          </button>
+          {podeCancelar && (
           <div className="relative">
             <button type="button" onClick={() => setMenu((aberto) => !aberto)} aria-label="Mais ações" aria-expanded={menu} className="rounded-md p-2 text-suave hover:bg-superficie hover:text-texto">
               <MoreVertical size={18} />
@@ -191,25 +240,20 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
               </div>
             )}
           </div>
-        )}
+          )}
+        </div>
       </div>
 
-      <TrilhaDoStatus status={pedido.status} enviadoEm={pedido.enviadoEm} finalizadoEm={pedido.finalizadoEm} canceladoEm={pedido.canceladoEm} />
+      <TrilhaDoStatus status={pedido.status} enviadoEm={pedido.enviadoEm} finalizadoEm={pedido.finalizadoEm} canceladoEm={pedido.canceladoEm} acao={acaoDaSituacao} />
 
       {erroGeral && <p className="mb-4 rounded-md border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm text-rose-700" role="alert">{erroGeral}</p>}
 
       <div className="space-y-6">
+        {/* So o nome, simples e direto (pedido do dono em 26/10/2026); o nome leva ao cadastro do fornecedor. */}
         <SecaoDoAnuncio titulo="Fornecedor">
-          <div className="grid gap-x-8 sm:grid-cols-2">
-            <LinhaDeDado rotulo="Fornecedor">
-              <Link href={`/cadastros/fornecedores/${pedido.fornecedor.id}`} className="font-medium hover:text-acento hover:underline">
-                {pedido.fornecedor.nome}
-              </Link>
-            </LinhaDeDado>
-            <LinhaDeDado rotulo="CNPJ">{pedido.fornecedor.cnpj}</LinhaDeDado>
-            <LinhaDeDado rotulo="Prazo de entrega">{pedido.fornecedor.prazoEntregaDias ? `${pedido.fornecedor.prazoEntregaDias} dias` : null}</LinhaDeDado>
-            <LinhaDeDado rotulo="Condições">{pedido.fornecedor.condicoesPagamento}</LinhaDeDado>
-          </div>
+          <Link href={`/cadastros/fornecedores/${pedido.fornecedor.id}`} className="text-base font-semibold hover:text-acento hover:underline">
+            {pedido.fornecedor.nome}
+          </Link>
         </SecaoDoAnuncio>
 
         <BlocoItens
@@ -225,7 +269,8 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
           aoAdicionar={adicionarItem}
           buscando={buscando}
           setBuscando={setBuscando}
-          colunaDeChegada={extras.colunaDeChegada ? (item) => extras.colunaDeChegada(item, { pedido, aplicar, alterado }) : null}
+          // Chegada so existe depois de enviado: no rascunho a coluna vazia so roubava espaco dos campos.
+          colunaDeChegada={extras.colunaDeChegada && pedido.status !== "RASCUNHO" ? (item) => extras.colunaDeChegada(item, { pedido, aplicar, alterado }) : null}
         />
 
         {veCusto && <BlocoTotais formulario={formulario} totais={totais} editar={rascunho} erros={erros} aoMudar={mudar} />}
@@ -239,56 +284,6 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
           <BlocoObservacoes formulario={formulario} editar={!fechado} aoMudar={mudar} />
         </div>
       </div>
-
-      <footer className="sticky bottom-0 z-20 mt-6 rounded-lg border border-borda bg-superficie shadow-lg">
-        <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <div className="flex items-center gap-4 text-sm">
-            {alterado && <span className="font-medium text-amber-700">Alterações não salvas</span>}
-            {extras.linkDoPdf ? (
-              extras.linkDoPdf({ pedido, alterado, salvar })
-            ) : (
-              <span className="inline-flex cursor-not-allowed items-center gap-1.5 text-suave" title="O PDF chega numa próxima etapa">
-                <FileDown size={16} /> Baixar PDF
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {fechado ? (
-              <Link href="/compras/pedidos" className="rounded-md border border-borda px-4 py-2 text-sm font-medium hover:bg-fundo">
-                Voltar
-              </Link>
-            ) : (
-              <>
-                <button type="button" onClick={salvarEFechar} disabled={ocupado} className="rounded-md border border-borda px-4 py-2 text-sm font-medium hover:bg-fundo disabled:opacity-50">
-                  Salvar e fechar
-                </button>
-                {rascunho && (
-                  <button
-                    type="button"
-                    onClick={() => setPergunta("enviar")}
-                    disabled={ocupado || formulario.itens.length === 0}
-                    title={formulario.itens.length === 0 ? "Pedido sem itens" : undefined}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-acento px-4 py-2 text-sm font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-acento/90 active:scale-[0.97] disabled:opacity-50"
-                  >
-                    {ocupado && <Loader2 size={15} className="animate-spin" />}
-                    Marcar como enviado
-                  </button>
-                )}
-                {aCaminho && (
-                  <button
-                    type="button"
-                    onClick={() => setPergunta("finalizar")}
-                    disabled={ocupado}
-                    className="rounded-md bg-acento px-4 py-2 text-sm font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-acento/90 active:scale-[0.97] disabled:opacity-50"
-                  >
-                    Finalizar pedido
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      </footer>
 
       {pergunta && perguntas[pergunta]}
       {extras.janelas?.({ pedido, aplicar })}

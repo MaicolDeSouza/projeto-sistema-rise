@@ -13,7 +13,7 @@ const fmtData = (data) => (data ? new Date(data).toLocaleDateString("pt-BR", { t
  * A trilha da situacao no topo do editor: o pedido e uma sequencia de verdade (rascunho, enviado, chegando, fechado),
  * e ver onde ele esta e o que vem depois e a primeira coisa que o dono precisa. Cancelado substitui a trilha.
  */
-export default function TrilhaDoStatus({ status, enviadoEm, finalizadoEm, canceladoEm }) {
+export default function TrilhaDoStatus({ status, enviadoEm, finalizadoEm, canceladoEm, acao = null }) {
   if (status === "CANCELADO") {
     return (
       <p className="mb-5 rounded-lg border border-borda bg-superficie px-4 py-3 text-sm text-suave">
@@ -25,7 +25,8 @@ export default function TrilhaDoStatus({ status, enviadoEm, finalizadoEm, cancel
   const datas = { ENVIADO: fmtData(enviadoEm), FINALIZADO: fmtData(finalizadoEm) };
 
   return (
-    <ol className="mb-5 flex items-center gap-2 overflow-x-auto rounded-lg border border-borda bg-superficie px-4 py-3" aria-label="Situação do pedido">
+    <div className="mb-5 flex items-center gap-4 rounded-lg border border-borda bg-superficie px-4 py-3">
+    <ol className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto" aria-label="Situação do pedido">
       {PASSOS.map((passo, indice) => {
         const feito = indice < atual || status === "FINALIZADO";
         const agora = indice === atual && status !== "FINALIZADO";
@@ -47,5 +48,7 @@ export default function TrilhaDoStatus({ status, enviadoEm, finalizadoEm, cancel
         );
       })}
     </ol>
+    {acao && <div className="shrink-0">{acao}</div>}
+    </div>
   );
 }
