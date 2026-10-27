@@ -1,0 +1,108 @@
+Escreva a descrição de uma barra de pinos para placa de circuito impresso em português brasileiro, no JSON exigido pelo Rise: paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm e decisoes. Não acrescente outros campos. Vale para barras de pinos macho e fêmea (headers e soquetes), torneadas, de uma ou duas fileiras, retas (180°) ou em 90°, e barras empilháveis para shields. Bornes de parafuso, conectores com trava (JST, KF2510, Molex), soquetes de CI e jumpers não entram neste prompt.
+
+Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use informações confirmadas no cadastro ou nas referências. Não complete especificações por suposição.
+
+PARÁGRAFOS
+
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Simples e direto: a barra de pinos é uma peça conhecida, então diga o que é e para que serve, sem propaganda. Tamanho, contando espaços: o primeiro até 200 caracteres, o segundo até 300.
+
+Primeiro parágrafo, UMA frase: “A Barra de Pinos <macho / fêmea / torneada> <fileiras>x<vias> com passo <passo> e <ângulo> é um conector para placa de circuito impresso, usado para <encaixar módulos e shields / ligar jumpers / montar placas em protoboard>.” Só o que estiver confirmado.
+
+Segundo parágrafo, uma ou duas frases práticas, só com recursos confirmados: em que ela encaixa (a fêmea recebe pinos macho e jumpers macho; o macho entra em barras fêmea, protoboards e jumpers fêmea), se pode ser cortada no tamanho do projeto, ou o pino longo da empilhável, que atravessa o shield e encaixa na placa de baixo.
+
+Fale com o comprador: “possui”, não “tem”. Ao voltar a falar do produto, use “a barra”, nunca “ela” no início da frase. Varie a ordem dos fatos entre as opções. Sem elogios vazios (“excelente”, “alta qualidade”, “construção robusta”, “ideal para qualquer projeto”) e sem repetir o título inteiro.
+
+PADRONIZAÇÃO DOS NOMES
+
+Use exatamente os nomes dos campos definidos neste prompt. As lojas usam nomes variados; converta-os assim:
+
+Fabricante: substitui Marca. Quem fabrica a barra, como está na marca do cadastro do produto; barra genérica, sem fabricante declarado: OEM. Nunca o nome da loja.
+
+Modelo: o código do fabricante, como “BCI004-1E”, “PH-1x40”; substitui Part Number e Código. Sem código de fabricante confirmado, omita o campo.
+
+Tipo: substitui Tipo de conector, Gênero e Subcategoria: “Macho”, “Fêmea”, “Macho torneada”, “Fêmea torneada” ou “Macho e fêmea empilhável” (o pino longo das barras para shield).
+
+Número de Vias: substitui Vias, Posições, Número de pinos, Quantidade de pinos e Quantidade de vias do conector: “18”, “40”. Na barra de duas fileiras, o total de pinos: “40 (2x20)”.
+
+Fileiras: substitui Número de fileiras e Simples/Dupla: “1” ou “2”.
+
+Passo: substitui Espaçamento, Passo entre os pinos e Pitch: “2,54mm”, “2,0mm”, “1,27mm”.
+
+Ângulo: substitui Configuração e Ângulo do conector: “180° (reta)” ou “90°”, como a fonte publica.
+
+Montagem: “Solda em placa (PTH)”; empilhável: “Solda em shield (PTH, pino longo)”; SMD só com fonte.
+
+Altura do Corpo: a altura da parte plástica: “8,5mm”. Comprimento do Pino: o pino abaixo do corpo (o que vai na placa) e, no macho, também o de cima: “3mm abaixo / 6mm acima”. Os dois só com fonte do mesmo tipo e passo.
+
+Divisível: substitui “pode ser quebrada”, “pode ser cortada”, “corte no tamanho”: “Sim (pode ser cortada no número de vias do projeto)”, só com fonte. Na fêmea, cortar perde uma via no ponto do corte; diga isso quando a fonte disser.
+
+Corrente Nominal: substitui Corrente, Corrente máxima e Corrente máxima do conector: “3A”. Tensão Nominal: substitui Tensão, Tensão máxima e Tensão máxima do conector: “250V”.
+
+Material do Corpo: substitui Material e Material do isolador: “PBT (UL94 V-0)”, “Nylon PA6T”. Material dos Contatos: substitui Material dos pinos e Acabamento: “Latão estanhado”, “Cobre fosforoso com banho de ouro”. “Plástico e metal” não diz o material: omita.
+
+Cor: a do corpo: “Preto”, “Amarelo”, “Vermelho”.
+
+Temperatura de Operação: substitui Temperatura de trabalho: “-40°C a 105°C”.
+
+Resistência de Contato: “20mΩ”. Resistência de Isolação: “1000MΩ”. Rigidez Dielétrica: “500V AC por 1 minuto”. Os três, só com fonte do mesmo tipo e passo.
+
+Use Tensão, nunca Voltagem; Corrente, nunca Amperagem.
+
+CARACTERÍSTICAS
+
+Cada item contém nome, valor e referencias: nome “Passo”, valor “2,54mm”, sem dois-pontos no nome.
+
+Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: Categoria, Unidade Venda, Aplicação, Origem, Diâmetro, Dimensões 1x40 como campo).
+
+Campos obrigatórios:
+Fabricante; Modelo; Tipo; Número de Vias; Fileiras; Passo; Ângulo; Montagem; Corrente Nominal; Tensão Nominal; Material do Corpo; Material dos Contatos; Cor; Temperatura de Operação.
+
+Campos condicionais (só quando o produto tem o recurso; com o recurso e sem valor confirmado, omita o campo):
+Altura do Corpo; Comprimento do Pino; Divisível; Resistência de Contato; Resistência de Isolação; Rigidez Dielétrica.
+
+Campos finais:
+Dimensões (CxLxA); Peso.
+
+Dimensões (CxLxA) e Peso são sempre os dois últimos campos. Devolva os números em dimensoesMm e pesoGramas; o Rise escreve as duas linhas. Não os repita em caracteristicas.
+
+Não entram em caracteristicas: Origem, Garantia, Unidade de venda, Quantidade do pacote, Peso com embalagem, textos de aplicação e propaganda (“Fácil soldagem”, “Design universal”, “Compatibilidade ampla”).
+
+No modo sem referências, respeite a instrução acrescentada pelo Rise: inclua apenas especificações confirmadas nos dados próprios do produto. Se não houver nenhuma, retorne caracteristicas vazia.
+
+Números colados às unidades: 2,54mm, 3A, 250V. Use vírgula decimal. Nunca use ponto e vírgula dentro de um valor. Informações distintas no mesmo valor se separam por “ / ”; itens da mesma lista, por vírgula.
+
+REGRAS ESPECÍFICAS
+
+O passo decide a compra: 2,54mm, 2,0mm e 1,27mm não se encaixam entre si. Nunca troque um pelo outro; sem o passo no título, no cadastro ou numa referência da mesma barra, omita o campo.
+
+Número de vias e fileiras vêm do título ou do cadastro. Barra da MESMA família (mesmo tipo, mesmo passo, mesmas fileiras e mesmo ângulo) com outra quantidade de vias pode confirmar passo, corrente, tensão, materiais, cor, temperatura e alturas, que não mudam com as vias; medidas, peso e modelo mudam com as vias e nunca se copiam de outra quantidade (1x20 não é 1x18).
+
+Macho e fêmea são peças diferentes; torneada e comum também (o pino torneado é redondo e mais fino). Não copie entre elas.
+
+Empilhável: a barra fêmea com pino longo, para shields de Arduino; só quando o título ou a fonte disser.
+
+Corrente e tensão variam entre lojas (3A, 1A; 250V, 125V): prefira o datasheet do fabricante; sem ele, o valor mais repetido entre lojas da mesma família, e registre a divergência.
+
+Ângulo é como a fonte chama: não deduza pela foto.
+
+Lista de fornecedor sem ficha técnica não comprova especificação.
+
+FONTES
+
+Em referencias, registre só os números das referências fornecidas que sustentam o valor daquele campo. Para valores vindos só do cadastro ou título, e para valores desconhecidos, use referencias []. Resultado da web só vale se consultado de fato e informado como referência; prefira o datasheet do fabricante. Não invente consultas, fontes, URLs ou números de referência.
+
+ITENS INCLUSOS
+
+O primeiro item é o próprio produto, com quantidade e nome técnico: “01 Barra de pinos fêmea 1x18 passo 2,54mm 180°”. Pacote com várias barras: a quantidade do cadastro (“10 Barras de pinos macho 1x40”). A embalagem de outro vendedor não comprova o conteúdo vendido pela Rise.
+
+PESO E DIMENSÕES
+
+pesoGramas: número em gramas. dimensoesMm: comprimento (ao longo das vias), largura e altura em milímetros, da barra do mesmo tipo e número de vias, com os pinos. Não use embalagem nem barra de outra quantidade de vias. Dado desconhecido é null, nunca zero.
+
+DIVERGÊNCIAS
+
+Para cada divergência fornecida, retorne id, opcao, motivo breve e campo com o nome padronizado deste prompt. opcao é o índice a partir de zero, ou null quando faltar evidência suficiente. Prefira o mesmo tipo, o mesmo passo, o mesmo número de vias e fontes independentes. Exceto para peso e dimensões, reserve a posição do campo divergente em caracteristicas com valor "" e referencias []. Não coloque valores divergentes nos parágrafos ou características antes da escolha do operador.
+
+GARANTIA
+
+O Rise acrescenta automaticamente: Garantia Legal de 90 dias (contra defeitos de fabricação). Não gere campo extra de garantia nem copie garantias das referências. Não escreva preço, prazo ou nome de loja.
