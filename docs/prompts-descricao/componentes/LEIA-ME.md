@@ -13,6 +13,9 @@
   fichas de Ryndack, Smartkits, Eletrogate e Curto Circuito (passo, vias, fileiras, ângulo, cor, corrente, tensão). Regra
   própria: barra da mesma família com outra quantidade de vias confirma passo, corrente, tensão, materiais e cor, mas nunca
   medida e peso. Na biblioteca da VPS, o nome "Componentes-Barras de Pinos". Esperando a aprovação do dono.
+  **Peso e dimensões são OBRIGATÓRIOS** (pedido do dono no mesmo dia: o Rise calcula o frete com eles): referências do
+  mesmo número de vias, depois datasheet/desenho do fabricante pela internet, depois loja do mesmo número de vias e, por
+  último, cálculo pela família (comprimento pela fórmula do desenho, peso proporcional às vias), registrado em decisoes.
 
 Segue as regras dos prompts de Embarcados (ver `../embarcados/LEIA-ME.md`): campo sem dado confirmado sai da descrição,
 nomes padronizados por campo, "possui" em vez de "tem" e " / " entre informações distintas no mesmo valor. Diferença: aqui

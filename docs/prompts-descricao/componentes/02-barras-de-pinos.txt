@@ -63,7 +63,7 @@ Altura do Corpo; Comprimento do Pino; Divisível; Resistência de Contato; Resis
 Campos finais:
 Dimensões (CxLxA); Peso.
 
-Dimensões (CxLxA) e Peso são sempre os dois últimos campos. Devolva os números em dimensoesMm e pesoGramas; o Rise escreve as duas linhas. Não os repita em caracteristicas.
+Dimensões (CxLxA) e Peso são sempre os dois últimos campos e são OBRIGATÓRIOS (o Rise calcula o frete com eles; ver PESO E DIMENSÕES). Devolva os números em dimensoesMm e pesoGramas; o Rise escreve as duas linhas. Não os repita em caracteristicas.
 
 Não entram em caracteristicas: Origem, Garantia, Unidade de venda, Quantidade do pacote, Peso com embalagem, textos de aplicação e propaganda (“Fácil soldagem”, “Design universal”, “Compatibilidade ampla”).
 
@@ -75,7 +75,7 @@ REGRAS ESPECÍFICAS
 
 O passo decide a compra: 2,54mm, 2,0mm e 1,27mm não se encaixam entre si. Nunca troque um pelo outro; sem o passo no título, no cadastro ou numa referência da mesma barra, omita o campo.
 
-Número de vias e fileiras vêm do título ou do cadastro. Barra da MESMA família (mesmo tipo, mesmo passo, mesmas fileiras e mesmo ângulo) com outra quantidade de vias pode confirmar passo, corrente, tensão, materiais, cor, temperatura e alturas, que não mudam com as vias; medidas, peso e modelo mudam com as vias e nunca se copiam de outra quantidade (1x20 não é 1x18).
+Número de vias e fileiras vêm do título ou do cadastro. Barra da MESMA família (mesmo tipo, mesmo passo, mesmas fileiras e mesmo ângulo) com outra quantidade de vias pode confirmar passo, corrente, tensão, materiais, cor, temperatura, largura e alturas, que não mudam com as vias. Comprimento, peso e modelo mudam com as vias: nunca copie o número de outra quantidade (1x20 não é 1x18); calcule como manda PESO E DIMENSÕES.
 
 Macho e fêmea são peças diferentes; torneada e comum também (o pino torneado é redondo e mais fino). Não copie entre elas.
 
@@ -95,9 +95,23 @@ ITENS INCLUSOS
 
 O primeiro item é o próprio produto, com quantidade e nome técnico: “01 Barra de pinos fêmea 1x18 passo 2,54mm 180°”. Pacote com várias barras: a quantidade do cadastro (“10 Barras de pinos macho 1x40”). A embalagem de outro vendedor não comprova o conteúdo vendido pela Rise.
 
-PESO E DIMENSÕES
+PESO E DIMENSÕES (OBRIGATÓRIOS)
 
-pesoGramas: número em gramas. dimensoesMm: comprimento (ao longo das vias), largura e altura em milímetros, da barra do mesmo tipo e número de vias, com os pinos. Não use embalagem nem barra de outra quantidade de vias. Dado desconhecido é null, nunca zero.
+O Rise usa o peso e as medidas para calcular o frete: pesoGramas e dimensoesMm são obrigatórios e só ficam null quando nenhum passo abaixo der resultado, e então decisoes diz o que foi procurado.
+
+pesoGramas: número em gramas, com uma casa decimal quando for menor que 10 (1,6). dimensoesMm: comprimento (ao longo das vias), largura e altura em milímetros, da barra inteira com os pinos (altura = corpo + pino abaixo + pino acima, quando houver). Nunca a embalagem.
+
+Procure nesta ordem e pare no primeiro que der o número:
+1. As referências fornecidas, do mesmo tipo e mesmo número de vias.
+2. O datasheet ou o desenho do fabricante da série (a tabela costuma dar a dimensão A = vias × passo, a altura do corpo, a largura e o pino). Pesquise na internet quando as referências não trouxerem: “female header 2.54mm datasheet”, o código da série (A2541, PH, DS1023) ou o Part Number.
+3. Uma loja na internet do mesmo tipo e mesmo número de vias.
+4. Cálculo pela família (mesmo tipo, passo, fileiras e ângulo), só quando 1 a 3 não derem o número:
+   - comprimento: a fórmula do desenho do fabricante da família, quando houver (CJT A2541: vias × 2,54 + 0,5mm, a 1x18 dá 46,2mm); sem desenho, vias por fileira × passo (1x18 = 45,7mm); na barra de 2 fileiras, a largura é a da família de 2 fileiras;
+   - largura e altura: as da família, que não mudam com as vias;
+   - peso: proporcional às vias, a partir do peso publicado de uma barra da família (1x8 de 0,7g dá 0,0875g por via; 1x18 = 1,6g).
+   Registre em decisoes o campo, a conta e a fonte da família (“Peso calculado: 0,7g ÷ 8 vias × 18 vias, Connfly DS1023-1x8”). O relatório da proposta diz que o valor é calculado.
+
+Arredonde ao décimo de milímetro e de grama. Não deduza medida pela foto.
 
 DIVERGÊNCIAS
 
