@@ -75,8 +75,20 @@ conferir(
 conferir("valida peca manual sem custo", validarPecas([{ descricao: "x", quantidade: 1 }]).ok, false);
 conferir("valida peca manual", validarPecas([{ descricao: " cola ", custoManual: "1,50", quantidade: "0,5" }]), {
   ok: true,
-  pecas: [{ componenteId: null, descricao: "cola", custoManual: 1.5, quantidade: 0.5, ordem: 0 }],
+  pecas: [{ componenteId: null, descricao: "cola", custoManual: 1.5, codigoManual: null, fornecedorManual: null, fotoManual: null, quantidade: 0.5, ordem: 0 }],
 });
+const fotoBoa = `${"a".repeat(32)}.jpg`;
+conferir(
+  "valida codigo, fornecedor e foto do item manual",
+  validarPecas([{ descricao: "cola", custoManual: "1", quantidade: 1, codigoManual: " C-1 ", fornecedorManual: " Loja X ", fotoManual: fotoBoa }]).pecas?.[0],
+  { componenteId: null, descricao: "cola", custoManual: 1, codigoManual: "C-1", fornecedorManual: "Loja X", fotoManual: fotoBoa, quantidade: 1, ordem: 0 },
+);
+conferir(
+  "foto com nome de fora e descartada",
+  validarPecas([{ descricao: "cola", custoManual: "1", quantidade: 1, fotoManual: "../../.env" }]).pecas?.[0]?.fotoManual,
+  null,
+);
+conferir("codigo longo recusado", validarPecas([{ descricao: "cola", custoManual: "1", quantidade: 1, codigoManual: "x".repeat(61) }]).ok, false);
 conferir("valida repetida", validarPecas([{ componenteId: "a", quantidade: 1 }, { componenteId: "a", quantidade: 2 }]).ok, false);
 conferir("valida proprio", validarPecas([{ componenteId: "eu", quantidade: 1 }], "eu").ok, false);
 conferir("valida quantidade zero", validarPecas([{ componenteId: "a", quantidade: 0 }]).ok, false);
@@ -169,6 +181,23 @@ try {
     }),
   );
   conferir("peca sem custo zera", (await prisma.produto.findUnique({ where: { id: final.id } })).custo, null);
+
+  // Item manual com codigo, fornecedor e foto (27/10/2026): gravados e lidos de volta no formato da tela.
+  const fotoGravada = `${"b".repeat(32)}.jpg`;
+  await prisma.$transaction((tx) =>
+    gravarPecasProprias(tx, final.id, {
+      pecasProprias: true,
+      pecas: [
+        { componenteId: null, descricao: "parafuso", custoManual: 0.35, codigoManual: "M3-10", fornecedorManual: "Loja X", fotoManual: fotoGravada, quantidade: 4, ordem: 0 },
+      ],
+    }),
+  );
+  const [manualLido] = await lerPecasDoProduto(final.id);
+  conferir(
+    "item manual com codigo, fornecedor e foto",
+    [manualLido.sku, manualLido.codigoManual, manualLido.fornecedor, manualLido.fornecedorManual, manualLido.fotoManual, manualLido.foto],
+    ["M3-10", "M3-10", "Loja X", "Loja X", fotoGravada, `/api/producao/foto-manual/${fotoGravada}`],
+  );
 
   const buscados = await buscarPecasProprias("ZZ-PROD", [final.id, b.id]);
   conferir("busca sem o proprio e os da lista", buscados.map((peca) => peca.sku), ["ZZ-PROD-A"]);

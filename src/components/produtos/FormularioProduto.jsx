@@ -3522,6 +3522,9 @@ export default function FormularioProduto({
               componenteId: peca.componenteId ?? null,
               descricao: peca.componenteId ? null : peca.descricao,
               custoManual: peca.componenteId ? null : peca.custoManual,
+              codigoManual: peca.componenteId ? null : peca.codigoManual,
+              fornecedorManual: peca.componenteId ? null : peca.fornecedorManual,
+              fotoManual: peca.componenteId ? null : peca.fotoManual,
               quantidade: peca.quantidade,
             })),
           })}

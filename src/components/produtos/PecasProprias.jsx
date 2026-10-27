@@ -1,10 +1,10 @@
 "use client";
 
-import { Fragment, useState, useTransition } from "react";
+import { Fragment, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { ExternalLink, Loader, Plus, Search, Trash2, X } from "lucide-react";
+import { Camera, ExternalLink, Loader, Plus, Search, Trash2, X } from "lucide-react";
 
-import { buscarPecasPropriasAcao } from "@/app/produtos/acoes";
+import { buscarPecasPropriasAcao, enviarFotoDaPecaManualAcao } from "@/app/produtos/acoes";
 import FotoComLupa from "@/components/ui/FotoComLupa";
 import { casasDaPeca, custoDasPecas } from "@/lib/producao/regras";
 import IconeDeEstoque from "./IconeDeEstoque";
@@ -19,7 +19,10 @@ function custoDaLinha(peca) {
 }
 
 /** Linha que ainda nao tem nada digitado: nao conta no custo nem vai no Salvar. */
-export const linhaVazia = (peca) => !peca.componenteId && !String(peca.descricao ?? "").trim() && String(peca.custoManual ?? "").trim() === "";
+export const linhaVazia = (peca) =>
+  !peca.componenteId &&
+  !peca.fotoManual &&
+  ["descricao", "custoManual", "codigoManual", "fornecedorManual"].every((campo) => String(peca[campo] ?? "").trim() === "");
 
 /** Chave estavel de cada linha (item manual nao tem id ate o Salvar). */
 let proxima = 0;
@@ -36,6 +39,11 @@ export default function PecasProprias({ pecas, setPecas, produtoId, aoAlterar, r
   // A busca e de UMA linha por vez: `busca.chave` diz qual, e os achados aparecem logo abaixo dela.
   const [busca, setBusca] = useState(null);
   const [procurando, iniciarBusca] = useTransition();
+  // Foto do item manual (27/10/2026): uma linha por vez; o arquivo vai ao servidor na hora e a linha guarda o nome.
+  const [fotoDaLinha, setFotoDaLinha] = useState(null);
+  const seletorDeFoto = useRef(null);
+  // A linha que pediu a foto, lida no `change` do seletor (o estado ainda pode nao ter renderizado).
+  const linhaDaFoto = useRef(null);
 
   const alterar = (nova) => {
     setPecas(nova);
@@ -49,7 +57,10 @@ export default function PecasProprias({ pecas, setPecas, produtoId, aoAlterar, r
 
   const adicionar = () => {
     setBusca(null);
-    alterar([...pecas, { chave: novaChave(), componenteId: null, descricao: "", custoManual: "", quantidade: 1 }]);
+    alterar([
+      ...pecas,
+      { chave: novaChave(), componenteId: null, descricao: "", custoManual: "", codigoManual: "", fornecedorManual: "", fotoManual: null, foto: null, quantidade: 1 },
+    ]);
   };
 
   const procurar = (peca) => {
@@ -82,6 +93,32 @@ export default function PecasProprias({ pecas, setPecas, produtoId, aoAlterar, r
     setBusca(null);
   };
 
+  const pedirFoto = (chave) => {
+    linhaDaFoto.current = chave;
+    setFotoDaLinha({ chave });
+    seletorDeFoto.current?.click();
+  };
+  const receberFoto = async (evento) => {
+    const arquivo = evento.target.files?.[0];
+    evento.target.value = "";
+    const chave = linhaDaFoto.current;
+    if (!arquivo || !chave) return;
+    setFotoDaLinha({ chave, enviando: true });
+    const dados = new FormData();
+    dados.append("foto", arquivo);
+    try {
+      const resultado = await enviarFotoDaPecaManualAcao(dados);
+      if (!resultado.ok) {
+        setFotoDaLinha({ chave, erro: resultado.erro });
+        return;
+      }
+      mudar(chave, { fotoManual: resultado.nome, foto: resultado.url });
+      setFotoDaLinha(null);
+    } catch {
+      setFotoDaLinha({ chave, erro: "Não foi possível enviar a foto. Tente de novo." });
+    }
+  };
+
   const contadas = pecas.filter((peca) => !linhaVazia(peca));
   const custo = custoDasPecas(contadas.map((peca) => ({ custo: custoDaLinha(peca), quantidade: Number(String(peca.quantidade).replace(",", ".")) || 0 })));
   const semCusto = contadas.filter((peca) => custoDaLinha(peca) === null).map((peca) => peca.sku ?? (peca.descricao || "item manual"));
@@ -91,12 +128,14 @@ export default function PecasProprias({ pecas, setPecas, produtoId, aoAlterar, r
 
   return (
     <div className="space-y-3">
+      <input ref={seletorDeFoto} type="file" aria-label="Foto do item manual" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={receberFoto} />
       <div className="overflow-x-auto rounded border border-borda">
         <table className="w-full text-sm">
           <thead className="bg-fundo text-left text-xs font-semibold uppercase text-suave">
             <tr>
               <th className="w-14 px-3 py-2">Foto</th>
               <th className="px-3 py-2">Nome</th>
+              <th className="px-3 py-2">Fornecedor</th>
               <th className="px-3 py-2">Código</th>
               <th className="w-32 px-3 py-2">Custo</th>
               <th className="w-28 px-3 py-2">Quantidade</th>
@@ -108,7 +147,7 @@ export default function PecasProprias({ pecas, setPecas, produtoId, aoAlterar, r
           <tbody className="divide-y divide-borda">
             {pecas.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-3 py-4 text-center text-suave">
+                <td colSpan={9} className="px-3 py-4 text-center text-suave">
                   Nenhum item ainda. Use &quot;Adicionar item&quot;.
                 </td>
               </tr>
@@ -124,7 +163,34 @@ export default function PecasProprias({ pecas, setPecas, produtoId, aoAlterar, r
                 <Fragment key={chave}>
                   <tr>
                     <td className="px-3 py-2">
-                      {peca.foto ? <FotoComLupa src={peca.foto} alt={peca.nome} className="h-10 w-10" /> : <span className="text-suave">—</span>}
+                      {manual ? (
+                        // Item manual: a foto vem do computador (pedido do dono em 27/10/2026); o botao troca a foto.
+                        <div className="relative inline-flex">
+                          {peca.foto ? <FotoComLupa src={peca.foto} alt={peca.descricao || "Item manual"} className="h-10 w-10" /> : null}
+                          <button
+                            type="button"
+                            onClick={() => pedirFoto(chave)}
+                            disabled={Boolean(fotoDaLinha?.enviando)}
+                            title={peca.foto ? "Trocar a foto" : "Enviar uma foto"}
+                            aria-label={peca.foto ? "Trocar a foto do item" : "Enviar uma foto do item"}
+                            className={
+                              peca.foto
+                                ? "absolute -bottom-1 -right-1 rounded-full border border-borda bg-superficie p-0.5 text-acento shadow-sm hover:bg-fundo"
+                                : "flex h-10 w-10 items-center justify-center rounded border border-dashed border-borda text-acento hover:bg-fundo disabled:opacity-50"
+                            }
+                          >
+                            {fotoDaLinha?.chave === chave && fotoDaLinha.enviando ? (
+                              <Loader size={peca.foto ? 12 : 16} className="animate-spin" />
+                            ) : (
+                              <Camera size={peca.foto ? 12 : 16} />
+                            )}
+                          </button>
+                        </div>
+                      ) : peca.foto ? (
+                        <FotoComLupa src={peca.foto} alt={peca.nome} className="h-10 w-10" />
+                      ) : (
+                        <span className="text-suave">—</span>
+                      )}
                     </td>
                     <td className="px-3 py-2">
                       {manual ? (
@@ -165,7 +231,37 @@ export default function PecasProprias({ pecas, setPecas, produtoId, aoAlterar, r
                         </Link>
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">{peca.sku ?? <span className="text-suave">—</span>}</td>
+                    <td className="px-3 py-2">
+                      {/* Item manual: fornecedor e codigo digitados; produto do Rise: o fornecedor padrao e o SKU (27/10/2026). */}
+                      {manual ? (
+                        <input
+                          value={peca.fornecedorManual ?? ""}
+                          maxLength={120}
+                          onChange={(evento) => mudar(chave, { fornecedorManual: evento.target.value })}
+                          onKeyDown={(evento) => evento.key === "Enter" && evento.preventDefault()}
+                          placeholder="Fornecedor"
+                          aria-label="Fornecedor do item manual"
+                          className={`${campo} w-36`}
+                        />
+                      ) : (
+                        <span className="line-clamp-2">{peca.fornecedor || <span className="text-suave">—</span>}</span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">
+                      {manual ? (
+                        <input
+                          value={peca.codigoManual ?? ""}
+                          maxLength={60}
+                          onChange={(evento) => mudar(chave, { codigoManual: evento.target.value })}
+                          onKeyDown={(evento) => evento.key === "Enter" && evento.preventDefault()}
+                          placeholder="Código"
+                          aria-label="Código do item manual"
+                          className={`${campo} w-28 font-mono text-xs`}
+                        />
+                      ) : (
+                        peca.sku ?? <span className="text-suave">—</span>
+                      )}
+                    </td>
                     <td className="px-3 py-2">
                       {manual ? (
                         <input
@@ -223,9 +319,16 @@ export default function PecasProprias({ pecas, setPecas, produtoId, aoAlterar, r
                       </button>
                     </td>
                   </tr>
+                  {fotoDaLinha?.chave === chave && fotoDaLinha.erro && (
+                    <tr>
+                      <td colSpan={9} className="px-3 py-1.5 text-sm text-red-700">
+                        {fotoDaLinha.erro}
+                      </td>
+                    </tr>
+                  )}
                   {buscaDaLinha && (buscaDaLinha.erro || buscaDaLinha.itens) && (
                     <tr>
-                      <td colSpan={8} className="bg-fundo/60 px-3 py-2">
+                      <td colSpan={9} className="bg-fundo/60 px-3 py-2">
                         <div className="flex items-start gap-2">
                           <div className="min-w-0 flex-1">
                             {buscaDaLinha.erro && <p className="text-sm text-red-700">{buscaDaLinha.erro}</p>}

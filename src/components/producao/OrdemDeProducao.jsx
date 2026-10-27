@@ -236,6 +236,7 @@ export default function OrdemDeProducao({ ordem, podeMovimentar }) {
                 <td className="px-3 py-2">
                   {item.sku && <span className="mr-2 font-mono text-xs text-suave">{item.sku}</span>}
                   {item.descricao}
+                  {item.fornecedor && <span className="block text-xs text-suave">{item.fornecedor}</span>}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums">{numero(item.quantidadePorUnidade)}</td>
                 <td className="px-3 py-2 text-right font-medium tabular-nums">{item.quantidadeTotal}</td>

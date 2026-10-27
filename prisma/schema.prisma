@@ -2143,6 +2143,11 @@ model PecaPropriaDoProduto {
   componente   Produto? @relation("PecaProdutos", fields: [componenteId], references: [id], onDelete: Restrict)
   descricao    String?
   custoManual  Decimal? @db.Decimal(12, 2)
+  /// So do item manual (27/10/2026): o codigo e o fornecedor digitados. Produto do Rise le os do cadastro.
+  codigoManual     String?
+  fornecedorManual String?
+  /// Nome do arquivo em dados/pecas-manuais/ (src/lib/producao/fotosManuais.js).
+  fotoManual       String?
   /// Decimal: insumo pode ser 0,5 m de fio. A ordem arredonda o total para cima (o estoque e inteiro).
   quantidade   Decimal  @db.Decimal(12, 3)
 
@@ -2189,6 +2194,8 @@ model ItemDaOrdemDeProducao {
   componente           Produto?        @relation(fields: [componenteId], references: [id], onDelete: Restrict)
   sku                  String?
   descricao            String
+  /// O fornecedor da peca no momento da ordem (o padrao do produto do Rise, ou o digitado no item manual).
+  fornecedor           String?
   custoUnitario        Decimal?        @db.Decimal(12, 2)
   quantidadePorUnidade Decimal         @db.Decimal(12, 3)
   quantidadeTotal      Int

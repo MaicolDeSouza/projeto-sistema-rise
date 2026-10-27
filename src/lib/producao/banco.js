@@ -91,6 +91,7 @@ export async function criarOrdem(produtoId, { quantidade, observacao } = {}) {
             componenteId: peca.componenteId,
             sku: peca.sku,
             descricao: peca.nome,
+            fornecedor: peca.fornecedor ?? null,
             custoUnitario: peca.custo,
             quantidadePorUnidade: peca.quantidade,
             quantidadeTotal: quantidadeTotalDaPeca(peca.quantidade, planejada),

@@ -54,6 +54,7 @@ import { UNIDADES } from "@/lib/unidades";
 import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
 import { conferirEanNoML } from "@/lib/canaisDeVenda/ml/eanNoCatalogo";
 import { proximoCodigoLivre } from "@/lib/proposta/codigo";
+import { salvarFotoManual } from "@/lib/producao/fotosManuais";
 import { normalizarAdicionais } from "@/lib/custoAdicionalRegras";
 import { custosDosProdutos, produtosQueDependem, recalcularQuemUsa, recalcularVinculos, vinculosDoProduto } from "@/lib/custoAdicional";
 import {
@@ -1863,6 +1864,21 @@ export async function buscarPecasPropriasAcao(termo, excluir = []) {
   } catch (erro) {
     console.error("[producao] busca de pecas", erro);
     return { ok: false, erro: "Não foi possível buscar os produtos. Tente de novo." };
+  }
+}
+
+/**
+ * Foto de um item manual da lista personalizada (pedido do dono em 27/10/2026). Grava na hora em
+ * dados/pecas-manuais/ e devolve o nome; a linha so passa a cita-la no Salvar do produto.
+ */
+export async function enviarFotoDaPecaManualAcao(formData) {
+  const negado = (await negarSemAcesso("tela.produtos.cadastro", "editar")) ?? (await negarSemAcesso("dado.custo", "ver"));
+  if (negado) return negado;
+  try {
+    return await salvarFotoManual(formData?.get?.("foto"));
+  } catch (erro) {
+    console.error("[producao] foto do item manual", erro);
+    return { ok: false, erro: "Não foi possível guardar a foto. Tente de novo." };
   }
 }
 

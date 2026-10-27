@@ -6,6 +6,10 @@
 export const MAXIMO_PECAS = 50;
 export const MAXIMO_DESCRICAO = 120;
 export const MAXIMO_QUANTIDADE = 99999;
+export const MAXIMO_CODIGO_MANUAL = 60;
+export const MAXIMO_FORNECEDOR_MANUAL = 120;
+/// O nome que `fotosManuais.js` gera (32 hex + .jpg): o navegador manda o nome, e so esse formato passa.
+const PADRAO_FOTO_MANUAL = /^[a-f0-9]{32}\.jpg$/;
 
 export const SITUACOES = ["ABERTA", "EM_PRODUCAO", "CONCLUIDA", "CANCELADA"];
 
@@ -91,7 +95,7 @@ export function validarPecas(lista, produtoId = null) {
       if (produtoId && componenteId === String(produtoId)) return { ok: false, erro: "O produto não pode ser peça de si mesmo." };
       if (vistos.has(componenteId)) return { ok: false, erro: `${posicao}: este produto já está na lista.` };
       vistos.add(componenteId);
-      pecas.push({ componenteId, descricao: null, custoManual: null, quantidade, ordem: indice });
+      pecas.push({ componenteId, descricao: null, custoManual: null, codigoManual: null, fornecedorManual: null, fotoManual: null, quantidade, ordem: indice });
       continue;
     }
 
@@ -100,7 +104,16 @@ export function validarPecas(lista, produtoId = null) {
     if (descricao.length > MAXIMO_DESCRICAO) return { ok: false, erro: `${posicao}: o nome aceita até ${MAXIMO_DESCRICAO} caracteres.` };
     const custoManual = numeroDe(bruta?.custoManual);
     if (custoManual === null || custoManual < 0) return { ok: false, erro: `${posicao}: informe o custo do item.` };
-    pecas.push({ componenteId: null, descricao, custoManual, quantidade, ordem: indice });
+    // Codigo, fornecedor e foto do item manual sao opcionais (27/10/2026).
+    const codigoManual = String(bruta?.codigoManual ?? "").trim() || null;
+    if (codigoManual && codigoManual.length > MAXIMO_CODIGO_MANUAL) return { ok: false, erro: `${posicao}: o código aceita até ${MAXIMO_CODIGO_MANUAL} caracteres.` };
+    const fornecedorManual = String(bruta?.fornecedorManual ?? "").trim() || null;
+    if (fornecedorManual && fornecedorManual.length > MAXIMO_FORNECEDOR_MANUAL) {
+      return { ok: false, erro: `${posicao}: o fornecedor aceita até ${MAXIMO_FORNECEDOR_MANUAL} caracteres.` };
+    }
+    const foto = String(bruta?.fotoManual ?? "");
+    const fotoManual = PADRAO_FOTO_MANUAL.test(foto) ? foto : null;
+    pecas.push({ componenteId: null, descricao, custoManual, codigoManual, fornecedorManual, fotoManual, quantidade, ordem: indice });
   }
   return { ok: true, pecas };
 }

@@ -2,6 +2,8 @@ import { urlDe } from "@/lib/arquivos";
 import { custoDoProduto } from "@/lib/canaisDeVenda/custo";
 import { prisma } from "@/lib/db";
 
+import { urlDaFotoManual } from "./fotosManuais.js";
+
 import { casasDaUnidade, custoDasPecas, quantidadeCabe, validarPecas } from "./regras.js";
 
 /**
@@ -23,7 +25,7 @@ const PECA = {
   custo: true,
   pecasProprias: true,
   fornecedorRascunho: true,
-  fornecedores: { where: { padrao: true }, select: { padrao: true, precoCusto: true } },
+  fornecedores: { where: { padrao: true }, select: { padrao: true, precoCusto: true, fornecedor: { select: { nome: true } } } },
   arquivos: { where: { tipo: "IMAGEM", papel: "FOTO" }, orderBy: { ordem: "asc" }, take: 1, select: { arquivo: true } },
 };
 
@@ -44,8 +46,13 @@ function produtoComoPeca(produto) {
     estoqueMaximo: produto.estoqueMaximo ?? null,
     custo: custo.valor,
     custoOrigem: custo.origem,
+    // O fornecedor padrao; sem ele, o rascunho do Bling (a mesma ordem do custo).
+    fornecedor: produto.fornecedores?.[0]?.fornecedor?.nome ?? produto.fornecedorRascunho?.nome ?? null,
     descricao: null,
     custoManual: null,
+    codigoManual: null,
+    fornecedorManual: null,
+    fotoManual: null,
   };
 }
 
@@ -64,9 +71,10 @@ export async function lerPecasDoProduto(produtoId, cliente = prisma) {
       id: linha.id,
       ordem: linha.ordem,
       componenteId: null,
-      sku: null,
+      sku: linha.codigoManual ?? null,
       nome: linha.descricao,
-      foto: null,
+      foto: urlDaFotoManual(linha.fotoManual),
+      fornecedor: linha.fornecedorManual ?? null,
       localizacao: null,
       estoque: null,
       estoqueMinimo: null,
@@ -75,6 +83,9 @@ export async function lerPecasDoProduto(produtoId, cliente = prisma) {
       custoOrigem: "manual",
       descricao: linha.descricao,
       custoManual,
+      codigoManual: linha.codigoManual ?? "",
+      fornecedorManual: linha.fornecedorManual ?? "",
+      fotoManual: linha.fotoManual ?? null,
       quantidade,
     };
   });
@@ -172,6 +183,9 @@ export async function gravarPecasProprias(tx, produtoId, { pecasProprias, pecas 
         componenteId: peca.componenteId,
         descricao: peca.descricao,
         custoManual: peca.custoManual,
+        codigoManual: peca.codigoManual ?? null,
+        fornecedorManual: peca.fornecedorManual ?? null,
+        fotoManual: peca.fotoManual ?? null,
         quantidade: peca.quantidade,
       })),
     });
