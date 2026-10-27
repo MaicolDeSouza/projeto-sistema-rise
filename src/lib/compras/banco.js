@@ -301,6 +301,78 @@ export async function adicionarAoPedido({ produtoId, vinculoId, quantidade }) {
   }
 }
 
+/**
+ * Varios itens de uma vez no rascunho do fornecedor (o pedido montado pela conversa do MCP, 26/10/2026). Cada item:
+ * `{ produtoId, vinculoId, quantidade, precoUnitario?, ipiPercentual? }`, ja conferidos por quem chama. Item novo nasce
+ * com o preco informado ou, sem ele, o do vinculo (como o popup); item que ja estava no rascunho troca a quantidade e
+ * so troca o preco/IPI quando vierem (o digitado na tela nao e apagado por um preco calculado).
+ */
+export async function colocarItensNoRascunho(fornecedorId, itens) {
+  const fornecedor = await prisma.fornecedor.findUnique({ where: { id: String(fornecedorId ?? "") }, select: { id: true, nome: true, prazoEntregaDias: true } });
+  if (!fornecedor) return { ok: false, erro: "Fornecedor não encontrado." };
+  if (!Array.isArray(itens) || itens.length === 0) return { ok: false, erro: "Informe ao menos um item." };
+  for (const item of itens) {
+    if (quantidadeValida(item.quantidade) === null) return { ok: false, erro: "Informe a quantidade, em número inteiro maior que zero." };
+  }
+
+  const vinculos = await prisma.produtoFornecedor.findMany({
+    where: { id: { in: itens.map((item) => item.vinculoId).filter(Boolean) }, fornecedorId: fornecedor.id },
+  });
+  const vinculoDe = new Map(vinculos.map((vinculo) => [vinculo.id, vinculo]));
+  // O preco do vinculo (com a coleta) e lido FORA da transacao, como no popup.
+  const padroes = new Map();
+  for (const item of itens) {
+    const vinculo = vinculoDe.get(item.vinculoId);
+    if (item.precoUnitario === undefined && vinculo) padroes.set(item.produtoId, await precoDoVinculo(vinculo, fornecedor.nome));
+  }
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const pedido = await rascunhoDoFornecedor(tx, fornecedor.id);
+      const maiorOrdem = await tx.itemDoPedidoDeCompra.aggregate({ where: { pedidoId: pedido.id }, _max: { ordem: true } });
+      let ordem = (maiorOrdem._max.ordem ?? -1) + 1;
+      const resultado = [];
+      for (const item of itens) {
+        const vinculo = vinculoDe.get(item.vinculoId) ?? null;
+        const informado = {
+          ...(item.precoUnitario !== undefined ? { precoUnitario: item.precoUnitario } : {}),
+          ...(item.ipiPercentual !== undefined ? { ipiPercentual: item.ipiPercentual ?? 0 } : {}),
+        };
+        const existente = await tx.itemDoPedidoDeCompra.findUnique({
+          where: { pedidoId_produtoId: { pedidoId: pedido.id, produtoId: item.produtoId } },
+          select: { id: true },
+        });
+        if (existente) {
+          await tx.itemDoPedidoDeCompra.update({ where: { id: existente.id }, data: { quantidade: Number(item.quantidade), ...informado } });
+          resultado.push({ produtoId: item.produtoId, acao: "atualizado" });
+          continue;
+        }
+        const padrao = padroes.get(item.produtoId) ?? { precoUnitario: null, ipiPercentual: 0 };
+        await tx.itemDoPedidoDeCompra.create({
+          data: {
+            pedidoId: pedido.id,
+            produtoId: item.produtoId,
+            vinculoId: vinculo?.id ?? null,
+            nomeNoFornecedor: vinculo?.descricao ?? null,
+            codigoNoFornecedor: vinculo?.codigo ?? null,
+            link: vinculo?.link ?? null,
+            quantidade: Number(item.quantidade),
+            precoUnitario: padrao.precoUnitario,
+            ipiPercentual: padrao.ipiPercentual,
+            ...informado,
+            prazoDias: fornecedor.prazoEntregaDias,
+            ordem: ordem++,
+          },
+        });
+        resultado.push({ produtoId: item.produtoId, acao: "novo" });
+      }
+      return { ok: true, pedidoId: pedido.id, numero: pedido.numero, criado: pedido.criado, itens: resultado };
+    });
+  } catch (erro) {
+    return { ok: false, erro: `Não foi possível montar o pedido: ${erro.message}` };
+  }
+}
+
 // ---------------------------------------------------------------------------
 // O pedido: listar, ler, criar, salvar, itens e status
 // ---------------------------------------------------------------------------

@@ -516,6 +516,91 @@ try {
     }
   }
 
+  {
+    console.log("\nCompras pelo MCP (montar, ler, situacao, acesso)");
+    await limpar();
+    const mcp = await import("../src/lib/mcp/compras.js");
+    const tudo = { pode: () => true };
+    const semCusto = { pode: (recurso) => recurso !== "dado.custo" };
+    const soVer = { pode: (recurso, nivel) => nivel === "ver" };
+    const recusa = async (promessa) => {
+      try {
+        await promessa;
+        return null;
+      } catch (erro) {
+        return erro?.name === "ErroDeFerramenta" ? erro.message : `outro erro: ${erro?.message}`;
+      }
+    };
+
+    const fornecedor = await criarFornecedor("ZZ Compra MCP Alfa");
+    await criarFornecedor("ZZ Compra MCP Alfa Dois");
+    const p1 = await criarProduto("ZZ-COMPRA-M1");
+    const p2 = await criarProduto("ZZ-COMPRA-M2");
+    await criarProduto("ZZ-COMPRA-M3");
+    await criarProduto("ZZ-COMPRA-MK", { tipo: "COMPOSICAO" });
+    await vincular(p1, fornecedor, { precoFornecedor: 12, precoCusto: 12 });
+    await vincular(p2, fornecedor, { codigo: "COD-FORN-2", precoFornecedor: 7, precoCusto: 7 });
+
+    conferir(
+      "fornecedor parecido com dois recusa e lista",
+      (await recusa(mcp.montarPedidoDeCompra({ fornecedor: "ZZ Compra MCP", itens: [{ sku: "ZZ-COMPRA-M1", quantidade: 1 }] }, tudo)))?.includes("Mais de um fornecedor"),
+      true,
+    );
+    const faltou = await recusa(
+      mcp.montarPedidoDeCompra({ fornecedor: "zz compra mcp alfa", itens: [{ sku: "ZZ-COMPRA-M1", quantidade: 1 }, { sku: "ZZ-COMPRA-NAOEXISTE", quantidade: 2 }, { sku: "ZZ-COMPRA-MK", quantidade: 1 }] }, tudo),
+    );
+    conferir("item que nao existe e kit recusam o pedido inteiro", [faltou?.includes("ZZ-COMPRA-NAOEXISTE"), faltou?.includes("kit")], [true, true]);
+    conferir("nada gravado depois da recusa", await prisma.pedidoDeCompra.count({ where: { fornecedorId: fornecedor.id } }), 0);
+
+    const montado = await mcp.montarPedidoDeCompra(
+      {
+        fornecedor: "ZZ Compra MCP Alfa",
+        itens: [
+          { sku: "ZZ-COMPRA-M1", quantidade: 10 },
+          { codigoNoFornecedor: "cod-forn-2", quantidade: 5, precoUnitario: 6.5, ipiPercentual: 10 },
+          { sku: "ZZ-COMPRA-M3", quantidade: 3 },
+        ],
+        frete: 20,
+        desconto: "5%",
+        formaPagamento: "PIX",
+        propostaNumero: "ORC-77",
+      },
+      tudo,
+    );
+    const itemDe = (sku) => montado.pedido.itens.find((item) => item.sku === sku);
+    conferir("rascunho criado com os 3 itens", [montado.criado, montado.pedido.situacao, montado.pedido.itens.length], [true, "RASCUNHO", 3]);
+    conferir("preco do cadastro, o informado e o sem vinculo", [itemDe("ZZ-COMPRA-M1").precoUnitario, itemDe("ZZ-COMPRA-M2").precoUnitario, itemDe("ZZ-COMPRA-M2").ipiPercentual, itemDe("ZZ-COMPRA-M3").precoUnitario], [12, 6.5, 10, null]);
+    conferir("cabecalho gravado", [montado.pedido.totais.frete, montado.pedido.pagamento.forma, montado.pedido.propostaDoFornecedor], [20, "PIX", "ORC-77"]);
+    conferir("avisa o item sem preco e sem vinculo", [montado.avisos.some((aviso) => aviso.includes("ZZ-COMPRA-M3")), montado.itensDestaVez.find((item) => item.sku === "ZZ-COMPRA-M3").semVinculoComOFornecedor], [true, true]);
+
+    const enviarSemPreco = await recusa(mcp.mudarSituacaoDoPedidoDeCompra({ pedido: montado.pedido.codigo, para: "ENVIADO" }, tudo));
+    conferir("enviar com item sem preco recusa", enviarSemPreco?.includes("ZZ-COMPRA-M3"), true);
+
+    const segundo = await mcp.montarPedidoDeCompra({ fornecedor: "ZZ Compra MCP Alfa", itens: [{ sku: "ZZ-COMPRA-M3", quantidade: 4, precoUnitario: 3 }, { sku: "ZZ-COMPRA-M1", quantidade: 8 }] }, tudo);
+    conferir("segunda vez completa o mesmo rascunho", [segundo.criado, segundo.pedido.codigo, segundo.pedido.itens.length], [false, montado.pedido.codigo, 3]);
+    const m1 = segundo.pedido.itens.find((item) => item.sku === "ZZ-COMPRA-M1");
+    conferir("item que ja estava troca a quantidade e mantem o preco", [m1.quantidade, m1.precoUnitario, segundo.itensDestaVez.find((item) => item.sku === "ZZ-COMPRA-M1").acao], [8, 12, "atualizado"]);
+
+    conferir("sem custo nao grava preco", (await recusa(mcp.montarPedidoDeCompra({ fornecedor: "ZZ Compra MCP Alfa", itens: [{ sku: "ZZ-COMPRA-M1", quantidade: 1, precoUnitario: 1 }] }, semCusto)))?.includes("preço de compra"), true);
+    conferir("so ver nao monta pedido", (await recusa(mcp.montarPedidoDeCompra({ fornecedor: "ZZ Compra MCP Alfa", itens: [{ sku: "ZZ-COMPRA-M1", quantidade: 1 }] }, soVer)))?.includes("não pode"), true);
+
+    const lidoSemCusto = await mcp.lerPedidoDeCompra({ pedido: segundo.pedido.codigo.replace("PC-", "pc") }, semCusto);
+    conferir("ler sem custo esconde precos e totais", [lidoSemCusto.itens[0].precoUnitario, lidoSemCusto.totais], ["[restrito]", "[restrito]"]);
+
+    const enviado = await mcp.mudarSituacaoDoPedidoDeCompra({ pedido: segundo.pedido.codigo, para: "ENVIADO" }, tudo);
+    conferir("enviar com todos os precos", [enviado.pedido.situacao, enviado.pedido.itens.every((item) => item.faltaChegar === item.quantidade)], ["ENVIADO", true]);
+    const lista = await mcp.listarPedidosDeCompra({ situacao: ["ENVIADO"], termos: "ZZ Compra MCP" }, tudo);
+    conferir("lista por situacao e fornecedor", [lista.total, lista.pedidos[0].codigo], [1, segundo.pedido.codigo]);
+    conferir("finalizar pela conversa", (await mcp.mudarSituacaoDoPedidoDeCompra({ pedido: segundo.pedido.codigo, para: "FINALIZADO" }, tudo)).pedido.situacao, "FINALIZADO");
+    conferir("finalizado nao volta", (await recusa(mcp.mudarSituacaoDoPedidoDeCompra({ pedido: segundo.pedido.codigo, para: "CANCELADO" }, tudo)))?.includes("não é permitida"), true);
+    conferir("pedido que nao existe", (await recusa(mcp.lerPedidoDeCompra({ pedido: "PC-999999" }, tudo)))?.includes("não encontrado"), true);
+
+    const minimo = await mcp.produtosAbaixoDoMinimo({ termos: "ZZ-COMPRA-M2" }, tudo);
+    const linhaM2 = minimo.produtos[0];
+    conferir("abaixo do minimo traz sugerida e fornecedores", [minimo.total, linhaM2?.quantidadeSugerida, linhaM2?.fornecedores[0]?.codigo, linhaM2?.fornecedores[0]?.custo], [1, 40, "COD-FORN-2", 7]);
+    conferir("minimo sem estoque exato recusa", (await recusa(mcp.produtosAbaixoDoMinimo({}, { pode: (recurso) => recurso !== "dado.estoqueExato" })))?.includes("estoque exato"), true);
+  }
+
   // Marcador: os blocos de banco seguintes entram acima desta linha.
 } finally {
   await limpar();
