@@ -511,6 +511,12 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
     </>
   );
   const caixaDeConclusao = conclusao && <ConclusaoDoEnvio {...conclusao} aoFechar={() => setConclusao(null)} />;
+  // Os dois links ficam ANTES da caixa de andamento, que os usa: declarados depois, o Sincronizar derrubava a pagina em
+  // producao ("Cannot access ... before initialization") no instante em que o popup de etapas abria (26/10/2026).
+  const linkDoPainel = linkDoPainelLI(vinculoAtual?.idExterno);
+  // A pagina do produto no site da loja (pedido do dono em 25/10/2026): so depois de o anuncio existir na LI (com `idExterno`)
+  // e com endereco http(s) completo; sem o dominio da loja (LI_DOMINIO) a URL gravada e so o caminho e o botao nao nasce.
+  const linkDoSite = vinculoAtual?.idExterno && /^https?:\/\//i.test(String(vinculoAtual.urlExterna ?? "")) ? vinculoAtual.urlExterna : null;
   // O fim do Sincronizar e do Cadastrar: etapas e, quando deu certo, tres botoes (painel da loja, anuncio e Fechar). Quem falhou
   // volta para a janela, com o erro a vista. O anuncio so abre com endereco http(s) completo.
   const caixaDeAndamento = andamento && (
@@ -564,11 +570,6 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
   if (lendo && !leitura) rotuloDoEnvio = "Lendo a loja...";
   else if (qual === "enviar") rotuloDoEnvio = "Enviando...";
   else if (qual === "lendo") rotuloDoEnvio = "Atualizando...";
-
-  const linkDoPainel = linkDoPainelLI(vinculoAtual?.idExterno);
-  // A pagina do produto no site da loja (pedido do dono em 25/10/2026): so depois de o anuncio existir na LI (com `idExterno`)
-  // e com endereco http(s) completo; sem o dominio da loja (LI_DOMINIO) a URL gravada e so o caminho e o botao nao nasce.
-  const linkDoSite = vinculoAtual?.idExterno && /^https?:\/\//i.test(String(vinculoAtual.urlExterna ?? "")) ? vinculoAtual.urlExterna : null;
 
   // O rodape no padrao da janela do Bling (pedido do dono em 26/10/2026): os links a esquerda; "Salvar e fechar" (contornado) e o
   // envio (azul, a acao principal) a direita. Saiu o selo "Na loja" e o "Tudo salvo": o estado aparece no ícone e na aba Previa.
