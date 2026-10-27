@@ -10,7 +10,9 @@
 // "13" em 25/10/2026: a marca sem fabricante e OEM (era GENERICA), e a descricao chama o campo de Fabricante (pedido do dono).
 // "14" em 27/10/2026: o tamanho dos paragrafos e o do prompt; 330/550 so quando o prompt nao diz (pedido do dono, com o
 // prompt Componentes-Bornes, que quer paragrafos simples: o 1o ate 200 e o 2o com 1 ou 2 frases ate 300).
-export const VERSAO_DO_ROTEIRO = "14";
+// "15" em 27/10/2026: peso e medidas OBRIGATORIOS, porque o Rise calcula o frete com eles (pedido do dono): referencias,
+// datasheet e internet e, por ultimo, calculo registrado na origem; o relatorio diz o que foi calculado.
+export const VERSAO_DO_ROTEIRO = "15";
 
 export const ROTEIRO = `ROTEIRO DA PROPOSTA DE PRODUTO (Rise / 4hobby), versão ${VERSAO_DO_ROTEIRO}
 
@@ -40,7 +42,8 @@ Não chame anotarDuvida na proposta.
 
 REGRAS QUE VALEM SEMPRE
 - Nunca invente. Sem fonte: o campo SAI da descrição (nunca "?" nem "não informado"), fica fora da proposta, e o
-  relatório diz quais ficaram de fora.
+  relatório diz quais ficaram de fora. Exceção: PESO E MEDIDAS são obrigatórios (o Rise calcula o frete com eles); ver
+  o item 4.
 - Toda escolha leva a origem (loja, site, busca), curta.
 - Português do Brasil, texto puro (sem negrito, emoji ou link dentro do texto).
 - Não use nenhuma ferramenta de IA paga do Rise.
@@ -53,7 +56,7 @@ REGRAS QUE VALEM SEMPRE
   caracteres e o 2º com 1 ou 2 frases, até 300). Só quando o prompt não diz o tamanho: o 1º é UMA frase de até 330
   caracteres e o 2º tem 3 ou 4 frases, até 550 (o estilo da Smartkits);
   "Especificações técnicas:" com "- Nome: valor;" (as duas últimas: "- Dimensões(CxLxA): 43x18x19mm;" e "- Peso: 7g;",
-  com os valores dos campos do produto); "Itens inclusos: (Cod:SKU)" com "- 01 ITEM;"; "Garantia:" com
+  com os valores dos campos do produto ou os da seção campos, que são obrigatórios: as duas linhas sempre entram); "Itens inclusos: (Cod:SKU)" com "- 01 ITEM;"; "Garantia:" com
   "- Garantia Legal de 90 dias (contra defeitos de fabricação);". Quebra de linha \\r\\n.
 - Campo que o prompt pede e nenhuma loja informa: pesquise (datasheet do fabricante primeiro, depois lojas e fóruns).
   Só preencha com fonte; senão retire o campo da descrição (nada de "?").
@@ -94,8 +97,19 @@ conteudo: { "candidatas": [{ "id", "arquivo" (o de baixarCandidatas) ou "fotoAtu
 - codigo: só se o produto estiver sem código; use o proximoCodigo da leitura. localizacao nunca.
 - garantiaMeses: sempre 3.
 - numeroHomologacao: só o número no formato da Anatel (0000-00-0000), com fonte; "certificado pela Anatel" não é número.
-- pesoKg, alturaCm, larguraCm, comprimentoCm: a da Usinainfo quando ela é concorrente vinculada e publica; sem ela, a
-  mais repetida entre os concorrentes; empate, a do fabricante. Medida do produto, nunca da embalagem.
+- pesoKg, alturaCm, larguraCm, comprimentoCm: OBRIGATÓRIOS (o Rise calcula o frete com eles). O produto termina a
+  proposta com os quatro: se ele já tem o valor e nenhuma fonte diz outro, fica o dele; senão, procure nesta ordem e pare
+  no primeiro que der o número:
+  1. os vinculados do MESMO produto e variante: a da Usinainfo quando ela é concorrente vinculada e publica; sem ela, a
+     mais repetida entre os concorrentes; empate, a do fabricante;
+  2. o datasheet ou o desenho do fabricante (pesquise na internet pelo modelo, pelo código ou pelo módulo);
+  3. uma loja na internet que publique o MESMO produto e variante;
+  4. cálculo, só quando 1 a 3 não derem o número: pelo desenho do fabricante (ex.: barra de pinos = vias × 2,54mm +
+     a sobra do desenho), pela família com outro tamanho (peso proporcional às vias ou ao comprimento), ou pela soma das
+     peças de um kit. A origem diz a conta e a fonte (“calculado: 0,7g ÷ 8 vias × 18 vias, Connfly 1x8”).
+  Medida do produto montado, nunca da embalagem; nunca pela foto. Peso com 3 casas em kg (0,002). Só fica de fora se nem
+  o cálculo for possível, e então o relatório diz em “Para você conferir” o que foi procurado. Medida da OUTRA variante
+  (outra placa, outro número de vias) nunca vale como está: só entra pelo cálculo do passo 4.
 - ncm: o da Fortek quando ela é fornecedor; sem ela, o mais repetido entre os fornecedores. Sem fornecedor com NCM: fora,
   e o relatório lista os NCMs que os concorrentes publicam.
 - origem (fiscal) e spedTipoItem (tipo do item): com fornecedor vinculado, QUEM DECIDE É O RISE: origem 2 e tipo do item
@@ -151,8 +165,8 @@ conteudo: { "itens": [{ "id", "titulo", "url", "loja" }] }
 10. RELATÓRIO (por último), profissional, em tópicos com título, nesta ordem:
 "Resumo" (2 a 4 itens: o que foi feito e o principal resultado), "Fontes consultadas" (fornecedores, concorrentes,
 prompt, sites pesquisados), "Decisões tomadas" (cada divergência: campo, opções, a escolhida e o porquê), "Para você
-conferir" (atencao: true; os campos que ficaram de fora por falta de fonte, os campos preenchidos que a proposta troca e
-o que depende do dono), "Fiscal" (NCM, origem, tipo do item, EAN e o que os concorrentes publicam diferente), "Preço" (o
+conferir" (atencao: true; os campos que ficaram de fora por falta de fonte, os campos preenchidos que a proposta troca,
+o peso e as medidas que vieram de cálculo, com a conta, e o que depende do dono), "Fiscal" (NCM, origem, tipo do item, EAN e o que os concorrentes publicam diferente), "Preço" (o
 que o Rise calculou, o concorrente de referência, o aviso de markup abaixo de 60%, quem entrou e quem ficou de fora), "Fotos" e
 "Documentos" (o que não abre). Tópico sem nada a dizer fica de fora. Cada item é uma frase curta e completa.
 conteudo: { "topicos": [{ "titulo", "itens": [frases curtas], "atencao": true só em "Para você conferir" }] }
