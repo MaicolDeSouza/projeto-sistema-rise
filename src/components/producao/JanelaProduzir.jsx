@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Factory, Loader } from "lucide-react";
 
 import { criarOrdemAcao } from "@/app/estoque/producao/acoes";
+import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 
 /**
@@ -36,8 +37,8 @@ export default function JanelaProduzir({ produtoId, nome, motivo = null }) {
 
   return (
     <>
-      {/* Recusa vira estado (regra 8 do padrao visual): o motivo escrito ao lado, nao so no `title`. */}
-      {motivo && <span className="max-w-56 text-xs text-amber-700">{motivo}</span>}
+      {/* O motivo do botao desabilitado fica na bolha "i" do canto (pedido do dono em 27/10/2026: sem a frase ao lado). */}
+      <span className="relative inline-flex">
       <button
         type="button"
         onClick={() => setAberta(true)}
@@ -48,6 +49,8 @@ export default function JanelaProduzir({ produtoId, nome, motivo = null }) {
         <Factory size={15} />
         Produzir
       </button>
+      {motivo && <BolhaDeAjuda texto={motivo} />}
+      </span>
       {aberta && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" {...propsDoFundo(fechar)}>
           <div

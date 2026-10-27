@@ -4917,7 +4917,7 @@ continua `pecasProprias`. **Adicionar item** cria uma linha vazia com uma lupa n
 a miniatura, e o escolhido toma o lugar da linha; sem a lupa a linha fica como item manual, com o custo digitado. Só a ÚLTIMA linha tem a lupa: ao
 adicionar outra, a de cima fica como item manual. A quantidade segue a unidade do produto (27/10/2026): UN e KIT de 1 em 1,
 MT e HR (e o item manual) com até 2 casas; o servidor confere no Salvar (`casasDaUnidade`, `quantidadeCabe`). A linha
-ainda vazia não vai no Salvar. O Produzir desabilitado diz o motivo numa linha ao lado (lista vazia ou não salva). Spec `docs/superpowers/specs/2026-10-26-producao-pecas-proprias-design.md`,
+ainda vazia não vai no Salvar. O Produzir desabilitado diz o motivo na bolha "i" do canto (lista vazia ou não salva; 27/10/2026). Spec `docs/superpowers/specs/2026-10-26-producao-pecas-proprias-design.md`,
 plano `docs/superpowers/plans/2026-10-26-producao-pecas-proprias.md` (inline). **Pronto e testado no PC, SEM DEPLOY** (migration
 `20261026c_producao_pecas_proprias`, só aditiva).
 
