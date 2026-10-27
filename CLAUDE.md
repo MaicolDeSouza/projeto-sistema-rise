@@ -2737,8 +2737,8 @@ custo do fornecedor (prejuízo), amarelo com lucro líquido abaixo de 60%, verde
       (parágrafos até 200 e 300, peso e dimensões obrigatórios). Corrente contínua e de pico separadas, tensão nominal e faixa
       separadas, a versão "L" é outro modelo. **Aprovado pelo dono em 27/10/2026**, depois de ver a descrição do 220505 e mandar
       tirar corrente de entrada e de partida, ripple, regulação de linha e de carga, pinagem, armazenamento, umidade e MTBF (o prompt
-      manda não escrevê-los). Nome na biblioteca da VPS: "Fontes-Mini Fontes AC-DC" (o dono cria pela tela; a escrita por SSH foi
-      barrada nesta sessão).
+      manda não escrevê-los). **Gravado na biblioteca da VPS em 27/10/2026** como "Fontes-Mini Fontes AC-DC" (por SSH, com a
+      autorização do dono; 10.988 caracteres, conferido igual ao arquivo).
     - **Origem da linha que nenhuma loja confirma** (13/10/2026, pedido do dono: "se veio pela IA, deve mostrar de onde
       veio a fonte"): antes a linha ficava sem nada ao lado. `origemSemLoja` (`divergencias.js`) diz **"Cadastro"** quando o
       valor está no título, na marca, no modelo, na descrição atual ou nas peças do kit (número solto, como "6", nunca conta),
