@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useEffectEvent, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, ChevronRight, ExternalLink, Loader, RefreshCw, X } from "lucide-react";
 
 import { buscarCatalogosDoProdutoMLAcao, catalogosDoAnuncioMLAcao, preverCatalogoMLAcao, relerConcorrentesMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
@@ -28,6 +29,7 @@ export default function AbaCatalogo({ rascunho, alterar, visivel = false, idExte
   const [buscadoEm, setBuscadoEm] = useState(null);
   const [buscando, iniciarBusca] = useTransition();
   const jaBuscou = useRef(false);
+  const router = useRouter();
   const produtoId = rascunho.produtoId;
 
   // "Buscar no ML" (pedido do dono em 26/10/2026): rele os anuncios no ML e procura os do dono pelo SKU. Roda sozinho na
@@ -46,6 +48,9 @@ export default function AbaCatalogo({ rascunho, alterar, visivel = false, idExte
       }
       setDados({ catalogos: resposta.catalogos, tela: resposta.tela });
       setBuscadoEm(new Date(resposta.buscadoEm));
+      // A busca releu o anuncio no ML e gravou se ele esta num catalogo: a lista de tras (Produtos ou anuncios do ML) se
+      // redesenha na hora, e o selo "C" do icone acompanha sem esperar a releitura de hora em hora (pedido do dono em 27/10/2026).
+      router.refresh();
       setErro(resposta.aviso ? `Não foi possível acompanhar o catálogo do anúncio: ${resposta.aviso}` : null);
     });
   }
