@@ -4912,7 +4912,8 @@ plano `docs/superpowers/plans/2026-10-26-modulo-compras.md` (12 tarefas, inline)
 ## Peças próprias e ordem de produção (26/10/2026)
 
 Pedido do dono (prints da aba Fornecedores / Concorrentes e da dica de estoque do Bling): produto que ele mesmo monta ganha a
-lista de peças próprias e a produção em duas etapas. Spec `docs/superpowers/specs/2026-10-26-producao-pecas-proprias-design.md`,
+lista de peças próprias e a produção em duas etapas. **Na tela o botão e as mensagens se chamam "Lista personalizada"** (nome pedido pelo dono em 27/10/2026); o código
+continua `pecasProprias`. Spec `docs/superpowers/specs/2026-10-26-producao-pecas-proprias-design.md`,
 plano `docs/superpowers/plans/2026-10-26-producao-pecas-proprias.md` (inline). **Pronto e testado no PC, SEM DEPLOY** (migration
 `20261026c_producao_pecas_proprias`, só aditiva).
 

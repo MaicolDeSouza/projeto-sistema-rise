@@ -75,9 +75,9 @@ export async function criarOrdem(produtoId, { quantidade, observacao } = {}) {
   return emTransacao(async (tx) => {
     const produto = await tx.produto.findUnique({ where: { id: String(produtoId ?? "") }, select: { pecasProprias: true } });
     if (!produto) throw new Recusa("Produto não encontrado.");
-    if (!produto.pecasProprias) throw new Recusa("Este produto não tem peças próprias.");
+    if (!produto.pecasProprias) throw new Recusa("Este produto não tem lista personalizada.");
     const pecas = await lerPecasDoProduto(produtoId, tx);
-    if (pecas.length === 0) throw new Recusa("Cadastre as peças próprias antes de produzir.");
+    if (pecas.length === 0) throw new Recusa("Monte a lista personalizada antes de produzir.");
 
     const numero = await proximoNumero(tx);
     const criada = await tx.ordemDeProducao.create({

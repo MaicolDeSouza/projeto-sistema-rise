@@ -271,12 +271,12 @@ function SeloDaProposta({ tipo = "proposta" }) {
   );
 }
 
-/** Liga/desliga "Peças próprias" (26/10/2026), na altura dos campos de estoque minimo e maximo. */
+/** Liga/desliga "Lista personalizada" (era "Pecas proprias") (26/10/2026), na altura dos campos de estoque minimo e maximo. */
 function InterruptorPecasProprias({ ligado, aoTrocar }) {
   return (
     <div>
       <span className="flex items-center gap-1 text-sm font-semibold">
-        Peças próprias
+        Lista personalizada
         <BolhaDeAjuda
           variante="inline"
           texto="Para produto que você monta: o custo vem das peças, e o estoque entra só pela ordem de produção. Ligado, fornecedores e concorrentes ficam escondidos."
@@ -286,7 +286,7 @@ function InterruptorPecasProprias({ ligado, aoTrocar }) {
         type="button"
         role="switch"
         aria-checked={ligado}
-        aria-label="Peças próprias"
+        aria-label="Lista personalizada"
         onClick={aoTrocar}
         className="mt-1 flex h-[42px] items-center gap-2.5 text-sm"
       >
@@ -311,7 +311,7 @@ function JanelaDesligarPecas({ pecas, aoCancelar, aoConfirmar }) {
         className="w-full max-w-md rounded-lg bg-superficie p-5 shadow-xl"
       >
         <h2 id="titulo-desligar-pecas" className="text-base font-semibold">
-          Desligar peças próprias?
+          Desligar lista personalizada?
         </h2>
         <p className="mt-1 text-sm text-suave">
           {pecas.length === 1 ? "A peça abaixo sai" : `As ${pecas.length} peças abaixo saem`} da lista ao salvar o produto.

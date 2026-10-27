@@ -139,7 +139,7 @@ export default function PecasProprias({ pecas, setPecas, produtoId, aoAlterar, r
                         className={`${campo} w-28`}
                       />
                     ) : peca.custo !== null && peca.custo !== undefined ? (
-                      <span title={peca.custoOrigem ? `Custo do ${peca.custoOrigem}` : undefined}>{reais(peca.custo)}</span>
+                      <span title={peca.custoOrigem ? `Custo: ${peca.custoOrigem}` : undefined}>{reais(peca.custo)}</span>
                     ) : (
                       <span className="text-amber-700">sem custo</span>
                     )}
@@ -235,7 +235,7 @@ export default function PecasProprias({ pecas, setPecas, produtoId, aoAlterar, r
                 if (evento.key === "Escape") fecharBusca();
               }}
               placeholder="Código ou nome do produto"
-              aria-label="Buscar produto para as peças próprias"
+              aria-label="Buscar produto para a lista personalizada"
               className="min-w-0 flex-1 rounded border border-borda px-2.5 py-2 text-sm focus:border-acento focus:outline-none"
             />
             <button

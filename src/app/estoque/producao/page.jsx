@@ -84,7 +84,7 @@ export default async function OrdensPage({ searchParams }) {
             {ordens.length === 0 && (
               <tr>
                 <td colSpan={8} className="px-3 py-6 text-center text-suave">
-                  Nenhuma ordem. Use &quot;Produzir&quot; na aba Fornecedores / Concorrentes de um produto com peças próprias.
+                  Nenhuma ordem. Use &quot;Produzir&quot; na aba Fornecedores / Concorrentes de um produto com lista personalizada.
                 </td>
               </tr>
             )}

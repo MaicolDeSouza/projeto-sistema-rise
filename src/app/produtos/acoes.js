@@ -1248,7 +1248,7 @@ export async function excluirProduto(id) {
   // erro dele nao diz QUAIS kits; aqui o recado nomeia cada um, para o operador saber onde tirar.
   const comoPeca = await produtosQueUsamComoPeca(id);
   if (comoPeca.length > 0) {
-    return { ok: false, erro: `Este produto é peça própria de ${comoPeca.join(", ")}. Tire-o da lista de peças antes de excluir.` };
+    return { ok: false, erro: `Este produto está na lista personalizada de ${comoPeca.join(", ")}. Tire-o da lista antes de excluir.` };
   }
 
   const kits = await kitsQueUsam(id);

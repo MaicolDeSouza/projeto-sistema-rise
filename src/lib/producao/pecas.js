@@ -110,19 +110,19 @@ export async function prepararPecasDoCadastro({ produtoId, tipo, campo }, client
   try {
     bruto = JSON.parse(String(campo));
   } catch {
-    return { ok: false, erro: "Lista de peças próprias inválida. Recarregue a página." };
+    return { ok: false, erro: "Lista personalizada inválida. Recarregue a página." };
   }
   if (!bruto?.ligado) return { ok: true, gravar: { pecasProprias: false, pecas: [] } };
-  if (tipo === "COMPOSICAO") return { ok: false, erro: "Kit não tem peças próprias: o custo e o estoque dele vêm da composição." };
+  if (tipo === "COMPOSICAO") return { ok: false, erro: "Kit não tem lista personalizada: o custo e o estoque dele vêm da composição." };
 
   const conferida = validarPecas(bruto.pecas ?? [], produtoId);
   if (!conferida.ok) return conferida;
   const ids = conferida.pecas.map((peca) => peca.componenteId).filter(Boolean);
   if (ids.length > 0) {
     const achados = await cliente.produto.findMany({ where: { id: { in: ids } }, select: { id: true, sku: true, tipo: true } });
-    if (achados.length !== ids.length) return { ok: false, erro: "Uma peça foi excluída do Rise. Revise a lista de peças próprias." };
+    if (achados.length !== ids.length) return { ok: false, erro: "Uma peça foi excluída do Rise. Revise a lista personalizada." };
     const kit = achados.find((produto) => produto.tipo !== "SIMPLES");
-    if (kit) return { ok: false, erro: `O kit ${kit.sku} não pode ser peça própria.` };
+    if (kit) return { ok: false, erro: `O kit ${kit.sku} não pode entrar na lista personalizada.` };
   }
   return { ok: true, gravar: { pecasProprias: true, pecas: conferida.pecas } };
 }

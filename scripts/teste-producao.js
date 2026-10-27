@@ -118,7 +118,7 @@ try {
   conferir(
     "custoDoProduto pecas",
     custoDoProduto({ pecasProprias: true, custo: 12.5, fornecedores: [{ padrao: true, precoCusto: 99 }] }),
-    { valor: 12.5, origem: "peças próprias" },
+    { valor: 12.5, origem: "lista personalizada" },
   );
   conferir(
     "custoDoProduto pecas incompleto",
@@ -203,7 +203,7 @@ try {
   conferir(
     "kit como peca recusa",
     (await prepararPecasDoCadastro({ produtoId: final.id, tipo: "SIMPLES", campo: campo({ ligado: true, pecas: [{ componenteId: kitProduto.id, quantidade: 1 }] }) })).erro,
-    "O kit ZZ-PROD-KITX não pode ser peça própria.",
+    "O kit ZZ-PROD-KITX não pode entrar na lista personalizada.",
   );
   conferir(
     "peca excluida recusa",
