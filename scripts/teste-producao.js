@@ -234,6 +234,118 @@ try {
   );
   conferir("rascunho guarda pecas proprias", rascunho?.pecasProprias, { ligado: true, pecas: [{ descricao: "cola" }] });
 
+  console.log("\nOrdem de producao");
+  const ordem = await import("../src/lib/producao/banco.js");
+  const { criarBlingFalso } = await import("./lib/blingFalso.js");
+  const noBling = (codigo, id) => ({ id, codigo, nome: `Produto ${codigo}`, preco: 10, situacao: "A", formato: "S", tipo: "P" });
+  const skusNoBling = ["ZZ-PROD-A", "ZZ-PROD-B", "ZZ-PROD-FINAL"];
+  const novoFalso = (liberados = skusNoBling) =>
+    criarBlingFalso({
+      produtos: skusNoBling.map((sku, indice) => noBling(sku, 15000000950 + indice)),
+      saldos: { "ZZ-PROD-A": 10, "ZZ-PROD-B": 5, "ZZ-PROD-FINAL": 0 },
+      codigosLiberados: liberados,
+    });
+  let falso = novoFalso();
+  const estoqueDe = async (id) => (await prisma.produto.findUnique({ where: { id } })).estoque;
+
+  // FINAL = A x 2 + B x 0,5 + cola (manual). A com 10, B com 5, FINAL com o que sobrou do bloco anterior.
+  await prisma.produto.updateMany({ where: { id: { in: [a.id, b.id] } }, data: { blingSaldo: null } });
+  await prisma.produto.update({ where: { id: a.id }, data: { estoque: 10 } });
+  await prisma.produto.update({ where: { id: b.id }, data: { estoque: 5 } });
+  await prisma.produto.update({ where: { id: final.id }, data: { estoque: 0 } });
+  // Os ajustes dos blocos de cima ja contam como enviados: o Bling falso comeca com os saldos daqui.
+  await prisma.movimentoEstoque.updateMany({ where: { produtoId: { in: [a.id, b.id, final.id] } }, data: { enviadoAoBlingEm: new Date() } });
+  await prisma.$transaction((tx) =>
+    gravarPecasProprias(tx, final.id, {
+      pecasProprias: true,
+      pecas: [
+        { componenteId: a.id, descricao: null, custoManual: null, quantidade: 2, ordem: 0 },
+        { componenteId: b.id, descricao: null, custoManual: null, quantidade: 0.5, ordem: 1 },
+        { componenteId: null, descricao: "cola", custoManual: 1, quantidade: 1, ordem: 2 },
+      ],
+    }),
+  );
+  // Um kit que usa a peca A: a baixa de A recalcula o estoque dele na mesma transacao.
+  const kit = await criarProduto("ZZ-PROD-KIT", { tipo: "COMPOSICAO", estoque: 10 });
+  await prisma.produtoComponente.create({ data: { kitId: kit.id, componenteId: a.id, quantidade: 1, ordem: 0 } });
+
+  conferir("sem pecas proprias nao cria", (await ordem.criarOrdem(a.id, { quantidade: 1 })).ok, false);
+  conferir("quantidade invalida nao cria", (await ordem.criarOrdem(final.id, { quantidade: 0 })).ok, false);
+  const criada = await ordem.criarOrdem(final.id, { quantidade: 3, observacao: "lote teste" });
+  conferir("cria ordem", [criada.ok, /^OP-\d{4,}$/.test(criada.numero)], [true, true]);
+  let lida = await ordem.lerOrdem(criada.id);
+  conferir(
+    "copia as pecas",
+    lida.itens.map((item) => [item.sku, item.descricao, item.quantidadePorUnidade, item.quantidadeTotal, item.custoUnitario]),
+    [
+      ["ZZ-PROD-A", "Produto ZZ-PROD-A", 2, 6, 15],
+      ["ZZ-PROD-B", "Produto ZZ-PROD-B", 0.5, 2, null],
+      [null, "cola", 1, 3, 1],
+    ],
+  );
+  conferir("situacao aberta", lida.situacao, "ABERTA");
+
+  // Mudar as pecas do produto depois nao muda a ordem.
+  await prisma.$transaction((tx) =>
+    gravarPecasProprias(tx, final.id, { pecasProprias: true, pecas: [{ componenteId: a.id, descricao: null, custoManual: null, quantidade: 9, ordem: 0 }] }),
+  );
+  conferir("ordem antiga intacta", (await ordem.lerOrdem(criada.id)).itens.length, 3);
+
+  // Falta de estoque: A precisa de 6 e tem 4. Recusa inteira, nenhum movimento.
+  await prisma.produto.update({ where: { id: a.id }, data: { estoque: 4 } });
+  const movimentosAntes = await prisma.movimentoEstoque.count({ where: { produtoId: { in: [a.id, b.id] } } });
+  let resultado = await ordem.darBaixa(criada.id, { cliente: falso });
+  conferir("baixa recusa falta", [resultado.ok, resultado.faltas], [false, [{ sku: "ZZ-PROD-A", descricao: "Produto ZZ-PROD-A", necessario: 6, disponivel: 4 }]]);
+  conferir("nada baixado", [await estoqueDe(a.id), await estoqueDe(b.id), await prisma.movimentoEstoque.count({ where: { produtoId: { in: [a.id, b.id] } } })], [4, 5, movimentosAntes]);
+
+  await prisma.produto.update({ where: { id: a.id }, data: { estoque: 10 } });
+  resultado = await ordem.darBaixa(criada.id, { cliente: falso });
+  conferir("baixa", [resultado.ok, await estoqueDe(a.id), await estoqueDe(b.id)], [true, 4, 3]);
+  conferir("bling da baixa", resultado.bling.map((item) => [item.sku, item.ok]), [["ZZ-PROD-A", true], ["ZZ-PROD-B", true]]);
+  conferir("bling falso acompanha", [falso.saldo("ZZ-PROD-A"), falso.saldo("ZZ-PROD-B")], [4, 3]);
+  const saida = await prisma.movimentoEstoque.findFirst({ where: { produtoId: a.id }, orderBy: { criadoEm: "desc" } });
+  conferir("movimento de saida", [saida.tipo, saida.quantidade, saida.motivo, saida.observacao], ["SAIDA", 6, "Produção", criada.numero]);
+  conferir("kit recalculado", await estoqueDe(kit.id), 4);
+  lida = await ordem.lerOrdem(criada.id);
+  conferir("em producao", [lida.situacao, Boolean(lida.baixaEm), lida.itens.filter((item) => item.saidaMovimentoId).length], ["EM_PRODUCAO", true, 2]);
+
+  conferir("clique duplo", (await ordem.darBaixa(criada.id, { cliente: falso })).erro, "Só uma ordem aberta recebe a baixa.");
+  conferir("concluir acima recusa", (await ordem.concluir(criada.id, 4, { cliente: falso })).ok, false);
+  resultado = await ordem.concluir(criada.id, 2, { cliente: falso });
+  conferir("concluir", [resultado.ok, await estoqueDe(final.id), falso.saldo("ZZ-PROD-FINAL")], [true, 2, 2]);
+  lida = await ordem.lerOrdem(criada.id);
+  conferir("concluida", [lida.situacao, lida.quantidadeProduzida, Boolean(lida.entradaMovimentoId)], ["CONCLUIDA", 2, true]);
+  conferir("cancelar concluida recusa", (await ordem.cancelar(criada.id, { cliente: falso })).ok, false);
+
+  // Concluir sem baixa recusa; cancelar aberta nao mexe em estoque.
+  await prisma.$transaction((tx) =>
+    gravarPecasProprias(tx, final.id, { pecasProprias: true, pecas: [{ componenteId: a.id, descricao: null, custoManual: null, quantidade: 1, ordem: 0 }] }),
+  );
+  const segunda = await ordem.criarOrdem(final.id, { quantidade: 2 });
+  conferir("concluir sem baixa recusa", (await ordem.concluir(segunda.id, 2, { cliente: falso })).ok, false);
+  conferir("cancelar aberta", [(await ordem.cancelar(segunda.id, { cliente: falso })).ok, await estoqueDe(a.id)], [true, 4]);
+
+  // Cancelar depois da baixa devolve as pecas.
+  const terceira = await ordem.criarOrdem(final.id, { quantidade: 2 });
+  await ordem.darBaixa(terceira.id, { cliente: falso });
+  conferir("baixou 2", await estoqueDe(a.id), 2);
+  resultado = await ordem.cancelar(terceira.id, { cliente: falso });
+  conferir("cancelar devolve", [resultado.ok, await estoqueDe(a.id), (await ordem.lerOrdem(terceira.id)).situacao], [true, 4, "CANCELADA"]);
+  const devolucao = await prisma.movimentoEstoque.findFirst({ where: { produtoId: a.id }, orderBy: { criadoEm: "desc" } });
+  conferir("movimento de devolucao", [devolucao.tipo, devolucao.motivo], ["ENTRADA", "Produção cancelada"]);
+
+  // Bling recusa: a baixa fica no Rise, pendente, e o aviso volta.
+  falso = novoFalso(["OUTRO"]);
+  const quarta = await ordem.criarOrdem(final.id, { quantidade: 1 });
+  resultado = await ordem.darBaixa(quarta.id, { cliente: falso });
+  conferir("bling recusa deixa pendente", [resultado.ok, resultado.bling[0].ok, await estoqueDe(a.id)], [true, false, 3]);
+  const pendente = await prisma.movimentoEstoque.findFirst({ where: { produtoId: a.id }, orderBy: { criadoEm: "desc" } });
+  conferir("movimento pendente", pendente.enviadoAoBlingEm, null);
+
+  const lista = await ordem.listarOrdens({ busca: "ZZ-PROD-FINAL" });
+  conferir("lista as ordens", lista.ordens.length, 4);
+  conferir("conta por situacao", (await ordem.contarPorSituacao()).CONCLUIDA >= 1, true);
+
   // (proximos blocos)
 } finally {
   await limpar();

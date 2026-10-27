@@ -107,6 +107,9 @@ const LISTA = [
 
   tela("tela.pedidos", "Pedidos", "/pedidos"),
   tela("tela.estoque", "Estoque", "/estoque"),
+  // Ordem de producao (spec 2026-10-26-producao-pecas-proprias-design.md): a lista e a ordem; editar = criar ordem.
+  sub("tela.estoque.producao", "Estoque › Ordens de produção", "tela.estoque"),
+  acao("acao.producao.movimentar", "Dar baixa, concluir ou cancelar ordem de produção", "tela.estoque.producao", "Grava os movimentos no Rise e manda ao Bling."),
   tela("tela.financeiro", "Financeiro", "/financeiro"),
   tela("tela.relatorios", "Relatórios", "/relatorios"),
 
