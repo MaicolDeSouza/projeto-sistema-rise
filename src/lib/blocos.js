@@ -123,11 +123,12 @@ export const blocos = [
     pronto: false,
   },
   {
+    // Desde 26/10/2026 o bloco tem as ordens de producao (cartao na pagina); saldo e movimentacoes ainda nao.
     href: "/estoque",
     rotulo: "Estoque",
     icone: Boxes,
-    resumo: "Saldo e movimentações",
-    pronto: false,
+    resumo: "Ordens de produção",
+    pronto: true,
   },
   {
     href: "/financeiro",

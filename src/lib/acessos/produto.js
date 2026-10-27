@@ -33,5 +33,7 @@ export function acessosDoCadastro(pode) {
     margem: !veMargem ? "nenhuma" : editar ? "sempre" : "olho",
     cadastrarFornecedor: editar && pode("tela.cadastros.fornecedores", "editar"),
     cadastrarConcorrente: editar && pode("tela.cadastros.concorrentes", "editar"),
+    // "Produzir" na tabela de pecas proprias: cria a ordem de producao (26/10/2026).
+    produzir: pode("tela.estoque.producao", "editar"),
   };
 }

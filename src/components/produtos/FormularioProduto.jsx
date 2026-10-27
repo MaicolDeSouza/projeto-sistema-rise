@@ -64,6 +64,7 @@ import BuscarPorCodigo from "./BuscarPorCodigo";
 import Composicao from "./Composicao";
 import Concorrentes from "./Concorrentes";
 import PecasProprias from "./PecasProprias";
+import JanelaProduzir from "@/components/producao/JanelaProduzir";
 import EditorDescricao from "./EditorDescricao";
 import Fornecedores from "./Fornecedores";
 import JanelaDescricao from "./JanelaDescricao";
@@ -2092,6 +2093,8 @@ export default function FormularioProduto({
   const [pecasLigadas, setPecasLigadas] = useState(() => Boolean(produto?.pecasProprias ?? clone?.campos?.pecasProprias));
   const [pecasProprias, setPecasProprias] = useState(() => produto?.pecas ?? clone?.pecas ?? []);
   const [confirmarDesligar, setConfirmarDesligar] = useState(false);
+  // A ordem copia as pecas GRAVADAS: com a lista mexida e nao salva, Produzir espera o Salvar.
+  const [pecasGravadas] = useState(() => JSON.stringify({ ligado: Boolean(produto?.pecasProprias), pecas: produto?.pecas ?? [] }));
   // Trocar um kit com pecas para Simples apaga as pecas no Salvar: a tela pergunta antes.
   const [confirmarSimples, setConfirmarSimples] = useState(false);
   // Produto do Rise de onde este cadastro NOVO veio (o "Clonar" da lista ou o "Clonar a partir de um codigo"):
@@ -4359,6 +4362,21 @@ export default function FormularioProduto({
                   setPecas={setPecasProprias}
                   produtoId={produto?.id ?? null}
                   aoAlterar={() => marcarAlterado()}
+                  rodape={
+                    acessos.produzir && produto?.id ? (
+                      <JanelaProduzir
+                        produtoId={produto.id}
+                        nome={produto.tituloBase}
+                        motivo={
+                          pecasProprias.length === 0
+                            ? "Adicione as peças antes de produzir."
+                            : JSON.stringify({ ligado: pecasLigadas, pecas: pecasProprias }) !== pecasGravadas
+                              ? "Salve o produto antes de produzir: a ordem usa as peças gravadas."
+                              : null
+                        }
+                      />
+                    ) : null
+                  }
                 />
               )}
               {confirmarDesligar && (

@@ -571,12 +571,12 @@ try {
     const com = (...ids) => (id, nivel) => ids.includes(`${id}:${nivel}`) || (nivel === "ver" && ids.includes(`${id}:editar`));
     const TUDO = ["tela.produtos.cadastro:editar", "dado.custo:ver", "dado.concorrentes:ver", "dado.margem:ver", "acao.produtos.gerarTextoComIA:executar", "tela.cadastros.fornecedores:editar", "tela.cadastros.concorrentes:editar"];
     conferir("quem edita com todos os dados: tudo liberado e margem sempre visivel", acessosDoCadastro(com(...TUDO)), {
-      editar: true, custo: true, concorrentes: true, referencias: true, ia: true, margem: "sempre", cadastrarFornecedor: true, cadastrarConcorrente: true,
+      editar: true, custo: true, concorrentes: true, referencias: true, ia: true, margem: "sempre", cadastrarFornecedor: true, cadastrarConcorrente: true, produzir: false,
     });
     conferir(
       "so ver: formulario somente leitura, sem ferramentas, margem atras do olho",
       acessosDoCadastro(com("tela.produtos.cadastro:ver", "dado.custo:ver", "dado.concorrentes:ver", "dado.margem:ver")),
-      { editar: false, custo: true, concorrentes: true, referencias: false, ia: false, margem: "olho", cadastrarFornecedor: false, cadastrarConcorrente: false },
+      { editar: false, custo: true, concorrentes: true, referencias: false, ia: false, margem: "olho", cadastrarFornecedor: false, cadastrarConcorrente: false, produzir: false },
     );
     conferir(
       "a margem exige Margem E Custo: sem um deles nao ha nem o olho",
