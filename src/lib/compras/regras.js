@@ -99,6 +99,8 @@ export function aCaminho(itens = []) {
  */
 export function entraNaListaDeMinimo(produto, aCaminhoDoProduto = 0) {
   if (!produto?.conferido || !produto.ativo || produto.tipo !== "SIMPLES") return false;
+  // Produto montado com pecas proprias (26/10/2026) se repoe produzindo, nao comprando; as pecas dele seguem na lista.
+  if (produto.pecasProprias) return false;
   if (produto.estoqueMinimo === null || produto.estoqueMinimo === undefined) return false;
   return (Number(produto.estoque) || 0) + (Number(aCaminhoDoProduto) || 0) < produto.estoqueMinimo;
 }

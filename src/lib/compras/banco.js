@@ -78,6 +78,7 @@ export async function listarAbaixoDoMinimo({ busca, pagina = 1, porPagina = 25, 
       conferido: true,
       ativo: true,
       tipo: "SIMPLES",
+      pecasProprias: false,
       estoqueMinimo: { not: null },
       estoque: { lt: prisma.produto.fields.estoqueMinimo },
       AND: palavras.map((palavra) => ({
@@ -86,7 +87,7 @@ export async function listarAbaixoDoMinimo({ busca, pagina = 1, porPagina = 25, 
     },
     select: {
       id: true, sku: true, tituloBase: true, estoque: true, estoqueMinimo: true, estoqueMaximo: true,
-      conferido: true, ativo: true, tipo: true,
+      conferido: true, ativo: true, tipo: true, pecasProprias: true,
       arquivos: { where: { tipo: "IMAGEM", papel: "FOTO" }, orderBy: { ordem: "asc" }, take: 1, select: { arquivo: true } },
     },
   });
