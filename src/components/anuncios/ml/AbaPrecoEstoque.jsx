@@ -4,12 +4,9 @@ import { MarcaDaPropostaNoCampo, SugestaoDaProposta } from "@/components/anuncio
 import { useState } from "react";
 
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
-import SeloPosicaoDePreco from "@/components/produtos/SeloPosicaoDePreco";
 import { custoDaComposicao } from "@/lib/canaisDeVenda/composicao";
-import { concorrentesParaPosicao } from "@/lib/canaisDeVenda/ml/avisosConcorrentes";
 import { custosDoAnuncio, custosValem, freteQueConta } from "@/lib/canaisDeVenda/ml/custos";
 import { calcularMarkup, corDoMarkup, lucroLiquido } from "@/lib/margem";
-import { posicaoDePreco } from "@/lib/posicaoDePreco";
 import CalculadoraDeMargem from "./CalculadoraDeMargem";
 import SecaoDoAnuncio from "./SecaoDoAnuncio";
 import CustosDoML from "./CustosDoML";
@@ -93,9 +90,7 @@ const MOEDA_DA_PROPOSTA = new Intl.NumberFormat("pt-BR", { style: "currency", cu
 export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContexto, problemas, acessos = { custos: true, concorrentes: true } }) {
   // Texto do preco como foi digitado (ver `numeros.js`); `null` = nada digitado, mostra o numero.
   const [precoDigitado, setPrecoDigitado] = useState(null);
-  // Os concorrentes do catalogo moram na aba Catalogo desde 26/10/2026: ela os poe no contexto, e o selo "Nº de M" ao
-  // lado do preco continua aqui.
-  const posicaoNoML = posicaoDePreco(rascunho.preco, concorrentesParaPosicao(contexto.concorrentesDoCatalogoML ?? []));
+  // O selo "Nº de M no ML" ao lado do preco saiu em 26/10/2026 (pedido do dono, opcao 2): a posicao fica so na aba Catalogo.
 
   const custosML = contexto.custosML ?? null;
   const preco = Number(rascunho.preco);
@@ -124,13 +119,7 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
       <div className="grid items-start gap-4 md:grid-cols-2">
         <Campo
           nome="ml-preco"
-          rotulo={
-            <>
-              Preço de venda
-              {posicaoNoML && <SeloPosicaoDePreco posicao={posicaoNoML} />}
-              {posicaoNoML && <span className="ml-1 text-[11px] font-normal text-suave">no ML</span>}
-            </>
-          }
+          rotulo="Preço de venda"
           ajuda={
             emKit
               ? "O preço do kit não sai da soma das peças: decida pela margem."

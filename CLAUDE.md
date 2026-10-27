@@ -3615,8 +3615,9 @@ Pedidos do dono (com print anotado e "usar UI/UX"):
   `ConcorrentesDoML.jsx` ficou só com as peças). **O Rise acompanha sozinho o catálogo do anúncio** (decisão do dono, opção
   "Lidos do ML, automático"): `seguirCatalogoDosAnuncios` (`concorrentes.js`) troca o `Produto.mlCatalogoId` para o primeiro
   catálogo em que o dono concorre quando o acompanhado não é um deles; roda no fim do `relerEstadosML` (worker, de hora em hora)
-  e ao abrir a aba (`catalogosDoAnuncioMLAcao`, só quem edita o canal dispara a troca). Os concorrentes vão para
-  `contexto.concorrentesDoCatalogoML`, que o selo "Nº de M no ML" ao lado do preço lê. **A rodada diária continua relendo as
+  e ao abrir a aba (`catalogosDoAnuncioMLAcao`, só quem edita o canal dispara a troca). O selo "Nº de M no ML" ao lado do
+  preço (posição de preço contra os concorrentes guardados) SAIU no mesmo dia (dono, opção 2: confundia com a posição do
+  catálogo); a posição fica só na aba Catálogo. **A rodada diária continua relendo as
   referências que já existiam** (a coluna "Concorrência" da lista de anúncios usa o ranking); não há mais como adicionar.
 - **"Buscar no ML" da aba Catálogo** (pedido do dono: "um botão para buscar se o meu produto está em algum catálogo, mas
   preferencialmente já deve vir sem pressionar"): roda sozinho na primeira vez que a aba aparece (prop `visivel`) e pelo botão.

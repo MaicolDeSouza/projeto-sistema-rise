@@ -18,11 +18,10 @@ const FALHA = "Não foi possível falar com o servidor.";
  * Aba Catalogo (pedido do dono em 26/10/2026: "bem simples, mostre os catalogos que estou concorrendo e se eu clicar abre
  * popup com todas as informacoes daquele catalogo"). A lista sao os catalogos em que os anuncios publicados deste produto
  * estao no ML (relidos de hora em hora); a busca, a sugestao e o ranking dos catalogos de referencia sairam. O Rise
- * acompanha sozinho o catalogo do anuncio (`seguirCatalogoDosAnuncios`); os concorrentes dele vao para o contexto do
- * editor, porque o selo "Nº de M no ML" mora ao lado do preco, na aba Preco e custos.
+ * acompanha sozinho o catalogo do anuncio (`seguirCatalogoDosAnuncios`).
  */
 // `idExterno`: o MLB do anuncio aberto (nulo no rascunho), para separar o catalogo DELE dos de outros anuncios do produto.
-export default function AbaCatalogo({ rascunho, alterar, setContexto, visivel = false, idExterno = null, acessos = { concorrentes: true, editar: true } }) {
+export default function AbaCatalogo({ rascunho, alterar, visivel = false, idExterno = null, acessos = { concorrentes: true, editar: true } }) {
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState(null);
   const [aberto, setAberto] = useState(null);
@@ -46,7 +45,6 @@ export default function AbaCatalogo({ rascunho, alterar, setContexto, visivel = 
         return;
       }
       setDados({ catalogos: resposta.catalogos, tela: resposta.tela });
-      setContexto((atual) => ({ ...atual, concorrentesDoCatalogoML: resposta.tela.concorrentes ?? [] }));
       setBuscadoEm(new Date(resposta.buscadoEm));
       setErro(resposta.aviso ? `Não foi possível acompanhar o catálogo do anúncio: ${resposta.aviso}` : null);
     });
@@ -60,7 +58,6 @@ export default function AbaCatalogo({ rascunho, alterar, setContexto, visivel = 
 
   function receberTela(tela) {
     setDados((atual) => ({ ...atual, tela }));
-    setContexto((atual) => ({ ...atual, concorrentesDoCatalogoML: tela.concorrentes ?? [] }));
   }
 
   useEffect(() => {
@@ -71,15 +68,12 @@ export default function AbaCatalogo({ rascunho, alterar, setContexto, visivel = 
         if (!vivo) return;
         if (!resposta?.ok) return setErro(resposta?.erro ?? FALHA);
         setDados({ catalogos: resposta.catalogos, tela: resposta.tela });
-        setContexto((atual) => ({ ...atual, concorrentesDoCatalogoML: resposta.tela.concorrentes ?? [] }));
         setErro(resposta.aviso ? `Não foi possível acompanhar o catálogo do anúncio: ${resposta.aviso}` : null);
       })
       .catch(() => vivo && setErro(FALHA));
     return () => {
       vivo = false;
     };
-    // A leitura e so na abertura (e quando o produto muda); `setContexto` e estavel.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [produtoId, acessos.concorrentes]);
 
   if (!acessos.concorrentes) return <p className="text-sm text-suave">Seu acesso não mostra os concorrentes do Mercado Livre.</p>;
