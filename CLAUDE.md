@@ -4519,6 +4519,13 @@ Bling, Fechar vira Salvar e fechar, 'Na loja' e 'Tudo salvo' saem").
   `app.lojaintegrada.com.br` (painel do rodapé, do popup de etapas e da aba Divergências) e, ao voltar para a aba do Rise
   (`focus`) ou, se o editor fechar antes disso, na saída, chama `abrirJanelaLI` (a leitura que atualiza o monitor e a lista).
   Não visto com clique na tela (depende do painel real da LI).
+- **O popup de etapas abre NA HORA, não no fim** (pedido do dono em 27/10/2026: o botão girava e o popup só aparecia com tudo pronto).
+  A causa: o `pedirEnvio` chamava o `enviar()` dentro de `startTransition(async ...)`, e no React 19 o que se muda dentro de uma
+  transição assíncrona só aparece quando ela termina (o `isPending` é a exceção). O Bling abre o popup antes da transição. Agora o
+  `enviar()` roda fora dela (`enviar().catch().finally(setQual(null))`) e `ocupado = pendente || qual !== null`. **Regra para os
+  editores: estado que precisa aparecer durante uma ação longa não se muda dentro de `startTransition(async ...)`.** O caminho
+  "Salvar e sincronizar" continua na transição, mas só muda o estado do popup depois de um `await`, o que o torna imediato. Não visto
+  na tela (o servidor da pasta é de outra sessão e o envio real está travado no PC).
 - **Testes:** `teste:li-sync` foi de 356 para 401 asserções (andamento do Sincronizar, do Cadastrar, do que falhou e do recusado;
   contas comuns do popup; liga/desliga no campo, na assinatura, no Cadastrar pausado, no
   Sincronizar ligando e desligando, na leitura, no cadastro incompleto e no nome e marca do produto); lint limpo.

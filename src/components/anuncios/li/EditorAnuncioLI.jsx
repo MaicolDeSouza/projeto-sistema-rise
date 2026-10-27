@@ -110,8 +110,11 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
   const [andamento, setAndamento] = useState(null);
   const [pergunta, setPergunta] = useState(null);
   const [confirmandoSaida, setConfirmandoSaida] = useState(false);
-  const [ocupado, iniciarTrabalho] = useTransition();
+  const [pendente, iniciarTrabalho] = useTransition();
   const [qual, setQual] = useState(null);
+  // `qual` diz o que esta rodando; o `pendente` da transicao so cobre o que corre dentro dela. O Sincronizar nao corre mais
+  // dentro de uma (ver `pedirEnvio`), e por isso `qual` entra aqui.
+  const ocupado = pendente || qual !== null;
   const caixaDaMensagem = useRef(null);
   const secaoDaJanela = useRef(null);
   const montado = useRef(false);
@@ -379,10 +382,14 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
       setPergunta("enviar");
       return;
     }
-    iniciarTrabalho(async () => {
-      await enviar();
-      setQual(null);
-    });
+    // FORA de uma transicao, de proposito (pedido do dono em 27/10/2026: "ja abra o pop e mostre as etapas"): no React 19 o que
+    // se muda dentro de `startTransition(async ...)` so aparece quando a funcao termina, e o popup de etapas (e o andamento
+    // que a rota traz a cada 400 ms) so abria no fim do envio. O Bling abre o dele antes da transicao.
+    enviar()
+      .catch(() => {})
+      .finally(() => {
+        if (montado.current) setQual(null);
+      });
   }
 
   function salvarEEnviar() {
