@@ -16,6 +16,9 @@ import { CelulaEditavel, PopupEstoque, PopupLocalizacao, PopupPecasDoKit, PopupP
 import IconeBling from "./IconeBling";
 import JanelaBling from "./JanelaBling";
 import IconeLojaIntegrada from "./IconeLojaIntegrada";
+import JanelaShopee from "./JanelaShopee";
+import MarcaNaoAnunciar from "./MarcaNaoAnunciar";
+import { naoAnunciaEm } from "@/lib/canaisDeVenda/naoAnunciar";
 
 /// O produto sem estado conhecido do Bling: cinza, sem selo (nunca sincronizado e sem pendencia).
 const ICONE_BLING_PADRAO = { cor: "cinza", divergente: false, motivos: [] };
@@ -76,11 +79,16 @@ export default function LinhaProduto({
   const [janelaML, setJanelaML] = useState(false);
   const [janelaBling, setJanelaBling] = useState(false);
   const [janelaLI, setJanelaLI] = useState(false);
+  const [janelaShopee, setJanelaShopee] = useState(false);
+  // "Não anunciar" neste canal (27/10/2026): o X vermelho no icone; o botao que liga e desliga mora no popup do canal.
+  const naoML = naoAnunciaEm(produto.naoAnunciarEm, "MERCADO_LIVRE");
+  const naoLI = naoAnunciaEm(produto.naoAnunciarEm, "LOJA_INTEGRADA");
+  const naoShopee = naoAnunciaEm(produto.naoAnunciarEm, "SHOPEE");
   // Qual popup de edicao rapida esta aberto: "localizacao", "preco" ou "estoque".
   const [editando, setEditando] = useState(null);
   const fecharEdicao = () => setEditando(null);
   // Cor e ponto sozinhos nao dizem o estado: o mesmo texto vai no nome acessivel e na dica.
-  const rotuloML = iconeML.proposta ? "Mercado Livre: Proposta pronta, aguardando aprovação" : rotuloDoIconeML(iconeML);
+  const rotuloML = naoML ? "Mercado Livre: marcado para não anunciar" : iconeML.proposta ? "Mercado Livre: Proposta pronta, aguardando aprovação" : rotuloDoIconeML(iconeML);
 
   const moeda = new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -198,7 +206,7 @@ export default function LinhaProduto({
             canal.id === "BLING" ? (
               <IconeBling key={canal.id} iconeBling={iconeBling} aoClicar={() => setJanelaBling(true)} />
             ) : canal.id === "LOJA_INTEGRADA" ? (
-              <IconeLojaIntegrada key={canal.id} iconeLI={iconeLI} aoClicar={() => setJanelaLI(true)} />
+              <IconeLojaIntegrada key={canal.id} iconeLI={iconeLI} naoAnunciar={naoLI} aoClicar={() => setJanelaLI(true)} />
             ) : canal.id === "MERCADO_LIVRE" ? (
               <button
                 key={canal.id}
@@ -215,8 +223,9 @@ export default function LinhaProduto({
                   alt=""
                   width={22}
                   height={22}
-                  className={`rounded ${iconeML.publicado ? "" : "opacity-70 brightness-50 grayscale"}`}
+                  className={`rounded ${iconeML.publicado && !naoML ? "" : "opacity-70 brightness-50 grayscale"}`}
                 />
+                {naoML && <MarcaNaoAnunciar />}
                 {iconeML.proposta && (
                   <span
                     aria-hidden="true"
@@ -247,16 +256,30 @@ export default function LinhaProduto({
                   </span>
                 )}
               </button>
-            ) : (
-              <Image
+            ) : canal.id === "SHOPEE" && acessos.editar ? (
+              // A Shopee nao tem integracao: o icone abre um popup so com o "Não anunciar na Shopee" (27/10/2026).
+              <button
                 key={canal.id}
-                src={canal.logo}
-                alt={canal.nome}
-                title={canal.nome}
-                width={22}
-                height={22}
-                className="shrink-0 rounded opacity-70 brightness-50 grayscale"
-              />
+                type="button"
+                onClick={() => setJanelaShopee(true)}
+                title={naoShopee ? "Shopee: marcado para não anunciar" : canal.nome}
+                aria-label={naoShopee ? "Shopee: marcado para não anunciar" : canal.nome}
+                className="relative shrink-0 rounded hover:ring-2 hover:ring-sky-200 focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:outline-none"
+              >
+                <Image src={canal.logo} alt="" width={22} height={22} className="rounded opacity-70 brightness-50 grayscale" />
+                {naoShopee && <MarcaNaoAnunciar />}
+              </button>
+            ) : (
+              <span key={canal.id} className="relative shrink-0" title={naoAnunciaEm(produto.naoAnunciarEm, canal.id) ? `${canal.nome}: marcado para não anunciar` : canal.nome}>
+                <Image
+                  src={canal.logo}
+                  alt={canal.nome}
+                  width={22}
+                  height={22}
+                  className="rounded opacity-70 brightness-50 grayscale"
+                />
+                {naoAnunciaEm(produto.naoAnunciarEm, canal.id) && <MarcaNaoAnunciar />}
+              </span>
             ),
           )}
 
@@ -277,10 +300,11 @@ export default function LinhaProduto({
         {editando === "pecasDoKit" && <PopupPecasDoKit produto={produto} aoFechar={fecharEdicao} />}
         {editando === "preco" && <PopupPreco produto={produto} aoFechar={fecharEdicao} />}
         {editando === "estoque" && <PopupEstoque produto={produto} aoFechar={fecharEdicao} />}
-        {janelaML && <JanelaAnuncioML produtoId={produto.id} aoFechar={() => setJanelaML(false)} />}
+        {janelaML && <JanelaAnuncioML produtoId={produto.id} naoAnunciar={acessos.editar ? naoML : undefined} aoFechar={() => setJanelaML(false)} />}
         {janelaBling && <JanelaBling produto={produto} aoFechar={() => setJanelaBling(false)} />}
         {/* O pop-up de diferencas virou a aba Divergencias do editor (07/10/2026): o icone abre o editor. */}
-        {janelaLI && <JanelaAnuncioLI produtoId={produto.id} aoFechar={() => setJanelaLI(false)} />}
+        {janelaLI && <JanelaAnuncioLI produtoId={produto.id} naoAnunciar={acessos.editar ? naoLI : undefined} aoFechar={() => setJanelaLI(false)} />}
+        {janelaShopee && <JanelaShopee produto={produto} marcado={naoShopee} aoFechar={() => setJanelaShopee(false)} />}
 
         {/* Acoes do produto (pedido do dono em 09/10/2026): so Clonar e Excluir. Os "Cadastrar no
             Bling/LI/ML/Shopee" desabilitados que moravam aqui sairam; cada canal tem o proprio icone. */}

@@ -11,6 +11,7 @@ import {
   clonarAnuncioML,
   listarAnunciosDoProdutoML,
 } from "@/app/canais-de-venda/mercado-livre/acoes";
+import BotaoNaoAnunciar from "@/components/anuncios/BotaoNaoAnunciar";
 import Badge from "@/components/ui/Badge";
 import { ROTULO_DO_TIPO_ML, seloDoAnuncioML } from "@/lib/canaisDeVenda/ml/rotulos";
 import EditorAnuncioML from "./EditorAnuncioML";
@@ -41,7 +42,7 @@ async function chamar(acao, argumento) {
   }
 }
 
-function Moldura({ produto, aoFechar, children }) {
+function Moldura({ produto, aoFechar, rodape = null, children }) {
   const secao = useRef(null);
   // O foco vai para dentro da janela ao abrir (senao fica no icone, atras do fundo escuro e
   // fora do alcance de quem usa o teclado). Sem prender o foco: so a entrada.
@@ -76,6 +77,7 @@ function Moldura({ produto, aoFechar, children }) {
           </button>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
+        {rodape && <footer className="flex shrink-0 flex-wrap items-center gap-3 border-t border-borda px-5 py-3">{rodape}</footer>}
       </section>
     </div>
   );
@@ -86,7 +88,10 @@ const CLASSE_DO_AVISO = {
   ok: "border-emerald-200 bg-emerald-50 text-emerald-800",
 };
 
-export default function JanelaAnuncioML({ produtoId, aoFechar }) {
+// `naoAnunciar` (27/10/2026): a marca "Não anunciar no ML" do produto, vinda da lista; ausente (sem permissao de editar o
+// cadastro), o botao do rodape nao aparece.
+export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
+  const [marcado, setMarcado] = useState(Boolean(naoAnunciar));
   const [fase, setFase] = useState("carregando");
   const [produto, setProduto] = useState(null);
   // Os acessos do editor (Acessos): sem editar nao ha anuncio novo, e o editor abre so para leitura.
@@ -230,9 +235,13 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
     iniciar(notaDaLista.current);
   }
 
+  const botaoNaoAnunciar =
+    naoAnunciar === undefined ? null : <BotaoNaoAnunciar produtoId={produtoId} canal="MERCADO_LIVRE" marcado={marcado} aoMudar={setMarcado} />;
+
   if (fase === "editor" && editor) {
     return (
       <EditorAnuncioML
+        extraNoRodape={botaoNaoAnunciar}
         key={editor.chave}
         anuncioId={editor.anuncioId}
         rascunhoInicial={editor.rascunho}
@@ -250,7 +259,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar }) {
   }
 
   return (
-    <Moldura produto={produto} aoFechar={aoFechar}>
+    <Moldura produto={produto} aoFechar={aoFechar} rodape={fase === "lista" || fase === "naoConferido" ? botaoNaoAnunciar : null}>
       {fase === "carregando" && (
         <p className="flex items-center justify-center gap-2 py-8 text-sm text-suave" role="status">
           <Loader size={16} className="animate-spin" />

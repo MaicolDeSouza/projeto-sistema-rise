@@ -185,6 +185,11 @@ model Produto {
   seoTituloLI    String?
   seoDescricaoLI String?
 
+  /// Canais em que o produto NAO vai ser anunciado (pedido do dono em 27/10/2026: "alguns produtos irei anunciar apenas no
+  /// ML e outros apenas na LI ou Shopee"). So MERCADO_LIVRE, LOJA_INTEGRADA e SHOPEE; marcado pelo botao do rodape do popup
+  /// do canal, e o icone da lista ganha o X vermelho. Vazio = nenhum canal fora.
+  naoAnunciarEm Canal[] @default([])
+
   /// Estoque desejado da loja (nao do fornecedor): o item tem um saldo so.
   estoqueMinimo Int?
   estoqueMaximo Int?

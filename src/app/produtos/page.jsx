@@ -255,6 +255,8 @@ export default async function ProdutosPage({ searchParams }) {
       propostaPronta: propostasProntas.has(produto.id),
       ativo: produto.ativo,
       conferido: produto.conferido,
+      // Canais marcados "Não anunciar" (27/10/2026): o X vermelho no icone do canal.
+      naoAnunciarEm: produto.naoAnunciarEm ?? [],
       imagemUrl: produto.arquivos[0]
         ? urlDe(produto.sku, "IMAGEM", produto.arquivos[0].arquivo)
         : null,

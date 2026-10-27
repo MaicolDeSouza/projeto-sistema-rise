@@ -3684,6 +3684,19 @@ Pedidos do dono (com print anotado e "usar UI/UX"):
   (fecha o popup e o editor; o `AcoesDoFimDoEnvio` da LI ganhou `textos`); falhou: "Voltar à janela", com o erro na faixa. O
   `ConclusaoDoEnvio` saiu do ML. **Nada disso foi visto com clique na tela** (o painel do navegador estava escondido).
 
+## Canais de Venda: "Não anunciar neste canal" (27/10/2026, SEM deploy)
+
+Pedido do dono: "alguns produtos irei anunciar apenas no ML e outros apenas na LI ou Shopee; um botão para marcar um X no
+ícone", com o botão "no rodapé do popup junto com os outros botões". Coluna `Produto.naoAnunciarEm Canal[]` (migration
+`20261027c_produto_nao_anunciar`, só aditiva); regra pura em `lib/canaisDeVenda/naoAnunciar.js` (só ML, LI e Shopee).
+- **Botão** `BotaoNaoAnunciar` ("Não anunciar no ML" / "Voltar a anunciar no ML"), grava na hora (`acoes-nao-anunciar.js`,
+  pede editar `tela.produtos.cadastro`; SQL cru para não subir o `atualizadoEm`, linha travada). Mora no rodapé do popup aberto
+  pela lista: editor do ML e da LI (prop `extraNoRodape`), lista de anúncios do ML e o aviso de não Conferido; a Shopee, sem
+  integração, ganhou um popup só com ele (`JanelaShopee`). Na página do editor (fora da lista) não aparece.
+- **Ícone:** cinza com o X vermelho (`MarcaNaoAnunciar`) e o texto "marcado para não anunciar". **Só marca:** nada é
+  bloqueado (o editor abre, o Publicar e o Sincronizar seguem) nem enviado ao canal.
+- Não visto na tela: o servidor da pasta era de outra sessão (com o client do Prisma antigo: o X só aparece depois de reiniciar).
+
 ## Sincronização Rise <-> Bling (04 a 05/10/2026)
 
 Pedido do dono em 04/10/2026: o Rise manda ao Bling os dados do produto (campos, fornecedores e ajustes de

@@ -91,7 +91,7 @@ const divergenciasDe = (leitura) => resumoDasDivergenciasLI(leitura).total;
 /// (src/lib/acessos/projecoes.js), feito no servidor (paginas e acoes de abrir).
 const ACESSO_TOTAL_LI = { editar: true, sincronizar: true, concorrentes: true };
 
-export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoInicial, vinculo, modo = "pagina", aoSalvar, aoFechar, acessos = ACESSO_TOTAL_LI }) {
+export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoInicial, vinculo, modo = "pagina", aoSalvar, aoFechar, acessos = ACESSO_TOTAL_LI, extraNoRodape = null }) {
   const router = useRouter();
   const [rascunho, setRascunho] = useState(rascunhoInicial);
   const [contexto, setContexto] = useState(contextoInicial);
@@ -637,6 +637,8 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
             Abrir no site <ExternalLink size={14} />
           </a>
         )}
+        {/* Botoes a mais vindos de quem abre o editor (a janela da lista poe o "Não anunciar na LI"). */}
+        {extraNoRodape}
       </div>
       <div className="flex items-center gap-2">
         {/* Sem permissao de editar nao ha o que salvar: o botao e so "Fechar". */}

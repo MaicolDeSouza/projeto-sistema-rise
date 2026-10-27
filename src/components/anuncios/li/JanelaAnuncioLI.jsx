@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader, X } from "lucide-react";
 
 import { abrirAnuncioLI, abrirNovoAnuncioLI, anuncioDoProdutoLI } from "@/app/canais-de-venda/loja-integrada/acoes";
+import BotaoNaoAnunciar from "@/components/anuncios/BotaoNaoAnunciar";
 import EditorAnuncioLI from "./EditorAnuncioLI";
 
 async function chamar(acao, argumento) {
@@ -22,7 +23,9 @@ async function chamar(acao, argumento) {
  * esse. Produto nao Conferido mostra so o aviso. O editor desenha a propria janela (Esc, X, "Sair
  * sem salvar?"); aqui ficam as fases antes dele.
  */
-export default function JanelaAnuncioLI({ produtoId, aoFechar, aoSalvar }) {
+// `naoAnunciar` (27/10/2026): a marca "Não anunciar na LI" do produto, vinda da lista; ausente, o botao nao aparece.
+export default function JanelaAnuncioLI({ produtoId, aoFechar, aoSalvar, naoAnunciar }) {
+  const [marcado, setMarcado] = useState(Boolean(naoAnunciar));
   const [fase, setFase] = useState("carregando");
   const [editor, setEditor] = useState(null);
   const [produto, setProduto] = useState(null);
@@ -79,9 +82,13 @@ export default function JanelaAnuncioLI({ produtoId, aoFechar, aoSalvar }) {
     return () => document.removeEventListener("keydown", aoTeclar);
   }, [fase, aoFechar]);
 
+  const botaoNaoAnunciar =
+    naoAnunciar === undefined ? null : <BotaoNaoAnunciar produtoId={produtoId} canal="LOJA_INTEGRADA" marcado={marcado} aoMudar={setMarcado} />;
+
   if (fase === "editor" && editor) {
     return (
       <EditorAnuncioLI
+        extraNoRodape={botaoNaoAnunciar}
         anuncioId={editor.anuncioId}
         rascunhoInicial={editor.rascunho}
         contextoInicial={editor.contexto}
@@ -123,6 +130,7 @@ export default function JanelaAnuncioLI({ produtoId, aoFechar, aoSalvar }) {
           {fase === "naoConferido" && <p className="text-amber-800">Só produto Conferido vai para a Loja Integrada. Confira o cadastro do produto primeiro.</p>}
           {fase === "erro" && <p className="text-red-700">{erro}</p>}
         </div>
+        {fase === "naoConferido" && botaoNaoAnunciar && <footer className="border-t border-borda px-5 py-3">{botaoNaoAnunciar}</footer>}
       </section>
     </div>
   );

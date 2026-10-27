@@ -4,6 +4,7 @@ import Image from "next/image";
 
 import { CANAIS } from "@/lib/canais";
 import { textosDoAlertaNaLoja } from "@/lib/canaisDeVenda/li/alertaNaLoja";
+import MarcaNaoAnunciar from "./MarcaNaoAnunciar";
 
 /**
  * O icone da Loja Integrada na coluna Canais da lista de Produtos, no molde do icone do Bling: a logo
@@ -30,8 +31,9 @@ export function rotuloDoIconeLI({ cor, divergente, conferido, semBling, incomple
   return `Loja Integrada: ${partes.join(" e ")}`;
 }
 
-export default function IconeLojaIntegrada({ iconeLI, aoClicar }) {
-  const rotulo = rotuloDoIconeLI(iconeLI);
+// `naoAnunciar` (27/10/2026): o produto foi marcado para nao ir a LI; o icone fica cinza com o X vermelho.
+export default function IconeLojaIntegrada({ iconeLI, aoClicar, naoAnunciar = false }) {
+  const rotulo = naoAnunciar ? "Loja Integrada: marcado para não anunciar" : rotuloDoIconeLI(iconeLI);
   return (
     <button
       type="button"
@@ -40,7 +42,8 @@ export default function IconeLojaIntegrada({ iconeLI, aoClicar }) {
       aria-label={rotulo}
       className="relative shrink-0 rounded hover:ring-2 hover:ring-sky-200 focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:outline-none"
     >
-      <Image src={CANAL_LI.logo} alt="" width={22} height={22} className={`rounded ${iconeLI.cor === "verde" ? "" : "opacity-70 brightness-50 grayscale"}`} />
+      <Image src={CANAL_LI.logo} alt="" width={22} height={22} className={`rounded ${iconeLI.cor === "verde" && !naoAnunciar ? "" : "opacity-70 brightness-50 grayscale"}`} />
+      {naoAnunciar && <MarcaNaoAnunciar />}
       {(iconeLI.divergente || iconeLI.incompleto || iconeLI.alertaNaLoja) && (
         <span
           aria-hidden="true"

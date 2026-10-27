@@ -102,6 +102,8 @@ export default function EditorAnuncioML({
   // Clonar (22/10/2026): na pagina e um link para `/novo?clonar=`; na janela, `aoClonar(id)` abre o clone nela mesma.
   aoClonar,
   acessos = ACESSO_TOTAL_ML,
+  // Botoes a mais no rodape, a esquerda, vindos de quem abre o editor (a janela da lista poe o "Não anunciar no ML").
+  extraNoRodape = null,
 }) {
   const [rascunho, setRascunho] = useState(rascunhoInicial);
   const [contexto, setContexto] = useState(contextoInicial);
@@ -518,6 +520,7 @@ export default function EditorAnuncioML({
             </button>
           )
         )}
+        {extraNoRodape}
       </div>
       <div className="flex items-center gap-2">
         {/* Sem permissao de editar nao ha o que salvar: o botao e so "Fechar" (na pagina, volta a lista). */}
