@@ -199,6 +199,14 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
               <dd className="font-medium">{preco > 0 ? MOEDA.format(preco / unidadesDoKit) : "—"}</dd>
             </dl>
           )}
+          {/* Anuncio simples (pedido do dono em 28/10/2026, "assim como e mostrado no kit"): o preco de venda do produto, o do
+              site da loja, para comparar com o do ML. */}
+          {!emKit && Number(contexto.produtos?.[rascunho.produtoId]?.precoVenda) > 0 && (
+            <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-2 text-xs tabular-nums">
+              <dt className="text-suave">Preço na loja</dt>
+              <dd>{MOEDA.format(Number(contexto.produtos[rascunho.produtoId].precoVenda))}</dd>
+            </dl>
+          )}
         </Campo>
 
         {acessos.custos && <CustosDoML rascunho={rascunho} contexto={contexto} setContexto={setContexto} custo={custo} conta={conta} />}
