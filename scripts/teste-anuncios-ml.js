@@ -35,7 +35,7 @@ const { custoDoProduto } = await import("../src/lib/canaisDeVenda/custo.js");
 const { montarDescricaoML } = await import("../src/lib/canaisDeVenda/ml/descricao.js");
 const { rascunhoInicial, aplicarComposicao, descricaoDoRise, medidasDoKit } = await import("../src/lib/canaisDeVenda/ml/rascunho.js");
 const { ABAS_ML, validarRascunhoML, medidasFaltando } = await import("../src/lib/canaisDeVenda/ml/validacao.js");
-const { montarPayloadML, nomeDaFoto } = await import("../src/lib/canaisDeVenda/ml/payload.js");
+const { montarPayloadML, nomeDaFoto, eanDoKit } = await import("../src/lib/canaisDeVenda/ml/payload.js");
 const { estadoDoIconeML, rotuloDoIconeML } = await import("../src/lib/canaisDeVenda/ml/icone.js");
 const { RascunhoMLSchema, LIMITES_ML } = await import("../src/lib/canaisDeVenda/ml/esquema.js");
 const {
@@ -388,6 +388,14 @@ try {
     conferir("kit sem GTIN nao gera alerta", validarRascunhoML(kitOk, ctx).some((p) => p.campo === "GTIN"), false);
     conferir("produto simples nao tem aviso de foto do kit", problema(base, ctx, "fotosDoKit"), undefined);
 
+    // EAN interno do kit (27/10/2026): sai dos digitos do codigo do kit e vai no lugar do motivo de nao ter GTIN.
+    conferir("eanDoKit: 900212_10 = 2000900212105", eanDoKit({ codigo: "900212_10" }), "2000900212105");
+    conferir("eanDoKit: sem digitos = null", eanDoKit({ codigo: "ABC" }), null);
+    {
+      const doKit = montarPayloadML({ ...kitOk, atributos: { ...kitOk.atributos, EMPTY_GTIN_REASON: "O produto é um kit ou pack" } }, ctx).item.attributes;
+      conferir("payload do kit: GTIN do kit e sem o motivo", [doKit.some((a) => a.id === "GTIN" && a.value_name === eanDoKit(kitOk.composicao)), doKit.some((a) => a.id === "EMPTY_GTIN_REASON")], [Boolean(eanDoKit(kitOk.composicao)), !eanDoKit(kitOk.composicao)]);
+    }
+
     const payload = montarPayloadML(base, ctx);
     conferir("payload nasce pausado, com o preco no item", [payload.item.status, payload.item.price], ["paused", 0.5]);
     conferir("payload leva o SKU do produto", payload.item.attributes.find((x) => x.id === "SELLER_SKU").value_name, "100101");
@@ -395,10 +403,11 @@ try {
     conferir("payload: frete gratis vai marcado a partir de R$ 79", montarPayloadML(semFreteMarcado, ctx).item.shipping.free_shipping, true);
     conferir("payload: abaixo de R$ 79 segue a escolha do dono", montarPayloadML({ ...semFreteMarcado, preco: 50 }, ctx).item.shipping.free_shipping, false);
     conferir("payload do kit leva o codigo do kit", montarPayloadML(kitOk, ctx).item.attributes.find((x) => x.id === "SELLER_SKU").value_name, "100101_5");
-    conferir("payload do kit nao leva GTIN", montarPayloadML(kitOk, ctx).item.attributes.some((x) => x.id === "GTIN"), false);
+    // Desde 27/10/2026 o kit leva o EAN interno DELE (eanDoKit), nunca o GTIN da peca avulsa.
+    conferir("payload do kit leva o EAN do kit", montarPayloadML(kitOk, ctx).item.attributes.filter((x) => x.id === "GTIN").map((x) => x.value_name), [eanDoKit(kitOk.composicao)]);
     // O cliente tira o GTIN ao virar kit, mas o servidor aceita o que vier: o payload barra tambem.
-    conferir("payload do kit com GTIN no rascunho: o GTIN fica de fora",
-      montarPayloadML({ ...kitOk, atributos: { ...kitOk.atributos, GTIN: "7890000000001" } }, ctx).item.attributes.some((x) => x.id === "GTIN"), false);
+    conferir("payload do kit com GTIN no rascunho: vai o do kit, nao o da peca",
+      montarPayloadML({ ...kitOk, atributos: { ...kitOk.atributos, GTIN: "7890000000001" } }, ctx).item.attributes.filter((x) => x.id === "GTIN").map((x) => x.value_name), [eanDoKit(kitOk.composicao)]);
     conferir("payload: atributos da ficha e o SKU", payload.item.attributes.filter((x) => !x.id.startsWith("SELLER_PACKAGE_")),
       [{ id: "BRAND", value_name: "GENERICA" }, { id: "GTIN", value_name: "7890000000001" }, { id: "SELLER_SKU", value_name: "100101" }]);
     conferir("preco vai a parte", payload.preco, { amount: 0.5, currency_id: "BRL" });
@@ -1378,9 +1387,9 @@ try {
       false,
     );
     conferir(
-      "payload: kit sem GTIN manda o motivo",
+      "payload: kit manda o EAN do kit no lugar do motivo",
       montarPayloadML({ ...comCategoria, composicao: { ...composicaoDeDois, codigo: "100101_2" }, atributos: { EMPTY_GTIN_REASON: "O produto é um kit ou pack" } }, ctx).item.attributes.some((a) => a.id === "EMPTY_GTIN_REASON"),
-      true,
+      false,
     );
     conferir(
       "esquema: aceita 100 atributos (categoria grande preenchida pela IA)",

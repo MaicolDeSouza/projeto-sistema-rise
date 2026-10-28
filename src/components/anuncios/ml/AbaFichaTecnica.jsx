@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { aceitaNaoSeAplica, motivoSemGtin } from "@/lib/canaisDeVenda/ml/atributos";
+import { eanDoKit } from "@/lib/canaisDeVenda/ml/payload";
 import { linhasDeEspecificacao } from "@/lib/medidas";
 import CampoDeAtributo from "./CampoDeAtributo";
 import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
@@ -70,7 +71,7 @@ export default function AbaFichaTecnica({ rascunho, contexto, alterar, problemas
           <CaixaDoML titulo="Atributos do Mercado Livre">
             <CampoDeAtributo atributo={{ id: "BRAND", nome: "Marca", tipo: "texto", valores: [], unidades: [] }} valor={atributos.BRAND} problemas={problemas} aoMudar={(valor) => mudar("BRAND", valor)} />
             <CampoDeAtributo atributo={{ id: "MODEL", nome: "Modelo", tipo: "texto", valores: [], unidades: [] }} valor={atributos.MODEL} problemas={problemas} aoMudar={(valor) => mudar("MODEL", valor)} />
-            <CampoDoGtin atributos={atributos} emKit={emKit} problemas={problemas} mudar={mudar} />
+            <CampoDoGtin atributos={atributos} emKit={emKit} gtinDoKit={emKit ? eanDoKit(rascunho.composicao) : null} problemas={problemas} mudar={mudar} />
           </CaixaDoML>
           {doRise}
         </div>
@@ -93,7 +94,7 @@ export default function AbaFichaTecnica({ rascunho, contexto, alterar, problemas
         {obrigatorios.map((atributo) => (
           <CampoDeAtributo key={atributo.id} atributo={atributo} valor={atributos[atributo.id]} problemas={problemas} aoMudar={(valor) => mudar(atributo.id, valor)} />
         ))}
-        {temGtin && <CampoDoGtin atributos={atributos} emKit={emKit} problemas={problemas} mudar={mudar} />}
+        {temGtin && <CampoDoGtin atributos={atributos} emKit={emKit} gtinDoKit={emKit ? eanDoKit(rascunho.composicao) : null} problemas={problemas} mudar={mudar} />}
         {motivo && (
           <CampoDeAtributo
             atributo={{ ...motivo, nome: "Motivo de não ter GTIN" }}
@@ -173,12 +174,16 @@ function CaracteristicasDoRise({ produto }) {
 }
 
 /** O GTIN (EAN) da peca avulsa: so numeros. No kit ele nao existe, e o motivo "kit ou pack" vale. */
-function CampoDoGtin({ atributos, emKit, problemas, mudar }) {
+function CampoDoGtin({ atributos, emKit, gtinDoKit, problemas, mudar }) {
+  // Kit: o EAN interno do proprio kit, gerado pelo codigo do kit e enviado no Publicar (27/10/2026).
   if (emKit) {
     return (
       <div>
-        <p className="text-sm font-semibold">EAN/GTIN</p>
-        <p className="mt-2 text-sm text-suave">Kit não leva EAN/GTIN.</p>
+        <p className="text-sm font-semibold">EAN/GTIN do kit</p>
+        <p className="mt-2 text-sm">
+          {gtinDoKit ? <span className="font-mono">{gtinDoKit}</span> : <span className="text-suave">Sem EAN: o código do kit não tem dígitos.</span>}
+        </p>
+        {gtinDoKit && <p className="mt-0.5 text-[11px] text-suave">EAN interno gerado pelo código do kit; vai ao Mercado Livre no Publicar.</p>}
       </div>
     );
   }

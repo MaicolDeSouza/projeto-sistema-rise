@@ -8,6 +8,7 @@
  */
 
 import { LIMITE_TITULO } from "../../anuncios/canais/mercadolivre";
+import { gerarEanDoSku } from "../../eanInterno.js";
 import { NAO_SE_APLICA, ehNaoSeAplica, separarUnidade } from "./atributos";
 import { freteGratisObrigatorio } from "./custos";
 import { montarDescricaoML } from "./descricao";
@@ -76,6 +77,19 @@ function atributosDaEmbalagem(envio) {
  * O Publicar e o "Enviar mudancas ao ML" do anuncio publicado (ficha editada depois, pedido do dono em 24/10/2026) usam
  * a mesma lista, e a impressao do anuncio guarda ela.
  */
+/**
+ * O EAN interno do KIT (pedido do dono em 27/10/2026, Opcao 1): ha categorias (Conectores, MLB38172, medido no validador do
+ * ML) que exigem GTIN mesmo com o motivo "kit ou pack", e o EAN da unidade ligaria o kit ao produto de uma unidade. O codigo
+ * sai dos DIGITOS do codigo do kit pela regra do "Gerar EAN interno" (`2` + digitos + verificador): "900212_10" da
+ * 2000900212105, o kit misto 25xxxx da o dele. `null` sem digitos ou com mais de 11.
+ */
+export function eanDoKit(composicao) {
+  const digitos = texto(composicao?.codigo).replace(/\D/g, "");
+  if (!digitos) return null;
+  const gerado = gerarEanDoSku(digitos);
+  return gerado.ok ? gerado.ean : null;
+}
+
 export function atributosDaFicha(rascunho) {
   // GTIN e o codigo de barras da peca avulsa, e kit nao o leva: a tela o tira ao virar kit, mas o
   // servidor grava o que chegar, e a previa e o envio saem daqui.
@@ -129,7 +143,10 @@ export function montarPayloadML(rascunho, contexto) {
   // O SKU do anuncio e o codigo do kit, quando ha composicao; senao, o do produto.
   const sku = rascunho.composicao ? texto(rascunho.composicao.codigo) : texto(contexto?.produtos?.[rascunho.produtoId]?.sku);
 
-  const atributos = atributosDaFicha(rascunho);
+  let atributos = atributosDaFicha(rascunho);
+  // Kit: vai o EAN interno do kit no lugar do motivo de nao ter GTIN (so no Publicar; a impressao da ficha nao o leva).
+  const gtinDoKit = rascunho.composicao ? eanDoKit(rascunho.composicao) : null;
+  if (gtinDoKit) atributos = [...atributos.filter((atributo) => atributo.id !== "EMPTY_GTIN_REASON"), { id: "GTIN", value_name: gtinDoKit }];
   if (sku) atributos.push({ id: "SELLER_SKU", value_name: sku });
   atributos.push(...atributosDaEmbalagem(envio));
 

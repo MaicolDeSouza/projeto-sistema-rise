@@ -3722,6 +3722,12 @@ Pedidos do dono no mesmo dia, todos no editor do anúncio do ML:
   **KIT** (migration `20261027d_foto_do_kit`, enum novo), em `imagens/`; entram marcadas, na frente das dos itens. Toda leitura de
   foto filtra `papel: "FOTO"`, então não aparecem no cadastro nem nos anúncios simples. Excluir recusa se outro anúncio as usa.
 - **Abrir no painel** na linha do catálogo da aba Catálogo (`linkDoPainelML` do anúncio aberto).
+- **EAN interno do kit** (`eanDoKit` em `ml/payload.js`, Opção 1 do dono): medido no validador do ML em 27/10/2026, a
+  categoria Conectores (MLB38172) exige GTIN mesmo com o motivo "kit ou pack" (nem "Formato de venda: Kit", "É kit: Sim" ou os
+  outros motivos passam); com um GTIN passa. O kit manda no Publicar o EAN interno do código do kit (dígitos do código pela regra
+  do "Gerar EAN interno": 900212_10 = **2000900212105**) no lugar do `EMPTY_GTIN_REASON`. A Ficha técnica mostra o código. Só o
+  `montarPayloadML` o põe (a impressão da ficha não), então os kits já publicados não acendem o "!".
+- **Preço na loja (UN) e Preço no ML (UN)** no lugar da "Soma dos preços avulsos" (kit misto: média por unidade).
 - **Publicar salva sozinho** (sem o "Salvar antes de publicar?") e abre o **popup de etapas** (`AndamentoDoEnvio`, `tipo`
   "publicar"): `publicarAnuncioML` marca "preparar" e cada etapa em `ml/progresso.js` (`iniciarProgressoML(id, ids)`), lidas
   pela rota de sempre. Fim no padrão da LI (painel, anúncio, Fechar que fecha tudo); falha = "Voltar à janela". A criação incerta
