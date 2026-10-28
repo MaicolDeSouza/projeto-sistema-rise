@@ -95,9 +95,19 @@ export async function importarLista({ pedidos = [], lidoEm } = {}, { cliente = c
           const total = lerPreco(entrada.totalTexto) ?? 0;
 
           let aliexpress;
+          // Visto pela primeira vez ja entregue (a 1a importacao traz os ultimos 30 dias): a caixa ja chegou e o dono a
+          // lancou a mao, como fazia antes. Nasce FINALIZADO, sem Virtual e sem "falta lancar", para nao lancar em dobro.
+          const nasceuEntregue = !existente && situacao.entregue;
           if (!existente) {
             const pedido = await tx.pedidoDeCompra.create({
-              data: { fornecedorId: ali.id, numero: await proximoNumero(tx), status: "ENVIADO", origem: "ALIEXPRESS", enviadoEm: dataDoPedido },
+              data: {
+                fornecedorId: ali.id,
+                numero: await proximoNumero(tx),
+                status: nasceuEntregue ? "FINALIZADO" : "ENVIADO",
+                origem: "ALIEXPRESS",
+                enviadoEm: dataDoPedido,
+                ...(nasceuEntregue ? { finalizadoEm: agora } : {}),
+              },
               select: { id: true },
             });
             aliexpress = await tx.pedidoAliExpress.create({
@@ -168,7 +178,7 @@ export async function importarLista({ pedidos = [], lidoEm } = {}, { cliente = c
 
           // Casa toda linha ainda sem produto (as novas e as pendentes de antes: o dono pode ter posto o link no Bling).
           const pedidoAtual = await tx.pedidoDeCompra.findUnique({ where: { id: aliexpress.pedidoId }, select: { status: true } });
-          if (ABERTOS.includes(pedidoAtual.status)) {
+          if (ABERTOS.includes(pedidoAtual.status) || nasceuEntregue) {
             const soltas = await tx.linhaAliExpress.findMany({ where: { pedidoAliExpressId: aliexpress.id, itemId: null }, select: { id: true } });
             for (const linha of soltas) {
               const casado = await casarLinha(tx, linha.id);
@@ -206,7 +216,8 @@ export async function importarLista({ pedidos = [], lidoEm } = {}, { cliente = c
     ok: true,
     ...resumo,
     precisaDetalhe: porData.filter((pedido) => !pedido.detalheLidoEm && !pedido.canceladoNoAliExpressEm).map((pedido) => pedido.externoId),
-    precisaRastreio: porData.filter(precisaRastreio).map((pedido) => pedido.externoId),
+    // Pedido fechado no Rise (finalizado ou cancelado) nao precisa mais de rastreio.
+    precisaRastreio: porData.filter((pedido) => ABERTOS.includes(pedido.status) && precisaRastreio(pedido)).map((pedido) => pedido.externoId),
   };
   await registrarTeste(SERVICO, { ok: true });
   await registrar({

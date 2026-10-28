@@ -429,6 +429,17 @@ try {
     jaCancelado.pedidos[0].linhas[0].orderLineId = "9915000000000041";
     conferir("pedido que ja vem cancelado na 1a vez e ignorado", (await importarLista(jaCancelado, { cliente: falso })).ignorados, 1);
 
+    const jaEntregue = structuredClone(lista);
+    jaEntregue.pedidos = [{ ...jaEntregue.pedidos[0], orderId: "9915000000000005", statusTexto: "Concluído", statusCodigo: 9, linhas: [{ ...jaEntregue.pedidos[0].linhas[0], orderLineId: "9915000000000051" }] }];
+    const lancamentosAntes = falso.estado.lancamentos.length;
+    const r8 = await importarLista(jaEntregue, { cliente: falso });
+    const p5 = await lerAli("9915000000000005");
+    conferir(
+      "pedido que ja vem entregue na 1a vez nasce FINALIZADO, sem Virtual e sem pedir rastreio",
+      [r8.novos, p5.pedido.status, p5.pedido.finalizadoEm != null, p5.linhas[0].itemId != null, falso.estado.lancamentos.length - lancamentosAntes, r8.precisaRastreio],
+      [1, "FINALIZADO", true, true, 0, []],
+    );
+
     await prisma.itemDoPedidoDeCompra.updateMany({ where: { pedidoId: p1.pedidoId }, data: { quantidadeLancada: 1 } });
     const reembolso = structuredClone(lista);
     reembolso.pedidos = [{ ...reembolso.pedidos[0], statusTexto: "Reembolsado", statusCodigo: null }];
