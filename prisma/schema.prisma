@@ -120,10 +120,13 @@ enum TipoArquivo {
 }
 
 /// Papel de uma imagem do produto. FOTO aparece no carrossel e nos anuncios; RESERVA fica guardada
-/// (original e versoes geradas que o dono nao escolheu) e so aparece atras do botao "Reserva".
+/// (original e versoes geradas que o dono nao escolheu) e so aparece atras do botao "Reserva". KIT e foto PROPRIA de um
+/// anuncio de kit do Mercado Livre (pedido do dono em 27/10/2026), enviada na aba Imagens do anuncio e guardada no
+/// produto principal do kit: nao aparece no cadastro do produto nem nos anuncios simples.
 enum PapelArquivo {
   FOTO
   RESERVA
+  KIT
 }
 
 enum StatusConexao {

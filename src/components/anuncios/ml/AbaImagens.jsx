@@ -1,25 +1,31 @@
 "use client";
 
-import { ChevronDown, ChevronUp, ImageOff } from "lucide-react";
+import { useRef, useState } from "react";
+import { ChevronDown, ChevronUp, ImageOff, Loader, Trash2, Upload } from "lucide-react";
 
+import { enviarFotoDoKitML, excluirFotoDoKitML } from "@/app/canais-de-venda/mercado-livre/acoes-fotos-do-kit";
 import Badge from "@/components/ui/Badge";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import MensagensDoCampo from "./MensagensDoCampo";
 import SecaoDoAnuncio from "./SecaoDoAnuncio";
 
-const AVISO_DO_KIT =
-  "O kit pede fotos próprias (as dos produtos mostram uma unidade de cada). O envio de fotos do kit entra na fase 3.";
-
 const BOTAO_DA_LINHA =
   "rounded p-1.5 text-suave hover:bg-fundo hover:text-texto disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent";
 
-// As fotos que o anuncio pode usar: as do produto principal e, no kit, as de cada item. A mesma
-// ordem que o rascunho usa ao montar a lista sozinho (`fotosEmOrdem`): produto a produto, a foto
-// principal de cada um na frente, e a mesma foto nunca duas vezes.
+// As fotos que o anuncio pode usar: no kit, primeiro as PROPRIAS do kit (enviadas aqui, 27/10/2026), depois as do
+// produto principal e as de cada item. A mesma ordem que o rascunho usa ao montar a lista sozinho (`fotosEmOrdem`):
+// produto a produto, a foto principal de cada um na frente, e a mesma foto nunca duas vezes.
 function fotosDisponiveis(rascunho, contexto) {
   const itens = Array.isArray(rascunho.composicao?.itens) ? rascunho.composicao.itens : [];
   const vistas = new Set();
   const fotos = [];
+  if (rascunho.composicao) {
+    const principal = contexto.produtos[rascunho.produtoId];
+    for (const foto of principal?.fotosDoKit ?? []) {
+      vistas.add(foto.id);
+      fotos.push({ ...foto, sku: "Kit", titulo: "Foto do kit", doKit: true });
+    }
+  }
   for (const produtoId of [rascunho.produtoId, ...itens.map((item) => item?.produtoId)].filter(Boolean)) {
     const produto = contexto.produtos[produtoId];
     const imagens = produto?.imagens ?? [];
@@ -121,7 +127,141 @@ function FotosDoProduto({ fotos, problemas }) {
  * Aba Imagens: as fotos que o anuncio envia, na ordem de envio (a primeira e a capa), e as demais
  * fotos disponiveis para marcar. O rascunho guarda so os ids, em ordem.
  */
-export default function AbaImagens({ rascunho, contexto, alterar, problemas }) {
+/**
+ * As fotos PROPRIAS do kit (pedido do dono em 27/10/2026): "Enviar fotos" padroniza cada uma como no cadastro de Produto
+ * (1024x1024, fundo branco) e a grava na hora no produto principal (papel KIT); a foto nova ja entra marcada no anuncio,
+ * depois das outras fotos do kit (a primeira e a capa). Excluir tira do disco e do anuncio.
+ */
+function FotosDoKit({ rascunho, contexto, alterar, setContexto, anuncioId }) {
+  const produtoId = rascunho.produtoId;
+  const fotos = contexto.produtos[produtoId]?.fotosDoKit ?? [];
+  const [enviando, setEnviando] = useState(null);
+  const [aviso, setAviso] = useState(null);
+  const [excluindo, setExcluindo] = useState(null);
+  const entrada = useRef(null);
+
+  async function enviar(arquivos) {
+    const lista = [...(arquivos ?? [])];
+    if (lista.length === 0) return;
+    setAviso(null);
+    const erros = [];
+    // As enviadas nesta leva: a segunda foto entra depois da primeira (o `fotos` deste render ainda nao as tem).
+    const enviadas = [];
+    let ampliadas = 0;
+    for (const [indice, arquivo] of lista.entries()) {
+      setEnviando({ atual: indice + 1, total: lista.length });
+      const dados = new FormData();
+      dados.append("arquivo", arquivo);
+      let resposta;
+      try {
+        resposta = await enviarFotoDoKitML(produtoId, dados);
+      } catch {
+        resposta = { ok: false, erro: "Não foi possível falar com o servidor." };
+      }
+      if (!resposta.ok) {
+        erros.push(`${arquivo.name}: ${resposta.erro}`);
+        continue;
+      }
+      if (resposta.ampliada) ampliadas += 1;
+      const foto = resposta.foto;
+      enviadas.push(foto.id);
+      setContexto((atual) => {
+        const produto = atual.produtos[produtoId] ?? {};
+        return { ...atual, produtos: { ...atual.produtos, [produtoId]: { ...produto, fotosDoKit: [...(produto.fotosDoKit ?? []), foto] } } };
+      });
+      // A foto nova entra depois das outras fotos do kit ja marcadas: as do kit vem na frente das dos itens.
+      alterar((atual) => {
+        const marcadas = Array.isArray(atual.imagens) ? atual.imagens : [];
+        const doKit = new Set([...fotos.map((outra) => outra.id), ...enviadas]);
+        const posicao = marcadas.filter((id) => doKit.has(id)).length;
+        return { imagens: [...marcadas.slice(0, posicao), foto.id, ...marcadas.slice(posicao)] };
+      });
+    }
+    setEnviando(null);
+    if (entrada.current) entrada.current.value = "";
+    if (erros.length > 0) setAviso({ tipo: "erro", texto: erros.join(" · ") });
+    else if (ampliadas > 0) setAviso({ tipo: "atencao", texto: `${ampliadas} foto(s) pequena(s) foram ampliadas para 1024×1024: confira a nitidez.` });
+  }
+
+  async function excluir(id) {
+    setAviso(null);
+    setExcluindo(id);
+    let resposta;
+    try {
+      resposta = await excluirFotoDoKitML(produtoId, id, anuncioId ?? null);
+    } catch {
+      resposta = { ok: false, erro: "Não foi possível falar com o servidor." };
+    }
+    setExcluindo(null);
+    if (!resposta.ok) {
+      setAviso({ tipo: "erro", texto: resposta.erro });
+      return;
+    }
+    setContexto((atual) => {
+      const produto = atual.produtos[produtoId] ?? {};
+      return { ...atual, produtos: { ...atual.produtos, [produtoId]: { ...produto, fotosDoKit: (produto.fotosDoKit ?? []).filter((foto) => foto.id !== id) } } };
+    });
+    alterar((atual) => ({ imagens: (Array.isArray(atual.imagens) ? atual.imagens : []).filter((outra) => outra !== id) }));
+  }
+
+  return (
+    <SecaoDoAnuncio
+      titulo={`Fotos do kit (${fotos.length})`}
+      ajuda="Fotos próprias do kit (as dos produtos mostram uma unidade de cada). Ao enviar, cada foto é ajustada como no cadastro de Produto: 1024×1024, fundo branco. A foto enviada já entra no anúncio."
+      acao={
+        <>
+          <input
+            ref={entrada}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            className="hidden"
+            onChange={(evento) => enviar(evento.target.files)}
+          />
+          <button
+            type="button"
+            onClick={() => entrada.current?.click()}
+            disabled={Boolean(enviando)}
+            className="inline-flex items-center gap-1.5 rounded border border-borda bg-superficie px-3 py-1.5 text-sm font-medium text-acento hover:bg-fundo disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {enviando ? <Loader size={14} className="animate-spin" /> : <Upload size={14} />}
+            {enviando ? `Ajustando ${enviando.atual} de ${enviando.total}...` : "Enviar fotos"}
+          </button>
+        </>
+      }
+    >
+      {fotos.length > 0 ? (
+        <ul className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+          {fotos.map((foto) => (
+            <li key={foto.id} className="group relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={foto.url} alt="Foto do kit" loading="lazy" className="aspect-square w-full rounded border border-borda bg-white object-contain" />
+              <button
+                type="button"
+                onClick={() => excluir(foto.id)}
+                disabled={excluindo === foto.id}
+                title="Excluir esta foto do kit"
+                aria-label="Excluir esta foto do kit"
+                className="absolute top-1 right-1 rounded bg-superficie/90 p-1 text-red-700 shadow-sm hover:bg-red-50 disabled:opacity-60"
+              >
+                {excluindo === foto.id ? <Loader size={14} className="animate-spin" /> : <Trash2 size={14} />}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-suave">Nenhuma foto do kit ainda. Use “Enviar fotos”.</p>
+      )}
+      {aviso && (
+        <p role={aviso.tipo === "erro" ? "alert" : "status"} className={`mt-2 text-xs ${aviso.tipo === "erro" ? "text-red-700" : "text-amber-700"}`}>
+          {aviso.texto}
+        </p>
+      )}
+    </SecaoDoAnuncio>
+  );
+}
+
+export default function AbaImagens({ rascunho, contexto, alterar, setContexto, anuncioId, problemas }) {
   const emKit = Boolean(rascunho.composicao);
   const disponiveis = fotosDisponiveis(rascunho, contexto);
   // Anuncio simples: as fotos sao SEMPRE as validadas do produto, na ordem do cadastro (decisao do dono em 24/10/2026,
@@ -147,9 +287,7 @@ export default function AbaImagens({ rascunho, contexto, alterar, problemas }) {
 
   return (
     <div className="space-y-4">
-      {emKit && (
-        <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{AVISO_DO_KIT}</div>
-      )}
+      <FotosDoKit rascunho={rascunho} contexto={contexto} alterar={alterar} setContexto={setContexto} anuncioId={anuncioId} />
 
       <SecaoDoAnuncio titulo={`Fotos do anúncio (${marcadas.length})`} ajuda="A ordem daqui é a ordem de envio: a primeira é a capa do anúncio. Use as setas para mudar.">
         {marcadas.length > 0 ? (

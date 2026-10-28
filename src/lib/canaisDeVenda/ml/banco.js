@@ -9,6 +9,7 @@ import { impressaoDoConteudo } from "./impressao";
 import { montarRanking } from "./ranking";
 import { catalogosDeVariosProdutos } from "./referencias";
 import { RascunhoMLSchema } from "./esquema";
+import { fotosDoKitDosProdutos } from "./fotosDoKit";
 import { descricaoDoRise, estoqueDoRise, fotosDoRise, medidasDoKit, pacoteDoRise, rascunhoInicial } from "./rascunho";
 
 /**
@@ -54,6 +55,9 @@ export async function contextoDosProdutos(ids) {
     },
   });
 
+  // As fotos proprias dos anuncios de kit (papel KIT, 27/10/2026): a aba Imagens do kit as oferece junto das dos itens.
+  const doKit = await fotosDoKitDosProdutos(produtos);
+
   return Object.fromEntries(
     produtos.map((p) => [
       p.id,
@@ -78,6 +82,7 @@ export async function contextoDosProdutos(ids) {
         custo: custoDoProduto({ fornecedores: p.fornecedores, fornecedorRascunho: p.fornecedorRascunho, custo: p.custo, pecasProprias: p.pecasProprias }),
         // `arquivo` e o nome no disco: a impressao do anuncio publicado compara as fotos por ele (acompanhar.js).
         imagens: p.arquivos.map((a) => ({ id: a.id, arquivo: a.arquivo, url: urlDe(p.sku, "IMAGEM", a.arquivo), principal: a.principal })),
+        fotosDoKit: doKit[p.id] ?? [],
       },
     ]),
   );
