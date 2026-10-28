@@ -161,6 +161,31 @@ const fixture = (nome) => JSON.parse(readFileSync(new URL(`./fixtures/aliexpress
   conferir("lista vazia vale", lerCorpo({ fase: "lista", lidoEm: lista.lidoEm, pedidos: [] }).ok, true);
 }
 
+const { criarBlingFalso } = await import("./lib/blingFalso.js");
+const noBling = (codigo, id) => ({ id, codigo, nome: `Produto ${codigo}`, preco: 10, situacao: "A", formato: "S", tipo: "P" });
+{
+  const { depositoVirtual, entradaNoVirtual, saidaDoVirtual } = await import("../src/lib/compras/aliexpress/virtual.js");
+  console.log("\nDepósito Virtual do Bling (falso)");
+  const falso = criarBlingFalso({ produtos: [noBling("ZZ-ALI-V1", 15000000911)], codigosLiberados: ["ZZ-ALI-V1"] });
+  const virtual = await depositoVirtual(falso);
+  conferir("acha o Virtual pelo nome", virtual?.id, 14200000002);
+  const entrada = await entradaNoVirtual({ sku: "ZZ-ALI-V1", blingId: 15000000911, quantidade: 200, observacao: "AliExpress 1" }, { cliente: falso });
+  const ultimo = () => falso.estado.lancamentos.at(-1);
+  conferir("entrada no Virtual", [entrada.ok, ultimo()?.operacao, ultimo()?.quantidade, ultimo()?.deposito?.id, ultimo()?.observacoes], [true, "E", 200, 14200000002, "AliExpress 1"]);
+  const saida = await saidaDoVirtual({ sku: "ZZ-ALI-V1", blingId: 15000000911, quantidade: 50, observacao: "chegada" }, { cliente: falso });
+  conferir("saida do Virtual", [saida.ok, ultimo()?.operacao, ultimo()?.quantidade], [true, "S", 50]);
+  conferir("sem blingId recusa", await entradaNoVirtual({ sku: "ZZ-ALI-V1", blingId: null, quantidade: 1 }, { cliente: falso }), { ok: false, erro: "Produto sem cadastro no Bling." });
+  conferir("quantidade zero nao manda nada", [(await entradaNoVirtual({ sku: "ZZ-ALI-V1", blingId: 15000000911, quantidade: 0 }, { cliente: falso })).ok, falso.estado.lancamentos.length], [true, 2]);
+  const travado = criarBlingFalso({ produtos: [noBling("ZZ-ALI-V1", 15000000911)], codigosLiberados: ["OUTRO"] });
+  const recusa = await entradaNoVirtual({ sku: "ZZ-ALI-V1", blingId: 15000000911, quantidade: 3 }, { cliente: travado });
+  conferir("trava fechada recusa antes de chamar", [recusa.ok, travado.estado.lancamentos.length, /bloqueada/i.test(recusa.erro ?? "")], [false, 0, true]);
+  const semVirtual = criarBlingFalso({ produtos: [noBling("ZZ-ALI-V1", 15000000911)], depositos: [{ id: 1, descricao: "Fisico", situacao: 1, padrao: true }] });
+  conferir("sem deposito Virtual", await entradaNoVirtual({ sku: "ZZ-ALI-V1", blingId: 15000000911, quantidade: 3 }, { cliente: semVirtual }), { ok: false, erro: "Sem depósito Virtual no Bling." });
+  const recusado = criarBlingFalso({ produtos: [noBling("ZZ-ALI-V1", 15000000911)], falhas: [{ metodo: "POST", caminho: "/estoques", status: 400, mensagem: "Produto inativo." }] });
+  const erroDoBling = await entradaNoVirtual({ sku: "ZZ-ALI-V1", blingId: 15000000911, quantidade: 3 }, { cliente: recusado });
+  conferir("Bling recusa", [erroDoBling.ok, erroDoBling.erro?.includes("Produto inativo.")], [false, true]);
+}
+
 // Marcador: os blocos puros entram acima desta linha.
 
 // ---------------------------------------------------------------------------
