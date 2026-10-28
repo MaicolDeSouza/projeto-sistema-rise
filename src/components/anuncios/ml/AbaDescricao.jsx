@@ -25,12 +25,13 @@ export default function AbaDescricao({ rascunho, alterar, problemas }) {
         titulo="Descrição do kit"
         ajuda="Editável neste anúncio: começa com a descrição do produto principal. O bloco &quot;Itens inclusos&quot; é refeito pelo código e pelas quantidades do kit ao mexer na composição."
       >
+        {/* A caixa cresce com o texto (`field-sizing: content`): uma barra de rolagem so, a da janela (pedido do dono em
+            28/10/2026; com altura fixa havia duas, e a de dentro nao rolava com a aba travada no publicado). */}
         <textarea
           aria-label="Descrição do kit"
           value={rascunho.descricao ?? ""}
           onChange={(evento) => alterar({ descricao: evento.target.value })}
-          rows={22}
-          className="w-full rounded border border-borda bg-superficie px-3 py-2.5 font-sans text-[15px] leading-relaxed focus:border-acento focus:outline-none"
+          className="field-sizing-content min-h-80 w-full resize-none overflow-hidden rounded border border-borda bg-superficie px-3 py-2.5 font-sans text-[15px] leading-relaxed focus:border-acento focus:outline-none"
         />
         <p className="mt-1 text-[11px] text-suave tabular-nums">{NUMERO.format(textoFinal.length)} caracteres</p>
         <MensagensDoCampo problemas={problemas} campo="descricao" />
