@@ -8,6 +8,7 @@ import {
   aCaminho,
   entraNaListaDeMinimo,
   estadoDoCarrinho,
+  faltaLancar,
   numeroDoPedido,
   podeIrPara,
   precoInicialDoItem,
@@ -15,6 +16,7 @@ import {
   totaisDoPedido,
 } from "@/lib/compras/regras";
 import { conferirPedido } from "@/lib/compras/esquema";
+import { avisosDoPedido } from "@/lib/compras/aliexpress/regras";
 import { apagarPastaDoPedido, apagarPropostaDoPedido, moverPropostaParaPedido } from "@/lib/compras/arquivos";
 
 /**
@@ -437,6 +439,68 @@ function pedidoParaTela(pedido) {
     atualizadoEm: pedido.atualizadoEm,
     itens,
     totais: totaisDoPedido({ itens, ...editaveis }),
+    origem: pedido.origem,
+    aliexpress: blocoDoAliExpress(pedido.aliexpress),
+    avisos: pedido.aliexpress
+      ? avisosDoPedido({
+          entregueEm: pedido.aliexpress.entregueEm,
+          canceladoNoAliExpressEm: pedido.aliexpress.canceladoNoAliExpressEm,
+          faltaLancar: itens.reduce((soma, item) => soma + faltaLancar(item), 0),
+          estoqueLancado: itens.some((item) => item.quantidadeLancada > 0),
+          linhasPendentes: pedido.aliexpress.linhas.filter((linha) => !linha.itemId).length,
+          virtualErros: pedido.aliexpress.linhas.filter((linha) => linha.virtualErro).length,
+        })
+      : [],
+  };
+}
+
+/** O que a tela mostra do AliExpress: cabecalho, linhas sem produto, opcao e rastreio por item, Virtual pendente. */
+function blocoDoAliExpress(ali) {
+  if (!ali) return null;
+  const opcaoPorItem = {};
+  const rastreioPorItem = {};
+  for (const linha of ali.linhas) {
+    if (!linha.itemId) continue;
+    if (linha.opcao) opcaoPorItem[linha.itemId] = opcaoPorItem[linha.itemId] ? `${opcaoPorItem[linha.itemId]} · ${linha.opcao}` : linha.opcao;
+    if (linha.pacote && !(rastreioPorItem[linha.itemId] ?? []).some((pacote) => pacote.codigo === linha.pacote.codigo)) {
+      rastreioPorItem[linha.itemId] = [
+        ...(rastreioPorItem[linha.itemId] ?? []),
+        {
+          codigo: linha.pacote.codigo,
+          transportadora: linha.pacote.transportadora,
+          ultimoEvento: linha.pacote.ultimoEvento,
+          ultimoEventoEm: linha.pacote.ultimoEventoEm,
+          previsaoTexto: linha.pacote.previsaoTexto,
+        },
+      ];
+    }
+  }
+  return {
+    numero: ali.externoId,
+    loja: ali.loja,
+    statusTexto: ali.statusTexto,
+    dataDoPedido: ali.dataDoPedido,
+    entregueEm: ali.entregueEm,
+    canceladoNoAliExpressEm: ali.canceladoNoAliExpressEm,
+    linkDoPedido: `https://www.aliexpress.com/p/order/detail.html?orderId=${ali.externoId}`,
+    linkDoRastreio: `https://www.aliexpress.com/p/tracking/index.html?tradeOrderId=${ali.externoId}`,
+    linhasPendentes: ali.linhas
+      .filter((linha) => !linha.itemId)
+      .map((linha) => ({
+        id: linha.id,
+        titulo: linha.titulo,
+        opcao: linha.opcao,
+        urlDaFoto: linha.urlDaFoto,
+        urlDoItem: linha.urlDoItem,
+        quantidadeComprada: linha.quantidadeComprada,
+        precoComprado: numero(linha.precoComprado),
+        productId: linha.productId,
+        skuId: linha.skuId,
+      })),
+    linhaPorItem: Object.fromEntries(ali.linhas.filter((linha) => linha.itemId).map((linha) => [linha.itemId, linha.id])),
+    opcaoPorItem,
+    rastreioPorItem,
+    virtualPendentes: ali.linhas.filter((linha) => linha.virtualErro).map((linha) => ({ linhaId: linha.id, titulo: linha.titulo, erro: linha.virtualErro })),
   };
 }
 
@@ -454,6 +518,8 @@ const INCLUIR_NO_PEDIDO = {
       lancamentos: { where: { desfeitoEm: null }, orderBy: { lancadoEm: "asc" } },
     },
   },
+  // Pedido importado do AliExpress (spec 2026-10-28): os dados crus, as linhas (casadas e pendentes) e os pacotes.
+  aliexpress: { include: { linhas: { orderBy: { externoLinhaId: "asc" }, include: { pacote: true } } } },
 };
 
 export async function lerPedido(id) {
@@ -463,7 +529,8 @@ export async function lerPedido(id) {
 
 export async function listarPedidos({ status, busca, pagina = 1, porPagina = 25 } = {}) {
   const texto = String(busca ?? "").trim();
-  const numeroBuscado = /^(pc-?)?\d+$/i.test(texto) ? Number(texto.replace(/\D/g, "")) : null;
+  // O numero do pedido e Int: o numero do AliExpress (16 digitos) estouraria a consulta, e nao e numero de pedido do Rise.
+  const numeroBuscado = /^(pc-?)?\d{1,9}$/i.test(texto) ? Number(texto.replace(/\D/g, "")) : null;
   const where = {
     ...(status?.length ? { status: { in: status } } : {}),
     ...(texto
@@ -471,6 +538,7 @@ export async function listarPedidos({ status, busca, pagina = 1, porPagina = 25 
           OR: [
             { fornecedor: { nome: { contains: texto, mode: "insensitive" } } },
             ...(numeroBuscado ? [{ numero: numeroBuscado }] : []),
+            ...(/^\d{6,}$/.test(texto) ? [{ aliexpress: { externoId: { contains: texto } } }] : []),
           ],
         }
       : {}),
@@ -484,7 +552,8 @@ export async function listarPedidos({ status, busca, pagina = 1, porPagina = 25 
       take: porPagina,
       include: {
         fornecedor: { select: { nome: true } },
-        itens: { select: { quantidade: true, precoUnitario: true, ipiPercentual: true } },
+        itens: { select: { quantidade: true, quantidadeLancada: true, precoUnitario: true, ipiPercentual: true } },
+        aliexpress: { select: { loja: true, entregueEm: true, canceladoNoAliExpressEm: true, linhas: { select: { itemId: true } } } },
       },
     }),
   ]);
@@ -507,8 +576,20 @@ export async function listarPedidos({ status, busca, pagina = 1, porPagina = 25 
       }).total,
       enviadoEm: pedido.enviadoEm,
       atualizadoEm: pedido.atualizadoEm,
+      origem: pedido.origem,
+      loja: pedido.aliexpress?.loja ?? null,
+      alerta: alertaDaLista(pedido),
     })),
   };
+}
+
+/** O "!" da lista de pedidos do AliExpress: item sem produto, ou entregue no site com estoque por lancar. */
+function alertaDaLista(pedido) {
+  const ali = pedido.aliexpress;
+  if (!ali || pedido.status === "CANCELADO" || pedido.status === "FINALIZADO") return null;
+  if (ali.linhas.some((linha) => !linha.itemId)) return "pendente";
+  if (ali.entregueEm && !ali.canceladoNoAliExpressEm && pedido.itens.some((item) => faltaLancar(item) > 0)) return "entregue";
+  return null;
 }
 
 export async function contarPedidosPorStatus() {

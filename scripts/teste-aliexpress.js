@@ -508,6 +508,51 @@ try {
     await devolverMarca();
   }
 
+  {
+    console.log("\nLeitura do pedido do AliExpress para a tela");
+    const { importarLista, importarDetalhes } = await import("../src/lib/compras/aliexpress/importacao.js");
+    const { lerPedido, listarPedidos } = await import("../src/lib/compras/banco.js");
+    const { semPrecos } = await import("../src/lib/compras/projecao.js");
+    const { recursoPorId } = await import("../src/lib/acessos/recursos.js");
+    conferir("recurso de casar existe", recursoPorId("acao.compras.casarAliExpress")?.pai, "tela.compras.pedidos");
+    const ali = await prisma.fornecedor.create({ data: { nome: "ZZ Ali Tela", estrangeiro: true } });
+    await marcarFornecedorDoAliExpress(ali.id);
+    const T1 = await criarProduto("ZZ-ALI-T1", { blingId: "15000000951", fornecedorRascunho: { nome: "Ali", descricao: "https://pt.aliexpress.com/item/7005006891567710.html" } });
+    const falso = criarBlingFalso({ produtos: [noBling("ZZ-ALI-T1", 15000000951)] });
+    const lista = fixture("lista");
+    lista.pedidos = lista.pedidos.map((pedido) => ({ ...pedido, orderId: pedido.orderId.replace(/^9915/, "9935"), linhas: pedido.linhas.map((linha) => ({ ...linha, orderLineId: linha.orderLineId.replace(/^9915/, "9935"), productId: `7${linha.productId.slice(1)}` })) }));
+    await importarLista(lista, { cliente: falso });
+    const detalhes = fixture("detalhes");
+    detalhes.detalhes[0].orderId = "9935244197193461";
+    detalhes.rastreios[0].orderId = "9935244197193461";
+    detalhes.rastreios[0].pacotes[0].itens[0].productId = "7005006891567710";
+    await importarDetalhes(detalhes);
+    const pa = await prisma.pedidoAliExpress.findUnique({ where: { externoId: "9935244197193461" }, include: { linhas: true } });
+    const lido = await lerPedido(pa.pedidoId);
+    const itemId = lido.itens[0].id;
+    conferir(
+      "cabecalho do AliExpress",
+      [lido.origem, lido.aliexpress?.numero, lido.aliexpress?.loja, lido.aliexpress?.linkDoPedido, lido.imposto],
+      ["ALIEXPRESS", "9935244197193461", "Lets Deal Store", "https://www.aliexpress.com/p/order/detail.html?orderId=9935244197193461", 47.14],
+    );
+    conferir("opcao e rastreio por item", [lido.aliexpress.opcaoPorItem[itemId], lido.aliexpress.rastreioPorItem[itemId]?.[0]?.codigo], ["Color Name: 2M", "NN446506474BR"]);
+    const outro = await prisma.pedidoAliExpress.findUnique({ where: { externoId: "9935189636893461" } });
+    const lidoOutro = await lerPedido(outro.pedidoId);
+    conferir("linhas pendentes e aviso", [lidoOutro.aliexpress.linhasPendentes.length, lidoOutro.avisos.some((aviso) => aviso.includes("sem produto"))], [2, true]);
+    conferir("pedido do Rise nao tem bloco do AliExpress", (await lerPedido((await prisma.pedidoDeCompra.create({ data: { fornecedorId: ali.id, numero: (await prisma.pedidoDeCompra.aggregate({ _max: { numero: true } }))._max.numero + 1 } })).id)).aliexpress, null);
+    const busca = await listarPedidos({ busca: "9935244197193461" });
+    conferir("lista busca pelo numero do AliExpress e marca a origem", [busca.total, busca.linhas[0]?.origem, busca.linhas[0]?.loja], [1, "ALIEXPRESS", "Lets Deal Store"]);
+    conferir("busca por numero longo nao estoura o numero do pedido", (await listarPedidos({ busca: "99352441971934619" })).total, 0);
+    conferir("lista marca pendente", (await listarPedidos({ busca: "9935189636893461" })).linhas[0]?.alerta, "pendente");
+    conferir("sem custo nao ve o preco das pendentes", semPrecos(lidoOutro).aliexpress.linhasPendentes[0].precoComprado, null);
+    await prisma.pedidoAliExpress.update({ where: { id: pa.id }, data: { entregueEm: new Date("2026-10-27T12:00:00Z") } });
+    conferir("entregue sem lancar avisa", (await lerPedido(pa.pedidoId)).avisos, ["Entregue no AliExpress em 27/10, falta lançar."]);
+    conferir("lista marca entregue", (await listarPedidos({ busca: "9935244197193461" })).linhas[0]?.alerta, "entregue");
+    await prisma.itemDoPedidoDeCompra.update({ where: { id: itemId }, data: { quantidadeLancada: 4 } });
+    conferir("entregue com tudo lancado: sem aviso", (await lerPedido(pa.pedidoId)).avisos, []);
+    await devolverMarca();
+  }
+
   // Marcador: os blocos de banco seguintes entram acima desta linha.
 } finally {
   await devolverMarca();

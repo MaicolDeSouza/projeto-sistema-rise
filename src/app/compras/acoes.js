@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 
 import { negarSemAcesso, negarSemAcessos, podeAgora } from "@/lib/acessos/servidor";
 import { guardarPropostaTemporaria } from "@/lib/compras/arquivos";
+import { casarManual, desfazerCasamento } from "@/lib/compras/aliexpress/casamento";
+import { reenviarAoVirtual } from "@/lib/compras/aliexpress/importacao";
 import { desfazerUltimoLancamento, lancarEstoqueDoItem, reenviarPendentes } from "@/lib/compras/lancamento";
 import {
   adicionarAoPedido,
@@ -160,4 +162,48 @@ export async function excluirPedidoAcao(id) {
   const resultado = await excluirPedido(String(id ?? ""));
   if (resultado.ok) revalidar();
   return resultado;
+}
+
+// ---------------------------------------------------------------------------
+// AliExpress (spec 2026-10-28): casar a linha com o produto, trocar o produto e reenviar ao deposito Virtual
+// ---------------------------------------------------------------------------
+
+const PODE_CASAR = [
+  ["tela.compras.pedidos", "editar"],
+  ["acao.compras.casarAliExpress", "executar"],
+];
+
+async function pedidoDaLinha(linhaId) {
+  const linha = await prisma.linhaAliExpress.findUnique({ where: { id: String(linhaId ?? "") }, select: { pedidoAliExpress: { select: { pedidoId: true } } } });
+  return linha ? pedidoParaQuemVe(linha.pedidoAliExpress.pedidoId) : null;
+}
+
+/** "Casar": a linha do AliExpress vira item do pedido (produto + fator); devolve o pedido relido. */
+export async function casarLinhaAliExpressAcao(linhaId, produtoId, fator) {
+  const negado = await negarSemAcessos(...PODE_CASAR);
+  if (negado) return negado;
+  const resultado = await casarManual(String(linhaId ?? ""), String(produtoId ?? ""), fator);
+  if (!resultado.ok) return resultado;
+  revalidar();
+  return { ...resultado, pedido: await pedidoDaLinha(linhaId) };
+}
+
+/** "Trocar produto": a linha volta a ficar sem produto (so sem estoque lancado). */
+export async function desfazerCasamentoAliExpressAcao(linhaId) {
+  const negado = await negarSemAcessos(...PODE_CASAR);
+  if (negado) return negado;
+  const resultado = await desfazerCasamento(String(linhaId ?? ""));
+  if (!resultado.ok) return resultado;
+  revalidar();
+  return { ...resultado, pedido: await pedidoDaLinha(linhaId) };
+}
+
+/** "Reenviar ao Virtual" do aviso ambar. */
+export async function reenviarAoVirtualAcao(linhaId) {
+  const negado = await negarSemAcessos(...PODE_CASAR);
+  if (negado) return negado;
+  const resultado = await reenviarAoVirtual(String(linhaId ?? ""));
+  if (!resultado.ok) return resultado;
+  revalidar();
+  return { ...resultado, pedido: await pedidoDaLinha(linhaId) };
 }

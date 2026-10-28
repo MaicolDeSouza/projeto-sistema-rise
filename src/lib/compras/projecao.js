@@ -17,6 +17,10 @@ export function semPrecos(pedido) {
     imposto: SEM,
     itens: pedido.itens.map((item) => ({ ...item, precoUnitario: SEM, ipiPercentual: SEM })),
     totais: { ...pedido.totais, produtos: SEM, ipi: SEM, imposto: SEM, desconto: SEM, total: SEM, entrada: SEM, faltaPagar: SEM },
+    // Pedido do AliExpress: o preco das linhas sem produto tambem e preco de compra.
+    aliexpress: pedido.aliexpress
+      ? { ...pedido.aliexpress, linhasPendentes: pedido.aliexpress.linhasPendentes.map((linha) => ({ ...linha, precoComprado: SEM })) }
+      : pedido.aliexpress,
     semPrecos: true,
   };
 }

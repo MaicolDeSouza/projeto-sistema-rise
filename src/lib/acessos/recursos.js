@@ -85,6 +85,7 @@ const LISTA = [
   sub("tela.compras.estoqueMinimo", "Compras › Abaixo do estoque mínimo", "tela.compras"),
   sub("tela.compras.pedidos", "Compras › Pedidos de compra", "tela.compras"),
   acao("acao.compras.lancarEstoque", "Lançar estoque do pedido no Bling", "tela.compras.pedidos", "Grava a entrada no Rise e manda ao Bling; o Desfazer manda a saída."),
+  acao("acao.compras.casarAliExpress", "Casar item do AliExpress com produto", "tela.compras.pedidos", "Cria o item do pedido, grava o vínculo anúncio+opção do fornecedor Ali e manda a entrada no depósito Virtual do Bling."),
 
   tela("tela.scraper", "Scraper", "/mercados"),
   sub("tela.scraper.fontes", "Scraper › Fontes", "tela.scraper"),
