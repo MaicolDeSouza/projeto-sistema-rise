@@ -24,6 +24,17 @@ export const ROTULO_DA_ETAPA = {
   gravar: "Gravar no Rise",
 };
 
+/**
+ * As etapas do popup do Publicar (27/10/2026, igual ao do Sincronizar): a conferencia antes de escrever, as do anuncio e a
+ * releitura da tela ("conferir", so da tela).
+ */
+export function etapasDoPopupDoPublicar({ kit }) {
+  return [
+    { id: "preparar", rotulo: "Conferir o anúncio, o ML e o Bling" },
+    ...etapasDoAnuncio({ kit }).map((id) => ({ id, rotulo: ROTULO_DA_ETAPA[id] })),
+  ];
+}
+
 /** As etapas de um anuncio: `kit_bling` so existe no anuncio de composicao. */
 export function etapasDoAnuncio({ kit }) {
   return kit ? [...ETAPAS] : ETAPAS.filter((etapa) => etapa !== "kit_bling");

@@ -7,7 +7,8 @@ import { conteudoAtualDoAnuncio } from "./acompanhar";
 import { carregarAnuncioML, gravarPublicacao, lerPublicacao } from "./banco";
 import { impressaoDoConteudo } from "./impressao";
 import { conferirKitNoBling, criarKitNoBling, registrarAnuncioNoBlingML, vincularNoBlingML, vinculoNoBlingML } from "./bling";
-import { etapasDoAnuncio, proximaEtapa } from "./etapas";
+import { ETAPAS, etapasDoAnuncio, proximaEtapa } from "./etapas";
+import { iniciarProgressoML } from "./progresso";
 import { lerCategoriaCompleta, textoDoErroML } from "./leitura";
 import { nomeDaFoto, montarPayloadML } from "./payload";
 import { causasDoML, corpoDaCriacao, situacaoDoItem, textoDaRecusaML } from "./respostas";
@@ -175,15 +176,26 @@ async function fiscalDoPrincipal(produtoId) {
 export async function publicarAnuncioML(anuncioId, { ml, bling, recriar = false, ate = null, lerFoto = lerFotoDoDisco } = {}) {
   if (emAndamento.has(anuncioId)) return { ok: false, etapa: null, feitas: [], erro: "Publicação em andamento." };
   emAndamento.add(anuncioId);
+  // O andamento etapa por etapa para o popup do editor (pedido do dono em 27/10/2026: "igual a LI, mostrando as etapas"),
+  // na mesma memoria e na mesma rota do "Sincronizar com o ML". O "Validar no ML" nao abre andamento.
+  const progresso = ate === "validar" ? SEM_PROGRESSO : iniciarProgressoML(anuncioId, ["preparar", ...ETAPAS]);
+  let resultado;
   try {
-    return await publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto });
+    resultado = await publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto, progresso });
   } catch (erro) {
     console.error("[ml publicar]", erro);
-    return { ok: false, etapa: null, feitas: [], erro: `Não foi possível publicar: ${textoDe(erro)}` };
+    resultado = { ok: false, etapa: null, feitas: [], erro: `Não foi possível publicar: ${textoDe(erro)}` };
   } finally {
     emAndamento.delete(anuncioId);
   }
+  // A etapa que estava andando leva o motivo (a pre-checagem, as travas ou a etapa que falhou).
+  if (!resultado.ok) progresso.falhou(resultado.erro);
+  progresso.fim();
+  return resultado;
 }
+
+/// O "Validar no ML" nao mostra andamento: as marcas viram nada.
+const SEM_PROGRESSO = { andando() {}, feita() {}, falhou() {}, fim() {} };
 
 /** O ML recusou ativar porque o anuncio esta sem estoque (a causa vem em ingles: "...without stock"). */
 export function recusaPorFaltaDeEstoque(resposta) {
@@ -195,8 +207,9 @@ export function validarNoML(anuncioId, clientes) {
   return publicarAnuncioML(anuncioId, { ...clientes, ate: "validar" });
 }
 
-async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto }) {
+async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto, progresso = SEM_PROGRESSO }) {
   const soValidar = ate === "validar";
+  progresso.andando("preparar");
   const preparado = await prepararInterno(anuncioId, { ml, bling });
   if (!preparado.ok) {
     return { ok: false, etapa: null, feitas: preparado.interno?.publicacao?.feitas ?? [], erro: preparado.motivos.join(" "), motivos: preparado.motivos };
@@ -217,6 +230,8 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto })
   } catch (erro) {
     return { ok: false, etapa: null, feitas: pub.feitas ?? [], erro: textoDe(erro) };
   }
+
+  progresso.feita("preparar");
 
   const gravar = async (parcial, colunas = {}, opcoes = {}) => {
     pub = await gravarPublicacao(anuncioId, parcial, colunas, opcoes);
@@ -246,8 +261,11 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto })
   const corpo = () => corpoDaCriacao(payload.item, ids.map((id) => pub.fotos?.[id]));
   let avisos = [];
 
+  // Retomar: as etapas ja feitas numa volta anterior aparecem concluidas no popup.
+  for (const etapa of feitas) progresso.feita(etapa, "já feita");
   for (const etapa of etapas) {
     if (feitas.has(etapa)) continue;
+    progresso.andando(etapa);
 
     if (etapa === "fotos") {
       const arquivos = await prisma.produtoArquivo.findMany({ where: { id: { in: ids } }, select: { id: true, arquivo: true, produto: { select: { sku: true } } } });
@@ -385,9 +403,11 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto })
         { status: "PUBLICADO", situacaoCanal: situacaoDoItem(pub.statusML), publicadoEm: new Date(), erro: null },
         { apagarProposta: true },
       );
+      progresso.feita(etapa);
       return { ok: true, etapa, feitas: pub.feitas, itemId: pub.itemId, permalink: pub.permalink, ...(avisos.length ? { avisos } : {}) };
     }
     await marcar(etapa);
+    progresso.feita(etapa);
   }
   return { ok: true, etapa: null, feitas: pub.feitas ?? [], itemId: pub.itemId, permalink: pub.permalink };
 }

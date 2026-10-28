@@ -6,7 +6,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import Link from "next/link";
 import { Copy, ExternalLink, Loader, X } from "lucide-react";
 
-import { abrirAnuncioML, enviarMudancasMLAcao, lerCategoriaML, marcarCatalogoVistoMLAcao, salvarAnuncioML, salvarPublicadoMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
+import { abrirAnuncioML, enviarMudancasMLAcao, lerCategoriaML, marcarCatalogoVistoMLAcao, publicarAnuncioMLAcao, salvarAnuncioML, salvarPublicadoMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
+import { etapasDoPopupDoPublicar } from "@/lib/canaisDeVenda/ml/etapas";
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import AcoesDoFimDoEnvio from "@/components/anuncios/li/AcoesDoFimDoEnvio";
 import AndamentoDoEnvio from "@/components/produtos/AndamentoDoEnvio";
@@ -294,9 +295,11 @@ export default function EditorAnuncioML({
 
   // Publicar e "Enviar mudancas" levam o anuncio SALVO: com alteracao na tela, SALVAM SOZINHOS e seguem (pedido do dono em
   // 27/10/2026: "ao clicar em publicar ja deve salvar as modificacoes de forma automatica"; ate ali perguntavam antes).
+  // A criacao que ficou sem resposta do ML ("incerta") abre a janela de antes, com o "Criar de novo" (decisao do dono).
   function pedirPublicar() {
-    if (alterado || !idAtual) salvarEContinuar("publicar");
-    else setPublicando(true);
+    if (publicacao?.incerta) setPublicando(true);
+    else if (alterado || !idAtual) salvarEContinuar("publicar");
+    else publicarComEtapas(idAtual);
   }
   function pedirEnvio() {
     if (alterado) salvarEContinuar("enviar");
@@ -307,7 +310,7 @@ export default function EditorAnuncioML({
     iniciarSalvamento(async () => {
       const resultado = await gravar({ adiarAoSalvar: true });
       if (!resultado.ok) return;
-      if (depois === "publicar") setPublicando(true);
+      if (depois === "publicar") publicarComEtapas(resultado.id ?? idAtual);
       else enviarMudancas();
     });
   }
@@ -321,9 +324,9 @@ export default function EditorAnuncioML({
   const motivosSemPublicar = !publicacao?.itemId && bloqueantes > 0 ? [`${bloqueantes} problema(s) bloqueante(s): veja a aba Status.`] : [];
 
   // Le de novo o status, o anuncio no ML e o que mudou no produto (depois do Publicar e do "Enviar mudancas ao ML").
-  async function relerDoML() {
+  async function relerDoML(id = idAtual) {
     try {
-      const relido = await abrirAnuncioML(idAtual);
+      const relido = await abrirAnuncioML(id);
       if (!relido.ok) return;
       setStatusAtual(relido.status);
       setInfoDoML({ publicacao: relido.publicacao, idExterno: relido.idExterno, urlExterna: relido.urlExterna, mudancas: relido.mudancas });
@@ -395,6 +398,54 @@ export default function EditorAnuncioML({
               resumo: resultado?.ok
                 ? { titulo: enviadas.length > 0 ? "Enviado ao Mercado Livre:" : "Nada a enviar: o anúncio já estava igual ao produto.", linhas: enviadas.map((parte) => NOMES_DAS_PARTES[parte] ?? parte) }
                 : null,
+            }
+          : atual,
+      );
+    });
+  }
+
+  /**
+   * "Publicar" com o popup de etapas (pedido do dono em 27/10/2026: "igual a LI, onde vao mostrando as etapas"; antes a tela
+   * congelava e so no fim mostrava tudo concluido). Mesmo molde do "Enviar ao ML": o servidor marca cada etapa
+   * (`publicar.js` -> `progresso.js`) e a tela le pela rota. `id` vem de quem chama: logo depois do Salvar de um anuncio novo,
+   * o `idAtual` deste render ainda e o de antes.
+   */
+  function publicarComEtapas(id) {
+    const kit = Boolean(rascunho.composicao);
+    setAndamento({ tipo: "publicar", etapas: etapasIniciais([...etapasDoPopupDoPublicar({ kit }), { id: "conferir", rotulo: "Conferir o resultado no ML" }]), fim: null, resumo: null });
+    iniciarEnvioDasMudancas(async () => {
+      const numeroDeAntes = (await lerAndamentoNoServidor(ROTA_DO_ANDAMENTO, id))?.numero ?? 0;
+      const relogio = setInterval(async () => {
+        const lido = await lerAndamentoNoServidor(ROTA_DO_ANDAMENTO, id);
+        if (!lido || lido.numero <= numeroDeAntes || lido.terminou) return;
+        setAndamento((atual) => (atual && !atual.fim ? { ...atual, etapas: mesclarEtapas(atual.etapas, lido.etapas) } : atual));
+      }, 400);
+      let resultado;
+      try {
+        resultado = await publicarAnuncioMLAcao(id, {});
+      } catch {
+        resultado = { ok: false, erro: "Não foi possível falar com o servidor. Abra o anúncio de novo e confira a situação antes de tentar outra vez." };
+      } finally {
+        clearInterval(relogio);
+      }
+      const final = await lerAndamentoNoServidor(ROTA_DO_ANDAMENTO, id);
+      setAndamento((atual) => {
+        if (!atual) return atual;
+        const base = final && final.numero > numeroDeAntes ? mesclarEtapas(atual.etapas, final.etapas) : atual.etapas;
+        const etapas = etapasComOResultado(base, resultado);
+        return { ...atual, etapas: resultado?.ok ? etapas.map((etapa) => (etapa.id === "conferir" ? { ...etapa, estado: "andando" } : etapa)) : etapas };
+      });
+      await relerDoML(id);
+      setAndamento((atual) =>
+        atual
+          ? {
+              ...atual,
+              etapas: resultado?.ok ? atual.etapas.map((etapa) => (etapa.id === "conferir" ? { ...etapa, estado: "feito" } : etapa)) : atual.etapas,
+              fim: resultado?.ok ? "ok" : "falhou",
+              // Os avisos do validador ("User has not mode me1"...) nao pedem acao: o fim fica so com o recado e os botoes.
+              resumo: resultado?.ok ? { titulo: "Anúncio publicado e ativo no Mercado Livre.", linhas: [] } : null,
+              // Criacao sem resposta do ML: o "Voltar a janela" abre a janela de antes, com o "Criar de novo".
+              incerta: Boolean(resultado?.incerta),
             }
           : atual,
       );
@@ -603,13 +654,21 @@ export default function EditorAnuncioML({
     <AndamentoDoEnvio
       canal="ml"
       larga
-      tipo="sincronizar"
+      tipo={andamento.tipo ?? "sincronizar"}
       sku={infoDoML.idExterno ?? contexto.produtos[rascunho.produtoId]?.sku ?? ""}
       etapas={andamento.etapas}
       fim={andamento.fim}
       resumo={andamento.resumo}
       aoFechar={fecharTudo}
-      aoVoltar={() => setAndamento(null)}
+      aoVoltar={() => {
+        const era = andamento;
+        setAndamento(null);
+        // Publicar que falhou: a criacao incerta abre a janela do "Criar de novo"; o anuncio novo troca de endereco agora.
+        if (era?.tipo === "publicar") {
+          if (era.incerta) setPublicando(true);
+          else aoFecharPublicacao(false);
+        }
+      }}
       acoesDoFim={<AcoesDoFimDoEnvio linkDoPainel={linkDoPainel} linkDoSite={linkDoAnuncio} aoFechar={fecharTudo} textos={TEXTOS_DO_FIM} />}
     />
   );

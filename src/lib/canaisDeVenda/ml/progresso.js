@@ -19,7 +19,8 @@ globalThis[SEQUENCIA] ??= 0;
 const VALIDADE_MS = 15 * 60 * 1000;
 
 /** Abre o andamento de um envio e devolve as marcas que o envio usa. */
-export function iniciarProgressoML(anuncioId) {
+// `ids`: as etapas do servidor; o padrao e as do "Sincronizar com o ML". O Publicar passa as dele (27/10/2026).
+export function iniciarProgressoML(anuncioId, ids = null) {
   const agora = Date.now();
   for (const [chave, item] of mapa) if (agora - item.em > VALIDADE_MS) mapa.delete(chave);
 
@@ -27,7 +28,7 @@ export function iniciarProgressoML(anuncioId) {
   const item = {
     numero: globalThis[SEQUENCIA],
     em: agora,
-    etapas: ETAPAS_DO_ENVIO_ML.filter((etapa) => etapa.id !== "conferir").map((etapa) => ({ id: etapa.id, estado: "espera", detalhe: null })),
+    etapas: (ids ?? ETAPAS_DO_ENVIO_ML.filter((etapa) => etapa.id !== "conferir").map((etapa) => etapa.id)).map((id) => ({ id, estado: "espera", detalhe: null })),
     terminou: false,
   };
   mapa.set(String(anuncioId), item);

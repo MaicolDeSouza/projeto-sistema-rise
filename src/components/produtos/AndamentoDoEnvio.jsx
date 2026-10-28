@@ -18,6 +18,8 @@ const TEXTOS = {
   // E ao "Enviar ao ML" do anuncio publicado (26/10/2026).
   ml: {
     sincronizar: { andando: "Sincronizando com o Mercado Livre", ok: "Sincronização concluída", falhou: "Sincronização interrompida" },
+    // O Publicar com etapas (27/10/2026).
+    publicar: { andando: "Publicando no Mercado Livre", ok: "Publicação concluída", falhou: "Publicação interrompida" },
   },
 };
 

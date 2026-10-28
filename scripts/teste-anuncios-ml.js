@@ -615,7 +615,7 @@ try {
         conferir("contexto: custo do cadastro", ctx[p4.id].custo, { valor: 3, origem: "cadastro" });
         conferir("contexto: sem custo", ctx[p2.id].custo, { valor: null, origem: null });
         conferir("contexto: os campos que o rascunho le", Object.keys(ctx[p1.id]).sort(),
-          ["alturaCm", "blingId", "comprimentoCm", "conferido", "custo", "descricaoBase", "ean", "estoque", "garantiaMeses", "id", "imagens", "larguraCm", "marca", "modelo", "pesoKg", "precoVenda", "sku", "tituloBase"]);
+          ["alturaCm", "blingId", "comprimentoCm", "conferido", "custo", "descricaoBase", "ean", "estoque", "fotosDoKit", "garantiaMeses", "id", "imagens", "larguraCm", "marca", "modelo", "pesoKg", "precoVenda", "sku", "tituloBase"]);
         conferir("contexto: Decimal vira Number", [ctx[p1.id].precoVenda, ctx[p1.id].pesoKg, ctx[p1.id].alturaCm, ctx[p1.id].larguraCm, ctx[p1.id].comprimentoCm, ctx[p1.id].estoque], [10, 0.05, 2, 3, 4, 9]);
         conferir("contexto: sem preco nem peso e null, nao zero", [ctx[p2.id].precoVenda, ctx[p2.id].pesoKg], [null, null]);
         conferir("contexto: so fotos, na ordem do banco, com o endereco calculado", ctx[p1.id].imagens, [
