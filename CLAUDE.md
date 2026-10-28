@@ -5585,7 +5585,7 @@ Pedido do dono: varrer **todo sábado às 00:00** e, no fim, um relatório com *
 - **Exclusão de produto: "Excluir" nos 3 pontinhos de cada linha da lista** (pedido do dono em
   09/10/2026). De 18/09 a 09/10/2026 era em lote, por caixa de seleção e uma lixeira fixa ao lado da
   busca; a lixeira e as caixas saíram, e os "Cadastrar no Bling/LI/ML/Shopee" desabilitados que moravam
-  no menu também. O menu tem só **Clonar** e **Excluir**. **A confirmação continua sendo o popup com
+  no menu também. O menu tem só **Clonar** e **Excluir**. **Ele é `fixed`, posto pelo botão na hora do clique, e abre PARA CIMA quando não cabe embaixo** (pedido do dono em 28/10/2026: na última linha o menu `absolute` aumentava a rolagem da tabela e aparecia uma barra); fecha ao rolar ou redimensionar. **A confirmação continua sendo o popup com
   nome e SKU**, não o `confirm()` nativo: um erro real de teste (excluído o produto errado por
   reordenação da lista) mostrou que "Excluir estes 2 produtos?" não deixa ver o que está marcado.
   Produto com anúncio publicado ou que é peça de kit continua recusado, com o motivo no aviso.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Copy, EllipsisVertical, ImageOff, Trash2 } from "lucide-react";
@@ -76,6 +76,39 @@ export default function LinhaProduto({
   acessos = { editar: true, excluir: true, clonar: true, verLocalizacao: true, editarLocalizacao: true, estoqueExato: true, margem: true },
 }) {
   const [menuAberto, setMenuAberto] = useState(false);
+  // Onde o menu dos 3 pontinhos abre (pedido do dono em 28/10/2026): `fixed`, calculado do botao na hora do clique, para
+  // nao aumentar a rolagem da tabela (a ultima linha ganhava uma barra de rolagem) e abrir PARA CIMA quando nao cabe embaixo.
+  const [posicaoDoMenu, setPosicaoDoMenu] = useState(null);
+
+  // Fixo na tela, o menu nao acompanha a rolagem: rolar ou redimensionar o fecha.
+  useEffect(() => {
+    if (!menuAberto) return undefined;
+    const fechar = () => setMenuAberto(false);
+    window.addEventListener("scroll", fechar, true);
+    window.addEventListener("resize", fechar);
+    return () => {
+      window.removeEventListener("scroll", fechar, true);
+      window.removeEventListener("resize", fechar);
+    };
+  }, [menuAberto]);
+
+  function alternarMenu(evento) {
+    if (menuAberto) {
+      setMenuAberto(false);
+      return;
+    }
+    const caixa = evento.currentTarget.getBoundingClientRect();
+    // Altura do menu: o padding, mais ~36 px por item (Clonar e/ou Excluir) e a margem do botao.
+    const itens = (acessos.clonar ? 1 : 0) + (acessos.excluir ? 1 : 0);
+    const altura = 8 + itens * 36 + 8;
+    const paraCima = window.innerHeight - caixa.bottom < altura + 8 && caixa.top > altura;
+    setPosicaoDoMenu({
+      // `clientWidth` e a largura SEM a barra de rolagem: com `innerWidth` o menu saia 15 px para a esquerda do botao.
+      direita: Math.max(8, document.documentElement.clientWidth - caixa.right),
+      ...(paraCima ? { bottom: window.innerHeight - caixa.top + 4 } : { top: caixa.bottom + 4 }),
+    });
+    setMenuAberto(true);
+  }
   const [janelaML, setJanelaML] = useState(false);
   const [janelaBling, setJanelaBling] = useState(false);
   const [janelaLI, setJanelaLI] = useState(false);
@@ -290,7 +323,7 @@ export default function LinhaProduto({
           {(acessos.clonar || acessos.excluir) && (
           <button
             type="button"
-            onClick={() => setMenuAberto((aberto) => !aberto)}
+            onClick={alternarMenu}
             aria-label="Ações do produto"
             aria-expanded={menuAberto}
             className="ml-auto rounded p-1 text-suave hover:bg-fundo hover:text-texto"
@@ -314,14 +347,17 @@ export default function LinhaProduto({
 
         {/* Acoes do produto (pedido do dono em 09/10/2026): so Clonar e Excluir. Os "Cadastrar no
             Bling/LI/ML/Shopee" desabilitados que moravam aqui sairam; cada canal tem o proprio icone. */}
-        {menuAberto && (
+        {menuAberto && posicaoDoMenu && (
           <>
             <div
               className="fixed inset-0 z-10"
               onClick={() => setMenuAberto(false)}
               aria-hidden="true"
             />
-            <div className="absolute top-full right-3 z-20 mt-1 w-44 rounded-md border border-borda bg-superficie py-1 text-left shadow-lg">
+            <div
+              style={{ right: posicaoDoMenu.direita, top: posicaoDoMenu.top, bottom: posicaoDoMenu.bottom }}
+              className="fixed z-20 w-44 rounded-md border border-borda bg-superficie py-1 text-left shadow-lg"
+            >
               {acessos.clonar && (
               <Link
                 href={`/produtos/novo?clonar=${produto.id}`}
