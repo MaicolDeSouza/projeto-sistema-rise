@@ -843,7 +843,16 @@ try {
         const lista = await listarAnunciosML({ busca: "zz-ml" });
         conferir("lista traz os anuncios de teste", lista.total >= 6, true);
         conferir("lista: acha pelo SKU sem diferenciar caixa, so do Mercado Livre", [lista.total, lista.linhas.length, lista.pagina, lista.totalPaginas], [totalDeTeste, totalDeTeste, 1, 1]);
-        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["aguardandoEstoque", "atualizadoEm", "avisosML", "codigo", "estadoML", "estadoMLPedeAcao", "id", "idExterno", "preco", "produtoId", "rankingML", "status", "tipoAnuncio", "titulo", "urlExterna"]);
+        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["aguardandoEstoque", "atualizadoEm", "avisosML", "codigo", "estadoML", "estadoMLPedeAcao", "estoque", "fotoUrl", "icone", "id", "idExterno", "linkDoAnuncio", "linkDoPainel", "preco", "produtoId", "rankingML", "status", "tipoAnuncio", "titulo", "urlExterna"]);
+        // As colunas que ordenam (28/10/2026): no servidor, antes de paginar; o vazio vai para o fim nas duas direcoes.
+        const porPreco = (direcao) => listarAnunciosML({ busca: "zz-ml", ordenar: "preco", direcao }).then((r) => r.linhas.map((l) => l.preco));
+        const [subindo, descendo] = [await porPreco("asc"), await porPreco("desc")];
+        const comPreco = (lista) => lista.filter((p) => typeof p === "number");
+        conferir("lista: ordena pelo preco, crescente", comPreco(subindo), [...comPreco(subindo)].sort((x, y) => x - y));
+        conferir("lista: ordena pelo preco, decrescente", comPreco(descendo), [...comPreco(descendo)].sort((x, y) => y - x));
+        conferir("lista: sem preco vai para o fim nas duas direcoes", [subindo, descendo].map((l) => l.findIndex((p) => typeof p !== "number") === -1 || l.slice(l.findIndex((p) => typeof p !== "number")).every((p) => typeof p !== "number")), [true, true]);
+        conferir("lista: coluna desconhecida mantem o mais recente primeiro", (await listarAnunciosML({ busca: "zz-ml", ordenar: "xpto" })).linhas.map((l) => l.id), lista.linhas.map((l) => l.id));
+        conferir("lista: estoque do kit pelas pecas, links so com MLB", [typeof lista.linhas[0].estoque, lista.linhas.every((l) => l.idExterno ? true : l.linkDoAnuncio === null && l.linkDoPainel === null)], ["number", true]);
         conferir("lista: o mais recente primeiro", lista.linhas.every((l, i) => i === 0 || lista.linhas[i - 1].atualizadoEm >= l.atualizadoEm), true);
         conferir("lista: acha pelo codigo do kit", (await listarAnunciosML({ busca: "zz-ml-kit2" })).linhas.map((l) => [l.id, l.codigo]), [[k2.id, "ZZ-ML-KIT2"]]);
         conferir("lista: acha pelo titulo", (await listarAnunciosML({ busca: "ZZ TITULO NOVO" })).linhas.map((l) => [l.id, l.titulo, l.tipoAnuncio]), [[premium.id, "ZZ Titulo novo", "gold_pro"]]);

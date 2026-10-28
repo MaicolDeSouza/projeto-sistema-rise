@@ -307,8 +307,50 @@ export async function vincularPeloSku(produtoId, { idItemExterno, url, ativo, sl
   return { anuncioId: anuncio.id };
 }
 
-/** Lista dos anuncios da LI, 100 por pagina, o mais recente primeiro; busca sem caixa em titulo e SKU. */
-export async function listarAnunciosLI({ busca, pagina } = {}) {
+// As colunas que ordenam a lista da LI (pedido do dono em 28/10/2026, o mesmo filtro de coluna do ML e de Produtos). Preco e
+// estoque sao os do produto: a LI recebe o preco de venda dele, e o estoque e o do Bling, que o Rise espelha no produto.
+const ORDEM_DA_LISTA_LI = {
+  titulo: (direcao) => ({ titulo: { sort: direcao, nulls: "last" } }),
+  codigo: (direcao) => ({ produto: { sku: direcao } }),
+  preco: (direcao) => ({ produto: { precoVenda: { sort: direcao, nulls: "last" } } }),
+  estoque: (direcao) => ({ produto: { estoque: direcao } }),
+  situacao: (direcao) => ({ status: direcao }),
+};
+
+/**
+ * Foto, links e o icone da LI das linhas DA PAGINA (28/10/2026): a foto principal do produto (a mesma que vai a loja) e o
+ * icone pela MESMA conta da lista de Produtos (`iconesDosProdutos`), para o "!" de uma tela nunca discordar da outra.
+ */
+async function comFotoEIconeLI(linhas) {
+  // Import na hora: iconesDaListaDeProdutos importa este arquivo (documentosDoProduto), e o ciclo no topo quebraria a carga.
+  const { INCLUDE_DOS_ICONES, iconesDosProdutos } = await import("@/lib/iconesDaListaDeProdutos");
+  const ids = [...new Set(linhas.map((linha) => linha.produtoId))];
+  const produtos = await prisma.produto.findMany({ where: { id: { in: ids } }, include: INCLUDE_DOS_ICONES });
+  const icones = await iconesDosProdutos(produtos);
+  const principais = new Map(
+    (
+      await prisma.produtoArquivo.findMany({
+        where: { produtoId: { in: ids }, tipo: "IMAGEM", papel: "FOTO" },
+        orderBy: [{ principal: "desc" }, { ordem: "asc" }],
+        select: { produtoId: true, arquivo: true, produto: { select: { sku: true } } },
+      })
+    ).reverse().map((arquivo) => [arquivo.produtoId, arquivo]),
+  );
+  return linhas.map((linha) => {
+    const foto = principais.get(linha.produtoId);
+    const iconeLI = icones.get(linha.produtoId)?.iconeLI ?? null;
+    return {
+      ...linha,
+      fotoUrl: foto ? urlDe(foto.produto.sku, "IMAGEM", foto.arquivo) : null,
+      linkDaLoja: /^https?:\/\//i.test(String(linha.urlExterna ?? "")) ? linha.urlExterna : null,
+      linkDoPainel: /^\d+$/.test(String(linha.idExterno ?? "")) ? `https://app.lojaintegrada.com.br/catalogo/produto/${linha.idExterno}/editar` : null,
+      icone: iconeLI,
+    };
+  });
+}
+
+/** Lista dos anuncios da LI, 100 por pagina, o mais recente primeiro (ou pela coluna escolhida); busca sem caixa em titulo e SKU. */
+export async function listarAnunciosLI({ busca, pagina, ordenar = "", direcao = "asc" } = {}) {
   const termo = String(busca ?? "").trim();
   const where = {
     canal: CANAL,
@@ -328,7 +370,8 @@ export async function listarAnunciosLI({ busca, pagina } = {}) {
   const atual = Math.min(Math.max(Number.isFinite(pedida) ? pedida : 1, 1), totalPaginas);
   const anuncios = await prisma.anuncio.findMany({
     where,
-    orderBy: { atualizadoEm: "desc" },
+    // Ordem pela coluna, com o id de desempate (sem ele, linhas iguais trocariam de pagina entre um clique e outro).
+    orderBy: ORDEM_DA_LISTA_LI[ordenar] ? [ORDEM_DA_LISTA_LI[ordenar](direcao === "desc" ? "desc" : "asc"), { id: "asc" }] : { atualizadoEm: "desc" },
     skip: (atual - 1) * POR_PAGINA,
     take: POR_PAGINA,
     select: {
@@ -339,20 +382,24 @@ export async function listarAnunciosLI({ busca, pagina } = {}) {
       urlExterna: true,
       sincronizadoEm: true,
       atualizadoEm: true,
-      produto: { select: { sku: true } },
+      produtoId: true,
+      produto: { select: { sku: true, precoVenda: true, estoque: true } },
     },
   });
   return {
-    linhas: anuncios.map((a) => ({
+    linhas: await comFotoEIconeLI(anuncios.map((a) => ({
       id: a.id,
+      produtoId: a.produtoId,
       sku: a.produto.sku,
+      preco: a.produto.precoVenda === null ? null : Number(a.produto.precoVenda),
+      estoque: a.produto.estoque,
       titulo: a.titulo ?? "",
       status: a.status,
       idExterno: a.idExterno,
       urlExterna: a.urlExterna,
       sincronizadoEm: a.sincronizadoEm,
       atualizadoEm: a.atualizadoEm,
-    })),
+    }))),
     total,
     pagina: atual,
     totalPaginas,

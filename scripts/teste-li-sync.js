@@ -348,6 +348,12 @@ try {
       conferir("lista acha por sku sem caixa", (await listarAnunciosLI({ busca: "zz-li-3" })).linhas.map((l) => l.sku), ["ZZ-LI-3"]);
       conferir("lista acha por titulo sem caixa", (await listarAnunciosLI({ busca: "BIVOLT" })).linhas.map((l) => [l.sku, l.idExterno]), [["ZZ-LI-3", "401"]]);
       conferir("lista pagina fora do intervalo cai na ultima", (await listarAnunciosLI({ busca: "zz-li-", pagina: 99 })).pagina, 1);
+      // As colunas que ordenam (28/10/2026) e o que cada linha leva a mais: preco e estoque do produto, os links e o icone.
+      const porCodigo = (direcao) => listarAnunciosLI({ busca: "zz-li-", ordenar: "codigo", direcao }).then((r) => r.linhas.map((l) => l.sku));
+      const [codigosSubindo, codigosDescendo] = [await porCodigo("asc"), await porCodigo("desc")];
+      conferir("lista ordena pelo codigo nas duas direcoes", [codigosSubindo, codigosDescendo], [[...codigosSubindo].sort(), [...codigosSubindo].sort().reverse()]);
+      const linhaZZ3 = (await listarAnunciosLI({ busca: "zz-li-3" })).linhas[0];
+      conferir("lista: links da loja e do painel, e o icone da LI", [linhaZZ3.linkDoPainel, typeof linhaZZ3.estoque, Boolean(linhaZZ3.icone)], ["https://app.lojaintegrada.com.br/catalogo/produto/401/editar", "number", true]);
       await prisma.produtoArquivo.create({ data: { produtoId: p.id, tipo: "DOCUMENTO", arquivo: "abc.pdf", nomeOriginal: "Manual.pdf" } });
       conferir("documentos: sem endereco publico, nenhum", await documentosDoProduto({ id: p.id, sku: "ZZ-LI-3" }), []);
       config.appUrlPublica = "https://rise.exemplo.com/";

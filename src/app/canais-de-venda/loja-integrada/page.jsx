@@ -28,11 +28,13 @@ export default async function LojaIntegradaPage({ searchParams }) {
   const podeEditar = pode("tela.canaisDeVenda.lojaIntegrada", "editar");
   const params = await searchParams;
   const busca = textoDe(params?.q);
+  const ordenar = textoDe(params?.ordenar);
+  const direcao = textoDe(params?.direcao) === "desc" ? "desc" : "asc";
 
   let lista = null;
   let erro = null;
   try {
-    lista = await listarAnunciosLI({ busca, pagina: textoDe(params?.pagina) });
+    lista = await listarAnunciosLI({ busca, pagina: textoDe(params?.pagina), ordenar, direcao });
   } catch (e) {
     erro = e;
   }
@@ -69,7 +71,7 @@ export default async function LojaIntegradaPage({ searchParams }) {
             <Paginacao compacto pagina={lista.pagina} totalPaginas={lista.totalPaginas} primeiro={primeiro} ultimo={ultimo} total={lista.total} />
           </div>
 
-          <TabelaAnunciosLI linhas={lista.linhas} busca={busca} />
+          <TabelaAnunciosLI linhas={lista.linhas} busca={busca} ordenar={ordenar} direcao={direcao} />
 
           {lista.linhas.length > 0 && (
             <>

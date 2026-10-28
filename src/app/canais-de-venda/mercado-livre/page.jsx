@@ -29,11 +29,13 @@ export default async function MercadoLivrePage({ searchParams }) {
   const verConcorrencia = pode("dado.concorrentes", "ver");
   const params = await searchParams;
   const busca = textoDe(params?.q);
+  const ordenar = textoDe(params?.ordenar);
+  const direcao = textoDe(params?.direcao) === "desc" ? "desc" : "asc";
 
   let lista = null;
   let erro = null;
   try {
-    lista = await listarAnunciosML({ busca, pagina: textoDe(params?.pagina) });
+    lista = await listarAnunciosML({ busca, pagina: textoDe(params?.pagina), ordenar, direcao });
   } catch (e) {
     erro = e;
   }
@@ -77,7 +79,7 @@ export default async function MercadoLivrePage({ searchParams }) {
             />
           </div>
 
-          <TabelaAnunciosML linhas={lista.linhas} busca={busca} verConcorrencia={verConcorrencia} podeClonar={podeEditar} />
+          <TabelaAnunciosML linhas={lista.linhas} busca={busca} ordenar={ordenar} direcao={direcao} verConcorrencia={verConcorrencia} podeClonar={podeEditar} />
 
           {lista.linhas.length > 0 && (
             <>

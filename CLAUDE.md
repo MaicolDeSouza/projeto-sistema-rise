@@ -164,6 +164,12 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
     página 1. No Scraper: Nome, Código, Estoque, Valor e Atualizado (`listarProdutos` ganhou `ordenar`/`direcao`; vazio,
     "N/A" e sem quantidade vão para o fim; "Atualizado" ordena pelo `coletadoEm`, que é a data da coluna). "Menor valor" e
     "Maior valor" ligam a coluna Valor; o link antigo `?ordem=menor|maior` ainda vale.
+  - **Listas de anúncios do ML e da LI (28/10/2026, pedido do dono):** colunas foto (`FotoComLupa`), título, código, preço,
+    estoque, (tipo, no ML), situação (ponto colorido + texto numa linha; o estado lido do ML só ganha linha própria quando
+    pede ação), link do anúncio, link do painel, (concorrência compacta, no ML) e por último o ícone do canal igual ao de
+    Produtos ("!" e "C"; o da LI vem de `iconesDosProdutos`, a mesma conta). "Atualizado em" e "Sincronizado em" saíram.
+    Ordenam título, código, preço, estoque, (tipo) e situação: no ML em memória antes de paginar (o preço e o código do kit
+    moram no JSON), na LI no banco.
 - **Texto cortado mostra o resto AO PASSAR O MOUSE, rápido**, em todo o Rise (23/10/2026 o dono pediu ao clique; em
   24/10/2026 mudou: "ao clicar não quero que abra esse popup, quero que abra rapidamente o texto como é feito ao deixar o
   mouse em cima por um tempo"): `TextoCortadoAoClicar` (`src/components/ui/`, montado no `layout.jsx`; o nome ficou)

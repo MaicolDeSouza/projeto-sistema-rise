@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/db";
 import { urlDe } from "@/lib/arquivos";
-import { codigoDaComposicao, errosDaComposicao, proximoCodigoDaFaixa } from "../composicao";
+import { codigoDaComposicao, errosDaComposicao, estoqueDaComposicao, proximoCodigoDaFaixa } from "../composicao";
 import { custoDoProduto } from "../custo";
 import { conteudoAtualDoAnuncio, fichaDoAnuncio, mudancasDoAnuncio, prazoDoAnuncio, precoDoAnuncio } from "./acompanhar";
 import { avisosDeVariosProdutos } from "./concorrentes";
 import { precisaAgirNoML, textoDoEstadoML } from "./estadoNoML";
+import { estadoDoIconeML, rotuloDoIconeML } from "./icone";
 import { impressaoDoConteudo } from "./impressao";
+import { linkDoAnuncioML, linkDoPainelML } from "./rotulos";
 import { montarRanking } from "./ranking";
 import { catalogosDeVariosProdutos } from "./referencias";
 import { RascunhoMLSchema } from "./esquema";
@@ -554,7 +556,7 @@ export async function salvarPresoML(anuncioId, entrada) {
   }
 }
 
-const DADOS_DA_LINHA = { id: true, produtoId: true, titulo: true, status: true, atualizadoEm: true, dados: true, idExterno: true, urlExterna: true, produto: { select: { sku: true } } };
+const DADOS_DA_LINHA = { id: true, produtoId: true, titulo: true, status: true, canal: true, situacaoCanal: true, atualizadoEm: true, dados: true, idExterno: true, urlExterna: true, produto: { select: { sku: true } } };
 
 // A coluna "Concorrencia" (concorrentes do ML pelo catalogo): os avisos do produto de cada linha, lidos de uma vez, e
 // a posicao do preco do anuncio no ranking dos catalogos ("2º de 5"), com o preco DESTE anuncio (Classico e Premium
@@ -605,19 +607,87 @@ export async function anunciosMLDoProduto(produtoId) {
  * pagina aqui, e nao no banco: o codigo do kit mora num JSON, que o Prisma nao filtra sem
  * diferenciar caixa, e a lista so tem os anuncios criados pelo editor (poucos).
  */
-export async function listarAnunciosML({ busca, pagina } = {}) {
+// As colunas que ordenam a lista do ML (pedido do dono em 28/10/2026, o mesmo filtro de coluna da lista de Produtos).
+const ORDEM_DA_LISTA_ML = {
+  titulo: (linha) => String(linha.titulo ?? "").toLowerCase(),
+  codigo: (linha) => String(linha.codigo ?? "").toLowerCase(),
+  preco: (linha) => (typeof linha.preco === "number" ? linha.preco : null),
+  estoque: (linha) => (typeof linha.estoque === "number" ? linha.estoque : null),
+  tipo: (linha) => String(linha.tipoAnuncio ?? ""),
+  situacao: (linha) => String(linha.status ?? ""),
+};
+
+// O estoque do anuncio como o Rise o manda ao ML: o do produto, ou o que as pecas montam no kit (negativo conta zero).
+function estoqueDaLinha(anuncio, estoquePorId) {
+  const itens = anuncio.dados?.composicao?.itens ?? [];
+  if (itens.length > 0) return estoqueDaComposicao(itens, Object.fromEntries(itens.map((item) => [item.produtoId, estoquePorId.get(item.produtoId)])));
+  const estoque = estoquePorId.get(anuncio.produtoId);
+  return typeof estoque === "number" ? Math.max(0, estoque) : null;
+}
+
+/**
+ * Foto, links e o icone do ML das linhas DA PAGINA (28/10/2026): a foto e a primeira do anuncio (a capa; sem ela, a principal
+ * do produto), o icone e o mesmo da lista de Produtos, so deste anuncio ("!" e "C").
+ */
+async function comFotoEIcone(linhas, anuncios) {
+  const porId = new Map(anuncios.map((anuncio) => [anuncio.id, anuncio]));
+  const capas = linhas.map((linha) => porId.get(linha.id)?.dados?.imagens?.[0]).filter(Boolean);
+  const arquivos = new Map(
+    (await prisma.produtoArquivo.findMany({ where: { id: { in: capas } }, select: { id: true, arquivo: true, produto: { select: { sku: true } } } })).map((arquivo) => [arquivo.id, arquivo]),
+  );
+  const semCapa = linhas.filter((linha) => !arquivos.has(porId.get(linha.id)?.dados?.imagens?.[0])).map((linha) => linha.produtoId);
+  const principais = new Map(
+    (
+      await prisma.produtoArquivo.findMany({
+        where: { produtoId: { in: semCapa }, tipo: "IMAGEM", papel: "FOTO" },
+        orderBy: [{ principal: "desc" }, { ordem: "asc" }],
+        select: { produtoId: true, arquivo: true, produto: { select: { sku: true } } },
+      })
+    ).reverse().map((arquivo) => [arquivo.produtoId, arquivo]),
+  );
+  const mudancas = await mudancasDosAnunciosML(linhas.map((linha) => porId.get(linha.id)).filter(Boolean));
+  return linhas.map((linha) => {
+    const anuncio = porId.get(linha.id);
+    const capa = arquivos.get(anuncio?.dados?.imagens?.[0]) ?? principais.get(linha.produtoId) ?? null;
+    const icone = estadoDoIconeML([{ ...anuncio, mudancas: mudancas.get(linha.id) }]);
+    return {
+      ...linha,
+      fotoUrl: capa ? urlDe(capa.produto.sku, "IMAGEM", capa.arquivo) : null,
+      linkDoAnuncio: linkDoAnuncioML(linha.idExterno, linha.urlExterna),
+      linkDoPainel: linkDoPainelML(linha.idExterno),
+      icone: { ...icone, rotulo: rotuloDoIconeML(icone) },
+    };
+  });
+}
+
+export async function listarAnunciosML({ busca, pagina, ordenar = "", direcao = "asc" } = {}) {
   const termo = String(busca ?? "").trim().toLowerCase();
   const anuncios = await prisma.anuncio.findMany({ where: { canal: CANAL }, orderBy: { atualizadoEm: "desc" }, select: DADOS_DA_LINHA });
-  const achados = termo
+  const filtrados = termo
     ? anuncios.filter((a) => [a.titulo, a.produto.sku, a.dados?.composicao?.codigo].some((texto) => String(texto ?? "").toLowerCase().includes(termo)))
     : anuncios;
+  // O estoque de cada anuncio (para a coluna e para ordenar por ela): uma consulta so, com as pecas dos kits.
+  const idsDoEstoque = [...new Set(filtrados.flatMap((a) => [a.produtoId, ...((a.dados?.composicao?.itens ?? []).map((item) => item.produtoId))]))];
+  const estoquePorId = new Map((await prisma.produto.findMany({ where: { id: { in: idsDoEstoque } }, select: { id: true, estoque: true } })).map((p) => [p.id, p.estoque]));
+  let achados = filtrados.map((anuncio) => ({ anuncio, linha: { ...linhaDoAnuncio(anuncio), estoque: estoqueDaLinha(anuncio, estoquePorId) } }));
+  const chave = ORDEM_DA_LISTA_ML[ordenar];
+  if (chave) {
+    const sinal = direcao === "desc" ? -1 : 1;
+    // Vazio vai para o fim nas duas direcoes, como na lista de Produtos.
+    achados = [...achados].sort((a, b) => {
+      const [x, y] = [chave(a.linha), chave(b.linha)];
+      if (x === null || x === "") return y === null || y === "" ? 0 : 1;
+      if (y === null || y === "") return -1;
+      return (x < y ? -1 : x > y ? 1 : 0) * sinal;
+    });
+  }
 
   // Pagina fora do intervalo (link antigo, lista que encolheu) cai na mais proxima, nao numa tela vazia.
   const totalPaginas = Math.max(1, Math.ceil(achados.length / POR_PAGINA));
   const pedida = Number.parseInt(pagina, 10);
   const atual = Math.min(Math.max(Number.isFinite(pedida) ? pedida : 1, 1), totalPaginas);
   return {
-    linhas: await comAvisos(achados.slice((atual - 1) * POR_PAGINA, atual * POR_PAGINA).map(linhaDoAnuncio)),
+    linhas: await comFotoEIcone(await comAvisos(achados.slice((atual - 1) * POR_PAGINA, atual * POR_PAGINA).map((item) => item.linha)), filtrados),
     total: achados.length,
     pagina: atual,
     totalPaginas,
