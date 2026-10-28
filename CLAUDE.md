@@ -249,7 +249,7 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Rise AI | **Mudança de rumo em 20/10/2026:** o chat interno saiu da tela e a equipe consulta o Rise pelo **Claude ou pelo ChatGPT**, pelo servidor MCP (`/mcp`, OAuth próprio, só leitura, nunca chama IA paga), pronto e **sem deploy**. Ficam a aba Conexões (o endereço e as conexões de cada pessoa), a Revisão do dia (com as dúvidas que o Claude e o ChatGPT anotam), o Consumo e as Configurações (Modelos, orçamento dos clientes e o prompt do cliente); a lib `src/lib/riseAi/` fica inteira como o motor do WhatsApp. A Entrega 1 está na VPS desde 13/10/2026; o chat da A1 nunca subiu e saiu. **Entrega C1 (avisos no Telegram) pronta em 23/10/2026, SEM deploy:** aba Canais com o bot, vínculo por código na tela do usuário e cinco avisos pelo worker. Ver "Servidor MCP (20/10/2026)", "Rise AI (Entrega 1)" e "Rise AI (Entrega C1, avisos no Telegram)" |
 | Configurações (Acessos) | Lançamento 1 pronto em 12/10/2026 e **no ar na VPS desde 13/10/2026**: usuários, funções com a matriz de permissões, exceções, quebra-vidro `RISE_AI_ADMINS` e segredo de borda; o Rise AI e Configurações conferem o acesso no servidor. Integrações virou cartão de Configurações. **Lançamento 2 pronto em 22/10/2026, SEM deploy:** o Rise inteiro confere o acesso (menu e Painel filtrados, telas em `ver` com o selo "Somente leitura", dados sensíveis cortados no servidor), "Ver como" e a aba Histórico. Ver "Acessos (lançamento 1)" e "Acessos (lançamento 2)" |
 | Relatórios | **Relatório semanal da coleta** em PDF (tela `/relatorios`, 20/10/2026, sem deploy): lista das rodadas, "Gerar agora" e baixar o PDF. Ver "Relatório semanal da coleta" |
-| Compras | Pedidos de compra e reposição do estoque mínimo (26/10/2026, sem deploy): lista dos conferidos abaixo do mínimo com popup de fornecedores e rascunho automático por fornecedor, editor do pedido no molde do Bling, estoque a caminho calculado, lançar estoque no Bling por item com Desfazer, proposta anexada e PDF para o fornecedor. Ver "Compras (26/10/2026)" |
+| Compras | Pedidos de compra e reposição do estoque mínimo (26/10/2026, sem deploy): lista dos conferidos abaixo do mínimo com popup de fornecedores e rascunho automático por fornecedor, editor do pedido no molde do Bling, estoque a caminho calculado, lançar estoque no Bling por item com Desfazer, proposta anexada e PDF para o fornecedor. Ver "Compras (26/10/2026)". **AliExpress (28/10/2026):** extensão do Chrome "Enviar ao Rise" importa os pedidos do site com rastreio por item e depósito Virtual do Bling; ver "AliExpress no Compras (28/10/2026)" |
 | Estoque | Ordens de produção dos produtos com peças próprias (26/10/2026, sem deploy): baixa das peças, conclusão com perda, cancelamento que devolve. Saldo e movimentações ainda não. Ver "Peças próprias e ordem de produção (26/10/2026)" |
 | Pedidos, Financeiro | Esqueleto |
 
@@ -322,6 +322,8 @@ npm run teste:mcp                 # 231 asserções do servidor MCP (com o busca
 npm run teste:telegram            # 96 asserções da Entrega C1 (avisos no Telegram): banco, texto dos avisos (4 linhas, neutralizado, mascarado), cliente da API do bot e o token mascarado no log, vínculo por código, a configuração e a aba Canais, e a rotina do worker (linha de base, zerou/voltou/zerou, orçamento 80/100%, varredura que falhou, resumo das 20h, bloqueado, 3 tentativas). Telegram FALSO (SEM rede); Postgres local, só escreve zz-tg-* e ZZ-TG-* e devolve a Conexao TELEGRAM, a configuração e a linha de base do dono
 npm run teste:producao            # 89 asserções das peças próprias e da ordem de produção: regras (custo, cor do estoque, validação, arredondamento), custo pelas peças e o recálculo, trava da entrada manual, preparo do Salvar, clone, rascunho, a ordem (cria, baixa com falta, baixa, clique duplo, conclui com perda, cancela devolvendo, kit recalculado) contra o Bling falso. Postgres local, SEM rede; só escreve ZZ-PROD-*
 npm run teste:compras             # 142 asserções do módulo Compras: regras (totais, desconto % ou R$, a caminho, carrinho, situação), lista do mínimo e rascunho automático (com concorrência), pedido (salvar, itens, situação, preço que não se apaga), lançamento contra o Bling falso (clique duplo, Bling que recusa, desfazer com estoque vendido), proposta pelos bytes, dados da empresa, o PDF e as ferramentas de Compras do MCP. Postgres local, SEM rede; só escreve ZZ-COMPRA-* e "ZZ Compra *"
+npm run teste:aliexpress          # 120 asserções do AliExpress no Compras: regras puras, esquema, chave da extensão, depósito Virtual, casamento (anúncio+opção, fator), importação, chegada, rotas e a leitura para a tela, contra um Bling falso. Postgres local, SEM rede; só escreve ZZ-ALI-*, "ZZ Ali *" e pedidos 99…; `-- --manter` deixa os dados para conferir a tela
+npm run teste:extensao-aliexpress # 15 asserções da leitura da extensão (extensao-aliexpress/leitura.js) com as respostas da página Meus pedidos medidas em 28/10/2026. Puro: sem banco, sem rede, sem Chrome
 npm run teste:saude               # 68 asserções da Saúde do Rise: regras (rotinas, worker, disco, backup, memória, banco, integrações, orçamento, varreduras, PC, healthchecks), o aviso do Telegram, a gravação em RotinaDoWorker e a coleta nos modos PC e VPS. Postgres local, SEM rede; só escreve zz-saude-*
 npm run teste:acessos             # 207 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição, as projeções do lançamento 2 (Painel, lista de Produtos, Cadastros, canais, Scraper, Indicadores), "Ver como", Histórico e o guarda estático de src/app (sem lista de exceções). Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
 npm run teste:proposta            # 319 asserções da proposta automática de produto (com as seções de categorias e SEO da loja): regras de preço/medidas/NCM, validação do plano, gravação por seção (fotos padronizadas em proposta/), aplicar ao formulário, Salvar marcando aplicadas, fotos para a reserva, Conferido com pergunta e o script de verdade (Postgres local, SEM rede; só escreve produtos ZZ-PROP-* e as pastas deles)
@@ -5001,6 +5003,47 @@ plano `docs/superpowers/plans/2026-10-26-modulo-compras.md` (12 tarefas, inline)
   mesmo `conferirPedido` da tela antes de gravar; preço só com `dado.custo`. `mudarSituacaoDoPedidoDeCompra` usa o
   `mudarStatus` da tela (enviar exige preço em todos os itens). Ambas pedem `tela.compras.pedidos` editar, sem o lembrete
   de `anotarDuvida`. **Lançar estoque NÃO existe no MCP** (escreve no Bling real; só na tela).
+
+## AliExpress no Compras (28/10/2026)
+
+Pedido do dono: "vincular o AliExpress via API para pegar minhas compras". A API oficial não lista os pedidos do comprador
+(é de dropshipping/vendedor) e os e-mails não trazem rastreio nem id do produto, então o caminho escolhido (Opção 1) é uma
+**extensão própria do Chrome** que lê a página "Meus pedidos" com o login do dono. Spec
+`docs/superpowers/specs/2026-10-28-aliexpress-em-compras-design.md`, plano `docs/superpowers/plans/2026-10-28-aliexpress-em-compras.md`.
+
+- **Decisões do dono:** um clique por semana; a conta é só da loja (sem triagem); casamento por **anúncio + opção** (o mesmo link
+  com opções para produtos diferentes); **fator** de embalagem ("kit de 100 pçs" = 100 no Rise: quantidade × fator, preço ÷ fator);
+  entregue no AliExpress **só avisa** (lançar continua no clique); 1ª importação = em andamento + 30 dias; o fornecedor é o **"Ali"**
+  já cadastrado; a compra entra no **depósito Virtual do Bling** na importação e sai dele na chegada (Opção 1), e o comprado conta
+  como a caminho na lista do mínimo (já conta: pedido ENVIADO).
+- **Extensão** (`extensao-aliexpress/`, MV3 sem build, instala por "Carregar sem compactação"; `LEIAME.md`): `pagina.js` roda na
+  página (world MAIN), usa a `lib.mtop` do próprio site e **dirige a página** (aba Processando, Processado e Ver tudo, "Ver mais
+  pedidos"): a lista só responde quando é a página que pede (chamada montada por fora volta vazia, medido). Detalhe
+  (`mtop.aliexpress.trade.buyer.order.detail`) e rastreio (`mtop.ae.ld.querydetail`) por chamada direta, até 80 por clique. Só o
+  `fundo.js` (service worker) fala com o Rise, só nos dois caminhos, com a chave do `chrome.storage.local`. Nunca manda endereço,
+  telefone, destinatário ou pagamento. Ensaio no Chrome do dono em 28/10: 40 pedidos, 2 detalhes e 2 rastreios lidos.
+- **Rise:** `src/lib/compras/aliexpress/` (`regras.js` puro, `esquema.js` zod, `chave.js` hash sha256 na Conexao ALIEXPRESS,
+  `fornecedor.js`, `virtual.js`, `casamento.js`, `importacao.js`); rotas `/api/compras/aliexpress/estado` e `/importar` pela chave
+  (sem sessão; o guarda do `teste:acessos` aceita `conferirChaveDaExtensao(`). Banco (migration `20261028_compras_aliexpress`):
+  `PedidoAliExpress`, `LinhaAliExpress` (`itemId` nulo = sem produto, `virtualQuantidade`/`virtualErro`), `PacoteAliExpress`;
+  `PedidoDeCompra.origem`/`imposto`, `ProdutoFornecedor.fator`, `Fornecedor.aliexpress` (índice único PARCIAL só no SQL: o
+  `migrate diff` vai propor apagá-lo). A migration marca o "Ali" ou cria um.
+- **Casamento:** (1) vínculo do fornecedor marcado com `codigo` "anúncio:opção"; (2) link `/item/<id>` num vínculo ou no
+  `fornecedorRascunho` do Bling, se der UM produto; (3) "!" e o dono escolhe produto e fator ("Casar"), e o Rise lembra. Kit não
+  casa. Duas linhas no mesmo produto somam (preço médio). Custo só vai ao vínculo novo quando o produto não tinha custo.
+- **Situação:** pedido novo nasce ENVIADO (visto já **entregue** na 1ª vez nasce FINALIZADO, sem Virtual: o dono já lançou à mão);
+  cancelado/reembolsado vira CANCELADO se nada foi lançado (e sai do Virtual), senão só avisa; entregue grava `entregueEm` e avisa.
+  Pedido do AliExpress não vai para a lixeira. A busca da lista aceita o número do AliExpress (e não estoura mais o Int com número
+  longo).
+- **Chegada:** o "Lançar estoque" de item do AliExpress faz o de sempre no Físico e tira a mesma quantidade do Virtual (Desfazer
+  devolve), limitado ao que as linhas puseram lá.
+- **Telas:** cartão AliExpress em Integrações (gerar chave, mostrada uma vez; fornecedor marcado; última importação), selo laranja
+  e "!" na lista, resumo do AliExpress no cartão Fornecedor, avisos âmbar com "Reenviar ao Virtual", linhas sem produto no topo dos
+  itens, colunas Opção e Rastreio (só quando há dado), imposto do AliExpress nos totais.
+- **Pendente do dono:** o bloco `@extensaoAliExpress` do `deploy/caddy/Caddyfile` (as duas rotas fora do login do Tinyauth, como o
+  `/mcp`) ficou SEM commit: o classificador barrou e precisa do OK do dono. Sem ele, na VPS a extensão recebe a tela de login.
+- **Não visto:** a extensão instalada de verdade (o ensaio injetou os scripts na página), uma importação contra o Rise real, o
+  Gerar chave por clique e a escrita real no depósito Virtual (só contra o Bling falso; no PC a trava recusa).
 
 ## Peças próprias e ordem de produção (26/10/2026)
 
