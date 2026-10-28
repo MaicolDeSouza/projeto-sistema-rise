@@ -164,6 +164,19 @@ async function devolverMarca() {
   else await prisma.fornecedor.updateMany({ where: { aliexpress: true }, data: { aliexpress: false } });
 }
 
+// A conexao ALIEXPRESS como estava: o teste gera chaves e registra importacoes, e devolve tudo no fim.
+const conexaoOriginal = await prisma.conexao.findUnique({ where: { servico: "ALIEXPRESS" } });
+async function devolverConexao() {
+  if (conexaoOriginal) {
+    const { id, servico, criadoEm, atualizadoEm, ...dados } = conexaoOriginal;
+    void id; void criadoEm; void atualizadoEm;
+    await prisma.conexao.update({ where: { servico }, data: dados });
+  } else {
+    await prisma.conexao.deleteMany({ where: { servico: "ALIEXPRESS" } });
+  }
+}
+let chaveDoTeste = null;
+
 await limpar();
 try {
   {
@@ -180,9 +193,29 @@ try {
     conferir("devolveu a marca do dono", (await fornecedorDoAliExpress())?.id ?? null, fornecedorOriginal?.id ?? null);
   }
 
+  {
+    console.log("\nChave da extensão");
+    const { gerarChaveDaExtensao, conferirChaveDaExtensao, estadoDaChave } = await import("../src/lib/compras/aliexpress/chave.js");
+    const { chave } = await gerarChaveDaExtensao();
+    const pedido = (c) => new Request("https://rise.local/api", { headers: c ? { authorization: `Bearer ${c}` } : {} });
+    conferir("formato", /^rise_ali_[A-Za-z0-9_-]{32}$/.test(chave), true);
+    conferir("aceita a chave", (await conferirChaveDaExtensao(pedido(chave))).ok, true);
+    conferir(
+      "recusa sem chave e chave errada",
+      [(await conferirChaveDaExtensao(pedido(null))).status, (await conferirChaveDaExtensao(pedido("rise_ali_x"))).status, (await conferirChaveDaExtensao(pedido(`${chave}x`))).ok],
+      [401, 401, false],
+    );
+    const segunda = (await gerarChaveDaExtensao()).chave;
+    conferir("gerar de novo invalida a anterior", [(await conferirChaveDaExtensao(pedido(chave))).ok, (await conferirChaveDaExtensao(pedido(segunda))).ok], [false, true]);
+    conferir("estado", (await estadoDaChave()).configurada, true);
+    conferir("a chave nao fica no banco, so o hash", JSON.stringify(await prisma.conexao.findUnique({ where: { servico: "ALIEXPRESS" } })).includes(segunda), false);
+    chaveDoTeste = segunda;
+  }
+
   // Marcador: os blocos de banco seguintes entram acima desta linha.
 } finally {
   await devolverMarca();
+  if (!manter) await devolverConexao();
   if (!manter) await limpar();
   await prisma.$disconnect();
 }
