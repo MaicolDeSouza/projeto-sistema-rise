@@ -256,7 +256,8 @@ try {
     conferir("kit de um produto: codigo gerado", kit.composicao.codigo, "100101_5");
     conferir("kit: preco em branco, estoque e peso calculados", [kit.preco, kit.estoque, kit.envio.pesoKg], [null, 20, 0.005]);
     conferir("kit: sem GTIN", "GTIN" in kit.atributos, false);
-    conferir("kit: titulo sugere o kit", kit.titulo, "KIT COM 5 RESISTOR 1K 1/4W");
+    // "10x BARRA DE PINOS ..." (pedido do dono em 28/10/2026; era "KIT COM 5 ...").
+    conferir("kit: titulo sugere o kit pela quantidade", kit.titulo, "5x RESISTOR 1K 1/4W");
     conferir("kit: bloco de itens inclusos na descricao", kit.descricao.includes("Itens inclusos: (Cod:100101_5)\n- 05 Resistor 1K 1/4W;"), true);
     conferir("kit: a secao antiga sai e a Garantia fica",
       [kit.descricao.includes("(Cod:100101)\n"), kit.descricao.includes("\n\nGarantia:\n- Garantia Legal de 90 dias")], [false, true]);
@@ -2830,7 +2831,7 @@ try {
     conferir(
       "kit no ML: a leitura dá o custo das 10, o código e o título de partida, e libera o título",
       [lidaKitML.produto.composicao, lidaKitML.produto.custo, lidaKitML.produto.kit],
-      [true, 5, { quantidade: 10, codigo: "ZZ-ML-PA8_10", custoUnitario: 0.5, tituloDePartida: "KIT COM 10 BARRA ZZ 1X15" }],
+      [true, 5, { quantidade: 10, codigo: "ZZ-ML-PA8_10", custoUnitario: 0.5, tituloDePartida: "10x BARRA ZZ 1X15" }],
     );
     const simplesDaBarra = await gravarPropostaML(ml(), "ZZ-ML-PA8", { categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] });
     const kitML = await gravarPropostaML(ml(), "ZZ-ML-PA8", { quantidade: 10, categoriaId: "MLB99779", titulo: " Kit 10 Barra ZZ 1x15 ", atributos: ATRIBUTOS, catalogos: [] });
@@ -2847,7 +2848,7 @@ try {
     conferir("kit no ML: peso das 10 unidades no envio", anKitML.dados.envio.pesoKg, 0.01);
 
     const kitDeNovo = await gravarPropostaML(ml(), "ZZ-ML-PA8", { quantidade: 10, categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] });
-    conferir("kit no ML de novo: o mesmo anúncio, com o título de partida", [kitDeNovo.anuncioId, kitDeNovo.titulo], [kitML.anuncioId, "KIT COM 10 BARRA ZZ 1X15"]);
+    conferir("kit no ML de novo: o mesmo anúncio, com o título de partida", [kitDeNovo.anuncioId, kitDeNovo.titulo], [kitML.anuncioId, "10x BARRA ZZ 1X15"]);
     const kitDe5 = await gravarPropostaML(ml(), "ZZ-ML-PA8", { quantidade: 5, categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] });
     conferir("kit no ML de outra quantidade: outro anúncio", [kitDe5.anuncioId !== kitML.anuncioId, kitDe5.kit.codigo], [true, "ZZ-ML-PA8_5"]);
     conferir("kit no ML de 1 unidade recusa", /quantidade|unidades/.test(await erroDe(gravarPropostaML(ml(), "ZZ-ML-PA8", { quantidade: 1, categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] }))), true);

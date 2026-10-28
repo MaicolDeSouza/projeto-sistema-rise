@@ -6427,8 +6427,9 @@ com o roteiro v2** (título inventado no rascunho do ML): refazer a proposta do 
   aceitam `quantidade` N (2 a 9999, a regra de `errosDaComposicao`): o Clássico é o do PRÓPRIO produto com a composição do anúncio
   (um item, ele, N unidades; código `{sku}_{N}`), como o editor monta (`novoRascunhoML(produtoId, { composicao })` →
   `rascunhoInicial`): fotos, descrição com os itens inclusos, estoque = estoque ÷ N, peso e medidas do kit. O custo da conta do
-  preço é N × o do produto (`custoDaComposicao`, a mesma da aba Preço), o título é da LLM (sem ele, o de partida do editor, "KIT COM
-  N ...", `tituloDoKit` exportado) e a ficha é conferida como kit (GTIN = o EAN interno do kit). A proposta atualiza só o rascunho do
+  preço é N × o do produto (`custoDaComposicao`, a mesma da aba Preço), o título é da LLM (sem ele, o de partida do editor,
+  `tituloDoKit` exportado; desde 28/10/2026 "10x BARRA DE PINOS ..." no kit de um produto só, pedido do dono, era "KIT COM 10 ...",
+  e vale também para o kit montado à mão no editor) e a ficha é conferida como kit (GTIN = o EAN interno do kit). A proposta atualiza só o rascunho do
   MESMO formato (`mesmoFormato`: simples sem composição; kit com o mesmo produto e a mesma N), então o simples e cada kit são
   anúncios separados. Produto que já é Composição com `quantidade` é recusado (o kit no ML é do produto base). Nenhum produto novo
   no Rise. `teste:anuncios-ml` +10 asserções. **Só vale na VPS depois do deploy.**

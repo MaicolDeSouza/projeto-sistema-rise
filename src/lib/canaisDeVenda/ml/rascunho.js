@@ -141,10 +141,11 @@ function familyNameDoProduto(produto) {
 }
 
 // Sugestao de partida; o dono edita (a IA melhora isso na fase 2). Exportada: a proposta do ML usa a mesma no "kit de N".
+// Kit de um produto so: "10x BARRA DE PINOS ..." (pedido do dono em 28/10/2026; era "KIT COM 10 ...").
 export function tituloDoKit(principal, itens) {
   const titulo = texto(principal.tituloBase).toUpperCase();
   const unidades = unidadesDaComposicao(itens);
-  return itens.length === 1 && unidades > 0 ? `KIT COM ${unidades} ${titulo}` : `KIT ${titulo}`;
+  return itens.length === 1 && unidades > 0 ? `${unidades}x ${titulo}` : `KIT ${titulo}`;
 }
 
 /**

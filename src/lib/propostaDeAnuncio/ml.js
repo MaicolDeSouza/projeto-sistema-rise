@@ -183,7 +183,7 @@ export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, quan
 
   const avisos = [];
   // Pedido do dono em 24/10/2026: o titulo do anuncio vem do produto base, e so a composicao (kit) pode ter outro. O kit no
-  // ML tambem: sem titulo na chamada, o de partida do editor ("KIT COM 10 ...").
+  // ML tambem: sem titulo na chamada, o de partida do editor ("10x BARRA DE PINOS ...").
   const composicao = ehComposicao(produto) || Boolean(kit);
   const tituloDoProduto = limparTitulo(kit ? tituloDoKit(produto, kit.itens) : produto.tituloBase);
   const tituloEnviado = limparTitulo(titulo);

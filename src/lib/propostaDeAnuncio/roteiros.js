@@ -16,7 +16,8 @@
 // minimo do preco e 30% e o desejado 40% (pedido do dono). "6" em 25/10/2026: "nao se aplica" ("-1") nos opcionais que o
 // produto nao tem, e o Microcontrolador e o chip ou, sem ele, o Processador/CPU da descricao (pedidos do dono). "7" em
 // 25/10/2026: o Publicar exige a ficha inteira preenchida (pedido do dono), e o roteiro diz isso a LLM. "8" em 28/10/2026: o
-// kit no ML ("anuncio com 10 pecas do 900211"), montado no editor e ligado ao produto base, nunca um produto novo (pedido do dono).
+// kit no ML ("anuncio com 10 pecas do 900211"), montado no editor e ligado ao produto base, nunca um produto novo, com o titulo
+// "10x ..." (pedidos do dono).
 export const VERSAO_ROTEIRO_ML = "8";
 
 export const ROTEIRO_ML = `ROTEIRO DA PROPOSTA DE ANÚNCIO DO MERCADO LIVRE (Rise / 4hobby), versão ${VERSAO_ROTEIRO_ML}
@@ -47,7 +48,8 @@ KIT NO ML: quando o dono pede o anúncio em kit ("anúncio com 10 peças", "kit 
      não mande "titulo" (se mandar, é ignorado e avisado). A ÚNICA exceção é o kit (produto.composicao true na leitura:
      o produto com composição ou o kit no ML): aí você propõe o título, dentro do limite da categoria, com o tipo da peça,
      o modelo ou o chip, a especificação principal e a compatibilidade, sem preço, sem "promoção", sem emoji. No kit no
-     ML o título diz a quantidade ("KIT 10 ..."); produto.kit.tituloDePartida é o que o Rise usa se você não mandar.
+     ML o título COMEÇA pela quantidade com "x" e segue com o nome do produto (pedido do dono: kit de 10 da barra de pinos =
+     "10x BARRA DE PINOS ..."); produto.kit.tituloDePartida já vem assim e é o que o Rise usa se você não mandar.
    - KIT NO ML, na ficha: os atributos de quantidade da categoria levam o kit (Formato de venda "Kit", a quantidade por
      pacote ou de unidades = N), quando a categoria os tiver.
    - FICHA: só o que o cadastro do produto ou as referências PROVAM. Nunca invente. Os valores de lista escritos como
