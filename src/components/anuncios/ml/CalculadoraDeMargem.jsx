@@ -123,6 +123,8 @@ export default function CalculadoraDeMargem({ rascunho, alterar, setContexto, cu
     setDigitado({ campo, texto });
     const valor = lerDecimal(texto);
     if (valor === null) return;
+    // O % digitado vira o alvo que a aba persegue quando as taxas mudam com o preco novo (27/10/2026); preco ou R$ o desligam.
+    setContexto((atual) => ({ ...atual, markupAlvo: campo === "percentual" && valor >= 0 ? valor : null }));
     if (campo === "preco") {
       setErro(null);
       alterar({ preco: valor });

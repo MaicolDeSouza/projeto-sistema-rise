@@ -1,13 +1,13 @@
 "use client";
 
 import { MarcaDaPropostaNoCampo, SugestaoDaProposta } from "@/components/anuncios/PropostaDoAnuncio";
-import { useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
 import { custoDaComposicao } from "@/lib/canaisDeVenda/composicao";
-import { custosDoAnuncio, custosValem, freteQueConta } from "@/lib/canaisDeVenda/ml/custos";
+import { custosDoAnuncio, custosValem, freteQueConta, precoPorMargem } from "@/lib/canaisDeVenda/ml/custos";
 import { calcularMarkup, corDoMarkup, lucroLiquido } from "@/lib/margem";
-import CalculadoraDeMargem from "./CalculadoraDeMargem";
+import CalculadoraDeMargem, { taxasUsaveis } from "./CalculadoraDeMargem";
 import SecaoDoAnuncio from "./SecaoDoAnuncio";
 import CustosDoML from "./CustosDoML";
 import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
@@ -108,9 +108,33 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
 
   const erroDoPreco = problemasDoCampo(problemas, "preco").some((problema) => problema.bloqueante);
 
+  // O % de lucro DIGITADO (na calculadora ou na conta do kit) e um alvo que o preco persegue (pedido do dono em 27/10/2026:
+  // "coloquei 200 e mostrou 173%; deve ajustar para exatamente o que digitei"). O preco sai das taxas lidas no preco de
+  // antes; trocado o preco, a caixa de custos rele as taxas (o frete muda, a R$ 79 o frete gratis entra) e o preco e refeito
+  // com elas, ate bater. No maximo 4 voltas por alvo: perto dos R$ 79 pode nao haver preco exato (de um lado o frete e outro).
+  // Mora aqui, e nao nos campos, porque esta aba fica sempre montada; digitar o preco ou o lucro em R$ desliga o alvo.
+  const alvo = contexto.markupAlvo ?? null;
+  const taxasAgora = taxasUsaveis(custosML, rascunho);
+  const chaveDasTaxas = taxasAgora ? `${taxasAgora.percentual}|${taxasAgora.tarifaFixa}|${taxasAgora.frete}` : "";
+  const voltas = useRef({ chave: null, quantas: 0 });
+  const perseguirOAlvo = useEffectEvent(() => {
+    if (alvo === null || !(custo.valor > 0) || !taxasAgora) return;
+    const novo = precoPorMargem({ custo: custo.valor, ...taxasAgora, margem: { tipo: "percentual", valor: alvo } });
+    if (!(novo > 0) || novo === preco) return;
+    const chave = `${alvo}|${custo.valor}`;
+    if (voltas.current.chave !== chave) voltas.current = { chave, quantas: 0 };
+    if (voltas.current.quantas >= 4) return;
+    voltas.current.quantas += 1;
+    alterar({ preco: novo });
+  });
+  useEffect(() => {
+    perseguirOAlvo();
+  }, [alvo, custo.valor, chaveDasTaxas]);
+
   function digitarPreco(bruto) {
     const texto = filtrarDecimal(bruto, 2);
     setPrecoDigitado(texto);
+    if (alvo !== null) setContexto((atual) => ({ ...atual, markupAlvo: null }));
     alterar({ preco: lerDecimal(texto) });
   }
 
@@ -151,7 +175,10 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
             );
           })()}
           <MarcaDaPropostaNoCampo proposta={contexto.proposta} caminho="preco" valorAtual={rascunho.preco} />
-          <SugestaoDaProposta proposta={contexto.proposta} caminho="preco" valorAtual={rascunho.preco} aoUsar={(valor) => alterar({ preco: Number(valor) })} formatar={(valor) => MOEDA_DA_PROPOSTA.format(Number(valor))} />
+          <SugestaoDaProposta proposta={contexto.proposta} caminho="preco" valorAtual={rascunho.preco} aoUsar={(valor) => {
+            if (alvo !== null) setContexto((atual) => ({ ...atual, markupAlvo: null }));
+            alterar({ preco: Number(valor) });
+          }} formatar={(valor) => MOEDA_DA_PROPOSTA.format(Number(valor))} />
           {contexto.proposta?.preco?.valor != null && (
             <p className="mt-1 text-[11px] text-amber-800">
               {/* Proposta gravada antes de 24/10/2026 tem a margem (sobre o preco), a nova tem o markup. */}

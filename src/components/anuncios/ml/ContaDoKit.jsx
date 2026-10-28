@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader } from "lucide-react";
 
 import { precoPorMargemML } from "@/app/canais-de-venda/mercado-livre/acoes";
@@ -30,7 +30,7 @@ export default function ContaDoKit({ rascunho, contexto, alterar, setContexto })
   const conta = taxas && preco > 0 && custo.valor > 0 ? custosDoAnuncio({ preco, custo: custo.valor, ...taxas }) : null;
   const custoTotal = conta ? custo.valor + conta.comissao + conta.tarifaFixa + conta.frete + conta.imposto : null;
 
-  // O % que o dono digitou (texto). `null` = nao digitou: o campo mostra o markup do preço atual e nada e recalculado.
+  // O texto do campo SO enquanto o dono digita; fora disso o campo mostra o alvo (ou o markup do preco atual).
   const [digitado, setDigitado] = useState(null);
   const [erro, setErro] = useState(null);
   const [calculando, setCalculando] = useState(false);
@@ -38,28 +38,30 @@ export default function ContaDoKit({ rascunho, contexto, alterar, setContexto })
   const espera = useRef(null);
   useEffect(() => () => clearTimeout(espera.current), []);
 
-  const alvo = digitado === null ? null : lerDecimal(digitado);
+  // O % e o MESMO alvo da calculadora do preco (`contexto.markupAlvo`): quem refaz o preco quando os itens ou as taxas mudam
+  // e a aba Preco e custos (AbaPrecoEstoque), sempre montada. Dois campos com dois alvos brigavam pelo preco (27/10/2026).
+  const alvo = contexto.markupAlvo ?? null;
   const semCategoria = !CATEGORIA_ML.test(rascunho.categoriaId ?? "");
-
   const podeCalcular = alvo !== null && alvo >= 0 && custo.valor > 0 && !semCategoria;
-  // Com as taxas lidas, o preço pelo % sai aqui mesmo, na hora (null = lucro inatingível com estas taxas).
+  // Com as taxas lidas: null = lucro inatingivel com estas taxas.
   const precoPeloAlvo = podeCalcular && taxas ? precoPorMargem({ custo: custo.valor, ...taxas, margem: { tipo: "percentual", valor: alvo } }) : undefined;
   const erroDaConta = precoPeloAlvo === null ? "Lucro inatingível com estas taxas." : null;
 
-  // Leva o preço pelo % ao anúncio. Sem as taxas lidas, o servidor le o ML e devolve o preço (e as taxas).
-  const recalcular = useEffectEvent(() => {
+  function digitar(bruto) {
+    const texto = filtrarDecimal(bruto, 1);
+    setDigitado(texto);
+    setErro(null);
+    const valor = lerDecimal(texto);
+    setContexto((atual) => ({ ...atual, markupAlvo: valor !== null && valor >= 0 ? valor : null }));
     clearTimeout(espera.current);
-    if (!podeCalcular) return;
-    if (taxas) {
-      if (precoPeloAlvo > 0 && precoPeloAlvo !== preco) alterar({ preco: precoPeloAlvo });
-      return;
-    }
+    // Sem as taxas lidas (kit novo, sem preco), o servidor le o ML e devolve o preco e as taxas.
+    if (taxas || valor === null || !(valor >= 0) || !(custo.valor > 0) || semCategoria) return;
     const numero = ++pedidoAtual.current;
     espera.current = setTimeout(async () => {
       setCalculando(true);
       let resposta;
       try {
-        resposta = await precoPorMargemML(rascunho, { custo: custo.valor, margem: { tipo: "percentual", valor: alvo } });
+        resposta = await precoPorMargemML(rascunho, { custo: custo.valor, margem: { tipo: "percentual", valor } });
       } catch {
         resposta = { ok: false, erro: "Não foi possível falar com o servidor. Tente de novo." };
       }
@@ -69,17 +71,10 @@ export default function ContaDoKit({ rascunho, contexto, alterar, setContexto })
         setErro(resposta.erro);
         return;
       }
-      setErro(null);
       alterar({ preco: resposta.preco });
       setContexto((atual) => ({ ...atual, custosML: resposta.custosML }));
     }, ESPERA_DO_SERVIDOR_MS);
-  });
-
-  // Mudou o %, o custo dos itens (incluir, tirar, quantidade) ou as taxas relidas pela caixa de custos: refaz o preço.
-  const chaveDasTaxas = taxas ? `${taxas.percentual}|${taxas.tarifaFixa}|${taxas.frete}` : "";
-  useEffect(() => {
-    recalcular();
-  }, [alvo, custo.valor, chaveDasTaxas]);
+  }
 
   let detalhe;
   if (!(custo.valor > 0)) detalhe = custo.faltam.length > 0 ? `Sem custo de ${custo.faltam.join(", ")}.` : "Os itens ainda não têm custo.";
@@ -87,7 +82,8 @@ export default function ContaDoKit({ rascunho, contexto, alterar, setContexto })
   else if (conta) detalhe = `Itens ${MOEDA.format(custo.valor)} · ML ${MOEDA.format(conta.comissao + conta.tarifaFixa + conta.frete)} · Imposto ${MOEDA.format(conta.imposto)}`;
   else detalhe = "Informe o % para o Rise ler as taxas do ML.";
 
-  const valorDoCampo = digitado ?? (conta?.markup != null ? String(conta.markup).replace(".", ",") : "");
+  const mostrado = alvo ?? conta?.markup ?? null;
+  const valorDoCampo = digitado ?? (mostrado !== null ? String(mostrado).replace(".", ",") : "");
 
   return (
     <div className="min-w-0 flex-1 rounded border border-borda bg-fundo/60 px-3 py-2" aria-live="polite">
@@ -102,10 +98,8 @@ export default function ContaDoKit({ rascunho, contexto, alterar, setContexto })
             autoComplete="off"
             value={valorDoCampo}
             disabled={!(custo.valor > 0) || semCategoria}
-            onChange={(evento) => {
-              setErro(null);
-              setDigitado(filtrarDecimal(evento.target.value, 1));
-            }}
+            onChange={(evento) => digitar(evento.target.value)}
+            onBlur={() => setDigitado(null)}
             placeholder="0"
             className="w-20 rounded border border-borda bg-superficie py-1 pr-6 pl-2 text-right text-sm tabular-nums focus:border-acento focus:outline-none disabled:bg-fundo disabled:text-suave"
           />
