@@ -7,6 +7,7 @@ import { ArrowDown, ArrowUp, ChevronRight, ExternalLink, Loader, RefreshCw, X } 
 import { buscarCatalogosDoProdutoMLAcao, catalogosDoAnuncioMLAcao, preverCatalogoMLAcao, relerConcorrentesMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { textoDoResumo } from "@/lib/canaisDeVenda/ml/catalogo";
+import { linkDoPainelML } from "@/lib/canaisDeVenda/ml/rotulos";
 import { ResumoDaPosicao, TabelaDoCatalogoAoVivo, urlDoCatalogo } from "./ConcorrentesDoML";
 import SecaoDoAnuncio from "./SecaoDoAnuncio";
 
@@ -158,6 +159,18 @@ export default function AbaCatalogo({ rascunho, alterar, visivel = false, idExte
                     </span>
                   )}
                 </button>
+                {/* O anuncio aberto no painel do vendedor, ao lado do catalogo no site (pedido do dono em 27/10/2026). */}
+                {linkDoPainelML(idExterno) && (
+                  <a
+                    href={linkDoPainelML(idExterno)}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={`Abre ${idExterno} na lista de anúncios do painel do Mercado Livre, em outra aba`}
+                    className="mr-2 inline-flex shrink-0 items-center gap-1.5 rounded-md border border-borda bg-superficie px-3 py-1.5 text-sm font-medium text-acento hover:bg-fundo"
+                  >
+                    Abrir no painel <ExternalLink size={13} />
+                  </a>
+                )}
                 <a
                   href={urlDoCatalogo(catalogo.id)}
                   target="_blank"
