@@ -210,5 +210,15 @@ if ! crontab deploy/crontab; then
   echo "AVISO: o crontab NAO foi reinstalado (deploy/crontab invalido?). O deploy esta no ar; as rotinas seguem com o crontab de antes."
 fi
 
+# Limpeza do Docker (pedido do dono em 27/10/2026): o cache de montagem e as imagens sem nome se acumulavam a cada
+# deploy e encheram o disco (57 GB de cache e 36 GB de imagens; o deploy 27.10.2026.41 parou com "no space left").
+# Fica o cache dos ultimos 7 dias, para o proximo envio continuar rapido; rise:latest, rise:bom e rise:anterior tem
+# nome e nunca saem. Falha aqui e AVISO: o deploy ja esta no ar.
+PASSO="limpando o cache do Docker"
+if ! docker builder prune -f --filter "until=168h" >/dev/null || ! docker image prune -f >/dev/null; then
+  echo "AVISO: a limpeza do cache do Docker falhou. O deploy esta no ar; confira o disco com 'df -h /'."
+fi
+echo "== Disco: $(df -h / | awk 'NR==2 {print $4 " livres de " $2}')"
+
 docker compose ps
 echo "== No ar: Versao ${VERSAO} (commit ${COMMIT})"

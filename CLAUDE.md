@@ -6038,7 +6038,9 @@ frente de tudo. Spec: `docs/superpowers/specs/2026-10-07-migracao-vps-hostinger-
   (baixar antes de rodar, porque o próprio script pode ter mudado). Ele valida o Caddyfile, constrói a imagem com o site
   no ar, tira backup e aplica migrations só se houver pendência, troca os contêineres, recarrega o Caddy, confere o site
   por dentro e **o login por fora com falha de verdade** (6 respostas, no fim do script), e só então guarda a imagem como
-  `rise:bom`, grava `~/logs/deploy.log` (no host, fora de `dados/`) e reinstala o crontab. Se parar no meio, o `trap` diz o passo e os comandos
+  `rise:bom`, grava `~/logs/deploy.log` (no host, fora de `dados/`), reinstala o crontab e **limpa o Docker** (cache de
+  montagem com mais de 7 dias e imagens sem nome; desde 27/10/2026, quando o disco de 96 GB encheu com 57 GB de cache e
+  36 GB de imagens velhas e o deploy parou com "no space left on device"). Se parar no meio, o `trap` diz o passo e os comandos
   de volta. **Volta atrás:** `docker image tag rise:anterior rise:latest && docker compose up -d app worker` (a anterior
   é a do último deploy que passou em tudo). Migration não tem volta: só pelo dump tirado antes dela.
 - **Cartão "Servidor VPS" em Integrações** (pedido do dono em 09/10/2026): os dois caminhos acima por botão, **só no Rise
