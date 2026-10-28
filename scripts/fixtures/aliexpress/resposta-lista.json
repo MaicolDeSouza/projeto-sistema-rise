@@ -1,0 +1,63 @@
+{
+  "api": "mtop.aliexpress.trade.buyer.order.list",
+  "data": {
+    "data": {
+      "pc_om_list_header_action_110846": { "type": "pc_om_list_header_action", "fields": { "statusTab": "all", "queryType": "switchTab" } },
+      "pc_om_list_order_8215244197193461": {
+        "type": "pc_om_list_order",
+        "id": "8215244197193461",
+        "fields": {
+          "orderId": "8215244197193461",
+          "orderDateText": "26 out, 2026",
+          "statusText": "Enviado parcialmente",
+          "storeName": "Lets Deal Store",
+          "storePageUrl": "//www.aliexpress.com/store/1102826724",
+          "totalPriceText": "R$277,10",
+          "currencyCode": "BRL",
+          "utParams": { "args": { "orderId": 8215244197193461, "orderStatus": 7 } },
+          "buttons": [{ "type": "TRACKING", "text": "Ver status", "href": "//www.aliexpress.com/p/tracking/index.html?tradeOrderId=8215244197193461" }],
+          "orderLines": [
+            {
+              "orderLineId": "8215244197203461",
+              "productId": "1005006891567710",
+              "skuId": "12000038634693222",
+              "itemTitle": "Cabo impermeável painel traço, USB 3.0 e HDMI-compatível com extensão AUX, 2m",
+              "itemDetailUrl": "//www.aliexpress.com/item/1005006891567710.html",
+              "itemImgUrl": "//ae-pic-a1.aliexpress-media.com/kf/S1.jpg",
+              "itemPriceText": "R$57,49",
+              "quantity": 4,
+              "skuAttrs": [{ "id": 200000182, "name": "Color Name", "text": "2M", "vid": 29 }]
+            }
+          ]
+        }
+      },
+      "pc_om_list_order_8215189636893461": {
+        "type": "pc_om_list_order",
+        "id": "8215189636893461",
+        "fields": {
+          "orderId": "8215189636893461",
+          "orderDateText": "23 out, 2026",
+          "statusText": "Aguardando a entrega",
+          "storeName": "Hong Kong Store",
+          "storePageUrl": "//www.aliexpress.com/store/1100000001",
+          "totalPriceText": "US $45.00",
+          "currencyCode": "USD",
+          "utParams": { "args": { "orderStatus": 8 } },
+          "orderLines": [
+            {
+              "orderLineId": "8215189636903461",
+              "productId": "1005001111111111",
+              "skuId": "12000011111111111",
+              "itemTitle": "Módulo azul",
+              "itemDetailUrl": "//www.aliexpress.com/item/1005001111111111.html",
+              "itemPriceText": "US $10.00",
+              "quantity": 2,
+              "skuAttrs": [{ "name": "Cor", "text": "Azul" }]
+            }
+          ]
+        }
+      },
+      "pc_om_list_body_109702": { "type": "pc_om_list_body", "fields": { "hasMore": true, "pageIndex": 1, "pageSize": 10 } }
+    }
+  }
+}

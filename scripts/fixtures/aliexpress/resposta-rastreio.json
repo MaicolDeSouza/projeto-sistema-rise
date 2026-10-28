@@ -1,0 +1,21 @@
+{
+  "data": {
+    "module": {
+      "logisticsReceiverInfo": { "address": "endereco que nao pode sair", "contactName": "N***o", "phoneNumber": "54******694" },
+      "trackingDetailLineList": [
+        {
+          "mailNo": "NN446506474BR",
+          "originMailNo": "AP00100095481339",
+          "logisticsCarrierName": "AliExpress Selection Standard",
+          "etaInfo": { "beginEtaTime": "1794289253053", "endEtaTime": "1795066853053", "etaTimeText": "Nov 09 - 18" },
+          "detailList": [
+            { "time": "1793121230000", "trackingDetailDesc": "Saiu do centro de distribuição do país/região de partida", "trackingName": "Em trânsito", "trackingPrimaryCode": "AE_SC_OUTBOUND_SUCCESS" },
+            { "time": "1793134276000", "trackingDetailDesc": "Chegou ao armazém de consolidação", "trackingName": "Em trânsito", "trackingPrimaryCode": "AE_CW_SIGN_IN_SUCCESS" }
+          ],
+          "packageItemList": [{ "count": "4", "itemId": "1005006891567710", "skuId": "12000038634693222", "itemTitle": "2 In 1 Waterproof USB", "skuDesc": "Color Name:2M" }]
+        }
+      ]
+    },
+    "result": "true"
+  }
+}

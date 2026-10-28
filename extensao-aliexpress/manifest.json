@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Rise AliExpress",
+  "version": "1.0.0",
+  "description": "Envia as compras de Meus pedidos do AliExpress para o módulo Compras do Rise (4hobby).",
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": ["https://www.aliexpress.com/*", "https://rise.4hobby.com.br/*", "https://localhost:3000/*"],
+  "background": { "service_worker": "fundo.js" },
+  "action": { "default_popup": "popup.html", "default_title": "Enviar ao Rise" },
+  "content_scripts": [
+    {
+      "matches": ["https://www.aliexpress.com/p/order/*"],
+      "js": ["ponte.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.aliexpress.com/p/order/*"],
+      "js": ["leitura.js", "pagina.js"],
+      "world": "MAIN",
+      "run_at": "document_idle"
+    }
+  ]
+}

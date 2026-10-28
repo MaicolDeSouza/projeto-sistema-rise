@@ -1,0 +1,18 @@
+{
+  "data": {
+    "data": {
+      "detail_order_status_block_111818": { "type": "detail_order_status_block", "fields": { "orderId": "8215244197193461", "title": "Enviado parcialmente" } },
+      "detail_order_price_block_111823": {
+        "type": "detail_order_price_block",
+        "fields": {
+          "priceDetails": [
+            { "title": "Subtotal", "value": "R$ 229,96" },
+            { "hide": "true", "title": "Enviando", "value": "R$ 0,12" },
+            { "hide": "true", "title": "Imposto", "value": "R$ 47,14" }
+          ],
+          "totalPrice": { "currencyCode": "BRL", "title": "Total", "value": "R$ 277,10" }
+        }
+      }
+    }
+  }
+}
