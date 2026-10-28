@@ -870,7 +870,9 @@ try {
       fonte.includes("exigirAcessoNaPagina(") ||
       fonte.includes("executarComAcesso(") ||
       (fonte.includes("sessaoDeAcessos(") && fonte.includes("recusarRota(")) ||
-      fonte.includes("exigirTokenMcp(");
+      fonte.includes("exigirTokenMcp(") ||
+      // As duas rotas da extensao do AliExpress: autenticam pela chave da extensao (sem sessao), como o /mcp pelo token.
+      fonte.includes("conferirChaveDaExtensao(");
     // Sem recurso de proposito: o layout raiz MONTA a sessao (o menu e o rodape), e o Sair e de quem esta logado. As quatro do
     // protocolo OAuth/MCP sao publicas por desenho (o Claude e o ChatGPT chegam sem login do Tinyauth): os metadados nao tem
     // segredo, o registro nao da acesso a nada, e o token exige o codigo + PKCE. Quem autentica o /mcp e src/lib/mcp/portao.js.

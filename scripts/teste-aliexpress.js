@@ -480,6 +480,34 @@ try {
     await devolverMarca();
   }
 
+  {
+    console.log("\nRotas da extensão");
+    const estado = await import("../src/app/api/compras/aliexpress/estado/route.js");
+    const importar = await import("../src/app/api/compras/aliexpress/importar/route.js");
+    const ali = await prisma.fornecedor.create({ data: { nome: "ZZ Ali Rotas", estrangeiro: true } });
+    await marcarFornecedorDoAliExpress(ali.id);
+    const url = "https://rise.local/api/compras/aliexpress";
+    const comChave = (corpo, cabecalhos = {}) =>
+      new Request(`${url}/importar`, { method: "POST", headers: { authorization: `Bearer ${chaveDoTeste}`, "content-type": "application/json", ...cabecalhos }, body: corpo });
+    conferir("estado sem chave: 401", (await estado.GET(new Request(`${url}/estado`))).status, 401);
+    const comEstado = await estado.GET(new Request(`${url}/estado`, { headers: { authorization: `Bearer ${chaveDoTeste}` } }));
+    conferir("estado com chave: 200 e o corte", [comEstado.status, typeof (await comEstado.json()).lerDesde], [200, "string"]);
+    conferir("importar sem chave: 401", (await importar.POST(new Request(`${url}/importar`, { method: "POST", body: "{}" }))).status, 401);
+    const quebrado = await importar.POST(comChave("{"));
+    conferir("JSON quebrado: 400 com o motivo", [quebrado.status, typeof (await quebrado.json()).erro], [400, "string"]);
+    const invalido = await importar.POST(comChave(JSON.stringify({ fase: "lista", pedidos: [{}] })));
+    conferir("formato invalido: 400", invalido.status, 400);
+    const vazio = await importar.POST(comChave(JSON.stringify({ fase: "lista", lidoEm: new Date().toISOString(), pedidos: [] })));
+    conferir("lista vazia: 200, nada novo", [vazio.status, (await vazio.json()).novos], [200, 0]);
+    conferir("corpo grande: 413", (await importar.POST(comChave("{}", { "content-length": "6000000" }))).status, 413);
+    const detalhes = await importar.POST(comChave(JSON.stringify({ fase: "detalhes", detalhes: [], rastreios: [] })));
+    conferir("fase detalhes: 200", [detalhes.status, (await detalhes.json()).detalhados], [200, 0]);
+    const caddy = readFileSync(new URL("../deploy/caddy/Caddyfile", import.meta.url), "utf8");
+    const bloco = /@extensaoAliExpress\s*\{([^}]*)\}/.exec(caddy)?.[1] ?? "";
+    conferir("Caddyfile: as duas rotas sem o login do Tinyauth, so elas", [bloco.includes("/api/compras/aliexpress/estado"), bloco.includes("/api/compras/aliexpress/importar"), /\*/.test(bloco)], [true, true, false]);
+    await devolverMarca();
+  }
+
   // Marcador: os blocos de banco seguintes entram acima desta linha.
 } finally {
   await devolverMarca();
