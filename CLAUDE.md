@@ -116,7 +116,8 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
   não foi trocado.
 - **Foto pequena (miniatura de produto):** mouse em cima abre uma **prévia ampliada** (260 px, acima da linha) e o
   clique abre a **foto grande** (`FotoComLupa`, `src/components/ui/`, decidido pelo dono em 12/10/2026). Miniatura nova
-  usa esse componente, nunca monta o seu. A lista de Produtos já usa; **`ReferenciasDeMercado.jsx` ainda tem a cópia
+  usa esse componente, nunca monta o seu. A lista de Produtos já usa, e a do Scraper desde 28/10/2026 (`Miniatura` de
+  `TabelaMercados.jsx`, que só tinha a foto parada); **`ReferenciasDeMercado.jsx` ainda tem a cópia
   própria** (`Foto`, com o mesmo desenho) e as telas de fotos do produto usam `ImagemComZoom`, que é outro caso (zoom
   dentro da caixa, para comparar duas fotos). Migrar as cópias é pedido do dono, não dívida.
 - **Rascunho automático do cadastro de produto** (pedido do dono em 13/10/2026, opção 1: no navegador): tudo o que ele

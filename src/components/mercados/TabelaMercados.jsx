@@ -24,6 +24,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Badge from "@/components/ui/Badge";
 import CabecalhoOrdenavel, { parametrosDaOrdenacao } from "@/components/ui/CabecalhoOrdenavel";
 import Copiar from "@/components/ui/Copiar";
+import FotoComLupa from "@/components/ui/FotoComLupa";
 import RegrasDeCompra from "@/components/mercados/RegrasDeCompra";
 import { precoComImpostoTexto, precoDaFaixaTexto } from "@/components/mercados/precoTexto";
 import { precoComImpostos } from "@/lib/coleta/impostos";
@@ -226,16 +227,9 @@ function Miniatura({ url, alt }) {
     );
   }
 
-  return (
-    <div className="relative h-11 w-11 overflow-hidden rounded border border-borda bg-superficie">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={url}
-        alt={alt}
-        className="absolute inset-0 h-full w-full object-contain"
-      />
-    </div>
-  );
+  // Previa ao passar o mouse e foto grande ao clicar: o padrao do Rise (`FotoComLupa`, pedido do dono em 28/10/2026).
+  // O clique na foto nao abre o detalhe da linha.
+  return <FotoComLupa src={url} alt={alt} />;
 }
 
 /**
