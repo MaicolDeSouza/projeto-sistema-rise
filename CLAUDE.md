@@ -3705,6 +3705,30 @@ Pedido do dono: "alguns produtos irei anunciar apenas no ML e outros apenas na L
   bloqueado (o editor abre, o Publicar e o Sincronizar seguem) nem enviado ao canal.
 - Não visto na tela: o servidor da pasta era de outra sessão (com o client do Prisma antigo: o X só aparece depois de reiniciar).
 
+## Canais de Venda: kit do ML no editor e Publicar com etapas (27/10/2026, SEM deploy)
+
+Pedidos do dono no mesmo dia, todos no editor do anúncio do ML:
+- **Conta do kit** (`ContaDoKit.jsx`, na Composição, ao lado de "Incluir"): "Custo total × % = Preço no ML". Custo dos itens
+  (`custoDoAnuncio`, exportado de `AbaPrecoEstoque`) + comissão, tarifa, frete e imposto; o % é o markup sobre o custo total
+  (`precoPorMargem`, as taxas de `taxasUsaveis`). Digitar o % grava o preço; mexer nos itens com o % digitado refaz o preço. Abrir
+  o kit não muda nada. Sem taxas lidas, o servidor as lê (`precoPorMargemML`).
+- **Descrição do kit editável** (`AbaDescricao`): `descricaoDoRise`/`camposDaComposicao` mantêm o texto do anúncio e só refazem
+  o bloco "Itens inclusos"; vazio, parte da do principal. O simples continua só leitura.
+- **Peso e medidas do kit pela quantidade** (`medidasDoKit` em `ml/rascunho.js`, a regra `pesoEMedidasDoKit` do kit do Rise):
+  comprimento e largura da maior peça, altura somada. Só troca campo vazio, com a sugestão anterior ou com a medida de UMA unidade
+  do principal (como o kit nascia antes); também ao abrir um kit não publicado.
+- **Fotos próprias do kit** (`ml/fotosDoKit.js`, `acoes-fotos-do-kit.js`, seção "Fotos do kit" da aba Imagens): "Enviar fotos"
+  passa pelo `padronizarImagem` (1024×1024, fundo branco) e grava na hora no produto principal como `ProdutoArquivo` de papel
+  **KIT** (migration `20261027d_foto_do_kit`, enum novo), em `imagens/`; entram marcadas, na frente das dos itens. Toda leitura de
+  foto filtra `papel: "FOTO"`, então não aparecem no cadastro nem nos anúncios simples. Excluir recusa se outro anúncio as usa.
+- **Abrir no painel** na linha do catálogo da aba Catálogo (`linkDoPainelML` do anúncio aberto).
+- **Publicar salva sozinho** (sem o "Salvar antes de publicar?") e abre o **popup de etapas** (`AndamentoDoEnvio`, `tipo`
+  "publicar"): `publicarAnuncioML` marca "preparar" e cada etapa em `ml/progresso.js` (`iniciarProgressoML(id, ids)`), lidas
+  pela rota de sempre. Fim no padrão da LI (painel, anúncio, Fechar que fecha tudo); falha = "Voltar à janela". A criação incerta
+  abre a `JanelaPublicarML` de antes, que hoje publica sozinha depois da pré-checagem (só o "Criar de novo" pede clique).
+- Visto no PC (ZZ-TESTE-BLING, sem salvar): a conta (40% e quantidade 2→5), as medidas, a descrição editável e o "Enviar fotos".
+  **Não visto:** o envio de uma foto e um Publicar real com o popup (só na VPS).
+
 ## Sincronização Rise <-> Bling (04 a 05/10/2026)
 
 Pedido do dono em 04/10/2026: o Rise manda ao Bling os dados do produto (campos, fornecedores e ajustes de
