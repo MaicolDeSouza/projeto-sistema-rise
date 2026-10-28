@@ -8,7 +8,7 @@ import { precisaAgirNoML, textoDoEstadoML } from "./estadoNoML";
 import { impressaoDoConteudo } from "./impressao";
 import { montarRanking } from "./ranking";
 import { catalogosDeVariosProdutos } from "./referencias";
-import { RascunhoMLSchema } from "./esquema";
+import { LIMITES_ML, RascunhoMLSchema } from "./esquema";
 import { fotosDoKitDosProdutos } from "./fotosDoKit";
 import { descricaoDoRise, estoqueDoRise, fotosDoRise, medidasDoKit, pacoteDoRise, rascunhoInicial } from "./rascunho";
 
@@ -489,6 +489,32 @@ export async function salvarRascunhoML(anuncioId, entrada) {
     return { ok: true, id: anuncioId };
   } catch (erro) {
     console.error("[canais de venda]", erro);
+    return { ok: false, erro: "Não foi possível salvar. Tente de novo." };
+  }
+}
+
+/**
+ * A descricao do KIT com a publicacao parada depois de o item existir no ML (pedido do dono em 27/10/2026: "deveria deixar
+ * editar os campos, para eu ajustar os pontos que deram falhas"; o ML tinha recusado a descricao do kit 900212). So a
+ * descricao: e a unica etapa depois da criacao que le o rascunho (o "Retomar" a manda de novo); titulo, categoria e ficha ja
+ * foram com o item. Recusa no anuncio simples (a descricao e a do produto: muda-se no cadastro), publicado ou publicando.
+ */
+export async function salvarDescricaoDoPresoML(anuncioId, descricao) {
+  if (typeof descricao !== "string" || descricao.length > LIMITES_ML.descricao) return { ok: false, erro: "Descrição inválida." };
+  try {
+    const recusa = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Anuncio" WHERE id = ${anuncioId} FOR UPDATE`;
+      const agora = await tx.anuncio.findUnique({ where: { id: anuncioId }, select: { canal: true, status: true, dados: true } });
+      if (!agora || agora.canal !== CANAL) return "Anúncio não encontrado.";
+      if (agora.status === "PUBLICADO" || agora.status === "PUBLICANDO") return "Este anúncio não pode ser alterado agora.";
+      if (!agora.dados?.publicacao?.itemId) return "Use o Salvar de sempre: o anúncio ainda não existe no Mercado Livre.";
+      if (!agora.dados?.composicao) return "A descrição do anúncio simples é a do produto: mude no cadastro do produto.";
+      await tx.anuncio.update({ where: { id: anuncioId }, data: { descricao } });
+      return null;
+    });
+    return recusa ? { ok: false, erro: recusa } : { ok: true, id: anuncioId };
+  } catch (erro) {
+    console.error("[canais de venda] descricao do preso", erro);
     return { ok: false, erro: "Não foi possível salvar. Tente de novo." };
   }
 }

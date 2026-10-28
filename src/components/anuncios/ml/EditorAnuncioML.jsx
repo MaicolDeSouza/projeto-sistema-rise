@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import Link from "next/link";
 import { Copy, ExternalLink, Loader, X } from "lucide-react";
 
-import { abrirAnuncioML, enviarMudancasMLAcao, lerCategoriaML, marcarCatalogoVistoMLAcao, publicarAnuncioMLAcao, salvarAnuncioML, salvarPublicadoMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
+import { abrirAnuncioML, enviarMudancasMLAcao, lerCategoriaML, marcarCatalogoVistoMLAcao, publicarAnuncioMLAcao, salvarAnuncioML, salvarDescricaoDoPresoMLAcao, salvarPublicadoMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { etapasDoPopupDoPublicar } from "@/lib/canaisDeVenda/ml/etapas";
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import AcoesDoFimDoEnvio from "@/components/anuncios/li/AcoesDoFimDoEnvio";
@@ -188,7 +188,11 @@ export default function EditorAnuncioML({
   const bloqueado = publicado || travado || presoNaPublicacao || somenteLeitura;
   // O publicado libera so as abas de ABAS_DO_PUBLICADO (preco e ficha); o resto continua travado.
   const editaPublicado = publicado && !somenteLeitura && !travado;
-  const travaDaAba = (id) => !ABAS_DE_LEITURA.has(id) && bloqueado && !(editaPublicado && ABAS_DO_PUBLICADO.has(id));
+  // Kit parado no meio da publicacao, ja criado no ML (pedido do dono em 27/10/2026): a descricao volta a se editar, para corrigir
+  // o que o ML recusou; o Salvar grava so ela e o "Retomar" a manda. O resto ja foi com o item.
+  const editaDescricaoDoPreso = !publicado && !somenteLeitura && statusAtual !== "PUBLICANDO" && Boolean(publicacao?.itemId) && Boolean(rascunho.composicao);
+  const travaDaAba = (id) =>
+    !ABAS_DE_LEITURA.has(id) && bloqueado && !(editaPublicado && ABAS_DO_PUBLICADO.has(id)) && !(editaDescricaoDoPreso && id === "descricao");
   const problemas = useMemo(() => validarRascunhoML(rascunho, contexto), [rascunho, contexto]);
 
   // O anuncio entrou, saiu, trocou ou esta num catalogo e o dono ainda nao conferiu (25/10/2026). So o "Marcar como
@@ -257,7 +261,9 @@ export default function EditorAnuncioML({
     try {
       resultado = publicado
         ? await salvarPublicadoMLAcao(idAtual, { preco: enviado.preco, atributos: enviado.atributos })
-        : await salvarAnuncioML(idAtual, enviado);
+        : editaDescricaoDoPreso
+          ? await salvarDescricaoDoPresoMLAcao(idAtual, enviado.descricao)
+          : await salvarAnuncioML(idAtual, enviado);
     } catch {
       // Excecao solta numa transicao iria ao error boundary e levaria o que foi digitado.
       resultado = { ok: false, erro: "Não foi possível falar com o servidor. O que está na tela continua aqui: tente salvar de novo." };

@@ -40,6 +40,7 @@ import {
   contextoDosProdutos,
   marcarCatalogoVistoML,
   novoRascunhoML,
+  salvarDescricaoDoPresoML,
   salvarPublicadoML,
   salvarRascunhoML,
   sugerirCodigoDeKit,
@@ -182,6 +183,14 @@ export async function salvarPublicadoMLAcao(id, { preco, atributos } = {}) {
   if (negado) return negado;
   if (!ehId(id)) return PEDIDO_INVALIDO;
   return protegendo(async () => revalidando(await salvarPublicadoML(id, { preco, atributos })));
+}
+
+/** A descricao do kit com a publicacao parada depois de criado no ML (27/10/2026): so ela muda; o Retomar a manda. */
+export async function salvarDescricaoDoPresoMLAcao(id, descricao) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"]);
+  if (negado) return negado;
+  if (!ehId(id)) return PEDIDO_INVALIDO;
+  return protegendo(async () => revalidando(await salvarDescricaoDoPresoML(id, descricao)));
 }
 
 /** Acha o produto pelo codigo para entrar na composicao do kit. Devolve o resultado da lib como esta. */
