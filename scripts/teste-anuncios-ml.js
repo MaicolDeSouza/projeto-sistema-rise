@@ -207,6 +207,8 @@ try {
     // posicoes das etiquetas). Sai so o que tem forma de etiqueta; "< 5V" e "<5V" sao texto e ficam.
     conferir("descricao: etiqueta HTML sai, o resto fica", montarDescricaoML({ descricao: "Linha 1 com <b>tag</b> & e-comercial\nTensão <5V e < 3,3 V; a<b" }), "Linha 1 com tag & e-comercial\nTensão <5V e < 3,3 V; a<b");
     conferir("sem descricao, texto vazio", montarDescricaoML({ descricao: "  " }), "");
+    // Teste real de 27/10/2026 (kit 900212): "20mΩ" fez o ML recusar a descricao inteira; acento, "°" e CRLF passam.
+    conferir("descricao: fora do Latin-1 vira texto ou sai", montarDescricaoML({ descricao: "20mΩ e 5000MΩ;\r\n180° – 5μA 😀" }), "20mOhm e 5000MOhm;\r\n180° - 5µA ");
     // A descricao do anuncio e sempre a do produto (pedido do dono em 22/10/2026); no kit, com os Itens inclusos do kit.
     conferir("descricaoDoRise: simples = a do produto", descricaoDoRise({ ...simples, descricao: "editada" }, { a, b }), a.descricaoBase);
     // Kit: a descricao e editavel no anuncio (27/10/2026); so o bloco "Itens inclusos" e refeito. Vazia, parte da do principal.
