@@ -118,6 +118,15 @@ export default function AbaStatus({ rascunho, contexto, irPara, todosProblemas, 
     <div className="space-y-4">
       <SecaoDoAnuncio titulo="No Mercado Livre">
         <div className="rounded border border-borda px-3">
+          {/* O titulo e o codigo do anuncio no topo (pedido do dono em 28/10/2026): no kit, o codigo do kit (900212_10). */}
+          <LinhaDeDado rotulo="Título do anúncio">
+            {String(rascunho.titulo ?? "").trim() || <span className="text-suave">Sem título</span>}
+          </LinhaDeDado>
+          <LinhaDeDado rotulo="Código">
+            <span className="font-mono">
+              {String(rascunho.composicao ? rascunho.composicao.codigo : (contexto.produtos?.[rascunho.produtoId]?.sku ?? "")).trim() || "—"}
+            </span>
+          </LinhaDeDado>
           <LinhaDeDado rotulo="Situação">
             <span className="inline-flex flex-wrap items-center gap-2">
               <Badge tom={rotuloDoStatus.tom}>{rotuloDoStatus.rotulo}</Badge>

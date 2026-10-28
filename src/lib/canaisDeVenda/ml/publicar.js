@@ -363,6 +363,13 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto, p
         { itemId: resposta.dados.id, permalink: resposta.dados.permalink ?? null, statusML: resposta.dados.status ?? null, incerta: false, criadoCom: impressaoDaCriacao(payload, rascunho.imagens) },
         { idExterno: resposta.dados.id, urlExterna: resposta.dados.permalink ?? null, situacaoCanal: situacaoDoItem(resposta.dados.status) },
       );
+      // O anuncio existe no ML: a marca "Nao anunciar no ML" do produto deixa de valer e o X do icone sai (pedido do dono em
+      // 28/10/2026). SQL cru, sem subir o `atualizadoEm` (a lista de Produtos ordena por ele). Falha aqui nao para a publicacao.
+      try {
+        await prisma.$executeRaw`UPDATE "Produto" SET "naoAnunciarEm" = array_remove("naoAnunciarEm", 'MERCADO_LIVRE'::"Canal") WHERE id = ${rascunho.produtoId} AND 'MERCADO_LIVRE'::"Canal" = ANY("naoAnunciarEm")`;
+      } catch (erro) {
+        console.error("[ml publicar] tirar o Nao anunciar", erro);
+      }
     } else if (etapa === "pausar") {
       if (pub.statusML !== "paused") {
         let resposta;

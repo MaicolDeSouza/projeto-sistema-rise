@@ -1999,7 +1999,11 @@ try {
       const mlMudou = criarMLFalso({ falhas: [{ metodo: "POST", caminho: "/items/MLB", status: 500 }] });
       const bfMudou = c.novoBling();
       const idMudou = await c.anuncioSimples(c.s1);
+      // O produto marcado "Nao anunciar no ML" (28/10/2026): criar o anuncio no ML tira a marca, e a da Shopee fica.
+      await prisma.$executeRaw`UPDATE "Produto" SET "naoAnunciarEm" = ARRAY['MERCADO_LIVRE','SHOPEE']::"Canal"[] WHERE id = ${c.s1.id}`;
       r = await publicarAnuncioML(idMudou, { ml: mlMudou, bling: bfMudou, lerFoto });
+      conferir("criar no ML tira o Nao anunciar no ML (e deixa o da Shopee)", (await prisma.produto.findUnique({ where: { id: c.s1.id }, select: { naoAnunciarEm: true } })).naoAnunciarEm, ["SHOPEE"]);
+      await prisma.$executeRaw`UPDATE "Produto" SET "naoAnunciarEm" = ARRAY[]::"Canal"[] WHERE id = ${c.s1.id}`;
       conferir("retomada: a criacao guarda o que foi (criadoCom)", Boolean((await lerPublicacao(idMudou)).publicacao.criadoCom?.preco), true);
       const parado = (await carregarAnuncioML(idMudou)).rascunho;
       const salvoParado = await salvarPresoML(idMudou, { ...parado, preco: Number(parado.preco) + 5 });
