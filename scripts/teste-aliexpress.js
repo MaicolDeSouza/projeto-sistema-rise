@@ -195,7 +195,11 @@ const noBling = (codigo, id) => ({ id, codigo, nome: `Produto ${codigo}`, preco:
 const { prisma } = await import("../src/lib/db.js");
 const { fornecedorDoAliExpress, marcarFornecedorDoAliExpress } = await import("../src/lib/compras/aliexpress/fornecedor.js");
 
+const inicioDoTeste = new Date();
+
 async function limpar() {
+  await prisma.logIntegracao.deleteMany({ where: { servico: "ALIEXPRESS", criadoEm: { gte: inicioDoTeste } } });
+  await prisma.pedidoDeCompra.deleteMany({ where: { aliexpress: { externoId: { startsWith: "99" } } } });
   await prisma.pedidoDeCompra.deleteMany({ where: { fornecedor: { nome: { startsWith: "ZZ Ali" } } } });
   await prisma.pedidoDeCompra.deleteMany({ where: { itens: { some: { produto: { sku: { startsWith: "ZZ-ALI" } } } } } });
   await prisma.produtoFornecedor.deleteMany({ where: { produto: { sku: { startsWith: "ZZ-ALI" } } } });
@@ -351,6 +355,100 @@ try {
     await prisma.itemDoPedidoDeCompra.update({ where: { id: r1.itemId }, data: { quantidadeLancada: 0 } });
     const desfeito = await desfazerCasamento(L5, { cliente: falso });
     conferir("desfazer tira a linha do item", [desfeito.ok, await itemDe(r1.itemId), (await prisma.linhaAliExpress.findUnique({ where: { id: L5 } })).itemId], [true, { quantidade: 2, precoUnitario: 10 }, null]);
+    await devolverMarca();
+  }
+
+  {
+    console.log("\nImportação (lista, detalhes, rastreio e Virtual)");
+    const { importarLista, importarDetalhes, estadoDaImportacao, reenviarAoVirtual } = await import("../src/lib/compras/aliexpress/importacao.js");
+    const ali = await prisma.fornecedor.create({ data: { nome: "ZZ Ali Importa", estrangeiro: true, prazoEntregaDias: 25 } });
+    conferir("sem fornecedor marcado recusa", (await (async () => { await prisma.fornecedor.updateMany({ where: { aliexpress: true }, data: { aliexpress: false } }); return importarLista({ pedidos: [], lidoEm: new Date().toISOString() }); })()).erro, "Marque o fornecedor do AliExpress em Integrações.");
+    await marcarFornecedorDoAliExpress(ali.id);
+    const I1 = await criarProduto("ZZ-ALI-I1", { blingId: "15000000931", fornecedorRascunho: { nome: "Ali", descricao: "https://pt.aliexpress.com/item/1005006891567710.html?spm=x" } });
+    const I2 = await criarProduto("ZZ-ALI-I2", { blingId: "15000000932" });
+    await prisma.produtoFornecedor.create({ data: { produtoId: I2.id, fornecedorId: ali.id, codigo: "1005001111111111:12000011111111111" } });
+    const falso = criarBlingFalso({ produtos: [noBling("ZZ-ALI-I1", 15000000931), noBling("ZZ-ALI-I2", 15000000932)] });
+    const lista = fixture("lista");
+    const detalhes = fixture("detalhes");
+    const lerAli = (externoId) =>
+      prisma.pedidoAliExpress.findUnique({ where: { externoId }, include: { pedido: { include: { itens: true } }, linhas: { orderBy: { externoLinhaId: "asc" }, include: { pacote: true } }, pacotes: true } });
+
+    const r1 = await importarLista(lista, { cliente: falso });
+    conferir("primeira importacao", [r1.ok, r1.novos, r1.atualizados, r1.pendentes, r1.virtualPendentes], [true, 2, 0, 1, 0]);
+    const p1 = await lerAli("9915244197193461");
+    conferir(
+      "pedido nasce ENVIADO, origem ALIEXPRESS, do fornecedor marcado",
+      [p1.pedido.status, p1.pedido.origem, p1.pedido.fornecedorId === ali.id, p1.pedido.enviadoEm?.toISOString().slice(0, 10), p1.loja, Number(p1.totalInformado)],
+      ["ENVIADO", "ALIEXPRESS", true, "2026-10-26", "Lets Deal Store", 277.1],
+    );
+    conferir("linha casada pelo rascunho, entrou no Virtual", [p1.linhas[0].itemId != null, p1.linhas[0].virtualQuantidade, p1.linhas[0].virtualLancadoEm != null], [true, 4, true]);
+    conferir("item com quantidade e preco", [p1.pedido.itens[0].quantidade, Number(p1.pedido.itens[0].precoUnitario)], [4, 57.49]);
+    conferir("precisa detalhe e rastreio dos dois, mais novo primeiro", [r1.precisaDetalhe, r1.precisaRastreio], [["9915244197193461", "9915189636893461"], ["9915244197193461", "9915189636893461"]]);
+    conferir("Virtual: duas entradas (a linha pendente nao vai)", falso.estado.lancamentos.map((lancamento) => [lancamento.operacao, lancamento.quantidade]), [["E", 4], ["E", 2]]);
+
+    const d = await importarDetalhes(detalhes);
+    const p1d = await lerAli("9915244197193461");
+    conferir("detalhe: frete, imposto e desconto implicito", [Number(p1d.pedido.frete), Number(p1d.pedido.imposto), Number(p1d.pedido.descontoValor), p1d.pedido.descontoTipo], [0.12, 47.14, 0.12, "VALOR"]);
+    conferir("rastreio: pacote e linha ligada", [d.pacotes, p1d.linhas[0].pacote?.codigo, p1d.pacotes[0]?.ultimoEvento, p1d.pacotes[0]?.transportadora], [1, "NN446506474BR", "Chegou ao armazém de consolidação", "AliExpress Selection Standard"]);
+    conferir("depois do detalhe, nao pede de novo", (await importarLista(lista, { cliente: falso })).precisaDetalhe, ["9915189636893461"]);
+
+    const r2 = await importarLista(lista, { cliente: falso });
+    conferir("reimportar nao duplica", [r2.novos, r2.atualizados, await prisma.pedidoAliExpress.count({ where: { externoId: { startsWith: "9915" } } }), falso.estado.lancamentos.length], [0, 2, 2, 2]);
+
+    const comLinhaNova = structuredClone(lista);
+    comLinhaNova.pedidos = [comLinhaNova.pedidos[0]];
+    comLinhaNova.pedidos[0].linhas.push({ orderLineId: "9915244197213461", productId: "1005001111111111", skuId: "12000011111111111", opcao: "Cor: Azul", titulo: "Módulo azul", urlDoItem: null, urlDaFoto: null, quantidade: 1, precoTexto: "R$10,00" });
+    const r3 = await importarLista(comLinhaNova, { cliente: falso });
+    conferir("linha nova em pedido existente", [r3.atualizados, (await lerAli("9915244197193461")).pedido.itens.length, falso.estado.lancamentos.at(-1)?.quantidade], [1, 2, 1]);
+
+    const emUsd = structuredClone(lista);
+    emUsd.pedidos = [{ ...emUsd.pedidos[0], orderId: "9915000000000001", moeda: "USD", linhas: [{ ...emUsd.pedidos[0].linhas[0], orderLineId: "9915000000000011" }] }];
+    const r4 = await importarLista(emUsd, { cliente: falso });
+    conferir("pedido em USD e ignorado", [r4.ignorados, await prisma.pedidoAliExpress.count({ where: { externoId: "9915000000000001" } })], [1, 0]);
+    const aSerPago = structuredClone(emUsd);
+    aSerPago.pedidos[0].moeda = "BRL";
+    aSerPago.pedidos[0].statusTexto = "A ser pago";
+    conferir("a ser pago e ignorado", (await importarLista(aSerPago, { cliente: falso })).ignorados, 1);
+
+    const entregue = structuredClone(lista);
+    entregue.pedidos = [{ ...entregue.pedidos[1], statusTexto: "Concluído", statusCodigo: null }];
+    const r5 = await importarLista(entregue, { cliente: falso });
+    const p2 = await lerAli("9915189636893461");
+    conferir("entregue: grava a data, status fica, pede o rastreio final", [p2.entregueEm != null, p2.pedido.status, r5.precisaRastreio], [true, "ENVIADO", ["9915189636893461"]]);
+
+    const novoCancelado = structuredClone(lista);
+    novoCancelado.pedidos = [{ ...novoCancelado.pedidos[0], orderId: "9915000000000002", linhas: [{ ...novoCancelado.pedidos[0].linhas[0], orderLineId: "9915000000000021" }] }];
+    await importarLista(novoCancelado, { cliente: falso });
+    novoCancelado.pedidos[0].statusTexto = "Pedido fechado";
+    novoCancelado.pedidos[0].statusCodigo = null;
+    await importarLista(novoCancelado, { cliente: falso });
+    const p3 = await lerAli("9915000000000002");
+    conferir("cancelado sem lancamento vira CANCELADO e sai do Virtual", [p3.pedido.status, p3.pedido.canceladoEm != null, falso.estado.lancamentos.at(-1)?.operacao, p3.linhas[0].virtualQuantidade], ["CANCELADO", true, "S", 0]);
+    const jaCancelado = structuredClone(novoCancelado);
+    jaCancelado.pedidos[0].orderId = "9915000000000004";
+    jaCancelado.pedidos[0].linhas[0].orderLineId = "9915000000000041";
+    conferir("pedido que ja vem cancelado na 1a vez e ignorado", (await importarLista(jaCancelado, { cliente: falso })).ignorados, 1);
+
+    await prisma.itemDoPedidoDeCompra.updateMany({ where: { pedidoId: p1.pedidoId }, data: { quantidadeLancada: 1 } });
+    const reembolso = structuredClone(lista);
+    reembolso.pedidos = [{ ...reembolso.pedidos[0], statusTexto: "Reembolsado", statusCodigo: null }];
+    const r6 = await importarLista(reembolso, { cliente: falso });
+    const p1c = await lerAli("9915244197193461");
+    conferir("cancelado com lancamento: fica e marca", [p1c.pedido.status, p1c.canceladoNoAliExpressEm != null, r6.avisos.some((aviso) => aviso.includes("há estoque lançado"))], ["ENVIADO", true, true]);
+
+    const travado = criarBlingFalso({ produtos: [noBling("ZZ-ALI-I1", 15000000931)], codigosLiberados: ["OUTRO"] });
+    const recusa = structuredClone(lista);
+    recusa.pedidos = [{ ...recusa.pedidos[0], orderId: "9915000000000003", linhas: [{ ...recusa.pedidos[0].linhas[0], orderLineId: "9915000000000031" }] }];
+    const r7 = await importarLista(recusa, { cliente: travado });
+    const linhaRecusada = (await lerAli("9915000000000003")).linhas[0];
+    conferir("Bling recusa a entrada no Virtual: importa e marca", [r7.ok, r7.virtualPendentes, linhaRecusada.virtualErro != null, linhaRecusada.virtualLancadoEm], [true, 1, true, null]);
+    const reenviado = await reenviarAoVirtual(linhaRecusada.id, { cliente: falso });
+    const depois = await prisma.linhaAliExpress.findUnique({ where: { id: linhaRecusada.id } });
+    conferir("Reenviar ao Virtual resolve", [reenviado.ok, depois.virtualErro, depois.virtualQuantidade], [true, null, 4]);
+
+    const estado = await estadoDaImportacao();
+    conferir("estado da importacao", [typeof estado.lerDesde, estado.ultimaImportacaoEm != null, estado.fornecedor], ["string", true, "ZZ Ali Importa"]);
+    conferir("cada clique vira log", (await prisma.logIntegracao.count({ where: { servico: "ALIEXPRESS", criadoEm: { gte: inicioDoTeste } } })) >= 10, true);
     await devolverMarca();
   }
 

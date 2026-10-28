@@ -208,7 +208,7 @@ export async function saidaDaLinhaDoVirtual(linhaId, dados, { cliente = clienteB
 }
 
 /** O que a linha pos no Virtual (para tirar depois), ou null. */
-async function oQueEstaNoVirtual(tx, linhaId) {
+export async function oQueEstaNoVirtual(tx, linhaId) {
   const dados = await dadosDoVirtual(tx, linhaId);
   if (!dados?.linha.virtualLancadoEm || !dados.linha.virtualQuantidade) return null;
   return { ...dados, quantidade: dados.linha.virtualQuantidade, observacao: `${dados.observacao} · troca` };
