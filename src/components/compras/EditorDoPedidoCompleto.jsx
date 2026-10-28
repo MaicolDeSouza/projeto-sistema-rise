@@ -17,7 +17,7 @@ import PopupLancarEstoque from "./PopupLancarEstoque";
  * O editor com as pecas das tarefas seguintes ligadas: a coluna "Chegada" (lancar estoque e desfazer), o arquivo da
  * proposta e o PDF. Fica separado para o EditorPedido nao conhecer cada uma delas.
  */
-export default function EditorDoPedidoCompleto({ pedidoInicial, transportadoras, podeEditar, podeLancar }) {
+export default function EditorDoPedidoCompleto({ pedidoInicial, transportadoras, podeEditar, podeLancar, podeCasar = false }) {
   const router = useRouter();
   const [lancando, setLancando] = useState(null);
   const [desfazendo, setDesfazendo] = useState(null);
@@ -111,7 +111,7 @@ export default function EditorDoPedidoCompleto({ pedidoInicial, transportadoras,
     ),
   };
 
-  return <EditorPedido pedidoInicial={pedidoInicial} transportadoras={transportadoras} podeEditar={podeEditar} extras={extras} />;
+  return <EditorPedido pedidoInicial={pedidoInicial} transportadoras={transportadoras} podeEditar={podeEditar} podeCasar={podeCasar} extras={extras} />;
 }
 
 /** Todos os itens chegaram: pergunta se finaliza (nunca finaliza sozinho: pode haver segunda remessa). */

@@ -13,7 +13,8 @@ const fmtData = (data) => (data ? new Date(data).toLocaleDateString("pt-BR", { t
  * A trilha da situacao no topo do editor: o pedido e uma sequencia de verdade (rascunho, enviado, chegando, fechado),
  * e ver onde ele esta e o que vem depois e a primeira coisa que o dono precisa. Cancelado substitui a trilha.
  */
-export default function TrilhaDoStatus({ status, enviadoEm, finalizadoEm, canceladoEm, acao = null }) {
+// `rotuloEnviado`: o pedido do AliExpress nasce enviado; a trilha diz "Comprado no AliExpress".
+export default function TrilhaDoStatus({ status, enviadoEm, finalizadoEm, canceladoEm, acao = null, rotuloEnviado }) {
   if (status === "CANCELADO") {
     return (
       <p className="mb-5 rounded-lg border border-borda bg-superficie px-4 py-3 text-sm text-suave">
@@ -41,7 +42,7 @@ export default function TrilhaDoStatus({ status, enviadoEm, finalizadoEm, cancel
               {feito ? <Check size={13} strokeWidth={3} /> : indice + 1}
             </span>
             <span className={`text-sm ${agora ? "font-semibold text-texto" : feito ? "text-texto" : "text-suave"}`}>
-              {passo.texto}
+              {passo.status === "ENVIADO" && rotuloEnviado ? rotuloEnviado : passo.texto}
               {datas[passo.status] && (indice <= atual) && <span className="ml-1.5 text-xs text-suave">{datas[passo.status]}</span>}
             </span>
           </li>

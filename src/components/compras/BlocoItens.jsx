@@ -1,10 +1,11 @@
 "use client";
 
-import { ExternalLink, Plus, Trash2 } from "lucide-react";
+import { ExternalLink, Plus, Repeat, Trash2 } from "lucide-react";
 
 import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
 import FotoComLupa from "@/components/ui/FotoComLupa";
 import { totalDoItem } from "@/lib/compras/regras";
+import { CelulaDeRastreio, LinhasPendentesAliExpress } from "./AliExpressDoPedido";
 import BuscaDeItem from "./BuscaDeItem";
 import { doTexto, moeda, soDecimal, soDigitos } from "./formato";
 
@@ -29,16 +30,27 @@ export default function BlocoItens({
   buscando,
   setBuscando,
   colunaDeChegada = null,
+  // Pedido do AliExpress (spec 2026-10-28): linhas sem produto no topo, colunas Opcao e Rastreio, "Trocar produto".
+  aliexpress = null,
+  podeCasar = false,
+  aoAtualizar = null,
+  aoTrocarProduto = null,
 }) {
   const erro = (indice, nome) => erros?.[`itens.${indice}.${nome}`];
+  // Regra 4 do padrao visual: coluna sem dado some (a tabela ja e larga; Opcao e Rastreio so quando algum item tem).
+  const mostrarOpcao = Boolean(aliexpress) && itens.some((item) => aliexpress.opcaoPorItem[item.id]);
+  const mostrarRastreio = Boolean(aliexpress) && itens.some((item) => aliexpress.rastreioPorItem[item.id]?.length);
 
   return (
     <SecaoDoAnuncio
       titulo={`Itens do pedido (${itens.length})`}
       ajuda="Nome e código no fornecedor vêm do vínculo do produto; são eles que vão no PDF. Depois de enviado, só o prazo muda."
     >
+      <LinhasPendentesAliExpress aliexpress={aliexpress} pedidoId={pedidoId} fornecedor={fornecedor} podeCasar={podeCasar} aoAtualizar={aoAtualizar} />
       {itens.length === 0 ? (
+        aliexpress ? null : (
         <p className="py-4 text-center text-sm text-suave">Nenhum item. Adicione pela lista do estoque mínimo ou pelo botão abaixo.</p>
+        )
       ) : (
         <div className="-mx-4 -mt-4 overflow-x-auto">
           <table className="w-full text-sm">
@@ -48,12 +60,14 @@ export default function BlocoItens({
                 <th className="min-w-40 px-3 py-2 font-medium">Produto</th>
                 <th className="min-w-32 px-3 py-2 font-medium">Nome no fornecedor</th>
                 <th className="w-24 px-3 py-2 font-medium">Código fornecedor</th>
+                {mostrarOpcao && <th className="px-3 py-2 font-medium">Opção</th>}
                 <th className="w-20 px-3 py-2 text-right font-medium">Qtde</th>
                 {veCusto && <th className="w-28 px-3 py-2 text-right font-medium">Preço un.</th>}
                 {veCusto && <th className="w-16 px-3 py-2 text-right font-medium">IPI %</th>}
                 {veCusto && <th className="w-28 px-3 py-2 text-right font-medium">Total</th>}
                 <th className="w-20 px-3 py-2 text-right font-medium">Prazo</th>
                 <th className="w-10 px-2 py-2"><span className="sr-only">Link</span></th>
+                {mostrarRastreio && <th className="px-3 py-2 font-medium">Rastreio</th>}
                 {colunaDeChegada && <th className="px-3 py-2 font-medium">Chegada</th>}
                 {editar && <th className="w-10 px-2 py-2"><span className="sr-only">Excluir</span></th>}
               </tr>
@@ -66,7 +80,21 @@ export default function BlocoItens({
                   </td>
                   <td className="max-w-52 px-3 py-2">
                     <p className="truncate font-medium" title={item.nome}>{item.nome}</p>
-                    <p className="font-mono text-xs text-suave">{item.sku}</p>
+                    <p className="flex items-center gap-1 font-mono text-xs text-suave">
+                      {item.sku}
+                      {aliexpress && podeCasar && aoTrocarProduto && !item.quantidadeLancada && (
+                        <button
+                          type="button"
+                          onClick={() => aoTrocarProduto(item)}
+                          aria-label={`Trocar o produto de ${item.sku}`}
+                          title="Trocar produto: o item volta a ficar sem produto"
+                          // Icone de 12 px: a area de clique cresce pelo ::after, sem mudar o desenho da linha.
+                          className="relative rounded p-0.5 text-suave after:absolute after:-inset-2 after:content-[''] hover:bg-fundo hover:text-acento"
+                        >
+                          <Repeat size={12} />
+                        </button>
+                      )}
+                    </p>
                   </td>
                   <td className="px-3 py-2">
                     <input
@@ -88,6 +116,7 @@ export default function BlocoItens({
                       className={`${campo} font-mono text-xs`}
                     />
                   </td>
+                  {mostrarOpcao && <td className="max-w-40 truncate px-3 py-3 text-xs text-suave">{aliexpress.opcaoPorItem[item.id] ?? "—"}</td>}
                   <td className="px-3 py-2">
                     <input
                       inputMode="numeric"
@@ -155,6 +184,11 @@ export default function BlocoItens({
                       </a>
                     )}
                   </td>
+                  {mostrarRastreio && (
+                    <td className="px-3 py-2">
+                      <CelulaDeRastreio pacotes={aliexpress.rastreioPorItem[item.id]} linkDoRastreio={aliexpress.linkDoRastreio} />
+                    </td>
+                  )}
                   {colunaDeChegada && <td className="px-3 py-2">{colunaDeChegada(item)}</td>}
                   {editar && (
                     <td className="px-2 py-2.5">

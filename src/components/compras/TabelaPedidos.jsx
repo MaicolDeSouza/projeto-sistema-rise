@@ -110,7 +110,25 @@ export default function TabelaPedidos({ linhas, status, veCusto, podeExcluir = f
                       {linha.codigo}
                     </Link>
                   </td>
-                  <td className="max-w-0 truncate px-3 py-2.5">{linha.fornecedor}</td>
+                  <td className="max-w-0 px-3 py-2.5">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="truncate">{linha.fornecedor}</span>
+                      {linha.origem === "ALIEXPRESS" && (
+                        <span className="shrink-0 rounded bg-orange-50 px-1.5 py-0.5 text-[11px] font-medium text-orange-700 ring-1 ring-orange-200" title={linha.loja ? `AliExpress · ${linha.loja}` : "AliExpress"}>
+                          AliExpress
+                        </span>
+                      )}
+                      {linha.alerta && (
+                        <span
+                          className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white"
+                          title={linha.alerta === "pendente" ? "Item sem produto do Rise" : "Entregue no AliExpress, falta lançar"}
+                          aria-label={linha.alerta === "pendente" ? "Item sem produto do Rise" : "Entregue no AliExpress, falta lançar"}
+                        >
+                          !
+                        </span>
+                      )}
+                    </span>
+                  </td>
                   <td className="px-3 py-2.5">
                     <SeloDoStatus status={linha.status} />
                   </td>
@@ -121,8 +139,12 @@ export default function TabelaPedidos({ linhas, status, veCusto, podeExcluir = f
                   {podeExcluir && (
                     <td className="px-2 py-1.5" onClick={(evento) => evento.stopPropagation()}>
                       {(() => {
-                        const pode = PODE_EXCLUIR.includes(linha.status);
-                        const motivo = pode
+                        // Pedido do AliExpress nao se apaga: a proxima importacao o recriaria (cancelado fica no historico).
+                        const doAliExpress = linha.origem === "ALIEXPRESS";
+                        const pode = PODE_EXCLUIR.includes(linha.status) && !doAliExpress;
+                        const motivo = doAliExpress
+                          ? "Pedido do AliExpress não se apaga"
+                          : pode
                           ? `Excluir ${linha.codigo}`
                           : linha.status === "ENVIADO"
                             ? "Pedido enviado: cancele antes de excluir"

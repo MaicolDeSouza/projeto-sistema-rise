@@ -10,7 +10,8 @@ import { buscarItensAcao } from "@/app/compras/acoes";
  * Espera 300 ms depois da ultima tecla. Cada achado diz se tem vinculo com este fornecedor (entra com nome, codigo e
  * preco dele) ou nao (entra so com o nome do Rise; o resto a mao).
  */
-export default function BuscaDeItem({ pedidoId, fornecedor, aoEscolher, aoFechar }) {
+// `permitirRepetido`: a linha do AliExpress pode ir para um produto que ja esta no pedido (duas opcoes, um produto).
+export default function BuscaDeItem({ pedidoId, fornecedor, aoEscolher, aoFechar, permitirRepetido = false }) {
   const [texto, setTexto] = useState("");
   const [achados, setAchados] = useState([]);
   const [buscando, setBuscando] = useState(false);
@@ -67,7 +68,7 @@ export default function BuscaDeItem({ pedidoId, fornecedor, aoEscolher, aoFechar
             <li key={achado.produtoId}>
               <button
                 type="button"
-                disabled={achado.jaNoPedido || escolhendo !== null}
+                disabled={(achado.jaNoPedido && !permitirRepetido) || escolhendo !== null}
                 onClick={() => escolher(achado)}
                 className="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-acento/5 focus-visible:bg-acento/5 focus-visible:outline-none disabled:cursor-default disabled:hover:bg-transparent"
               >

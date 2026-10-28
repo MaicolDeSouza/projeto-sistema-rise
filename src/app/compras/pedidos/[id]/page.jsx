@@ -34,6 +34,7 @@ export default async function PedidoPage({ params }) {
       transportadoras={transportadoras}
       podeEditar={acesso.pode("tela.compras.pedidos", "editar")}
       podeLancar={acesso.pode("acao.compras.lancarEstoque", "executar")}
+      podeCasar={acesso.pode("acao.compras.casarAliExpress", "executar")}
     />
   );
 }

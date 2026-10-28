@@ -4,7 +4,11 @@ import { CircleAlert, CircleCheck } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import CartaoConector from "@/components/CartaoConector";
+import CartaoAliExpress from "@/components/integracoes/CartaoAliExpress";
 import CartaoServidorVps from "@/components/integracoes/CartaoServidorVps";
+import { estadoDaChave } from "@/lib/compras/aliexpress/chave";
+import { fornecedorDoAliExpress } from "@/lib/compras/aliexpress/fornecedor";
+import { prisma } from "@/lib/db";
 import { ehOPcDeDesenvolvimento } from "@/lib/vps/regras";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import { conectores } from "@/lib/integracoes/registro";
@@ -31,8 +35,22 @@ export default async function IntegracoesPage({ searchParams }) {
   let conexoes = new Map();
   let erroBanco = null;
 
+  // Cartao AliExpress (spec 2026-10-28): estado da chave, a ultima importacao (o log do ultimo clique) e o fornecedor.
+  let aliexpress = null;
   try {
     conexoes = await listarConexoes();
+    const [estado, ultimo, marcado, fornecedores] = await Promise.all([
+      estadoDaChave(),
+      prisma.logIntegracao.findFirst({ where: { servico: "ALIEXPRESS", endpoint: "importar/lista" }, orderBy: { criadoEm: "desc" }, select: { criadoEm: true, responseResumo: true, erro: true } }),
+      fornecedorDoAliExpress(),
+      prisma.fornecedor.findMany({ where: { ativo: true }, orderBy: { nome: "asc" }, select: { id: true, nome: true } }),
+    ]);
+    aliexpress = {
+      estado: JSON.parse(JSON.stringify(estado)),
+      ultimaImportacao: ultimo ? { em: ultimo.criadoEm.toISOString(), resumo: ultimo.erro ?? ultimo.responseResumo } : null,
+      fornecedorMarcado: marcado ? { id: marcado.id, nome: marcado.nome } : null,
+      fornecedores,
+    };
   } catch (excecao) {
     erroBanco = excecao;
   }
@@ -133,6 +151,7 @@ export default async function IntegracoesPage({ searchParams }) {
               )}
             />
           ))}
+        {aliexpress && <CartaoAliExpress {...aliexpress} podeEditar={podeEditar} />}
         {mostrarServidorVps && <CartaoServidorVps />}
       </div>
     </>

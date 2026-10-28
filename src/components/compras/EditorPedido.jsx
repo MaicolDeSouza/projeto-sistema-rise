@@ -5,9 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCheck, FileDown, Loader2, MoreVertical, Send } from "lucide-react";
 
-import { adicionarItemAcao, mudarStatusAcao, salvarPedidoAcao } from "@/app/compras/acoes";
+import { adicionarItemAcao, desfazerCasamentoAliExpressAcao, mudarStatusAcao, salvarPedidoAcao } from "@/app/compras/acoes";
 import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
 import { faltaLancar } from "@/lib/compras/regras";
+import { AvisosAliExpress, ResumoAliExpress } from "./AliExpressDoPedido";
 import BlocoItens from "./BlocoItens";
 import { BlocoFrete, BlocoObservacoes, BlocoPagamento, BlocoProposta, BlocoTotais } from "./BlocosDoPedido";
 import { entradaDoFormulario, formularioDoPedido, totaisDoFormulario } from "./formato";
@@ -23,7 +24,7 @@ import TrilhaDoStatus from "./TrilhaDoStatus";
  * `extras` deixa as tarefas seguintes acrescentarem a coluna de chegada (lancar estoque), o arquivo da proposta e o
  * link do PDF sem reescrever este componente.
  */
-export default function EditorPedido({ pedidoInicial, transportadoras, podeEditar, extras = {} }) {
+export default function EditorPedido({ pedidoInicial, transportadoras, podeEditar, podeCasar = false, extras = {} }) {
   const router = useRouter();
   const [pedido, setPedido] = useState(pedidoInicial);
   const [base, setBase] = useState(() => formularioDoPedido(pedidoInicial));
@@ -109,6 +110,18 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
     });
 
   const pendentes = pedido.itens.filter((item) => faltaLancar(item) > 0);
+  const casavel = podeCasar && podeEditar && !["FINALIZADO", "CANCELADO"].includes(pedido.status);
+
+  // "Trocar produto" do pedido do AliExpress: o item volta a ser linha sem produto (so sem estoque lancado).
+  const trocarProduto = (item) =>
+    iniciar(async () => {
+      const linhaId = pedido.aliexpress?.linhaPorItem?.[item.id];
+      if (!linhaId) return;
+      const resposta = await desfazerCasamentoAliExpressAcao(linhaId);
+      if (!resposta?.ok) return setErroGeral(resposta?.erro ?? "Não foi possível trocar o produto.");
+      if (resposta.pedido) aplicar(resposta.pedido);
+      router.refresh();
+    });
 
   const perguntas = {
     sair: (
@@ -244,7 +257,16 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
         </div>
       </div>
 
-      <TrilhaDoStatus status={pedido.status} enviadoEm={pedido.enviadoEm} finalizadoEm={pedido.finalizadoEm} canceladoEm={pedido.canceladoEm} acao={acaoDaSituacao} />
+      <TrilhaDoStatus
+        status={pedido.status}
+        enviadoEm={pedido.enviadoEm}
+        finalizadoEm={pedido.finalizadoEm}
+        canceladoEm={pedido.canceladoEm}
+        acao={acaoDaSituacao}
+        rotuloEnviado={pedido.aliexpress ? "Comprado no AliExpress" : undefined}
+      />
+
+      {pedido.aliexpress && <AvisosAliExpress avisos={pedido.avisos} aliexpress={pedido.aliexpress} podeCasar={casavel} aoAtualizar={aplicar} />}
 
       {erroGeral && <p className="mb-4 rounded-md border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm text-rose-700" role="alert">{erroGeral}</p>}
 
@@ -254,6 +276,7 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
           <Link href={`/cadastros/fornecedores/${pedido.fornecedor.id}`} className="text-base font-semibold hover:text-acento hover:underline">
             {pedido.fornecedor.nome}
           </Link>
+          {pedido.aliexpress && <ResumoAliExpress aliexpress={pedido.aliexpress} />}
         </SecaoDoAnuncio>
 
         <BlocoItens
@@ -270,6 +293,10 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
           buscando={buscando}
           setBuscando={setBuscando}
           // Chegada so existe depois de enviado: no rascunho a coluna vazia so roubava espaco dos campos.
+          aliexpress={pedido.aliexpress}
+          podeCasar={casavel}
+          aoAtualizar={aplicar}
+          aoTrocarProduto={trocarProduto}
           colunaDeChegada={extras.colunaDeChegada && pedido.status !== "RASCUNHO" ? (item) => extras.colunaDeChegada(item, { pedido, aplicar, alterado }) : null}
         />
 
