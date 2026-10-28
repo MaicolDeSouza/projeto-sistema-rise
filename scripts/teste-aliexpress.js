@@ -203,6 +203,43 @@ async function limpar() {
   await prisma.fornecedor.deleteMany({ where: { nome: { startsWith: "ZZ Ali" } } });
 }
 
+async function criarProduto(sku, dados = {}) {
+  return prisma.produto.create({ data: { sku, tituloBase: `PRODUTO ${sku}`, conferido: true, ativo: true, estoque: 2, estoqueMinimo: 5, estoqueMaximo: 40, ...dados } });
+}
+
+const { proximoNumero } = await import("../src/lib/compras/banco.js");
+/** Um pedido de compra do AliExpress ja gravado, com as linhas sem casar (como a importacao deixa antes do casamento). */
+async function criarPedidoAli(fornecedorId, externoId, linhas, extra = {}) {
+  return prisma.$transaction(async (tx) => {
+    const pedido = await tx.pedidoDeCompra.create({ data: { fornecedorId, numero: await proximoNumero(tx), status: "ENVIADO", origem: "ALIEXPRESS", enviadoEm: new Date() } });
+    const ali = await tx.pedidoAliExpress.create({
+      data: {
+        pedidoId: pedido.id,
+        externoId,
+        statusTexto: "Aguardando a entrega",
+        statusCodigo: 8,
+        dataDoPedido: new Date(),
+        totalInformado: 0,
+        moeda: "BRL",
+        ...extra,
+        linhas: {
+          create: linhas.map((linha) => ({
+            externoLinhaId: `${externoId}${linha.id}`,
+            productId: linha.productId,
+            skuId: linha.skuId,
+            titulo: `Linha ${linha.id}`,
+            urlDoItem: `https://www.aliexpress.com/item/${linha.productId}.html`,
+            quantidadeComprada: linha.quantidade,
+            precoComprado: linha.preco,
+          })),
+        },
+      },
+      include: { linhas: { orderBy: { externoLinhaId: "asc" } } },
+    });
+    return { pedidoId: pedido.id, linhas: ali.linhas };
+  });
+}
+
 // O "Ali" do dono: marcado de novo no fim de cada bloco que troca a marca.
 const fornecedorOriginal = await fornecedorDoAliExpress();
 async function devolverMarca() {
@@ -256,6 +293,65 @@ try {
     conferir("estado", (await estadoDaChave()).configurada, true);
     conferir("a chave nao fica no banco, so o hash", JSON.stringify(await prisma.conexao.findUnique({ where: { servico: "ALIEXPRESS" } })).includes(segunda), false);
     chaveDoTeste = segunda;
+  }
+
+  {
+    console.log("\nCasamento da linha com o produto");
+    const { casarLinha, casarManual, desfazerCasamento } = await import("../src/lib/compras/aliexpress/casamento.js");
+    const ali = await prisma.fornecedor.create({ data: { nome: "ZZ Ali Fornecedor", estrangeiro: true, prazoEntregaDias: 30 } });
+    await marcarFornecedorDoAliExpress(ali.id);
+    const P1 = await criarProduto("ZZ-ALI-P1", { blingId: "15000000921" });
+    const P2 = await criarProduto("ZZ-ALI-P2", { blingId: "15000000922", fornecedorRascunho: { nome: "Ali", descricao: "https://pt.aliexpress.com/item/333.html?spm=x" } });
+    const P3 = await criarProduto("ZZ-ALI-P3", { blingId: "15000000923", fornecedorRascunho: { nome: "Ali", descricao: "https://pt.aliexpress.com/item/555.html" } });
+    const P4 = await criarProduto("ZZ-ALI-P4", { blingId: "15000000924", fornecedorRascunho: { nome: "Ali", descricao: "https://pt.aliexpress.com/item/555.html?x=1" } });
+    const P5 = await criarProduto("ZZ-ALI-P5", { tipo: "COMPOSICAO" });
+    await prisma.produtoFornecedor.create({ data: { produtoId: P1.id, fornecedorId: ali.id, codigo: "111:222", precoCusto: 9, precoFornecedor: 9 } });
+    await prisma.produtoFornecedor.create({ data: { produtoId: P5.id, fornecedorId: ali.id, codigo: "777:" } });
+    const pedido = await criarPedidoAli(ali.id, "9000000000000001", [
+      { id: "1", productId: "111", skuId: "222", quantidade: 2, preco: 10 },
+      { id: "2", productId: "333", skuId: "444", quantidade: 1, preco: 30 },
+      { id: "3", productId: "555", skuId: "666", quantidade: 1, preco: 30 },
+      { id: "4", productId: "777", skuId: null, quantidade: 1, preco: 5 },
+      { id: "5", productId: "111", skuId: "222", quantidade: 3, preco: 12 },
+    ]);
+    const [L1, L2, L3, L4, L5] = pedido.linhas.map((linha) => linha.id);
+    const falso = criarBlingFalso({ produtos: [noBling("ZZ-ALI-P1", 15000000921), noBling("ZZ-ALI-P2", 15000000922), noBling("ZZ-ALI-P3", 15000000923), noBling("ZZ-ALI-P4", 15000000924)] });
+    const vinculoAli = (produtoId) => prisma.produtoFornecedor.findFirst({ where: { produtoId, fornecedorId: ali.id } });
+    const itemDe = async (itemId) => {
+      const item = await prisma.itemDoPedidoDeCompra.findUnique({ where: { id: itemId } });
+      return item && { quantidade: item.quantidade, precoUnitario: Number(item.precoUnitario) };
+    };
+
+    const r1 = await casarLinha(prisma, L1);
+    conferir("regra 1: codigo do vinculo", [r1.ok, r1.produtoId, r1.criouItem], [true, P1.id, true]);
+    conferir("item nasce com nome, codigo, link e prazo", (({ nomeNoFornecedor, codigoNoFornecedor, prazoDias }) => ({ nomeNoFornecedor, codigoNoFornecedor, prazoDias }))(await prisma.itemDoPedidoDeCompra.findUnique({ where: { id: r1.itemId } })), { nomeNoFornecedor: "Linha 1", codigoNoFornecedor: "111:222", prazoDias: 30 });
+    conferir("casar de novo nao duplica", [(await casarLinha(prisma, L1)).itemId, await prisma.itemDoPedidoDeCompra.count({ where: { pedidoId: pedido.pedidoId } })], [r1.itemId, 1]);
+    conferir("regra 2: rascunho do Bling, um produto", (await casarLinha(prisma, L2)).produtoId, P2.id);
+    conferir("regra 2 cria o vinculo do Ali com o codigo anuncio:opcao", (await vinculoAli(P2.id))?.codigo, "333:444");
+    conferir("custo so em quem nao tinha", [Number((await vinculoAli(P2.id)).precoCusto), Number((await vinculoAli(P1.id)).precoCusto)], [30, 9]);
+    conferir("regra 2 ambigua fica pendente", await casarLinha(prisma, L3), { ok: false, pendente: true, motivo: "ambiguo", produtos: [P3.id, P4.id].sort() });
+    conferir("kit fica pendente", (await casarLinha(prisma, L4)).motivo, "kit");
+    const r5 = await casarLinha(prisma, L5);
+    conferir("duas linhas no mesmo produto somam no item", [r5.itemId === r1.itemId, await itemDe(r1.itemId)], [true, { quantidade: 5, precoUnitario: 11.2 }]);
+
+    const m3 = await casarManual(L3, P3.id, 100, { cliente: falso });
+    conferir("casar manual com fator 100", [m3.ok, await itemDe(m3.itemId)], [true, { quantidade: 100, precoUnitario: 0.3 }]);
+    conferir("casar manual grava o vinculo com fator", (await prisma.produtoFornecedor.findFirst({ where: { produtoId: P3.id, fornecedorId: ali.id, codigo: "555:666" } }))?.fator, 100);
+    const linha3 = await prisma.linhaAliExpress.findUnique({ where: { id: L3 } });
+    conferir("casar manual mandou entrada no Virtual", [falso.estado.lancamentos.at(-1)?.operacao, falso.estado.lancamentos.at(-1)?.quantidade, linha3.virtualQuantidade, Boolean(linha3.virtualLancadoEm)], ["E", 100, 100, true]);
+    const troca = await casarManual(L3, P4.id, 100, { cliente: falso });
+    conferir("trocar o produto tira do antigo e entra no novo", [troca.ok, falso.estado.lancamentos.slice(-2).map((lancamento) => [lancamento.operacao, lancamento.produto.id])], [true, [["S", 15000000923], ["E", 15000000924]]]);
+    conferir("a troca e lembrada: o codigo saiu do produto antigo", [(await prisma.produtoFornecedor.count({ where: { produtoId: P3.id, codigo: "555:666" } })), (await prisma.produtoFornecedor.count({ where: { produtoId: P4.id, codigo: "555:666" } }))], [0, 1]);
+    conferir("o item antigo sumiu", await prisma.itemDoPedidoDeCompra.count({ where: { pedidoId: pedido.pedidoId, produtoId: P3.id } }), 0);
+    conferir("fator invalido recusa", (await casarManual(L3, P4.id, 0, { cliente: falso })).ok, false);
+    conferir("kit recusa no manual", (await casarManual(L4, P5.id, 1, { cliente: falso })).ok, false);
+    await prisma.itemDoPedidoDeCompra.update({ where: { id: r1.itemId }, data: { quantidadeLancada: 1 } });
+    conferir("com estoque lancado nao troca", (await casarManual(L1, P2.id, 1, { cliente: falso })).erro, "Já há estoque lançado deste item: não dá para trocar.");
+    conferir("com estoque lancado nao desfaz", (await desfazerCasamento(L5, { cliente: falso })).ok, false);
+    await prisma.itemDoPedidoDeCompra.update({ where: { id: r1.itemId }, data: { quantidadeLancada: 0 } });
+    const desfeito = await desfazerCasamento(L5, { cliente: falso });
+    conferir("desfazer tira a linha do item", [desfeito.ok, await itemDe(r1.itemId), (await prisma.linhaAliExpress.findUnique({ where: { id: L5 } })).itemId], [true, { quantidade: 2, precoUnitario: 10 }, null]);
+    await devolverMarca();
   }
 
   // Marcador: os blocos de banco seguintes entram acima desta linha.
