@@ -56,7 +56,7 @@ export function totalDoItem({ quantidade, precoUnitario }) {
  * Os totais do pedido. O desconto percentual incide sobre os produtos; o total nunca fica negativo.
  * @returns {{ produtos: number, ipi: number, desconto: number, total: number, numeroDeItens: number, somaDasQuantidades: number }}
  */
-export function totaisDoPedido({ itens = [], icmsSt = 0, descontoTipo = null, descontoValor = 0, frete = 0, entrada = 0 }) {
+export function totaisDoPedido({ itens = [], icmsSt = 0, descontoTipo = null, descontoValor = 0, frete = 0, entrada = 0, imposto = 0 }) {
   let produtos = 0;
   let ipi = 0;
   let somaDasQuantidades = 0;
@@ -68,12 +68,14 @@ export function totaisDoPedido({ itens = [], icmsSt = 0, descontoTipo = null, de
   }
   const desconto =
     descontoTipo === "PERCENTUAL" ? Math.round((produtos * (Number(descontoValor) || 0)) / 100) : centavos(descontoValor);
-  const total = Math.max(0, produtos + ipi + centavos(icmsSt) + centavos(frete) - desconto);
+  // `imposto`: o que o AliExpress cobra no pedido (importacao, 28/10/2026); nos pedidos do Rise e zero.
+  const total = Math.max(0, produtos + ipi + centavos(icmsSt) + centavos(imposto) + centavos(frete) - desconto);
   // Entrada: o que ja foi pago ao fazer o pedido (pedido do dono em 26/10/2026). O resto e o "falta pagar".
   const pago = centavos(entrada);
   return {
     produtos: reais(produtos),
     ipi: reais(ipi),
+    imposto: reais(centavos(imposto)),
     desconto: reais(desconto),
     total: reais(total),
     entrada: reais(pago),

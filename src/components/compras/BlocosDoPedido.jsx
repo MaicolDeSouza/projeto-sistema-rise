@@ -41,6 +41,8 @@ export function BlocoTotais({ formulario, totais, editar, erros, aoMudar }) {
         <div className="grid grid-cols-2 gap-3 rounded-md border border-borda p-3">
           <p className="col-span-2 -mt-0.5 text-xs font-semibold text-texto">Impostos</p>
           <Calculado rotulo="IPI" valor={moeda.format(totais.ipi)} />
+          {/* Imposto do AliExpress: vem da importacao, so leitura; sem ele a linha some (regra 4 do padrao visual). */}
+          {totais.imposto > 0 && <Calculado rotulo="Imposto (AliExpress)" valor={moeda.format(totais.imposto)} />}
           <Campo rotulo="ICMS ST (R$)" erro={erros?.icmsSt}>
             <input inputMode="decimal" value={formulario.icmsSt} disabled={!editar} aria-invalid={Boolean(erros?.icmsSt)} onChange={(evento) => aoMudar("icmsSt", soDecimal(evento.target.value))} className={`${entrada} text-right`} />
           </Campo>

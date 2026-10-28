@@ -14,8 +14,9 @@ export function semPrecos(pedido) {
     descontoValor: SEM,
     frete: SEM,
     entrada: SEM,
+    imposto: SEM,
     itens: pedido.itens.map((item) => ({ ...item, precoUnitario: SEM, ipiPercentual: SEM })),
-    totais: { ...pedido.totais, produtos: SEM, ipi: SEM, desconto: SEM, total: SEM, entrada: SEM, faltaPagar: SEM },
+    totais: { ...pedido.totais, produtos: SEM, ipi: SEM, imposto: SEM, desconto: SEM, total: SEM, entrada: SEM, faltaPagar: SEM },
     semPrecos: true,
   };
 }

@@ -410,6 +410,7 @@ function pedidoParaTela(pedido) {
     descontoValor: numero(pedido.descontoValor) ?? 0,
     frete: numero(pedido.frete) ?? 0,
     entrada: numero(pedido.entrada) ?? 0,
+    imposto: numero(pedido.imposto) ?? 0,
   };
   return {
     id: pedido.id,
@@ -502,6 +503,7 @@ export async function listarPedidos({ status, busca, pagina = 1, porPagina = 25 
         descontoTipo: pedido.descontoTipo,
         descontoValor: numero(pedido.descontoValor),
         frete: numero(pedido.frete),
+        imposto: numero(pedido.imposto),
       }).total,
       enviadoEm: pedido.enviadoEm,
       atualizadoEm: pedido.atualizadoEm,

@@ -135,6 +135,7 @@ export function pdfDoPedido(pedido, empresa) {
       ["Total dos produtos", reais(totais.produtos)],
       totais.ipi > 0 ? ["Total do IPI", reais(totais.ipi)] : null,
       Number(pedido.icmsSt) > 0 ? ["ICMS ST", reais(pedido.icmsSt)] : null,
+      Number(pedido.imposto) > 0 ? ["Imposto", reais(pedido.imposto)] : null,
       totais.desconto > 0 ? [pedido.descontoTipo === "PERCENTUAL" ? `Desconto (${pedido.descontoValor}%)` : "Desconto", `− ${reais(totais.desconto)}`] : null,
       Number(pedido.frete) > 0 ? ["Frete", reais(pedido.frete)] : null,
     ].filter(Boolean);

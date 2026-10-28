@@ -41,6 +41,8 @@ export function formularioDoPedido(pedido) {
     desconto: textoDoDesconto(pedido.descontoTipo, pedido.descontoValor),
     frete: paraTexto(pedido.frete),
     entrada: paraTexto(pedido.entrada),
+    // So leitura: o imposto vem do AliExpress (importacao), a tela nao o edita.
+    imposto: Number(pedido.imposto) || 0,
     formaPagamento: pedido.formaPagamento ?? null,
     parcelas: String(pedido.parcelas ?? 1),
     transportadoraId: pedido.transportadoraId ?? "",
@@ -85,6 +87,7 @@ export function totaisDoFormulario(formulario) {
     descontoValor: "erro" in desconto ? 0 : desconto.valor,
     frete: doTexto(formulario.frete) ?? 0,
     entrada: doTexto(formulario.entrada) ?? 0,
+    imposto: Number(formulario.imposto) || 0,
   });
 }
 

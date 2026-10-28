@@ -57,7 +57,7 @@ const itens = [
 conferir(
   "totais do print do Bling + IPI",
   totaisDoPedido({ itens, icmsSt: 0, descontoTipo: "VALOR", descontoValor: 0, frete: 0 }),
-  { produtos: 5655, ipi: 467.63, desconto: 0, total: 6122.63, entrada: 0, faltaPagar: 6122.63, numeroDeItens: 2, somaDasQuantidades: 440 },
+  { produtos: 5655, ipi: 467.63, imposto: 0, desconto: 0, total: 6122.63, entrada: 0, faltaPagar: 6122.63, numeroDeItens: 2, somaDasQuantidades: 440 },
 );
 conferir(
   "desconto 10% sobre produtos",

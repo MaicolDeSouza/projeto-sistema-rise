@@ -129,6 +129,17 @@ const regras = await import("../src/lib/compras/aliexpress/regras.js");
   conferir("data curta", formatarDataCurta(new Date("2026-10-27T12:00:00Z")), "27/10");
 }
 
+{
+  const { totaisDoPedido } = await import("../src/lib/compras/regras.js");
+  const { semPrecos } = await import("../src/lib/compras/projecao.js");
+  console.log("\nTotais com o imposto do AliExpress");
+  const totais = totaisDoPedido({ itens: [{ quantidade: 4, precoUnitario: 57.49 }], frete: 0.12, imposto: 47.14, descontoTipo: "VALOR", descontoValor: 0.12 });
+  conferir("totais com imposto", { produtos: totais.produtos, imposto: totais.imposto, total: totais.total }, { produtos: 229.96, imposto: 47.14, total: 277.1 });
+  conferir("sem imposto continua igual", totaisDoPedido({ itens: [{ quantidade: 1, precoUnitario: 10 }] }).imposto, 0);
+  const cortado = semPrecos({ imposto: 47.14, itens: [], totais: { imposto: 47.14 } });
+  conferir("sem custo nao ve o imposto", [cortado.imposto, cortado.totais.imposto], [null, null]);
+}
+
 // Marcador: os blocos puros entram acima desta linha.
 
 // ---------------------------------------------------------------------------
