@@ -33,7 +33,7 @@ const {
 } = await import("../src/lib/canaisDeVenda/composicao.js");
 const { custoDoProduto } = await import("../src/lib/canaisDeVenda/custo.js");
 const { montarDescricaoML } = await import("../src/lib/canaisDeVenda/ml/descricao.js");
-const { rascunhoInicial, aplicarComposicao, descricaoDoRise } = await import("../src/lib/canaisDeVenda/ml/rascunho.js");
+const { rascunhoInicial, aplicarComposicao, descricaoDoRise, medidasDoKit } = await import("../src/lib/canaisDeVenda/ml/rascunho.js");
 const { ABAS_ML, validarRascunhoML, medidasFaltando } = await import("../src/lib/canaisDeVenda/ml/validacao.js");
 const { montarPayloadML, nomeDaFoto } = await import("../src/lib/canaisDeVenda/ml/payload.js");
 const { estadoDoIconeML, rotuloDoIconeML } = await import("../src/lib/canaisDeVenda/ml/icone.js");
@@ -209,7 +209,20 @@ try {
     conferir("sem descricao, texto vazio", montarDescricaoML({ descricao: "  " }), "");
     // A descricao do anuncio e sempre a do produto (pedido do dono em 22/10/2026); no kit, com os Itens inclusos do kit.
     conferir("descricaoDoRise: simples = a do produto", descricaoDoRise({ ...simples, descricao: "editada" }, { a, b }), a.descricaoBase);
-    conferir("descricaoDoRise: kit = a do principal com os Itens inclusos do kit", descricaoDoRise({ ...misto, descricao: "editada" }, { a, b }), misto.descricao);
+    // Kit: a descricao e editavel no anuncio (27/10/2026); so o bloco "Itens inclusos" e refeito. Vazia, parte da do principal.
+    conferir("descricaoDoRise: kit = o texto do anuncio com os Itens inclusos do kit", descricaoDoRise({ ...misto, descricao: "editada" }, { a, b }),
+      "editada\n\nItens inclusos:\n- 02 Resistor 1K 1/4W;\n- 03 Resistor 2K2 1/4W;");
+    conferir("descricaoDoRise: kit sem texto = a do principal com os Itens inclusos do kit", descricaoDoRise({ ...misto, descricao: "" }, { a, b }), misto.descricao);
+    {
+      // Peso e medidas do kit pela quantidade (27/10/2026): comprimento e largura da maior peca, altura somada; o que o
+      // dono digitou fica, a medida de UMA unidade do principal e trocada.
+      const p = { id: "p", sku: "P1", pesoKg: 0.002, comprimentoCm: 4.6, larguraCm: 0.24, alturaCm: 1.17 };
+      const kit = { itens: [{ produtoId: "p", quantidade: 10 }] };
+      const daUnidade = medidasDoKit({ pesoKg: 0.02, comprimentoCm: 4.6, larguraCm: 0.24, alturaCm: 1.17 }, kit, { p });
+      conferir("medidasDoKit: altura x10, comprimento e largura da peca", [daUnidade.comprimentoCm, daUnidade.larguraCm, daUnidade.alturaCm], [4.6, 0.24, 11.7]);
+      conferir("medidasDoKit: digitado pelo dono fica", medidasDoKit({ alturaCm: 3 }, kit, { p }).alturaCm, 3);
+      conferir("medidasDoKit: sugestao anterior troca pela nova", medidasDoKit({ alturaCm: 11.7 }, { itens: [{ produtoId: "p", quantidade: 5 }] }, { p }, kit).alturaCm, 5.85);
+    }
     conferir("descricaoDoRise: sem o produto, null", descricaoDoRise({ ...simples, produtoId: "x" }, { a, b }), null);
     conferir("contexto de teste: descricao longa com Itens inclusos e Garantia",
       [a.descricaoBase.length >= 400, a.descricaoBase.includes("Itens inclusos: (Cod:100101)"), a.descricaoBase.includes("Garantia:")], [true, true, true]);

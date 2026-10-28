@@ -19,6 +19,7 @@ import {
   trocarItensInclusos,
   unidadesDaComposicao,
 } from "../composicao";
+import { pesoEMedidasDoKit } from "../../composicao";
 
 const texto = (valor) => String(valor ?? "").trim();
 
@@ -34,6 +35,12 @@ function campoPorId(itens, produtosPorId, campo) {
 
 // O produto principal vem primeiro, depois os demais itens; dentro de cada produto, a foto
 // marcada como principal vem na frente. A mesma foto nao entra duas vezes.
+// As fotos proprias do kit (papel KIT do produto principal, `fotosDoKit` do contexto) que o anuncio ja usa, na ordem dele.
+function fotosDoKitMarcadas(imagensAtuais, principal) {
+  const doKit = new Set((principal?.fotosDoKit ?? []).map((foto) => foto.id));
+  return (Array.isArray(imagensAtuais) ? imagensAtuais : []).filter((id) => doKit.has(id));
+}
+
 function fotosEmOrdem(idsDosProdutos, produtosPorId) {
   const vistas = new Set();
   const fotos = [];
@@ -77,6 +84,44 @@ function atributosComGtinDoProduto(atributos, produto) {
 
 // O que um anuncio simples herda do produto: estoque, fotos, descricao inteira e as medidas
 // do envio. Serve ao anuncio novo e a quem desliga a composicao, para os dois nunca divergirem.
+// Peso e medidas do kit pela quantidade (pedido do dono em 27/10/2026: "quando for kit os pesos e medidas devem ser
+// ajustados para a quantidade do kit; isso ja foi implementado ao criar kit no Rise"): a MESMA regra do kit do cadastro
+// de Produto (`pesoEMedidasDoKit`): comprimento e largura da maior peca, altura somada (pecas empilhadas).
+const MEDIDAS_DO_KIT = ["comprimentoCm", "larguraCm", "alturaCm"];
+
+function sugestaoDeMedidas(composicao, produtosPorId) {
+  const pecas = itensDaComposicao(composicao)
+    .filter((item) => item?.produtoId)
+    .map((item) => {
+      const produto = produtosPorId?.[item.produtoId] ?? {};
+      return { sku: produto.sku, quantidade: item.quantidade, pesoKg: produto.pesoKg, comprimentoCm: produto.comprimentoCm, larguraCm: produto.larguraCm, alturaCm: produto.alturaCm };
+    });
+  return pesoEMedidasDoKit(pecas);
+}
+
+const mesmoNumero = (a, b) =>
+  a !== null && a !== undefined && a !== "" && b !== null && b !== undefined && Math.abs(Number(a) - Number(b)) < 0.005;
+
+/**
+ * As medidas do pacote do kit refeitas pela composicao. O que o dono digitou nao e apagado: o campo so recebe a
+ * sugestao quando esta vazio, quando ainda tem a sugestao da composicao anterior ou quando tem a medida de UMA unidade
+ * do produto principal (o kit nascia com ela ate 27/10/2026). Peca sem a medida deixa o campo como esta.
+ */
+export function medidasDoKit(envio, composicao, produtosPorId, composicaoAnterior = null) {
+  const nova = sugestaoDeMedidas(composicao, produtosPorId);
+  const anterior = composicaoAnterior ? sugestaoDeMedidas(composicaoAnterior, produtosPorId) : {};
+  const principal = produtosPorId?.[itensDaComposicao(composicao).find((item) => item?.produtoId)?.produtoId];
+  const resultado = { ...envio };
+  for (const campo of MEDIDAS_DO_KIT) {
+    const sugerido = nova[campo];
+    if (sugerido === null || sugerido === undefined) continue;
+    const atual = envio?.[campo];
+    const vazio = atual === null || atual === undefined || atual === "";
+    if (vazio || mesmoNumero(atual, anterior[campo]) || mesmoNumero(atual, principal?.[campo])) resultado[campo] = sugerido;
+  }
+  return resultado;
+}
+
 function estadoDoProdutoSimples(produto, produtosPorId) {
   return {
     estoque: produto.estoque ?? 0,
@@ -107,7 +152,7 @@ function tituloDoKit(principal, itens) {
  * inclusos" da descricao. Titulo, preco, categoria, atributos e medidas ficam de fora:
  * o dono pode ja te-los editado, e as medidas do pacote de um kit nao saem da soma das pecas.
  */
-function camposDaComposicao({ composicao, principalId, produtosPorId, descricaoAtual }) {
+function camposDaComposicao({ composicao, principalId, produtosPorId, descricaoAtual, imagensAtuais = [] }) {
   const itens = itensDaComposicao(composicao);
 
   // Kit de um produto so tem codigo certo (`{sku}_{N}`), entao e sempre recalculado. Kit
@@ -120,10 +165,12 @@ function camposDaComposicao({ composicao, principalId, produtosPorId, descricaoA
   return {
     estoque: estoqueDaComposicao(itens, campoPorId(itens, produtosPorId, "estoque")),
     pesoKg: pesoDaComposicao(itens, campoPorId(itens, produtosPorId, "pesoKg")),
-    imagens: fotosEmOrdem([principalId, ...itens.map((item) => item.produtoId)], produtosPorId),
-    // A descricao e a do produto principal (pedido do dono em 22/10/2026: o anuncio nao a edita); so o bloco "Itens
-    // inclusos" muda, com o codigo e as quantidades do kit.
-    descricao: trocarItensInclusos(produtosPorId?.[principalId]?.descricaoBase ?? descricaoAtual, bloco),
+    // As fotos PROPRIAS do kit ja marcadas (enviadas na aba Imagens, 27/10/2026) ficam na frente; as dos itens sao refeitas.
+    imagens: [...fotosDoKitMarcadas(imagensAtuais, produtosPorId?.[principalId]), ...fotosEmOrdem([principalId, ...itens.map((item) => item.produtoId)], produtosPorId)],
+    // Kit: a descricao e EDITAVEL no anuncio (pedido do dono em 27/10/2026: "quando for KIT a area da descricao pode ser
+    // editada"; ate ali era sempre a do principal). O texto do anuncio fica, e so o bloco "Itens inclusos" e refeito com o
+    // codigo e as quantidades do kit; vazio, parte da descricao do produto principal.
+    descricao: trocarItensInclusos(String(descricaoAtual ?? "").trim() ? descricaoAtual : (produtosPorId?.[principalId]?.descricaoBase ?? ""), bloco),
     composicao: {
       itens: itens.map(({ produtoId, quantidade }) => ({ produtoId, quantidade })),
       codigo,
@@ -170,9 +217,10 @@ export function estoqueDoRise(rascunho, produtosPorId) {
 }
 
 /**
- * A descricao do anuncio e SEMPRE a do produto (pedido do dono em 22/10/2026: o editor nao a altera): a do produto
- * ou, no kit, a do principal com o bloco "Itens inclusos" refeito pelo codigo e pelas quantidades do kit. `null`
- * quando falta algum produto em `produtosPorId`. Abrir e salvar usam esta conta, como o estoque.
+ * A descricao do anuncio SIMPLES e SEMPRE a do produto (pedido do dono em 22/10/2026: o editor nao a altera). No kit
+ * (desde 27/10/2026) e a do proprio anuncio, editavel, com o bloco "Itens inclusos" refeito pelo codigo e pelas
+ * quantidades do kit; vazia, parte da do principal. `null` quando falta algum produto em `produtosPorId`. Abrir e
+ * salvar usam esta conta, como o estoque.
  */
 export function descricaoDoRise(rascunho, produtosPorId) {
   const principal = produtosPorId?.[rascunho?.produtoId];
@@ -180,7 +228,7 @@ export function descricaoDoRise(rascunho, produtosPorId) {
   const itens = itensDaComposicao(rascunho.composicao);
   if (itens.length === 0) return principal.descricaoBase ?? "";
   if (itens.some((item) => !produtosPorId?.[item.produtoId])) return null;
-  return camposDaComposicao({ composicao: rascunho.composicao, principalId: principal.id ?? rascunho.produtoId, produtosPorId, descricaoAtual: "" }).descricao;
+  return camposDaComposicao({ composicao: rascunho.composicao, principalId: principal.id ?? rascunho.produtoId, produtosPorId, descricaoAtual: rascunho.descricao }).descricao;
 }
 
 /**
@@ -230,7 +278,7 @@ export function rascunhoInicial({ principal, produtosPorId, composicao }) {
     ...rascunho,
     ...derivados,
     titulo: tituloDoKit(principal, itensDaComposicao(composicao)),
-    envio: { ...rascunho.envio, pesoKg },
+    envio: medidasDoKit({ ...rascunho.envio, pesoKg }, composicao, produtos),
   };
 }
 
@@ -269,12 +317,13 @@ export function aplicarComposicao(rascunho, composicao, produtosPorId) {
     principalId,
     produtosPorId,
     descricaoAtual: rascunho.descricao,
+    imagensAtuais: rascunho.imagens,
   });
   return {
     ...rascunho,
     ...derivados,
     produtoId: principalId,
     atributos: atributosSemGtin(rascunho.atributos),
-    envio: { ...rascunho.envio, pesoKg },
+    envio: medidasDoKit({ ...rascunho.envio, pesoKg }, composicao, produtosPorId, rascunho.composicao),
   };
 }

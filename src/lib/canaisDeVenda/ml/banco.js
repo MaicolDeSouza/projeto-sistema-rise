@@ -9,7 +9,7 @@ import { impressaoDoConteudo } from "./impressao";
 import { montarRanking } from "./ranking";
 import { catalogosDeVariosProdutos } from "./referencias";
 import { RascunhoMLSchema } from "./esquema";
-import { descricaoDoRise, estoqueDoRise, fotosDoRise, pacoteDoRise, rascunhoInicial } from "./rascunho";
+import { descricaoDoRise, estoqueDoRise, fotosDoRise, medidasDoKit, pacoteDoRise, rascunhoInicial } from "./rascunho";
 
 /**
  * O rascunho do anuncio do Mercado Livre no banco: ler o contexto dos produtos, abrir um
@@ -188,6 +188,8 @@ export async function carregarAnuncioML(id) {
   // Peso e medidas do anuncio simples: os do produto (26/10/2026, no molde da LI).
   const pacote = pacoteDoRise(rascunho, produtos);
   if (pacote) rascunho.envio = { ...rascunho.envio, ...pacote };
+  // Kit ainda nao publicado: as medidas que ainda sao as de UMA unidade do principal passam a ser as do kit (27/10/2026).
+  else if (composicao && anuncio.status !== "PUBLICADO") rascunho.envio = medidasDoKit(rascunho.envio, composicao, produtos);
   // Anuncio publicado: o que mudou no produto desde o ultimo envio (a faixa "Enviar mudancas ao ML" do editor).
   const mudancas =
     anuncio.status === "PUBLICADO"

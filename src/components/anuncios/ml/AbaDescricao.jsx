@@ -10,22 +10,38 @@ import SecaoDoAnuncio from "./SecaoDoAnuncio";
 const NUMERO = new Intl.NumberFormat("pt-BR");
 
 /**
- * Aba Descricao: SO LEITURA (pedido do dono em 22/10/2026). A descricao vem sempre do cadastro do produto; no kit,
- * o bloco "Itens inclusos" sai do codigo e das quantidades da composicao. Mudar o texto e no produto: o link abre o
- * cadastro em outra aba, para nao perder o que ainda nao foi salvo aqui.
+ * Aba Descricao. Anuncio SIMPLES: so leitura (pedido do dono em 22/10/2026), a descricao vem sempre do cadastro do
+ * produto, e mudar o texto e no produto (o link abre o cadastro em outra aba). KIT: editavel aqui (pedido do dono em
+ * 27/10/2026); nasce da descricao do principal, e o bloco "Itens inclusos" continua refeito pelo codigo e pelas
+ * quantidades da composicao (`descricaoDoRise`).
  */
-export default function AbaDescricao({ rascunho, problemas }) {
+export default function AbaDescricao({ rascunho, alterar, problemas }) {
   const textoFinal = montarDescricaoML({ descricao: rascunho.descricao });
   const emKit = Boolean(rascunho.composicao);
+
+  if (emKit) {
+    return (
+      <SecaoDoAnuncio
+        titulo="Descrição do kit"
+        ajuda="Editável neste anúncio: começa com a descrição do produto principal. O bloco &quot;Itens inclusos&quot; é refeito pelo código e pelas quantidades do kit ao mexer na composição."
+      >
+        <textarea
+          aria-label="Descrição do kit"
+          value={rascunho.descricao ?? ""}
+          onChange={(evento) => alterar({ descricao: evento.target.value })}
+          rows={22}
+          className="w-full rounded border border-borda bg-superficie px-3 py-2.5 font-sans text-[15px] leading-relaxed focus:border-acento focus:outline-none"
+        />
+        <p className="mt-1 text-[11px] text-suave tabular-nums">{NUMERO.format(textoFinal.length)} caracteres</p>
+        <MensagensDoCampo problemas={problemas} campo="descricao" />
+      </SecaoDoAnuncio>
+    );
+  }
 
   return (
     <SecaoDoAnuncio
       titulo="Descrição"
-      ajuda={
-        emKit
-          ? "Vem do cadastro do produto principal. O bloco \"Itens inclusos\" é refeito pelo código e pelas quantidades do kit. É exatamente o texto que vai ao Mercado Livre."
-          : "Vem do cadastro do produto. É exatamente o texto que vai ao Mercado Livre."
-      }
+      ajuda="Vem do cadastro do produto. É exatamente o texto que vai ao Mercado Livre."
       acao={
         rascunho.produtoId && (
           <Link
