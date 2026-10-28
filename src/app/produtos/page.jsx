@@ -5,13 +5,7 @@ import { prisma } from "@/lib/db";
 import { idsDaBuscaDeProdutos, ondeAchouNoProduto, palavrasDaBusca, textoDoSelo } from "@/lib/buscaAmpla";
 import { CANAIS, separarCanais } from "@/lib/canais";
 import { urlDe } from "@/lib/arquivos";
-import { estadoDoIconeML } from "@/lib/canaisDeVenda/ml/icone";
 import { textoDosEstoquesNosCanais } from "@/lib/canaisDeVenda/estoquesNosCanais";
-import { mudancasDosAnunciosML } from "@/lib/canaisDeVenda/ml/banco";
-import { INCLUDE_DO_ICONE_BLING, iconeBlingDoProduto } from "@/lib/blingSync/estado";
-import { documentosDoProduto } from "@/lib/canaisDeVenda/li/banco";
-import { iconeLIDoProduto } from "@/lib/canaisDeVenda/li/estado";
-import { mudancasDosKits } from "@/lib/composicaoBanco";
 import { localizacaoDoKit } from "@/lib/composicao";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { acessosDaListaDeProdutos, ordemPermitida, projetarProdutoDaLista } from "@/lib/acessos/projecoes";
@@ -21,7 +15,8 @@ import AvisoBanco from "@/components/ui/AvisoBanco";
 import Paginacao from "@/components/mercados/Paginacao";
 import { porPaginaDaUrl } from "@/lib/porPagina";
 import TabelaProdutos from "@/components/produtos/TabelaProdutos";
-import { condicoesDoFiltroDeCanais, filtroDeCanaisDaUrl } from "@/lib/filtroDeCanais";
+import { condicoesDoFiltroDeCanais, filtroDeCanaisDaUrl, passaNosCalculados, temFiltroCalculado } from "@/lib/filtroDeCanais";
+import { INCLUDE_DOS_ICONES, iconesDosProdutos, temSeloDeAviso } from "@/lib/iconesDaListaDeProdutos";
 import BotaoImportarBling from "@/components/produtos/BotaoImportarBling";
 import BotaoSincronizarEstoque from "@/components/produtos/BotaoSincronizarEstoque";
 
@@ -103,6 +98,24 @@ export default async function ProdutosPage({ searchParams }) {
   const filtroCanais = filtroDeCanaisDaUrl(params);
   const condicoesDosCanais = condicoesDoFiltroDeCanais(filtroCanais);
   if (condicoesDosCanais.length > 0) where = { AND: [...(where ? [where] : []), ...condicoesDosCanais] };
+  // O "ML com catalogo" e o "!" (28/10/2026) sao calculados pelos icones: le os candidatos com o que os icones pedem,
+  // fica com os que passam e segue com os ids, para a contagem e a pagina valerem para o acervo inteiro.
+  let erroDoFiltro = null;
+  if (temFiltroCalculado(filtroCanais)) {
+    try {
+      const candidatos = await prisma.produto.findMany({ where, include: INCLUDE_DOS_ICONES });
+      const iconesDosCandidatos = await iconesDosProdutos(candidatos);
+      const ids = candidatos
+        .filter((produto) => {
+          const icones = iconesDosCandidatos.get(produto.id);
+          return passaNosCalculados(filtroCanais, { catalogo: icones.iconeML.catalogos > 0, aviso: temSeloDeAviso(icones) });
+        })
+        .map((produto) => produto.id);
+      where = { id: { in: ids } };
+    } catch (excecao) {
+      erroDoFiltro = excecao;
+    }
+  }
 
   // Ordenar no banco ANTES de paginar, e nao so na pagina carregada: senao
   // "ordenar por preco" so organizaria os 25 produtos que ja estavam na tela,
@@ -117,7 +130,7 @@ export default async function ProdutosPage({ searchParams }) {
   let totalConferidos = 0;
   let pagina = 1;
   let totalPaginas = 1;
-  let erro = null;
+  let erro = erroDoFiltro;
 
   try {
     total = await prisma.produto.count({ where });
@@ -136,25 +149,7 @@ export default async function ProdutosPage({ searchParams }) {
       include: {
         // As fotos vem do INCLUDE_DO_ICONE_BLING (todas as validadas, a principal primeiro): o "!" de fotos do Bling e da
         // LI compara a lista inteira, e a miniatura e a primeira dela.
-        anuncios: {
-          select: {
-            id: true,
-            canal: true,
-            status: true,
-            situacaoCanal: true,
-            idExterno: true,
-            // Para o icone da Loja Integrada: o rascunho e a assinatura do ultimo envio.
-            produtoId: true,
-            titulo: true,
-            descricao: true,
-            dados: true,
-            hashConteudo: true,
-            sincronizadoEm: true,
-          },
-        },
-        // Para o icone do Bling: os fornecedores (entram na assinatura dos campos) e quantos
-        // ajustes de estoque ainda nao foram ao Bling. So banco: a lista nao chama o Bling.
-        ...INCLUDE_DO_ICONE_BLING,
+        ...INCLUDE_DOS_ICONES,
         // Pesquisa profunda: a loja de cada concorrente, para o selo "achado no concorrente" (os fornecedores e o
         // rascunho do Bling ja vem acima).
         ...(ampla ? { concorrentes: { select: { fonteManual: true, produtoColetado: { select: { fonte: { select: { nome: true } } } } } } } : {}),
@@ -164,9 +159,8 @@ export default async function ProdutosPage({ searchParams }) {
     erro = excecao;
   }
 
-  // O "!" do kit (pedido do dono em 10/10/2026): quantas pecas mudaram desde o ultimo Salvar de cada kit da pagina.
-  // Falha aqui nao derruba a lista: o kit fica sem o "!".
-  let alteracoesDosKits = new Map();
+  // Os icones da coluna Canais (Bling, LI, ML e o "!" do kit), a mesma conta do filtro (lib/iconesDaListaDeProdutos.js).
+  const icones = await iconesDosProdutos(produtos ?? []);
   let novoProduto = null;
   // As pecas de cada kit da pagina, para a Localizacao dele (`localizacaoDoKit`) e o popup da celula (pedido do dono em
   // 10/10/2026). Falha aqui tambem nao derruba a lista: a celula mostra a localizacao gravada.
@@ -174,7 +168,6 @@ export default async function ProdutosPage({ searchParams }) {
   try {
     const kitsDaPagina = (produtos ?? []).filter((produto) => produto.tipo === "COMPOSICAO").map((produto) => produto.id);
     if (kitsDaPagina.length > 0) {
-      alteracoesDosKits = await mudancasDosKits(kitsDaPagina);
       const linhasDasPecas = await prisma.produtoComponente.findMany({
         where: { kitId: { in: kitsDaPagina } },
         orderBy: [{ ordem: "asc" }, { criadoEm: "asc" }],
@@ -204,25 +197,6 @@ export default async function ProdutosPage({ searchParams }) {
     console.error("[produtos] propostas prontas", excecao);
   }
 
-  // O "!" do ML quando um anuncio publicado ficou para tras do produto (spec 2026-10-24). So banco. Falha aqui nao
-  // derruba a lista: o icone fica sem esse "!".
-  let mudancasML = new Map();
-  try {
-    mudancasML = await mudancasDosAnunciosML((produtos ?? []).flatMap((produto) => produto.anuncios));
-  } catch (excecao) {
-    console.error("[ml] anuncio publicado x produto", excecao);
-  }
-
-  // Icone da Loja Integrada: os documentos entram na assinatura so quando ha endereco publico (sem
-  // ele, documentosDoProduto devolve [] sem consultar). Falha aqui nao derruba a lista: o icone fica
-  // sem selo.
-  const documentosLI = new Map();
-  try {
-    for (const produto of produtos ?? []) documentosLI.set(produto.id, await documentosDoProduto(produto));
-  } catch (excecao) {
-    console.error("[loja integrada] icone", excecao);
-  }
-
   // Decimal do Prisma nao atravessa a fronteira servidor/cliente: converta aqui.
   const linhas = (produtos ?? []).map((produto) => ({
     produto: projetarProdutoDaLista({
@@ -248,7 +222,7 @@ export default async function ProdutosPage({ searchParams }) {
       tipo: produto.tipo,
       // Kit: a celula da localizacao nao tem lapis e abre o popup com as pecas (pedido do dono em 10/10/2026).
       pecasDoKit: produto.tipo === "COMPOSICAO" ? (pecasDosKits.get(produto.id) ?? []) : [],
-      pecasAlteradas: alteracoesDosKits.get(produto.id)?.length ?? 0,
+      pecasAlteradas: icones.get(produto.id)?.pecasAlteradas ?? 0,
       propostaPronta: propostasProntas.has(produto.id),
       ativo: produto.ativo,
       conferido: produto.conferido,
@@ -263,18 +237,11 @@ export default async function ProdutosPage({ searchParams }) {
     ...separarCanais(produto.anuncios),
     // "Bling 5 · Rise 5 · ML 3 · LI 5" na dica da coluna Estoque (25/10/2026): so para quem ve o estoque exato.
     estoquesNosCanais: acessos.estoqueExato ? textoDosEstoquesNosCanais(produto) : null,
-    // O icone do ML mostra o anuncio (publicado e ativo, ou pendente), nao so o idExterno.
-    iconeML: {
-      ...estadoDoIconeML(produto.anuncios.map((anuncio) => ({ ...anuncio, mudancas: mudancasML.get(anuncio.id) }))),
-      // O "P" da proposta de anuncio do ML (spec 2026-10-23): so o booleano vai a lista.
-      proposta: produto.anuncios.some((anuncio) => anuncio.canal === "MERCADO_LIVRE" && Boolean(anuncio.dados?.proposta)),
-    },
-    // Cor e selo do icone do Bling, calculados aqui (a assinatura usa node:crypto, so servidor).
-    iconeBling: iconeBlingDoProduto(produto),
-    // Cor e selo do icone da Loja Integrada (assinatura com node:crypto, so servidor).
-    iconeLI: iconeLIDoProduto(produto, produto.anuncios.find((anuncio) => anuncio.canal === "LOJA_INTEGRADA") ?? null, {
-      documentos: documentosLI.get(produto.id) ?? [],
-    }),
+    // O icone do ML mostra o anuncio (publicado e ativo, ou pendente), nao so o idExterno; cor e selo do Bling e da LI
+    // (assinaturas com node:crypto, so servidor).
+    iconeML: icones.get(produto.id).iconeML,
+    iconeBling: icones.get(produto.id).iconeBling,
+    iconeLI: icones.get(produto.id).iconeLI,
   }));
 
   // A lista como esta (pesquisa, pagina, ordem): o cadastro volta para ela (pedido do dono em 20/10/2026).

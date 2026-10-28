@@ -147,6 +147,11 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
 - **Ícone de estado na coluna Canais:** o ícone **Rise** (Conferido, verde/fosco, com o "!" do kit) vem antes do Bling;
   cor = estado, selo "!" no canto superior direito, texto do estado no `title` e no `aria-label`. A coluna "Conf." e a
   coluna vazia depois de Canais saíram em 12/10/2026 (o menu ⋮ mora no fim da célula Canais).
+  **Filtro da coluna (28/10/2026, Opção 1 do dono):** o popup mostra os próprios ícones (Rise, Bling, LI, ML, ML com "C" e
+  "!"); cada clique avança desligado → verde (tem) → riscado em vermelho (não tem) → desligado, e os ligados valem juntos.
+  Shopee fora até ter integração. Rise/Bling/LI/ML filtram no banco; "C" e "!" leem os ícones do acervo filtrado
+  (`iconesDosProdutos` em `lib/iconesDaListaDeProdutos.js`, a MESMA conta que desenha a linha; ~1 s nos 1.320 do PC).
+  Regras em `lib/filtroDeCanais.js`, testadas no `teste:navegacao`.
 - **Lista longa:** paginada, 100 por página, filtro por parâmetro repetido (`?fonte=A&fonte=B`), e
   nenhuma marcada quer dizer todas (Mercados).
 - **Lista de produtos (Produtos e Scraper), padrão desde 23/10/2026 (pedido do dono):**
