@@ -60,7 +60,8 @@
     "teste:saude": "node scripts/teste-saude.js",
     "acessos:admin": "node scripts/acessos-admin.js",
     "teste:compras": "node scripts/teste-compras.js",
-    "teste:producao": "node scripts/teste-producao.js"
+    "teste:producao": "node scripts/teste-producao.js",
+    "teste:aliexpress": "node scripts/teste-aliexpress.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",

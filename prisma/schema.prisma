@@ -56,6 +56,9 @@ enum Servico {
   /// Bot do Telegram (Rise AI, Entrega C1): os avisos do worker e o vinculo das pessoas. A URL da API leva o token, e o
   /// log o mascara (`/bot***/`). Nunca grava o token nem o texto que chega.
   TELEGRAM
+  /// Extensao "Rise AliExpress" do Chrome (spec 2026-10-28-aliexpress-em-compras-design.md): a Conexao guarda o HASH
+  /// da chave da extensao; cada clique "Enviar ao Rise" e uma linha de LogIntegracao.
+  ALIEXPRESS
 }
 
 enum TipoPessoa {
@@ -1206,6 +1209,11 @@ model Fornecedor {
   produtos ProdutoFornecedor[]
   pedidosDeCompra PedidoDeCompra[]
 
+  /// O fornecedor das compras do AliExpress (o "Ali" do dono, 28/10/2026). A importacao acha o fornecedor por esta
+  /// marca, nunca pelo nome. So um pode ter: indice unico PARCIAL "Fornecedor_aliexpress_unico", que mora so no SQL
+  /// da migration 20261028_compras_aliexpress (o migrate diff vai propor apaga-lo; nao apagar).
+  aliexpress Boolean @default(false)
+
   @@index([fonteId])
 }
 
@@ -1466,6 +1474,9 @@ model ProdutoFornecedor {
   link       String?
   /// De qual fornecedor sai o custo do produto. Exatamente um por produto.
   padrao     Boolean  @default(false)
+  /// Embalagem do fornecedor: 1 comprado = `fator` unidades no Rise ("kit de 100 pcs" vendido como 1 item; pedido do
+  /// dono em 28/10/2026). A compra entra com quantidade x fator e preco / fator.
+  fator      Int      @default(1)
 
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
@@ -1998,6 +2009,11 @@ model AvisoTelegram {
 // Compras (spec 2026-10-26-modulo-compras-design.md)
 // ---------------------------------------------------------------------------
 
+enum OrigemDoPedidoDeCompra {
+  RISE
+  ALIEXPRESS
+}
+
 enum StatusDoPedidoDeCompra {
   RASCUNHO
   ENVIADO
@@ -2067,7 +2083,13 @@ model PedidoDeCompra {
   criadoEm     DateTime  @default(now())
   atualizadoEm DateTime  @updatedAt
 
-  itens ItemDoPedidoDeCompra[]
+  /// De onde veio: feito no Rise ou importado do AliExpress (pela extensao). O do AliExpress nasce ENVIADO.
+  origem  OrigemDoPedidoDeCompra @default(RISE)
+  /// O "Imposto" que o AliExpress cobra no pedido (importacao); soma nos totais ao lado de IPI e ICMS ST.
+  imposto Decimal                @default(0) @db.Decimal(12, 2)
+
+  itens      ItemDoPedidoDeCompra[]
+  aliexpress PedidoAliExpress?
 
   @@index([status])
   @@index([fornecedorId, status])
@@ -2100,7 +2122,9 @@ model ItemDoPedidoDeCompra {
   /// Soma dos lancamentos vivos (nao desfeitos), regravada a cada lancar/desfazer; a verdade esta em `lancamentos`.
   quantidadeLancada Int @default(0)
 
-  lancamentos LancamentoDoItemDeCompra[]
+  lancamentos      LancamentoDoItemDeCompra[]
+  /// As linhas do AliExpress que casaram com este item (duas opcoes do mesmo produto somam num item so).
+  linhasAliExpress LinhaAliExpress[]
 
   @@unique([pedidoId, produtoId])
   @@index([produtoId, pedidoId])
@@ -2214,4 +2238,90 @@ model ItemDaOrdemDeProducao {
   devolucaoMovimentoId String?         @unique
 
   @@index([ordemId])
+}
+
+/// O pedido do AliExpress como o site mostra (spec 2026-10-28-aliexpress-em-compras-design.md, 28/10/2026). Os dados
+/// crus ficam aqui; o PedidoDeCompra ligado segue as regras de sempre do modulo Compras.
+model PedidoAliExpress {
+  id       String         @id @default(cuid())
+  pedidoId String         @unique
+  pedido   PedidoDeCompra @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+
+  /// O numero do pedido no AliExpress (8215244197193461): a chave da reimportacao.
+  externoId      String    @unique
+  loja           String?
+  lojaId         String?
+  statusTexto    String
+  /// orderStatus da lista (7 = enviado parcialmente, 8 = aguardando a entrega); nulo quando nao veio.
+  statusCodigo   Int?
+  dataDoPedido   DateTime
+  totalInformado Decimal   @db.Decimal(12, 2)
+  moeda          String
+  /// A primeira vez que o AliExpress disse "entregue/concluido": o Rise so avisa, quem lanca e o dono.
+  entregueEm              DateTime?
+  canceladoNoAliExpressEm DateTime?
+  detalheLidoEm           DateTime?
+  rastreioLidoEm          DateTime?
+  criadoEm                DateTime  @default(now())
+  atualizadoEm            DateTime  @updatedAt
+
+  linhas  LinhaAliExpress[]
+  pacotes PacoteAliExpress[]
+}
+
+/// Uma linha do pedido do AliExpress (anuncio + opcao). `itemId` nulo = ainda nao casou com um produto do Rise.
+model LinhaAliExpress {
+  id                 String           @id @default(cuid())
+  pedidoAliExpressId String
+  pedidoAliExpress   PedidoAliExpress @relation(fields: [pedidoAliExpressId], references: [id], onDelete: Cascade)
+
+  externoLinhaId     String  @unique
+  productId          String
+  skuId              String?
+  opcao              String?
+  titulo             String
+  urlDoItem          String?
+  urlDaFoto          String?
+  quantidadeComprada Int
+  /// O preco unitario como o AliExpress cobrou (sem o fator).
+  precoComprado      Decimal @db.Decimal(12, 4)
+  fator              Int     @default(1)
+
+  itemId   String?
+  item     ItemDoPedidoDeCompra? @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  pacoteId String?
+  pacote   PacoteAliExpress?     @relation(fields: [pacoteId], references: [id], onDelete: SetNull)
+
+  /// O que esta linha pos no deposito Virtual do Bling (entrada na compra, saida na chegada ou no cancelamento).
+  virtualQuantidade Int       @default(0)
+  virtualLancadoEm  DateTime?
+  virtualErro       String?
+
+  @@index([pedidoAliExpressId])
+  @@index([itemId])
+  @@index([productId, skuId])
+}
+
+/// Um pacote do rastreio do AliExpress (um pedido pode ir em varios).
+model PacoteAliExpress {
+  id                 String           @id @default(cuid())
+  pedidoAliExpressId String
+  pedidoAliExpress   PedidoAliExpress @relation(fields: [pedidoAliExpressId], references: [id], onDelete: Cascade)
+
+  codigo         String
+  codigoOrigem   String?
+  transportadora String?
+  previsaoTexto  String?
+  previsaoInicio DateTime?
+  previsaoFim    DateTime?
+  ultimoEvento   String?
+  ultimoEventoEm DateTime?
+  ultimoCodigo   String?
+  /// Ate 30 eventos, do mais recente: [{ em, descricao, nome, codigo }].
+  eventos        Json?
+  atualizadoEm   DateTime  @updatedAt
+
+  linhas LinhaAliExpress[]
+
+  @@unique([pedidoAliExpressId, codigo])
 }
