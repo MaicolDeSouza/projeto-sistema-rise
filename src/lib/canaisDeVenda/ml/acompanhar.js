@@ -11,7 +11,7 @@
 
 import { montarDescricaoML } from "./descricao";
 import { atributosDaFicha } from "./payload";
-import { descricaoDoRise, fotosDoRise } from "./rascunho";
+import { descricaoDoRise, fotosDoKitDoRise, fotosDoRise } from "./rascunho";
 import { medidasFaltando } from "./validacao";
 
 // As do produto primeiro (a ordem do envio): o preco e a ficha so mudam no proprio anuncio.
@@ -71,7 +71,8 @@ export function conteudoAtualDoAnuncio(rascunho, produtosPorId) {
     const porId = new Map(
       Object.values(produtosPorId ?? {}).flatMap((outro) => [...(outro?.imagens ?? []), ...(outro?.fotosDoKit ?? [])].map((imagem) => [imagem.id, imagem.arquivo])),
     );
-    fotos = (Array.isArray(rascunho.imagens) ? rascunho.imagens : []).map((id) => porId.get(id)).filter(Boolean);
+    // Desde 28/10/2026 acompanham o produto base e as pecas: foto nova entra, a que saiu sai, e o publicado acende o "!".
+    fotos = (fotosDoKitDoRise(rascunho, produtosPorId) ?? []).map((id) => porId.get(id)).filter(Boolean);
   }
   return {
     descricao: texto === null ? null : montarDescricaoML({ descricao: texto }),

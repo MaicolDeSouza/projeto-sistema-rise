@@ -180,6 +180,12 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
     Bling fica. Cada passo lê antes de escrever (repetir continua de onde parou); as duas travas antes da 1ª escrita; acesso do
     Publicar para o que tem MLB. `clienteBling()` ganhou `delete`. **O DELETE do Bling num anúncio de produção nunca foi
     medido** (só o de 10/10/2026, num inativo); o primeiro uso real é o teste.
+  - **Fotos do kit do ML acompanham o produto base e as peças (28/10/2026, pedido do dono):** `fotosDoKitDoRise` (`rascunho.js`)
+    mantém as marcadas, tira a foto que saiu do produto e põe no fim a foto criada depois do último Salvar do kit
+    (`dados.fotosVistasEm`, gravado pelo servidor nos três Salvar; kit salvo antes do campo usa a criação do anúncio, então
+    foto posta no produto depois de montar o kit entra na primeira abertura). Desmarcada e salva continua fora. Vale ao abrir
+    o editor, no Publicar, no Sincronizar e no "!" de fotos do kit publicado (`conteudoAtualDoAnuncio`). O anúncio simples já
+    seguia o produto desde 24/10/2026. O contexto dos produtos ganhou `imagens[].criadoEm`.
 - **Texto cortado mostra o resto AO PASSAR O MOUSE, rápido**, em todo o Rise (23/10/2026 o dono pediu ao clique; em
   24/10/2026 mudou: "ao clicar não quero que abra esse popup, quero que abra rapidamente o texto como é feito ao deixar o
   mouse em cima por um tempo"): `TextoCortadoAoClicar` (`src/components/ui/`, montado no `layout.jsx`; o nome ficou)

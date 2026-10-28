@@ -66,6 +66,8 @@ export const RascunhoMLSchema = z.object({
   descricaoEditada: z.boolean().default(false),
   // Anuncio simples: o dono reordenou as fotos no anuncio (28/10/2026). Sem isso a ordem e a do cadastro do produto.
   fotosReordenadas: z.boolean().default(false),
+  // Kit: quando o dono salvou as fotos pela ultima vez (28/10/2026). O servidor grava a hora do Salvar; o que vem da tela nao vale.
+  fotosVistasEm: z.string().max(40).nullable().default(null),
   atributos: z
     .record(z.string().max(LIMITES_ML.chaveDeAtributo), z.string().max(LIMITES_ML.valorDeAtributo))
     .refine((atributos) => Object.keys(atributos).length <= LIMITES_ML.atributos),

@@ -12,7 +12,7 @@ import { montarRanking } from "./ranking";
 import { catalogosDeVariosProdutos } from "./referencias";
 import { RascunhoMLSchema } from "./esquema";
 import { fotosDoKitDosProdutos } from "./fotosDoKit";
-import { descricaoDoRise, estoqueDoRise, fotosDoRise, medidasDoKit, pacoteDoRise, rascunhoInicial } from "./rascunho";
+import { descricaoDoRise, estoqueDoRise, fotosDoKitDoRise, fotosDoRise, medidasDoKit, pacoteDoRise, rascunhoInicial } from "./rascunho";
 
 /**
  * O rascunho do anuncio do Mercado Livre no banco: ler o contexto dos produtos, abrir um
@@ -53,7 +53,7 @@ export async function contextoDosProdutos(ids) {
       pesoKg: true, alturaCm: true, larguraCm: true, comprimentoCm: true, garantiaMeses: true,
       custo: true, pecasProprias: true, fornecedorRascunho: true,
       fornecedores: { select: { padrao: true, precoCusto: true } },
-      arquivos: { where: { tipo: "IMAGEM", papel: "FOTO" }, orderBy: [{ ordem: "asc" }, { criadoEm: "asc" }], select: { id: true, arquivo: true, principal: true } },
+      arquivos: { where: { tipo: "IMAGEM", papel: "FOTO" }, orderBy: [{ ordem: "asc" }, { criadoEm: "asc" }], select: { id: true, arquivo: true, principal: true, criadoEm: true } },
     },
   });
 
@@ -83,7 +83,8 @@ export async function contextoDosProdutos(ids) {
         garantiaMeses: p.garantiaMeses ?? null,
         custo: custoDoProduto({ fornecedores: p.fornecedores, fornecedorRascunho: p.fornecedorRascunho, custo: p.custo, pecasProprias: p.pecasProprias }),
         // `arquivo` e o nome no disco: a impressao do anuncio publicado compara as fotos por ele (acompanhar.js).
-        imagens: p.arquivos.map((a) => ({ id: a.id, arquivo: a.arquivo, url: urlDe(p.sku, "IMAGEM", a.arquivo), principal: a.principal })),
+        // `criadoEm`: a foto nova do produto entra no kit (`fotosDoKitDoRise`, 28/10/2026).
+        imagens: p.arquivos.map((a) => ({ id: a.id, arquivo: a.arquivo, url: urlDe(p.sku, "IMAGEM", a.arquivo), principal: a.principal, criadoEm: a.criadoEm.toISOString() })),
         fotosDoKit: doKit[p.id] ?? [],
       },
     ]),
@@ -141,6 +142,8 @@ function rascunhoDoAnuncio(anuncio) {
     descricao: anuncio.descricao ?? "",
     descricaoEditada: dados.descricaoEditada === true,
     fotosReordenadas: dados.fotosReordenadas === true,
+    // Kit: quando o dono salvou as fotos pela ultima vez (28/10/2026). Kit salvo antes do campo: a criacao do anuncio.
+    fotosVistasEm: dados.composicao ? (dados.fotosVistasEm ?? (anuncio.criadoEm ? new Date(anuncio.criadoEm).toISOString() : null)) : null,
     atributos: anuncio.atributos ?? {},
     // `logistica` e da fase 2: o anuncio gravado antes dela abre com o padrao da conta.
     envio: { pesoKg: null, alturaCm: null, larguraCm: null, comprimentoCm: null, modo: "me2", logistica: "xd_drop_off", freteGratis: false, retirada: false, ...dados.envio },
@@ -165,9 +168,13 @@ export async function mudancasDosAnunciosML(anuncios) {
   // A ficha (preco e ficha acompanham o anuncio desde 24/10/2026) mora na coluna `atributos`, que a lista de Produtos
   // nao seleciona: lida aqui, numa consulta so, em vez de depender do `select` de quem chama.
   const fichas = new Map(
-    (await prisma.anuncio.findMany({ where: { id: { in: publicados.map((anuncio) => anuncio.id) } }, select: { id: true, atributos: true } })).map((linha) => [linha.id, linha.atributos]),
+    (await prisma.anuncio.findMany({ where: { id: { in: publicados.map((anuncio) => anuncio.id) } }, select: { id: true, atributos: true, criadoEm: true } })).map((linha) => [linha.id, linha]),
   );
-  const rascunhos = publicados.map((anuncio) => [anuncio, rascunhoDoAnuncio({ ...anuncio, atributos: anuncio.atributos ?? fichas.get(anuncio.id) ?? {} })]);
+  // A criacao do anuncio e a base das fotos do kit salvo antes de `fotosVistasEm` (28/10/2026); a lista de Produtos nao a seleciona.
+  const rascunhos = publicados.map((anuncio) => [
+    anuncio,
+    rascunhoDoAnuncio({ ...anuncio, atributos: anuncio.atributos ?? fichas.get(anuncio.id)?.atributos ?? {}, criadoEm: anuncio.criadoEm ?? fichas.get(anuncio.id)?.criadoEm }),
+  ]);
   const ids = rascunhos.flatMap(([, rascunho]) => [rascunho.produtoId, ...(rascunho.composicao?.itens ?? []).map((item) => item.produtoId)]);
   const produtos = await contextoDosProdutos(ids);
   for (const [anuncio, rascunho] of rascunhos) {
@@ -196,7 +203,7 @@ export async function carregarAnuncioML(id) {
   // O estoque gravado e o de quando o rascunho foi salvo: abrir (e publicar, que abre por aqui) usa o de agora.
   rascunho.estoque = estoqueDoRise(rascunho, produtos) ?? rascunho.estoque;
   rascunho.descricao = descricaoDoRise(rascunho, produtos) ?? rascunho.descricao;
-  rascunho.imagens = fotosDoRise(rascunho, produtos) ?? rascunho.imagens;
+  rascunho.imagens = fotosDoRise(rascunho, produtos) ?? fotosDoKitDoRise(rascunho, produtos) ?? rascunho.imagens;
   // Peso e medidas do anuncio simples: os do produto (26/10/2026, no molde da LI).
   const pacote = pacoteDoRise(rascunho, produtos);
   if (pacote) rascunho.envio = { ...rascunho.envio, ...pacote };
@@ -412,6 +419,8 @@ export async function salvarPublicadoML(anuncioId, entrada) {
       if (imagens.success) {
         novosDados.imagens = imagens.data;
         if (!kit) novosDados.fotosReordenadas = entrada?.fotosReordenadas === true;
+        // Kit: as fotos que existem agora foram vistas; so a que chegar depois entra sozinha (`fotosDoKitDoRise`).
+        else novosDados.fotosVistasEm = new Date().toISOString();
       }
       const colunas = { atributos: atributos.data };
       if (kit && descricao.success) {
@@ -495,6 +504,9 @@ export async function salvarRascunhoML(anuncioId, entrada) {
       const pacote = pacoteDoRise(rascunho, doProduto);
       if (pacote) rascunho.envio = { ...rascunho.envio, ...pacote };
     }
+    // Kit: as fotos que existem agora foram vistas; so a que chegar depois entra sozinha (`fotosDoKitDoRise`, 28/10/2026).
+    // O que a tela manda nesse campo nao vale.
+    rascunho.fotosVistasEm = rascunho.composicao ? new Date().toISOString() : null;
 
     const { produtoId, titulo, descricao, categoriaId, atributos, ...dados } = rascunho;
     const colunas = { produtoId, titulo, descricao, categoriaExternaId: categoriaId || null, atributos };
@@ -544,6 +556,7 @@ export async function salvarPresoML(anuncioId, entrada) {
       const colunas = { atributos: rascunho.atributos };
       if (kit) {
         dados.imagens = rascunho.imagens;
+        dados.fotosVistasEm = new Date().toISOString();
         const { pesoKg, alturaCm, larguraCm, comprimentoCm } = rascunho.envio ?? {};
         dados.envio = { ...(agora.dados?.envio ?? {}), pesoKg, alturaCm, larguraCm, comprimentoCm };
         colunas.descricao = rascunho.descricao;

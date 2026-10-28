@@ -644,8 +644,8 @@ try {
         conferir("contexto: Decimal vira Number", [ctx[p1.id].precoVenda, ctx[p1.id].pesoKg, ctx[p1.id].alturaCm, ctx[p1.id].larguraCm, ctx[p1.id].comprimentoCm, ctx[p1.id].estoque], [10, 0.05, 2, 3, 4, 9]);
         conferir("contexto: sem preco nem peso e null, nao zero", [ctx[p2.id].precoVenda, ctx[p2.id].pesoKg], [null, null]);
         conferir("contexto: so fotos, na ordem do banco, com o endereco calculado", ctx[p1.id].imagens, [
-          { id: fotoA.id, arquivo: fotoA.arquivo, url: `/api/arquivos/ZZ-ML-1/imagens/${fotoA.arquivo}`, principal: false },
-          { id: fotoB.id, arquivo: fotoB.arquivo, url: `/api/arquivos/ZZ-ML-1/imagens/${fotoB.arquivo}`, principal: true },
+          { id: fotoA.id, arquivo: fotoA.arquivo, url: `/api/arquivos/ZZ-ML-1/imagens/${fotoA.arquivo}`, principal: false, criadoEm: fotoA.criadoEm.toISOString() },
+          { id: fotoB.id, arquivo: fotoB.arquivo, url: `/api/arquivos/ZZ-ML-1/imagens/${fotoB.arquivo}`, principal: true, criadoEm: fotoB.criadoEm.toISOString() },
         ]);
 
         conferir("busca por codigo acha o Conferido", (await buscarProdutoParaAnuncio("ZZ-ML-1")).produto.id, p1.id);
@@ -680,7 +680,7 @@ try {
 
         const lido = await carregarAnuncioML(salvo.id);
         conferir("carregar devolve o que foi salvo", [lido.rascunho.titulo, lido.rascunho.tipoAnuncio, lido.rascunho.envio.pesoKg], [novo.rascunho.titulo, "gold_special", 0.05]);
-        conferir("carregar devolve o rascunho inteiro", ordenado(lido.rascunho), ordenado({ ...novo.rascunho, descricaoEditada: false, fotosReordenadas: false, tipoAnuncio: "gold_special" }));
+        conferir("carregar devolve o rascunho inteiro", ordenado(lido.rascunho), ordenado({ ...novo.rascunho, descricaoEditada: false, fotosReordenadas: false, fotosVistasEm: null, tipoAnuncio: "gold_special" }));
         conferir("carregar: anuncio, status e contexto", [lido.anuncioId, lido.status, Object.keys(lido.contexto.produtos), lido.contexto.codigoEmUso],
           [salvo.id, "RASCUNHO", [p1.id], null]);
         conferir("carregar: anuncio que nao existe", (await carregarAnuncioML("id-que-nao-existe")).erro, "Anúncio não encontrado.");
@@ -724,7 +724,7 @@ try {
         const gravado = await anuncioDe(completo.id);
         conferir("cada campo mora na sua coluna", [gravado.titulo, gravado.descricao, gravado.categoriaExternaId, gravado.produtoId, ordenado(gravado.atributos)],
           [novo.rascunho.titulo, novo.rascunho.descricao, "MLB1234", p1.id, ordenado(novo.rascunho.atributos)]);
-        conferir("o resto do rascunho vai para dados", Object.keys(gravado.dados).sort(), ["categoriaNome", "composicao", "condicao", "descricaoEditada", "envio", "estoque", "familyName", "fotosReordenadas", "imagens", "prazoDisponibilidadeDias", "preco", "tipoAnuncio"]);
+        conferir("o resto do rascunho vai para dados", Object.keys(gravado.dados).sort(), ["categoriaNome", "composicao", "condicao", "descricaoEditada", "envio", "estoque", "familyName", "fotosReordenadas", "fotosVistasEm", "imagens", "prazoDisponibilidadeDias", "preco", "tipoAnuncio"]);
         // O estoque do anuncio e sempre o do produto no Rise (pedido do dono em 22/10/2026): o que a tela manda nao vale.
         conferir("numero escrito como texto vira numero; o estoque e o do produto, nao o da tela", [gravado.dados.preco, gravado.dados.estoque], [12.5, 9]);
         await prisma.produto.update({ where: { id: p1.id }, data: { estoque: 4 } });
@@ -1830,6 +1830,47 @@ try {
       conferir("excluir: o selo do encerrado", seloDoAnuncioML(guardado).rotulo, "Encerrado");
       const repetido = await excluirAnuncioML(comVenda, { ml, bling: bf });
       conferir("excluir: repetir o encerrado nao escreve de novo", [repetido.ok, (await conferirExclusaoML(comVenda, { ml })).jaEncerrado, ml.escritas.length - inicio2], [true, true, 1]);
+    }
+
+    {
+      console.log("\nKit acompanha as fotos do produto base e das pecas (28/10/2026)");
+      await limpar();
+      const { publicarAnuncioML } = await import("../src/lib/canaisDeVenda/ml/publicar.js");
+      const { mudancasDosAnunciosML } = await import("../src/lib/canaisDeVenda/ml/banco.js");
+      const c = await cenarioDePublicacao();
+      const lerFoto = async () => Buffer.from("jpg");
+      const esperar = () => new Promise((resolver) => setTimeout(resolver, 20));
+      const idKit = await c.anuncioDeKit("ZZ-ML-KITX", 2);
+      const fotosDe = async () => (await carregarAnuncioML(idKit)).rascunho.imagens;
+      const antes = await fotosDe();
+      conferir("kit: nasce com as fotos das pecas", antes.length, 4);
+
+      await esperar();
+      const nova = await prisma.produtoArquivo.create({ data: { produtoId: c.k1.id, tipo: "IMAGEM", papel: "FOTO", arquivo: "ZZ-ML-K1-c.jpg", ordem: 2 } });
+      conferir("kit: foto nova do produto base entra no fim", await fotosDe(), [...antes, nova.id]);
+
+      const lido = await carregarAnuncioML(idKit);
+      conferir("kit: salvar sem a foto nova", (await salvarRascunhoML(idKit, { ...lido.rascunho, imagens: antes })).ok, true);
+      conferir("kit: a foto desmarcada e salva continua fora", await fotosDe(), antes);
+
+      await prisma.produtoArquivo.delete({ where: { id: antes[1] } });
+      const semApagada = antes.filter((id) => id !== antes[1]);
+      conferir("kit: foto apagada do produto sai do kit", await fotosDe(), semApagada);
+
+      const r = await publicarAnuncioML(idKit, { ml: criarMLFalso(), bling: c.novoBling(), lerFoto });
+      conferir("kit: publica", r.ok, true);
+      const mudancasDoKit = async () => {
+        const anuncio = await prisma.anuncio.findUnique({ where: { id: idKit }, select: { id: true, canal: true, status: true, situacaoCanal: true, produtoId: true, dados: true } });
+        return (await mudancasDosAnunciosML([anuncio])).get(idKit).partes;
+      };
+      conferir("kit publicado: logo depois, sem '!'", await mudancasDoKit(), []);
+      await esperar();
+      const daPeca = await prisma.produtoArquivo.create({ data: { produtoId: c.k2.id, tipo: "IMAGEM", papel: "FOTO", arquivo: "ZZ-ML-K2-d.jpg", ordem: 3 } });
+      conferir("kit publicado: foto nova de uma peca acende o '!' das fotos", await mudancasDoKit(), ["fotos"]);
+      conferir("kit publicado: e aparece na aba Imagens", (await fotosDe()).at(-1), daPeca.id);
+      await prisma.produtoArquivo.delete({ where: { id: daPeca.id } });
+      await prisma.produtoArquivo.delete({ where: { id: semApagada[0] } });
+      conferir("kit publicado: foto apagada do produto base tambem acende o '!'", await mudancasDoKit(), ["fotos"]);
     }
 
     {

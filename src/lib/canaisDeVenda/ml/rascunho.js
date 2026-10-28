@@ -195,6 +195,31 @@ export function fotosDoRise(rascunho, produtosPorId) {
 }
 
 /**
+ * As fotos do KIT acompanhando o produto base e as pecas (pedido do dono em 28/10/2026: "ao adicionar ou excluir uma imagem no
+ * produto base deve alterar tambem a tela do ML ... ficando um ! para eu saber que preciso verificar"). O kit continua com as
+ * fotos que o dono marcou, na ordem dele, mais:
+ * - foto que SAIU do produto (ou da peca) sai do anuncio;
+ * - foto NOVA de uma peca, criada depois da ultima vez que o dono salvou o kit (`fotosVistasEm`; anuncio salvo antes do
+ *   campo: a data de criacao do anuncio), entra no fim. A que ja existia e ele desmarcou continua fora.
+ * As fotos proprias do kit (papel KIT) entram pelo envio na aba Imagens e nao sao acrescentadas aqui. `null` no anuncio simples.
+ */
+export function fotosDoKitDoRise(rascunho, produtosPorId) {
+  const itens = itensDaComposicao(rascunho?.composicao);
+  if (itens.length === 0) return null;
+  const principalId = rascunho.produtoId;
+  const idsDosProdutos = [principalId, ...itens.map((item) => item.produtoId)];
+  const dasPecas = fotosEmOrdem(idsDosProdutos, produtosPorId);
+  const proprias = (produtosPorId?.[principalId]?.fotosDoKit ?? []).map((foto) => foto.id);
+  const existem = new Set([...dasPecas, ...proprias]);
+  const marcadas = (Array.isArray(rascunho.imagens) ? rascunho.imagens : []).filter((id) => existem.has(id));
+  const desde = Date.parse(rascunho.fotosVistasEm ?? "");
+  if (!Number.isFinite(desde)) return marcadas;
+  const criadaEm = new Map(idsDosProdutos.flatMap((id) => (produtosPorId?.[id]?.imagens ?? []).map((imagem) => [imagem.id, Date.parse(imagem.criadoEm ?? "")])));
+  const novas = dasPecas.filter((id) => !marcadas.includes(id) && criadaEm.get(id) > desde);
+  return [...marcadas, ...novas];
+}
+
+/**
  * O estoque do anuncio e SEMPRE o do Rise (pedido do dono em 22/10/2026: o campo saiu da tela): o do produto ou,
  * no kit, o que as pecas montam. Negativo conta zero. `null` quando o produto nao esta em `produtosPorId`.
  * Abrir e salvar o anuncio usam esta conta, para o numero nunca ficar o de quando o rascunho foi criado.
