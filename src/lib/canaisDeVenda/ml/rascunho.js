@@ -140,8 +140,8 @@ function familyNameDoProduto(produto) {
   return [texto(produto.marca), texto(produto.modelo)].filter(Boolean).join(" ") || texto(produto.tituloBase);
 }
 
-// Sugestao de partida; o dono edita (a IA melhora isso na fase 2).
-function tituloDoKit(principal, itens) {
+// Sugestao de partida; o dono edita (a IA melhora isso na fase 2). Exportada: a proposta do ML usa a mesma no "kit de N".
+export function tituloDoKit(principal, itens) {
   const titulo = texto(principal.tituloBase).toUpperCase();
   const unidades = unidadesDaComposicao(itens);
   return itens.length === 1 && unidades > 0 ? `KIT COM ${unidades} ${titulo}` : `KIT ${titulo}`;

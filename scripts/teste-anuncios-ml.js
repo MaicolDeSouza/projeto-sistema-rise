@@ -2823,6 +2823,36 @@ try {
     const kitSemTitulo = await gravarPropostaML(ml(), "ZZ-ML-PA6", { categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] });
     conferir("composição (kit) sem título na chamada: fica o nome do produto", kitSemTitulo.titulo, "KIT ZZ");
 
+    // Kit no ML (pedido do dono em 28/10/2026: "anuncio no ML com 10 pecas do 900211 ... vinculando o kit ao produto base
+    // para controle de estoque"): o anuncio do PROPRIO produto com o Kit de 10, sem produto novo no Rise.
+    const barra = await criarPronto("ZZ-ML-PA8", { tituloBase: "BARRA ZZ 1X15", custo: 0.5, estoque: 205, pesoKg: 0.001, alturaCm: 1.16, larguraCm: 0.23, comprimentoCm: 3.85 });
+    const lidaKitML = await lerParaPropostaML(ml(), "ZZ-ML-PA8", { quantidade: 10 });
+    conferir(
+      "kit no ML: a leitura dá o custo das 10, o código e o título de partida, e libera o título",
+      [lidaKitML.produto.composicao, lidaKitML.produto.custo, lidaKitML.produto.kit],
+      [true, 5, { quantidade: 10, codigo: "ZZ-ML-PA8_10", custoUnitario: 0.5, tituloDePartida: "KIT COM 10 BARRA ZZ 1X15" }],
+    );
+    const simplesDaBarra = await gravarPropostaML(ml(), "ZZ-ML-PA8", { categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] });
+    const kitML = await gravarPropostaML(ml(), "ZZ-ML-PA8", { quantidade: 10, categoriaId: "MLB99779", titulo: " Kit 10 Barra ZZ 1x15 ", atributos: ATRIBUTOS, catalogos: [] });
+    const anKitML = await prisma.anuncio.findUnique({ where: { id: kitML.anuncioId } });
+    conferir(
+      "kit no ML: o anúncio do próprio produto com o Kit de 10, o título da LLM e o estoque que o produto monta",
+      [anKitML.produtoId === barra.id, anKitML.dados.composicao.codigo, anKitML.dados.composicao.itens, anKitML.titulo, anKitML.dados.estoque, kitML.kit, kitML.campos.includes("titulo")],
+      [true, "ZZ-ML-PA8_10", [{ produtoId: barra.id, quantidade: 10 }], "Kit 10 Barra ZZ 1x15", 20, { quantidade: 10, codigo: "ZZ-ML-PA8_10" }, true],
+    );
+    conferir("kit no ML: nenhum produto novo no Rise", await prisma.produto.count({ where: { sku: { startsWith: "ZZ-ML-PA8" } } }), 1);
+    conferir("kit no ML: o anúncio simples do produto fica à parte", [simplesDaBarra.anuncioId !== kitML.anuncioId, (await prisma.anuncio.findUnique({ where: { id: simplesDaBarra.anuncioId } })).dados.composicao ?? null], [true, null]);
+    // O preco do kit sai do custo das 10 (R$ 5): bem acima do anuncio de 1 unidade, com os 40% desejados (sem concorrente).
+    conferir("kit no ML: o preço pelo custo das 10 unidades", [kitML.preco.valor > simplesDaBarra.preco.valor, kitML.preco.markup >= 40, kitML.preco.valor === anKitML.dados.preco], [true, true, true]);
+    conferir("kit no ML: peso das 10 unidades no envio", anKitML.dados.envio.pesoKg, 0.01);
+
+    const kitDeNovo = await gravarPropostaML(ml(), "ZZ-ML-PA8", { quantidade: 10, categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] });
+    conferir("kit no ML de novo: o mesmo anúncio, com o título de partida", [kitDeNovo.anuncioId, kitDeNovo.titulo], [kitML.anuncioId, "KIT COM 10 BARRA ZZ 1X15"]);
+    const kitDe5 = await gravarPropostaML(ml(), "ZZ-ML-PA8", { quantidade: 5, categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] });
+    conferir("kit no ML de outra quantidade: outro anúncio", [kitDe5.anuncioId !== kitML.anuncioId, kitDe5.kit.codigo], [true, "ZZ-ML-PA8_5"]);
+    conferir("kit no ML de 1 unidade recusa", /quantidade|unidades/.test(await erroDe(gravarPropostaML(ml(), "ZZ-ML-PA8", { quantidade: 1, categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] }))), true);
+    conferir("kit no ML de um produto que já é kit recusa", /já é um kit/.test(await erroDe(lerParaPropostaML(ml(), "ZZ-ML-PA6", { quantidade: 10 }))), true);
+
     // Nome do produto maior que o limite da categoria: nao se corta, avisa para encurtar no cadastro do produto.
     await criarPronto("ZZ-ML-PA7", { tituloBase: "PLACA COMPATIVEL ARDUINO UNO R3 ATMEGA328P DIP ATMEGA16U2 COM CABO USB EXTRA LONGO" });
     const longo = await gravarPropostaML(ml(), "ZZ-ML-PA7", { categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] });

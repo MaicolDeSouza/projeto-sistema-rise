@@ -13,6 +13,14 @@ import { ErroDeFerramenta } from "@/lib/riseAi/ferramentas/erro";
  */
 
 const SKU = z.string().trim().min(1).max(60).describe("O código (SKU) do produto no Rise, ex.: '100103'");
+// O kit no ML (pedido do dono em 28/10/2026): montado no editor do ML, ligado ao produto base; nunca um produto novo no Rise.
+const QUANTIDADE_DO_KIT = z
+  .number()
+  .int()
+  .min(2)
+  .max(9999)
+  .optional()
+  .describe("Só quando o dono pede o anúncio em kit (ex.: 'kit de 10 peças'): quantas unidades do produto base o anúncio vende. O kit é montado no editor do ML, ligado ao produto base (o estoque é o dele); nenhum produto novo no Rise. Sem ela, o anúncio é de 1 unidade");
 const SO_LEITURA = { readOnlyHint: true, destructiveHint: false, openWorldHint: false };
 
 const TELA_DO_CANAL = { ml: "tela.canaisDeVenda.mercadoLivre" };
@@ -56,12 +64,12 @@ const clienteDoML = (contexto) => contexto?.mcp?.clienteML ?? clienteML();
 const LER_PARA_PROPOSTA_ML = {
   nome: "lerParaPropostaML",
   descricao:
-    "Primeiro passo da proposta do anúncio do Mercado Livre: traz o produto (com o custo), as categorias candidatas, os atributos da categoria mais provável, os catálogos candidatos (total de anúncios e o 1º colocado de cada um), os catálogos dos anúncios do dono e as referências do produto. Só lê.",
-  esquema: z.object({ sku: SKU }),
+    "Primeiro passo da proposta do anúncio do Mercado Livre: traz o produto (com o custo), as categorias candidatas, os atributos da categoria mais provável, os catálogos candidatos (total de anúncios e o 1º colocado de cada um), os catálogos dos anúncios do dono e as referências do produto. Com quantidade (kit no ML), o custo já é o das N unidades e vem o código e o título de partida do kit. Só lê.",
+  esquema: z.object({ sku: SKU, quantidade: QUANTIDADE_DO_KIT }),
   anotacoes: { ...SO_LEITURA, openWorldHint: true },
-  async executar({ sku }, contexto) {
+  async executar({ sku, quantidade }, contexto) {
     exigirPropostaDeAnuncio(contexto, "ml");
-    return lerParaPropostaML(clienteDoML(contexto), sku);
+    return lerParaPropostaML(clienteDoML(contexto), sku, { quantidade });
   },
 };
 
@@ -85,13 +93,15 @@ const LINK = z.object({
 const GRAVAR_PROPOSTA_ML = {
   nome: "gravarPropostaML",
   descricao: [
-    "Grava a proposta do anúncio do Mercado Livre no rascunho do Rise (sempre um Clássico): categoria folha, ficha (atributos), até 10 catálogos do mesmo produto e, sem catálogo, até 5 links com preço. O título do anúncio é o nome do produto base e o Rise o põe sozinho: só o produto com composição (kit) aceita o título que você mandar.",
+    "Grava a proposta do anúncio do Mercado Livre no rascunho do Rise (sempre um Clássico): categoria folha, ficha (atributos), até 10 catálogos do mesmo produto e, sem catálogo, até 5 links com preço. O título do anúncio é o nome do produto base e o Rise o põe sozinho: só o produto com composição (kit) e o kit no ML aceitam o título que você mandar.",
+    "Kit no ML: com quantidade N o anúncio é o do próprio produto com o Kit de N ligado (código {sku}_{N}, estoque do produto base, custo, peso e medidas das N unidades); nenhum produto novo no Rise.",
     "O Rise lê o 1º de cada catálogo, descarta os de menos de 5 anúncios e CALCULA O PREÇO (no mínimo 40% de markup, lucro sobre o total dos custos com as taxas do ML, e o top 5). Nada é publicado e nada entra no ranking: o dono revisa, adiciona os catálogos e publica. Gravar de novo substitui a proposta.",
   ].join(" "),
   esquema: z.object({
     sku: SKU,
     categoriaId: z.string().trim().min(3).max(20).describe("A categoria FOLHA, ex.: 'MLB99779'"),
-    titulo: z.string().trim().max(120).optional().describe("Só para produto com composição (kit): o título, no limite da categoria. Nos demais não mande: o título é o nome do produto"),
+    titulo: z.string().trim().max(120).optional().describe("Só para produto com composição (kit) e para o kit no ML (com quantidade): o título, no limite da categoria. Nos demais não mande: o título é o nome do produto"),
+    quantidade: QUANTIDADE_DO_KIT,
     atributos: z.record(z.string(), z.string().max(300)).optional().describe("A ficha: id do atributo -> valor (sem GTIN)"),
     catalogos: z.array(z.string().trim().min(3).max(30)).max(10).optional().describe("Ids dos catálogos do mesmo produto"),
     linksSemCatalogo: z.array(LINK).max(5).optional().describe("Só sem catálogo: 5 anúncios do mesmo produto com o preço"),

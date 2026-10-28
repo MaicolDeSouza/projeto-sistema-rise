@@ -105,8 +105,11 @@ export async function buscarProdutoParaAnuncio(codigo) {
   return { ok: true, produto };
 }
 
-/** Rascunho de um anuncio simples novo. Nao grava nada: so o Salvar cria o anuncio. */
-export async function novoRascunhoML(produtoId) {
+/**
+ * Rascunho de um anuncio novo. Nao grava nada: so o Salvar cria o anuncio. `composicao` so na proposta do "kit de N" no ML
+ * (28/10/2026): o kit do proprio produto, montado como o editor monta.
+ */
+export async function novoRascunhoML(produtoId, { composicao = null } = {}) {
   const produtos = await contextoDosProdutos([produtoId]);
   const principal = produtos[produtoId];
   if (!principal) return { ok: false, erro: "Produto não encontrado." };
@@ -114,7 +117,7 @@ export async function novoRascunhoML(produtoId) {
 
   return {
     ok: true,
-    rascunho: rascunhoInicial({ principal, produtosPorId: produtos, composicao: null }),
+    rascunho: rascunhoInicial({ principal, produtosPorId: produtos, composicao }),
     contexto: { produtos, codigoEmUso: null },
   };
 }

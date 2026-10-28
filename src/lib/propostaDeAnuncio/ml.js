@@ -1,9 +1,12 @@
 import { prisma } from "@/lib/db";
+import { codigoDaComposicao, custoDaComposicao, errosDaComposicao } from "@/lib/canaisDeVenda/composicao";
 import { problemasDosAtributos } from "@/lib/canaisDeVenda/ml/atributos";
 import { contextoDosProdutos, carregarAnuncioML, novoRascunhoML, salvarRascunhoML } from "@/lib/canaisDeVenda/ml/banco";
 import { catalogosDosMeusAnuncios, lerPrimeiroDoCatalogo, sugerirCatalogos } from "@/lib/canaisDeVenda/ml/catalogo";
+import { eanDoKit } from "@/lib/canaisDeVenda/ml/eanDoKit";
 import { sugerirCategoria } from "@/lib/canaisDeVenda/ml/inteligencia";
 import { lerCategoriaCompleta } from "@/lib/canaisDeVenda/ml/leitura";
+import { tituloDoKit } from "@/lib/canaisDeVenda/ml/rascunho";
 import { lerReferenciasML } from "@/lib/canaisDeVenda/ml/referencias";
 import { ErroDeFerramenta } from "@/lib/riseAi/ferramentas/erro";
 import { aplicarProposta, montarProposta } from "./preencher";
@@ -38,11 +41,34 @@ async function produtoPeloSku(sku) {
 const ehComposicao = (produto) => produto.tipo === "COMPOSICAO";
 const limparTitulo = (texto) => String(texto ?? "").replace(/\s+/g, " ").trim();
 
+/**
+ * O "kit de N" no ML (pedido do dono em 28/10/2026: "crie um anuncio no ML com 10 pecas do 900211, nao quero que voce crie
+ * kit no Rise, apenas no ML vinculando o kit ao produto base para controle de estoque"): a composicao do PROPRIO anuncio,
+ * como o editor monta (um item, o produto, com N unidades; codigo `{sku}_{N}`). Nenhum produto novo: o estoque e o que o
+ * produto base monta. `null` sem quantidade (anuncio de 1 unidade). O produto que ja e kit (Composicao) nao entra: o kit
+ * no ML e sempre do produto base.
+ */
+function kitNoML(produto, quantidade) {
+  if (quantidade === undefined || quantidade === null) return null;
+  if (ehComposicao(produto)) throw new ErroDeFerramenta(`O produto ${produto.sku} já é um kit (composição): o kit no Mercado Livre é montado a partir do produto base.`);
+  const itens = [{ produtoId: produto.id, quantidade: Number(quantidade) }];
+  const erros = errosDaComposicao(itens);
+  if (erros.length > 0) throw new ErroDeFerramenta(`Kit no Mercado Livre: ${erros.join(" ")}`);
+  return { itens, codigo: codigoDaComposicao(produto.sku, quantidade), blingProdutoId: null };
+}
+
+/** O custo do anuncio: o do produto, ou no kit a soma quantidade x custo (a mesma conta da aba Preço do editor). */
+function custoDoAnuncio(produto, kit) {
+  const unitario = produto.custo?.valor ?? null;
+  return kit ? custoDaComposicao(kit.itens, { [produto.id]: unitario }).valor : unitario;
+}
+
 const meuVendedor = async (cliente) => (typeof cliente.usuarioId === "function" ? cliente.usuarioId().catch(() => null) : null);
 const doCatalogo = (catalogo) => ({ id: catalogo.id, nome: catalogo.nome, total: catalogo.total, primeiro: catalogo.primeiro ? { preco: catalogo.primeiro.preco, meu: Boolean(catalogo.primeiro.meu) } : null });
 
-export async function lerParaPropostaML(cliente, sku) {
+export async function lerParaPropostaML(cliente, sku, { quantidade } = {}) {
   const produto = await produtoPeloSku(sku);
+  const kit = kitNoML(produto, quantidade);
   const avisos = [];
   const sugestao = await sugerirCategoria(cliente, { titulo: produto.tituloBase ?? "", produto, ia: SEM_IA });
   if (sugestao.aviso) avisos.push(sugestao.aviso);
@@ -60,7 +86,19 @@ export async function lerParaPropostaML(cliente, sku) {
 
   return {
     // `composicao` diz se a LLM pode propor outro titulo (so o kit); nos demais o titulo do anuncio e o `nome`.
-    produto: { sku: produto.sku, nome: produto.tituloBase, composicao: ehComposicao(produto), marca: produto.marca, modelo: produto.modelo, descricao: produto.descricaoBase ?? "", custo: produto.custo?.valor ?? null, origemDoCusto: produto.custo?.origem ?? null, pesoKg: produto.pesoKg },
+    // No kit no ML o custo ja e o das N unidades, e `kit` diz a quantidade, o codigo e o titulo de partida.
+    produto: {
+      sku: produto.sku,
+      nome: produto.tituloBase,
+      composicao: ehComposicao(produto) || Boolean(kit),
+      marca: produto.marca,
+      modelo: produto.modelo,
+      descricao: produto.descricaoBase ?? "",
+      custo: custoDoAnuncio(produto, kit),
+      origemDoCusto: kit ? `${kit.itens[0].quantidade} x o custo do produto (${produto.custo?.origem ?? "sem origem"})` : (produto.custo?.origem ?? null),
+      pesoKg: produto.pesoKg,
+      kit: kit ? { quantidade: kit.itens[0].quantidade, codigo: kit.codigo, custoUnitario: produto.custo?.valor ?? null, tituloDePartida: limparTitulo(tituloDoKit(produto, kit.itens)) } : null,
+    },
     categorias: sugestao.candidatas.map(({ categoriaId, nome, caminho, folha, limiteTitulo }) => ({ categoriaId, nome, caminho, folha, limiteTitulo })),
     atributos: categoria?.atributos ?? [],
     catalogos,
@@ -78,10 +116,21 @@ export async function lerCategoriaML(cliente, categoriaId) {
   return { categoriaId, nome: categoria.nome, caminho: categoria.caminho, folha: categoria.folha, limiteTitulo: categoria.limiteTitulo, atributos: categoria.atributos };
 }
 
-/** O Classico ainda nao publicado do produto (simples, sem item no ML), para a proposta atualizar em vez de criar outro. */
-async function classicoEmRascunho(produtoId) {
+// O anuncio e do mesmo formato: simples (sem composicao) ou o kit do produto com a mesma quantidade (um item so, ele).
+function mesmoFormato(composicao, kit) {
+  if (!kit) return !composicao;
+  const itens = composicao?.itens ?? [];
+  const pedido = kit.itens[0];
+  return itens.length === 1 && itens[0].produtoId === pedido.produtoId && Number(itens[0].quantidade) === pedido.quantidade;
+}
+
+/**
+ * O Classico ainda nao publicado do produto (sem item no ML), do mesmo formato (simples ou o kit de N), para a proposta
+ * atualizar em vez de criar outro.
+ */
+async function classicoEmRascunho(produtoId, kit) {
   const anuncios = await prisma.anuncio.findMany({ where: { canal: CANAL, produtoId, status: { notIn: ["PUBLICADO", "PUBLICANDO"] } }, orderBy: { criadoEm: "desc" }, select: { id: true, dados: true } });
-  return anuncios.find((anuncio) => (anuncio.dados?.tipoAnuncio ?? CLASSICO) === CLASSICO && !anuncio.dados?.composicao && !anuncio.dados?.publicacao?.itemId) ?? null;
+  return anuncios.find((anuncio) => (anuncio.dados?.tipoAnuncio ?? CLASSICO) === CLASSICO && mesmoFormato(anuncio.dados?.composicao, kit) && !anuncio.dados?.publicacao?.itemId) ?? null;
 }
 
 /** Le o 1o de cada catalogo pedido; fica so o de 5 ou mais anuncios. 401/429 param a leitura (a cota acabou). */
@@ -119,21 +168,24 @@ async function lerCatalogos(cliente, ids, avisos) {
 /**
  * @param {object} cliente  o cliente do ML (so GET)
  * @param {string} sku
- * @param {{ categoriaId: string, titulo?: string, atributos?: object, catalogos?: string[], linksSemCatalogo?: { url, titulo, preco }[], relatorio?: string }} entrada
- *   `titulo` so vale para produto com composicao (kit); nos demais o titulo do anuncio e o do produto base.
+ * @param {{ categoriaId: string, titulo?: string, quantidade?: number, atributos?: object, catalogos?: string[], linksSemCatalogo?: { url, titulo, preco }[], relatorio?: string }} entrada
+ *   `titulo` so vale para produto com composicao (kit) e para o kit no ML; nos demais o titulo do anuncio e o do produto base.
+ *   `quantidade`: o kit de N no ML (ver `kitNoML`).
  */
-export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, atributos = {}, catalogos = [], linksSemCatalogo = [], relatorio = "" }) {
+export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, quantidade, atributos = {}, catalogos = [], linksSemCatalogo = [], relatorio = "" }) {
   await exigirProdutoPronto(sku);
   const produto = await produtoPeloSku(sku);
+  const kit = kitNoML(produto, quantidade);
 
   const categoria = await lerCategoriaCompleta(cliente, String(categoriaId ?? "").trim());
   if (!categoria) throw new ErroDeFerramenta(`A categoria ${categoriaId} não existe no Mercado Livre.`);
   if (!categoria.folha) throw new ErroDeFerramenta(`A categoria ${categoriaId} não é folha (não aceita anúncio): escolha uma das filhas.`);
 
   const avisos = [];
-  // Pedido do dono em 24/10/2026: o titulo do anuncio vem do produto base, e so a composicao (kit) pode ter outro.
-  const composicao = ehComposicao(produto);
-  const tituloDoProduto = limparTitulo(produto.tituloBase);
+  // Pedido do dono em 24/10/2026: o titulo do anuncio vem do produto base, e so a composicao (kit) pode ter outro. O kit no
+  // ML tambem: sem titulo na chamada, o de partida do editor ("KIT COM 10 ...").
+  const composicao = ehComposicao(produto) || Boolean(kit);
+  const tituloDoProduto = limparTitulo(kit ? tituloDoKit(produto, kit.itens) : produto.tituloBase);
   const tituloEnviado = limparTitulo(titulo);
   const tituloLimpo = composicao ? tituloEnviado || tituloDoProduto : tituloDoProduto;
   if (!tituloLimpo) throw new ErroDeFerramenta("O produto não tem nome: o título do anúncio vem dele.");
@@ -159,14 +211,15 @@ export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, atri
   const precosDoRanking = aceitos.length > 0 ? aceitos.filter((c) => !c.primeiro.meu && Number(c.primeiro.preco) > 0).map((c) => Number(c.primeiro.preco)) : links.map((link) => link.preco);
   if (aceitos.length === 0 && links.length > 0) avisos.push("Sem catálogo: o preço foi comparado com os links achados pela pesquisa (preços não conferidos pelo Rise).");
 
-  const existente = await classicoEmRascunho(produto.id);
+  const existente = await classicoEmRascunho(produto.id, kit);
   let base;
   if (existente) {
     const carregado = await carregarAnuncioML(existente.id);
     if (!carregado.ok) throw new ErroDeFerramenta(carregado.erro);
     base = carregado.rascunho;
   } else {
-    const novo = await novoRascunhoML(produto.id);
+    // O kit no ML nasce como o editor o monta: fotos, descricao com os itens inclusos, estoque, peso e medidas do kit.
+    const novo = await novoRascunhoML(produto.id, { composicao: kit });
     if (!novo.ok) throw new ErroDeFerramenta(novo.erro);
     base = { ...novo.rascunho, tipoAnuncio: CLASSICO };
   }
@@ -180,11 +233,13 @@ export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, atri
   for (const [id, valor] of Object.entries(ficha)) propostos[`atributos.${id}`] = valor;
   const primeira = aplicarProposta(base, propostos, opcoes);
 
-  const preco = await precoDaPropostaML(cliente, { ...primeira.rascunho, tipoAnuncio: CLASSICO }, { custo: produto.custo?.valor ?? null, precos: precosDoRanking });
+  const preco = await precoDaPropostaML(cliente, { ...primeira.rascunho, tipoAnuncio: CLASSICO }, { custo: custoDoAnuncio(produto, kit), precos: precosDoRanking });
   avisos.push(...preco.avisos);
   const segunda = preco.valor === null ? { rascunho: primeira.rascunho, campos: [], sugestoes: {}, valores: {} } : aplicarProposta(primeira.rascunho, { preco: preco.valor }, opcoes);
 
-  for (const problema of problemasDosAtributos(segunda.rascunho.atributos ?? {}, categoria.atributos, { kit: false })) {
+  // O kit no ML confere a ficha como o editor confere (o GTIN e o EAN interno do kit, nao o da peca).
+  const doAnuncio = segunda.rascunho.composicao;
+  for (const problema of problemasDosAtributos(segunda.rascunho.atributos ?? {}, categoria.atributos, { kit: Boolean(doAnuncio), gtinDoKit: doAnuncio ? eanDoKit(doAnuncio) : null })) {
     if (problema.campo !== "GTIN") avisos.push(`Ficha: ${problema.problema}`);
   }
 
@@ -207,7 +262,7 @@ export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, atri
     },
   });
   await gravarProposta(salvo.id, proposta);
-  return { anuncioId: salvo.id, titulo: tituloLimpo, campos, sugestoes, preco: proposta.preco, catalogosSugeridos: aceitos, avisos };
+  return { anuncioId: salvo.id, titulo: tituloLimpo, kit: kit ? { quantidade: kit.itens[0].quantidade, codigo: kit.codigo } : null, campos, sugestoes, preco: proposta.preco, catalogosSugeridos: aceitos, avisos };
 }
 
 /** So a chave `proposta` de `dados`, com a linha travada (o Salvar do editor nao cai no meio). */

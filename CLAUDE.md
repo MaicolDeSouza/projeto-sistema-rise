@@ -327,7 +327,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 868 asserções do anúncio do Mercado Livre: composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 952 asserções do anúncio do Mercado Livre (com a proposta do ML e o kit no ML): composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # 408 asserções da sincronização Rise -> Loja Integrada (com o cadastro automático e as categorias e o SEO que vêm do produto): slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio, ícone e as etapas do Cadastrar (LI falsa e Bling de mentira, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
@@ -6422,6 +6422,16 @@ com o roteiro v2** (título inventado no rascunho do ML): refazer a proposta do 
   vale o de R$ 78,95 quando rende mais; piso acima do teto = o piso com o aviso "fica em Nº de M". Os 40% (`MARKUP_DESEJADO`) são só
   AVISO ("abaixo dos 40% desejados"); **sem concorrente mira os 40%**. A Usinainfo NÃO entra no ML (preço de site; lá vale o ranking do
   catálogo). Roteiro do ML v5. Sem custo, sem preço. **Só vale na VPS depois do deploy.**
+- **Kit no ML (28/10/2026, roteiro do ML v8):** pedido do dono: "crie um anúncio no ML com 10 peças do 900211, não quero que você
+  crie kit no Rise, apenas no ML vinculando o kit ao produto base para controle de estoque". `lerParaPropostaML` e `gravarPropostaML`
+  aceitam `quantidade` N (2 a 9999, a regra de `errosDaComposicao`): o Clássico é o do PRÓPRIO produto com a composição do anúncio
+  (um item, ele, N unidades; código `{sku}_{N}`), como o editor monta (`novoRascunhoML(produtoId, { composicao })` →
+  `rascunhoInicial`): fotos, descrição com os itens inclusos, estoque = estoque ÷ N, peso e medidas do kit. O custo da conta do
+  preço é N × o do produto (`custoDaComposicao`, a mesma da aba Preço), o título é da LLM (sem ele, o de partida do editor, "KIT COM
+  N ...", `tituloDoKit` exportado) e a ficha é conferida como kit (GTIN = o EAN interno do kit). A proposta atualiza só o rascunho do
+  MESMO formato (`mesmoFormato`: simples sem composição; kit com o mesmo produto e a mesma N), então o simples e cada kit são
+  anúncios separados. Produto que já é Composição com `quantidade` é recusado (o kit no ML é do produto base). Nenhum produto novo
+  no Rise. `teste:anuncios-ml` +10 asserções. **Só vale na VPS depois do deploy.**
 - **O "P" some** no envio que deu certo: na LI dentro do `gravarSucesso` (um Sincronizar sem nada a enviar também conta);
   no ML na etapa "gravar" do Publicar (`gravarPublicacao` com `apagarProposta`). Envio barrado ou que falha mantém a
   proposta. Na lista, `iconeLI.proposta` e `iconeML.proposta` (só o booleano; o relatório nunca vai à lista).

@@ -15,8 +15,9 @@
 // nao o escolhe), e so o produto com composicao (kit) aceita outro titulo, pedido do dono. "5" em 25/10/2026: o markup
 // minimo do preco e 30% e o desejado 40% (pedido do dono). "6" em 25/10/2026: "nao se aplica" ("-1") nos opcionais que o
 // produto nao tem, e o Microcontrolador e o chip ou, sem ele, o Processador/CPU da descricao (pedidos do dono). "7" em
-// 25/10/2026: o Publicar exige a ficha inteira preenchida (pedido do dono), e o roteiro diz isso a LLM.
-export const VERSAO_ROTEIRO_ML = "7";
+// 25/10/2026: o Publicar exige a ficha inteira preenchida (pedido do dono), e o roteiro diz isso a LLM. "8" em 28/10/2026: o
+// kit no ML ("anuncio com 10 pecas do 900211"), montado no editor e ligado ao produto base, nunca um produto novo (pedido do dono).
+export const VERSAO_ROTEIRO_ML = "8";
 
 export const ROTEIRO_ML = `ROTEIRO DA PROPOSTA DE ANÚNCIO DO MERCADO LIVRE (Rise / 4hobby), versão ${VERSAO_ROTEIRO_ML}
 
@@ -33,14 +34,22 @@ CAMINHO (nesta ordem)
    "sincronizar-bling", "proposta-do-produto" ou "conferir-no-rise": pare e diga o que o dono precisa fazer antes.
 2. lerParaPropostaML(sku): o produto (com o custo), as categorias candidatas, os atributos da categoria mais provável,
    os catálogos candidatos (cada um com o total de anúncios e o 1º colocado), os catálogos dos anúncios do dono e as
-   referências que o produto já tem.
+   referências que o produto já tem. No kit no ML, com quantidade (veja KIT NO ML).
+KIT NO ML: quando o dono pede o anúncio em kit ("anúncio com 10 peças", "kit de 10"), o kit é montado no EDITOR do ML,
+   no anúncio do PRÓPRIO produto base, que controla o estoque. Nunca crie nem peça um produto kit novo no Rise. Passe
+   quantidade N em lerParaPropostaML e em gravarPropostaML: o Rise cria (ou atualiza) o Clássico do produto com o Kit de N
+   ligado (código {sku}_{N}), com o custo, o peso e as medidas das N unidades, e calcula o preço do kit; o estoque do
+   anúncio é o que o produto monta (estoque ÷ N). Catálogos e links só do MESMO kit (a mesma peça na mesma quantidade).
 3. Monte a proposta:
    - CATEGORIA: uma categoria FOLHA. Se escolher outra que não a provável, chame lerCategoriaML(categoriaId) para ver
      a ficha dela.
    - TÍTULO: NÃO escolha. O título do anúncio é o nome do produto base (produto.nome da leitura), e o Rise o põe sozinho;
-     não mande "titulo" (se mandar, é ignorado e avisado). A ÚNICA exceção é o produto com composição (kit:
-     produto.composicao true na leitura): aí você propõe o título, dentro do limite da categoria, com o tipo da peça, o
-     modelo ou o chip, a especificação principal e a compatibilidade, sem preço, sem "promoção", sem emoji.
+     não mande "titulo" (se mandar, é ignorado e avisado). A ÚNICA exceção é o kit (produto.composicao true na leitura:
+     o produto com composição ou o kit no ML): aí você propõe o título, dentro do limite da categoria, com o tipo da peça,
+     o modelo ou o chip, a especificação principal e a compatibilidade, sem preço, sem "promoção", sem emoji. No kit no
+     ML o título diz a quantidade ("KIT 10 ..."); produto.kit.tituloDePartida é o que o Rise usa se você não mandar.
+   - KIT NO ML, na ficha: os atributos de quantidade da categoria levam o kit (Formato de venda "Kit", a quantidade por
+     pacote ou de unidades = N), quando a categoria os tiver.
    - FICHA: só o que o cadastro do produto ou as referências PROVAM. Nunca invente. Os valores de lista escritos como
      estão na lista da categoria. Não mande GTIN nem o motivo de não ter (são do dono).
      Microcontrolador: o Chip(SoC) da descrição do produto; sem o chip, a linha Processador/CPU da descrição.
@@ -55,7 +64,8 @@ CAMINHO (nesta ordem)
    - SEM NENHUM CATÁLOGO do mesmo produto: pesquise no navegador e ache 5 anúncios do MESMO produto no Mercado Livre;
      mande url, título e preço de cada um em linksSemCatalogo. Esses links não são salvos no Rise: só entram na conta
      do preço e no relatório.
-4. gravarPropostaML(sku, categoriaId, atributos, catalogos, linksSemCatalogo, relatorio), com titulo só no kit. O
+4. gravarPropostaML(sku, categoriaId, atributos, catalogos, linksSemCatalogo, relatorio), com titulo só no kit e
+   quantidade só no kit no ML. O
    relatório em tópicos curtos: por que a categoria, de onde veio cada valor da ficha, por que cada catálogo é o mesmo
    produto. Se voltar erro, corrija e grave de novo.
 5. Mostre à pessoa o que o Rise devolveu: o título usado, o preço, o markup (lucro sobre o total dos custos: fornecedor, comissão e
