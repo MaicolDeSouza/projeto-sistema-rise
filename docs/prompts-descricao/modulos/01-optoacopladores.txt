@@ -28,7 +28,7 @@ Tensão de Entrada: substitui Tensão do sinal de entrada, Tensão de sinal da p
 
 Tensão de Saída: substitui Tensão do sinal de saída e Saída Porta de tensão: a faixa que o lado de saída aceita, “3,6V a 30VDC”.
 
-Tensão de Entrada e Tensão de Saída aparecem sempre as duas, uma depois da outra (ver REGRAS ESPECÍFICAS).
+Tensão de Entrada e Tensão de Saída aparecem sempre as duas, em DUAS linhas separadas, uma depois da outra, mesmo quando a faixa é igual (ver REGRAS ESPECÍFICAS). Nunca junte numa linha só (“Tensão de Entrada/Saída”, “Tensão de trabalho”); no parágrafo, cite as duas separadas (“entrada de 3,3V a 30VDC e saída de 3,3V a 30VDC”), nunca “entrada e saída de 3,3V a 30VDC”.
 
 Corrente de Saída: substitui Corrente máxima suportada e Corrente máxima, por canal: “50mA por canal”. Quando a fonte só diz o limite do CI (“o PC817 suporta até 50mA”), escreva “Até 50mA por canal (limite do PC817)”.
 
