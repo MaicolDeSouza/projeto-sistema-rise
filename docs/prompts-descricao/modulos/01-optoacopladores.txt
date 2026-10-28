@@ -1,0 +1,117 @@
+Escreva a descrição de um módulo (placa) optoacoplador em português brasileiro, no JSON exigido pelo Rise: paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm e decisoes. Não acrescente outros campos. Vale para as placas que isolam sinais digitais com optoacopladores: os módulos de 1, 2, 4 e 8 canais com PC817, EL817, TLP281 ou EL357 (“módulo optoacoplador”, “isolador óptico”, “placa de isolamento”, “conversor de nível com optoacoplador”) e os detectores de tensão da rede optoacoplados (“detector de tensão 220V AC”, “módulo optoacoplador AC”). Módulos relé com optoacoplador, drivers MOSFET ou PWM com optoacoplador, conversores de nível lógico sem optoacoplador (BSS138, TXS0108) e o optoacoplador avulso em CI não entram neste prompt.
+
+Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use informações confirmadas no cadastro ou nas referências. Não complete especificações por suposição.
+
+PARÁGRAFOS
+
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Simples e direto: diga o que a placa faz e onde se usa, sem propaganda. Tamanho, contando espaços: o primeiro até 250 caracteres, o segundo até 450.
+
+Primeiro parágrafo, UMA frase: “O Módulo Optoacoplador de <canais> canais com <optoacoplador> isola os sinais entre dois circuitos, recebendo na entrada de <faixa de entrada> e entregando na saída de <faixa de saída>.” No detector de tensão: “O Módulo Detector de Tensão <tensão AC> com optoacoplador <CI> indica a presença da rede com um sinal isolado de <faixa> para o microcontrolador.” Só o que estiver confirmado.
+
+Segundo parágrafo, duas ou três frases práticas, só com recursos confirmados: o uso típico (trocar sinais entre Arduino, ESP32 ou STM32 e um CLP, ou ler um sensor de 24V num microcontrolador de 3,3V ou 5V), como a saída funciona (NPN, com ou sem pull-up, lógica invertida), o jumper que une ou separa o GND da entrada e da saída, o LED por canal e a ligação por bornes de parafuso ou pinos.
+
+Fale com o comprador: “possui”, não “tem”. Ao voltar a falar do produto, use “o módulo”, nunca “ele” no início da frase. Varie a ordem dos fatos entre as opções. Sem elogios vazios (“excelente”, “alta proteção do sistema”, “ideal para qualquer projeto”) e sem repetir o título inteiro.
+
+PADRONIZAÇÃO DOS NOMES
+
+Use exatamente os nomes dos campos definidos neste prompt. As lojas usam nomes variados; converta-os assim:
+
+Fabricante: substitui Marca. Quem fabrica a placa, como está na marca do cadastro: placa própria da loja, “4HOBBY”; placa genérica, sem fabricante declarado, OEM. Nunca o nome da loja: “Eletrogate” na marca de um anúncio da Eletrogate é a loja, não o fabricante.
+
+Modelo: o código impresso na placa ou do fabricante, como “HW-399”, “HY-M154”; substitui Código e Part Number. “PC817 2CH” é o optoacoplador e os canais, não o modelo da placa. Sem código confirmado da mesma placa, omita o campo.
+
+Optoacoplador: substitui CI, Chip e Modelo do optoacoplador, com o encapsulamento quando confirmado: “PC817 (SMD)”, “TLP281”, “PC817C”.
+
+Canais: substitui Número de canais e Vias: “4”.
+
+Tensão de Entrada: substitui Tensão do sinal de entrada, Tensão de sinal da porta, Tensão de trabalho e Tensão de operação quando falam do lado que recebe o sinal: “3,6V a 24VDC”.
+
+Tensão de Saída: substitui Tensão do sinal de saída e Saída Porta de tensão: a faixa que o lado de saída aceita, “3,6V a 30VDC”.
+
+Corrente de Saída: substitui Corrente máxima suportada e Corrente máxima, por canal: “50mA por canal”. Quando a fonte só diz o limite do CI (“o PC817 suporta até 50mA”), escreva “Até 50mA por canal (limite do PC817)”.
+
+Tipo de Saída: “NPN (coletor aberto)” ou “NPN com resistor de pull-up”. PNP só com fonte.
+
+Lógica da Saída: substitui Sinal lógico, Nível de acionamento e Ativo em nível baixo: “Invertida (entrada ativada, saída em GND)”.
+
+GND da Entrada e da Saída: o que a placa liga e o que separa, em uma linha: “Entradas com GND comum, saídas independentes; jumper por canal une o GND da entrada ao da saída”. A isolação só existe com o jumper aberto: diga isso quando a placa tiver o jumper.
+
+Tensão Detectada: só no detector de tensão, substitui Tensão de detecção e Tensão AC: “220VAC”.
+
+Alimentação: só quando a placa pede alimentação própria (o detector de tensão, placas com CI ativo), substitui Fonte de alimentação: “3V a 25VDC”.
+
+Indicação: substitui LED indicador e LED de status: “LED por canal”.
+
+Conexões: substitui Conectores, Terminais e Bornes: “Bornes de parafuso na entrada e na saída”, “Barra de pinos 2,54mm”.
+
+Fixação: substitui Furos para fixação: “4 furos de fixação”.
+
+Use Tensão, nunca Voltagem; Corrente, nunca Amperagem. Troque ≤ e < por “até” ou “menor que”, e ≥ e > por “mínimo” ou “maior que”.
+
+CARACTERÍSTICAS
+
+Cada item contém nome, valor e referencias: nome “Tensão de Entrada”, valor “3,6V a 24VDC”, sem dois-pontos no nome.
+
+Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: Isolação total, Resposta rápida, Compatibilidade, Aplicações, Tipo de isolamento, Velocidade de comutação, Material da placa, Cor da placa, Datasheet).
+
+Campos obrigatórios:
+Fabricante; Modelo; Optoacoplador; Canais; Tensão de Entrada; Tensão de Saída; Corrente de Saída; Tipo de Saída; Lógica da Saída; Indicação; Conexões.
+
+Campos condicionais (só quando a placa tem o recurso; com o recurso e sem valor confirmado, omita o campo):
+GND da Entrada e da Saída; Tensão Detectada; Alimentação; Fixação.
+
+Campos finais:
+Dimensões (CxLxA); Peso.
+
+Dimensões (CxLxA) e Peso são sempre os dois últimos campos e são OBRIGATÓRIOS (o Rise calcula o frete com eles; ver PESO E DIMENSÕES). Devolva os números em dimensoesMm e pesoGramas; o Rise escreve as duas linhas. Não os repita em caracteristicas.
+
+Não entram em caracteristicas: Origem, Garantia, Unidade de venda, Quantidade do pacote, Peso com embalagem, textos de aplicação e propaganda (“Alta proteção”, “Sem partes móveis”, “Baixo consumo”).
+
+No modo sem referências, respeite a instrução acrescentada pelo Rise: inclua apenas especificações confirmadas nos dados próprios do produto. Se não houver nenhuma, retorne caracteristicas vazia.
+
+Números colados às unidades: 3,6V, 24VDC, 50mA, 220VAC, 2,54mm. Use vírgula decimal. Nunca use ponto e vírgula dentro de um valor. Informações distintas no mesmo valor se separam por “ / ”; itens da mesma lista, por vírgula.
+
+REGRAS ESPECÍFICAS
+
+Placas com o mesmo nome e os mesmos canais podem ser desenhos diferentes: a placa de 4 canais com PC817 das lojas (47 x 38mm, entrada de 3,6V a 24VDC) não é a de 40 x 40mm com pull-up e lógica invertida, nem a de TLP281. Só valem como referência para tensões, saída, lógica, medidas e peso as do MESMO desenho: mesmo optoacoplador, mesmos canais, mesmo modelo de placa e as mesmas conexões. Na dúvida, não copie e registre a divergência.
+
+Placa própria da loja (Fabricante 4HOBBY): as especificações e as medidas do cadastro e da descrição atual valem primeiro; anúncios de placas genéricas não as substituem.
+
+Entrada e saída são lados diferentes: as lojas trocam um pelo outro e o título costuma juntar os dois (“3,6 a 30VDC” no título, 3,6V a 24VDC na entrada e 3,6V a 30VDC na saída). Escreva cada faixa no seu campo, como a ficha da mesma placa diz, e registre a divergência quando o título discordar.
+
+A corrente da saída é limitada pelo optoacoplador (o PC817 suporta até 50mA no coletor): a placa não aciona motores, solenoides nem relés grandes direto na saída. Diga isso só quando a fonte disser, sem inventar o número de outro CI.
+
+Lógica e pull-up mudam o uso: saída NPN em coletor aberto precisa do pull-up do microcontrolador; com o resistor de pull-up na placa, não. Não diga que a placa possui pull-up, lógica invertida ou jumper de GND sem fonte da mesma placa.
+
+Texto marcado pela loja como “gerado por IA” ou “resumo automático” não comprova especificação: use só a ficha técnica dela, e com cuidado.
+
+Lista de fornecedor sem ficha técnica não comprova especificação.
+
+FONTES
+
+Em referencias, registre só os números das referências fornecidas que sustentam o valor daquele campo. Para valores vindos só do cadastro ou título, e para valores desconhecidos, use referencias []. Resultado da web só vale se consultado de fato e informado como referência. Não invente consultas, fontes, URLs ou números de referência.
+
+ITENS INCLUSOS
+
+O primeiro item é o próprio produto, com quantidade e nome técnico: “01 Módulo optoacoplador 4 canais PC817”. Acessórios só quando o cadastro ou a referência da mesma placa confirmar que acompanham (bornes avulsos para soldar, jumpers). A embalagem de outro vendedor não comprova o conteúdo vendido pela Rise.
+
+PESO E DIMENSÕES (OBRIGATÓRIOS)
+
+O Rise usa o peso e as medidas para calcular o frete: pesoGramas e dimensoesMm são obrigatórios e só ficam null quando nenhum passo abaixo der resultado, e então decisoes diz o que foi procurado.
+
+pesoGramas: número em gramas, com uma casa decimal quando for menor que 10. dimensoesMm: comprimento, largura e altura da placa montada em milímetros (a altura inclui os bornes e os componentes). Nunca a embalagem.
+
+Procure nesta ordem e pare no primeiro que der o número:
+1. O cadastro do produto (placa própria) ou as referências fornecidas da MESMA placa (mesmo desenho, ver REGRAS ESPECÍFICAS).
+2. O fabricante da placa ou uma loja na internet que publique a MESMA placa.
+3. Uma placa do mesmo desenho com outra quantidade de canais NÃO serve para medida nem peso: nesse caso deixe null e diga em decisoes o que foi procurado.
+
+Altura de 1mm numa placa com bornes, ou medidas e peso iguais em produtos diferentes da mesma loja, são erro de cadastro da loja: ignore e registre. Arredonde ao milímetro e ao décimo de grama. Não deduza medida pela foto.
+
+DIVERGÊNCIAS
+
+Para cada divergência fornecida, retorne id, opcao, motivo breve e campo com o nome padronizado deste prompt. opcao é o índice a partir de zero, ou null quando faltar evidência suficiente. Prefira o cadastro da placa própria, a mesma placa (mesmo desenho) e fontes independentes. Exceto para peso e dimensões, reserve a posição do campo divergente em caracteristicas com valor "" e referencias []. Não coloque valores divergentes nos parágrafos ou características antes da escolha do operador.
+
+GARANTIA
+
+O Rise acrescenta automaticamente: Garantia Legal de 90 dias (contra defeitos de fabricação). Não gere campo extra de garantia nem copie garantias das referências. Não escreva preço, prazo ou nome de loja.
