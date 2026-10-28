@@ -774,6 +774,17 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
     }
   }
 
+  // Lista personalizada LIGADA (pedido do dono em 28/10/2026): o produto deixa de ter a lista de fornecedores comum. O
+  // Salvar nao pede para cadastrar o fornecedor dela e a esvazia (o "[]" faz `gravarFornecedoresRascunho` remover as
+  // linhas e o rascunho do Bling ser limpo). So quando o campo veio: sem ele a pessoa nao ve custo e nada muda.
+  if (formData.get("fornecedoresRascunho") !== null) {
+    try {
+      if (JSON.parse(String(formData.get("pecasProprias") ?? "null"))?.ligado === true) formData.set("fornecedoresRascunho", "[]");
+    } catch {
+      // Lista personalizada invalida: `prepararPecasDoCadastro` recusa com o recado mais abaixo.
+    }
+  }
+
   try {
     let fornecedoresPendentes = [];
     try {
