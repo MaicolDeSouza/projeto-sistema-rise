@@ -100,6 +100,7 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
   const itens = Array.isArray(rascunho.composicao?.itens) ? rascunho.composicao.itens : [];
   const custo = custoDoAnuncio(rascunho, itens, contexto.produtos);
   const somaAvulsa = emKit ? somaDosPrecosAvulsos(itens, contexto.produtos) : null;
+  const unidadesDoKit = itens.reduce((soma, item) => soma + (Number.isInteger(Number(item.quantidade)) && Number(item.quantidade) > 0 ? Number(item.quantidade) : 0), 0);
   // A conta com as taxas do ML serve a margem embaixo do preco e aos Custos totais: feita uma vez aqui.
   const conta =
     custosValem(custosML, rascunho) && preco > 0
@@ -188,8 +189,15 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
           )}
           <MensagensDoCampo problemas={problemas} campo="preco" />
           {acessos.custos && <MargemDoPreco preco={preco} custo={custo} conta={conta} mensagemSemCusto={mensagemSemCusto(custo.faltam)} />}
-          {somaAvulsa !== null && (
-            <p className="mt-1 text-[11px] text-suave">Soma dos preços avulsos: {MOEDA.format(somaAvulsa)}</p>
+          {/* Kit (pedido do dono em 27/10/2026, no lugar da "Soma dos preços avulsos"): o preço de UMA unidade no site da loja e
+              o do ML dividido pelas unidades do kit, para comparar os dois. Kit misto: a média por unidade. */}
+          {emKit && unidadesDoKit > 0 && (somaAvulsa !== null || preco > 0) && (
+            <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-2 text-xs tabular-nums">
+              <dt className="text-suave">Preço na loja (UN)</dt>
+              <dd>{somaAvulsa !== null ? MOEDA.format(somaAvulsa / unidadesDoKit) : "—"}</dd>
+              <dt className="text-suave">Preço no ML (UN)</dt>
+              <dd className="font-medium">{preco > 0 ? MOEDA.format(preco / unidadesDoKit) : "—"}</dd>
+            </dl>
           )}
         </Campo>
 
