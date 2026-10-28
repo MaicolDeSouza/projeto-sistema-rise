@@ -63,7 +63,7 @@ import { DocumentosDasPecas, FornecedoresDoKit, MedidasDoKit } from "./AbasDoKit
 import BuscarPorCodigo from "./BuscarPorCodigo";
 import Composicao from "./Composicao";
 import Concorrentes from "./Concorrentes";
-import PecasProprias, { linhaVazia } from "./PecasProprias";
+import PecasProprias, { custoDaLista, linhaVazia } from "./PecasProprias";
 import JanelaProduzir from "@/components/producao/JanelaProduzir";
 import EditorDescricao from "./EditorDescricao";
 import Fornecedores from "./Fornecedores";
@@ -3077,7 +3077,9 @@ export default function FormularioProduto({
   );
   const custoPadrao = ehKit
     ? totaisDoKit(pecas).custo
-    : ((usaFornecedorRascunho ? fornecedoresRascunho : fornecedores).find((item) => item.padrao)?.precoCusto ?? null);
+    : pecasLigadas
+      ? custoDaLista(pecasProprias)
+      : ((usaFornecedorRascunho ? fornecedoresRascunho : fornecedores).find((item) => item.padrao)?.precoCusto ?? null);
 
   // Referencias marcadas na lupa que ja servem de atalho na aba Fornecedores
   // (pedido do dono em 18/09/2026): fornecedor vira sugestao de linha ali;

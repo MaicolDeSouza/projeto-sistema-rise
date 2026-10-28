@@ -24,6 +24,18 @@ export const linhaVazia = (peca) =>
   !peca.fotoManual &&
   ["descricao", "custoManual", "codigoManual", "fornecedorManual"].every((campo) => String(peca[campo] ?? "").trim() === "");
 
+/**
+ * O custo total da lista (o mesmo do rodape da tabela), para a margem do Preco venda (pedido do dono em 27/10/2026: com a
+ * lista ligada a calculadora e o lucro sumiam, porque o custo vinha so do fornecedor padrao). Nulo com item sem custo ou
+ * lista vazia: margem sobre soma parcial pareceria lucro maior que o real.
+ */
+export function custoDaLista(pecas) {
+  const contadas = (pecas ?? []).filter((peca) => !linhaVazia(peca));
+  if (contadas.length === 0) return null;
+  const custo = custoDasPecas(contadas.map((peca) => ({ custo: custoDaLinha(peca), quantidade: Number(String(peca.quantidade).replace(",", ".")) || 0 })));
+  return custo.incompleto ? null : custo.total;
+}
+
 /** Chave estavel de cada linha (item manual nao tem id ate o Salvar). */
 let proxima = 0;
 const novaChave = () => `peca-${Date.now()}-${proxima++}`;

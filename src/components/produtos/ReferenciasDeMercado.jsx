@@ -47,8 +47,13 @@ const COMPARADORES = {
   parecido: (a, b, sinal) => sinal * (a.relevancia - b.relevancia),
 };
 
-function ordenarItens(itens, ordenacao) {
-  if (!ordenacao) return itens;
+/**
+ * Sem ordenacao de coluna, os marcados vem primeiro (pedido do dono em 27/10/2026), cada grupo na ordem da busca. "Marcado"
+ * e o que estava marcado quando a busca chegou (`naFrente`): marcar ou desmarcar depois nao move a linha de lugar debaixo
+ * do mouse; a proxima busca reordena.
+ */
+function ordenarItens(itens, ordenacao, naFrente) {
+  if (!ordenacao) return [...itens.filter((item) => naFrente.has(item.id)), ...itens.filter((item) => !naFrente.has(item.id))];
   const comparador = COMPARADORES[ordenacao.coluna];
   const sinal = ordenacao.direcao === "asc" ? 1 : -1;
   return [...itens].sort((a, b) => comparador(a, b, sinal));
@@ -254,6 +259,7 @@ export default function ReferenciasDeMercado({
   const [fotoAmpliada, setFotoAmpliada] = useState(null);
   const [buscando, iniciarBusca] = useTransition();
   const [ordenacao, setOrdenacao] = useState(null); // { coluna, direcao } | null
+  const [naFrente, setNaFrente] = useState(() => new Set()); // ids marcados quando a busca chegou
   // Desmarcar um vinculo e uma escolha do operador; uma busca posterior nao o
   // deve marcar de novo automaticamente.
   const excluidosPeloOperador = useRef(new Set());
@@ -281,9 +287,9 @@ export default function ReferenciasDeMercado({
           idsConcorrentesLigados: [...idsConcorrentesLigados],
         });
         if (resultado.ok) {
-          aoMarcarLigados(
-            resultado.itens.filter((item) => item.vinculado && !excluidosPeloOperador.current.has(item.id)),
-          );
+          const ligados = resultado.itens.filter((item) => item.vinculado && !excluidosPeloOperador.current.has(item.id));
+          aoMarcarLigados(ligados);
+          setNaFrente(new Set([...marcados.keys(), ...ligados.map((item) => item.id)]));
         }
         setResposta(resultado);
       } catch (erro) {
@@ -352,7 +358,7 @@ export default function ReferenciasDeMercado({
 
   if (!aberto) return null;
 
-  const itens = ordenarItens(resposta?.ok ? resposta.itens : [], ordenacao);
+  const itens = ordenarItens(resposta?.ok ? resposta.itens : [], ordenacao, naFrente);
 
   return (
     <div
@@ -477,14 +483,12 @@ export default function ReferenciasDeMercado({
                     const cheio = !marcado && marcados.size >= MAXIMO_MARCADOS;
                     const jaAberto = abertos.has(item.id);
                     return (
-                      <tr
-                        key={item.id}
-                        onClick={() => !cheio && alternar(item)}
-                        className={`cursor-pointer ${marcado ? "bg-emerald-50" : "hover:bg-fundo"} ${
-                          cheio ? "cursor-not-allowed opacity-50" : ""
-                        }`}
-                      >
-                        <td className="px-3 py-2">
+                      // So a celula da caixa marca (pedido do dono em 27/10/2026): clicar no resto da linha nao muda nada.
+                      <tr key={item.id} className={`${marcado ? "bg-emerald-50" : "hover:bg-fundo"} ${cheio ? "opacity-50" : ""}`}>
+                        <td
+                          className={`px-3 py-2 ${cheio ? "cursor-not-allowed" : "cursor-pointer"}`}
+                          onClick={() => !cheio && alternar(item)}
+                        >
                           <input
                             type="checkbox"
                             checked={marcado}
