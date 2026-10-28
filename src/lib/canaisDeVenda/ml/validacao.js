@@ -12,6 +12,7 @@
 import { LIMITE_TITULO } from "../../anuncios/canais/mercadolivre";
 import { errosDaComposicao } from "../composicao";
 import { problemasDosAtributos } from "./atributos";
+import { eanDoKit } from "./eanDoKit.js";
 
 /// O prazo de disponibilidade (MANUFACTURING_TIME) maximo, em dias. O ML nao publica o teto na categoria; 45 e o que o
 /// painel do vendedor oferece.
@@ -213,7 +214,7 @@ export function validarRascunhoML(rascunho, contexto) {
   // Ficha tecnica. Com a categoria lida, valem os atributos DELA (obrigatorios, listas, GTIN ou o
   // motivo de nao ter). Sem ela, so o aviso da fase 1: o GTIN e da peca avulsa, e o kit nao o tem.
   if (lida) {
-    for (const item of problemasDosAtributos(rascunho.atributos, lida.atributos ?? [], { kit: Boolean(composicao) })) {
+    for (const item of problemasDosAtributos(rascunho.atributos, lida.atributos ?? [], { kit: Boolean(composicao), gtinDoKit: composicao ? eanDoKit(composicao) : null })) {
       acrescentar(item.campo, "ficha", item.problema, item.bloqueante);
     }
   } else if (!composicao && !texto(rascunho.atributos?.GTIN)) {

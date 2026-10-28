@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { aceitaNaoSeAplica, motivoSemGtin } from "@/lib/canaisDeVenda/ml/atributos";
-import { eanDoKit } from "@/lib/canaisDeVenda/ml/payload";
+import { eanDoKit } from "@/lib/canaisDeVenda/ml/eanDoKit";
 import { linhasDeEspecificacao } from "@/lib/medidas";
 import CampoDeAtributo from "./CampoDeAtributo";
 import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
@@ -95,7 +95,8 @@ export default function AbaFichaTecnica({ rascunho, contexto, alterar, problemas
           <CampoDeAtributo key={atributo.id} atributo={atributo} valor={atributos[atributo.id]} problemas={problemas} aoMudar={(valor) => mudar(atributo.id, valor)} />
         ))}
         {temGtin && <CampoDoGtin atributos={atributos} emKit={emKit} gtinDoKit={emKit ? eanDoKit(rascunho.composicao) : null} problemas={problemas} mudar={mudar} />}
-        {motivo && (
+        {/* Kit com o EAN do kit: o motivo de nao ter GTIN nao vai ao ML (o GTIN vai no lugar), entao o campo sai. */}
+        {motivo && !(emKit && eanDoKit(rascunho.composicao)) && (
           <CampoDeAtributo
             atributo={{ ...motivo, nome: "Motivo de não ter GTIN" }}
             valor={atributos.EMPTY_GTIN_REASON}

@@ -116,7 +116,8 @@ export function valorDeLista(atributo, valor) {
  * O campo e o id do atributo (a aba mostra a mensagem embaixo dele). GTIN e o motivo de nao ter
  * sao conferidos juntos: a categoria pede um OU outro (`conditional_required`).
  */
-export function problemasDosAtributos(valores, atributos, { kit }) {
+// `gtinDoKit`: o EAN interno do kit (`eanDoKit.js`), que vai ao ML no lugar do motivo (27/10/2026): com ele o kit tem GTIN.
+export function problemasDosAtributos(valores, atributos, { kit, gtinDoKit = null }) {
   const problemas = [];
   const acrescentar = (campo, problema, bloqueante = true) => problemas.push({ campo, problema, bloqueante });
 
@@ -126,7 +127,7 @@ export function problemasDosAtributos(valores, atributos, { kit }) {
     if (atributo.id === "GTIN") {
       // O GTIN e da peca avulsa: no kit ele e ignorado, e so o motivo vale.
       if (kit && valor) acrescentar("GTIN", "Kit não leva GTIN: o valor será ignorado.", false);
-      const temGtin = !kit && Boolean(valor);
+      const temGtin = kit ? Boolean(gtinDoKit) : Boolean(valor);
       // A ficha inteira preenchida para publicar (pedido do dono em 25/10/2026): o GTIN ou o motivo, mesmo onde a categoria
       // nao o exige.
       if (!temGtin && !texto(valores?.EMPTY_GTIN_REASON)) {

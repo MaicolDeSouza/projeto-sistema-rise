@@ -389,6 +389,16 @@ try {
     conferir("kit sem foto propria alerta", problema(kitOk, ctx, "fotosDoKit")?.bloqueante, false);
     conferir("kit sem foto propria: aba Imagens", problema(kitOk, ctx, "fotosDoKit")?.aba, "imagens");
     conferir("kit sem GTIN nao gera alerta", validarRascunhoML(kitOk, ctx).some((p) => p.campo === "GTIN"), false);
+    // Kit clonado sem o motivo (28/10/2026): o EAN do kit conta como GTIN, e a ficha nao pede o motivo.
+    {
+      const { problemasDosAtributos } = await import("../src/lib/canaisDeVenda/ml/atributos.js");
+      const gtin = { id: "GTIN", nome: "Código universal", obrigatorio: false, valores: [] };
+      conferir("kit com EAN do kit e sem motivo: sem problema de GTIN",
+        problemasDosAtributos({}, [gtin], { kit: true, gtinDoKit: "2000900212501" }).some((p) => p.campo === "GTIN"), false);
+      conferir("kit sem EAN do kit e sem motivo: pede o motivo",
+        problemasDosAtributos({}, [gtin], { kit: true, gtinDoKit: null }).some((p) => p.campo === "GTIN" && p.bloqueante), true);
+      conferir("eanDoKit: o clone com 50 ganha outro EAN", eanDoKit({ codigo: "900212_50" }), "2000900212501");
+    }
     conferir("produto simples nao tem aviso de foto do kit", problema(base, ctx, "fotosDoKit"), undefined);
 
     // EAN interno do kit (27/10/2026): sai dos digitos do codigo do kit e vai no lugar do motivo de nao ter GTIN.
