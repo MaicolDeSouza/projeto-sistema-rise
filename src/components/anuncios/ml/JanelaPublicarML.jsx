@@ -1,7 +1,7 @@
 "use client";
 
 import { propsDoFundo } from "@/lib/fundoDaJanela";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useEffectEvent, useRef, useState, useTransition } from "react";
 import { CheckCircle2, ExternalLink, Loader, X, XCircle } from "lucide-react";
 
 import { prepararPublicacaoMLAcao, publicarAnuncioMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
@@ -17,6 +17,10 @@ const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL
  * "Verificar no Bling" (o servidor continua da etapa que falta).
  *
  * `aoFechar(houveEnvio)` avisa o editor se algo foi enviado (para ele reler o anuncio).
+ *
+ * SEM CONFIRMACAO desde 27/10/2026 (pedido do dono: "pode publicar direto, apenas me retorne com popup se houver algum
+ * erro"): com a pre-checagem ok, a publicacao comeca sozinha; deu certo, a janela fecha sozinha. Fica aberta so com o
+ * motivo que impede, com a falha de uma etapa ou com a criacao incerta ("Criar de novo" continua pedindo o clique).
  */
 export default function JanelaPublicarML({ anuncioId, rotuloDoBotao, aoFechar }) {
   const [preparo, setPreparo] = useState(null);
@@ -52,9 +56,21 @@ export default function JanelaPublicarML({ anuncioId, rotuloDoBotao, aoFechar })
       } catch {
         feito = { ok: false, erro: "Não foi possível falar com o servidor. Abra o anúncio de novo e confira a situação antes de tentar outra vez." };
       }
-      setResultado(feito);
+      // Deu certo: fecha sozinha (o editor rele o anuncio). So a falha fica na tela.
+      if (feito?.ok) aoFechar(true);
+      else setResultado(feito);
     });
   }
+
+  // Publicar direto: a pre-checagem passou (e a criacao nao ficou incerta), comeca sem esperar o clique. Uma vez so.
+  const comecou = useRef(false);
+  const publicarSozinho = useEffectEvent(() => publicar());
+  const prontoParaComecar = Boolean(preparo?.ok) && !preparo?.incerta;
+  useEffect(() => {
+    if (!prontoParaComecar || comecou.current) return;
+    comecou.current = true;
+    publicarSozinho();
+  }, [prontoParaComecar]);
 
   const resumo = preparo?.resumo;
   const incerta = Boolean(preparo?.incerta) || Boolean(resultado?.incerta);
@@ -92,7 +108,7 @@ export default function JanelaPublicarML({ anuncioId, rotuloDoBotao, aoFechar })
             </div>
           )}
 
-          {preparo?.ok && resumo && !resultado && (
+          {preparo?.ok && resumo && !resultado && incerta && (
             <>
               <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
                 <dt className="text-suave">Título (family_name)</dt>

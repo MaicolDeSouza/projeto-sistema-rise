@@ -292,17 +292,17 @@ export default function EditorAnuncioML({
     });
   }
 
-  // Publicar e "Enviar mudancas" levam o anuncio SALVO: com alteracao na tela, perguntam antes (como a LI).
+  // Publicar e "Enviar mudancas" levam o anuncio SALVO: com alteracao na tela, SALVAM SOZINHOS e seguem (pedido do dono em
+  // 27/10/2026: "ao clicar em publicar ja deve salvar as modificacoes de forma automatica"; ate ali perguntavam antes).
   function pedirPublicar() {
-    if (alterado || !idAtual) setPergunta("publicar");
+    if (alterado || !idAtual) salvarEContinuar("publicar");
     else setPublicando(true);
   }
   function pedirEnvio() {
-    if (alterado) setPergunta("enviar");
+    if (alterado) salvarEContinuar("enviar");
     else enviarMudancas();
   }
-  function salvarEContinuar() {
-    const depois = pergunta;
+  function salvarEContinuar(depois = pergunta) {
     setPergunta(null);
     iniciarSalvamento(async () => {
       const resultado = await gravar({ adiarAoSalvar: true });
