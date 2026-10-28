@@ -49,9 +49,14 @@ const idDaUri = (uri) => {
   return id ? String(id) : null;
 };
 
-/** O link do produto na loja: o dominio (LI_DOMINIO) mais o caminho atual. Sem dominio, so o caminho. */
+/**
+ * O link do produto na loja: o dominio (LI_DOMINIO) mais o caminho atual. Sem dominio, so o caminho. A LI as vezes ja
+ * devolve o `url` COMPLETO (o 260104 em 28/10/2026): ai ele vale como veio, senao o dominio entrava duas vezes
+ * ("https://www.4hobby.com.br/https://www.4hobby.com.br/produto/...") e o "Abrir no site" dava pagina inexistente.
+ */
 export function urlNaLoja(caminho) {
   if (!caminho) return null;
+  if (/^https?:\/\//i.test(caminho)) return caminho;
   const dominio = String(config.lojaIntegrada.dominio ?? "").trim().replace(/\/+$/, "");
   if (!dominio) return caminho;
   const base = /^https?:\/\//i.test(dominio) ? dominio : `https://${dominio}`;

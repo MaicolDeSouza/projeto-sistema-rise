@@ -35,7 +35,7 @@ const { config } = await import("../src/lib/integracoes/config.js");
 const { clienteLI } = await import("../src/lib/canaisDeVenda/li/cliente.js");
 const { estadoDoIconeLI, iconeLIDoProduto, produtoIdValido } = await import("../src/lib/canaisDeVenda/li/estado.js");
 const { criarLojaIntegradaFalsa } = await import("./lib/lojaIntegradaFalsa.js");
-const { buscarNaLI, lerDetalheDaLI, lerParaPopupLI, listarCategoriasDaLI, listarMarcasDaLI } = await import("../src/lib/canaisDeVenda/li/leitura.js");
+const { buscarNaLI, lerDetalheDaLI, lerParaPopupLI, listarCategoriasDaLI, listarMarcasDaLI, urlNaLoja } = await import("../src/lib/canaisDeVenda/li/leitura.js");
 const { cadastrarNaLI, completarCadastroLI, sincronizarProdutoLI } = await import("../src/lib/canaisDeVenda/li/envio.js");
 const { ETAPAS_DO_ENVIO_LI, mudouNaLI, resumirEnvioLI, resumoDasDivergenciasLI, valorParaTela } = await import("../src/lib/canaisDeVenda/li/apresentacao.js");
 const { lerProgresso } = await import("../src/lib/canaisDeVenda/li/progresso.js");
@@ -178,6 +178,15 @@ try {
       htmlParaTexto('<p><span style="font-size:16px;"><strong>T:</strong><br />\r\n- a;<br />\r\n- b;</span></p>\r\n<p>c</p>', { paragrafos: true }),
       "T:\n- a;\n- b;\n\nc",
     );
+  }
+
+  {
+    console.log("\nLink do produto na loja");
+    // A LI devolveu o url completo no 260104 (28/10/2026) e o dominio entrava duas vezes.
+    const completo = "https://www.4hobby.com.br/produto/placa-borne-interface-para-stm32-bluepill.html";
+    conferir("url completo da LI fica como veio", urlNaLoja(completo), completo);
+    conferir("caminho ganha o dominio uma vez so", (urlNaLoja("/produto/x.html") ?? "").match(/https?:\/\//g)?.length ?? 0, (urlNaLoja("/produto/x.html") ?? "").startsWith("/") ? 0 : 1);
+    conferir("sem caminho, sem link", urlNaLoja(null), null);
   }
 
   {
