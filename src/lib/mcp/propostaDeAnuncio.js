@@ -14,13 +14,13 @@ import { ErroDeFerramenta } from "@/lib/riseAi/ferramentas/erro";
 
 const SKU = z.string().trim().min(1).max(60).describe("O código (SKU) do produto no Rise, ex.: '100103'");
 // O kit no ML (pedido do dono em 28/10/2026): montado no editor do ML, ligado ao produto base; nunca um produto novo no Rise.
+// Numero OU texto de digitos: o cliente que guardou a lista de ferramentas de antes deste campo o manda como texto ("10"), e
+// so numero recusava a chamada (visto no primeiro uso, 28/10/2026). O valor e conferido no Rise (`kitNoML`).
 const QUANTIDADE_DO_KIT = z
-  .number()
-  .int()
-  .min(2)
-  .max(9999)
+  .union([z.number().int().min(2).max(9999), z.string().trim().regex(/^\d{1,4}$/)])
   .optional()
   .describe("Só quando o dono pede o anúncio em kit (ex.: 'kit de 10 peças'): quantas unidades do produto base o anúncio vende. O kit é montado no editor do ML, ligado ao produto base (o estoque é o dele); nenhum produto novo no Rise. Sem ela, o anúncio é de 1 unidade");
+const comoNumero = (valor) => (valor === undefined ? undefined : Number(valor));
 const SO_LEITURA = { readOnlyHint: true, destructiveHint: false, openWorldHint: false };
 
 const TELA_DO_CANAL = { ml: "tela.canaisDeVenda.mercadoLivre" };
@@ -69,7 +69,7 @@ const LER_PARA_PROPOSTA_ML = {
   anotacoes: { ...SO_LEITURA, openWorldHint: true },
   async executar({ sku, quantidade }, contexto) {
     exigirPropostaDeAnuncio(contexto, "ml");
-    return lerParaPropostaML(clienteDoML(contexto), sku, { quantidade });
+    return lerParaPropostaML(clienteDoML(contexto), sku, { quantidade: comoNumero(quantidade) });
   },
 };
 
@@ -111,7 +111,7 @@ const GRAVAR_PROPOSTA_ML = {
   anotacoes: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   async executar(argumentos, contexto) {
     exigirPropostaDeAnuncio(contexto, "ml");
-    return gravarPropostaML(clienteDoML(contexto), argumentos.sku, argumentos);
+    return gravarPropostaML(clienteDoML(contexto), argumentos.sku, { ...argumentos, quantidade: comoNumero(argumentos.quantidade) });
   },
 };
 

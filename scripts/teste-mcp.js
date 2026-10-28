@@ -1431,6 +1431,13 @@ try {
     }
     const linkRuim = await chamar("gravarPropostaML", { sku: "ZZ-MCP-PA1", categoriaId: "MLB99779", titulo: "x", linksSemCatalogo: [{ url: "javascript:alert(1)", preco: 10 }] });
     conferir("gravarPropostaML: link que nao e http(s) e recusado antes", linkRuim?.isError, true);
+    // Kit no ML (28/10/2026): o cliente com a lista de ferramentas antiga manda a quantidade como texto ("10"); ela passa da
+    // validacao e a chamada para no que o Rise confere (aqui, o Bling do produto).
+    const kitEmTexto = await chamar("gravarPropostaML", { sku: "ZZ-MCP-PA1", categoriaId: "MLB99779", quantidade: "10" });
+    conferir("gravarPropostaML: quantidade do kit em texto passa da validação", [kitEmTexto?.isError, /Bling/.test(kitEmTexto?.content?.[0]?.text ?? "")], [true, true]);
+    const kitRuim = await chamar("gravarPropostaML", { sku: "ZZ-MCP-PA1", categoriaId: "MLB99779", quantidade: "dez" });
+    conferir("gravarPropostaML: quantidade que não é número é recusada antes", [kitRuim?.isError, /Bling/.test(kitRuim?.content?.[0]?.text ?? "")], [true, false]);
+    conferir("tools/list descreve a quantidade do kit", ["lerParaPropostaML", "gravarPropostaML"].map((nome) => Boolean(lista.find((ferramenta) => ferramenta.name === nome)?.inputSchema?.properties?.quantidade)), [true, true]);
     const roteiroML = JSON.parse((await chamar("roteiroDaProposta", { canal: "ml" }))?.content?.[0]?.text || "{}");
     // A versao vem da constante: o numero fixo quebrava a cada mudanca de regra do roteiro (4 -> 5 em 25/10/2026).
     const { VERSAO_ROTEIRO_ML } = await import("../src/lib/propostaDeAnuncio/roteiros.js");
