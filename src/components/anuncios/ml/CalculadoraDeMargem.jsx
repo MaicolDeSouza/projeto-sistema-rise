@@ -17,7 +17,7 @@ const comVirgula = (numero, casas) => numero.toFixed(casas).replace(".", ",");
 
 // As taxas lidas valem para a conta enquanto categoria, tipo e logistica forem as do rascunho. O PRECO pode ser outro: a
 // comissao e um percentual, e a releitura automatica da caixa de custos corrige o frete quando o preco cruza os R$ 79.
-function taxasUsaveis(custosML, rascunho) {
+export function taxasUsaveis(custosML, rascunho) {
   if (!custosML) return null;
   const mesmas =
     String(custosML.categoriaId ?? "").trim() === String(rascunho.categoriaId ?? "").trim() &&

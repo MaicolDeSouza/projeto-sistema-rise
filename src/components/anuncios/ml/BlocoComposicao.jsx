@@ -12,6 +12,7 @@ import { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
 import Badge from "@/components/ui/Badge";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { aplicarComposicao } from "@/lib/canaisDeVenda/ml/rascunho";
+import ContaDoKit from "./ContaDoKit";
 import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
 import { recusarSimbolosDeInteiro } from "./numeros";
 
@@ -252,7 +253,7 @@ export default function BlocoComposicao({ rascunho, contexto, alterar, setContex
         <label htmlFor="ml-incluir-produto" className="text-xs text-suave">
           Incluir produto
         </label>
-        <div className="mt-1 flex gap-2">
+        <div className="mt-1 flex flex-wrap items-start gap-2">
           <input
             id="ml-incluir-produto"
             value={codigoBusca}
@@ -277,6 +278,10 @@ export default function BlocoComposicao({ rascunho, contexto, alterar, setContex
             {buscando ? <Loader size={14} className="animate-spin" /> : <Plus size={14} />}
             Incluir
           </button>
+          {/* Custo total × % = preço no ML, refeito a cada item (pedido do dono em 27/10/2026). */}
+          <div className="min-w-0 flex-1 sm:ml-6">
+            <ContaDoKit rascunho={rascunho} contexto={contexto} alterar={alterar} setContexto={setContexto} />
+          </div>
         </div>
         {erroDaBusca && <p className="mt-1 text-[11px] text-red-700">{erroDaBusca}</p>}
       </div>

@@ -20,7 +20,8 @@ const ORIGEM_DO_KIT = "soma de quantidade x custo dos itens";
 
 // O custo do anuncio e o do produto (a origem diz de onde veio) ou, no kit, a soma dos itens. Item
 // sem custo derruba a soma toda, e `faltam` diz quais (pelo SKU): total parcial pareceria margem boa.
-function custoDoAnuncio(rascunho, itens, produtos) {
+// Exportada: a conta do kit no bloco Composicao (aba Caracteristicas) usa a mesma.
+export function custoDoAnuncio(rascunho, itens, produtos) {
   if (!rascunho.composicao) {
     const custo = produtos[rascunho.produtoId]?.custo;
     return { valor: custo?.valor ?? null, origem: custo?.origem ?? null, faltam: [] };
