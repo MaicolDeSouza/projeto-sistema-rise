@@ -213,8 +213,10 @@ try {
     // A descricao do anuncio e sempre a do produto (pedido do dono em 22/10/2026); no kit, com os Itens inclusos do kit.
     conferir("descricaoDoRise: simples = a do produto", descricaoDoRise({ ...simples, descricao: "editada" }, { a, b }), a.descricaoBase);
     // Kit: a descricao e editavel no anuncio (27/10/2026); so o bloco "Itens inclusos" e refeito. Vazia, parte da do principal.
-    conferir("descricaoDoRise: kit = o texto do anuncio com os Itens inclusos do kit", descricaoDoRise({ ...misto, descricao: "editada" }, { a, b }),
+    conferir("descricaoDoRise: kit editado = o texto do anuncio com os Itens inclusos do kit", descricaoDoRise({ ...misto, descricao: "editada", descricaoEditada: true }, { a, b }),
       "editada\n\nItens inclusos:\n- 02 Resistor 1K 1/4W;\n- 03 Resistor 2K2 1/4W;");
+    // 28/10/2026: o kit que o dono nao editou acompanha a descricao do produto base (mudou no produto, o kit acusa).
+    conferir("descricaoDoRise: kit nao editado acompanha a do produto base", descricaoDoRise({ ...misto, descricao: "texto velho do kit" }, { a, b }), misto.descricao);
     conferir("descricaoDoRise: kit sem texto = a do principal com os Itens inclusos do kit", descricaoDoRise({ ...misto, descricao: "" }, { a, b }), misto.descricao);
     {
       // Peso e medidas do kit pela quantidade (27/10/2026): comprimento e largura da maior peca, altura somada; o que o
@@ -677,7 +679,7 @@ try {
 
         const lido = await carregarAnuncioML(salvo.id);
         conferir("carregar devolve o que foi salvo", [lido.rascunho.titulo, lido.rascunho.tipoAnuncio, lido.rascunho.envio.pesoKg], [novo.rascunho.titulo, "gold_special", 0.05]);
-        conferir("carregar devolve o rascunho inteiro", ordenado(lido.rascunho), ordenado({ ...novo.rascunho, tipoAnuncio: "gold_special" }));
+        conferir("carregar devolve o rascunho inteiro", ordenado(lido.rascunho), ordenado({ ...novo.rascunho, descricaoEditada: false, tipoAnuncio: "gold_special" }));
         conferir("carregar: anuncio, status e contexto", [lido.anuncioId, lido.status, Object.keys(lido.contexto.produtos), lido.contexto.codigoEmUso],
           [salvo.id, "RASCUNHO", [p1.id], null]);
         conferir("carregar: anuncio que nao existe", (await carregarAnuncioML("id-que-nao-existe")).erro, "Anúncio não encontrado.");
@@ -721,7 +723,7 @@ try {
         const gravado = await anuncioDe(completo.id);
         conferir("cada campo mora na sua coluna", [gravado.titulo, gravado.descricao, gravado.categoriaExternaId, gravado.produtoId, ordenado(gravado.atributos)],
           [novo.rascunho.titulo, novo.rascunho.descricao, "MLB1234", p1.id, ordenado(novo.rascunho.atributos)]);
-        conferir("o resto do rascunho vai para dados", Object.keys(gravado.dados).sort(), ["categoriaNome", "composicao", "condicao", "envio", "estoque", "familyName", "imagens", "prazoDisponibilidadeDias", "preco", "tipoAnuncio"]);
+        conferir("o resto do rascunho vai para dados", Object.keys(gravado.dados).sort(), ["categoriaNome", "composicao", "condicao", "descricaoEditada", "envio", "estoque", "familyName", "imagens", "prazoDisponibilidadeDias", "preco", "tipoAnuncio"]);
         // O estoque do anuncio e sempre o do produto no Rise (pedido do dono em 22/10/2026): o que a tela manda nao vale.
         conferir("numero escrito como texto vira numero; o estoque e o do produto, nao o da tela", [gravado.dados.preco, gravado.dados.estoque], [12.5, 9]);
         await prisma.produto.update({ where: { id: p1.id }, data: { estoque: 4 } });

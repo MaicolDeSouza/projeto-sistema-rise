@@ -300,7 +300,9 @@ export default function LinhaProduto({
         {editando === "pecasDoKit" && <PopupPecasDoKit produto={produto} aoFechar={fecharEdicao} />}
         {editando === "preco" && <PopupPreco produto={produto} aoFechar={fecharEdicao} />}
         {editando === "estoque" && <PopupEstoque produto={produto} aoFechar={fecharEdicao} />}
-        {janelaML && <JanelaAnuncioML produtoId={produto.id} naoAnunciar={acessos.editar ? naoML : undefined} aoFechar={() => setJanelaML(false)} />}
+        {/* Com anuncio ja publicado no ML o "Nao anunciar no ML" nao tem efeito (pedido do dono em 28/10/2026): some, e so
+            fica o "Voltar a anunciar" se o produto ainda estiver marcado. */}
+        {janelaML && <JanelaAnuncioML produtoId={produto.id} naoAnunciar={acessos.editar && (naoML || !iconeML.publicado) ? naoML : undefined} aoFechar={() => setJanelaML(false)} />}
         {janelaBling && <JanelaBling produto={produto} aoFechar={() => setJanelaBling(false)} />}
         {/* O pop-up de diferencas virou a aba Divergencias do editor (07/10/2026): o icone abre o editor. */}
         {janelaLI && <JanelaAnuncioLI produtoId={produto.id} naoAnunciar={acessos.editar ? naoLI : undefined} aoFechar={() => setJanelaLI(false)} />}

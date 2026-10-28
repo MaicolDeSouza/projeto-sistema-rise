@@ -228,7 +228,9 @@ export function descricaoDoRise(rascunho, produtosPorId) {
   const itens = itensDaComposicao(rascunho.composicao);
   if (itens.length === 0) return principal.descricaoBase ?? "";
   if (itens.some((item) => !produtosPorId?.[item.produtoId])) return null;
-  return camposDaComposicao({ composicao: rascunho.composicao, principalId: principal.id ?? rascunho.produtoId, produtosPorId, descricaoAtual: rascunho.descricao }).descricao;
+  // So o texto EDITADO no kit fica; sem edicao o kit acompanha a descricao do produto base (pedido do dono em 28/10/2026: mudou
+  // a do produto, o kit publicado acusa a mudanca).
+  return camposDaComposicao({ composicao: rascunho.composicao, principalId: principal.id ?? rascunho.produtoId, produtosPorId, descricaoAtual: rascunho.descricaoEditada ? rascunho.descricao : "" }).descricao;
 }
 
 /**
@@ -295,6 +297,7 @@ function voltarAoPrincipal(rascunho, produtosPorId) {
     estoque,
     imagens,
     descricao,
+    descricaoEditada: false,
     atributos: atributosComGtinDoProduto(rascunho.atributos, principal),
     envio: { ...rascunho.envio, ...medidas },
     composicao: null,
@@ -316,7 +319,7 @@ export function aplicarComposicao(rascunho, composicao, produtosPorId) {
     composicao,
     principalId,
     produtosPorId,
-    descricaoAtual: rascunho.descricao,
+    descricaoAtual: rascunho.descricaoEditada ? rascunho.descricao : "",
     imagensAtuais: rascunho.imagens,
   });
   return {

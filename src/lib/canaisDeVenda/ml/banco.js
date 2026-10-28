@@ -134,6 +134,7 @@ function rascunhoDoAnuncio(anuncio) {
     estoque: dados.estoque ?? null,
     imagens: dados.imagens ?? [],
     descricao: anuncio.descricao ?? "",
+    descricaoEditada: dados.descricaoEditada === true,
     atributos: anuncio.atributos ?? {},
     // `logistica` e da fase 2: o anuncio gravado antes dela abre com o padrao da conta.
     envio: { pesoKg: null, alturaCm: null, larguraCm: null, comprimentoCm: null, modo: "me2", logistica: "xd_drop_off", freteGratis: false, retirada: false, ...dados.envio },
@@ -519,6 +520,7 @@ export async function salvarPresoML(anuncioId, entrada) {
         const { pesoKg, alturaCm, larguraCm, comprimentoCm } = rascunho.envio ?? {};
         dados.envio = { ...(agora.dados?.envio ?? {}), pesoKg, alturaCm, larguraCm, comprimentoCm };
         colunas.descricao = rascunho.descricao;
+        dados.descricaoEditada = rascunho.descricaoEditada === true;
       }
       await tx.anuncio.update({ where: { id: anuncioId }, data: { ...colunas, dados } });
       return null;
