@@ -33,8 +33,9 @@ export function rotuloDoIconeLI({ cor, divergente, conferido, semBling, incomple
 }
 
 // `naoAnunciar` (27/10/2026): o produto foi marcado para nao ir a LI; o icone fica cinza com o X vermelho.
-export default function IconeLojaIntegrada({ iconeLI, aoClicar, naoAnunciar = false }) {
-  const rotulo = naoAnunciar ? "Loja Integrada: marcado para não anunciar" : rotuloDoIconeLI(iconeLI);
+// `inativo` (28/10/2026): produto inativo leva o mesmo X em todos os icones da linha.
+export default function IconeLojaIntegrada({ iconeLI, aoClicar, naoAnunciar = false, inativo = false }) {
+  const rotulo = `${naoAnunciar ? "Loja Integrada: marcado para não anunciar" : rotuloDoIconeLI(iconeLI)}${inativo ? " (produto inativo)" : ""}`;
   return (
     <button
       type="button"
@@ -44,7 +45,7 @@ export default function IconeLojaIntegrada({ iconeLI, aoClicar, naoAnunciar = fa
       className="relative shrink-0 rounded hover:ring-2 hover:ring-sky-200 focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:outline-none"
     >
       <Image src={CANAL_LI.logo} alt="" width={22} height={22} className={`rounded ${iconeLI.cor === "verde" && !naoAnunciar ? "" : "opacity-70 brightness-50 grayscale"}`} />
-      {naoAnunciar && <MarcaNaoAnunciar />}
+      {(naoAnunciar || inativo) && <MarcaNaoAnunciar />}
       {(iconeLI.divergente || iconeLI.incompleto || iconeLI.alertaNaLoja || iconeLI.fotosMudaram) && (
         <span
           aria-hidden="true"

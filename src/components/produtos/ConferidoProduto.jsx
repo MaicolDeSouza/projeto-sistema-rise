@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { Loader, X } from "lucide-react";
 
 import { alternarConferido } from "@/app/produtos/acoes";
+import MarcaNaoAnunciar from "./MarcaNaoAnunciar";
 
 // Provisorio, a pedido do dono: o codigo real vem depois. Fica no cliente de
 // proposito, e so um controle interno de conferencia, nao uma protecao.
@@ -79,7 +80,9 @@ export default function ConferidoProduto({ produto }) {
       `${pecasAlteradas === 1 ? "uma peça do kit mudou" : `${pecasAlteradas} peças do kit mudaram`} desde o último Salvar (abra o kit para ver)`,
     );
   }
-  const rotuloDoIcone = `Rise: ${partes.join(" e ")}`;
+  // Produto inativo (28/10/2026): o X vermelho em todos os icones da linha, este incluido.
+  const inativo = produto.ativo === false;
+  const rotuloDoIcone = `Rise: ${partes.join(" e ")}${inativo ? " (produto inativo)" : ""}`;
 
   return (
     <>
@@ -100,6 +103,7 @@ export default function ConferidoProduto({ produto }) {
         >
           R
         </span>
+        {inativo && <MarcaNaoAnunciar />}
         {propostaPronta && (
           <span
             aria-hidden="true"

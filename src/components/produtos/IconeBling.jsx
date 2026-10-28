@@ -3,6 +3,7 @@
 import Image from "next/image";
 
 import { CANAIS } from "@/lib/canais";
+import MarcaNaoAnunciar from "./MarcaNaoAnunciar";
 
 /**
  * O icone do Bling na coluna Canais da lista de Produtos: a logo, que e COLORIDA quando o produto ja
@@ -37,9 +38,10 @@ function rotuloDoIconeBling({ cor, motivos }) {
  * @param {object} props
  * @param {{cor: "cinza"|"verde", divergente: boolean, motivos: string[]}} props.iconeBling
  * @param {() => void} props.aoClicar abre a janela do Bling deste produto.
+ * @param {boolean} [props.inativo] produto inativo: o X vermelho em todos os icones da linha (28/10/2026).
  */
-export default function IconeBling({ iconeBling, aoClicar }) {
-  const rotulo = rotuloDoIconeBling(iconeBling);
+export default function IconeBling({ iconeBling, aoClicar, inativo = false }) {
+  const rotulo = `${rotuloDoIconeBling(iconeBling)}${inativo ? " (produto inativo)" : ""}`;
 
   return (
     <button
@@ -57,6 +59,7 @@ export default function IconeBling({ iconeBling, aoClicar }) {
         height={22}
         className={`rounded ${iconeBling.cor === "verde" ? "" : "opacity-70 brightness-50 grayscale"}`}
       />
+      {inativo && <MarcaNaoAnunciar />}
       {iconeBling.divergente && (
         // O texto do estado ja esta no botao: o selo e so desenho, e o leitor de tela nao o le.
         <span

@@ -84,11 +84,15 @@ export default function LinhaProduto({
   const naoML = naoAnunciaEm(produto.naoAnunciarEm, "MERCADO_LIVRE");
   const naoLI = naoAnunciaEm(produto.naoAnunciarEm, "LOJA_INTEGRADA");
   const naoShopee = naoAnunciaEm(produto.naoAnunciarEm, "SHOPEE");
+  // Produto inativo (pedido do dono em 28/10/2026): o X vermelho em TODOS os icones da coluna Canais, e o texto
+  // "INATIVO" maior embaixo do nome. Nao mexe na marca "Não anunciar" de cada canal (as janelas continuam lendo naoML/naoLI).
+  const inativo = !produto.ativo;
+  const sufixoInativo = inativo ? " (produto inativo)" : "";
   // Qual popup de edicao rapida esta aberto: "localizacao", "preco" ou "estoque".
   const [editando, setEditando] = useState(null);
   const fecharEdicao = () => setEditando(null);
   // Cor e ponto sozinhos nao dizem o estado: o mesmo texto vai no nome acessivel e na dica.
-  const rotuloML = naoML ? "Mercado Livre: marcado para não anunciar" : iconeML.proposta ? "Mercado Livre: Proposta pronta, aguardando aprovação" : rotuloDoIconeML(iconeML);
+  const rotuloML = `${naoML ? "Mercado Livre: marcado para não anunciar" : iconeML.proposta ? "Mercado Livre: Proposta pronta, aguardando aprovação" : rotuloDoIconeML(iconeML)}${sufixoInativo}`;
 
   const moeda = new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -115,7 +119,7 @@ export default function LinhaProduto({
           <Copiar texto={produto.tituloBase} rotulo="o nome" />
         </div>
         {!produto.ativo && (
-          <span className="text-[11px] text-suave">inativo</span>
+          <span className="mt-0.5 inline-block rounded bg-red-50 px-1.5 py-0.5 text-xs font-semibold tracking-wide text-red-700">INATIVO</span>
         )}
         {achado && (
           <span className="mt-1 block w-fit rounded bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-sky-800">
@@ -204,9 +208,9 @@ export default function LinhaProduto({
           <ConferidoProduto produto={produto} />
           {CANAIS.map((canal) =>
             canal.id === "BLING" ? (
-              <IconeBling key={canal.id} iconeBling={iconeBling} aoClicar={() => setJanelaBling(true)} />
+              <IconeBling key={canal.id} iconeBling={iconeBling} inativo={inativo} aoClicar={() => setJanelaBling(true)} />
             ) : canal.id === "LOJA_INTEGRADA" ? (
-              <IconeLojaIntegrada key={canal.id} iconeLI={iconeLI} naoAnunciar={naoLI} aoClicar={() => setJanelaLI(true)} />
+              <IconeLojaIntegrada key={canal.id} iconeLI={iconeLI} naoAnunciar={naoLI} inativo={inativo} aoClicar={() => setJanelaLI(true)} />
             ) : canal.id === "MERCADO_LIVRE" ? (
               <button
                 key={canal.id}
@@ -225,7 +229,7 @@ export default function LinhaProduto({
                   height={22}
                   className={`rounded ${iconeML.publicado && !naoML ? "" : "opacity-70 brightness-50 grayscale"}`}
                 />
-                {naoML && <MarcaNaoAnunciar />}
+                {(naoML || inativo) && <MarcaNaoAnunciar />}
                 {iconeML.proposta && (
                   <span
                     aria-hidden="true"
@@ -262,15 +266,15 @@ export default function LinhaProduto({
                 key={canal.id}
                 type="button"
                 onClick={() => setJanelaShopee(true)}
-                title={naoShopee ? "Shopee: marcado para não anunciar" : canal.nome}
-                aria-label={naoShopee ? "Shopee: marcado para não anunciar" : canal.nome}
+                title={`${naoShopee ? "Shopee: marcado para não anunciar" : canal.nome}${sufixoInativo}`}
+                aria-label={`${naoShopee ? "Shopee: marcado para não anunciar" : canal.nome}${sufixoInativo}`}
                 className="relative shrink-0 rounded hover:ring-2 hover:ring-sky-200 focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:outline-none"
               >
                 <Image src={canal.logo} alt="" width={22} height={22} className="rounded opacity-70 brightness-50 grayscale" />
-                {naoShopee && <MarcaNaoAnunciar />}
+                {(naoShopee || inativo) && <MarcaNaoAnunciar />}
               </button>
             ) : (
-              <span key={canal.id} className="relative shrink-0" title={naoAnunciaEm(produto.naoAnunciarEm, canal.id) ? `${canal.nome}: marcado para não anunciar` : canal.nome}>
+              <span key={canal.id} className="relative shrink-0" title={`${naoAnunciaEm(produto.naoAnunciarEm, canal.id) ? `${canal.nome}: marcado para não anunciar` : canal.nome}${sufixoInativo}`}>
                 <Image
                   src={canal.logo}
                   alt={canal.nome}
@@ -278,7 +282,7 @@ export default function LinhaProduto({
                   height={22}
                   className="rounded opacity-70 brightness-50 grayscale"
                 />
-                {naoAnunciaEm(produto.naoAnunciarEm, canal.id) && <MarcaNaoAnunciar />}
+                {(naoAnunciaEm(produto.naoAnunciarEm, canal.id) || inativo) && <MarcaNaoAnunciar />}
               </span>
             ),
           )}
