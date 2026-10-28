@@ -6432,7 +6432,8 @@ com o roteiro v2** (título inventado no rascunho do ML): refazer a proposta do 
   e vale também para o kit montado à mão no editor) e a ficha é conferida como kit (GTIN = o EAN interno do kit). A proposta atualiza só o rascunho do
   MESMO formato (`mesmoFormato`: simples sem composição; kit com o mesmo produto e a mesma N), então o simples e cada kit são
   anúncios separados. Produto que já é Composição com `quantidade` é recusado (o kit no ML é do produto base). Nenhum produto novo
-  no Rise. `teste:anuncios-ml` +10 asserções. **Só vale na VPS depois do deploy.**
+  no Rise. `teste:anuncios-ml` +10 asserções. **NO AR NA VPS desde 28.10.2026.49** (095ab47: a `quantidade` do MCP aceita número ou texto,
+  porque o cliente com a lista de ferramentas antiga a manda como "10"). 1º uso real: o kit de 10 do 900211 (R$ 22,25, 40% de markup).
 - **O "P" some** no envio que deu certo: na LI dentro do `gravarSucesso` (um Sincronizar sem nada a enviar também conta);
   no ML na etapa "gravar" do Publicar (`gravarPublicacao` com `apagarProposta`). Envio barrado ou que falha mantém a
   proposta. Na lista, `iconeLI.proposta` e `iconeML.proposta` (só o booleano; o relatório nunca vai à lista).
