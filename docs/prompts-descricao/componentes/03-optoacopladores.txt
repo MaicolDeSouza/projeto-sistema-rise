@@ -1,0 +1,139 @@
+Escreva a descrição de um optoacoplador (isolador óptico) em circuito integrado em português brasileiro, no JSON exigido pelo Rise: paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm e decisoes. Não acrescente outros campos. Vale para os optoacopladores em CI: com saída a fototransistor (PC817, EL817, LTV-817, FOD817, PC357, TLP281, 4N25, 4N35, TIL111, SFH617), a fotodarlington (4N33, TIL113), com entrada AC (EL354, HCPL-354), com saída a TRIAC (MOC3010, MOC3021, MOC3041, MOC3063) e de alta velocidade com saída lógica (6N137, 6N136). Módulos prontos em placa (“módulo optoacoplador 2 canais”, “isolador óptico 4 canais”), relés de estado sólido, sensores ópticos de fenda e reflexivos (TCRT5000) não entram neste prompt.
+
+Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use informações confirmadas no cadastro ou nas referências. Não complete especificações por suposição.
+
+PARÁGRAFOS
+
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Simples e direto: o optoacoplador é uma peça conhecida, então diga o que é e para que serve, sem propaganda. Tamanho, contando espaços: o primeiro até 200 caracteres, o segundo até 300.
+
+Primeiro parágrafo, UMA frase: “O Optoacoplador <modelo> com saída a <fototransistor / TRIAC / lógica> e encapsulamento <DIP-4 / SMD> isola dois circuitos, passando o sinal por luz infravermelha do LED de entrada para a saída.” Só o que estiver confirmado.
+
+Segundo parágrafo, uma ou duas frases práticas, só com recursos confirmados: o uso típico (isolar as entradas e saídas de Arduino, ESP32 e CLPs de cargas e de outros níveis de tensão; na saída a TRIAC, acionar o gate de um TRIAC de potência para comandar cargas na rede; na de alta velocidade, isolar comunicação serial), a tensão de isolação, o rank de CTR quando o modelo o traz e a detecção de passagem por zero quando o modelo a possui.
+
+Fale com o comprador: “possui”, não “tem”. Ao voltar a falar do produto, use “o optoacoplador”, nunca “ele” no início da frase. Varie a ordem dos fatos entre as opções. Sem elogios vazios (“excelente”, “alta qualidade”, “ideal para qualquer projeto”) e sem repetir o título inteiro.
+
+PADRONIZAÇÃO DOS NOMES
+
+Use exatamente os nomes dos campos definidos neste prompt. As lojas usam nomes variados; converta-os assim:
+
+Fabricante: substitui Marca. Quem fabrica a peça vendida, como está na marca do cadastro ou confirmado nas referências: “Sharp”, “Everlight”, “Lite-On”, “onsemi” (também para Fairchild), “Vishay”, “Toshiba”. Peça sem fabricante declarado: OEM. Nunca o nome da loja. Um título com dois códigos (“EL817C PC817C”) mostra a equivalência entre fabricantes, não o fabricante.
+
+Modelo: o código da peça com o sufixo de rank e de encapsulamento, como “PC817C”, “EL817S(A)”, “LTV-817S”, “MOC3021”; substitui Part Number e Código. Sem código confirmado, use o do título.
+
+Tipo de Saída: substitui Tipo, Tipo de saída e Tipo da porta lógica: “Fototransistor”, “Fotodarlington”, “Fototransistor com entrada AC”, “TRIAC (fototriac)” ou “Lógica (alta velocidade)”.
+
+Canais: substitui Número de canais: “1”, “2”, “4”.
+
+Encapsulamento: substitui Tamanho / Encapsulamento e Package, como o fabricante chama: “DIP-4”, “DIP-6”, “DIP-8”, “SMD (DIP-4 com terminais gull wing)”, “SOP-4”.
+
+Montagem: “PTH (solda em furo)” ou “SMD (solda em superfície)”.
+
+Tensão de Isolação: substitui Tensão de isolamento, Viso e Isolamento galvânico: “5000Vrms”.
+
+Corrente Direta do LED: substitui Corrente direta (IF), Corrente de entrada e Corrente: a máxima contínua, “50mA”. A corrente de pico (IFM, “1A”) só aparece neste campo depois da contínua, com a palavra pico: “50mA / 1A de pico”.
+
+Tensão Direta do LED: substitui Forward voltage e VF: “1,2V típica / 1,4V máxima (IF 20mA)”.
+
+Tensão Reversa do LED: substitui VR: “6V”.
+
+Tensão Coletor-Emissor: substitui Collector-Emitter voltage, VCEO e Tensão de coletor-emissor: “80V”.
+
+Corrente de Coletor: substitui Collector current e IC: “50mA”.
+
+Taxa de Transferência de Corrente: substitui CTR e Ganho de corrente, com o rank e a condição: “200% a 400% (rank C, IF 5mA, VCE 5V)”.
+
+Tensão de Saturação: substitui VCE(sat): “0,1V típica / 0,2V máxima”.
+
+Tempo de Resposta: substitui Tempo de subida e descida: “4µs subida / 3µs descida (típicos)”.
+
+Tensão de Bloqueio: substitui VDRM e Tensão de pico no estado desligado: “400V”.
+
+Corrente de Disparo do LED: substitui IFT e Corrente de acionamento: “10mA”.
+
+Passagem por Zero: substitui Zero crossing e Detecção de passagem por zero: “Sim” ou “Não”.
+
+Taxa de Transmissão: substitui Velocidade e Data rate: “10MBd”.
+
+Tensão de Alimentação da Saída: substitui VCC: “4,5V a 5,5V”.
+
+Potência Total: substitui Dissipação total de energia e Ptot: “200mW”.
+
+Temperatura de Operação: substitui Temperatura de trabalho e Topr: “-55°C a 110°C”.
+
+Use Tensão, nunca Voltagem; Corrente, nunca Amperagem. Troque ≤ e < por “até” ou “menor que”, e ≥ e > por “mínimo” ou “maior que”.
+
+CARACTERÍSTICAS
+
+Cada item contém nome, valor e referencias: nome “Tensão de Isolação”, valor “5000Vrms”, sem dois-pontos no nome.
+
+Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: Temperatura de armazenamento, Temperatura de soldagem, Corrente reversa, Tensão emissor-coletor, Potência do LED, Potência do coletor, Capacitância, Resistência de isolação, Categoria, Subcategoria, Unidade Venda, Datasheet).
+
+Campos obrigatórios:
+Fabricante; Modelo; Tipo de Saída; Canais; Encapsulamento; Montagem; Tensão de Isolação; Corrente Direta do LED; Tensão Direta do LED; Tensão Reversa do LED; Temperatura de Operação.
+
+Campos condicionais (só no tipo de saída que os tem; com o recurso e sem valor confirmado, omita o campo):
+Saída a fototransistor, fotodarlington ou entrada AC: Tensão Coletor-Emissor; Corrente de Coletor; Taxa de Transferência de Corrente; Tensão de Saturação; Tempo de Resposta.
+Saída a TRIAC: Tensão de Bloqueio; Corrente de Disparo do LED; Passagem por Zero.
+Saída lógica: Taxa de Transmissão; Tensão de Alimentação da Saída.
+Qualquer tipo: Potência Total.
+
+Campos finais:
+Dimensões (CxLxA); Peso.
+
+Dimensões (CxLxA) e Peso são sempre os dois últimos campos e são OBRIGATÓRIOS (o Rise calcula o frete com eles; ver PESO E DIMENSÕES). Devolva os números em dimensoesMm e pesoGramas; o Rise escreve as duas linhas. Não os repita em caracteristicas.
+
+Não entram em caracteristicas: Origem, Garantia, Unidade de venda, Quantidade do pacote, Peso com embalagem, textos de aplicação e propaganda (“Resposta rápida”, “Baixo consumo”, “À prova de interferência”).
+
+No modo sem referências, respeite a instrução acrescentada pelo Rise: inclua apenas especificações confirmadas nos dados próprios do produto. Se não houver nenhuma, retorne caracteristicas vazia.
+
+Números colados às unidades: 50mA, 1,2V, 5000Vrms, 200mW, 10MBd, 4µs. Use vírgula decimal. Nunca use ponto e vírgula dentro de um valor. Informações distintas no mesmo valor se separam por “ / ”; itens da mesma lista, por vírgula.
+
+REGRAS ESPECÍFICAS
+
+O modelo e o encapsulamento decidem a compra: a versão para furo (DIP) e a SMD não se encaixam na mesma placa. O código ajuda a conferir, nunca a inventar números. No PC817, EL817 e LTV-817, a letra depois do número é o rank de CTR (A, B, C, D, às vezes L); o sufixo “S” (Everlight, Lite-On) e o “I” (Sharp) indicam a SMD com terminais gull wing, e o “S1”, a SMD de perfil baixo. Na Sharp o número diz os canais (PC817 1, PC827 2, PC847 4).
+
+“SOP-4” nas lojas: o PC817 e o EL817 em SMD são o DIP-4 com os terminais dobrados (gull wing), e as lojas o chamam de SOP-4 ou SMT-Gullwing-4. O SOP-4 mini-flat é outro modelo, menor (PC357, EL357N, LTV-357T, TLP281). Escreva o encapsulamento como o fabricante do mesmo modelo o chama; se o título, o cadastro e as referências discordarem, registre a divergência e não escolha pelo nome da loja.
+
+CTR muda com o rank: nunca copie o CTR de outro rank. Sem rank no modelo, escreva a faixa da série (“50% a 600%”) só com fonte do mesmo modelo.
+
+Valor máximo e valor típico são coisas diferentes: a corrente máxima do LED (50mA) não é a corrente de teste (5mA ou 20mA), e a de pico (1A, em pulso) não é a contínua. Escreva “típica” e “máxima” como a fonte publica.
+
+A Tensão Coletor-Emissor diverge entre fontes do mesmo modelo: a Sharp publica 80V no PC817X (os 35V valem só para lotes antigos), a Everlight publica 80V no EL817, e muitas lojas copiam 35V. Prefira o datasheet do fabricante da peça vendida; peça OEM, o valor mais repetido entre as referências do mesmo modelo; e registre a divergência. O mesmo vale para a Temperatura de Operação (-30°C a 100°C e -55°C a 110°C).
+
+Saída a TRIAC: a Passagem por Zero existe só nos modelos que a declaram (MOC3041, MOC3061, MOC3081 e irmãos); a série MOC301x e MOC302x não a possui. Tensão de bloqueio e corrente de disparo mudam com o modelo: confira no datasheet, nunca pelo número.
+
+Não copie entre fabricantes nem entre modelos: o equivalente (EL817 no lugar do PC817) tem a mesma pinagem, mas os valores do datasheet de cada um são os dele.
+
+Datasheet que a loja anexa pode ser de outro fabricante do mesmo modelo: ele vale para o modelo, não prova o fabricante da peça vendida.
+
+Lista de fornecedor sem ficha técnica não comprova especificação.
+
+FONTES
+
+Em referencias, registre só os números das referências fornecidas que sustentam o valor daquele campo. Para valores vindos só do cadastro ou título, e para valores desconhecidos, use referencias []. Resultado da web só vale se consultado de fato e informado como referência; prefira o datasheet do fabricante. Não invente consultas, fontes, URLs ou números de referência.
+
+ITENS INCLUSOS
+
+O primeiro item é o próprio produto, com quantidade e nome técnico: “01 Optoacoplador PC817C SMD”. Pacote com várias peças: a quantidade do cadastro (“10 Optoacopladores PC817C DIP-4”). A embalagem de outro vendedor não comprova o conteúdo vendido pela Rise.
+
+PESO E DIMENSÕES (OBRIGATÓRIOS)
+
+O Rise usa o peso e as medidas para calcular o frete: pesoGramas e dimensoesMm são obrigatórios e só ficam null quando nenhum passo abaixo der resultado, e então decisoes diz o que foi procurado.
+
+pesoGramas: número em gramas, com duas casas decimais quando for menor que 1 (0,23). dimensoesMm: comprimento do corpo (ao longo das fileiras de terminais), largura total com os terminais e altura acima da placa, em milímetros, como o desenho do fabricante dá. Nunca a embalagem.
+
+Procure nesta ordem e pare no primeiro que der o número:
+1. As referências fornecidas, do mesmo modelo e mesmo encapsulamento.
+2. O datasheet ou o desenho do fabricante do mesmo modelo e encapsulamento (o desenho traz as medidas; vários trazem a massa aproximada). Pesquise na internet quando as referências não trouxerem: o modelo com o sufixo e “datasheet”.
+3. Uma loja na internet do mesmo modelo e encapsulamento.
+4. O mesmo encapsulamento de outro modelo ou fabricante (o DIP-4 e a SMD gull wing seguem o mesmo padrão de corpo), só quando 1 a 3 não derem o número. Registre em decisoes o campo, o modelo usado e a fonte (“Peso de <modelo> DIP-4 (<valor>, <fonte>): mesmo encapsulamento”). O relatório da proposta diz que o valor veio de outro modelo.
+
+Medidas redondas e iguais (“0,5 x 0,5 x 0,5cm”) e peso zero publicados por loja são marcadores do cadastro dela, não medidas: ignore. Arredonde ao décimo de milímetro e ao centésimo de grama. Não deduza medida pela foto.
+
+DIVERGÊNCIAS
+
+Para cada divergência fornecida, retorne id, opcao, motivo breve e campo com o nome padronizado deste prompt. opcao é o índice a partir de zero, ou null quando faltar evidência suficiente. Prefira o datasheet do fabricante da peça vendida, o mesmo modelo, o mesmo rank, o mesmo encapsulamento e fontes independentes. Exceto para peso e dimensões, reserve a posição do campo divergente em caracteristicas com valor "" e referencias []. Não coloque valores divergentes nos parágrafos ou características antes da escolha do operador.
+
+GARANTIA
+
+O Rise acrescenta automaticamente: Garantia Legal de 90 dias (contra defeitos de fabricação). Não gere campo extra de garantia nem copie garantias das referências. Não escreva preço, prazo ou nome de loja.
