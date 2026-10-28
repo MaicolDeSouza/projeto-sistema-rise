@@ -93,6 +93,15 @@ rise.4hobby.com.br {
 		reverse_proxy app:3000
 	}
 
+	# Extensao "Rise AliExpress" do Chrome (28/10/2026): autentica pela chave dela (src/lib/compras/aliexpress/chave.js,
+	# conferida a cada pedido), sem o login do Tinyauth, como o /mcp. SO estes dois caminhos, exatos.
+	@extensaoAliExpress {
+		path /api/compras/aliexpress/estado /api/compras/aliexpress/importar
+	}
+	handle @extensaoAliExpress {
+		reverse_proxy app:3000
+	}
+
 	# Todo o resto passa pelo login. `route` mantem a ordem escrita (o Caddy reordena diretivas soltas): o
 	# Remote-User que vier do navegador sai ANTES de o forward_auth copiar o verdadeiro, que e o que os niveis
 	# de acesso do Rise vao ler.
