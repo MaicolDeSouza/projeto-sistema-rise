@@ -66,7 +66,13 @@ export default function FotoComLupa({ src, alt, children = null, className = "h-
         </div>
       )}
 
-      {ampliada && <AmpliacaoDeFoto src={src} alt={alt} aoFechar={() => setAmpliada(false)} />}
+      {/* A foto grande mora DENTRO da linha clicavel: o clique no "X" ou no fundo subia ate o <tr> e abria o
+          detalhe do produto (Scraper, achado pelo dono em 28/10/2026). O envoltorio `contents` segura o clique. */}
+      {ampliada && (
+        <div className="contents" onClick={(evento) => evento.stopPropagation()}>
+          <AmpliacaoDeFoto src={src} alt={alt} aoFechar={() => setAmpliada(false)} />
+        </div>
+      )}
     </>
   );
 }
