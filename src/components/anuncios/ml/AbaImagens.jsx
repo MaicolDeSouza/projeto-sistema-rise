@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ChevronDown, ChevronUp, ImageOff, Loader, Trash2, Upload } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ImageOff, Loader, Trash2, Upload } from "lucide-react";
 
 import { enviarFotoDoKitML, excluirFotoDoKitML } from "@/app/canais-de-venda/mercado-livre/acoes-fotos-do-kit";
 import Badge from "@/components/ui/Badge";
@@ -99,11 +99,34 @@ export function LinhaDeFoto({ id, foto, posicao, total, aoAlternar, aoMover }) {
   );
 }
 
-function FotosDoProduto({ fotos, problemas }) {
+// Anuncio simples: as fotos sao sempre as validadas do produto, mas a ORDEM se muda aqui (pedido do dono em 28/10/2026; vale
+// tambem depois de publicado: o Sincronizar manda a ordem nova). "Voltar a ordem do produto" volta a acompanhar o cadastro.
+function FotosDoProduto({ rascunho, disponiveis, alterar, problemas }) {
+  const porId = new Map(disponiveis.map((foto) => [foto.id, foto]));
+  const ids = (Array.isArray(rascunho.imagens) ? rascunho.imagens : []).filter((id) => porId.has(id));
+  const fotos = [...ids, ...disponiveis.map((foto) => foto.id).filter((id) => !ids.includes(id))].map((id) => porId.get(id));
+  const mover = (posicao, passo) => {
+    const destino = posicao + passo;
+    if (destino < 0 || destino >= fotos.length) return;
+    const ordem = fotos.map((foto) => foto.id);
+    [ordem[posicao], ordem[destino]] = [ordem[destino], ordem[posicao]];
+    alterar({ imagens: ordem, fotosReordenadas: true });
+  };
   return (
     <SecaoDoAnuncio
       titulo={`Fotos do anúncio (${fotos.length})`}
-      ajuda="As fotos do anúncio são as validadas do produto, na ordem do cadastro (a primeira é a capa). Para mudar, use Editar produto. Acima do que a categoria aceita, vão as primeiras."
+      ajuda="As fotos do anúncio são as validadas do produto (para trocar uma foto, use Editar produto). A ordem se muda aqui, com as setas: a primeira é a capa. Acima do que a categoria aceita, vão as primeiras."
+      acao={
+        rascunho.fotosReordenadas ? (
+          <button
+            type="button"
+            onClick={() => alterar({ imagens: disponiveis.map((foto) => foto.id), fotosReordenadas: false })}
+            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-acento hover:bg-superficie"
+          >
+            Voltar à ordem do produto
+          </button>
+        ) : null
+      }
     >
       {fotos.length > 0 ? (
         <ul className="grid grid-cols-3 gap-3 sm:grid-cols-6">
@@ -111,7 +134,17 @@ function FotosDoProduto({ fotos, problemas }) {
             <li key={foto.id} className="space-y-1">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={foto.url} alt={foto.titulo} loading="lazy" className="aspect-square w-full rounded border border-borda bg-superficie object-contain" />
-              {posicao === 0 ? <Badge tom="info">Capa</Badge> : <span className="text-xs text-suave">Foto {posicao + 1}</span>}
+              <div className="flex items-center justify-between gap-1">
+                {posicao === 0 ? <Badge tom="info">Capa</Badge> : <span className="text-xs text-suave">Foto {posicao + 1}</span>}
+                <span className="flex">
+                  <button type="button" onClick={() => mover(posicao, -1)} disabled={posicao === 0} aria-label="Foto para a esquerda" title="Para a esquerda" className={BOTAO_DA_LINHA}>
+                    <ChevronLeft size={14} />
+                  </button>
+                  <button type="button" onClick={() => mover(posicao, 1)} disabled={posicao === fotos.length - 1} aria-label="Foto para a direita" title="Para a direita" className={BOTAO_DA_LINHA}>
+                    <ChevronRight size={14} />
+                  </button>
+                </span>
+              </div>
             </li>
           ))}
         </ul>
@@ -266,7 +299,7 @@ export default function AbaImagens({ rascunho, contexto, alterar, setContexto, a
   const disponiveis = fotosDisponiveis(rascunho, contexto);
   // Anuncio simples: as fotos sao SEMPRE as validadas do produto, na ordem do cadastro (decisao do dono em 24/10/2026,
   // "igual a LI"). A aba so mostra; mudar e no cadastro do produto.
-  if (!emKit) return <FotosDoProduto fotos={disponiveis} problemas={problemas} />;
+  if (!emKit) return <FotosDoProduto rascunho={rascunho} disponiveis={disponiveis} alterar={alterar} problemas={problemas} />;
   const porId = new Map(disponiveis.map((foto) => [foto.id, foto]));
   const marcadas = Array.isArray(rascunho.imagens) ? rascunho.imagens : [];
   const naoUsadas = disponiveis.filter((foto) => !marcadas.includes(foto.id));

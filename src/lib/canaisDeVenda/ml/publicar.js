@@ -281,6 +281,8 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto, p
           resposta = await ml.put(`/items/${pub.itemId}`, { attributes: ficha });
         } else if (parte === "pacote") {
           resposta = await ml.put(`/items/${pub.itemId}`, { attributes: pacote });
+        } else if (parte === "prazo") {
+          resposta = await ml.put(`/items/${pub.itemId}`, { sale_terms: payload.item.sale_terms ?? [] });
         } else if (parte === "fotos") {
           const ids = Array.isArray(rascunho.imagens) ? rascunho.imagens : [];
           const faltam = ids.filter((id) => !pub.fotos?.[id]);

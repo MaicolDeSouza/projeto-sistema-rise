@@ -3744,6 +3744,13 @@ Pedidos do dono no mesmo dia, todos no editor do anúncio do ML:
   (`ml/criadoCom.js`: preço, ficha, fotos, pacote) e o **Retomar** roda antes das etapas que faltam a etapa "Atualizar no ML o que
   mudou" (fora de `ETAPAS`, só com o item criado), com um PUT por parte que mudou (preço sozinho, como no Sincronizar). Anúncio
   criado antes disso (sem `criadoCom`) manda as quatro partes uma vez.
+- **O que se edita no anúncio PUBLICADO (28/10/2026, "resolva de vez"):** além de preço, ficha e catálogo, o **prazo de
+  disponibilidade** (parte nova "prazo": PUT `sale_terms` inteiro, garantia junto; medido 200 em 26/10), as **fotos do kit**
+  (parte "fotos" do kit, só com base gravada: kit publicado antes guardou `fotos: null`), a **ordem das fotos do simples**
+  (`fotosReordenadas`: as fotos continuam as do produto, a ordem é a do anúncio; "Voltar à ordem do produto") e a **descrição do
+  kit**. Título (400 medido), categoria, tipo e composição ficam travados dentro da aba Características (`jaNoML`). Prazo sem base
+  na impressão não acende o "!"; o primeiro Salvar do publicado grava a base. A descrição do kit **acompanha a do produto** até ser
+  editada no kit (`descricaoEditada`, botão "Usar a descrição do produto").
 - **Publicar salva sozinho** (sem o "Salvar antes de publicar?") e abre o **popup de etapas** (`AndamentoDoEnvio`, `tipo`
   "publicar"): `publicarAnuncioML` marca "preparar" e cada etapa em `ml/progresso.js` (`iniciarProgressoML(id, ids)`), lidas
   pela rota de sempre. Fim no padrão da LI (painel, anúncio, Fechar que fecha tudo); falha = "Voltar à janela". A criação incerta

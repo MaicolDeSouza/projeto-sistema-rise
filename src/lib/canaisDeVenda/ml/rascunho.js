@@ -185,7 +185,12 @@ function camposDaComposicao({ composicao, principalId, produtosPorId, descricaoA
  */
 export function fotosDoRise(rascunho, produtosPorId) {
   if (itensDaComposicao(rascunho?.composicao).length > 0) return null;
-  return fotosEmOrdem([rascunho?.produtoId], produtosPorId);
+  const doProduto = fotosEmOrdem([rascunho?.produtoId], produtosPorId);
+  // As fotos sao sempre as do produto; a ORDEM e a do anuncio quando o dono a mudou nele (28/10/2026). Foto nova do produto
+  // entra no fim; a que saiu do produto sai do anuncio.
+  if (!rascunho?.fotosReordenadas) return doProduto;
+  const naOrdem = (Array.isArray(rascunho.imagens) ? rascunho.imagens : []).filter((id) => doProduto.includes(id));
+  return [...naOrdem, ...doProduto.filter((id) => !naOrdem.includes(id))];
 }
 
 /**

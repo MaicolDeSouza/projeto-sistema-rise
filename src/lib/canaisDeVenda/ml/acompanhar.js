@@ -16,7 +16,8 @@ import { medidasFaltando } from "./validacao";
 
 // As do produto primeiro (a ordem do envio): o preco e a ficha so mudam no proprio anuncio.
 export const PARTES_DO_PRODUTO = ["descricao", "fotos", "pacote"];
-export const PARTES_DO_ANUNCIO = ["preco", "ficha"];
+// O prazo de disponibilidade (28/10/2026) tambem e do proprio anuncio: vai nos termos de venda (sale_terms).
+export const PARTES_DO_ANUNCIO = ["preco", "ficha", "prazo"];
 export const PARTES = [...PARTES_DO_PRODUTO, ...PARTES_DO_ANUNCIO];
 
 const ehKit = (rascunho) => Array.isArray(rascunho?.composicao?.itens) && rascunho.composicao.itens.length > 0;
@@ -33,6 +34,12 @@ function pacoteDoProduto(produto) {
     comprimentoCm: Math.ceil(Number(produto.comprimentoCm)),
     pesoG: Math.round(Number(produto.pesoKg) * 1000),
   };
+}
+
+/** O prazo de disponibilidade em dias para a impressao (0 = pronta entrega). */
+export function prazoDoAnuncio(rascunho) {
+  const dias = Number(rascunho?.prazoDisponibilidadeDias);
+  return Number.isInteger(dias) && dias >= 0 ? dias : null;
 }
 
 /** O preco do anuncio para a impressao: vazio ou zero = sem preco. */
@@ -59,6 +66,12 @@ export function conteudoAtualDoAnuncio(rascunho, produtosPorId) {
   if (!kit && produto) {
     const porId = new Map((produto.imagens ?? []).map((imagem) => [imagem.id, imagem.arquivo]));
     fotos = (fotosDoRise(rascunho, produtosPorId) ?? []).map((id) => porId.get(id)).filter(Boolean);
+  } else if (kit) {
+    // Kit (28/10/2026): as fotos sao do proprio anuncio (das pecas e as do kit), editaveis depois de publicado.
+    const porId = new Map(
+      Object.values(produtosPorId ?? {}).flatMap((outro) => [...(outro?.imagens ?? []), ...(outro?.fotosDoKit ?? [])].map((imagem) => [imagem.id, imagem.arquivo])),
+    );
+    fotos = (Array.isArray(rascunho.imagens) ? rascunho.imagens : []).map((id) => porId.get(id)).filter(Boolean);
   }
   return {
     descricao: texto === null ? null : montarDescricaoML({ descricao: texto }),
@@ -67,6 +80,7 @@ export function conteudoAtualDoAnuncio(rascunho, produtosPorId) {
     // Do proprio anuncio: o preco do rascunho e a ficha no formato que vai ao ML (em ordem de id: a ordem nao muda nada la).
     preco: precoDoAnuncio(rascunho),
     ficha: rascunho ? fichaDoAnuncio(rascunho) : null,
+    prazo: prazoDoAnuncio(rascunho),
     kit,
   };
 }
@@ -84,6 +98,7 @@ const iguais = (a, b) => JSON.stringify(comChavesEmOrdem(a ?? null)) === JSON.st
 function temParaMandar(atual, parte) {
   const valor = atual?.[parte];
   if (valor === null || valor === undefined) return false;
+  if (parte === "prazo") return true;
   return parte === "fotos" || parte === "ficha" ? valor.length > 0 : true;
 }
 
@@ -100,13 +115,19 @@ function temParaMandar(atual, parte) {
 export function mudancasDoAnuncio(enviado, atual) {
   const tem = (parte) => Boolean(enviado) && Object.hasOwn(enviado, parte);
   const naoConferido = !PARTES_DO_PRODUTO.some(tem);
-  const doProduto = PARTES_DO_PRODUTO.filter((parte) => temParaMandar(atual, parte) && (naoConferido || !iguais(enviado[parte], atual[parte])));
-  const doAnuncio = PARTES_DO_ANUNCIO.filter((parte) => temParaMandar(atual, parte) && tem(parte) && !iguais(enviado[parte], atual[parte]));
+  // As fotos do KIT so contam quando a impressao as tem (kit publicado antes de 28/10/2026 guardou `fotos: null`): senao
+  // todo kit publicado acenderia o "!" sozinho. O primeiro Salvar do publicado grava a base (`salvarPublicadoML`).
+  const fotosDoKitSemBase = (parte) => parte === "fotos" && atual?.kit && !(tem("fotos") && enviado.fotos !== null);
+  const doProduto = PARTES_DO_PRODUTO.filter((parte) => temParaMandar(atual, parte) && !fotosDoKitSemBase(parte) && (naoConferido || !iguais(enviado[parte], atual[parte])));
+  // O prazo gravado vazio (impressao de antes dele, 28/10/2026) nao e base: nao acende nada sozinho.
+  const doAnuncio = PARTES_DO_ANUNCIO.filter(
+    (parte) => temParaMandar(atual, parte) && tem(parte) && !(parte === "prazo" && enviado.prazo === null) && !iguais(enviado[parte], atual[parte]),
+  );
   return { partes: [...doProduto, ...doAnuncio], naoConferido };
 }
 
 /** Nomes das partes para a tela ("descrição, fotos e peso e medidas"). */
-export const NOMES_DAS_PARTES = { descricao: "descrição", fotos: "fotos", pacote: "peso e medidas", preco: "preço", ficha: "ficha técnica" };
+export const NOMES_DAS_PARTES = { descricao: "descrição", fotos: "fotos", pacote: "peso e medidas", preco: "preço", ficha: "ficha técnica", prazo: "prazo de disponibilidade" };
 
 /** "descrição", "descrição e fotos", "descrição, fotos e peso e medidas". */
 export function textoDasPartes(partes) {

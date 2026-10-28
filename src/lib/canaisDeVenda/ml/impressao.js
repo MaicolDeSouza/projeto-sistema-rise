@@ -7,5 +7,5 @@ import { createHash } from "node:crypto";
  */
 export function impressaoDoConteudo(conteudo) {
   const descricao = typeof conteudo?.descricao === "string" ? createHash("md5").update(conteudo.descricao).digest("hex") : null;
-  return { descricao, fotos: conteudo?.fotos ?? null, pacote: conteudo?.pacote ?? null, preco: conteudo?.preco ?? null, ficha: conteudo?.ficha ?? null };
+  return { descricao, fotos: conteudo?.fotos ?? null, pacote: conteudo?.pacote ?? null, preco: conteudo?.preco ?? null, ficha: conteudo?.ficha ?? null, prazo: conteudo?.prazo ?? null };
 }

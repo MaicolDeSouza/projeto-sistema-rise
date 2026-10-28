@@ -178,11 +178,13 @@ export async function marcarCatalogoVistoMLAcao(id) {
   return { ok: true, marcou };
 }
 
-export async function salvarPublicadoMLAcao(id, { preco, atributos } = {}) {
+export async function salvarPublicadoMLAcao(id, { preco, atributos, prazoDisponibilidadeDias, imagens, fotosReordenadas, descricao, descricaoEditada } = {}) {
   const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"]);
   if (negado) return negado;
   if (!ehId(id)) return PEDIDO_INVALIDO;
-  return protegendo(async () => revalidando(await salvarPublicadoML(id, { preco, atributos })));
+  return protegendo(async () =>
+    revalidando(await salvarPublicadoML(id, { preco, atributos, prazoDisponibilidadeDias, imagens, fotosReordenadas, descricao, descricaoEditada })),
+  );
 }
 
 /** O Salvar com a publicacao parada depois de criado no ML (27/10/2026): so o que o Retomar manda (preco, ficha; no kit, descricao, fotos e medidas). */

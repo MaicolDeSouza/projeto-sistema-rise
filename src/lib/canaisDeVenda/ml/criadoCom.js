@@ -6,9 +6,9 @@
  * a categoria e o tipo nao mudam (o editor os trava). Puro, sem imports: o Publicar e o teste leem o mesmo arquivo.
  */
 
-export const PARTES_DA_RETOMADA = ["preco", "ficha", "fotos", "pacote"];
+export const PARTES_DA_RETOMADA = ["preco", "ficha", "fotos", "pacote", "prazo"];
 
-export const ROTULO_DA_PARTE = { preco: "preço", ficha: "ficha técnica", fotos: "fotos", pacote: "peso e medidas" };
+export const ROTULO_DA_PARTE = { preco: "preço", ficha: "ficha técnica", fotos: "fotos", pacote: "peso e medidas", prazo: "prazo de disponibilidade" };
 
 const doPacote = (atributo) => String(atributo?.id ?? "").startsWith("SELLER_PACKAGE_");
 const emOrdem = (lista) => JSON.stringify([...lista].sort((a, b) => String(a.id).localeCompare(String(b.id))));
@@ -30,11 +30,14 @@ export function impressaoDaCriacao(payload, imagens) {
     ficha: emOrdem(ficha),
     fotos: JSON.stringify(Array.isArray(imagens) ? imagens : []),
     pacote: emOrdem(pacote),
+    // Os termos de venda (garantia e prazo de disponibilidade), 28/10/2026.
+    prazo: emOrdem(Array.isArray(payload?.item?.sale_terms) ? payload.item.sale_terms : []),
   };
 }
 
 /** As partes que mudaram desde a criacao. Sem impressao (anuncio criado antes de 27/10/2026), todas: nao ha como saber. */
 export function partesMudadas(antes, agora) {
   if (!antes) return [...PARTES_DA_RETOMADA];
-  return PARTES_DA_RETOMADA.filter((parte) => antes[parte] !== agora[parte]);
+  // Parte que a impressao antiga nao tem (o prazo, antes de 28/10/2026): so conta se mudou de verdade, e sem base nao da para saber.
+  return PARTES_DA_RETOMADA.filter((parte) => Object.hasOwn(antes, parte) && antes[parte] !== agora[parte]);
 }

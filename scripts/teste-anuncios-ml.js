@@ -679,7 +679,7 @@ try {
 
         const lido = await carregarAnuncioML(salvo.id);
         conferir("carregar devolve o que foi salvo", [lido.rascunho.titulo, lido.rascunho.tipoAnuncio, lido.rascunho.envio.pesoKg], [novo.rascunho.titulo, "gold_special", 0.05]);
-        conferir("carregar devolve o rascunho inteiro", ordenado(lido.rascunho), ordenado({ ...novo.rascunho, descricaoEditada: false, tipoAnuncio: "gold_special" }));
+        conferir("carregar devolve o rascunho inteiro", ordenado(lido.rascunho), ordenado({ ...novo.rascunho, descricaoEditada: false, fotosReordenadas: false, tipoAnuncio: "gold_special" }));
         conferir("carregar: anuncio, status e contexto", [lido.anuncioId, lido.status, Object.keys(lido.contexto.produtos), lido.contexto.codigoEmUso],
           [salvo.id, "RASCUNHO", [p1.id], null]);
         conferir("carregar: anuncio que nao existe", (await carregarAnuncioML("id-que-nao-existe")).erro, "Anúncio não encontrado.");
@@ -723,7 +723,7 @@ try {
         const gravado = await anuncioDe(completo.id);
         conferir("cada campo mora na sua coluna", [gravado.titulo, gravado.descricao, gravado.categoriaExternaId, gravado.produtoId, ordenado(gravado.atributos)],
           [novo.rascunho.titulo, novo.rascunho.descricao, "MLB1234", p1.id, ordenado(novo.rascunho.atributos)]);
-        conferir("o resto do rascunho vai para dados", Object.keys(gravado.dados).sort(), ["categoriaNome", "composicao", "condicao", "descricaoEditada", "envio", "estoque", "familyName", "imagens", "prazoDisponibilidadeDias", "preco", "tipoAnuncio"]);
+        conferir("o resto do rascunho vai para dados", Object.keys(gravado.dados).sort(), ["categoriaNome", "composicao", "condicao", "descricaoEditada", "envio", "estoque", "familyName", "fotosReordenadas", "imagens", "prazoDisponibilidadeDias", "preco", "tipoAnuncio"]);
         // O estoque do anuncio e sempre o do produto no Rise (pedido do dono em 22/10/2026): o que a tela manda nao vale.
         conferir("numero escrito como texto vira numero; o estoque e o do produto, nao o da tela", [gravado.dados.preco, gravado.dados.estoque], [12.5, 9]);
         await prisma.produto.update({ where: { id: p1.id }, data: { estoque: 4 } });
@@ -1828,7 +1828,7 @@ try {
         conferir(
           "enviar: andamento do popup",
           [andamento.terminou, estado, /Fotos recusadas/.test(andamento.etapas.find((etapa) => etapa.id === "fotos").detalhe)],
-          [true, { permissao: "feito", ler: "feito", descricao: "feito", fotos: "falhou", pacote: "feito", preco: "feito", ficha: "feito" }, true],
+          [true, { permissao: "feito", ler: "feito", descricao: "feito", fotos: "falhou", pacote: "feito", preco: "feito", ficha: "feito", prazo: "feito" }, true],
         );
       }
 
@@ -2834,10 +2834,19 @@ try {
     conferir("simples: descricao = a do ML", atual.descricao, montarDescricaoML({ descricao: "Texto da placa." }));
     conferir("simples: pacote como o da embalagem (cm para cima, g)", atual.pacote, { alturaCm: 2, larguraCm: 6, comprimentoCm: 11, pesoG: 35 });
     conferir("fotosDoRise: ids na mesma ordem", fotosDoRise(simples, produtos), ["i2", "i1", "i3"]);
+    // 28/10/2026: o dono reordenou no anuncio; a foto que saiu do produto sai, e a nova entra no fim.
+    conferir("fotosDoRise: ordem do anuncio quando reordenada", fotosDoRise({ ...simples, fotosReordenadas: true, imagens: ["i3", "x9", "i2"] }, produtos), ["i3", "i2", "i1"]);
+    {
+      // O prazo de disponibilidade e parte do anuncio (28/10/2026): com base gravada, mudar acende; sem base (null), nao.
+      const { mudancasDoAnuncio } = await import("../src/lib/canaisDeVenda/ml/acompanhar.js");
+      const atualComPrazo = { descricao: "x", fotos: null, pacote: null, preco: 10, ficha: [], prazo: 3, kit: false };
+      conferir("prazo mudou: acende", mudancasDoAnuncio({ descricao: "x", preco: 10, ficha: [], prazo: 1 }, atualComPrazo).partes, ["prazo"]);
+      conferir("prazo sem base: nao acende", mudancasDoAnuncio({ descricao: "x", preco: 10, ficha: [], prazo: null }, atualComPrazo).partes, []);
+    }
     conferir("sem as quatro medidas: pacote null", conteudoAtualDoAnuncio({ produtoId: "p2", composicao: null }, produtos).pacote, null);
     const kit = { produtoId: "p1", composicao: { itens: [{ produtoId: "p1", quantidade: 1 }, { produtoId: "p2", quantidade: 1 }], codigo: "250999" } };
     const doKit = conteudoAtualDoAnuncio(kit, produtos);
-    conferir("kit: sem fotos nem pacote, descricao com os itens inclusos", [doKit.fotos, doKit.pacote, doKit.kit, /Itens inclusos/i.test(doKit.descricao ?? "")], [null, null, true, true]);
+    conferir("kit: fotos do proprio anuncio (vazias aqui), sem pacote, descricao com os itens inclusos", [doKit.fotos, doKit.pacote, doKit.kit, /Itens inclusos/i.test(doKit.descricao ?? "")], [[], null, true, true]);
     conferir("fotosDoRise do kit: null (sao do anuncio)", fotosDoRise(kit, produtos), null);
     conferir("produto que falta no contexto: descricao null", conteudoAtualDoAnuncio({ produtoId: "sumiu", composicao: null }, produtos).descricao, null);
 

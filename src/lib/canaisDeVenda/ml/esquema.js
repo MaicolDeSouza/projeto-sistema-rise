@@ -64,6 +64,8 @@ export const RascunhoMLSchema = z.object({
   descricao: z.string().max(LIMITES_ML.descricao),
   // Kit: o dono editou a descricao no anuncio (28/10/2026). Sem isso o kit acompanha a descricao do produto base.
   descricaoEditada: z.boolean().default(false),
+  // Anuncio simples: o dono reordenou as fotos no anuncio (28/10/2026). Sem isso a ordem e a do cadastro do produto.
+  fotosReordenadas: z.boolean().default(false),
   atributos: z
     .record(z.string().max(LIMITES_ML.chaveDeAtributo), z.string().max(LIMITES_ML.valorDeAtributo))
     .refine((atributos) => Object.keys(atributos).length <= LIMITES_ML.atributos),

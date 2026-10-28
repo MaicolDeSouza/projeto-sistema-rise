@@ -4,7 +4,7 @@ import { PARTES_DO_ENVIO_ML } from "./etapasDoEnvio";
 import { iniciarProgressoML } from "./progresso";
 import { impressaoDoConteudo } from "./impressao";
 import { lerCategoriaCompleta } from "./leitura";
-import { nomeDaFoto } from "./payload";
+import { nomeDaFoto, termosDeVenda } from "./payload";
 import { emAndamento, lerFotoDoDisco, tipoDaFoto } from "./publicar";
 import { textoDaRecusaML } from "./respostas";
 
@@ -104,14 +104,17 @@ async function enviarUmaVez(anuncioId, { ml, lerFoto, progresso }) {
       } catch {
         // segue com todas
       }
-      const porId = new Map((principal?.imagens ?? []).map((imagem) => [imagem.id, imagem]));
+      // A foto pode ser do produto, de uma peca do kit ou uma foto propria do kit (28/10/2026): procura em todos, com o SKU dono.
+      const porId = new Map(
+        Object.values(contexto.produtos ?? {}).flatMap((dono) => [...(dono?.imagens ?? []), ...(dono?.fotosDoKit ?? [])].map((imagem) => [imagem.id, { ...imagem, sku: dono.sku }])),
+      );
       for (const [indice, id] of ids.entries()) {
         if (fotosNoML[id]) continue;
         const foto = porId.get(id);
-        if (!foto) return falhar(parte, `A foto ${indice + 1} não foi encontrada no produto.`);
+        if (!foto) return falhar(parte, `A foto ${indice + 1} não foi encontrada (pode ter sido excluída). Ajuste a aba Imagens.`);
         let resposta;
         try {
-          resposta = await ml.upload("/pictures/items/upload", { bytes: await lerFoto(principal.sku, foto.arquivo), nome: nomeDaFoto(rascunho.titulo, indice), tipo: tipoDaFoto(foto.arquivo) });
+          resposta = await ml.upload("/pictures/items/upload", { bytes: await lerFoto(foto.sku, foto.arquivo), nome: nomeDaFoto(rascunho.titulo, indice), tipo: tipoDaFoto(foto.arquivo) });
         } catch (erro) {
           return falhar(parte, `Falha ao enviar a foto ${indice + 1}: ${textoDe(erro)}`);
         }
@@ -154,6 +157,15 @@ async function enviarUmaVez(anuncioId, { ml, lerFoto, progresso }) {
         return falhar(parte, `Falha ao enviar o preço: ${textoDe(erro)}`);
       }
       if (!resposta?.ok) return falhar(parte, textoDaRecusaML(resposta, "o preço"));
+    } else if (parte === "prazo") {
+      // Os termos de venda inteiros (garantia e prazo): o PUT troca a lista toda (medido em 26/10/2026).
+      let resposta;
+      try {
+        resposta = await ml.put(`/items/${itemId}`, { sale_terms: termosDeVenda(rascunho, contexto) });
+      } catch (erro) {
+        return falhar(parte, `Falha ao enviar o prazo de disponibilidade: ${textoDe(erro)}`);
+      }
+      if (!resposta?.ok) return falhar(parte, textoDaRecusaML(resposta, "o prazo de disponibilidade"));
     } else if (parte === "ficha") {
       // So os atributos que tem valor: tirar um atributo no Rise nao o apaga no ML (nao medido como apagar).
       let resposta;

@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { urlDe } from "@/lib/arquivos";
 import { codigoDaComposicao, errosDaComposicao, proximoCodigoDaFaixa } from "../composicao";
 import { custoDoProduto } from "../custo";
-import { conteudoAtualDoAnuncio, fichaDoAnuncio, mudancasDoAnuncio, precoDoAnuncio } from "./acompanhar";
+import { conteudoAtualDoAnuncio, fichaDoAnuncio, mudancasDoAnuncio, prazoDoAnuncio, precoDoAnuncio } from "./acompanhar";
 import { avisosDeVariosProdutos } from "./concorrentes";
 import { precisaAgirNoML, textoDoEstadoML } from "./estadoNoML";
 import { impressaoDoConteudo } from "./impressao";
@@ -135,6 +135,7 @@ function rascunhoDoAnuncio(anuncio) {
     imagens: dados.imagens ?? [],
     descricao: anuncio.descricao ?? "",
     descricaoEditada: dados.descricaoEditada === true,
+    fotosReordenadas: dados.fotosReordenadas === true,
     atributos: anuncio.atributos ?? {},
     // `logistica` e da fase 2: o anuncio gravado antes dela abre com o padrao da conta.
     envio: { pesoKg: null, alturaCm: null, larguraCm: null, comprimentoCm: null, modo: "me2", logistica: "xd_drop_off", freteGratis: false, retirada: false, ...dados.envio },
@@ -371,7 +372,16 @@ export async function salvarPublicadoML(anuncioId, entrada) {
   if (!Number.isFinite(preco) || preco <= 0 || preco > 10_000_000) return { ok: false, erro: "Informe um preço de venda maior que zero." };
   const atributos = RascunhoMLSchema.shape.atributos.safeParse(entrada?.atributos ?? {});
   if (!atributos.success) return { ok: false, erro: "A ficha técnica veio em um formato inválido. Recarregue a página." };
+  // O que mais se edita depois de publicado (28/10/2026): o prazo, as fotos (no simples so a ordem) e, no kit, a descricao.
+  // Campo que nao veio (tela aberta antes disso) fica como estava.
+  const prazo = RascunhoMLSchema.shape.prazoDisponibilidadeDias.safeParse(entrada?.prazoDisponibilidadeDias);
+  const imagens = RascunhoMLSchema.shape.imagens.safeParse(entrada?.imagens);
+  const descricao = RascunhoMLSchema.shape.descricao.safeParse(entrada?.descricao);
   try {
+    // As fotos do kit na impressao precisam dos nomes de arquivo (contexto dos produtos): lidos antes da trava.
+    const linha = await prisma.anuncio.findUnique({ where: { id: anuncioId }, select: { dados: true, produtoId: true } });
+    const idsDosProdutos = [linha?.produtoId, ...((linha?.dados?.composicao?.itens ?? []).map((item) => item.produtoId))].filter(Boolean);
+    const produtos = linha?.dados?.composicao ? await contextoDosProdutos(idsDosProdutos) : null;
     return await prisma.$transaction(async (tx) => {
       const travado = await tx.$queryRaw`SELECT id FROM "Anuncio" WHERE id = ${anuncioId} FOR UPDATE`;
       if (travado.length === 0) return { ok: false, erro: "Anúncio não encontrado." };
@@ -380,18 +390,30 @@ export async function salvarPublicadoML(anuncioId, entrada) {
       if (anuncio.status !== "PUBLICADO") return { ok: false, erro: "Só o anúncio publicado é salvo por aqui." };
 
       const dados = anuncio.dados ?? {};
+      const kit = Boolean(dados.composicao);
       const publicacao = dados.publicacao ?? {};
       const enviado = publicacao.enviado ?? null;
       const anterior = rascunhoDoAnuncio(anuncio);
+      // A base de antes, para as partes que a impressao ainda nao tem (o "!" so acende pelo que mudar daqui em diante).
       const base = {};
       if (!enviado || !Object.hasOwn(enviado, "preco")) base.preco = precoDoAnuncio(anterior);
       if (!enviado || !Object.hasOwn(enviado, "ficha")) base.ficha = fichaDoAnuncio(anterior);
+      if (!enviado || !Object.hasOwn(enviado, "prazo")) base.prazo = prazoDoAnuncio(anterior);
+      if (kit && produtos && (!enviado || enviado.fotos === null || enviado.fotos === undefined)) base.fotos = conteudoAtualDoAnuncio(anterior, produtos).fotos;
       const novaPublicacao = Object.keys(base).length > 0 ? { ...publicacao, enviado: { ...(enviado ?? {}), ...base } } : publicacao;
 
-      await tx.anuncio.update({
-        where: { id: anuncioId },
-        data: { atributos: atributos.data, dados: { ...dados, preco, publicacao: novaPublicacao } },
-      });
+      const novosDados = { ...dados, preco, publicacao: novaPublicacao };
+      if (prazo.success && entrada?.prazoDisponibilidadeDias !== undefined) novosDados.prazoDisponibilidadeDias = prazo.data;
+      if (imagens.success) {
+        novosDados.imagens = imagens.data;
+        if (!kit) novosDados.fotosReordenadas = entrada?.fotosReordenadas === true;
+      }
+      const colunas = { atributos: atributos.data };
+      if (kit && descricao.success) {
+        colunas.descricao = descricao.data;
+        novosDados.descricaoEditada = entrada?.descricaoEditada === true;
+      }
+      await tx.anuncio.update({ where: { id: anuncioId }, data: { ...colunas, dados: novosDados } });
       return { ok: true };
     });
   } catch (erro) {

@@ -136,7 +136,10 @@ function GarantiaDoProduto({ rascunho, contexto }) {
  * no cabecalho da janela, e a condicao saiu (o anuncio e sempre novo). Cada problema aparece embaixo do campo a que se
  * refere; o do produto (nao Conferido, sem blingId) no topo, so quando existe.
  */
-export default function AbaGeral({ rascunho, contexto, alterar, setContexto, problemas, anuncioId, carregandoCategoria }) {
+export default function AbaGeral({ rascunho, contexto, alterar, setContexto, problemas, anuncioId, carregandoCategoria, jaNoML = false }) {
+  // Anuncio ja no ML (28/10/2026): o ML nao aceita trocar titulo, categoria nem tipo, e a composicao mudaria o produto. So o
+  // prazo de disponibilidade continua editavel aqui; o resto fica a vista, travado.
+  const travaNoML = jaNoML ? { inert: true, className: "opacity-60" } : {};
   const primeiro = (campo) => problemasDoCampo(problemas, campo)[0]?.problema;
 
   const emKit = Boolean(rascunho.composicao);
@@ -162,6 +165,10 @@ export default function AbaGeral({ rascunho, contexto, alterar, setContexto, pro
     <div className="space-y-3">
       <MensagensDoCampo problemas={problemas} campo={["produto", "blingId"]} />
 
+      {jaNoML && (
+        <p className="text-xs text-suave">Título, tipo, categoria e composição já foram ao Mercado Livre e não mudam: para mudar, clone o anúncio.</p>
+      )}
+      <div {...travaNoML}>
       <SecaoDoAnuncio
         titulo="Título"
         // Medido em 26/10/2026 no MLB7881037020 (100104, pausado, sem vendas): PUT de `title` da 400 "You cannot modify the
@@ -187,16 +194,20 @@ export default function AbaGeral({ rascunho, contexto, alterar, setContexto, pro
         <MarcaDaPropostaNoCampo proposta={contexto.proposta} caminho="titulo" valorAtual={rascunho.titulo} />
         <SugestaoDaProposta proposta={contexto.proposta} caminho="titulo" valorAtual={rascunho.titulo} aoUsar={(valor) => alterar({ titulo: String(valor) })} />
       </SecaoDoAnuncio>
+      </div>
 
       <div className="grid gap-3 md:grid-cols-2">
         <SecaoDoAnuncio titulo="Tipo de anúncio">
+          <div {...travaNoML}>
           <EscolhaEntre rotulo="Tipo de anúncio" oculto opcoes={TIPOS_DE_ANUNCIO_ML} valor={rascunho.tipoAnuncio} aoMudar={(tipoAnuncio) => alterar({ tipoAnuncio })} />
+          </div>
         </SecaoDoAnuncio>
         <GarantiaDoProduto rascunho={rascunho} contexto={contexto} />
       </div>
 
       <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <SecaoDoAnuncio titulo="Categoria do ML" ajuda="Use 'Sugerir categoria' ou digite o código (MLB seguido de números). Só categoria final aceita anúncio.">
+          <div {...travaNoML}>
           <SugestaoDeCategoria rascunho={rascunho} alterar={alterar}>
             <input
               id="ml-categoria"
@@ -209,6 +220,7 @@ export default function AbaGeral({ rascunho, contexto, alterar, setContexto, pro
               className={`${CLASSE_CAMPO} ${bordaDoCampo(primeiro("categoria"))}`}
             />
           </SugestaoDeCategoria>
+          </div>
           {primeiro("categoria") && <p className="mt-1 text-[11px] text-red-700">{primeiro("categoria")}</p>}
           {carregandoCategoria ? (
             <p className="mt-1 text-[11px] text-suave">Lendo a categoria no Mercado Livre...</p>
@@ -225,6 +237,7 @@ export default function AbaGeral({ rascunho, contexto, alterar, setContexto, pro
         </SecaoDoAnuncio>
       </div>
 
+      <div {...travaNoML}>
       <SecaoDoAnuncio
         titulo="Composição (kit)"
         acao={
@@ -246,6 +259,7 @@ export default function AbaGeral({ rascunho, contexto, alterar, setContexto, pro
           </p>
         )}
       </SecaoDoAnuncio>
+      </div>
     </div>
   );
 }

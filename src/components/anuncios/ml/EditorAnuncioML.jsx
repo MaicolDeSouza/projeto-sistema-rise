@@ -58,7 +58,9 @@ const TEXTOS_DO_FIM = {
 const CLASSE_DA_ACAO = "inline-flex items-center gap-2 rounded-md bg-acento px-5 py-2.5 text-base font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50";
 // Depois de publicado, so estas abas se editam (pedido do dono em 24/10/2026): o preco, os concorrentes e o ranking (aba
 // Catalogo desde 26/10/2026) e a ficha tecnica. O resto (titulo, categoria, tipo, envio) fica como foi publicado.
-const ABAS_DO_PUBLICADO = new Set(["preco", "catalogo", "ficha"]);
+// Desde 28/10/2026 tambem Caracteristicas (so o prazo: titulo, tipo, categoria e composicao travam dentro dela, a AbaGeral),
+// Imagens (kit: as fotos; simples: a ordem) e Descricao (kit), o que o ML aceita trocar num anuncio ja publicado.
+const ABAS_DO_PUBLICADO = new Set(["preco", "catalogo", "ficha", "geral", "imagens", "descricao"]);
 // Abas so de leitura (26/10/2026): nunca travam, nem no publicado (os links e o "Validar no ML" tem que funcionar).
 const ABAS_DE_LEITURA = new Set(["status"]);
 
@@ -193,7 +195,7 @@ export default function EditorAnuncioML({
   // composicao, que ja foram com o item) continua travada.
   const editaPreso = !publicado && !somenteLeitura && statusAtual !== "PUBLICANDO" && Boolean(publicacao?.itemId);
   const travaDaAba = (id) =>
-    !ABAS_DE_LEITURA.has(id) && bloqueado && !(editaPublicado && ABAS_DO_PUBLICADO.has(id)) && !(editaPreso && id !== "geral");
+    !ABAS_DE_LEITURA.has(id) && bloqueado && !(editaPublicado && ABAS_DO_PUBLICADO.has(id)) && !editaPreso;
   const problemas = useMemo(() => validarRascunhoML(rascunho, contexto), [rascunho, contexto]);
 
   // O anuncio entrou, saiu, trocou ou esta num catalogo e o dono ainda nao conferiu (25/10/2026). So o "Marcar como
@@ -261,7 +263,15 @@ export default function EditorAnuncioML({
     let resultado;
     try {
       resultado = publicado
-        ? await salvarPublicadoMLAcao(idAtual, { preco: enviado.preco, atributos: enviado.atributos })
+        ? await salvarPublicadoMLAcao(idAtual, {
+            preco: enviado.preco,
+            atributos: enviado.atributos,
+            prazoDisponibilidadeDias: enviado.prazoDisponibilidadeDias,
+            imagens: enviado.imagens,
+            fotosReordenadas: enviado.fotosReordenadas,
+            descricao: enviado.descricao,
+            descricaoEditada: enviado.descricaoEditada,
+          })
         : editaPreso
           ? await salvarPresoMLAcao(idAtual, enviado)
           : await salvarAnuncioML(idAtual, enviado);
@@ -475,7 +485,9 @@ export default function EditorAnuncioML({
 
   // "Validar no ML" (Previa) valida o anuncio GRAVADO: so com ele salvo e sem alteracao pendente.
   const podeValidar = Boolean(idAtual) && !alterado && !bloqueado;
-  const propsDasAbas = { rascunho, contexto, alterar, setContexto, irPara: setAba, anuncioId: idAtual, carregandoCategoria, podeValidar, acessos };
+  // Ja no ML (publicado ou parado depois de criado): titulo, tipo, categoria e composicao travam na aba Caracteristicas.
+  const jaNoML = publicado || Boolean(publicacao?.itemId);
+  const propsDasAbas = { rascunho, contexto, alterar, setContexto, irPara: setAba, anuncioId: idAtual, carregandoCategoria, podeValidar, acessos, jaNoML };
   const rotuloDoStatus =
     statusAtual === "PUBLICANDO" && publicacao?.etapaComErro === "kit_bling"
       ? AGUARDANDO_BLING

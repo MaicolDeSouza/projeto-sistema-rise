@@ -12,8 +12,9 @@ export const ETAPAS_DO_ENVIO_ML = [
   { id: "pacote", rotulo: "Enviar peso e medidas" },
   { id: "preco", rotulo: "Enviar o preço" },
   { id: "ficha", rotulo: "Enviar a ficha técnica" },
+  { id: "prazo", rotulo: "Enviar o prazo de disponibilidade" },
   { id: "conferir", rotulo: "Conferir o resultado no ML" },
 ];
 
 /** As partes que o envio manda, na ordem das etapas. */
-export const PARTES_DO_ENVIO_ML = ["descricao", "fotos", "pacote", "preco", "ficha"];
+export const PARTES_DO_ENVIO_ML = ["descricao", "fotos", "pacote", "preco", "ficha", "prazo"];
