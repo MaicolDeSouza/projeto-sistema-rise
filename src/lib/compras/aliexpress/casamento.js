@@ -278,3 +278,47 @@ export async function desfazerCasamento(linhaId, { cliente = clienteBling() } = 
   if (antigo) await saidaDaLinhaDoVirtual(String(linhaId), antigo, { cliente });
   return { ok: true };
 }
+
+/**
+ * A chegada de um item de pedido do AliExpress (Lancar estoque, spec §6.3b): tira do deposito Virtual o que entrou no
+ * Fisico (`sentido` "saida"); o Desfazer devolve (`sentido` "entrada"). Nunca mais do que as linhas puseram no Virtual,
+ * e o contador de cada linha acompanha (o cancelamento depois tira so o que ainda esta la). Item de pedido do Rise ->
+ * null (nada muda). A recusa do Bling fica na linha (`virtualErro`) e nao desfaz o lancamento.
+ */
+export async function virtualNaChegada(itemId, quantidade, sentido, { cliente = clienteBling() } = {}) {
+  const item = await prisma.itemDoPedidoDeCompra.findUnique({
+    where: { id: String(itemId ?? "") },
+    select: {
+      pedido: { select: { origem: true, aliexpress: { select: { externoId: true } } } },
+      produto: { select: { sku: true, blingId: true } },
+      linhasAliExpress: { orderBy: { quantidadeComprada: "desc" }, select: { id: true, virtualQuantidade: true, virtualLancadoEm: true, quantidadeComprada: true, fator: true } },
+    },
+  });
+  if (!item || item.pedido.origem !== "ALIEXPRESS") return null;
+  const linhas = item.linhasAliExpress.filter((linha) => linha.virtualLancadoEm);
+  if (linhas.length === 0) return { ok: true, enviado: false };
+
+  // Quanto cabe: na saida, o que ainda esta no Virtual; na entrada, o que ja saiu dele.
+  const cabe = (linha) => (sentido === "saida" ? linha.virtualQuantidade : quantidadeNoRise(linha.quantidadeComprada, linha.fator) - linha.virtualQuantidade);
+  const total = Math.min(Number(quantidade) || 0, linhas.reduce((soma, linha) => soma + Math.max(0, cabe(linha)), 0));
+  if (total <= 0) return { ok: true, enviado: false };
+
+  const dados = { sku: item.produto.sku, blingId: item.produto.blingId, quantidade: total, observacao: `AliExpress ${item.pedido.aliexpress?.externoId ?? ""} · ${sentido === "saida" ? "chegada" : "desfeito"}` };
+  const resultado = sentido === "saida" ? await saidaDoVirtual(dados, { cliente }) : await entradaNoVirtual(dados, { cliente });
+  if (!resultado.ok) {
+    await prisma.linhaAliExpress.update({ where: { id: linhas[0].id }, data: { virtualErro: resultado.erro } });
+    return resultado;
+  }
+  let resta = total;
+  for (const linha of linhas) {
+    const parte = Math.min(resta, Math.max(0, cabe(linha)));
+    if (parte === 0) continue;
+    await prisma.linhaAliExpress.update({
+      where: { id: linha.id },
+      data: { virtualQuantidade: linha.virtualQuantidade + (sentido === "saida" ? -parte : parte), virtualErro: null },
+    });
+    resta -= parte;
+    if (resta === 0) break;
+  }
+  return { ok: true, enviado: true };
+}

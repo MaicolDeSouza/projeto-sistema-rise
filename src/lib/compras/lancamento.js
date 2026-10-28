@@ -1,5 +1,6 @@
 import { ajustarEstoqueNaTransacao } from "@/lib/ajusteRapido";
 import { clienteBling } from "@/lib/blingSync/cliente";
+import { virtualNaChegada } from "@/lib/compras/aliexpress/casamento";
 import { enviarAjustesDeEstoque } from "@/lib/blingSync/envio";
 import { prisma } from "@/lib/db";
 import { faltaLancar, numeroDoPedido, statusDepoisDeLancar, validarQuantidadeDeLancamento } from "@/lib/compras/regras";
@@ -74,7 +75,7 @@ export async function lancarEstoqueDoItem(itemId, quantidade, { cliente = client
         select: { id: true },
       });
       const status = await acertarItemEPedido(tx, String(itemId), item.pedidoId, item.status);
-      return { ok: true, lancamentoId: lancamento.id, saldoNovo: ajuste.saldoNovo, status, produtoId: item.produtoId };
+      return { ok: true, lancamentoId: lancamento.id, saldoNovo: ajuste.saldoNovo, status, produtoId: item.produtoId, quantidade: valida.quantidade };
     });
   } catch (erro) {
     return { ok: false, erro: `Não foi possível lançar: ${erro.message}` };
@@ -82,7 +83,11 @@ export async function lancarEstoqueDoItem(itemId, quantidade, { cliente = client
   if (!gravado.ok) return gravado;
 
   const { produtoId, ...resto } = gravado;
-  return { ...resto, bling: await enviarAoBling(produtoId, cliente, depositoId) };
+  const bling = await enviarAoBling(produtoId, cliente, depositoId);
+  // Pedido do AliExpress: o que chegou sai do deposito Virtual do Bling (o Desfazer devolve). Pedido do Rise: nada.
+  const virtual = await virtualNaChegada(itemId, gravado.quantidade, "saida", { cliente });
+  delete resto.quantidade;
+  return { ...resto, bling, ...(virtual ? { virtual } : {}) };
 }
 
 /** Desfaz o ULTIMO lancamento vivo do item (saida da mesma quantidade). So em pedido parcial. */
@@ -115,7 +120,7 @@ export async function desfazerUltimoLancamento(itemId, { cliente = clienteBling(
 
       await tx.lancamentoDoItemDeCompra.update({ where: { id: ultimo.id }, data: { desfeitoEm: new Date() } });
       const status = await acertarItemEPedido(tx, String(itemId), item.pedidoId, item.status);
-      return { ok: true, lancamentoId: ultimo.id, saldoNovo: ajuste.saldoNovo, status, produtoId: item.produtoId };
+      return { ok: true, lancamentoId: ultimo.id, saldoNovo: ajuste.saldoNovo, status, produtoId: item.produtoId, quantidade: ultimo.quantidade };
     });
   } catch (erro) {
     return { ok: false, erro: `Não foi possível desfazer: ${erro.message}` };
@@ -123,7 +128,11 @@ export async function desfazerUltimoLancamento(itemId, { cliente = clienteBling(
   if (!gravado.ok) return gravado;
 
   const { produtoId, ...resto } = gravado;
-  return { ...resto, bling: await enviarAoBling(produtoId, cliente, depositoId) };
+  const bling = await enviarAoBling(produtoId, cliente, depositoId);
+  // Pedido do AliExpress: o que chegou sai do deposito Virtual do Bling (o Desfazer devolve). Pedido do Rise: nada.
+  const virtual = await virtualNaChegada(itemId, gravado.quantidade, "entrada", { cliente });
+  delete resto.quantidade;
+  return { ...resto, bling, ...(virtual ? { virtual } : {}) };
 }
 
 /** "Enviar neste deposito" / "Reenviar": so manda ao Bling o que o produto tem pendente. */

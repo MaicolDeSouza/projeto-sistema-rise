@@ -452,6 +452,34 @@ try {
     await devolverMarca();
   }
 
+  {
+    console.log("\nChegada: Lançar estoque tira do Virtual");
+    const { casarManual } = await import("../src/lib/compras/aliexpress/casamento.js");
+    const lancamento = await import("../src/lib/compras/lancamento.js");
+    const ali = await prisma.fornecedor.create({ data: { nome: "ZZ Ali Chegada", estrangeiro: true } });
+    await marcarFornecedorDoAliExpress(ali.id);
+    const C1 = await criarProduto("ZZ-ALI-C1", { blingId: "15000000941", estoque: 5, blingSaldo: 5 });
+    const falso = criarBlingFalso({ produtos: [noBling("ZZ-ALI-C1", 15000000941)], saldos: { "ZZ-ALI-C1": 5 }, codigosLiberados: ["ZZ-ALI-C1"] });
+    const pedido = await criarPedidoAli(ali.id, "9925000000000001", [{ id: "1", productId: "881", skuId: "882", quantidade: 4, preco: 10 }]);
+    const casado = await casarManual(pedido.linhas[0].id, C1.id, 1, { cliente: falso });
+    conferir("casou e entrou 4 no Virtual", [casado.ok, falso.estado.lancamentos.at(-1)?.operacao, falso.estado.lancamentos.at(-1)?.quantidade], [true, "E", 4]);
+    const antes = falso.estado.lancamentos.length;
+    const lancado = await lancamento.lancarEstoqueDoItem(casado.itemId, 3, { cliente: falso });
+    const novos = falso.estado.lancamentos.slice(antes).map((l) => [l.operacao, l.quantidade, l.deposito.id]);
+    conferir("lancar 3: Fisico recebe, Virtual perde 3", [lancado.ok, lancado.virtual?.ok, novos.at(-1)], [true, true, ["S", 3, 14200000002]]);
+    conferir("a linha guarda o que ainda esta no Virtual", (await prisma.linhaAliExpress.findUnique({ where: { id: pedido.linhas[0].id } })).virtualQuantidade, 1);
+    const desfeito = await lancamento.desfazerUltimoLancamento(casado.itemId, { cliente: falso });
+    conferir("desfazer devolve ao Virtual", [desfeito.ok, desfeito.virtual?.ok, falso.estado.lancamentos.at(-1)?.operacao, falso.estado.lancamentos.at(-1)?.quantidade, (await prisma.linhaAliExpress.findUnique({ where: { id: pedido.linhas[0].id } })).virtualQuantidade], [true, true, "E", 3, 4]);
+
+    const normal = await prisma.pedidoDeCompra.create({ data: { fornecedorId: ali.id, numero: (await prisma.pedidoDeCompra.aggregate({ _max: { numero: true } }))._max.numero + 1, status: "ENVIADO" } });
+    const C2 = await criarProduto("ZZ-ALI-C2", { blingId: "15000000942", estoque: 5, blingSaldo: 5 });
+    const itemNormal = await prisma.itemDoPedidoDeCompra.create({ data: { pedidoId: normal.id, produtoId: C2.id, quantidade: 2, precoUnitario: 1 } });
+    const falso2 = criarBlingFalso({ produtos: [noBling("ZZ-ALI-C2", 15000000942)], saldos: { "ZZ-ALI-C2": 5 }, codigosLiberados: ["ZZ-ALI-C2"] });
+    const lancadoNormal = await lancamento.lancarEstoqueDoItem(itemNormal.id, 2, { cliente: falso2 });
+    conferir("pedido do Rise nao mexe no Virtual", [lancadoNormal.ok, "virtual" in lancadoNormal, falso2.estado.lancamentos.some((l) => l.deposito.id === 14200000002)], [true, false, false]);
+    await devolverMarca();
+  }
+
   // Marcador: os blocos de banco seguintes entram acima desta linha.
 } finally {
   await devolverMarca();
