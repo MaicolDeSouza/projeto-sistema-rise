@@ -6,7 +6,7 @@ PARÁGRAFOS
 
 Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Simples e direto: diga o que a placa faz e onde se usa, sem propaganda. Tamanho, contando espaços: o primeiro até 250 caracteres, o segundo até 450.
 
-Primeiro parágrafo, UMA frase: “O Módulo Optoacoplador de <canais> canais com <optoacoplador> isola os sinais entre dois circuitos, recebendo na entrada de <faixa de entrada> e entregando na saída de <faixa de saída>.” No detector de tensão: “O Módulo Detector de Tensão <tensão AC> com optoacoplador <CI> indica a presença da rede com um sinal isolado de <faixa> para o microcontrolador.” Só o que estiver confirmado.
+Primeiro parágrafo, UMA frase, sempre com as duas faixas: “O Módulo Optoacoplador de <canais> canais com <optoacoplador> isola os sinais entre dois circuitos, com entrada de <faixa de entrada> e saída de <faixa de saída>.” No detector de tensão: “O Módulo Detector de Tensão <tensão AC> com optoacoplador <CI> indica a presença da rede com um sinal isolado de <faixa> para o microcontrolador.” Só o que estiver confirmado.
 
 Segundo parágrafo, duas ou três frases práticas, só com recursos confirmados: o uso típico (trocar sinais entre Arduino, ESP32 ou STM32 e um CLP, ou ler um sensor de 24V num microcontrolador de 3,3V ou 5V), como a saída funciona (NPN, com ou sem pull-up, lógica invertida), o jumper que une ou separa o GND da entrada e da saída, o LED por canal e a ligação por bornes de parafuso ou pinos.
 
@@ -27,6 +27,8 @@ Canais: substitui Número de canais e Vias: “4”.
 Tensão de Entrada: substitui Tensão do sinal de entrada, Tensão de sinal da porta, Tensão de trabalho e Tensão de operação quando falam do lado que recebe o sinal: “3,6V a 24VDC”.
 
 Tensão de Saída: substitui Tensão do sinal de saída e Saída Porta de tensão: a faixa que o lado de saída aceita, “3,6V a 30VDC”.
+
+Tensão de Entrada e Tensão de Saída aparecem sempre as duas, uma depois da outra (ver REGRAS ESPECÍFICAS).
 
 Corrente de Saída: substitui Corrente máxima suportada e Corrente máxima, por canal: “50mA por canal”. Quando a fonte só diz o limite do CI (“o PC817 suporta até 50mA”), escreva “Até 50mA por canal (limite do PC817)”.
 
@@ -78,6 +80,8 @@ Placas com o mesmo nome e os mesmos canais podem ser desenhos diferentes: a plac
 Placa própria da loja (Fabricante 4HOBBY): as especificações e as medidas do cadastro e da descrição atual valem primeiro; anúncios de placas genéricas não as substituem.
 
 Entrada e saída são lados diferentes: as lojas trocam um pelo outro e o título costuma juntar os dois (“3,6 a 30VDC” no título, 3,6V a 24VDC na entrada e 3,6V a 30VDC na saída). Escreva cada faixa no seu campo, como a ficha da mesma placa diz, e registre a divergência quando o título discordar.
+
+Tensão de Entrada e Tensão de Saída são obrigatórias as duas (pedido do dono). Quando a ficha ou a descrição da mesma placa dá uma só faixa para a placa inteira (“Tensão de trabalho: 3,3 a 30Vdc”, “Tensão de operação”), sem separar os lados, ela vale para os dois: escreva a mesma faixa nos dois campos e diga em decisoes que a fonte não separa entrada e saída. Quando a fonte só dá um dos lados, procure o outro na mesma placa (o fabricante, uma loja que publique a mesma placa); sem achar, deixe o campo fora e diga em decisoes qual lado falta, para o operador preencher. O título sozinho não decide nenhum dos dois lados.
 
 A corrente da saída é limitada pelo optoacoplador (o PC817 suporta até 50mA no coletor): a placa não aciona motores, solenoides nem relés grandes direto na saída. Diga isso só quando a fonte disser, sem inventar o número de outro CI.
 
