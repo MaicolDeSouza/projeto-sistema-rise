@@ -3,7 +3,7 @@
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Copy, Loader, Plus, X } from "lucide-react";
+import { Copy, Loader, Plus, Trash2, X } from "lucide-react";
 
 import {
   abrirAnuncioML,
@@ -15,6 +15,7 @@ import BotaoNaoAnunciar from "@/components/anuncios/BotaoNaoAnunciar";
 import Badge from "@/components/ui/Badge";
 import { ROTULO_DO_TIPO_ML, seloDoAnuncioML } from "@/lib/canaisDeVenda/ml/rotulos";
 import EditorAnuncioML from "./EditorAnuncioML";
+import JanelaExcluirAnuncioML from "./JanelaExcluirAnuncioML";
 
 /**
  * Pop-up aberto pelo icone do Mercado Livre na lista de Produtos. Mostra os anuncios ML do
@@ -100,6 +101,8 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
   const [editor, setEditor] = useState(null);
   const [aviso, setAviso] = useState(null);
   const [erro, setErro] = useState(null);
+  // O anuncio da lista com a pergunta de excluir aberta (28/10/2026).
+  const [paraExcluir, setParaExcluir] = useState(null);
   const abertura = useRef(0);
   // A nota ("Anuncio salvo.") que a proxima carga da lista mostra; guardada para o "Tentar de novo".
   const notaDaLista = useRef(null);
@@ -230,6 +233,13 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
     iniciar({ tipo: "ok", texto: "Anúncio salvo." });
   }
 
+  // Depois de excluir ou encerrar: a lista do produto e recarregada com o recado (sem anuncio, abre um novo, como sempre).
+  function aoExcluido(resultado) {
+    setParaExcluir(null);
+    setFase("carregando");
+    carregarLista({ tipo: "ok", texto: resultado?.destino === "encerrar" ? "Anúncio encerrado no Mercado Livre." : "Anúncio excluído." });
+  }
+
   function tentarDeNovo() {
     setFase("carregando");
     iniciar(notaDaLista.current);
@@ -254,6 +264,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
         aoSalvar={aoSalvar}
         aoFechar={aoFechar}
         aoClonar={abrirClone}
+        aoExcluido={aoExcluido}
       />
     );
   }
@@ -334,6 +345,17 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
                         <Copy size={14} />
                       </button>
                     )}
+                    {acessos?.editar !== false && (
+                      <button
+                        type="button"
+                        onClick={() => setParaExcluir(anuncio.id)}
+                        title="Excluir anúncio: sem vendas sai do ML, do Bling e do Rise; com vendas, é encerrado"
+                        aria-label={`Excluir o anúncio ${anuncio.codigo}`}
+                        className="shrink-0 px-3 text-suave hover:bg-red-50 hover:text-red-700"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </li>
                 );
               })}
@@ -352,6 +374,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
           )}
         </div>
       )}
+      {paraExcluir && <JanelaExcluirAnuncioML anuncioId={paraExcluir} aoFechar={() => setParaExcluir(null)} aoConcluir={aoExcluido} />}
     </Moldura>
   );
 }

@@ -1,5 +1,5 @@
 import { config, exigirTravaLiberada } from "@/lib/integracoes/config";
-import { blingGet, blingPatch, blingPost, blingPut } from "@/lib/integracoes/bling";
+import { blingDelete, blingGet, blingPatch, blingPost, blingPut } from "@/lib/integracoes/bling";
 
 /**
  * O contrato com o Bling que TODAS as funcoes da sincronizacao recebem por parametro
@@ -41,6 +41,7 @@ export function exigirCodigoLiberado(codigo, liberados, variavel = "BLING_ESCRIT
  *   post: typeof blingPost,
  *   put: typeof blingPut,
  *   patch: typeof blingPatch,
+ *   delete: typeof blingDelete,
  *   exigirEscrita: (codigo: string) => void,
  * }}
  */
@@ -50,6 +51,7 @@ export function clienteBling() {
     post: blingPost,
     put: blingPut,
     patch: blingPatch,
+    delete: blingDelete,
     /**
      * As duas travas, nesta ordem: BLING_ESCRITA (geral) e a lista de codigos liberados.
      * Quem vai escrever chama ANTES da primeira chamada ao Bling, para a recusa nao

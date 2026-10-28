@@ -9,6 +9,7 @@ import { LIMITE_TITULO } from "@/lib/anuncios/canais/mercadolivre";
 import { clienteBling } from "@/lib/blingSync/cliente";
 import { prepararPublicacaoML, publicarAnuncioML, validarNoML } from "@/lib/canaisDeVenda/ml/publicar";
 import { enviarMudancasML } from "@/lib/canaisDeVenda/ml/atualizar";
+import { conferirExclusaoML, excluirAnuncioML } from "@/lib/canaisDeVenda/ml/excluir";
 import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
 import {
   buscarCatalogos,
@@ -414,6 +415,38 @@ export async function enviarMudancasMLAcao(anuncioId) {
   if (!ehId(anuncioId)) return PEDIDO_INVALIDO;
   return protegendo(async () => {
     const resultado = await enviarMudancasML(anuncioId, { ml: clienteML() });
+    revalidatePath("/canais-de-venda/mercado-livre");
+    revalidatePath("/produtos");
+    return resultado;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Excluir o anuncio (Opcao 1 do dono em 28/10/2026): sem venda, apaga no ML, no Bling e no Rise; com venda, encerra no ML,
+// tira do Bling e fica no Rise como Encerrado. Rascunho (sem MLB) pede so o editar; o resto escreve no ML e no Bling, e pede
+// o mesmo acesso do Publicar.
+// ---------------------------------------------------------------------------
+
+/** O que a exclusao vai fazer, para a pergunta da tela. So le o ML e o banco. */
+export async function conferirExclusaoMLAcao(anuncioId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"]);
+  if (negado) return negado;
+  if (!ehId(anuncioId)) return PEDIDO_INVALIDO;
+  return protegendo(() => conferirExclusaoML(anuncioId, { ml: clienteML() }));
+}
+
+export async function excluirAnuncioMLAcao(anuncioId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"]);
+  if (negado) return negado;
+  if (!ehId(anuncioId)) return PEDIDO_INVALIDO;
+  return protegendo(async () => {
+    const conferido = await conferirExclusaoML(anuncioId, { ml: clienteML() });
+    if (conferido.ok && conferido.destino !== "rascunho") {
+      const semPublicar = await negarSemAcessos(["acao.mercadoLivre.publicar", "executar"]);
+      if (semPublicar) return semPublicar;
+    }
+    const resultado = await excluirAnuncioML(anuncioId, clientes());
+    // Revalida sempre: mesmo a exclusao que parou no meio mudou o anuncio no ML ou no Bling.
     revalidatePath("/canais-de-venda/mercado-livre");
     revalidatePath("/produtos");
     return resultado;

@@ -36,7 +36,11 @@ export const AGUARDANDO_BLING = { rotulo: "Aguardando o Bling", tom: "alerta" };
 export const AGUARDANDO_ESTOQUE = { rotulo: "Pausado: aguardando estoque", tom: "alerta" };
 
 /** O selo de estado de uma linha de anuncio (lista e janela do produto): o publicado sem estoque diz que esta pausado. */
+/// Encerrado no ML pela exclusao de um anuncio com vendas (Opcao 1 do dono em 28/10/2026): fica no Rise so como historico.
+export const ENCERRADO = { rotulo: "Encerrado", tom: "neutro" };
+
 export function seloDoAnuncioML(anuncio) {
+  if (anuncio?.situacaoCanal === "ENCERRADA") return ENCERRADO;
   if (anuncio?.status === "PUBLICADO" && anuncio?.aguardandoEstoque) return AGUARDANDO_ESTOQUE;
   return STATUS_ML[anuncio?.status] ?? STATUS_ML.RASCUNHO;
 }

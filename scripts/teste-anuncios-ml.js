@@ -843,7 +843,7 @@ try {
         const lista = await listarAnunciosML({ busca: "zz-ml" });
         conferir("lista traz os anuncios de teste", lista.total >= 6, true);
         conferir("lista: acha pelo SKU sem diferenciar caixa, so do Mercado Livre", [lista.total, lista.linhas.length, lista.pagina, lista.totalPaginas], [totalDeTeste, totalDeTeste, 1, 1]);
-        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["aguardandoEstoque", "atualizadoEm", "avisosML", "codigo", "estadoML", "estadoMLPedeAcao", "estoque", "fotoUrl", "icone", "id", "idExterno", "linkDoAnuncio", "linkDoPainel", "preco", "produtoId", "rankingML", "status", "tipoAnuncio", "titulo", "urlExterna"]);
+        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["aguardandoEstoque", "atualizadoEm", "avisosML", "codigo", "estadoML", "estadoMLPedeAcao", "estoque", "fotoUrl", "icone", "id", "idExterno", "linkDoAnuncio", "linkDoPainel", "preco", "produtoId", "rankingML", "situacaoCanal", "status", "tipoAnuncio", "titulo", "urlExterna"]);
         // As colunas que ordenam (28/10/2026): no servidor, antes de paginar; o vazio vai para o fim nas duas direcoes.
         const porPreco = (direcao) => listarAnunciosML({ busca: "zz-ml", ordenar: "preco", direcao }).then((r) => r.linhas.map((l) => l.preco));
         const [subindo, descendo] = [await porPreco("asc"), await porPreco("desc")];
@@ -1773,6 +1773,62 @@ try {
       const criacao2 = mlDuas.escritas.find((escrita) => escrita.metodo === "POST" && escrita.caminho === "/items").corpo;
       conferir("publicar: categoria de 2 fotos leva 2", [r2.ok, criacao2.pictures.length], [true, 2]);
       conferir("publicar: o corte da categoria nao acende o '!'", await mudancasDe(id2), { partes: [], naoConferido: false });
+    }
+
+    {
+      console.log("\nExcluir anuncio do ML (Opcao 1 do dono, 28/10/2026)");
+      await limpar();
+      const { publicarAnuncioML } = await import("../src/lib/canaisDeVenda/ml/publicar.js");
+      const { conferirExclusaoML, excluirAnuncioML } = await import("../src/lib/canaisDeVenda/ml/excluir.js");
+      const { seloDoAnuncioML } = await import("../src/lib/canaisDeVenda/ml/rotulos.js");
+      const c = await cenarioDePublicacao();
+      const lerFoto = async () => Buffer.from("jpg");
+      const corposDesde = (ml, inicio) => ml.escritas.slice(inicio).map((escrita) => JSON.stringify(escrita.corpo));
+
+      // Rascunho (sem MLB): so o Rise, sem tocar no ML nem no Bling.
+      const rascunho = await c.anuncioSimples(c.s1);
+      const mlR = criarMLFalso();
+      const bfR = c.novoBling();
+      conferir("excluir: rascunho so sai do Rise", [(await conferirExclusaoML(rascunho, { ml: mlR })).destino, (await excluirAnuncioML(rascunho, { ml: mlR, bling: bfR })).ok, await prisma.anuncio.count({ where: { id: rascunho } }), mlR.escritas.length, bfR.chamadas.length], ["rascunho", true, 0, 0, 0]);
+
+      // Dois anuncios publicados do mesmo produto (Classico e Premium): o vinculo do Bling e um so e aponta para o primeiro.
+      const ml = criarMLFalso();
+      const bf = c.novoBling();
+      const semVenda = await c.anuncioSimples(c.s1);
+      const comVenda = await c.anuncioSimples(c.s1);
+      const pub1 = await publicarAnuncioML(semVenda, { ml, bling: bf, lerFoto });
+      const pub2 = await publicarAnuncioML(comVenda, { ml, bling: bf, lerFoto });
+      const registrosNoBling = async () => (await bf.get("/anuncios", { tipoIntegracao: "MercadoLivre", idLoja: 206326819 })).dados.data.map((registro) => registro.anuncioLoja.id).sort();
+      const vinculosNoBling = async () => (await bf.get("/produtos/lojas", {})).dados.data.map((vinculo) => vinculo.codigo);
+      conferir("excluir: cenario com os dois anuncios no Bling", [await registrosNoBling(), await vinculosNoBling()], [[pub1.itemId, pub2.itemId].sort(), [pub1.itemId]]);
+
+      // Travas: com o ML travado nada e escrito em lugar nenhum.
+      const travado = criarMLFalso({ codigosLiberados: ["outro"] });
+      const recusa = await excluirAnuncioML(semVenda, { ml: travado, bling: bf });
+      conferir("excluir: trava do ML recusa antes de escrever", [recusa.ok, travado.escritas.length, await prisma.anuncio.count({ where: { id: semVenda } }), await registrosNoBling()], [false, 0, 1, [pub1.itemId, pub2.itemId].sort()]);
+
+      // Sem venda: encerra e apaga no ML, tira o registro do Bling (o vinculo fica: serve ao outro anuncio) e sai do Rise.
+      conferir("excluir: sem venda o destino e apagar", (await conferirExclusaoML(semVenda, { ml })).destino, "apagar");
+      const inicio = ml.escritas.length;
+      const r = await excluirAnuncioML(semVenda, { ml, bling: bf });
+      conferir("excluir: sem venda encerra e apaga no ML, nessa ordem", corposDesde(ml, inicio), ['{"status":"closed"}', '{"deleted":"true"}']);
+      conferir("excluir: sem venda sai do registro do Bling e mantem o vinculo do outro anuncio", [await registrosNoBling(), await vinculosNoBling()], [[pub2.itemId], [pub1.itemId]]);
+      conferir("excluir: sem venda sai do Rise", [r.ok, r.destino, await prisma.anuncio.count({ where: { id: semVenda } })], [true, "apagar", 0]);
+      conferir("excluir: o que foi feito vem na resposta", r.feito.some((linha) => linha.includes("vínculo") && linha.includes("mantido")), true);
+
+      // Com venda: so encerra no ML, sai do Bling e fica no Rise como Encerrado. Repetir nao escreve de novo.
+      ml.itens.get(pub2.itemId).sold_quantity = 3;
+      const conferido = await conferirExclusaoML(comVenda, { ml });
+      conferir("excluir: com venda o destino e encerrar", [conferido.destino, conferido.vendas], ["encerrar", 3]);
+      const inicio2 = ml.escritas.length;
+      const r2 = await excluirAnuncioML(comVenda, { ml, bling: bf });
+      const guardado = await prisma.anuncio.findUnique({ where: { id: comVenda }, select: { status: true, situacaoCanal: true, temVendas: true } });
+      conferir("excluir: com venda so encerra no ML", corposDesde(ml, inicio2), ['{"status":"closed"}']);
+      conferir("excluir: com venda sai do Bling, e sem anuncio nenhum o vinculo sai tambem", [await registrosNoBling(), await vinculosNoBling()], [[], []]);
+      conferir("excluir: com venda fica no Rise como Encerrado", [r2.ok, r2.destino, guardado], [true, "encerrar", { status: "PUBLICADO", situacaoCanal: "ENCERRADA", temVendas: true }]);
+      conferir("excluir: o selo do encerrado", seloDoAnuncioML(guardado).rotulo, "Encerrado");
+      const repetido = await excluirAnuncioML(comVenda, { ml, bling: bf });
+      conferir("excluir: repetir o encerrado nao escreve de novo", [repetido.ok, (await conferirExclusaoML(comVenda, { ml })).jaEncerrado, ml.escritas.length - inicio2], [true, true, 1]);
     }
 
     {

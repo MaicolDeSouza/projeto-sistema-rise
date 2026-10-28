@@ -175,6 +175,8 @@ export const blingGet = (caminho, params) => chamar("GET", caminho, { params });
 export const blingPost = (caminho, corpo) => chamar("POST", caminho, { corpo, tentativas: 1 });
 export const blingPut = (caminho, corpo) => chamar("PUT", caminho, { corpo, tentativas: 1 });
 export const blingPatch = (caminho, corpo) => chamar("PATCH", caminho, { corpo, tentativas: 1 });
+// O DELETE leva os filtros na URL (`/anuncios/{id}?tipoIntegracao=&idLoja=`, medido em 10/10/2026): a exclusao do anuncio do ML.
+export const blingDelete = (caminho, params) => chamar("DELETE", caminho, { params, tentativas: 1 });
 
 /**
  * Teste de conexao: le os canais de venda.

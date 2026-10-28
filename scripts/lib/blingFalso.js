@@ -583,6 +583,26 @@ export function criarBlingFalso(opcoes = {}) {
       },
     ],
 
+    // Medido em 10/10/2026 (CLAUDE.md, "Mudar um anuncio do ML_4h para o Rise_ML"): os dois DELETE respondem 204 sem corpo,
+    // e o de /anuncios exige tipoIntegracao e idLoja na URL.
+    [
+      "DELETE",
+      /^\/anuncios\/(\d+)$/,
+      ([, id], { consulta }) => {
+        if (ausente(consulta.tipoIntegracao?.[0]) || ausente(consulta.idLoja?.[0])) return validacao("tipoIntegracao e idLoja sao obrigatorios.", ["tipoIntegracao", "idLoja"]);
+        if (!anuncios.delete(Number(id))) return naoEncontrado();
+        return resposta(204, null);
+      },
+    ],
+    [
+      "DELETE",
+      /^\/produtos\/lojas\/(\d+)$/,
+      ([, id]) => {
+        if (!vinculosDeLoja.delete(Number(id))) return naoEncontrado();
+        return resposta(204, null);
+      },
+    ],
+
     // ---- Fornecedores do produto ----
     [
       "GET",
@@ -790,8 +810,10 @@ export function criarBlingFalso(opcoes = {}) {
     const falha = falhaDaChamada(metodo, rota);
     if (falha) return resposta(falha.status, { error: { description: falha.mensagem } });
 
-    const consulta = metodo === "GET" ? juntarParams(daRota, segundo) : daRota;
-    const corpo = metodo === "GET" ? undefined : copia(segundo);
+    // O DELETE, como o GET, leva os filtros na URL (`/anuncios/{id}?tipoIntegracao=&idLoja=`) e nao tem corpo.
+    const naUrl = metodo === "GET" || metodo === "DELETE";
+    const consulta = naUrl ? juntarParams(daRota, segundo) : daRota;
+    const corpo = naUrl ? undefined : copia(segundo);
 
     if (metodo === "GET" && tamanhoDaUrl(rota, consulta) > LIMITE_DA_URL) {
       return resposta(414, { textoBruto: "414 Request-URI Too Large" });
@@ -810,6 +832,7 @@ export function criarBlingFalso(opcoes = {}) {
     post: (caminho, corpo) => despachar("POST", caminho, corpo),
     put: (caminho, corpo) => despachar("PUT", caminho, corpo),
     patch: (caminho, corpo) => despachar("PATCH", caminho, corpo),
+    delete: (caminho, params) => despachar("DELETE", caminho, params),
 
     /// Como o cliente real com as travas liberadas, nao devolve nada: o falso nunca fala com o
     /// Bling. Com `codigosLiberados`, recusa o que nao esta na lista (para testar "recusa antes de

@@ -171,6 +171,15 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
     Produtos ("!" e "C"; o da LI vem de `iconesDosProdutos`, a mesma conta). "Atualizado em" e "Sincronizado em" saíram.
     Ordenam título, código, preço, estoque, (tipo) e situação: no ML em memória antes de paginar (o preço e o código do kit
     moram no JSON), na LI no banco.
+  - **Excluir anúncio do ML (28/10/2026, Opção 1 do dono):** lixeira na lista do ML, no popup do produto e "Excluir anúncio"
+    no rodapé do editor, sempre com o popup que lê o item no ML antes (`JanelaExcluirAnuncioML`, `lib/canaisDeVenda/ml/excluir.js`).
+    Ordem ML → Bling → Rise. Rascunho sem MLB: só o Rise. **Sem venda** (`sold_quantity` 0 e `temVendas` falso): `PUT status
+    closed` e `PUT deleted "true"` no ML, `DELETE /anuncios/{id}?tipoIntegracao=&idLoja=` no Bling e o vínculo da loja
+    (`DELETE /produtos/lojas/{id}`) só quando o produto não tem outro anúncio registrado nela, e sai do Rise. **Com venda**:
+    só encerra no ML, sai do Bling igual e fica no Rise com `situacaoCanal` ENCERRADA (selo "Encerrado"). O produto do kit no
+    Bling fica. Cada passo lê antes de escrever (repetir continua de onde parou); as duas travas antes da 1ª escrita; acesso do
+    Publicar para o que tem MLB. `clienteBling()` ganhou `delete`. **O DELETE do Bling num anúncio de produção nunca foi
+    medido** (só o de 10/10/2026, num inativo); o primeiro uso real é o teste.
 - **Texto cortado mostra o resto AO PASSAR O MOUSE, rápido**, em todo o Rise (23/10/2026 o dono pediu ao clique; em
   24/10/2026 mudou: "ao clicar não quero que abra esse popup, quero que abra rapidamente o texto como é feito ao deixar o
   mouse em cima por um tempo"): `TextoCortadoAoClicar` (`src/components/ui/`, montado no `layout.jsx`; o nome ficou)

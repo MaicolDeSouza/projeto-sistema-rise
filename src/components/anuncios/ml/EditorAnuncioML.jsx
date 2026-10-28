@@ -4,7 +4,7 @@ import { FaixaDaProposta } from "@/components/anuncios/PropostaDoAnuncio";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Copy, ExternalLink, Loader, X } from "lucide-react";
+import { Copy, ExternalLink, Loader, Trash2, X } from "lucide-react";
 
 import { abrirAnuncioML, enviarMudancasMLAcao, lerCategoriaML, marcarCatalogoVistoMLAcao, publicarAnuncioMLAcao, salvarAnuncioML, salvarPresoMLAcao, salvarPublicadoMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { etapasDoPopupDoPublicar } from "@/lib/canaisDeVenda/ml/etapas";
@@ -26,6 +26,7 @@ import AbaImagens from "./AbaImagens";
 import AbaPrecoEstoque from "./AbaPrecoEstoque";
 import AbaCatalogo from "./AbaCatalogo";
 import AbaStatus from "./AbaStatus";
+import JanelaExcluirAnuncioML from "./JanelaExcluirAnuncioML";
 import JanelaPublicarML from "./JanelaPublicarML";
 
 // Uma aba por id de `ABAS_ML`: aba nova na validacao pede o componente aqui.
@@ -107,7 +108,10 @@ export default function EditorAnuncioML({
   acessos = ACESSO_TOTAL_ML,
   // Botoes a mais no rodape, a esquerda, vindos de quem abre o editor (a janela da lista poe o "Não anunciar no ML").
   extraNoRodape = null,
+  // Depois de excluir ou encerrar (28/10/2026): a janela da lista recarrega os anuncios do produto; sem ele, fecha.
+  aoExcluido,
 }) {
+  const [excluindo, setExcluindo] = useState(false);
   const [rascunho, setRascunho] = useState(rascunhoInicial);
   const [contexto, setContexto] = useState(contextoInicial);
   // Com divergencia no anuncio publicado, a aba Divergencias abre primeiro (como na Loja Integrada).
@@ -591,6 +595,18 @@ export default function EditorAnuncioML({
           )
         )}
         {extraNoRodape}
+        {/* O destrutivo por ultimo, sempre com o popup que lista o anuncio (padrao visual, regra 9). */}
+        {idAtual && acessos.editar && (
+          <button
+            type="button"
+            onClick={() => setExcluindo(true)}
+            disabled={alterado || salvando || enviandoMudancas}
+            title={alterado ? "Salve ou desfaça as alterações antes de excluir." : "Sem vendas, exclui do Mercado Livre, do Bling e do Rise; com vendas, encerra no ML e mantém no Rise como Encerrado"}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-red-200 px-3.5 py-2 font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Trash2 size={14} /> Excluir anúncio
+          </button>
+        )}
       </div>
       <div className="flex items-center gap-2">
         {/* Sem permissao de editar nao ha o que salvar: o botao e so "Fechar" (na pagina, volta a lista). */}
@@ -642,6 +658,18 @@ export default function EditorAnuncioML({
 
   const faixaDaProposta = !publicado && contexto.proposta && (
     <FaixaDaProposta proposta={contexto.proposta} oQueFazer="Revise os campos marcados e publique; o P some no Publicar." />
+  );
+
+  const janelaDeExcluir = excluindo && idAtual && (
+    <JanelaExcluirAnuncioML
+      anuncioId={idAtual}
+      aoFechar={() => setExcluindo(false)}
+      aoConcluir={(resultado) => {
+        setExcluindo(false);
+        if (aoExcluido) aoExcluido(resultado);
+        else aoFechar?.();
+      }}
+    />
   );
 
   const janelaDoPublicar = publicando && idAtual && (
@@ -726,6 +754,7 @@ export default function EditorAnuncioML({
         {/* Fixo na base da tela: o Salvar fica ao alcance em qualquer aba, por mais que ela role. */}
         <div className="sticky bottom-0 z-10 rounded-lg border border-borda bg-superficie shadow-lg">{rodape}</div>
         {janelaDoPublicar}
+        {janelaDeExcluir}
         {popupDasMudancas}
         {caixaDePergunta}
       </div>
@@ -772,6 +801,7 @@ export default function EditorAnuncioML({
       </section>
 
       {janelaDoPublicar}
+      {janelaDeExcluir}
       {popupDasMudancas}
       {caixaDePergunta}
 

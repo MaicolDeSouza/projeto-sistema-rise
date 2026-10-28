@@ -3,11 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Copy, ExternalLink, Handshake, ImageOff, LayoutList } from "lucide-react";
+import { useState } from "react";
+import { Copy, ExternalLink, Handshake, ImageOff, LayoutList, Trash2 } from "lucide-react";
 
 import CabecalhoOrdenavel, { parametrosDaOrdenacao } from "@/components/ui/CabecalhoOrdenavel";
 import EmptyState from "@/components/ui/EmptyState";
 import FotoComLupa from "@/components/ui/FotoComLupa";
+import JanelaExcluirAnuncioML from "./JanelaExcluirAnuncioML";
 import { CANAIS } from "@/lib/canais";
 import { ROTULO_DO_TIPO_ML, seloDoAnuncioML } from "@/lib/canaisDeVenda/ml/rotulos";
 
@@ -101,6 +103,8 @@ export default function TabelaAnunciosML({ linhas, busca, ordenar = "", direcao 
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  // O anuncio com a pergunta de excluir aberta (28/10/2026); depois da exclusao a lista e relida do servidor.
+  const [paraExcluir, setParaExcluir] = useState(null);
 
   if (linhas.length === 0) {
     return (
@@ -143,7 +147,7 @@ export default function TabelaAnunciosML({ linhas, busca, ordenar = "", direcao 
             {verConcorrencia && <th className="px-3 py-2.5 font-medium">Concorrência</th>}
             <th className="px-3 py-2.5 text-center font-medium">ML</th>
             {podeClonar && (
-              <th className="w-10 px-2 py-2.5">
+              <th className="w-16 px-2 py-2.5">
                 <span className="sr-only">Ações</span>
               </th>
             )}
@@ -208,7 +212,7 @@ export default function TabelaAnunciosML({ linhas, busca, ordenar = "", direcao 
                 <IconeML linha={linha} />
               </td>
               {podeClonar && (
-                <td className="px-2 py-2 text-center align-middle">
+                <td className="px-2 py-2 text-center align-middle whitespace-nowrap">
                   <Link
                     href={`/canais-de-venda/mercado-livre/novo?clonar=${linha.id}`}
                     title="Clonar anúncio: abre um anúncio novo igual a este, do mesmo produto"
@@ -217,12 +221,31 @@ export default function TabelaAnunciosML({ linhas, busca, ordenar = "", direcao 
                   >
                     <Copy size={14} />
                   </Link>
+                  <button
+                    type="button"
+                    onClick={() => setParaExcluir(linha.id)}
+                    title="Excluir anúncio: sem vendas sai do ML, do Bling e do Rise; com vendas, é encerrado"
+                    aria-label={`Excluir o anúncio ${linha.codigo}`}
+                    className={`${icone} hover:bg-red-50 hover:text-red-700`}
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </td>
               )}
             </tr>
           ))}
         </tbody>
       </table>
+      {paraExcluir && (
+        <JanelaExcluirAnuncioML
+          anuncioId={paraExcluir}
+          aoFechar={() => setParaExcluir(null)}
+          aoConcluir={() => {
+            setParaExcluir(null);
+            router.refresh();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -37,7 +37,7 @@ const { estoqueDoRise } = await import("../src/lib/blingSync/estoque.js");
 const { INCLUDE_DO_ICONE_BLING, depositoIdValido, estadoDoIconeBling, iconeBlingDoProduto, produtoIdValido } = await import("../src/lib/blingSync/estado.js");
 const { gravarAjusteDeEstoque } = await import("../src/lib/ajusteRapido.js");
 const { config, separarLista } = await import("../src/lib/integracoes/config.js");
-const { blingGet, blingPatch, blingPost, blingPut, urlDoBling } = await import("../src/lib/integracoes/bling.js");
+const { blingDelete, blingGet, blingPatch, blingPost, blingPut, urlDoBling } = await import("../src/lib/integracoes/bling.js");
 const { clienteBling, exigirCodigoLiberado } = await import("../src/lib/blingSync/cliente.js");
 const { lerProgresso } = await import("../src/lib/blingSync/progresso.js");
 const { buscarNoBling, lerParaPopup, lerProdutoDoRise } = await import("../src/lib/blingSync/leitura.js");
@@ -742,11 +742,12 @@ try {
 
     // --- O cliente real: contrato e trava de escrita (SEM rede) ---
     const cliente = clienteBling();
-    conferir("clienteBling: get, post, put, patch e exigirEscrita, e nada mais", Object.keys(cliente).sort(), ["exigirEscrita", "get", "patch", "post", "put"]);
+    // O delete entrou em 28/10/2026, para a exclusao do anuncio do ML (registro em /anuncios e vinculo em /produtos/lojas).
+    conferir("clienteBling: get, post, put, patch, delete e exigirEscrita, e nada mais", Object.keys(cliente).sort(), ["delete", "exigirEscrita", "get", "patch", "post", "put"]);
     conferir(
-      "clienteBling liga cada verbo a blingGet, blingPost, blingPut e blingPatch",
-      [cliente.get === blingGet, cliente.post === blingPost, cliente.put === blingPut, cliente.patch === blingPatch, typeof cliente.exigirEscrita],
-      [true, true, true, true, "function"],
+      "clienteBling liga cada verbo a blingGet, blingPost, blingPut, blingPatch e blingDelete",
+      [cliente.get === blingGet, cliente.post === blingPost, cliente.put === blingPut, cliente.patch === blingPatch, cliente.delete === blingDelete, typeof cliente.exigirEscrita],
+      [true, true, true, true, true, "function"],
     );
     // So com a trava desligada: com ela ligada no .env estas chamadas sairiam de verdade, e
     // nenhum teste escreve no Bling. A recusa vem de exigirTravaLiberada, antes do token e da rede.
