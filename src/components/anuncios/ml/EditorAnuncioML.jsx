@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import Link from "next/link";
 import { Copy, ExternalLink, Loader, X } from "lucide-react";
 
-import { abrirAnuncioML, enviarMudancasMLAcao, lerCategoriaML, marcarCatalogoVistoMLAcao, publicarAnuncioMLAcao, salvarAnuncioML, salvarDescricaoDoPresoMLAcao, salvarPublicadoMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
+import { abrirAnuncioML, enviarMudancasMLAcao, lerCategoriaML, marcarCatalogoVistoMLAcao, publicarAnuncioMLAcao, salvarAnuncioML, salvarPresoMLAcao, salvarPublicadoMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { etapasDoPopupDoPublicar } from "@/lib/canaisDeVenda/ml/etapas";
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import AcoesDoFimDoEnvio from "@/components/anuncios/li/AcoesDoFimDoEnvio";
@@ -188,11 +188,12 @@ export default function EditorAnuncioML({
   const bloqueado = publicado || travado || presoNaPublicacao || somenteLeitura;
   // O publicado libera so as abas de ABAS_DO_PUBLICADO (preco e ficha); o resto continua travado.
   const editaPublicado = publicado && !somenteLeitura && !travado;
-  // Kit parado no meio da publicacao, ja criado no ML (pedido do dono em 27/10/2026): a descricao volta a se editar, para corrigir
-  // o que o ML recusou; o Salvar grava so ela e o "Retomar" a manda. O resto ja foi com o item.
-  const editaDescricaoDoPreso = !publicado && !somenteLeitura && statusAtual !== "PUBLICANDO" && Boolean(publicacao?.itemId) && Boolean(rascunho.composicao);
+  // Publicacao parada depois de o item existir no ML (pedido do dono em 27/10/2026, Opcao 1): tudo o que o ML aceita trocar volta
+  // a se editar, e o "Retomar" manda so o que mudou (`criadoCom.js`). So a aba Caracteristicas (titulo, categoria, tipo, prazo e
+  // composicao, que ja foram com o item) continua travada.
+  const editaPreso = !publicado && !somenteLeitura && statusAtual !== "PUBLICANDO" && Boolean(publicacao?.itemId);
   const travaDaAba = (id) =>
-    !ABAS_DE_LEITURA.has(id) && bloqueado && !(editaPublicado && ABAS_DO_PUBLICADO.has(id)) && !(editaDescricaoDoPreso && id === "descricao");
+    !ABAS_DE_LEITURA.has(id) && bloqueado && !(editaPublicado && ABAS_DO_PUBLICADO.has(id)) && !(editaPreso && id !== "geral");
   const problemas = useMemo(() => validarRascunhoML(rascunho, contexto), [rascunho, contexto]);
 
   // O anuncio entrou, saiu, trocou ou esta num catalogo e o dono ainda nao conferiu (25/10/2026). So o "Marcar como
@@ -261,8 +262,8 @@ export default function EditorAnuncioML({
     try {
       resultado = publicado
         ? await salvarPublicadoMLAcao(idAtual, { preco: enviado.preco, atributos: enviado.atributos })
-        : editaDescricaoDoPreso
-          ? await salvarDescricaoDoPresoMLAcao(idAtual, enviado.descricao)
+        : editaPreso
+          ? await salvarPresoMLAcao(idAtual, enviado)
           : await salvarAnuncioML(idAtual, enviado);
     } catch {
       // Excecao solta numa transicao iria ao error boundary e levaria o que foi digitado.
@@ -418,7 +419,7 @@ export default function EditorAnuncioML({
    */
   function publicarComEtapas(id) {
     const kit = Boolean(rascunho.composicao);
-    setAndamento({ tipo: "publicar", etapas: etapasIniciais([...etapasDoPopupDoPublicar({ kit }), { id: "conferir", rotulo: "Conferir o resultado no ML" }]), fim: null, resumo: null });
+    setAndamento({ tipo: "publicar", etapas: etapasIniciais([...etapasDoPopupDoPublicar({ kit, retomando: Boolean(publicacao?.itemId) }), { id: "conferir", rotulo: "Conferir o resultado no ML" }]), fim: null, resumo: null });
     iniciarEnvioDasMudancas(async () => {
       const numeroDeAntes = (await lerAndamentoNoServidor(ROTA_DO_ANDAMENTO, id))?.numero ?? 0;
       const relogio = setInterval(async () => {

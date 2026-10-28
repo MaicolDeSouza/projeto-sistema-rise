@@ -22,15 +22,18 @@ export const ROTULO_DA_ETAPA = {
   registrar_bling: "Registrar o anúncio no Bling",
   ativar: "Ativar o anúncio",
   gravar: "Gravar no Rise",
+  // Fora de ETAPAS de proposito: so roda no Retomar com o item ja criado (publicar.js) e nunca entra em `feitas`.
+  atualizar: "Atualizar no ML o que mudou",
 };
 
 /**
  * As etapas do popup do Publicar (27/10/2026, igual ao do Sincronizar): a conferencia antes de escrever, as do anuncio e a
  * releitura da tela ("conferir", so da tela).
  */
-export function etapasDoPopupDoPublicar({ kit }) {
+export function etapasDoPopupDoPublicar({ kit, retomando = false }) {
   return [
     { id: "preparar", rotulo: "Conferir o anúncio, o ML e o Bling" },
+    ...(retomando ? [{ id: "atualizar", rotulo: ROTULO_DA_ETAPA.atualizar }] : []),
     ...etapasDoAnuncio({ kit }).map((id) => ({ id, rotulo: ROTULO_DA_ETAPA[id] })),
   ];
 }

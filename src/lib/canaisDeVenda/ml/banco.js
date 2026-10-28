@@ -8,7 +8,7 @@ import { precisaAgirNoML, textoDoEstadoML } from "./estadoNoML";
 import { impressaoDoConteudo } from "./impressao";
 import { montarRanking } from "./ranking";
 import { catalogosDeVariosProdutos } from "./referencias";
-import { LIMITES_ML, RascunhoMLSchema } from "./esquema";
+import { RascunhoMLSchema } from "./esquema";
 import { fotosDoKitDosProdutos } from "./fotosDoKit";
 import { descricaoDoRise, estoqueDoRise, fotosDoRise, medidasDoKit, pacoteDoRise, rascunhoInicial } from "./rascunho";
 
@@ -494,13 +494,16 @@ export async function salvarRascunhoML(anuncioId, entrada) {
 }
 
 /**
- * A descricao do KIT com a publicacao parada depois de o item existir no ML (pedido do dono em 27/10/2026: "deveria deixar
- * editar os campos, para eu ajustar os pontos que deram falhas"; o ML tinha recusado a descricao do kit 900212). So a
- * descricao: e a unica etapa depois da criacao que le o rascunho (o "Retomar" a manda de novo); titulo, categoria e ficha ja
- * foram com o item. Recusa no anuncio simples (a descricao e a do produto: muda-se no cadastro), publicado ou publicando.
+ * O Salvar do anuncio com a publicacao PARADA depois de o item existir no ML (pedido do dono em 27/10/2026, Opcao 1: "todos os
+ * campos que normalmente podem ser editados devem voltar a poder ser editados apos um erro de publicacao"). Grava so o que o
+ * ML aceita trocar num item ja criado e o "Retomar" manda (`criadoCom.js`): o preco e a ficha; no KIT tambem a descricao, as
+ * fotos e o peso e as medidas (no anuncio simples os tres sao os do produto, mudados no cadastro). Titulo, categoria, tipo,
+ * prazo e composicao ficam como foram (o editor os trava). Recusa o publicado, o publicando e o que ainda nao existe no ML.
  */
-export async function salvarDescricaoDoPresoML(anuncioId, descricao) {
-  if (typeof descricao !== "string" || descricao.length > LIMITES_ML.descricao) return { ok: false, erro: "Descrição inválida." };
+export async function salvarPresoML(anuncioId, entrada) {
+  const lido = RascunhoMLSchema.safeParse(entrada);
+  if (!lido.success) return { ok: false, erro: "O rascunho chegou incompleto. Recarregue a tela." };
+  const rascunho = lido.data;
   try {
     const recusa = await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "Anuncio" WHERE id = ${anuncioId} FOR UPDATE`;
@@ -508,13 +511,21 @@ export async function salvarDescricaoDoPresoML(anuncioId, descricao) {
       if (!agora || agora.canal !== CANAL) return "Anúncio não encontrado.";
       if (agora.status === "PUBLICADO" || agora.status === "PUBLICANDO") return "Este anúncio não pode ser alterado agora.";
       if (!agora.dados?.publicacao?.itemId) return "Use o Salvar de sempre: o anúncio ainda não existe no Mercado Livre.";
-      if (!agora.dados?.composicao) return "A descrição do anúncio simples é a do produto: mude no cadastro do produto.";
-      await tx.anuncio.update({ where: { id: anuncioId }, data: { descricao } });
+      const kit = Boolean(agora.dados?.composicao);
+      const dados = { ...agora.dados, preco: rascunho.preco };
+      const colunas = { atributos: rascunho.atributos };
+      if (kit) {
+        dados.imagens = rascunho.imagens;
+        const { pesoKg, alturaCm, larguraCm, comprimentoCm } = rascunho.envio ?? {};
+        dados.envio = { ...(agora.dados?.envio ?? {}), pesoKg, alturaCm, larguraCm, comprimentoCm };
+        colunas.descricao = rascunho.descricao;
+      }
+      await tx.anuncio.update({ where: { id: anuncioId }, data: { ...colunas, dados } });
       return null;
     });
     return recusa ? { ok: false, erro: recusa } : { ok: true, id: anuncioId };
   } catch (erro) {
-    console.error("[canais de venda] descricao do preso", erro);
+    console.error("[canais de venda] salvar o preso", erro);
     return { ok: false, erro: "Não foi possível salvar. Tente de novo." };
   }
 }

@@ -9,6 +9,7 @@ import { impressaoDoConteudo } from "./impressao";
 import { conferirKitNoBling, criarKitNoBling, registrarAnuncioNoBlingML, vincularNoBlingML, vinculoNoBlingML } from "./bling";
 import { ETAPAS, etapasDoAnuncio, proximaEtapa } from "./etapas";
 import { iniciarProgressoML } from "./progresso";
+import { ROTULO_DA_PARTE, atributosDaRetomada, impressaoDaCriacao, partesMudadas } from "./criadoCom";
 import { lerCategoriaCompleta, textoDoErroML } from "./leitura";
 import { nomeDaFoto, montarPayloadML } from "./payload";
 import { causasDoML, corpoDaCriacao, situacaoDoItem, textoDaRecusaML } from "./respostas";
@@ -178,7 +179,7 @@ export async function publicarAnuncioML(anuncioId, { ml, bling, recriar = false,
   emAndamento.add(anuncioId);
   // O andamento etapa por etapa para o popup do editor (pedido do dono em 27/10/2026: "igual a LI, mostrando as etapas"),
   // na mesma memoria e na mesma rota do "Sincronizar com o ML". O "Validar no ML" nao abre andamento.
-  const progresso = ate === "validar" ? SEM_PROGRESSO : iniciarProgressoML(anuncioId, ["preparar", ...ETAPAS]);
+  const progresso = ate === "validar" ? SEM_PROGRESSO : iniciarProgressoML(anuncioId, ["preparar", "atualizar", ...ETAPAS]);
   let resultado;
   try {
     resultado = await publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto, progresso });
@@ -261,6 +262,50 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto, p
   const corpo = () => corpoDaCriacao(payload.item, ids.map((id) => pub.fotos?.[id]));
   let avisos = [];
 
+  // Retomar com o item JA criado no ML (pedido do dono em 27/10/2026, Opcao 1): o editor deixa mexer de novo no que o ML
+  // aceita trocar, e aqui vai so o que mudou desde a criacao (preco, ficha, fotos, peso e medidas), antes das etapas que
+  // faltam. Para na primeira parte que falha; a impressao avanca parte a parte (uma queda no meio nao reenvia o que ja foi).
+  if (pub.itemId && !soValidar) {
+    progresso.andando("atualizar");
+    const agora = impressaoDaCriacao(payload, rascunho.imagens);
+    const partes = partesMudadas(pub.criadoCom ?? null, agora);
+    const { ficha, pacote } = atributosDaRetomada(payload);
+    let criadoCom = { ...(pub.criadoCom ?? {}) };
+    for (const parte of partes) {
+      let resposta;
+      try {
+        if (parte === "preco") {
+          // Num PUT so dele: junto com outros campos o ML ignora o preco (ver atualizar.js).
+          resposta = await ml.put(`/items/${pub.itemId}`, { price: payload.item.price });
+        } else if (parte === "ficha") {
+          resposta = await ml.put(`/items/${pub.itemId}`, { attributes: ficha });
+        } else if (parte === "pacote") {
+          resposta = await ml.put(`/items/${pub.itemId}`, { attributes: pacote });
+        } else if (parte === "fotos") {
+          const ids = Array.isArray(rascunho.imagens) ? rascunho.imagens : [];
+          const faltam = ids.filter((id) => !pub.fotos?.[id]);
+          const arquivos = await prisma.produtoArquivo.findMany({ where: { id: { in: faltam } }, select: { id: true, arquivo: true, produto: { select: { sku: true } } } });
+          const porId = new Map(arquivos.map((arquivo) => [arquivo.id, arquivo]));
+          for (const [indice, id] of ids.entries()) {
+            if (pub.fotos?.[id]) continue;
+            const arquivo = porId.get(id);
+            if (!arquivo) return falhar("atualizar", `A foto ${indice + 1} não foi encontrada (pode ter sido excluída). Ajuste a aba Imagens.`);
+            const subida = await ml.upload("/pictures/items/upload", { bytes: await lerFoto(arquivo.produto.sku, arquivo.arquivo), nome: nomeDaFoto(payload.item.family_name, indice), tipo: tipoDaFoto(arquivo.arquivo) });
+            if (!subida?.ok || !subida.dados?.id) return falhar("atualizar", textoDaRecusaML(subida, `a foto ${indice + 1}`));
+            await gravar({ fotos: { [id]: subida.dados.id } });
+          }
+          resposta = await ml.put(`/items/${pub.itemId}`, { pictures: ids.map((id) => ({ id: pub.fotos?.[id] })) });
+        }
+      } catch (erro) {
+        return falhar("atualizar", `Falha ao atualizar ${ROTULO_DA_PARTE[parte]} no Mercado Livre: ${textoDe(erro)}`);
+      }
+      if (!resposta?.ok) return falhar("atualizar", textoDaRecusaML(resposta, ROTULO_DA_PARTE[parte]));
+      criadoCom = { ...criadoCom, [parte]: agora[parte] };
+      await gravar({ criadoCom });
+    }
+    progresso.feita("atualizar", partes.length > 0 ? partes.map((parte) => ROTULO_DA_PARTE[parte]).join(", ") : "nada mudou");
+  }
+
   // Retomar: as etapas ja feitas numa volta anterior aparecem concluidas no popup.
   for (const etapa of feitas) progresso.feita(etapa, "já feita");
   for (const etapa of etapas) {
@@ -314,7 +359,8 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto, p
       if (resposta?.status >= 500) return falhar(etapa, `${RECADO_INCERTA} (HTTP ${resposta.status})`, { incerta: true });
       if (!resposta?.ok || !resposta.dados?.id) return falhar(etapa, textoDaRecusaML(resposta, "a criação do anúncio"));
       await gravar(
-        { itemId: resposta.dados.id, permalink: resposta.dados.permalink ?? null, statusML: resposta.dados.status ?? null, incerta: false },
+        // `criadoCom`: o que foi na criacao, para o Retomar mandar so o que mudar depois (27/10/2026).
+        { itemId: resposta.dados.id, permalink: resposta.dados.permalink ?? null, statusML: resposta.dados.status ?? null, incerta: false, criadoCom: impressaoDaCriacao(payload, rascunho.imagens) },
         { idExterno: resposta.dados.id, urlExterna: resposta.dados.permalink ?? null, situacaoCanal: situacaoDoItem(resposta.dados.status) },
       );
     } else if (etapa === "pausar") {

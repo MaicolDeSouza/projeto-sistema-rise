@@ -45,6 +45,7 @@ const {
   carregarAnuncioML,
   codigoEmUso,
   sugerirCodigoDeKit,
+  salvarPresoML,
   salvarRascunhoML,
   clonarRascunhoML,
   anunciosMLDoProduto,
@@ -1992,6 +1993,20 @@ try {
       conferir("descricao: Salvar recusado com o item criado", /já existe no Mercado Livre/.test((await salvarRascunhoML(idDescricao, (await novoRascunhoML(c.s1.id)).rascunho)).erro), true);
       r = await publicarAnuncioML(idDescricao, { ml: mlDescricao, bling: bfDescricao, lerFoto });
       conferir("descricao: retomar termina sem recriar nem resubir fotos", [r.ok, mlDescricao.escritas.filter((e) => e.caminho === "/items").length, mlDescricao.escritas.filter((e) => e.caminho === "/pictures/items/upload").length], [true, 1, 2]);
+      conferir("descricao: retomar sem mudanca nao atualiza nada no ML", mlDescricao.escritas.some((e) => /^\/items\/MLB\d+$/.test(e.caminho) && (e.corpo?.price !== undefined || Array.isArray(e.corpo?.attributes) || Array.isArray(e.corpo?.pictures))), false);
+
+      // Opcao 1 do dono (27/10/2026): parado depois de criado, o Salvar grava o que o ML aceita trocar e o Retomar manda so isso.
+      const mlMudou = criarMLFalso({ falhas: [{ metodo: "POST", caminho: "/items/MLB", status: 500 }] });
+      const bfMudou = c.novoBling();
+      const idMudou = await c.anuncioSimples(c.s1);
+      r = await publicarAnuncioML(idMudou, { ml: mlMudou, bling: bfMudou, lerFoto });
+      conferir("retomada: a criacao guarda o que foi (criadoCom)", Boolean((await lerPublicacao(idMudou)).publicacao.criadoCom?.preco), true);
+      const parado = (await carregarAnuncioML(idMudou)).rascunho;
+      const salvoParado = await salvarPresoML(idMudou, { ...parado, preco: Number(parado.preco) + 5 });
+      conferir("retomada: o Salvar do parado aceita o preco", salvoParado.ok, true);
+      r = await publicarAnuncioML(idMudou, { ml: mlMudou, bling: bfMudou, lerFoto });
+      const puts = mlMudou.escritas.filter((e) => /^\/items\/MLB\d+$/.test(e.caminho));
+      conferir("retomada: manda so o preco novo, sem recriar", [r.ok, puts.some((e) => e.corpo?.price === Number(parado.preco) + 5), puts.some((e) => Array.isArray(e.corpo?.attributes)), mlMudou.escritas.filter((e) => e.caminho === "/items").length], [true, true, false, 1]);
 
       const mlAtivar = criarMLFalso({ falhas: [{ metodo: "PUT", caminho: "/items/MLB", status: 500 }] });
       const bfAtivar = c.novoBling();

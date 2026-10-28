@@ -3728,6 +3728,15 @@ Pedidos do dono no mesmo dia, todos no editor do anúncio do ML:
   do "Gerar EAN interno": 900212_10 = **2000900212105**) no lugar do `EMPTY_GTIN_REASON`. A Ficha técnica mostra o código. Só o
   `montarPayloadML` o põe (a impressão da ficha não), então os kits já publicados não acendem o "!".
 - **Preço na loja (UN) e Preço no ML (UN)** no lugar da "Soma dos preços avulsos" (kit misto: média por unidade).
+- **Descrição sem caractere fora do Latin-1** (`montarDescricaoML`): o ML recusou a do kit 900212 ("must be in plain text") por
+  causa de "20mΩ"; os 20 publicados tinham CRLF, acento e "°" e passaram. Ω vira "Ohm", μ vira µ, travessão e aspas curvas viram
+  os simples, o resto sai. Não precisa mudar os prompts (a LI aceita o Ω).
+- **Publicação parada depois de criada no ML: tudo o que o ML aceita trocar volta a se editar** (Opção 1 do dono). Só a aba
+  Características fica travada (título, categoria, tipo, prazo, composição: já foram com o item). O Salvar usa `salvarPresoML`
+  (preço e ficha; no kit também descrição, fotos e peso/medidas). Na criação o Publicar guarda `publicacao.criadoCom`
+  (`ml/criadoCom.js`: preço, ficha, fotos, pacote) e o **Retomar** roda antes das etapas que faltam a etapa "Atualizar no ML o que
+  mudou" (fora de `ETAPAS`, só com o item criado), com um PUT por parte que mudou (preço sozinho, como no Sincronizar). Anúncio
+  criado antes disso (sem `criadoCom`) manda as quatro partes uma vez.
 - **Publicar salva sozinho** (sem o "Salvar antes de publicar?") e abre o **popup de etapas** (`AndamentoDoEnvio`, `tipo`
   "publicar"): `publicarAnuncioML` marca "preparar" e cada etapa em `ml/progresso.js` (`iniciarProgressoML(id, ids)`), lidas
   pela rota de sempre. Fim no padrão da LI (painel, anúncio, Fechar que fecha tudo); falha = "Voltar à janela". A criação incerta
