@@ -1,0 +1,65 @@
+{
+  "fase": "lista",
+  "lidoEm": "2026-10-28T15:00:00.000Z",
+  "pedidos": [
+    {
+      "orderId": "8215244197193461",
+      "dataTexto": "26 out, 2026",
+      "dataIso": "2026-10-26T12:00:00.000Z",
+      "statusTexto": "Enviado parcialmente",
+      "statusCodigo": 7,
+      "loja": "Lets Deal Store",
+      "lojaId": "1102826724",
+      "totalTexto": "R$277,10",
+      "moeda": "BRL",
+      "linhas": [
+        {
+          "orderLineId": "8215244197203461",
+          "productId": "1005006891567710",
+          "skuId": "12000038634693222",
+          "opcao": "Color Name: 2M",
+          "titulo": "Cabo impermeável painel traço, USB 3.0 e HDMI-compatível com extensão AUX, 2m",
+          "urlDoItem": "https://www.aliexpress.com/item/1005006891567710.html",
+          "urlDaFoto": "https://ae-pic-a1.aliexpress-media.com/kf/S1.jpg",
+          "quantidade": 4,
+          "precoTexto": "R$57,49"
+        }
+      ]
+    },
+    {
+      "orderId": "8215189636893461",
+      "dataTexto": "23 out, 2026",
+      "dataIso": "2026-10-23T12:00:00.000Z",
+      "statusTexto": "Aguardando a entrega",
+      "statusCodigo": 8,
+      "loja": "Hong Kong Store",
+      "lojaId": "1100000001",
+      "totalTexto": "R$45,00",
+      "moeda": "BRL",
+      "linhas": [
+        {
+          "orderLineId": "8215189636903461",
+          "productId": "1005001111111111",
+          "skuId": "12000011111111111",
+          "opcao": "Cor: Azul",
+          "titulo": "Módulo azul",
+          "urlDoItem": "https://www.aliexpress.com/item/1005001111111111.html",
+          "urlDaFoto": null,
+          "quantidade": 2,
+          "precoTexto": "R$10,00"
+        },
+        {
+          "orderLineId": "8215189636913461",
+          "productId": "1005002222222222",
+          "skuId": null,
+          "opcao": null,
+          "titulo": "Kit 100 pçs resistor 10k",
+          "urlDoItem": "https://www.aliexpress.com/item/1005002222222222.html",
+          "urlDaFoto": null,
+          "quantidade": 1,
+          "precoTexto": "R$25,00"
+        }
+      ]
+    }
+  ]
+}

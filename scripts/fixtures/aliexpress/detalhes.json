@@ -1,0 +1,26 @@
+{
+  "fase": "detalhes",
+  "detalhes": [
+    { "orderId": "8215244197193461", "subtotalTexto": "R$ 229,96", "freteTexto": "R$ 0,12", "impostoTexto": "R$ 47,14", "totalTexto": "R$ 277,10" }
+  ],
+  "rastreios": [
+    {
+      "orderId": "8215244197193461",
+      "pacotes": [
+        {
+          "codigo": "NN446506474BR",
+          "codigoOrigem": "AP00100095481339",
+          "transportadora": "AliExpress Selection Standard",
+          "previsaoTexto": "Nov 09 - 18",
+          "previsaoInicio": 1794289253053,
+          "previsaoFim": 1795066853053,
+          "eventos": [
+            { "em": 1793134276000, "descricao": "Chegou ao armazém de consolidação", "nome": "Em trânsito", "codigo": "AE_CW_SIGN_IN_SUCCESS" },
+            { "em": 1793121230000, "descricao": "Saiu do centro de distribuição do país/região de partida", "nome": "Em trânsito", "codigo": "AE_SC_OUTBOUND_SUCCESS" }
+          ],
+          "itens": [{ "productId": "1005006891567710", "skuId": "12000038634693222", "quantidade": 4 }]
+        }
+      ]
+    }
+  ]
+}

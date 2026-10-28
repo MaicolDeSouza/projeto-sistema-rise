@@ -140,6 +140,27 @@ const regras = await import("../src/lib/compras/aliexpress/regras.js");
   conferir("sem custo nao ve o imposto", [cortado.imposto, cortado.totais.imposto], [null, null]);
 }
 
+const { readFileSync } = await import("node:fs");
+const fixture = (nome) => JSON.parse(readFileSync(new URL(`./fixtures/aliexpress/${nome}.json`, import.meta.url), "utf8"));
+{
+  const { lerCorpo } = await import("../src/lib/compras/aliexpress/esquema.js");
+  console.log("\nEsquema do que a extensão manda");
+  const lista = fixture("lista");
+  const detalhes = fixture("detalhes");
+  const lido = lerCorpo(lista);
+  conferir("lista valida", [lido.ok, lido.fase, lido.dados?.pedidos?.length], [true, "lista", 2]);
+  const semId = lerCorpo({ ...lista, pedidos: [{ ...lista.pedidos[0], orderId: undefined }] });
+  conferir("sem orderId recusa com o caminho", [semId.ok, semId.erro?.startsWith("pedidos.0.orderId")], [false, true]);
+  const comExtra = lerCorpo({ ...lista, pedidos: [{ ...lista.pedidos[0], destinatario: "Fulano", telefone: "54999" }] });
+  conferir("dado pessoal extra nao passa", ["destinatario" in comExtra.dados.pedidos[0], "telefone" in comExtra.dados.pedidos[0]], [false, false]);
+  conferir("detalhes validos", [lerCorpo(detalhes).ok, lerCorpo(detalhes).fase], [true, "detalhes"]);
+  const muitos = structuredClone(detalhes);
+  muitos.rastreios[0].pacotes[0].eventos = Array.from({ length: 31 }, (_, indice) => ({ em: indice, descricao: "x", nome: null, codigo: null }));
+  conferir("31 eventos recusa", lerCorpo(muitos).ok, false);
+  conferir("fase desconhecida recusa", lerCorpo({ fase: "outra" }).ok, false);
+  conferir("lista vazia vale", lerCorpo({ fase: "lista", lidoEm: lista.lidoEm, pedidos: [] }).ok, true);
+}
+
 // Marcador: os blocos puros entram acima desta linha.
 
 // ---------------------------------------------------------------------------
