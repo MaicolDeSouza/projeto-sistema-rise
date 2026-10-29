@@ -16,6 +16,8 @@ const { validarCpf, validarCnpj, formatarCpf, formatarCnpj, formatarCep } = awai
   "../src/lib/documentos.js"
 );
 const { garantirCadastroDaFonte } = await import("../src/lib/cadastros.js");
+const { FornecedorDoProdutoSchema } = await import("../src/lib/validacao.js");
+const { fornecedoresComRascunho } = await import("../src/lib/fornecedorRascunho.js");
 const { prisma } = await import("../src/lib/db.js");
 
 let falhas = 0;
@@ -165,6 +167,25 @@ conferir("valor diferente de on nao marca estrangeiro", analisar({ nome: "Fortek
   ok: false,
   erros: { cnpj: SEM_CNPJ },
 });
+
+// ---------------------------------------------------------------------------
+// Vinculo produto <-> fornecedor: o esquema do Salvar (sem banco)
+// ---------------------------------------------------------------------------
+// Achado em 29/10/2026: a linha do rascunho do Bling nao traz `observacao` (o campo entrou no esquema em 23/10) e era
+// recusada em silencio no Salvar, que entao apagava o rascunho: o fornecedor importado do Bling sumia do produto.
+
+console.log("\nVinculo com fornecedor: esquema do Salvar");
+
+const linhaDoBling = fornecedoresComRascunho([], { nome: "Fortek", codigo: "64-682", descricao: null, precoCusto: 23 })[0];
+conferir("a linha do rascunho do Bling (sem observacao nem adicionais) passa", FornecedorDoProdutoSchema.safeParse(linhaDoBling).success, true);
+conferir(
+  "a linha da lupa (observacao e link nulos, adicionais vazios) passa",
+  FornecedorDoProdutoSchema.safeParse({ nome: "Fortek", descricao: "X", observacao: null, codigo: "64-287", precoCusto: 14.18, precoFornecedor: 14.18, adicionais: [], link: null }).success,
+  true,
+);
+conferir("campo ausente vira nulo", FornecedorDoProdutoSchema.parse({ nome: "Fortek", precoCusto: 1 }).observacao, null);
+conferir("observacao acima de 500 continua recusada", FornecedorDoProdutoSchema.safeParse({ nome: "Fortek", precoCusto: 1, observacao: "x".repeat(501) }).success, false);
+conferir("sem nome continua recusada", FornecedorDoProdutoSchema.safeParse({ nome: "", precoCusto: 1 }).success, false);
 
 // ---------------------------------------------------------------------------
 // Fonte -> cadastro (banco)

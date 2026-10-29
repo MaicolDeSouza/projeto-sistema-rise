@@ -5442,7 +5442,16 @@ Pedido do dono: varrer **todo sábado às 00:00** e, no fim, um relatório com *
   da lupa só some quando fornecedor E código já estão na aba. **O Bling recebe um vínculo por CNPJ** (é o que ele aceita:
   `normalizarFornecedoresDoRise` fica com o primeiro, o padrão na frente); a segunda linha do mesmo fornecedor fica só no
   Rise. Na mesma leva: coluna **Obs** (`ProdutoFornecedor.observacao`, até 500 caracteres, não vai ao Bling) e a lupa
-  marca até **30** (eram 20; `MAXIMO_MARCADOS` e `MAXIMO_REFERENCIAS` andam juntos). **Obs em janela na edição** (24/10/2026,
+  marca até **30** (eram 20; `MAXIMO_MARCADOS` e `MAXIMO_REFERENCIAS` andam juntos). **DEFEITO de 23 a 29/10/2026, corrigido:**
+  a linha do rascunho do Bling (`fornecedoresComRascunho`) não traz `observacao`, a cópia local de `opcional` em
+  `produtos/acoes.js` recusa campo ausente ("expected string, received undefined"), e `gravarFornecedoresRascunho`
+  DESCARTAVA a linha em silêncio: o Salvar seguia, apagava o vínculo que ela representava e, sem erro, limpava o
+  `fornecedorRascunho`. Todo produto importado do Bling perdia o fornecedor no primeiro Salvar (o dono viu como "marco o
+  fornecedor na lupa e não salva": a lupa mostrava o da Fortek como "Salvo na aba", nada era acrescentado, e o Salvar
+  zerava). Hoje o esquema é `FornecedorDoProdutoSchema` em `lib/validacao.js` (o `opcional` de lá trata ausente como nulo)
+  e linha recusada é ERRO (aviso "fornecedores não foram atualizados", rascunho mantido, nada apagado). Na VPS, 4 produtos
+  salvos no período ficaram sem fornecedor (100115, 100207, 100114, 930113); os rascunhos conhecidos: 100115 Fortek 64-682
+  R$ 23 e 100207 Fortek 64-230 R$ 38. Teste no `teste:cadastros` ("Vinculo com fornecedor: esquema do Salvar"). **Obs em janela na edição** (24/10/2026,
   pedido do dono: "fica difícil de saber o que está escrevendo"): na linha em edição a Obs é um campo de 10rem com o
   texto cortado (`CampoObs`, `Fornecedores.jsx`); o clique abre a janela "Obs do fornecedor" (caixa de 6 linhas, contador
   /500, OK e Cancelar; Ctrl+Enter confirma, Esc e clique fora descartam). A primeira tentativa (célula `min-w-64` com

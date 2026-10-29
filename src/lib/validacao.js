@@ -38,6 +38,30 @@ export function ehUrlSegura(valor) {
 }
 
 /**
+ * A linha de fornecedor de um produto (a aba Fornecedores / Concorrentes, o rascunho que o Salvar reconcilia e o
+ * "Adicionar" avulso). Morava em `produtos/acoes.js` com a copia local de `opcional`, que NAO trata campo ausente: a linha
+ * do rascunho do Bling (`fornecedoresComRascunho`) nao traz `observacao`, que entrou em 23/10/2026, e era recusada em
+ * silencio no Salvar, que entao limpava o rascunho e o fornecedor importado sumia (achado em 29/10/2026). Aqui todo campo
+ * que falta vira nulo: tela aberta antes de um campo novo, ou a linha do Bling, nunca perde a linha.
+ */
+export const FornecedorDoProdutoSchema = z.object({
+  nome: z.string().trim().min(1, "Informe o fornecedor."),
+  descricao: opcional(z.string().trim()),
+  // Coluna "Obs" (pedido do dono em 23/10/2026): texto livre, nao vai ao Bling.
+  observacao: opcional(z.string().trim().max(500, "Até 500 caracteres.")),
+  codigo: opcional(z.string().trim()),
+  precoCusto: decimal(),
+  // Custo adicional (pedido do dono em 24/10/2026, opcao 1): `precoFornecedor` e o que o fornecedor cobra e `adicionais`
+  // o que se soma (o cabo que ele nao manda). O `precoCusto` do navegador e so o total para a tela: o servidor refaz a
+  // conta (`recalcularVinculos`). Os dois ficam `undefined` quando a tela nao os manda (o Salvar le a diferenca).
+  precoFornecedor: decimal().optional(),
+  adicionais: z.array(z.unknown()).max(50).optional(),
+  link: opcional(
+    z.string().trim().refine(ehUrlSegura, "Informe um endereço http ou https."),
+  ),
+});
+
+/**
  * CNPJ opcional, conferido pelos digitos verificadores e guardado sempre
  * formatado — "11222333000181" e "11.222.333/0001-81" nao viram dois textos
  * diferentes na busca.

@@ -5,6 +5,7 @@ import { clienteLojaIntegrada } from "@/lib/integracoes/lojaIntegrada/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { negarSemAcesso, podeAgora } from "@/lib/acessos/servidor";
+import { FornecedorDoProdutoSchema } from "@/lib/validacao";
 
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
@@ -1329,22 +1330,8 @@ export async function alternarConferido(id, valor, opcoes = {}) {
 // Fornecedores
 // ---------------------------------------------------------------------------
 
-const FornecedorSchema = z.object({
-  nome: z.string().trim().min(1, "Informe o fornecedor."),
-  descricao: opcional(z.string().trim()),
-  // Coluna "Obs" (pedido do dono em 23/10/2026): texto livre, nao vai ao Bling.
-  observacao: opcional(z.string().trim().max(500, "Até 500 caracteres.")),
-  codigo: opcional(z.string().trim()),
-  precoCusto: decimal(),
-  // Custo adicional (pedido do dono em 24/10/2026, opcao 1): `precoFornecedor` e o que o fornecedor cobra e `adicionais`
-  // o que se soma (o cabo que ele nao manda). O `precoCusto` do navegador e so o total para a tela: o servidor refaz a
-  // conta (`recalcularVinculos`). Os dois sao opcionais: a tela aberta antes disso nao os manda e nada se perde.
-  precoFornecedor: decimal().optional(),
-  adicionais: z.array(z.unknown()).max(50).optional(),
-  link: opcional(
-    z.string().trim().refine(ehUrlSegura, "Informe um endereço http ou https."),
-  ),
-});
+// O esquema da linha de fornecedor mora em `lib/validacao.js` (`FornecedorDoProdutoSchema`) desde 29/10/2026: a copia local
+// de `opcional` (acima) recusa campo ausente, e a linha do rascunho do Bling, sem `observacao`, era descartada no Salvar.
 
 /**
  * O custo do produto vem do fornecedor marcado como padrao.
@@ -1393,9 +1380,16 @@ async function gravarFornecedoresRascunho(produto, formData) {
 
   const validos = [];
   for (const item of lista) {
-    const resultado = FornecedorSchema.safeParse(item);
+    const resultado = FornecedorDoProdutoSchema.safeParse(item);
+    // Linha recusada e ERRO, nunca descarte (29/10/2026): descartar seguia adiante, apagava do banco o vinculo que a linha
+    // representava (o `deleteMany` abaixo) e, sem erro, o Salvar limpava o rascunho do Bling. Com o erro, nada e gravado,
+    // o aviso pede para conferir a aba e o rascunho fica.
+    if (!resultado.success) {
+      const problema = resultado.error.issues[0];
+      throw new Error(`Fornecedor "${String(item?.nome ?? "").trim() || "?"}": ${problema?.path?.join(".") || "linha"} ${problema?.message ?? "inválido"}`);
+    }
     // O id da linha vem junto: e ele, e nao o fornecedor, que identifica o vinculo (ver abaixo).
-    if (resultado.success) validos.push({ dados: resultado.data, padrao: Boolean(item?.padrao), id: typeof item?.id === "string" ? item.id : null });
+    validos.push({ dados: resultado.data, padrao: Boolean(item?.padrao), id: typeof item?.id === "string" ? item.id : null });
   }
 
   // Nenhum marcado como padrao (a linha marcada caiu na validacao)? O
@@ -1573,7 +1567,7 @@ export async function custoParaAdicional(codigo, proprioId = null) {
 export async function salvarFornecedorDoProduto(produtoId, vinculoId, dados) {
   const negado = (await negarSemAcesso("tela.produtos.cadastro", "editar")) ?? (await negarSemAcesso("dado.custo", "ver"));
   if (negado) return negado;
-  const resultado = FornecedorSchema.safeParse(dados);
+  const resultado = FornecedorDoProdutoSchema.safeParse(dados);
   if (!resultado.success) {
     return { ok: false, erros: errosPorCampo(resultado) };
   }
