@@ -506,7 +506,9 @@ export default function JanelaBling({ produto, aoFechar }) {
                   ...atual,
                   etapas: deuCerto ? atual.etapas.map((etapa) => (etapa.id === "conferir" ? { ...etapa, estado: "feito" } : etapa)) : atual.etapas,
                   fim: deuCerto ? "ok" : "falhou",
-                  resumo,
+                  // Deu certo: so as etapas com o check, sem o resumo do que mudou (pedido do dono em 28/10/2026: "nao
+                  // tem necessidade de mostrar esse resumo"). Na falha o resumo fica: diz o que ja tinha ido ao Bling.
+                  resumo: deuCerto ? null : resumo,
                   aviso,
                 }
               : atual,

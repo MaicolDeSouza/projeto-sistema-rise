@@ -4048,7 +4048,8 @@ etapa e um check conforme for finalizando, no final um botão Fechar que fecha o
 com o aviso `ConclusaoDoEnvio`). Etapas na ordem real do envio (`ETAPAS_DO_ENVIO`, em `apresentacao.js`): Conferir permissão de envio,
 Ler o produto no Bling (no Cadastrar, "Conferir o código no Bling"), Enviar os campos (no Cadastrar, "Cadastrar o produto"), Enviar as
 fotos, Enviar os fornecedores e Conferir o resultado no Bling (a releitura da tela). Check verde, círculo girando na atual, cinza nas
-que esperam e X vermelho com o motivo na que falhou. **Deu certo:** título verde, resumo e **Fechar** (fecha o popup e a janela do Bling).
+que esperam e X vermelho com o motivo na que falhou. **Deu certo:** título verde, as etapas com o check e **Fechar** (fecha o popup e a janela do Bling); desde 28/10/2026 **sem o
+resumo do que mudou** (pedido do dono), que só aparece na falha.
 **Falhou:** "Voltar à janela" fecha só o popup, e o erro continua em vermelho na janela. Enquanto roda, Esc e clique fora não fecham.
 - **O andamento vem do servidor por uma ROTA, não por Server Action** (`/api/bling/progresso/<id>`, `progresso.js`): as Server Actions
   rodam uma de cada vez e a consulta esperaria o envio acabar. `sincronizarProduto` e `cadastrarNoBling` marcam cada etapa
