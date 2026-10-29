@@ -5,7 +5,7 @@ import { lerConexao, registrarTeste } from "@/lib/integracoes/conexoes";
 
 import { atualizarCustoDosVinculos, casarLinha, entradaDaLinhaNoVirtual, oQueEstaNoVirtual, saidaDaLinhaDoVirtual } from "./casamento";
 import { fornecedorDoAliExpress } from "./fornecedor";
-import { descontoImplicito, lerData, lerPreco, pacoteDaLinha, situacaoDoAliExpress, statusNoRise } from "./regras";
+import { descontoImplicito, lerData, lerPreco, pacoteDaLinha, quantidadeNoRise, situacaoDoAliExpress, statusNoRise } from "./regras";
 
 /**
  * A importacao dos pedidos do AliExpress que a extensao manda (spec 2026-10-28, §6.3), em duas fases:
@@ -306,9 +306,19 @@ export async function importarDetalhes({ detalhes = [], rastreios = [] } = {}) {
 export async function reenviarAoVirtual(linhaId, { cliente = clienteBling() } = {}) {
   const linha = await prisma.linhaAliExpress.findUnique({
     where: { id: String(linhaId ?? "") },
-    include: { pedidoAliExpress: { select: { pedido: { select: { status: true } } } } },
+    include: { pedidoAliExpress: { select: { pedido: { select: { status: true } } } }, item: { select: { quantidadeLancada: true } } },
   });
   if (!linha) return { ok: false, erro: "Item do AliExpress não encontrado." };
+  // A entrada que esta no Virtual nao bate com a quantidade de hoje (o fator mudou e o Bling recusou a troca, caso do
+  // PC-0015 em 29/10/2026): tira a antiga e poe a certa. So antes de lancar estoque (depois, a chegada ja mexeu nela).
+  const esperada = quantidadeNoRise(linha.quantidadeComprada, linha.fator);
+  if (linha.itemId && linha.virtualLancadoEm && linha.virtualQuantidade !== esperada && !linha.item?.quantidadeLancada && linha.pedidoAliExpress.pedido.status !== "CANCELADO") {
+    const antiga = await oQueEstaNoVirtual(prisma, linha.id);
+    if (antiga) {
+      const saida = await saidaDaLinhaDoVirtual(linha.id, { ...antiga, observacao: `${antiga.observacao} - reenvio` }, { cliente });
+      if (!saida.ok) return { ok: false, erro: saida.erro };
+    }
+  }
   if (linha.pedidoAliExpress.pedido.status === "CANCELADO") {
     const dados = await oQueEstaNoVirtual(prisma, linha.id);
     return dados ? saidaDaLinhaDoVirtual(linha.id, dados, { cliente }) : { ok: true };

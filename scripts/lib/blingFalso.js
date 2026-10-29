@@ -178,6 +178,12 @@ function tamanhoDaUrl(rota, consulta) {
  *   baixar; sem ele, o conteudo da foto e o proprio link.
  * @param {Object<string, Buffer>} [opcoes.bytesDasFotos] o conteudo das fotos que ja estavam no produto
  *   (`midia.imagens.internas[].link` da carga inicial).
+ * @param {Object<string, Object<number, {fisico: number, virtual: number}>>} [opcoes.saldosPorDeposito] saldo de um
+ *   deposito que NAO e o padrao, por codigo e id do deposito (ex.: o "Virtual" das compras do AliExpress). O POST /estoques
+ *   nesse deposito o acompanha, e o GET /estoques/saldos o devolve junto do padrao.
+ * @param {boolean} [opcoes.recusarSaidaSemSaldo] padrao `false`: com `true`, uma saida ("S") maior que o saldo DISPONIVEL
+ *   (virtual) do deposito volta 400 "Alguns dados informados nao sao validos", como a conta real recusou em 29/10/2026 no
+ *   deposito Virtual (fisico 4, disponivel -135 por causa das reservas).
  * @param {boolean} [opcoes.exigirEscritaObrigatorio] padrao `true`: `post`, `put` e `patch` LANCAM
  *   erro de teste se `exigirEscrita` nao foi chamada (e aceita) antes nesta instancia. `false` so
  *   para os testes que exercitam os endpoints do proprio falso sem ter um sku a pedir.
@@ -190,6 +196,10 @@ export function criarBlingFalso(opcoes = {}) {
   const depositos = copia(opcoes.depositos ?? DEPOSITOS_PADRAO);
   const codigosLiberados = (opcoes.codigosLiberados ?? []).map((codigo) => minusculo(codigo).trim());
   const exigirEscritaObrigatorio = opcoes.exigirEscritaObrigatorio ?? true;
+  const recusarSaidaSemSaldo = opcoes.recusarSaidaSemSaldo ?? false;
+  // Saldo dos depositos que nao sao o padrao: "idDoProduto:idDoDeposito" -> { fisico, virtual }. Preenchido depois que os
+  // produtos existem (abaixo).
+  const porDeposito = new Map();
   let escritaLiberada = false; // vira true na primeira exigirEscrita aceita desta instancia
 
   // Fotos: o que o Bling ainda vai fazer (`{ restantes, links }` por produto), de onde veio cada foto (para
@@ -346,7 +356,10 @@ export function criarBlingFalso(opcoes = {}) {
   // A carga inicial e o que o Bling ja tem, entao guarda tambem o que o PATCH ignoraria
   // (fornecedor, imagemURL).
   for (const dados of opcoes.produtos ?? []) {
-    guardarProduto(dados, opcoes.saldos?.[dados.codigo] ?? dados.estoque?.saldoVirtualTotal, { ignorarSomenteLeitura: false });
+    const produto = guardarProduto(dados, opcoes.saldos?.[dados.codigo] ?? dados.estoque?.saldoVirtualTotal, { ignorarSomenteLeitura: false });
+    for (const [idDoDeposito, saldo] of Object.entries(opcoes.saldosPorDeposito?.[dados.codigo] ?? {})) {
+      porDeposito.set(`${produto.id}:${Number(idDoDeposito)}`, { fisico: saldo.fisico ?? 0, virtual: saldo.virtual ?? saldo.fisico ?? 0 });
+    }
   }
   for (const dados of opcoes.contatos ?? []) guardarContato(dados);
   for (const dados of opcoes.vinculos ?? []) guardarVinculo(dados);
@@ -723,11 +736,17 @@ export function criarBlingFalso(opcoes = {}) {
         const padrao = depositos.find((deposito) => deposito.padrao) ?? depositos[0];
         const data = [...achados.values()].map((produto) => {
           const saldo = saldos.get(produto.id);
+          const outros = depositos
+            .filter((deposito) => deposito !== padrao && porDeposito.has(`${produto.id}:${deposito.id}`))
+            .map((deposito) => {
+              const doDeposito = porDeposito.get(`${produto.id}:${deposito.id}`);
+              return { id: deposito.id, saldoFisico: doDeposito.fisico, saldoVirtual: doDeposito.virtual };
+            });
           return {
             produto: { id: produto.id, codigo: produto.codigo },
             saldoFisicoTotal: saldo.fisico,
             saldoVirtualTotal: saldo.virtual,
-            depositos: padrao ? [{ id: padrao.id, saldoFisico: saldo.fisico, saldoVirtual: saldo.virtual }] : [],
+            depositos: [...(padrao ? [{ id: padrao.id, saldoFisico: saldo.fisico, saldoVirtual: saldo.virtual }] : []), ...outros],
           };
         });
         return resposta(200, { data });
@@ -750,6 +769,17 @@ export function criarBlingFalso(opcoes = {}) {
         // As reservas (fisico - virtual) sao constantes: so o Bling real as muda, por pedido. Por
         // isso o virtual pode ficar negativo, e um balanco 5 num produto com fisico 0 e virtual -8
         // da fisico 5 e virtual -3, nao virtual 5.
+        const padraoDoPost = depositos.find((deposito) => deposito.padrao) ?? depositos[0];
+        if (Number(corpo.deposito.id) !== padraoDoPost?.id) {
+          // Deposito que nao e o padrao: o saldo dele anda a parte (o principal continua como sempre, por compatibilidade).
+          const chave = `${produto.id}:${Number(corpo.deposito.id)}`;
+          const doDeposito = porDeposito.get(chave) ?? { fisico: 0, virtual: 0 };
+          if (recusarSaidaSemSaldo && corpo.operacao === "S" && quantidade > doDeposito.virtual) {
+            return validacao("Alguns dados informados nao sao validos.", ["quantidade"]);
+          }
+          const deltaDoDeposito = corpo.operacao === "E" ? quantidade : corpo.operacao === "S" ? -quantidade : quantidade - doDeposito.fisico;
+          porDeposito.set(chave, { fisico: doDeposito.fisico + deltaDoDeposito, virtual: doDeposito.virtual + deltaDoDeposito });
+        }
         const saldo = saldos.get(produto.id);
         const delta = corpo.operacao === "E" ? quantidade : corpo.operacao === "S" ? -quantidade : quantidade - saldo.fisico;
         saldo.virtual += delta;

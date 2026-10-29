@@ -22,7 +22,18 @@ export async function depositoVirtual(cliente = clienteBling()) {
 function motivo(resposta) {
   const erro = resposta?.dados?.error;
   const descricao = erro?.description ?? erro?.message ?? null;
-  return `HTTP ${resposta?.status ?? "sem status"}${descricao ? `: ${descricao}` : ""}`;
+  // O detalhe por campo e o que diz o porque (a frase geral e sempre "Alguns dados informados nao sao validos").
+  const campos = (Array.isArray(erro?.fields) ? erro.fields : []).map((campo) => [campo?.element, campo?.msg].filter(Boolean).join(": ")).filter(Boolean);
+  return `HTTP ${resposta?.status ?? "sem status"}${descricao ? `: ${descricao}` : ""}${campos.length ? ` (${campos.join("; ")})` : ""}`;
+}
+
+/** O saldo fisico do produto no deposito, lido de GET /estoques/saldos (0 quando o deposito nao aparece). */
+async function saldoFisicoNoDeposito(cliente, sku, idDoDeposito) {
+  const resposta = await cliente.get("/estoques/saldos", { "codigos[]": [sku] });
+  if (!resposta?.ok) throw new Error(`O Bling recusou a leitura do saldo (${motivo(resposta)}).`);
+  const linha = (resposta?.dados?.data ?? []).find((item) => String(item?.produto?.codigo ?? "").toLowerCase() === String(sku).toLowerCase());
+  const doDeposito = (linha?.depositos ?? []).find((deposito) => Number(deposito?.id) === Number(idDoDeposito));
+  return Number(doDeposito?.saldoFisico) || 0;
 }
 
 async function lancarNoVirtual(operacao, { sku, blingId, quantidade, observacao }, { cliente = clienteBling() } = {}) {
@@ -34,7 +45,13 @@ async function lancarNoVirtual(operacao, { sku, blingId, quantidade, observacao 
     cliente.exigirEscrita(sku);
     const deposito = await depositoVirtual(cliente);
     if (!deposito) return { ok: false, erro: "Sem depósito Virtual no Bling." };
-    const corpo = { produto: { id: Number(blingId) }, deposito: { id: deposito.id }, operacao, quantidade: qtde };
+    // A saida vai como BALANCO do saldo fisico, nunca "S": em 29/10/2026 a conta real recusou "S" no Virtual porque o
+    // saldo disponivel dele fica negativo com as reservas de venda (fisico 4, disponivel -135), e o Bling barra saida
+    // maior que o disponivel. O balanco so grava o novo fisico (o mesmo jeito do deposito Fisico no Rise).
+    const corpo =
+      operacao === "S"
+        ? { produto: { id: Number(blingId) }, deposito: { id: deposito.id }, operacao: "B", quantidade: Math.max(0, (await saldoFisicoNoDeposito(cliente, sku, deposito.id)) - qtde) }
+        : { produto: { id: Number(blingId) }, deposito: { id: deposito.id }, operacao, quantidade: qtde };
     if (observacao) corpo.observacoes = String(observacao).slice(0, 200);
     const resposta = await cliente.post("/estoques", corpo);
     if (!resposta?.ok) return { ok: false, erro: `O Bling recusou o depósito Virtual (${motivo(resposta)}).` };

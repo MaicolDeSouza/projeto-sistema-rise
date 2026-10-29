@@ -246,8 +246,21 @@ const noBling = (codigo, id) => ({ id, codigo, nome: `Produto ${codigo}`, preco:
   const entrada = await entradaNoVirtual({ sku: "ZZ-ALI-V1", blingId: 15000000911, quantidade: 200, observacao: "AliExpress 1" }, { cliente: falso });
   const ultimo = () => falso.estado.lancamentos.at(-1);
   conferir("entrada no Virtual", [entrada.ok, ultimo()?.operacao, ultimo()?.quantidade, ultimo()?.deposito?.id, ultimo()?.observacoes], [true, "E", 200, 14200000002, "AliExpress 1"]);
+  // A saida e um BALANCO (o novo saldo fisico), nunca "S": a conta real recusou "S" no Virtual em 29/10/2026 porque o
+  // saldo disponivel la fica negativo com as reservas de venda (fisico 4, disponivel -135).
   const saida = await saidaDoVirtual({ sku: "ZZ-ALI-V1", blingId: 15000000911, quantidade: 50, observacao: "chegada" }, { cliente: falso });
-  conferir("saida do Virtual", [saida.ok, ultimo()?.operacao, ultimo()?.quantidade], [true, "S", 50]);
+  conferir("saida do Virtual por balanco", [saida.ok, ultimo()?.operacao, ultimo()?.quantidade], [true, "B", 150]);
+  const comReservas = criarBlingFalso({
+    produtos: [noBling("ZZ-ALI-V1", 15000000911)],
+    saldosPorDeposito: { "ZZ-ALI-V1": { 14200000002: { fisico: 4, virtual: -135 } } },
+    recusarSaidaSemSaldo: true,
+  });
+  const saidaComReservas = await saidaDoVirtual({ sku: "ZZ-ALI-V1", blingId: 15000000911, quantidade: 4, observacao: "troca" }, { cliente: comReservas });
+  conferir(
+    "saida com o disponivel negativo (o erro de 29/10) passa e zera o fisico",
+    [saidaComReservas.ok, saidaComReservas.erro ?? null, comReservas.estado.lancamentos.at(-1)?.operacao, comReservas.estado.lancamentos.at(-1)?.quantidade],
+    [true, null, "B", 0],
+  );
   conferir("sem blingId recusa", await entradaNoVirtual({ sku: "ZZ-ALI-V1", blingId: null, quantidade: 1 }, { cliente: falso }), { ok: false, erro: "Produto sem cadastro no Bling." });
   conferir("quantidade zero nao manda nada", [(await entradaNoVirtual({ sku: "ZZ-ALI-V1", blingId: 15000000911, quantidade: 0 }, { cliente: falso })).ok, falso.estado.lancamentos.length], [true, 2]);
   const travado = criarBlingFalso({ produtos: [noBling("ZZ-ALI-V1", 15000000911)], codigosLiberados: ["OUTRO"] });
@@ -420,7 +433,7 @@ try {
     const linha3 = await prisma.linhaAliExpress.findUnique({ where: { id: L3 } });
     conferir("casar manual mandou entrada no Virtual", [falso.estado.lancamentos.at(-1)?.operacao, falso.estado.lancamentos.at(-1)?.quantidade, linha3.virtualQuantidade, Boolean(linha3.virtualLancadoEm)], ["E", 100, 100, true]);
     const troca = await casarManual(L3, P4.id, 100, { cliente: falso });
-    conferir("trocar o produto tira do antigo e entra no novo", [troca.ok, falso.estado.lancamentos.slice(-2).map((lancamento) => [lancamento.operacao, lancamento.produto.id])], [true, [["S", 15000000923], ["E", 15000000924]]]);
+    conferir("trocar o produto tira do antigo e entra no novo", [troca.ok, falso.estado.lancamentos.slice(-2).map((lancamento) => [lancamento.operacao, lancamento.produto.id])], [true, [["B", 15000000923], ["E", 15000000924]]]);
     conferir("a troca e lembrada: o codigo saiu do produto antigo", [(await prisma.produtoFornecedor.count({ where: { produtoId: P3.id, codigo: "555:666" } })), (await prisma.produtoFornecedor.count({ where: { produtoId: P4.id, codigo: "555:666" } }))], [0, 1]);
     conferir("o item antigo sumiu", await prisma.itemDoPedidoDeCompra.count({ where: { pedidoId: pedido.pedidoId, produtoId: P3.id } }), 0);
     conferir("fator invalido recusa", (await casarManual(L3, P4.id, 0, { cliente: falso })).ok, false);
@@ -438,6 +451,19 @@ try {
       [true, { quantidade: 10, precoUnitario: 3 }, 10, 10],
     );
     conferir("trocar o fator: Virtual tira o velho e poe o novo", falso.estado.lancamentos.slice(antesDoFator).map((l) => [l.operacao, l.quantidade]), [["E", 10]]);
+    // O caso do PC-0015 (29/10/2026): o Bling recusou a saida ao trocar o fator, e a linha ficou com a entrada antiga (1;
+    // o falso tem 10 no Virtual deste produto do passo anterior, entao o balanco grava 9)
+    // e o erro. O "Reenviar ao Virtual" acerta a diferenca: tira a antiga e poe a do fator novo.
+    const { reenviarAoVirtual } = await import("../src/lib/compras/aliexpress/importacao.js");
+    await prisma.linhaAliExpress.update({ where: { id: L2 }, data: { virtualQuantidade: 1, virtualLancadoEm: new Date(), virtualErro: "O Bling recusou o depósito Virtual (HTTP 400)." } });
+    const antesDoReenvio = falso.estado.lancamentos.length;
+    const reenvio = await reenviarAoVirtual(L2, { cliente: falso });
+    const linhaReenviada = await prisma.linhaAliExpress.findUnique({ where: { id: L2 } });
+    conferir(
+      "reenviar acerta a entrada antiga para a do fator novo",
+      [reenvio.ok, falso.estado.lancamentos.slice(antesDoReenvio).map((l) => [l.operacao, l.quantidade]), linhaReenviada.virtualQuantidade, linhaReenviada.virtualErro],
+      [true, [["B", 9], ["E", 10]], 10, null],
+    );
 
     const desfeito = await desfazerCasamento(L5, { cliente: falso });
     conferir("desfazer tira a linha do item", [desfeito.ok, await itemDe(r1.itemId), (await prisma.linhaAliExpress.findUnique({ where: { id: L5 } })).itemId], [true, { quantidade: 2, precoUnitario: 10 }, null]);
@@ -521,7 +547,7 @@ try {
     novoCancelado.pedidos[0].statusCodigo = null;
     await importarLista(novoCancelado, { cliente: falso });
     const p3 = await lerAli("9915000000000002");
-    conferir("cancelado sem lancamento vira CANCELADO e sai do Virtual", [p3.pedido.status, p3.pedido.canceladoEm != null, falso.estado.lancamentos.at(-1)?.operacao, p3.linhas[0].virtualQuantidade], ["CANCELADO", true, "S", 0]);
+    conferir("cancelado sem lancamento vira CANCELADO e sai do Virtual", [p3.pedido.status, p3.pedido.canceladoEm != null, falso.estado.lancamentos.at(-1)?.operacao, p3.linhas[0].virtualQuantidade], ["CANCELADO", true, "B", 0]);
     const jaCancelado = structuredClone(novoCancelado);
     jaCancelado.pedidos[0].orderId = "9915000000000004";
     jaCancelado.pedidos[0].linhas[0].orderLineId = "9915000000000041";
@@ -587,7 +613,7 @@ try {
     const antes = falso.estado.lancamentos.length;
     const lancado = await lancamento.lancarEstoqueDoItem(casado.itemId, 3, { cliente: falso });
     const novos = falso.estado.lancamentos.slice(antes).map((l) => [l.operacao, l.quantidade, l.deposito.id]);
-    conferir("lancar 3: Fisico recebe, Virtual perde 3", [lancado.ok, lancado.virtual?.ok, novos.at(-1)], [true, true, ["S", 3, 14200000002]]);
+    conferir("lancar 3: Fisico recebe, Virtual perde 3", [lancado.ok, lancado.virtual?.ok, novos.at(-1)], [true, true, ["B", 1, 14200000002]]);
     conferir("a linha guarda o que ainda esta no Virtual", (await prisma.linhaAliExpress.findUnique({ where: { id: pedido.linhas[0].id } })).virtualQuantidade, 1);
     const desfeito = await lancamento.desfazerUltimoLancamento(casado.itemId, { cliente: falso });
     conferir("desfazer devolve ao Virtual", [desfeito.ok, desfeito.virtual?.ok, falso.estado.lancamentos.at(-1)?.operacao, falso.estado.lancamentos.at(-1)?.quantidade, (await prisma.linhaAliExpress.findUnique({ where: { id: pedido.linhas[0].id } })).virtualQuantidade], [true, true, "E", 3, 4]);
