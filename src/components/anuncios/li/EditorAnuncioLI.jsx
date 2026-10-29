@@ -355,8 +355,10 @@ export default function EditorAnuncioLI({ anuncioId, rascunhoInicial, contextoIn
               ...atual,
               etapas: deuCerto ? atual.etapas.map((etapa) => (etapa.id === "conferir" ? { ...etapa, estado: "feito" } : etapa)) : atual.etapas,
               fim: deuCerto ? "ok" : "falhou",
-              // As linhas do resumo do cadastro repetem as etapas do popup ("Criar o anuncio pausado: feito."): ficam so no titulo.
-              resumo: tipo === "cadastrar" && resumo ? { ...resumo, linhas: [] } : resumo,
+              // Deu certo: so as etapas com o check, sem o resumo do que mudou (pedido do dono em 28/10/2026, como no Bling; o
+              // "mantido pausado" do cadastro ja vem no detalhe da etapa "Ativar o produto"). Na falha o resumo fica, so com o
+              // titulo no cadastro (as linhas dele repetem as etapas do popup).
+              resumo: deuCerto ? null : tipo === "cadastrar" && resumo ? { ...resumo, linhas: [] } : resumo,
             }
           : atual,
       );

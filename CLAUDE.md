@@ -4611,7 +4611,8 @@ Bling, Fechar vira Salvar e fechar, 'Na loja' e 'Tudo salvo' saem").
     outra aba" e uma linha pequena embaixo: **Abrir painel da loja** (ajustar dados fiscais; origem e tipo de produção só o painel
     grava) e **Abrir anúncio na loja** (ver como o cliente vê; desabilitado sem endereço http(s)). O terceiro, azul e largo no pé,
     **Fechar**, que fecha o popup E a janela do editor (na página só o popup; o foco já cai nele para o Enter). Falhou: só **Voltar
-    à janela**, com o erro à vista, como no Bling. O resumo do cadastro não repete as etapas (só o título).
+    à janela**, com o erro à vista, como no Bling. O resumo do cadastro não repete as etapas (só o título). **Desde
+    28/10/2026 o resumo do que mudou só aparece na falha** (pedido do dono, como no Bling): o sucesso mostra só as etapas.
   - **Visto na tela (PC):** o fim com os três botões, numa página temporária com dados de exemplo (apagada). **Não visto:** um
     Sincronizar ou Cadastrar de verdade com o popup (o clique foi barrado por escrever na loja real; só depois do deploy, na VPS) e
     a cena de falha na tela (testada pelas regras e pelo servidor).
