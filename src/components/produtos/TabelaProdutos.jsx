@@ -204,12 +204,11 @@ export default function TabelaProdutos({
           <span className={totalConferidos > 0 ? "font-medium text-emerald-700" : ""}>
             ({totalConferidos} verificado{totalConferidos === 1 ? "" : "s"})
           </span>
-          {/* Quanto falta verificar (pedido do dono em 28/10/2026), sobre o mesmo total da busca. */}
+          {/* Quanto ja foi verificado em relacao ao total (pedido do dono em 28/10/2026; antes mostrava quanto faltava),
+              sobre o mesmo total da busca. */}
           {total > 0 && (
             <span className="tabular-nums" title={`${(total - totalConferidos).toLocaleString("pt-BR")} de ${total.toLocaleString("pt-BR")} ainda não verificados`}>
-              {totalConferidos >= total
-                ? " · todos verificados"
-                : ` · faltam ${(((total - totalConferidos) / total) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`}
+              {` · ${((totalConferidos / total) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% feito`}
             </span>
           )}
         </span>
