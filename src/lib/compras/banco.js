@@ -632,7 +632,7 @@ export async function listarPedidos({ status, busca, pagina = 1, porPagina = 25 
       status: pedido.status,
       itens: pedido.itens.length,
       // Coluna Produtos (pedido do dono em 29/10/2026): nome e codigo do Rise; com varios, a tela abre a lista.
-      produtos: pedido.itens.map((item) => ({ sku: item.produto.sku, nome: item.produto.tituloBase })),
+      produtos: pedido.itens.map((item) => ({ sku: item.produto.sku, nome: item.produto.tituloBase, quantidade: item.quantidade })),
       total: totaisDoPedido({
         itens: pedido.itens.map((item) => ({ ...item, precoUnitario: numero(item.precoUnitario), ipiPercentual: numero(item.ipiPercentual) })),
         icmsSt: numero(pedido.icmsSt),

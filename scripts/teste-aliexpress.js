@@ -700,7 +700,7 @@ try {
     );
     await prisma.pacoteAliExpress.updateMany({ where: { pedidoAliExpressId: pa.id }, data: { ultimoEvento: "Chegou ao armazém de consolidação", ultimoCodigo: "AE_CW_SIGN_IN_SUCCESS" } });
     // Coluna Produtos da lista (pedido do dono em 29/10/2026): nome e codigo do Rise de cada item.
-    conferir("lista traz os produtos do pedido", busca.linhas[0]?.produtos, [{ sku: "ZZ-ALI-T1", nome: "PRODUTO ZZ-ALI-T1" }]);
+    conferir("lista traz os produtos do pedido com a quantidade", busca.linhas[0]?.produtos, [{ sku: "ZZ-ALI-T1", nome: "PRODUTO ZZ-ALI-T1", quantidade: 4 }]);
     // Busca pelo produto (pedido do dono em 29/10/2026): codigo ou nome do Rise nos itens, e o titulo do item sem produto.
     const achados = async (texto) => (await listarPedidos({ busca: texto })).linhas.map((linha) => linha.codigo).filter((codigo) => [lido.codigo, lidoOutro.codigo].includes(codigo)).sort();
     conferir(

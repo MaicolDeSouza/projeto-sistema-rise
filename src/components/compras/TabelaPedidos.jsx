@@ -10,7 +10,7 @@ import { PODE_EXCLUIR } from "@/lib/compras/regras";
 
 import JanelaNovoPedido from "./JanelaNovoPedido";
 import Pergunta from "./Pergunta";
-import ProdutosDoPedido from "./ProdutosDoPedido";
+import { CelulaDoProduto, JanelaProdutosDoPedido } from "./ProdutosDoPedido";
 import SeloDoStatus, { TEXTO_DO_STATUS } from "./SeloDoStatus";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -42,6 +42,7 @@ export default function TabelaPedidos({ linhas, status, veCusto, podeExcluir = f
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [excluindo, setExcluindo] = useState(null);
+  const [produtosAbertos, setProdutosAbertos] = useState(null);
   const [erroAoExcluir, setErroAoExcluir] = useState(null);
   const [ocupado, iniciar] = useTransition();
 
@@ -93,9 +94,10 @@ export default function TabelaPedidos({ linhas, status, veCusto, podeExcluir = f
             <thead className="border-b border-borda bg-fundo text-left text-xs tracking-wide text-suave uppercase">
               <tr>
                 <th className="w-px whitespace-nowrap px-3 py-2.5 font-medium">Número</th>
-                <th className="w-56 px-3 py-2.5 font-medium">Fornecedor</th>
-                <th className="px-3 py-2.5 font-medium">Produtos</th>
-                <th className="w-20 px-3 py-2.5 text-right font-medium">Itens</th>
+                <th className="w-40 px-3 py-2.5 font-medium">Fornecedor</th>
+                <th className="w-32 px-3 py-2.5 font-medium">Código</th>
+                <th className="px-3 py-2.5 font-medium">Produto</th>
+                <th className="w-28 px-3 py-2.5 text-right font-medium">Quantidade</th>
                 {veCusto && <th className="w-32 px-3 py-2.5 text-right font-medium">Total</th>}
                 <th className="w-36 px-3 py-2.5 font-medium">Prazo de entrega</th>
                 <th className="w-px px-3 py-2.5 font-medium">Situação</th>
@@ -110,20 +112,19 @@ export default function TabelaPedidos({ linhas, status, veCusto, podeExcluir = f
                       {linha.codigo}
                     </Link>
                   </td>
-                  <td className="max-w-0 px-3 py-2.5">
-                    <span className="flex min-w-0 items-center gap-2">
-                      <span className="truncate">{linha.fornecedor}</span>
-                      {linha.origem === "ALIEXPRESS" && (
-                        <span className="shrink-0 rounded bg-orange-50 px-1.5 py-0.5 text-[11px] font-medium text-orange-700 ring-1 ring-orange-200" title={linha.loja ? `AliExpress · ${linha.loja}` : "AliExpress"}>
-                          AliExpress
-                        </span>
-                      )}
-                    </span>
+                  {/* So o nome do fornecedor (pedido do dono em 29/10/2026: a etiqueta AliExpress saiu; a loja fica no title). */}
+                  <td className="max-w-0 truncate px-3 py-2.5" title={linha.loja ? `${linha.fornecedor} · ${linha.loja}` : undefined}>
+                    {linha.fornecedor}
                   </td>
-                  <td className="max-w-0 px-3 py-2.5">
-                    <ProdutosDoPedido codigo={linha.codigo} produtos={linha.produtos} />
+                  <td className="max-w-0 px-2 py-2.5">
+                    <CelulaDoProduto produtos={linha.produtos} coluna="codigo" aoAbrir={() => setProdutosAbertos(linha)} />
                   </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{linha.itens}</td>
+                  <td className="max-w-0 px-2 py-2.5">
+                    <CelulaDoProduto produtos={linha.produtos} coluna="nome" aoAbrir={() => setProdutosAbertos(linha)} />
+                  </td>
+                  <td className="px-2 py-2.5">
+                    <CelulaDoProduto produtos={linha.produtos} coluna="quantidade" aoAbrir={() => setProdutosAbertos(linha)} />
+                  </td>
                   {veCusto && <td className="px-3 py-2.5 text-right tabular-nums">{moeda.format(linha.total)}</td>}
                   <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-suave">{linha.prazo ?? "—"}</td>
                   <td className="px-3 py-2.5">
@@ -176,6 +177,9 @@ export default function TabelaPedidos({ linhas, status, veCusto, podeExcluir = f
         </div>
       )}
       {erroAoExcluir && <p className="mt-3 text-sm text-rose-600" role="alert">{erroAoExcluir}</p>}
+      {produtosAbertos && (
+        <JanelaProdutosDoPedido codigo={produtosAbertos.codigo} produtos={produtosAbertos.produtos} aoFechar={() => setProdutosAbertos(null)} />
+      )}
       {excluindo && (
         <Pergunta
           titulo={`Excluir ${excluindo.codigo}?`}
