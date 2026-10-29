@@ -564,6 +564,13 @@ export async function listarPedidos({ status, busca, pagina = 1, porPagina = 25 
             { fornecedor: { nome: { contains: texto, mode: "insensitive" } } },
             ...(numeroBuscado ? [{ numero: numeroBuscado }] : []),
             ...(/^\d{6,}$/.test(texto) ? [{ aliexpress: { externoId: { contains: texto } } }] : []),
+            // Pelo produto (pedido do dono em 29/10/2026): codigo ou nome do Rise nos itens, nome e codigo no fornecedor,
+            // e o titulo do item do AliExpress ainda sem produto.
+            { itens: { some: { produto: { sku: { contains: texto, mode: "insensitive" } } } } },
+            { itens: { some: { produto: { tituloBase: { contains: texto, mode: "insensitive" } } } } },
+            { itens: { some: { nomeNoFornecedor: { contains: texto, mode: "insensitive" } } } },
+            { itens: { some: { codigoNoFornecedor: { contains: texto, mode: "insensitive" } } } },
+            { aliexpress: { linhas: { some: { titulo: { contains: texto, mode: "insensitive" } } } } },
           ],
         }
       : {}),
@@ -577,7 +584,7 @@ export async function listarPedidos({ status, busca, pagina = 1, porPagina = 25 
       take: porPagina,
       include: {
         fornecedor: { select: { nome: true } },
-        itens: { select: { quantidade: true, quantidadeLancada: true, precoUnitario: true, ipiPercentual: true } },
+        itens: { orderBy: { ordem: "asc" }, select: { quantidade: true, quantidadeLancada: true, precoUnitario: true, ipiPercentual: true, produto: { select: { sku: true, tituloBase: true } } } },
         aliexpress: { select: { loja: true, entregueEm: true, canceladoNoAliExpressEm: true, linhas: { select: { itemId: true } } } },
       },
     }),
@@ -591,6 +598,8 @@ export async function listarPedidos({ status, busca, pagina = 1, porPagina = 25 
       fornecedor: pedido.fornecedor.nome,
       status: pedido.status,
       itens: pedido.itens.length,
+      // Coluna Produtos (pedido do dono em 29/10/2026): nome e codigo do Rise; com varios, a tela abre a lista.
+      produtos: pedido.itens.map((item) => ({ sku: item.produto.sku, nome: item.produto.tituloBase })),
       total: totaisDoPedido({
         itens: pedido.itens.map((item) => ({ ...item, precoUnitario: numero(item.precoUnitario), ipiPercentual: numero(item.ipiPercentual) })),
         icmsSt: numero(pedido.icmsSt),

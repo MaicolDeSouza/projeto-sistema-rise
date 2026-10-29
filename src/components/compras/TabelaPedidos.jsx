@@ -10,6 +10,7 @@ import { PODE_EXCLUIR } from "@/lib/compras/regras";
 
 import JanelaNovoPedido from "./JanelaNovoPedido";
 import Pergunta from "./Pergunta";
+import ProdutosDoPedido from "./ProdutosDoPedido";
 import SeloDoStatus, { TEXTO_DO_STATUS } from "./SeloDoStatus";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -93,7 +94,8 @@ export default function TabelaPedidos({ linhas, status, veCusto, podeExcluir = f
             <thead className="border-b border-borda bg-fundo text-left text-xs tracking-wide text-suave uppercase">
               <tr>
                 <th className="w-px whitespace-nowrap px-3 py-2.5 font-medium">Número</th>
-                <th className="px-3 py-2.5 font-medium">Fornecedor</th>
+                <th className="w-56 px-3 py-2.5 font-medium">Fornecedor</th>
+                <th className="px-3 py-2.5 font-medium">Produtos</th>
                 <th className="w-px px-3 py-2.5 font-medium">Situação</th>
                 <th className="w-20 px-3 py-2.5 text-right font-medium">Itens</th>
                 {veCusto && <th className="w-32 px-3 py-2.5 text-right font-medium">Total</th>}
@@ -128,6 +130,9 @@ export default function TabelaPedidos({ linhas, status, veCusto, podeExcluir = f
                         </span>
                       )}
                     </span>
+                  </td>
+                  <td className="max-w-0 px-3 py-2.5">
+                    <ProdutosDoPedido codigo={linha.codigo} produtos={linha.produtos} />
                   </td>
                   <td className="px-3 py-2.5">
                     <SeloDoStatus status={linha.status} />

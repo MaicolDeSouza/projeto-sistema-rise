@@ -344,7 +344,7 @@ npm run teste:mcp                 # 231 asserções do servidor MCP (com o busca
 npm run teste:telegram            # 96 asserções da Entrega C1 (avisos no Telegram): banco, texto dos avisos (4 linhas, neutralizado, mascarado), cliente da API do bot e o token mascarado no log, vínculo por código, a configuração e a aba Canais, e a rotina do worker (linha de base, zerou/voltou/zerou, orçamento 80/100%, varredura que falhou, resumo das 20h, bloqueado, 3 tentativas). Telegram FALSO (SEM rede); Postgres local, só escreve zz-tg-* e ZZ-TG-* e devolve a Conexao TELEGRAM, a configuração e a linha de base do dono
 npm run teste:producao            # 89 asserções das peças próprias e da ordem de produção: regras (custo, cor do estoque, validação, arredondamento), custo pelas peças e o recálculo, trava da entrada manual, preparo do Salvar, clone, rascunho, a ordem (cria, baixa com falta, baixa, clique duplo, conclui com perda, cancela devolvendo, kit recalculado) contra o Bling falso. Postgres local, SEM rede; só escreve ZZ-PROD-*
 npm run teste:compras             # 142 asserções do módulo Compras: regras (totais, desconto % ou R$, a caminho, carrinho, situação), lista do mínimo e rascunho automático (com concorrência), pedido (salvar, itens, situação, preço que não se apaga), lançamento contra o Bling falso (clique duplo, Bling que recusa, desfazer com estoque vendido), proposta pelos bytes, dados da empresa, o PDF e as ferramentas de Compras do MCP. Postgres local, SEM rede; só escreve ZZ-COMPRA-* e "ZZ Compra *"
-npm run teste:aliexpress          # 120 asserções do AliExpress no Compras: regras puras, esquema, chave da extensão, depósito Virtual, casamento (anúncio+opção, fator), importação, chegada, rotas e a leitura para a tela, contra um Bling falso. Postgres local, SEM rede; só escreve ZZ-ALI-*, "ZZ Ali *" e pedidos 99…; `-- --manter` deixa os dados para conferir a tela
+npm run teste:aliexpress          # 136 asserções do AliExpress no Compras: regras puras, esquema, chave da extensão, depósito Virtual, casamento (anúncio+opção, fator), importação, chegada, rotas e a leitura para a tela, contra um Bling falso. Postgres local, SEM rede; só escreve ZZ-ALI-*, "ZZ Ali *" e pedidos 99…; `-- --manter` deixa os dados para conferir a tela
 npm run teste:extensao-aliexpress # 15 asserções da leitura da extensão (extensao-aliexpress/leitura.js) com as respostas da página Meus pedidos medidas em 28/10/2026. Puro: sem banco, sem rede, sem Chrome
 npm run teste:saude               # 68 asserções da Saúde do Rise: regras (rotinas, worker, disco, backup, memória, banco, integrações, orçamento, varreduras, PC, healthchecks), o aviso do Telegram, a gravação em RotinaDoWorker e a coleta nos modos PC e VPS. Postgres local, SEM rede; só escreve zz-saude-*
 npm run teste:acessos             # 207 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição, as projeções do lançamento 2 (Painel, lista de Produtos, Cadastros, canais, Scraper, Indicadores), "Ver como", Histórico e o guarda estático de src/app (sem lista de exceções). Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
@@ -5071,8 +5071,22 @@ Pedido do dono: "vincular o AliExpress via API para pegar minhas compras". A API
 - **Telas:** cartão AliExpress em Integrações (gerar chave, mostrada uma vez; fornecedor marcado; última importação), selo laranja
   e "!" na lista, resumo do AliExpress no cartão Fornecedor, avisos âmbar com "Reenviar ao Virtual", linhas sem produto no topo dos
   itens, colunas Opção e Rastreio (só quando há dado), imposto do AliExpress nos totais.
-- **Pendente do dono:** o bloco `@extensaoAliExpress` do `deploy/caddy/Caddyfile` (as duas rotas fora do login do Tinyauth, como o
-  `/mcp`) ficou SEM commit: o classificador barrou e precisa do OK do dono. Sem ele, na VPS a extensão recebe a tela de login.
+- **Ajustes do dono em 29/10/2026:**
+  - Colunas "Descrição Rise" e "Descrição fornecedor" nos itens (eram Produto e Nome no fornecedor), em todo pedido de compra.
+  - Bloco **Frete** do pedido do AliExpress só leitura: transportadora (só o nome, sem cadastro), código de rastreio clicável
+    (abre o rastreio no site), status do frete (último evento com a data) e previsão de entrega em datas, pelos horários do
+    AliExpress (`previsaoEmDatas`; o texto "Nov 09 - 18" era de outro fuso). Um grupo por pacote; a coluna Rastreio dos itens
+    só aparece com mais de um pacote.
+  - **Fator editável** no item já casado (coluna Fator, "× N"): refaz quantidade e preço pelo mesmo Casar e acerta o Virtual.
+    Só no item que veio de uma linha e sem estoque lançado.
+  - Botões **Detalhes do pedido** e **Site do produto** (com vários produtos, uma lista) no cartão Fornecedor.
+  - **Custo do vínculo do Ali** = total pago (produtos + frete + imposto − desconto) ÷ peças, rateado pelo valor de cada item
+    (`custoPorPeca`, `atualizarCustoDosVinculos`): acompanha o pedido mais recente; vínculo de outro fornecedor não muda. A
+    **Obs** do vínculo recebe a opção comprada (sem apagar Obs já escrita).
+  - Lista de pedidos: coluna **Produtos** (nome e código; com vários, "N produtos" abre a janela) e a **busca** acha pelo código
+    ou nome do produto nos itens, pelo nome/código no fornecedor e pelo título do item do AliExpress sem produto.
+  - MCP: `comprasACaminhoDoProduto` (o que está a caminho de um produto, com status e previsão do pacote) e o
+    `lerPedidoDeCompra` traz o bloco do AliExpress.
 - **Não visto:** a extensão instalada de verdade (o ensaio injetou os scripts na página), uma importação contra o Rise real, o
   Gerar chave por clique e a escrita real no depósito Virtual (só contra o Bling falso; no PC a trava recusa).
 

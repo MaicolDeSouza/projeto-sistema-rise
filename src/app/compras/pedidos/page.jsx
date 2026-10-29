@@ -44,7 +44,7 @@ export default async function PedidosPage({ searchParams }) {
         acao={podeEditar ? <BotaoNovoPedido fornecedores={fornecedores} /> : null}
         somenteLeitura={podeEditar ? null : "Você pode ver os pedidos, mas não editar."}
       />
-      <CampoBusca valorInicial={busca} rotulo="Buscar por número ou fornecedor" className="mb-3 max-w-sm" />
+      <CampoBusca valorInicial={busca} rotulo="Buscar por número, fornecedor ou produto (código ou nome)" className="mb-3 max-w-sm" />
       <TabelaPedidos linhas={linhas} status={status} veCusto={acesso.pode("dado.custo", "ver")} podeExcluir={acesso.pode("tela.compras.pedidos", "excluir")} />
       {totalPaginas > 1 && (
         <div className="mt-4">

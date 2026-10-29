@@ -424,7 +424,8 @@ try {
       ["Color Name: 2M", "Cor: Azul"],
     );
     conferir("precisa detalhe e rastreio dos dois, mais novo primeiro", [r1.precisaDetalhe, r1.precisaRastreio], [["9915244197193461", "9915189636893461"], ["9915244197193461", "9915189636893461"]]);
-    conferir("Virtual: duas entradas (a linha pendente nao vai)", falso.estado.lancamentos.map((lancamento) => [lancamento.operacao, lancamento.quantidade]), [["E", 4], ["E", 2]]);
+    // A ordem das entradas nao importa: compara ordenado.
+    conferir("Virtual: duas entradas (a linha pendente nao vai)", falso.estado.lancamentos.map((lancamento) => [lancamento.operacao, lancamento.quantidade]).sort(), [["E", 2], ["E", 4]]);
 
     const d = await importarDetalhes(detalhes);
     const p1d = await lerAli("9915244197193461");
@@ -600,6 +601,15 @@ try {
     conferir("lista busca pelo numero do AliExpress e marca a origem", [busca.total, busca.linhas[0]?.origem, busca.linhas[0]?.loja], [1, "ALIEXPRESS", "Lets Deal Store"]);
     conferir("busca por numero longo nao estoura o numero do pedido", (await listarPedidos({ busca: "99352441971934619" })).total, 0);
     conferir("lista marca pendente", (await listarPedidos({ busca: "9935189636893461" })).linhas[0]?.alerta, "pendente");
+    // Coluna Produtos da lista (pedido do dono em 29/10/2026): nome e codigo do Rise de cada item.
+    conferir("lista traz os produtos do pedido", busca.linhas[0]?.produtos, [{ sku: "ZZ-ALI-T1", nome: "PRODUTO ZZ-ALI-T1" }]);
+    // Busca pelo produto (pedido do dono em 29/10/2026): codigo ou nome do Rise nos itens, e o titulo do item sem produto.
+    const achados = async (texto) => (await listarPedidos({ busca: texto })).linhas.map((linha) => linha.codigo).filter((codigo) => [lido.codigo, lidoOutro.codigo].includes(codigo)).sort();
+    conferir(
+      "busca pelo codigo, pelo nome e pelo titulo do item sem produto",
+      [await achados("zz-ali-t1"), await achados("produto zz-ali-t1"), await achados("resistor 10k")],
+      [[lido.codigo], [lido.codigo], [lidoOutro.codigo]],
+    );
     conferir("sem custo nao ve o preco das pendentes", semPrecos(lidoOutro).aliexpress.linhasPendentes[0].precoComprado, null);
     conferir(
       "pacotes do pedido para o bloco Frete",
