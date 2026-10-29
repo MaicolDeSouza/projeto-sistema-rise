@@ -36,7 +36,7 @@ export default function ProdutosDoPedido({ codigo, produtos }) {
           evento.stopPropagation();
           setAberto(true);
         }}
-        className="rounded px-1.5 py-0.5 text-sm font-medium text-acento hover:bg-acento/5 hover:underline"
+        className="whitespace-nowrap rounded px-1.5 py-0.5 text-sm font-medium text-acento hover:bg-acento/5 hover:underline"
       >
         {produtos.length} produtos
       </button>

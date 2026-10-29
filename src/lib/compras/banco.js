@@ -16,7 +16,7 @@ import {
   totaisDoPedido,
 } from "@/lib/compras/regras";
 import { conferirPedido } from "@/lib/compras/esquema";
-import { avisosDoPedido, previsaoEmDatas } from "@/lib/compras/aliexpress/regras";
+import { alertasDoPedido, avisosDoPedido, prazoDoPedido, previsaoEmDatas } from "@/lib/compras/aliexpress/regras";
 import { apagarPastaDoPedido, apagarPropostaDoPedido, moverPropostaParaPedido } from "@/lib/compras/arquivos";
 
 /**
@@ -441,17 +441,41 @@ function pedidoParaTela(pedido) {
     totais: totaisDoPedido({ itens, ...editaveis }),
     origem: pedido.origem,
     aliexpress: blocoDoAliExpress(pedido.aliexpress),
+    // Os avisos ambar do pedido do AliExpress: os mesmos motivos do "!" da lista (atraso, rastreio, situacao la, sem
+    // produto, entregue) mais o Virtual pendente, que so a tela do pedido resolve.
     avisos: pedido.aliexpress
-      ? avisosDoPedido({
-          entregueEm: pedido.aliexpress.entregueEm,
-          canceladoNoAliExpressEm: pedido.aliexpress.canceladoNoAliExpressEm,
-          faltaLancar: itens.reduce((soma, item) => soma + faltaLancar(item), 0),
-          estoqueLancado: itens.some((item) => item.quantidadeLancada > 0),
-          linhasPendentes: pedido.aliexpress.linhas.filter((linha) => !linha.itemId).length,
-          virtualErros: pedido.aliexpress.linhas.filter((linha) => linha.virtualErro).length,
-        })
+      ? [
+          ...motivosDoPedido(pedido, itens).alertas,
+          ...avisosDoPedido({ virtualErros: pedido.aliexpress.linhas.filter((linha) => linha.virtualErro).length }),
+        ]
       : [],
   };
+}
+
+/**
+ * O prazo de entrega e os motivos do "!" de um pedido (pedido do dono em 29/10/2026), iguais na lista e na tela do
+ * pedido. `itens` precisa de quantidade, quantidadeLancada e prazoDias; o AliExpress, de pacotes e linhas.
+ */
+function motivosDoPedido(pedido, itens) {
+  const ali = pedido.aliexpress;
+  const prazo = prazoDoPedido({
+    status: pedido.status,
+    enviadoEm: pedido.enviadoEm,
+    prazosDosItens: itens.map((item) => item.prazoDias),
+    pacotes: ali?.pacotes ?? [],
+  });
+  const alertas = alertasDoPedido({
+    status: pedido.status,
+    prazoFim: prazo?.fim ?? null,
+    entregueEm: ali?.entregueEm ?? null,
+    canceladoNoAliExpressEm: ali?.canceladoNoAliExpressEm ?? null,
+    faltaLancar: itens.reduce((soma, item) => soma + faltaLancar(item), 0),
+    estoqueLancado: itens.some((item) => item.quantidadeLancada > 0),
+    linhasPendentes: ali ? ali.linhas.filter((linha) => !linha.itemId).length : 0,
+    ultimosEventos: (ali?.pacotes ?? []).map((pacote) => ({ codigo: pacote.ultimoCodigo, descricao: pacote.ultimoEvento, em: pacote.ultimoEventoEm })),
+    statusNoAliExpress: ali?.statusTexto ?? null,
+  });
+  return { prazo, alertas };
 }
 
 /** O que a tela mostra do AliExpress: cabecalho, linhas sem produto, opcao e rastreio por item, Virtual pendente. */
@@ -584,8 +608,17 @@ export async function listarPedidos({ status, busca, pagina = 1, porPagina = 25 
       take: porPagina,
       include: {
         fornecedor: { select: { nome: true } },
-        itens: { orderBy: { ordem: "asc" }, select: { quantidade: true, quantidadeLancada: true, precoUnitario: true, ipiPercentual: true, produto: { select: { sku: true, tituloBase: true } } } },
-        aliexpress: { select: { loja: true, entregueEm: true, canceladoNoAliExpressEm: true, linhas: { select: { itemId: true } } } },
+        itens: { orderBy: { ordem: "asc" }, select: { quantidade: true, quantidadeLancada: true, prazoDias: true, precoUnitario: true, ipiPercentual: true, produto: { select: { sku: true, tituloBase: true } } } },
+        aliexpress: {
+          select: {
+            loja: true,
+            statusTexto: true,
+            entregueEm: true,
+            canceladoNoAliExpressEm: true,
+            linhas: { select: { itemId: true } },
+            pacotes: { select: { previsaoInicio: true, previsaoFim: true, ultimoEvento: true, ultimoCodigo: true, ultimoEventoEm: true } },
+          },
+        },
       },
     }),
   ]);
@@ -612,18 +645,9 @@ export async function listarPedidos({ status, busca, pagina = 1, porPagina = 25 
       atualizadoEm: pedido.atualizadoEm,
       origem: pedido.origem,
       loja: pedido.aliexpress?.loja ?? null,
-      alerta: alertaDaLista(pedido),
+      ...(({ prazo, alertas }) => ({ prazo: prazo?.texto ?? null, alertas }))(motivosDoPedido(pedido, pedido.itens)),
     })),
   };
-}
-
-/** O "!" da lista de pedidos do AliExpress: item sem produto, ou entregue no site com estoque por lancar. */
-function alertaDaLista(pedido) {
-  const ali = pedido.aliexpress;
-  if (!ali || pedido.status === "CANCELADO" || pedido.status === "FINALIZADO") return null;
-  if (ali.linhas.some((linha) => !linha.itemId)) return "pendente";
-  if (ali.entregueEm && !ali.canceladoNoAliExpressEm && pedido.itens.some((item) => faltaLancar(item) > 0)) return "entregue";
-  return null;
 }
 
 export async function contarPedidosPorStatus() {

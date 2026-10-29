@@ -193,3 +193,80 @@ export function custoPorPeca({ itens = [], frete = 0, imposto = 0, desconto = 0,
   const fator = (base + (Number(frete) || 0) + (Number(imposto) || 0) - (Number(desconto) || 0)) / base;
   return Object.fromEntries(comPreco.map((item) => [item.id, Math.round(Number(item.precoUnitario) * fator * 100 + 1e-9) / 100]));
 }
+
+// ---------------------------------------------------------------------------
+// O "!" da Situacao na lista de pedidos (pedido do dono em 29/10/2026)
+// ---------------------------------------------------------------------------
+
+// O que e problema no rastreio. Nos eventos vistos em 28/10/2026 so havia passos normais (AE_SC_OUTBOUND_SUCCESS,
+// "Desembaraco aduaneiro concluido"); nenhuma falha real foi vista ainda, entao a lista e de palavras e de pedacos de
+// codigo e deve ser afinada com os casos que aparecerem. "Encaminhado para fiscalizacao aduaneira" e passo normal no
+// Brasil e nao entra.
+const CODIGO_DE_PROBLEMA = /fail|exception|return|refus|lost|abnormal|detain|hold|unsuccess/i;
+const TEXTO_DE_PROBLEMA =
+  /falha|nao entreg|nao efetuad|ausente|devolvid|devolucao|retornad|retido|apreendid|aguardando pagamento|pagamento pendente|extravi|endereco (incorreto|insuficiente|errado|nao localizado)|recusad|irregular|nao autorizad|problema/;
+const TEXTO_DE_CONCLUSAO = /conclui|liberad|entregue ao destinatario/;
+
+/** O evento de rastreio indica problema (falha na entrega, alfandega, devolucao, taxa a pagar, extravio)? */
+export function problemaNoRastreio(evento) {
+  if (!evento) return false;
+  const texto = semAcento(evento.descricao);
+  if (TEXTO_DE_CONCLUSAO.test(texto) && !/nao /.test(texto)) return false;
+  return CODIGO_DE_PROBLEMA.test(String(evento.codigo ?? "")) || TEXTO_DE_PROBLEMA.test(texto);
+}
+
+const DIA_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * O prazo de entrega do pedido para a lista: no do AliExpress, a previsao dos pacotes (a mais cedo ate a mais tardia);
+ * no do Rise, a data de envio mais o maior prazo dos itens. Rascunho ou sem dado -> null.
+ */
+export function prazoDoPedido({ status, enviadoEm = null, prazosDosItens = [], pacotes = [] }) {
+  if (status === "RASCUNHO") return null;
+  const comPrevisao = (pacotes ?? []).filter((pacote) => pacote.previsaoFim || pacote.previsaoInicio);
+  if (comPrevisao.length) {
+    const inicios = comPrevisao.map((pacote) => pacote.previsaoInicio).filter(Boolean).map((data) => new Date(data).getTime());
+    const fins = comPrevisao.map((pacote) => pacote.previsaoFim ?? pacote.previsaoInicio).map((data) => new Date(data).getTime());
+    const inicio = inicios.length ? new Date(Math.min(...inicios)) : null;
+    const fim = new Date(Math.max(...fins));
+    return { texto: previsaoEmDatas(inicio, fim), fim };
+  }
+  const maior = Math.max(0, ...(prazosDosItens ?? []).filter((dias) => Number.isFinite(Number(dias)) && dias !== null).map(Number));
+  if (!enviadoEm || maior <= 0) return null;
+  const fim = new Date(new Date(enviadoEm).getTime() + maior * DIA_MS);
+  return { texto: formatarDataCurta(fim), fim };
+}
+
+/**
+ * Os motivos do "!" de um pedido aberto (ENVIADO ou PARCIAL): passou do prazo sem entregar, problema no ultimo evento de
+ * algum pacote, situacao estranha no AliExpress (disputa, reembolso), itens sem produto e "entregue, falta lancar".
+ * Pedido fechado nao tem "!". O atraso conta pelo dia em Sao Paulo: vence no dia seguinte ao fim da previsao.
+ */
+export function alertasDoPedido({
+  status,
+  agora = new Date(),
+  prazoFim = null,
+  entregueEm = null,
+  canceladoNoAliExpressEm = null,
+  faltaLancar = 0,
+  estoqueLancado = false,
+  linhasPendentes = 0,
+  ultimosEventos = [],
+  statusNoAliExpress = null,
+}) {
+  if (status !== "ENVIADO" && status !== "PARCIAL") return [];
+  const alertas = [];
+  const diaDe = (data) => new Date(data).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+  if (prazoFim && !entregueEm && faltaLancar > 0 && diaDe(agora) > diaDe(prazoFim)) {
+    alertas.push(`Passou da previsão de entrega (${formatarDataCurta(prazoFim)}) e não foi entregue.`);
+  }
+  for (const evento of ultimosEventos ?? []) {
+    if (problemaNoRastreio(evento)) alertas.push(`Rastreio: ${evento.descricao}${evento.em ? ` (${formatarDataCurta(evento.em)})` : ""}.`);
+  }
+  const situacao = semAcento(statusNoAliExpress);
+  if (situacao && /disputa|reembols|cancelad|fechad/.test(situacao) && !(canceladoNoAliExpressEm && estoqueLancado)) {
+    alertas.push(`Situação no AliExpress: ${statusNoAliExpress}.`);
+  }
+  alertas.push(...avisosDoPedido({ entregueEm, canceladoNoAliExpressEm, faltaLancar, estoqueLancado, linhasPendentes }));
+  return alertas;
+}

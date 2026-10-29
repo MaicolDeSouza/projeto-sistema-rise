@@ -137,6 +137,58 @@ const regras = await import("../src/lib/compras/aliexpress/regras.js");
     ],
     ["10/11 a 19/11", "17/11", "até 27/11", null],
   );
+
+  // "!" na Situacao (pedido do dono em 29/10/2026): problema no rastreio, atraso, situacao no AliExpress e os de antes.
+  const { problemaNoRastreio, prazoDoPedido, alertasDoPedido } = regras;
+  conferir(
+    "problema no rastreio",
+    [
+      problemaNoRastreio({ codigo: "AE_SC_OUTBOUND_SUCCESS", descricao: "Saiu do centro de distribuição do país/região de partida" }),
+      problemaNoRastreio({ codigo: null, descricao: "Desembaraço aduaneiro concluído" }),
+      problemaNoRastreio({ codigo: null, descricao: "Objeto encaminhado para fiscalização aduaneira" }),
+      problemaNoRastreio({ codigo: "AE_DELIVERY_FAIL", descricao: "Delivery attempt" }),
+      problemaNoRastreio({ codigo: null, descricao: "Tentativa de entrega não efetuada: destinatário ausente" }),
+      problemaNoRastreio({ codigo: null, descricao: "Objeto retido pela alfândega" }),
+      problemaNoRastreio({ codigo: null, descricao: "Aguardando pagamento do imposto" }),
+      problemaNoRastreio({ codigo: null, descricao: "Objeto devolvido ao remetente" }),
+      problemaNoRastreio({ codigo: null, descricao: "Endereço incorreto" }),
+      problemaNoRastreio(null),
+    ],
+    [false, false, false, true, true, true, true, true, true, false],
+  );
+  const hoje = new Date("2026-11-20T15:00:00Z");
+  conferir(
+    "prazo do pedido",
+    [
+      prazoDoPedido({ status: "ENVIADO", pacotes: [{ previsaoInicio: new Date(1794289253053), previsaoFim: new Date(1795066853053) }] }),
+      prazoDoPedido({ status: "ENVIADO", enviadoEm: new Date("2026-11-01T12:00:00Z"), prazosDosItens: [7, 15, null] }),
+      prazoDoPedido({ status: "RASCUNHO", prazosDosItens: [7] }),
+      prazoDoPedido({ status: "ENVIADO", enviadoEm: new Date("2026-11-01T12:00:00Z"), prazosDosItens: [] }),
+    ].map((prazo) => prazo && { texto: prazo.texto, fim: prazo.fim?.toISOString().slice(0, 10) }),
+    [{ texto: "10/11 a 19/11", fim: "2026-11-19" }, { texto: "16/11", fim: "2026-11-16" }, null, null],
+  );
+  const base = { status: "ENVIADO", agora: hoje, faltaLancar: 4 };
+  conferir(
+    "alertas: atraso, rastreio, situacao no AliExpress, sem produto, entregue",
+    [
+      alertasDoPedido({ ...base, prazoFim: new Date("2026-11-19T05:40:00Z") }),
+      alertasDoPedido({ ...base, prazoFim: new Date("2026-11-25T05:40:00Z") }),
+      alertasDoPedido({ ...base, prazoFim: new Date("2026-11-19T05:40:00Z"), entregueEm: new Date("2026-11-18T12:00:00Z") }),
+      alertasDoPedido({ ...base, ultimosEventos: [{ codigo: null, descricao: "Objeto retido pela alfândega", em: new Date("2026-11-18T12:00:00Z") }] }),
+      alertasDoPedido({ ...base, statusNoAliExpress: "Em disputa" }),
+      alertasDoPedido({ ...base, linhasPendentes: 2 }),
+      alertasDoPedido({ ...base, status: "FINALIZADO", prazoFim: new Date("2026-11-01T12:00:00Z") }),
+    ],
+    [
+      ["Passou da previsão de entrega (19/11) e não foi entregue."],
+      [],
+      ["Entregue no AliExpress em 18/11, falta lançar."],
+      ["Rastreio: Objeto retido pela alfândega (18/11)."],
+      ["Situação no AliExpress: Em disputa."],
+      ["2 item(ns) sem produto: escolha o produto para contar no estoque a caminho."],
+      [],
+    ],
+  );
   // Custo por peca (pedido do dono em 29/10/2026): o total pago (com frete e imposto, menos desconto) / pecas, rateado pelo
   // valor de cada item quando o pedido tem mais de um produto.
   conferir(
@@ -600,7 +652,15 @@ try {
     const busca = await listarPedidos({ busca: "9935244197193461" });
     conferir("lista busca pelo numero do AliExpress e marca a origem", [busca.total, busca.linhas[0]?.origem, busca.linhas[0]?.loja], [1, "ALIEXPRESS", "Lets Deal Store"]);
     conferir("busca por numero longo nao estoura o numero do pedido", (await listarPedidos({ busca: "99352441971934619" })).total, 0);
-    conferir("lista marca pendente", (await listarPedidos({ busca: "9935189636893461" })).linhas[0]?.alerta, "pendente");
+    conferir("lista: '!' de item sem produto", (await listarPedidos({ busca: "9935189636893461" })).linhas[0]?.alertas.some((motivo) => motivo.includes("sem produto")), true);
+    conferir("lista: prazo de entrega pela previsao do pacote", (await listarPedidos({ busca: "9935244197193461" })).linhas[0]?.prazo, "10/11 a 19/11");
+    await prisma.pacoteAliExpress.updateMany({ where: { pedidoAliExpressId: pa.id }, data: { ultimoEvento: "Objeto retido pela alfândega", ultimoCodigo: null } });
+    conferir(
+      "problema no rastreio: '!' na lista e aviso no pedido",
+      [(await listarPedidos({ busca: "9935244197193461" })).linhas[0]?.alertas.some((motivo) => motivo.startsWith("Rastreio: Objeto retido")), (await lerPedido(pa.pedidoId)).avisos.some((motivo) => motivo.startsWith("Rastreio: Objeto retido"))],
+      [true, true],
+    );
+    await prisma.pacoteAliExpress.updateMany({ where: { pedidoAliExpressId: pa.id }, data: { ultimoEvento: "Chegou ao armazém de consolidação", ultimoCodigo: "AE_CW_SIGN_IN_SUCCESS" } });
     // Coluna Produtos da lista (pedido do dono em 29/10/2026): nome e codigo do Rise de cada item.
     conferir("lista traz os produtos do pedido", busca.linhas[0]?.produtos, [{ sku: "ZZ-ALI-T1", nome: "PRODUTO ZZ-ALI-T1" }]);
     // Busca pelo produto (pedido do dono em 29/10/2026): codigo ou nome do Rise nos itens, e o titulo do item sem produto.
@@ -646,7 +706,7 @@ try {
 
     await prisma.pedidoAliExpress.update({ where: { id: pa.id }, data: { entregueEm: new Date("2026-10-27T12:00:00Z") } });
     conferir("entregue sem lancar avisa", (await lerPedido(pa.pedidoId)).avisos, ["Entregue no AliExpress em 27/10, falta lançar."]);
-    conferir("lista marca entregue", (await listarPedidos({ busca: "9935244197193461" })).linhas[0]?.alerta, "entregue");
+    conferir("lista: '!' de entregue sem lancar", (await listarPedidos({ busca: "9935244197193461" })).linhas[0]?.alertas, ["Entregue no AliExpress em 27/10, falta lançar."]);
     await prisma.itemDoPedidoDeCompra.update({ where: { id: itemId }, data: { quantidadeLancada: 4 } });
     conferir("entregue com tudo lancado: sem aviso", (await lerPedido(pa.pedidoId)).avisos, []);
     await devolverMarca();

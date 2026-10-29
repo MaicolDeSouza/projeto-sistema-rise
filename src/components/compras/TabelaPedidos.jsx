@@ -14,7 +14,6 @@ import ProdutosDoPedido from "./ProdutosDoPedido";
 import SeloDoStatus, { TEXTO_DO_STATUS } from "./SeloDoStatus";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-const data = (valor) => (valor ? new Date(valor).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—");
 const FILTROS = ["RASCUNHO", "ENVIADO", "PARCIAL", "FINALIZADO", "CANCELADO"];
 
 /** O botao "Novo pedido" do cabecalho da pagina (a janela mora aqui para nao repetir a lista de fornecedores). */
@@ -96,11 +95,10 @@ export default function TabelaPedidos({ linhas, status, veCusto, podeExcluir = f
                 <th className="w-px whitespace-nowrap px-3 py-2.5 font-medium">Número</th>
                 <th className="w-56 px-3 py-2.5 font-medium">Fornecedor</th>
                 <th className="px-3 py-2.5 font-medium">Produtos</th>
-                <th className="w-px px-3 py-2.5 font-medium">Situação</th>
                 <th className="w-20 px-3 py-2.5 text-right font-medium">Itens</th>
                 {veCusto && <th className="w-32 px-3 py-2.5 text-right font-medium">Total</th>}
-                <th className="w-28 px-3 py-2.5 font-medium">Enviado em</th>
-                <th className="w-28 px-3 py-2.5 font-medium">Atualizado</th>
+                <th className="w-36 px-3 py-2.5 font-medium">Prazo de entrega</th>
+                <th className="w-px px-3 py-2.5 font-medium">Situação</th>
                 {podeExcluir && <th className="w-12 px-2 py-2.5"><span className="sr-only">Excluir</span></th>}
               </tr>
             </thead>
@@ -120,27 +118,29 @@ export default function TabelaPedidos({ linhas, status, veCusto, podeExcluir = f
                           AliExpress
                         </span>
                       )}
-                      {linha.alerta && (
+                    </span>
+                  </td>
+                  <td className="max-w-0 px-3 py-2.5">
+                    <ProdutosDoPedido codigo={linha.codigo} produtos={linha.produtos} />
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{linha.itens}</td>
+                  {veCusto && <td className="px-3 py-2.5 text-right tabular-nums">{moeda.format(linha.total)}</td>}
+                  <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-suave">{linha.prazo ?? "—"}</td>
+                  <td className="px-3 py-2.5">
+                    <span className="flex items-center gap-1.5">
+                      <SeloDoStatus status={linha.status} />
+                      {/* O "!" junta os motivos (atraso, rastreio, situacao no AliExpress, sem produto, entregue): um por linha. */}
+                      {linha.alertas?.length > 0 && (
                         <span
-                          className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white"
-                          title={linha.alerta === "pendente" ? "Item sem produto do Rise" : "Entregue no AliExpress, falta lançar"}
-                          aria-label={linha.alerta === "pendente" ? "Item sem produto do Rise" : "Entregue no AliExpress, falta lançar"}
+                          className="inline-flex h-4 w-4 shrink-0 cursor-help items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white"
+                          title={linha.alertas.join("\n")}
+                          aria-label={linha.alertas.join(" ")}
                         >
                           !
                         </span>
                       )}
                     </span>
                   </td>
-                  <td className="max-w-0 px-3 py-2.5">
-                    <ProdutosDoPedido codigo={linha.codigo} produtos={linha.produtos} />
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <SeloDoStatus status={linha.status} />
-                  </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{linha.itens}</td>
-                  {veCusto && <td className="px-3 py-2.5 text-right tabular-nums">{moeda.format(linha.total)}</td>}
-                  <td className="px-3 py-2.5 tabular-nums text-suave">{data(linha.enviadoEm)}</td>
-                  <td className="px-3 py-2.5 tabular-nums text-suave">{data(linha.atualizadoEm)}</td>
                   {podeExcluir && (
                     <td className="px-2 py-1.5" onClick={(evento) => evento.stopPropagation()}>
                       {(() => {
