@@ -62,7 +62,8 @@
     "teste:compras": "node scripts/teste-compras.js",
     "teste:producao": "node scripts/teste-producao.js",
     "teste:aliexpress": "node scripts/teste-aliexpress.js",
-    "teste:extensao-aliexpress": "node scripts/teste-extensao-aliexpress.js"
+    "teste:extensao-aliexpress": "node scripts/teste-extensao-aliexpress.js",
+    "aliexpress:recalcular": "node scripts/aliexpress-recalcular.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",

@@ -341,6 +341,7 @@ export async function atualizarCustoDosVinculos(tx, pedidoId) {
     where: { id: pedidoId },
     select: {
       origem: true,
+      status: true,
       fornecedorId: true,
       frete: true,
       imposto: true,
@@ -350,7 +351,7 @@ export async function atualizarCustoDosVinculos(tx, pedidoId) {
       aliexpress: { select: { dataDoPedido: true, linhas: { select: { quantidadeComprada: true, precoComprado: true } } } },
     },
   });
-  if (!pedido || pedido.origem !== "ALIEXPRESS" || !pedido.aliexpress) return;
+  if (!pedido || pedido.origem !== "ALIEXPRESS" || !pedido.aliexpress || pedido.status === "CANCELADO") return;
   const itens = pedido.itens.map((item) => ({ ...item, precoUnitario: item.precoUnitario === null ? null : Number(item.precoUnitario) }));
   const produtos = pedido.aliexpress.linhas.reduce((soma, linha) => soma + linha.quantidadeComprada * Number(linha.precoComprado), 0);
   const { desconto } = totaisDoPedido({ itens, descontoTipo: pedido.descontoTipo, descontoValor: Number(pedido.descontoValor) });
@@ -361,7 +362,7 @@ export async function atualizarCustoDosVinculos(tx, pedidoId) {
     const vinculo = await tx.produtoFornecedor.findUnique({ where: { id: item.vinculoId }, select: { id: true, fornecedorId: true, adicionaisValor: true } });
     if (!vinculo || vinculo.fornecedorId !== pedido.fornecedorId) continue;
     const maisNovo = await tx.itemDoPedidoDeCompra.count({
-      where: { vinculoId: vinculo.id, pedido: { origem: "ALIEXPRESS", aliexpress: { dataDoPedido: { gt: pedido.aliexpress.dataDoPedido } } } },
+      where: { vinculoId: vinculo.id, pedido: { origem: "ALIEXPRESS", status: { not: "CANCELADO" }, aliexpress: { dataDoPedido: { gt: pedido.aliexpress.dataDoPedido } } } },
     });
     if (maisNovo > 0) continue;
     const custo = custos[item.id];
@@ -370,4 +371,30 @@ export async function atualizarCustoDosVinculos(tx, pedidoId) {
       data: { precoFornecedor: custo, precoCusto: Math.round((custo + (Number(vinculo.adicionaisValor) || 0)) * 100) / 100 },
     });
   }
+}
+
+/**
+ * Recalcula custo e Obs dos vinculos do AliExpress a partir dos pedidos ja importados (pedido do dono em 29/10/2026,
+ * quando a regra do custo com frete e imposto e a da Obs com a opcao chegaram depois das primeiras importacoes). Vai do
+ * pedido mais antigo ao mais novo, entao o custo que fica e o da compra mais recente. `gravar: false` so conta.
+ */
+export async function recalcularVinculosDoAliExpress({ gravar = false } = {}) {
+  const pedidos = await prisma.pedidoAliExpress.findMany({
+    where: { pedido: { status: { not: "CANCELADO" } } },
+    orderBy: [{ dataDoPedido: "asc" }, { criadoEm: "asc" }],
+    select: { pedidoId: true, linhas: { where: { itemId: { not: null } }, select: { opcao: true, item: { select: { vinculoId: true } } } } },
+  });
+  let obs = 0;
+  for (const pedido of pedidos) {
+    if (!gravar) continue;
+    await prisma.$transaction(async (tx) => {
+      for (const linha of pedido.linhas) {
+        if (!linha.opcao || !linha.item?.vinculoId) continue;
+        const preenchidos = await tx.produtoFornecedor.updateMany({ where: { id: linha.item.vinculoId, observacao: null }, data: { observacao: linha.opcao } });
+        obs += preenchidos.count;
+      }
+      await atualizarCustoDosVinculos(tx, pedido.pedidoId);
+    });
+  }
+  return { pedidos: pedidos.length, obsPreenchidas: obs, gravado: gravar };
 }

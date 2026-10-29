@@ -555,6 +555,18 @@ try {
     const depois = await prisma.linhaAliExpress.findUnique({ where: { id: linhaRecusada.id } });
     conferir("Reenviar ao Virtual resolve", [reenviado.ok, depois.virtualErro, depois.virtualQuantidade], [true, null, 4]);
 
+    // Recalculo dos pedidos ja importados (pedido do dono em 29/10/2026, depois da regra nova de custo e Obs).
+    const { recalcularVinculosDoAliExpress } = await import("../src/lib/compras/aliexpress/casamento.js");
+    const vinculoI1 = () => prisma.produtoFornecedor.findFirst({ where: { produtoId: I1.id, fornecedorId: ali.id }, select: { observacao: true, precoCusto: true } });
+    await prisma.produtoFornecedor.updateMany({ where: { produtoId: I1.id, fornecedorId: ali.id }, data: { observacao: null, precoCusto: 1, precoFornecedor: 1 } });
+    const simulado = await recalcularVinculosDoAliExpress({ gravar: false });
+    conferir("recalcular simulado conta e nao grava", [simulado.pedidos > 0, (await vinculoI1()).observacao, Number((await vinculoI1()).precoCusto)], [true, null, 1]);
+    const recalculado = await recalcularVinculosDoAliExpress({ gravar: true });
+    const depoisDoRecalculo = await vinculoI1();
+    // O custo e o da compra MAIS RECENTE do vinculo: aqui, pedidos do mesmo produto e do mesmo dia criados depois, sem
+    // detalhe de frete ainda (57,49 = o preco da linha). O cancelado nao conta.
+    conferir("recalcular devolve custo e Obs", [recalculado.pedidos > 0, depoisDoRecalculo.observacao, Number(depoisDoRecalculo.precoCusto)], [true, "Color Name: 2M", 57.49]);
+
     const estado = await estadoDaImportacao();
     conferir("estado da importacao", [typeof estado.lerDesde, estado.ultimaImportacaoEm != null, estado.fornecedor], ["string", true, "ZZ Ali Importa"]);
     conferir("cada clique vira log", (await prisma.logIntegracao.count({ where: { servico: "ALIEXPRESS", criadoEm: { gte: inicioDoTeste } } })) >= 10, true);
