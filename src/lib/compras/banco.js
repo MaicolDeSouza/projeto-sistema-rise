@@ -16,7 +16,7 @@ import {
   totaisDoPedido,
 } from "@/lib/compras/regras";
 import { conferirPedido } from "@/lib/compras/esquema";
-import { avisosDoPedido } from "@/lib/compras/aliexpress/regras";
+import { avisosDoPedido, previsaoEmDatas } from "@/lib/compras/aliexpress/regras";
 import { apagarPastaDoPedido, apagarPropostaDoPedido, moverPropostaParaPedido } from "@/lib/compras/arquivos";
 
 /**
@@ -471,6 +471,7 @@ function blocoDoAliExpress(ali) {
           ultimoEvento: linha.pacote.ultimoEvento,
           ultimoEventoEm: linha.pacote.ultimoEventoEm,
           previsaoTexto: linha.pacote.previsaoTexto,
+          previsao: previsaoEmDatas(linha.pacote.previsaoInicio, linha.pacote.previsaoFim) ?? linha.pacote.previsaoTexto,
         },
       ];
     }
@@ -498,8 +499,27 @@ function blocoDoAliExpress(ali) {
         skuId: linha.skuId,
       })),
     linhaPorItem: Object.fromEntries(ali.linhas.filter((linha) => linha.itemId).map((linha) => [linha.itemId, linha.id])),
+    // Fator editavel na tela (pedido do dono em 29/10/2026): so no item que veio de UMA linha (duas opcoes que viraram o
+    // mesmo produto teriam dois fatores; essas trocam pelo "Trocar produto").
+    fatorPorItem: Object.fromEntries(
+      Object.entries(Object.groupBy(ali.linhas.filter((linha) => linha.itemId), (linha) => linha.itemId))
+        .filter(([, linhas]) => linhas.length === 1)
+        .map(([itemId, [linha]]) => [itemId, { linhaId: linha.id, fator: linha.fator }]),
+    ),
+    // "Site do produto" no cartao Fornecedor: a pagina do anuncio de cada linha (pedido do dono em 29/10/2026).
+    produtosNoSite: ali.linhas.filter((linha) => linha.urlDoItem).map((linha) => ({ titulo: linha.titulo, opcao: linha.opcao, url: linha.urlDoItem })),
     opcaoPorItem,
     rastreioPorItem,
+    // Os pacotes do pedido, para o bloco Frete (pedido do dono em 29/10/2026): transportadora, codigo, ultimo evento e
+    // previsao em datas; `itens` diz quais produtos foram em cada um (so importa com mais de um pacote).
+    pacotes: (ali.pacotes ?? []).map((pacote) => ({
+      codigo: pacote.codigo,
+      transportadora: pacote.transportadora,
+      status: pacote.ultimoEvento,
+      statusEm: pacote.ultimoEventoEm ? new Date(pacote.ultimoEventoEm).toISOString() : null,
+      previsao: previsaoEmDatas(pacote.previsaoInicio, pacote.previsaoFim) ?? pacote.previsaoTexto,
+      itens: [...new Set(ali.linhas.filter((linha) => linha.pacoteId === pacote.id && linha.item).map((linha) => linha.item.produto.sku))],
+    })),
     virtualPendentes: ali.linhas.filter((linha) => linha.virtualErro).map((linha) => ({ linhaId: linha.id, titulo: linha.titulo, erro: linha.virtualErro })),
   };
 }
@@ -519,7 +539,12 @@ const INCLUIR_NO_PEDIDO = {
     },
   },
   // Pedido importado do AliExpress (spec 2026-10-28): os dados crus, as linhas (casadas e pendentes) e os pacotes.
-  aliexpress: { include: { linhas: { orderBy: { externoLinhaId: "asc" }, include: { pacote: true } } } },
+  aliexpress: {
+    include: {
+      linhas: { orderBy: { externoLinhaId: "asc" }, include: { pacote: true, item: { select: { produto: { select: { sku: true } } } } } },
+      pacotes: { orderBy: { codigo: "asc" } },
+    },
+  },
 };
 
 export async function lerPedido(id) {

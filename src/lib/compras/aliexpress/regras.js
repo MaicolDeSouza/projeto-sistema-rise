@@ -165,3 +165,31 @@ export function decidirCasamento(candidatos, skuId) {
   if (produtos.length === 1) return { produtoId: produtos[0] };
   return { ambiguo: produtos };
 }
+
+/**
+ * A previsao de entrega em datas de Sao Paulo ("10/11 a 19/11"). Vem dos horarios do AliExpress (`beginEtaTime` e
+ * `endEtaTime`), nao do texto: o texto ("Nov 09 - 18") e de outro fuso e chegou a divergir da propria pagina, que
+ * mostrava "Nov 10 - 19" (medido em 28/10/2026). Mesmo dia -> uma data; so o fim -> "ate"; nada -> null.
+ */
+export function previsaoEmDatas(inicio, fim) {
+  const de = inicio ? formatarDataCurta(inicio) : null;
+  const ate = fim ? formatarDataCurta(fim) : null;
+  if (de && ate) return de === ate ? de : `${de} a ${ate}`;
+  if (ate) return `até ${ate}`;
+  return de;
+}
+
+/**
+ * O custo por peca de cada item de um pedido do AliExpress (pedido do dono em 29/10/2026: "o preco de custo do produto
+ * que fica em Fornecedores deve ser o total do pedido / numero de pecas; frete e impostos entram no custo"). O total
+ * pago (produtos + frete + imposto - desconto) e rateado pelo valor de cada item; num pedido de um produto so, da
+ * exatamente total / pecas. `produtos` e a soma de TODAS as linhas do pedido (as sem produto tambem levam a parte delas
+ * do frete); sem ele, a soma dos itens. Item sem preco fica de fora. Em reais, 2 casas (o `precoCusto` guarda 2).
+ */
+export function custoPorPeca({ itens = [], frete = 0, imposto = 0, desconto = 0, produtos = null }) {
+  const comPreco = itens.filter((item) => Number(item.quantidade) > 0 && item.precoUnitario !== null && item.precoUnitario !== undefined);
+  const base = produtos ?? comPreco.reduce((soma, item) => soma + Number(item.quantidade) * Number(item.precoUnitario), 0);
+  if (!(base > 0)) return {};
+  const fator = (base + (Number(frete) || 0) + (Number(imposto) || 0) - (Number(desconto) || 0)) / base;
+  return Object.fromEntries(comPreco.map((item) => [item.id, Math.round(Number(item.precoUnitario) * fator * 100 + 1e-9) / 100]));
+}

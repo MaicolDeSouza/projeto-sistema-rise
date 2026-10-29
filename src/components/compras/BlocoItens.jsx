@@ -5,7 +5,7 @@ import { ExternalLink, Plus, Repeat, Trash2 } from "lucide-react";
 import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
 import FotoComLupa from "@/components/ui/FotoComLupa";
 import { totalDoItem } from "@/lib/compras/regras";
-import { CelulaDeRastreio, LinhasPendentesAliExpress } from "./AliExpressDoPedido";
+import { CelulaDeFator, CelulaDeRastreio, LinhasPendentesAliExpress } from "./AliExpressDoPedido";
 import BuscaDeItem from "./BuscaDeItem";
 import { doTexto, moeda, soDecimal, soDigitos } from "./formato";
 
@@ -39,7 +39,8 @@ export default function BlocoItens({
   const erro = (indice, nome) => erros?.[`itens.${indice}.${nome}`];
   // Regra 4 do padrao visual: coluna sem dado some (a tabela ja e larga; Opcao e Rastreio so quando algum item tem).
   const mostrarOpcao = Boolean(aliexpress) && itens.some((item) => aliexpress.opcaoPorItem[item.id]);
-  const mostrarRastreio = Boolean(aliexpress) && itens.some((item) => aliexpress.rastreioPorItem[item.id]?.length);
+  // Com um pacote so, o rastreio fica no bloco Frete; a coluna so diz algo quando ha mais de um (qual item foi em qual).
+  const mostrarRastreio = Boolean(aliexpress) && (aliexpress.pacotes?.length ?? 0) > 1 && itens.some((item) => aliexpress.rastreioPorItem[item.id]?.length);
 
   return (
     <SecaoDoAnuncio
@@ -62,6 +63,7 @@ export default function BlocoItens({
                 <th className="min-w-32 px-3 py-2 font-medium">Descrição fornecedor</th>
                 <th className="w-24 px-3 py-2 font-medium">Código fornecedor</th>
                 {mostrarOpcao && <th className="px-3 py-2 font-medium">Opção</th>}
+                {aliexpress && <th className="w-20 px-3 py-2 text-right font-medium">Fator</th>}
                 <th className="w-20 px-3 py-2 text-right font-medium">Qtde</th>
                 {veCusto && <th className="w-28 px-3 py-2 text-right font-medium">Preço un.</th>}
                 {veCusto && <th className="w-16 px-3 py-2 text-right font-medium">IPI %</th>}
@@ -118,6 +120,11 @@ export default function BlocoItens({
                     />
                   </td>
                   {mostrarOpcao && <td className="max-w-40 truncate px-3 py-3 text-xs text-suave">{aliexpress.opcaoPorItem[item.id] ?? "—"}</td>}
+                  {aliexpress && (
+                    <td className="px-3 py-2 text-right">
+                      <CelulaDeFator item={item} fator={aliexpress.fatorPorItem?.[item.id]} podeCasar={podeCasar} aoAtualizar={aoAtualizar} />
+                    </td>
+                  )}
                   <td className="px-3 py-2">
                     <input
                       inputMode="numeric"

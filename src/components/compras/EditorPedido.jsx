@@ -304,7 +304,7 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
 
         <div className="grid gap-6 lg:grid-cols-2">
           <BlocoPagamento formulario={formulario} editar={rascunho} erros={erros} aoMudar={mudar} totais={veCusto ? totais : null} editarEntrada={!fechado} />
-          <BlocoFrete formulario={formulario} transportadoras={transportadoras} editar={!fechado} aoMudar={mudar} />
+          <BlocoFrete formulario={formulario} transportadoras={transportadoras} editar={!fechado} aoMudar={mudar} aliexpress={pedido.aliexpress} />
           <BlocoProposta formulario={formulario} editar={!fechado} aoMudar={mudar}>
             {extras.arquivoDaProposta?.({ pedido, editar: !fechado, formulario, mudar })}
           </BlocoProposta>

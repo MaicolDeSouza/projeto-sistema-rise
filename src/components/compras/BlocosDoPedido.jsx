@@ -145,7 +145,64 @@ export function BlocoPagamento({ formulario, editar, erros, aoMudar, totais = nu
   );
 }
 
-export function BlocoFrete({ formulario, transportadoras, editar, aoMudar }) {
+/** Um valor so de leitura no desenho dos campos; com `link`, o valor abre o endereco em outra aba. */
+function Lido({ rotulo, valor, link = null, className = "" }) {
+  return (
+    <div className={className}>
+      <span className="mb-1 block text-xs font-medium text-suave">{rotulo}</span>
+      <p className="min-h-[38px] truncate rounded-md border border-borda bg-fundo px-2.5 py-2 text-sm" title={valor ?? undefined}>
+        {valor && link ? (
+          <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-mono font-medium text-acento hover:underline">
+            {valor} <ExternalLink size={13} />
+          </a>
+        ) : (
+          (valor ?? "—")
+        )}
+      </p>
+    </div>
+  );
+}
+
+const dataCurta = (valor) =>
+  valor ? new Date(valor).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" }) : null;
+
+/**
+ * O frete do pedido do AliExpress (pedido do dono em 29/10/2026): transportadora (so o nome, sem cadastro), codigo de
+ * rastreio que abre o status no AliExpress, status do frete e previsao de entrega. Tudo vem do "Enviar ao Rise" e e so
+ * leitura. Mais de um pacote: um grupo por pacote, com os itens dele.
+ */
+function FreteDoAliExpress({ aliexpress }) {
+  const pacotes = aliexpress.pacotes ?? [];
+  return (
+    <SecaoDoAnuncio titulo="Frete" ajuda="Vem do AliExpress a cada Enviar ao Rise. O código abre o rastreio no site.">
+      {pacotes.length === 0 ? (
+        <p className="text-sm text-suave">Sem rastreio ainda.</p>
+      ) : (
+        <div className="space-y-5">
+          {pacotes.map((pacote, indice) => (
+            <div key={pacote.codigo}>
+              {pacotes.length > 1 && (
+                <p className="mb-2 text-xs font-semibold text-texto">
+                  Pacote {indice + 1}
+                  {pacote.itens?.length > 0 && <span className="ml-1.5 font-normal text-suave">{pacote.itens.join(", ")}</span>}
+                </p>
+              )}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Lido rotulo="Transportadora" valor={pacote.transportadora} />
+                <Lido rotulo="Código de rastreio" valor={pacote.codigo} link={aliexpress.linkDoRastreio} />
+                <Lido rotulo="Status do frete" valor={pacote.status ? [dataCurta(pacote.statusEm), pacote.status].filter(Boolean).join(" · ") : null} />
+                <Lido rotulo="Previsão de entrega" valor={pacote.previsao} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </SecaoDoAnuncio>
+  );
+}
+
+export function BlocoFrete({ formulario, transportadoras, editar, aoMudar, aliexpress = null }) {
+  if (aliexpress) return <FreteDoAliExpress aliexpress={aliexpress} />;
   const escolhida = transportadoras.find((transportadora) => transportadora.id === formulario.transportadoraId);
   const outra = !formulario.transportadoraId;
   const linkDoRastreio =

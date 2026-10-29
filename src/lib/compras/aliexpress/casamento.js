@@ -2,7 +2,9 @@ import { clienteBling } from "@/lib/blingSync/cliente";
 import { prisma } from "@/lib/db";
 
 import { fornecedorDoAliExpress } from "./fornecedor";
-import { anuncioDoLink, codigoDoVinculo, decidirCasamento, precoMedioPonderado, precoNoRise, quantidadeNoRise } from "./regras";
+import { totaisDoPedido } from "@/lib/compras/regras";
+
+import { anuncioDoLink, codigoDoVinculo, custoPorPeca, decidirCasamento, precoMedioPonderado, precoNoRise, quantidadeNoRise } from "./regras";
 import { entradaNoVirtual, saidaDoVirtual } from "./virtual";
 
 /**
@@ -80,12 +82,16 @@ async function gravarVinculo(tx, { aliId, produtoId, codigo, linha, fator, preco
   if (escolhaDoDono) {
     await tx.produtoFornecedor.updateMany({ where: { fornecedorId: aliId, codigo, NOT: { produtoId } }, data: { codigo: null } });
   }
-  const existente = await tx.produtoFornecedor.findFirst({ where: { fornecedorId: aliId, produtoId, codigo }, select: { id: true } });
+  // A Obs do vinculo recebe a opcao comprada (pedido do dono em 29/10/2026: "Color: 50pcs"); a Obs que o dono ja
+  // escreveu no vinculo nao e apagada.
+  const existente = await tx.produtoFornecedor.findFirst({ where: { fornecedorId: aliId, produtoId, codigo }, select: { id: true, observacao: true } });
   if (existente) {
-    await tx.produtoFornecedor.update({ where: { id: existente.id }, data: { fator, ...(linha.urlDoItem ? { link: linha.urlDoItem } : {}) } });
+    await tx.produtoFornecedor.update({
+      where: { id: existente.id },
+      data: { fator, ...(linha.urlDoItem ? { link: linha.urlDoItem } : {}), ...(linha.opcao && !existente.observacao ? { observacao: linha.opcao } : {}) },
+    });
     return existente.id;
   }
-  const comCusto = await tx.produtoFornecedor.count({ where: { produtoId, precoCusto: { not: null } } });
   const criado = await tx.produtoFornecedor.create({
     data: {
       produtoId,
@@ -93,8 +99,8 @@ async function gravarVinculo(tx, { aliId, produtoId, codigo, linha, fator, preco
       codigo,
       link: linha.urlDoItem,
       descricao: linha.titulo,
+      observacao: linha.opcao,
       fator,
-      ...(comCusto === 0 ? { precoFornecedor: preco, precoCusto: preco } : {}),
     },
     select: { id: true },
   });
@@ -165,6 +171,7 @@ export async function casarLinha(tx, linhaId, escolha = null) {
   }
   await tx.linhaAliExpress.update({ where: { id: linha.id }, data: { itemId: item.id, fator } });
   if (!criouItem) await recalcularItem(tx, item.id);
+  await atualizarCustoDosVinculos(tx, pedido.id);
   return { ok: true, itemId: item.id, produtoId: produto.id, fator, criouItem };
 }
 
@@ -321,4 +328,46 @@ export async function virtualNaChegada(itemId, quantidade, sentido, { cliente = 
     if (resta === 0) break;
   }
   return { ok: true, enviado: true };
+}
+
+/**
+ * O custo do vinculo do fornecedor do AliExpress acompanha a compra (pedido do dono em 29/10/2026): total pago / pecas,
+ * com frete e imposto (`custoPorPeca`). So o vinculo do proprio fornecedor do pedido muda (outro fornecedor, nunca), e
+ * so quando este e o pedido mais recente com aquele vinculo: reler um pedido antigo nao volta o custo para tras.
+ * `precoCusto` = custo + adicionais do vinculo (a mesma conta do custo adicional, 24/10/2026).
+ */
+export async function atualizarCustoDosVinculos(tx, pedidoId) {
+  const pedido = await tx.pedidoDeCompra.findUnique({
+    where: { id: pedidoId },
+    select: {
+      origem: true,
+      fornecedorId: true,
+      frete: true,
+      imposto: true,
+      descontoTipo: true,
+      descontoValor: true,
+      itens: { select: { id: true, quantidade: true, precoUnitario: true, vinculoId: true } },
+      aliexpress: { select: { dataDoPedido: true, linhas: { select: { quantidadeComprada: true, precoComprado: true } } } },
+    },
+  });
+  if (!pedido || pedido.origem !== "ALIEXPRESS" || !pedido.aliexpress) return;
+  const itens = pedido.itens.map((item) => ({ ...item, precoUnitario: item.precoUnitario === null ? null : Number(item.precoUnitario) }));
+  const produtos = pedido.aliexpress.linhas.reduce((soma, linha) => soma + linha.quantidadeComprada * Number(linha.precoComprado), 0);
+  const { desconto } = totaisDoPedido({ itens, descontoTipo: pedido.descontoTipo, descontoValor: Number(pedido.descontoValor) });
+  const custos = custoPorPeca({ itens, frete: Number(pedido.frete), imposto: Number(pedido.imposto), desconto, produtos });
+
+  for (const item of itens) {
+    if (!item.vinculoId || custos[item.id] === undefined) continue;
+    const vinculo = await tx.produtoFornecedor.findUnique({ where: { id: item.vinculoId }, select: { id: true, fornecedorId: true, adicionaisValor: true } });
+    if (!vinculo || vinculo.fornecedorId !== pedido.fornecedorId) continue;
+    const maisNovo = await tx.itemDoPedidoDeCompra.count({
+      where: { vinculoId: vinculo.id, pedido: { origem: "ALIEXPRESS", aliexpress: { dataDoPedido: { gt: pedido.aliexpress.dataDoPedido } } } },
+    });
+    if (maisNovo > 0) continue;
+    const custo = custos[item.id];
+    await tx.produtoFornecedor.update({
+      where: { id: vinculo.id },
+      data: { precoFornecedor: custo, precoCusto: Math.round((custo + (Number(vinculo.adicionaisValor) || 0)) * 100) / 100 },
+    });
+  }
 }

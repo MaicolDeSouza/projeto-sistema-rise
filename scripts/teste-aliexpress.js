@@ -127,6 +127,28 @@ const regras = await import("../src/lib/compras/aliexpress/regras.js");
     [null, { produtoId: "p1" }, { produtoId: "p1" }, { ambiguo: ["p1", "p2"] }, null, { produtoId: "p1" }],
   );
   conferir("data curta", formatarDataCurta(new Date("2026-10-27T12:00:00Z")), "27/10");
+  conferir(
+    "previsao em datas",
+    [
+      regras.previsaoEmDatas(new Date(1794289253053), new Date(1795066853053)),
+      regras.previsaoEmDatas(new Date("2026-11-17T12:00:00Z"), new Date("2026-11-17T15:00:00Z")),
+      regras.previsaoEmDatas(null, new Date("2026-11-27T12:00:00Z")),
+      regras.previsaoEmDatas(null, null),
+    ],
+    ["10/11 a 19/11", "17/11", "até 27/11", null],
+  );
+  // Custo por peca (pedido do dono em 29/10/2026): o total pago (com frete e imposto, menos desconto) / pecas, rateado pelo
+  // valor de cada item quando o pedido tem mais de um produto.
+  conferir(
+    "custo por peca com frete e imposto",
+    [
+      regras.custoPorPeca({ itens: [{ id: "a", quantidade: 4, precoUnitario: 57.49 }], frete: 0.12, imposto: 47.14, desconto: 0.12 }),
+      regras.custoPorPeca({ itens: [{ id: "a", quantidade: 10, precoUnitario: 1 }, { id: "b", quantidade: 5, precoUnitario: 2 }], frete: 4, imposto: 0, desconto: 0 }),
+      regras.custoPorPeca({ itens: [{ id: "a", quantidade: 100, precoUnitario: 0.25 }], frete: 0, imposto: 5, desconto: 0 }),
+      regras.custoPorPeca({ itens: [{ id: "a", quantidade: 2, precoUnitario: null }], frete: 5, imposto: 0, desconto: 0 }),
+    ],
+    [{ a: 69.28 }, { a: 1.2, b: 2.4 }, { a: 0.3 }, {}],
+  );
 }
 
 {
@@ -332,7 +354,9 @@ try {
     conferir("casar de novo nao duplica", [(await casarLinha(prisma, L1)).itemId, await prisma.itemDoPedidoDeCompra.count({ where: { pedidoId: pedido.pedidoId } })], [r1.itemId, 1]);
     conferir("regra 2: rascunho do Bling, um produto", (await casarLinha(prisma, L2)).produtoId, P2.id);
     conferir("regra 2 cria o vinculo do Ali com o codigo anuncio:opcao", (await vinculoAli(P2.id))?.codigo, "333:444");
-    conferir("custo so em quem nao tinha", [Number((await vinculoAli(P2.id)).precoCusto), Number((await vinculoAli(P1.id)).precoCusto)], [30, 9]);
+    // Desde 29/10/2026 o vinculo do Ali acompanha a ultima compra (o preco da linha; o frete e o imposto entram quando o
+    // detalhe do pedido chega). Vinculo de outro fornecedor nao muda.
+    conferir("custo do vinculo Ali acompanha a compra", [Number((await vinculoAli(P2.id)).precoCusto), Number((await vinculoAli(P1.id)).precoCusto)], [30, 10]);
     conferir("regra 2 ambigua fica pendente", await casarLinha(prisma, L3), { ok: false, pendente: true, motivo: "ambiguo", produtos: [P3.id, P4.id].sort() });
     conferir("kit fica pendente", (await casarLinha(prisma, L4)).motivo, "kit");
     const r5 = await casarLinha(prisma, L5);
@@ -353,6 +377,16 @@ try {
     conferir("com estoque lancado nao troca", (await casarManual(L1, P2.id, 1, { cliente: falso })).erro, "Já há estoque lançado deste item: não dá para trocar.");
     conferir("com estoque lancado nao desfaz", (await desfazerCasamento(L5, { cliente: falso })).ok, false);
     await prisma.itemDoPedidoDeCompra.update({ where: { id: r1.itemId }, data: { quantidadeLancada: 0 } });
+    // Fator editavel no item ja casado (pedido do dono em 29/10/2026: "Color: 50pcs" comprado 2 vezes = 100 no Rise).
+    const antesDoFator = falso.estado.lancamentos.length;
+    const comFator = await casarManual(L2, P2.id, 10, { cliente: falso });
+    conferir(
+      "trocar so o fator refaz quantidade e preco e lembra no vinculo",
+      [comFator.ok, await itemDe(comFator.itemId), (await vinculoAli(P2.id))?.fator, (await prisma.linhaAliExpress.findUnique({ where: { id: L2 } })).fator],
+      [true, { quantidade: 10, precoUnitario: 3 }, 10, 10],
+    );
+    conferir("trocar o fator: Virtual tira o velho e poe o novo", falso.estado.lancamentos.slice(antesDoFator).map((l) => [l.operacao, l.quantidade]), [["E", 10]]);
+
     const desfeito = await desfazerCasamento(L5, { cliente: falso });
     conferir("desfazer tira a linha do item", [desfeito.ok, await itemDe(r1.itemId), (await prisma.linhaAliExpress.findUnique({ where: { id: L5 } })).itemId], [true, { quantidade: 2, precoUnitario: 10 }, null]);
     await devolverMarca();
@@ -383,12 +417,23 @@ try {
     );
     conferir("linha casada pelo rascunho, entrou no Virtual", [p1.linhas[0].itemId != null, p1.linhas[0].virtualQuantidade, p1.linhas[0].virtualLancadoEm != null], [true, 4, true]);
     conferir("item com quantidade e preco", [p1.pedido.itens[0].quantidade, Number(p1.pedido.itens[0].precoUnitario)], [4, 57.49]);
+    // Obs do vinculo = a opcao comprada (pedido do dono em 29/10/2026): no vinculo criado e no que ja existia sem Obs.
+    conferir(
+      "Obs do vinculo do Ali recebe a opcao",
+      await Promise.all([I1, I2].map((produto) => prisma.produtoFornecedor.findFirst({ where: { produtoId: produto.id, fornecedorId: ali.id }, select: { observacao: true } }).then((v) => v?.observacao))),
+      ["Color Name: 2M", "Cor: Azul"],
+    );
     conferir("precisa detalhe e rastreio dos dois, mais novo primeiro", [r1.precisaDetalhe, r1.precisaRastreio], [["9915244197193461", "9915189636893461"], ["9915244197193461", "9915189636893461"]]);
     conferir("Virtual: duas entradas (a linha pendente nao vai)", falso.estado.lancamentos.map((lancamento) => [lancamento.operacao, lancamento.quantidade]), [["E", 4], ["E", 2]]);
 
     const d = await importarDetalhes(detalhes);
     const p1d = await lerAli("9915244197193461");
     conferir("detalhe: frete, imposto e desconto implicito", [Number(p1d.pedido.frete), Number(p1d.pedido.imposto), Number(p1d.pedido.descontoValor), p1d.pedido.descontoTipo], [0.12, 47.14, 0.12, "VALOR"]);
+    conferir(
+      "custo do vinculo Ali = total pago / pecas, com frete e imposto",
+      await prisma.produtoFornecedor.findFirst({ where: { produtoId: I1.id, fornecedorId: ali.id }, select: { precoFornecedor: true, precoCusto: true } }).then((v) => [Number(v.precoFornecedor), Number(v.precoCusto)]),
+      [69.28, 69.28],
+    );
     conferir("rastreio: pacote e linha ligada", [d.pacotes, p1d.linhas[0].pacote?.codigo, p1d.pacotes[0]?.ultimoEvento, p1d.pacotes[0]?.transportadora], [1, "NN446506474BR", "Chegou ao armazém de consolidação", "AliExpress Selection Standard"]);
     conferir("depois do detalhe, nao pede de novo", (await importarLista(lista, { cliente: falso })).precisaDetalhe, ["9915189636893461"]);
 
@@ -556,6 +601,39 @@ try {
     conferir("busca por numero longo nao estoura o numero do pedido", (await listarPedidos({ busca: "99352441971934619" })).total, 0);
     conferir("lista marca pendente", (await listarPedidos({ busca: "9935189636893461" })).linhas[0]?.alerta, "pendente");
     conferir("sem custo nao ve o preco das pendentes", semPrecos(lidoOutro).aliexpress.linhasPendentes[0].precoComprado, null);
+    conferir(
+      "pacotes do pedido para o bloco Frete",
+      lido.aliexpress.pacotes,
+      [
+        {
+          codigo: "NN446506474BR",
+          transportadora: "AliExpress Selection Standard",
+          status: "Chegou ao armazém de consolidação",
+          statusEm: new Date(1793134276000).toISOString(),
+          previsao: "10/11 a 19/11",
+          itens: ["ZZ-ALI-T1"],
+        },
+      ],
+    );
+    conferir("um pacote so: a coluna Rastreio dos itens nao e necessaria", lido.aliexpress.pacotes.length, 1);
+    conferir("fator por item para editar na tela", lido.aliexpress.fatorPorItem[itemId], { linhaId: pa.linhas[0].id, fator: 1 });
+    conferir("produtos no site para o botao", lido.aliexpress.produtosNoSite.map((produto) => produto.url), ["https://www.aliexpress.com/item/1005006891567710.html"]);
+
+    // MCP (pedido do dono em 29/10/2026): o status e a previsao de um produto pela conversa.
+    const mcp = await import("../src/lib/mcp/compras.js");
+    const tudo = { pode: () => true };
+    const aCaminho = await mcp.comprasACaminhoDoProduto({ produto: "zz-ali-t1" }, tudo);
+    const doT1 = aCaminho.produtos[0];
+    conferir(
+      "MCP: compras a caminho do produto",
+      [aCaminho.produtos.length, doT1.sku, doT1.aCaminho, doT1.pedidos[0].faltaChegar, doT1.pedidos[0].aliexpress?.numero, doT1.pedidos[0].rastreio[0]?.codigo, doT1.pedidos[0].rastreio[0]?.previsao, doT1.pedidos[0].rastreio[0]?.status],
+      [1, "ZZ-ALI-T1", 4, 4, "9935244197193461", "NN446506474BR", "10/11 a 19/11", "Chegou ao armazém de consolidação"],
+    );
+    conferir("MCP: produto sem compra a caminho", (await mcp.comprasACaminhoDoProduto({ produto: "ZZ-ALI-NADA" }, tudo)).produtos, []);
+    conferir("MCP: sem ver pedidos recusa", await mcp.comprasACaminhoDoProduto({ produto: "ZZ-ALI-T1" }, { pode: () => false }).then(() => "passou", (erro) => (/não pode/i.test(erro.message) ? "recusou" : erro.message)), "recusou");
+    const lidoPeloMcp = await mcp.lerPedidoDeCompra({ pedido: lido.codigo }, tudo);
+    conferir("MCP: lerPedidoDeCompra traz o AliExpress e o rastreio", [lidoPeloMcp.aliexpress?.numero, lidoPeloMcp.aliexpress?.pacotes?.[0]?.codigo, lidoPeloMcp.aliexpress?.pacotes?.[0]?.previsao], ["9935244197193461", "NN446506474BR", "10/11 a 19/11"]);
+
     await prisma.pedidoAliExpress.update({ where: { id: pa.id }, data: { entregueEm: new Date("2026-10-27T12:00:00Z") } });
     conferir("entregue sem lancar avisa", (await lerPedido(pa.pedidoId)).avisos, ["Entregue no AliExpress em 27/10, falta lançar."]);
     conferir("lista marca entregue", (await listarPedidos({ busca: "9935244197193461" })).linhas[0]?.alerta, "entregue");

@@ -17,9 +17,115 @@ const dataCurta = (valor) =>
  * casar e o rastreio de cada item; a acao principal continua "Lancar estoque" (a coluna Chegada de sempre).
  */
 
-/** Dentro do cartao Fornecedor: loja, numero no AliExpress (abre o pedido no site), situacao la e data. */
+const botaoDoSite =
+  "inline-flex items-center gap-1.5 rounded-md border border-borda px-3 py-1.5 text-sm font-medium text-texto transition-[background-color,transform] duration-150 hover:bg-fundo active:scale-[0.97]";
+
+/**
+ * "Detalhes do pedido" e "Site do produto" (pedido do dono em 29/10/2026). Com mais de um produto no pedido, o segundo
+ * abre a lista para escolher.
+ */
+function BotoesDoSite({ aliexpress }) {
+  const produtos = aliexpress.produtosNoSite ?? [];
+  return (
+    <div className="mt-3 flex flex-wrap items-start gap-2">
+      <a href={aliexpress.linkDoPedido} target="_blank" rel="noreferrer" className={botaoDoSite}>
+        Detalhes do pedido <ExternalLink size={14} />
+      </a>
+      {produtos.length === 1 && (
+        <a href={produtos[0].url} target="_blank" rel="noreferrer" className={botaoDoSite}>
+          Site do produto <ExternalLink size={14} />
+        </a>
+      )}
+      {produtos.length > 1 && (
+        <details className="relative">
+          <summary className={`${botaoDoSite} cursor-pointer list-none`}>Site do produto ({produtos.length})</summary>
+          <ul className="absolute left-0 z-20 mt-1 w-80 rounded-md border border-borda bg-superficie py-1 shadow-lg">
+            {produtos.map((produto) => (
+              <li key={produto.url + (produto.opcao ?? "")}>
+                <a href={produto.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-fundo">
+                  <span className="min-w-0 flex-1 truncate" title={produto.titulo}>
+                    {produto.titulo}
+                    {produto.opcao && <span className="text-suave"> · {produto.opcao}</span>}
+                  </span>
+                  <ExternalLink size={13} className="shrink-0 text-suave" />
+                </a>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  );
+}
+
+/**
+ * O fator do item ja casado, editavel (pedido do dono em 29/10/2026: "Color: 50pcs" comprado 2 vezes = 100 no Rise).
+ * Refaz quantidade e preco pelo mesmo "Casar" (mesmo produto, fator novo) e o Rise lembra no vinculo. So sem estoque
+ * lancado e so no item que veio de uma linha.
+ */
+export function CelulaDeFator({ item, fator, podeCasar, aoAtualizar }) {
+  const [editando, setEditando] = useState(false);
+  const [valor, setValor] = useState(String(fator?.fator ?? 1));
+  const [erro, setErro] = useState(null);
+  const [ocupado, iniciar] = useTransition();
+  if (!fator) return <span className="text-xs text-suave">—</span>;
+  const pode = podeCasar && !item.quantidadeLancada;
+
+  const salvar = () =>
+    iniciar(async () => {
+      setErro(null);
+      const resposta = await casarLinhaAliExpressAcao(fator.linhaId, item.produtoId, Number(valor));
+      if (!resposta?.ok) return setErro(resposta?.erro ?? "Não foi possível trocar o fator.");
+      setEditando(false);
+      if (resposta.pedido) aoAtualizar(resposta.pedido);
+    });
+
+  if (!editando) {
+    return (
+      <button
+        type="button"
+        disabled={!pode}
+        onClick={() => {
+          setValor(String(fator.fator));
+          setEditando(true);
+        }}
+        title={pode ? "Editar o fator: 1 comprado vale quantas unidades no Rise" : "Item com estoque lançado: o fator não muda"}
+        className="whitespace-nowrap rounded px-2 py-1 text-sm tabular-nums text-texto hover:bg-fundo disabled:cursor-default disabled:text-suave disabled:hover:bg-transparent"
+      >
+        × {fator.fator}
+      </button>
+    );
+  }
+  return (
+    <div className="flex items-center gap-1">
+      <input
+        autoFocus
+        inputMode="numeric"
+        value={valor}
+        onChange={(evento) => setValor(soDigitos(evento.target.value, 6))}
+        onKeyDown={(evento) => {
+          if (evento.key === "Enter") salvar();
+          if (evento.key === "Escape") setEditando(false);
+        }}
+        aria-label={`Fator de ${item.sku}`}
+        className="w-16 rounded border border-borda bg-superficie px-2 py-1 text-right text-sm tabular-nums focus:border-acento focus:outline-none"
+      />
+      <button type="button" onClick={salvar} disabled={ocupado || !Number(valor)} className="rounded bg-acento px-2 py-1 text-xs font-medium text-white disabled:opacity-50">
+        {ocupado ? <Loader2 size={12} className="animate-spin" /> : "OK"}
+      </button>
+      {erro && (
+        <span className="text-xs text-rose-600" role="alert" title={erro}>
+          !
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** Dentro do cartao Fornecedor: loja, numero no AliExpress (abre o pedido no site), situacao la, data e os dois botoes. */
 export function ResumoAliExpress({ aliexpress }) {
   return (
+    <>
     <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-suave">
       {aliexpress.loja && <span>{aliexpress.loja}</span>}
       <a href={aliexpress.linkDoPedido} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-mono text-xs text-texto hover:text-acento">
@@ -30,6 +136,8 @@ export function ResumoAliExpress({ aliexpress }) {
         {aliexpress.dataDoPedido && <span className="tabular-nums"> · comprado em {dataCurta(aliexpress.dataDoPedido)}</span>}
       </span>
     </p>
+    <BotoesDoSite aliexpress={aliexpress} />
+    </>
   );
 }
 

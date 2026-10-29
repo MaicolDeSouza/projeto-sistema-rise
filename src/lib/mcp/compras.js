@@ -142,6 +142,30 @@ export async function resolverItens(fornecedorId, itens) {
 }
 
 /** O pedido para a conversa: sem foto e sem ids internos de lancamento; sem `dado.custo`, sem precos. */
+/** Um pacote do AliExpress na conversa: codigo, transportadora, ultimo evento, previsao e o link do rastreio. */
+function pacoteParaConversa(pacote, linkDoRastreio) {
+  return {
+    codigo: pacote.codigo,
+    transportadora: pacote.transportadora ?? null,
+    status: pacote.status ?? pacote.ultimoEvento ?? null,
+    statusEm: pacote.statusEm ?? emTexto(pacote.ultimoEventoEm) ?? null,
+    previsao: pacote.previsao ?? null,
+    link: linkDoRastreio,
+  };
+}
+
+function aliexpressParaConversa(ali) {
+  return {
+    numero: ali.numero,
+    loja: ali.loja,
+    situacaoNoAliExpress: ali.statusTexto,
+    entregueNoAliExpressEm: emTexto(ali.entregueEm),
+    link: ali.linkDoPedido,
+    pacotes: ali.pacotes.map((pacote) => ({ ...pacoteParaConversa(pacote, ali.linkDoRastreio), itens: pacote.itens })),
+    itensSemProduto: ali.linhasPendentes.length,
+  };
+}
+
 function pedidoParaConversa(pedido, veCusto) {
   const visto = veCusto ? pedido : semPrecos(pedido);
   return {
@@ -171,6 +195,8 @@ function pedidoParaConversa(pedido, veCusto) {
       porConta: visto.fretePorConta,
       rastreio: visto.rastreio,
     },
+    // Pedido importado do AliExpress (28/10/2026): o numero la, a loja, a situacao no site e os pacotes com o rastreio.
+    aliexpress: visto.aliexpress ? aliexpressParaConversa(visto.aliexpress) : null,
     propostaDoFornecedor: visto.propostaNumero,
     observacoes: visto.observacoes,
     criadoEm: emTexto(visto.criadoEm),
@@ -239,6 +265,59 @@ export async function listarPedidosDeCompra({ situacao, termos, limite = 25 }, {
       atualizadoEm: emTexto(linha.atualizadoEm),
     })),
   };
+}
+
+/**
+ * O que esta a caminho de um produto (pedido do dono em 29/10/2026: "o status e a previsao de algum produto irei buscar
+ * por MCP"): os pedidos enviados ou em entrega parcial com o produto, quanto falta chegar e, nos do AliExpress, o
+ * rastreio do pacote do item (status e previsao). Sem preco: nao precisa de `dado.custo`.
+ */
+export async function comprasACaminhoDoProduto({ produto, limite = 10 }, { pode }) {
+  exigir(pode, "tela.compras.pedidos", "ver", "ver os pedidos de compra");
+  const texto = String(produto ?? "").trim();
+  const palavras = texto.split(/s+/).filter(Boolean);
+  const exato = await prisma.produto.findFirst({ where: { sku: { equals: texto, mode: "insensitive" } }, select: { id: true } });
+  const produtos = exato
+    ? [exato]
+    : await prisma.produto.findMany({
+        where: { AND: palavras.map((palavra) => ({ OR: [{ tituloBase: { contains: palavra, mode: "insensitive" } }, { sku: { contains: palavra, mode: "insensitive" } }] })) },
+        select: { id: true },
+        take: limite,
+      });
+  if (!produtos.length) return { produtos: [] };
+
+  const itens = await prisma.itemDoPedidoDeCompra.findMany({
+    where: { produtoId: { in: produtos.map((p) => p.id) }, pedido: { status: { in: ["ENVIADO", "PARCIAL"] } } },
+    select: { id: true, produtoId: true, pedidoId: true },
+  });
+  const pedidos = new Map();
+  for (const pedidoId of new Set(itens.map((item) => item.pedidoId))) pedidos.set(pedidoId, await lerPedido(pedidoId));
+
+  const porProduto = new Map();
+  for (const item of itens) {
+    const pedido = pedidos.get(item.pedidoId);
+    const lido = pedido?.itens.find((linha) => linha.id === item.id);
+    if (!lido || faltaLancar(lido) <= 0) continue;
+    const ali = pedido.aliexpress;
+    // O pacote do item; sem ele (rastreio ainda nao lido por item), os pacotes do pedido inteiro.
+    const doItem = ali?.pacotes.filter((pacote) => pacote.itens.includes(lido.sku)) ?? [];
+    const pacotes = doItem.length ? doItem : ali?.pacotes ?? [];
+    const entrada = porProduto.get(item.produtoId) ?? { sku: lido.sku, nome: lido.nome, aCaminho: 0, pedidos: [] };
+    entrada.aCaminho += faltaLancar(lido);
+    entrada.pedidos.push({
+      codigo: pedido.codigo,
+      fornecedor: pedido.fornecedor.nome,
+      situacao: pedido.status,
+      situacaoTexto: TEXTO_DA_SITUACAO[pedido.status],
+      quantidade: lido.quantidade,
+      faltaChegar: faltaLancar(lido),
+      compradoEm: emTexto(pedido.enviadoEm),
+      aliexpress: ali ? { numero: ali.numero, loja: ali.loja, situacaoNoAliExpress: ali.statusTexto, link: ali.linkDoPedido } : null,
+      rastreio: ali ? pacotes.map((pacote) => pacoteParaConversa(pacote, ali.linkDoRastreio)) : pedido.rastreio ? [{ codigo: pedido.rastreio, transportadora: pedido.transportadora?.nome ?? pedido.transportadoraNome ?? null, status: null, statusEm: null, previsao: null, link: null }] : [],
+    });
+    porProduto.set(item.produtoId, entrada);
+  }
+  return { produtos: [...porProduto.values()] };
 }
 
 export async function lerPedidoDeCompra({ pedido }, { pode }) {
@@ -332,8 +411,22 @@ export const FERRAMENTAS_DE_COMPRAS_LEITURA = [
     executar: listarPedidosDeCompra,
   },
   {
+    nome: "comprasACaminhoDoProduto",
+    descricao: [
+      "Diz o que está a caminho de um produto: os pedidos de compra enviados ou em entrega parcial que têm o produto, quanto falta chegar, quando foi comprado",
+      "e, nos pedidos do AliExpress, o rastreio do pacote (código, transportadora, último evento com a data e a previsão de entrega em datas, com o link).",
+      "Use para perguntas como \"quando chega o ESP32?\" ou \"qual o status da compra do 100105?\".",
+    ].join(" "),
+    esquema: z.object({
+      produto: z.string().trim().min(1).max(120).describe("O SKU do produto (exato) ou palavras do nome"),
+      limite: z.number().int().min(1).max(30).optional().describe("Quantos produtos procurar pelo nome (padrão 10)"),
+    }),
+    anotacoes: LEITURA,
+    executar: comprasACaminhoDoProduto,
+  },
+  {
     nome: "lerPedidoDeCompra",
-    descricao: "Abre um pedido de compra inteiro: fornecedor, itens (código e nome no fornecedor, quantidade, preço, IPI, quanto já chegou e quanto falta chegar), totais, pagamento, frete, rastreio e as datas de cada situação.",
+    descricao: "Abre um pedido de compra inteiro: fornecedor, itens (código e nome no fornecedor, quantidade, preço, IPI, quanto já chegou e quanto falta chegar), totais, pagamento, frete, rastreio e as datas de cada situação. Pedido do AliExpress traz também o número no site, a loja, a situação lá e os pacotes com transportadora, último evento e previsão de entrega.",
     esquema: z.object({ pedido: PEDIDO }),
     anotacoes: LEITURA,
     executar: lerPedidoDeCompra,

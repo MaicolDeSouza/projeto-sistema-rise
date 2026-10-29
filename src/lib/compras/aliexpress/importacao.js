@@ -3,7 +3,7 @@ import { proximoNumero } from "@/lib/compras/banco";
 import { prisma } from "@/lib/db";
 import { lerConexao, registrarTeste } from "@/lib/integracoes/conexoes";
 
-import { casarLinha, entradaDaLinhaNoVirtual, oQueEstaNoVirtual, saidaDaLinhaDoVirtual } from "./casamento";
+import { atualizarCustoDosVinculos, casarLinha, entradaDaLinhaNoVirtual, oQueEstaNoVirtual, saidaDaLinhaDoVirtual } from "./casamento";
 import { fornecedorDoAliExpress } from "./fornecedor";
 import { descontoImplicito, lerData, lerPreco, pacoteDaLinha, situacaoDoAliExpress, statusNoRise } from "./regras";
 
@@ -253,6 +253,8 @@ export async function importarDetalhes({ detalhes = [], rastreios = [] } = {}) {
       }),
       prisma.pedidoAliExpress.update({ where: { id: ali.id }, data: { detalheLidoEm: agora, totalInformado: total } }),
     ]);
+    // Com frete e imposto conhecidos, o custo dos vinculos do Ali passa a incluir os dois.
+    await atualizarCustoDosVinculos(prisma, ali.pedidoId);
     resumo.detalhados++;
   }
 
