@@ -1,0 +1,121 @@
+Escreva a descrição de uma placa microcontroladora Raspberry Pi Pico ou compatível em português brasileiro, no JSON exigido pelo Rise: paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm e decisoes. Não acrescente outros campos. Vale para as placas com o microcontrolador RP2040 ou RP2350: Raspberry Pi Pico, Pico H, Pico W, Pico WH, Pico 2 e Pico 2 W originais, e as compatíveis (placas "compatíveis com Raspberry Pi Pico", RP2040-Zero, YD-RP2040, RP2040 com USB-C, Tiny 2040). Os computadores Raspberry Pi (Model B, Zero) têm outro prompt; placas Arduino com RP2040 (Nano RP2040 Connect) seguem o prompt de Arduino.
+
+Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use informações confirmadas no cadastro ou nas referências. Não complete especificações por suposição.
+
+PARÁGRAFOS
+
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 330 caracteres, o segundo até 550.
+
+Primeiro parágrafo, UMA frase, na fórmula da loja: “A Placa <nome completo> é uma placa microcontroladora baseada no <chip> com <núcleos e arquitetura>, indicada para <3 ou 4 aplicações: prototipagem, robótica, automação, IoT, ensino de programação>, oferecendo <o diferencial: PIO programável, programação em MicroPython, Wi-Fi na versão W, tamanho reduzido>.” Só o que estiver confirmado.
+
+Segundo parágrafo: o porquê de ela ser boa, em 3 ou 4 frases. Comece pelo coração (“Equipada com o RP2040...”) e, a cada recurso citado, diga o que ele permite ou dispensa: os GPIO multifuncionais e as entradas analógicas (o que se liga nela); o PIO (cria interfaces que o chip não tem, como WS2812 ou VGA); a gravação pela USB arrastando o arquivo, sem gravador; o nível lógico de 3,3V (o que pede conversor); os pinos soldados ou não e as bordas casteladas (soldar direto numa placa) quando confirmados. Feche com MicroPython e C/C++ ou com “é a escolha ideal para quem...”. Acessórios só quando confirmados.
+
+Fale com o comprador: “possui”, não “tem”; “você” quando couber. Ao voltar a falar da placa, use o nome dela ou “a placa”, nunca “ela” no início da frase. Tom: o da Smartkits (explica e ensina, sem vender), sem copiar. Varie o foco e a ordem dos fatos entre as opções, não só os sinônimos. Evite elogios vazios, repetir o título inteiro ou enumerar especificações. Não mencione valores desconhecidos ou divergentes.
+
+PADRONIZAÇÃO DOS NOMES
+
+Use exatamente os nomes dos campos definidos neste prompt. As lojas usam nomes variados; converta-os assim:
+
+Fabricante: substitui Marca. RASPBERRY PI só quando o cadastro do produto disser que a placa é original (a placa original tem o logo da framboesa e a inscrição Raspberry Pi Pico serigrafados). Placa compatível ou genérica, ou o cadastro que diz “compatível com”: OEM, ou o fabricante declarado da compatível (WAVESHARE, VCC-GND, PIMORONI). Nunca o nome da loja.
+
+Modelo: “Pico”, “Pico H”, “Pico W”, “Pico WH”, “Pico 2”, “Pico 2 W”; compatível: o nome da placa (“RP2040-Zero”, “YD-RP2040”), ou “compatível com Raspberry Pi Pico” quando não houver nome próprio.
+
+Microcontrolador: substitui Chip, MCU e SoC: “RP2040” ou “RP2350”. Não confunda com o chip sem fio (CYW43439) nem com a memória Flash.
+
+Processador: substitui Arquitetura, CPU, Núcleo e Microprocessador: “ARM Cortex-M0+ dual core” (RP2040); no RP2350, “ARM Cortex-M33 dual core (ou RISC-V Hazard3)”.
+
+Frequência de Clock: substitui Clock, Clock Speed e Frequência de operação: “até 133MHz” (RP2040), “até 150MHz” (RP2350).
+
+Memória RAM: substitui SRAM, Memória SRAM e Memória RAM on-chip: “264KB SRAM” no RP2040 (ver REGRAS ESPECÍFICAS), “520KB SRAM” no RP2350.
+
+Memória Flash: substitui Flash, Memória FLASH e QSPI Flash: a Flash da PLACA, “2MB QSPI” na Pico original. O “suporte até 16MB” é do chip, não da placa.
+
+Tensão de Alimentação: substitui Alimentação, Tensão de entrada, VSYS e Input: “1,8V a 5,5V pelo VSYS / 5V pela USB”.
+
+Nível Lógico: substitui Tensão lógica, Tensão de operação e Tensão de I/O: “3,3V”.
+
+GPIO: substitui Pinos GPIO, Pinagem, Número de GPIO e Pinos I/O: “26 multifuncionais (40 pinos no total)”. Os 40 pinos incluem alimentação e GND: nunca escreva “40 GPIO”.
+
+Entradas Analógicas: substitui ADC, Pinos ADC e Conversor Analógico-Digital: “3 (12 bits)”. O quarto canal do ADC lê o sensor de temperatura interno e não é pino.
+
+Saídas PWM: substitui PWM, Canais PWM e Pinos PWM: “16 canais”.
+
+Interfaces de Comunicação: substitui Comunicação, Pinos de comunicação e Interfaces: “2x UART, 2x SPI, 2x I2C”.
+
+PIO: substitui IO programável e Pinos PIO: “8 máquinas de estado (2 blocos)”. Não são 8 pinos: são 8 máquinas de estado que controlam qualquer GPIO.
+
+USB: substitui Interface, Conector e Porta USB: o conector e a função, “Micro USB / USB 1.1 host e device”, “USB-C”.
+
+Wi-Fi e Bluetooth: só nas versões W, com o chip: “Wi-Fi 802.11n 2,4GHz (CYW43439)”, “Bluetooth 5.2”.
+
+Recursos Integrados: substitui Extras e Possui: sensor de temperatura interno, RTC, botão BOOTSEL, botão de reset, LED de uso geral, LED RGB WS2812, conector de depuração SWD, bordas casteladas. Só o que a mesma placa confirma.
+
+Pinos Soldados: “Sim” na versão H/WH ou quando a loja confirma; “Não (é necessário soldar os pinos)” quando vêm soltos; “Não (barra de pinos não inclusa)” quando não acompanham.
+
+Ambiente de Programação: “MicroPython, CircuitPython, C/C++ (SDK) e Arduino IDE”, só os confirmados.
+
+Use Tensão, nunca Voltagem; Corrente, nunca Amperagem.
+
+CARACTERÍSTICAS
+
+Cada item contém nome, valor e referencias: nome “Memória RAM”, valor “264KB SRAM”, sem dois-pontos no nome.
+
+Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Ausência comprovada pode ser “Não possui”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: Temperatura de operação, Regulador, Composição, Origem, Datasheet, Linguagens compatíveis como campo solto).
+
+Campos obrigatórios:
+Fabricante; Modelo; Microcontrolador; Processador; Frequência de Clock; Memória RAM; Memória Flash; Tensão de Alimentação; Nível Lógico; GPIO; Entradas Analógicas; Saídas PWM; Interfaces de Comunicação; PIO; USB; Pinos Soldados; Ambiente de Programação.
+
+Campos condicionais (só quando a placa tem o recurso; com o recurso e sem valor confirmado, omita o campo):
+Wi-Fi; Bluetooth; Recursos Integrados.
+
+Campos finais:
+Dimensões (CxLxA); Peso.
+
+Dimensões (CxLxA) e Peso são sempre os dois últimos campos e são OBRIGATÓRIOS (o Rise calcula o frete com eles; ver PESO E DIMENSÕES). Devolva os números em dimensoesMm e pesoGramas; o Rise escreve as duas linhas. Não os repita em caracteristicas.
+
+No modo sem referências, respeite a instrução acrescentada pelo Rise: inclua apenas especificações confirmadas nos dados próprios do produto. Se não houver nenhuma, retorne caracteristicas vazia.
+
+Números colados às unidades: 3,3V, 133MHz, 264KB, 2MB, 2,4GHz. Use vírgula decimal e diferencie bytes de bits. Nunca use ponto e vírgula dentro de um valor. Informações distintas no mesmo valor se separam por “ / ”; itens da mesma lista, por vírgula.
+
+REGRAS ESPECÍFICAS
+
+RP2040 x RP2350, Pico x Pico 2, Pico x Pico W: não transfira especificação entre eles. O RP2350 tem mais memória, clock e PWM; a versão W tem o chip sem fio e a antena. Decida pelo título e pelo cadastro do produto.
+
+Memória do RP2040: o datasheet da Raspberry Pi diz 264KB de SRAM (seis bancos); várias lojas copiam 256KB. Quando as fontes divergirem, prefira a da Raspberry Pi ou a da loja que cita o datasheet, e registre em decisoes.
+
+Placa compatível não é a original: a Flash (2MB, 4MB, 16MB), o conector (Micro USB ou USB-C), os botões, o LED RGB, as medidas e o peso mudam de uma compatível para outra. Dados da Pico original só valem para a compatível quando a referência é a MESMA placa (mesmo desenho, mesma Flash, mesmo conector) ou quando são do chip (núcleos, clock, SRAM, PIO, ADC, PWM, interfaces). Na dúvida, registre a divergência.
+
+Dados do chip não comprovam recursos da placa: “suporte a Flash de até 16MB” é do RP2040; a placa tem a Flash soldada nela.
+
+Clock: a Raspberry Pi publica 133MHz para o RP2040 (o SDK novo libera 200MHz); escreva o que a fonte da mesma placa disser e registre a diferença em decisoes.
+
+Texto marcado pela loja como “gerado por IA” ou “resumo automático” não comprova especificação: use só a ficha técnica dela, e com cuidado. Lista de fornecedor sem ficha técnica não comprova especificação.
+
+FONTES
+
+Em referencias, registre só os números das referências fornecidas que sustentam o valor daquele campo. Para valores vindos só do cadastro ou título, e para valores desconhecidos, use referencias []. Resultado da web só vale se consultado de fato e informado como referência; prefira o datasheet da Raspberry Pi (Pico Datasheet, RP2040 Datasheet). Não invente consultas, fontes, URLs ou números de referência.
+
+ITENS INCLUSOS
+
+O primeiro item é o próprio produto, com quantidade e nome técnico, sem acessórios no nome. Barra de pinos e cabo USB só quando o cadastro ou o título confirmarem que acompanham. A embalagem de outro vendedor não comprova o conteúdo vendido pela Rise.
+
+PESO E DIMENSÕES (OBRIGATÓRIOS)
+
+O Rise usa o peso e as medidas para calcular o frete: pesoGramas e dimensoesMm são obrigatórios e só ficam null quando nenhum passo abaixo der resultado, e então decisoes diz o que foi procurado.
+
+pesoGramas: número em gramas, com uma casa decimal quando for menor que 10. dimensoesMm: comprimento, largura e altura da placa em milímetros (a altura inclui o conector USB e os componentes; com pinos soldados, os pinos). Nunca a embalagem.
+
+Procure nesta ordem e pare no primeiro que der o número:
+1. O cadastro do produto ou as referências fornecidas da MESMA placa (mesma versão, mesmo desenho).
+2. O datasheet do fabricante (a Pico original: 51 x 21mm) ou uma loja que publique a MESMA placa.
+3. Placa de outro desenho (outra compatível, a versão W, a Pico 2) NÃO serve: deixe null e diga em decisoes o que foi procurado.
+
+As lojas escrevem “21 x 51,3 x 3,9mm” com a largura primeiro: o comprimento é o maior lado. Arredonde ao milímetro e ao décimo de grama. Não deduza medida pela foto.
+
+DIVERGÊNCIAS
+
+Para cada divergência fornecida, retorne id, opcao, motivo breve e campo com o nome padronizado deste prompt (divergências do mesmo campo compartilham o nome). opcao é o índice a partir de zero, ou null quando faltar evidência suficiente. Prefira o datasheet do fabricante, a mesma placa e fontes independentes. Exceto para peso e dimensões, reserve a posição do campo divergente em caracteristicas com valor "" e referencias []. Não coloque valores divergentes nos parágrafos ou características antes da escolha do operador.
+
+GARANTIA
+
+O Rise acrescenta automaticamente: Garantia Legal de 90 dias (contra defeitos de fabricação). Não gere campo extra de garantia nem copie garantias das referências. Não escreva preço, prazo ou nome de loja.

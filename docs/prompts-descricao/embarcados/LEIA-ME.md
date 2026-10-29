@@ -12,6 +12,9 @@ Versão de trabalho: 12/10/2026. Cinco prompts completos e independentes, para e
 - [ESP32-CAM e ESP32-S3-CAM](06-esp32-cam.txt) (25/10/2026, a partir dos 43 ESP32-CAM coletados de 16 lojas e do 170105:
   câmera, PSRAM e cartão primeiro; a base de gravação ESP32-CAM-MB nos itens só quando o cadastro confirma; Fabricante OEM só
   sem fabricante). Na biblioteca da VPS, o nome "Embarcados-ESP32-CAM".
+- [Raspberry Pi Pico (RP2040 e RP2350)](07-raspberry-pi-pico.txt) (28/10/2026, a partir do 100115 e das 12 lojas
+  vinculadas: original x compatível, 264KB contra os 256KB que as lojas copiam, 26 GPIO e não 40). Na biblioteca da VPS,
+  o nome "Embarcados-Raspberry Pi Pico".
 
 Cada arquivo já contém parágrafos, características, fontes, itens inclusos, peso/medidas, divergências e a instrução sobre a garantia padrão. Não concatenar os cinco arquivos nem acrescentar o prompt padrão inteiro: cada um o substitui.
 

@@ -1,0 +1,119 @@
+Escreva a descrição de um módulo ou shield Ethernet (rede cabeada) para microcontrolador em português brasileiro, no JSON exigido pelo Rise: paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm e decisoes. Não acrescente outros campos. Vale para as placas que ligam um microcontrolador a uma rede com cabo RJ45: os módulos ENC28J60 (o maior e o mini), W5100, W5500, W5200 e LAN8720, os shields Ethernet W5100, W5200 e W5500 para Arduino UNO e Mega e o Ethernet Shield ENC28J60 para Arduino Nano. Placas com Ethernet já integrada (WT32-ETH01, ESP32-ETH, Arduino Ethernet), conversores RS485 ou serial-Ethernet prontos (USR-TCP232) e módulos Wi-Fi não entram neste prompt.
+
+Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use informações confirmadas no cadastro ou nas referências. Não complete especificações por suposição.
+
+PARÁGRAFOS
+
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 330 caracteres, o segundo até 550.
+
+Primeiro parágrafo, UMA frase, na fórmula da loja: “O <Módulo ou Shield> Ethernet <chip> é <uma placa de rede cabeada / um shield> que conecta <o Arduino, o ESP32 ou outro microcontrolador> à rede local e à internet pelo cabo RJ45, indicado para <3 ou 4 aplicações: automação residencial, servidor web embarcado, monitoramento remoto, IoT cabeada>, oferecendo <o diferencial: pilha TCP/IP no chip, 10/100Mbps, slot microSD, encaixe direto no Nano>.” Só o que estiver confirmado.
+
+Segundo parágrafo: o porquê de ele ser bom, em 3 ou 4 frases. Comece pelo coração (“Baseado no controlador ENC28J60 da Microchip...”, “Equipado com o chip W5100 da WIZnet...”) e, a cada recurso citado, diga o que ele permite ou dispensa: a interface SPI (poucos pinos do microcontrolador); a pilha TCP/IP no chip do W5100/W5500 (o microcontrolador não precisa montar os pacotes) ou a pilha feita pela biblioteca no ENC28J60 (EtherCard, UIPEthernet); a conexão cabeada (estável onde o Wi-Fi falha); o encaixe do shield (sem jumpers nem protoboard); o slot microSD; a alimentação e o nível lógico (o que aceita sem conversor). Feche com as bibliotecas ou com “é a escolha ideal para quem...”. Acessórios só quando confirmados.
+
+Fale com o comprador: “possui”, não “tem”; “você” quando couber. Ao voltar a falar do produto, use o nome dele, “o módulo” ou “o shield”, nunca “ele” no início da frase. Tom: o da Smartkits (explica e ensina, sem vender), sem copiar. Varie o foco e a ordem dos fatos entre as opções, não só os sinônimos. Evite elogios vazios (“alta performance”, “excelente estabilidade”, “de qualquer parte do mundo”), repetir o título inteiro ou enumerar especificações. Não mencione valores desconhecidos ou divergentes.
+
+PADRONIZAÇÃO DOS NOMES
+
+Use exatamente os nomes dos campos definidos neste prompt. As lojas usam nomes variados; converta-os assim:
+
+Fabricante: substitui Marca. Placa genérica, sem fabricante declarado: OEM. Nunca o nome da loja: “Eletrogate”, “Casa da Robótica” ou “IMP” (importado) na marca de um anúncio não são o fabricante.
+
+Modelo: o nome ou o código impresso na placa, como “Nano Ethernet Shield V1.0”, “ENC28J60 Mini”, “Ethernet Shield R3”. Sem nome confirmado da mesma placa, omita o campo; o chip sozinho não é modelo.
+
+Controlador Ethernet: substitui Chip, Chip board, Controlador e Chip Controlador, com o fabricante quando confirmado: “ENC28J60 (Microchip)”, “W5100 (WIZnet)”, “W5500 (WIZnet)”, “LAN8720A (Microchip)”.
+
+Velocidade de Rede: substitui Velocidade de conexão, Velocidade Ethernet e Padrão: “10Mbps (10BASE-T)” no ENC28J60, “10/100Mbps (10BASE-T e 100BASE-TX)” no W5100, W5500 e LAN8720.
+
+Interface com o Microcontrolador: substitui Interface, Comunicação, Conexão e Protocolo/Interface: “SPI (até 20MHz)”, “SPI (pinos 10 a 13 no UNO, 50 a 53 no Mega)”, “RMII” no LAN8720.
+
+Pilha TCP/IP: substitui Protocolos suportados e Suporte protocolos TCP/IP: no W5100/W5500, o que o chip faz sozinho, “TCP, UDP, ICMP, IPv4, ARP, IGMP, PPPoE no chip”; no ENC28J60, “feita pela biblioteca no microcontrolador”. Só com fonte.
+
+Conexões Simultâneas: substitui Sockets e Conexões independentes: “4” no W5100, “8” no W5500.
+
+Buffer: substitui Memória interna, TX/RX RAM Buffer e Memória Buffer: “8KB” no ENC28J60, “16KB” no W5100, “32KB” no W5500.
+
+Conector de Rede: substitui Conector, Interface de Rede, Placa de interface de Rede e RJ45: “RJ45 com transformador integrado (HR911105A)”.
+
+Cristal: substitui Cristal oscilador e Contém cristal: “25MHz”.
+
+Tensão de Alimentação: substitui Tensão de operação, Tensão de alimentação e Alimentação: o que a placa recebe, “3,3V”, “5V (regulador de 3,3V na placa)”, “5V pela placa Arduino”.
+
+Nível Lógico: substitui Tensão lógica e Tolerância de sinal: “3,3V (pinos tolerantes a 5V)”. Só com fonte; não deduza.
+
+Corrente de Consumo: substitui Corrente e Consumo: “até 180mA”.
+
+Conector de Ligação: substitui Conector 1x10, Conector 1x12, Pinagem e Quantidade de pinos: “barra de pinos 1x10 (CLKOUT, INT, WOL, SO, SI, SCK, CS, RESET, VCC, GND)”, “barra 2x5”, “encaixe de shield com pinos empilháveis”.
+
+Compatibilidade: substitui Compatível com: as placas em que o shield encaixa ou que a loja da mesma placa confirma, “Arduino UNO e Mega”, “Arduino Nano V3”. No módulo de fios, as plataformas com biblioteca confirmada.
+
+Slot microSD: substitui Cartão SD e Slot para cartão: “Sim (CS no pino 4, FAT16 e FAT32)”. Só no shield que tem.
+
+Indicação: substitui LEDs indicativos, LEDs e Saídas Multi-LED: “LEDs de link, atividade, velocidade, duplex e colisão”, “LED de link e de atividade no RJ45”.
+
+Recursos: substitui Extras e Suporte: Auto MDI/MDIX, full-duplex e half-duplex, Wake-on-LAN, PoE. Só o que a fonte confirma.
+
+Use Tensão, nunca Voltagem; Corrente, nunca Amperagem.
+
+CARACTERÍSTICAS
+
+Cada item contém nome, valor e referencias: nome “Controlador Ethernet”, valor “W5100 (WIZnet)”, sem dois-pontos no nome.
+
+Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Ausência comprovada pode ser “Não possui”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: Composição, Origem, Material, Datasheet, Biblioteca, Aplicações, Temperatura de operação, Versão do módulo).
+
+Campos obrigatórios:
+Fabricante; Modelo; Controlador Ethernet; Velocidade de Rede; Interface com o Microcontrolador; Pilha TCP/IP; Buffer; Conector de Rede; Cristal; Tensão de Alimentação; Nível Lógico; Conector de Ligação; Compatibilidade.
+
+Campos condicionais (só quando a placa tem o recurso; com o recurso e sem valor confirmado, omita o campo):
+Conexões Simultâneas; Slot microSD; Corrente de Consumo; Indicação; Recursos.
+
+Campos finais:
+Dimensões (CxLxA); Peso.
+
+Dimensões (CxLxA) e Peso são sempre os dois últimos campos e são OBRIGATÓRIOS (o Rise calcula o frete com eles; ver PESO E DIMENSÕES). Devolva os números em dimensoesMm e pesoGramas; o Rise escreve as duas linhas. Não os repita em caracteristicas.
+
+No modo sem referências, respeite a instrução acrescentada pelo Rise: inclua apenas especificações confirmadas nos dados próprios do produto. Se não houver nenhuma, retorne caracteristicas vazia.
+
+Números colados às unidades: 3,3V, 25MHz, 16KB, 10Mbps, 180mA. Use vírgula decimal e diferencie bytes de bits. Nunca use ponto e vírgula dentro de um valor. Informações distintas no mesmo valor se separam por “ / ”; itens da mesma lista, por vírgula.
+
+REGRAS ESPECÍFICAS
+
+O mesmo chip vem em placas diferentes, e as lojas misturam os dados: o ENC28J60 “normal” (azul, cerca de 55 x 36mm, barra de 12 pinos ou 2x5, em geral com regulador e alimentação de 5V) não é o ENC28J60 Mini (cerca de 50 x 18mm, barra 1x10, alimentação de 3,3V), nem o shield ENC28J60 para Nano (cerca de 68 x 18mm, encaixa no Nano). Só valem como referência para alimentação, conector de ligação, medidas e peso as da MESMA placa: mesmo chip, mesmo formato, mesma barra de pinos. Decida pelo título, pela descrição do cadastro e pelas fotos descritas nas referências; na dúvida, não copie e registre a divergência.
+
+O ENC28J60 é só 10Mbps e não tem pilha TCP/IP no chip: não escreva 100Mbps nem “TCP/IP no chip” para ele, mesmo que uma loja escreva. O W5100 e o W5500 têm a pilha no chip e funcionam com a biblioteca Ethernet oficial do Arduino; o ENC28J60 usa outras (EtherCard, UIPEthernet).
+
+“Frequência máxima da interface SPI” não é a velocidade da rede: 20MHz ou 25MHz do SPI ficam na Interface com o Microcontrolador; o cristal de 25MHz fica em Cristal.
+
+Tensão: o ENC28J60 e o W5500 trabalham em 3,3V. Placa com regulador aceita 5V na alimentação, e os pinos podem ser tolerantes a 5V; diga isso só com fonte da mesma placa. O shield W5100 recebe 5V da própria placa Arduino.
+
+Slot microSD do shield W5100 divide o barramento SPI com o chip Ethernet (seleção pelo pino 4 e pelo 10): diga só com fonte.
+
+Texto marcado pela loja como “gerado por IA” ou “resumo automático” não comprova especificação: use só a ficha técnica dela, e com cuidado. Lista de fornecedor sem ficha técnica não comprova especificação.
+
+FONTES
+
+Em referencias, registre só os números das referências fornecidas que sustentam o valor daquele campo. Para valores vindos só do cadastro ou título, e para valores desconhecidos, use referencias []. Resultado da web só vale se consultado de fato e informado como referência; prefira o datasheet do chip (Microchip, WIZnet) para os dados do chip. Dados do chip não comprovam alimentação, conectores, medidas ou acessórios da placa. Não invente consultas, fontes, URLs ou números de referência.
+
+ITENS INCLUSOS
+
+O primeiro item é o próprio produto, com quantidade e nome técnico, sem acessórios no nome. Cabo de rede, cartão microSD e barra de pinos só quando o cadastro ou o título confirmarem que acompanham (as lojas costumam dizer “cabo RJ45 não incluso”). A embalagem de outro vendedor não comprova o conteúdo vendido pela Rise.
+
+PESO E DIMENSÕES (OBRIGATÓRIOS)
+
+O Rise usa o peso e as medidas para calcular o frete: pesoGramas e dimensoesMm são obrigatórios e só ficam null quando nenhum passo abaixo der resultado, e então decisoes diz o que foi procurado.
+
+pesoGramas: número em gramas, com uma casa decimal quando for menor que 10. dimensoesMm: comprimento, largura e altura da placa montada em milímetros (a altura inclui o conector RJ45 e os pinos do encaixe). Nunca a embalagem.
+
+Procure nesta ordem e pare no primeiro que der o número:
+1. O cadastro do produto ou as referências fornecidas da MESMA placa (mesmo formato, ver REGRAS ESPECÍFICAS).
+2. O fabricante da placa ou uma loja na internet que publique a MESMA placa.
+3. Placa de outro formato com o mesmo chip NÃO serve: deixe null e diga em decisoes o que foi procurado.
+
+As lojas trocam a ordem dos eixos (“49mm de largura x 19mm de comprimento”): o comprimento é o maior lado. Arredonde ao milímetro e ao décimo de grama. Não deduza medida pela foto.
+
+DIVERGÊNCIAS
+
+Para cada divergência fornecida, retorne id, opcao, motivo breve e campo com o nome padronizado deste prompt (divergências do mesmo campo compartilham o nome). opcao é o índice a partir de zero, ou null quando faltar evidência suficiente. Prefira a mesma placa (mesmo formato), o datasheet do chip e fontes independentes. Exceto para peso e dimensões, reserve a posição do campo divergente em caracteristicas com valor "" e referencias []. Não coloque valores divergentes nos parágrafos ou características antes da escolha do operador.
+
+GARANTIA
+
+O Rise acrescenta automaticamente: Garantia Legal de 90 dias (contra defeitos de fabricação). Não gere campo extra de garantia nem copie garantias das referências. Não escreva preço, prazo ou nome de loja.
