@@ -44,7 +44,7 @@ export default function BlocoItens({
   return (
     <SecaoDoAnuncio
       titulo={`Itens do pedido (${itens.length})`}
-      ajuda="Nome e código no fornecedor vêm do vínculo do produto; são eles que vão no PDF. Depois de enviado, só o prazo muda."
+      ajuda="Descrição e código do fornecedor vêm do vínculo do produto; são eles que vão no PDF. Depois de enviado, só o prazo muda."
     >
       <LinhasPendentesAliExpress aliexpress={aliexpress} pedidoId={pedidoId} fornecedor={fornecedor} podeCasar={podeCasar} aoAtualizar={aoAtualizar} />
       {itens.length === 0 ? (
@@ -57,8 +57,9 @@ export default function BlocoItens({
             <thead className="border-b border-borda text-left text-xs text-suave">
               <tr>
                 <th className="w-14 px-3 py-2 font-medium">Foto</th>
-                <th className="min-w-40 px-3 py-2 font-medium">Produto</th>
-                <th className="min-w-32 px-3 py-2 font-medium">Nome no fornecedor</th>
+                {/* Rotulos pedidos pelo dono em 29/10/2026 (print): "Produto" e "Nome no fornecedor" viraram estes. */}
+                <th className="min-w-40 px-3 py-2 font-medium">Descrição Rise</th>
+                <th className="min-w-32 px-3 py-2 font-medium">Descrição fornecedor</th>
                 <th className="w-24 px-3 py-2 font-medium">Código fornecedor</th>
                 {mostrarOpcao && <th className="px-3 py-2 font-medium">Opção</th>}
                 <th className="w-20 px-3 py-2 text-right font-medium">Qtde</th>
@@ -101,7 +102,7 @@ export default function BlocoItens({
                       value={item.nomeNoFornecedor ?? ""}
                       disabled={!editar}
                       onChange={(evento) => aoMudar(indice, "nomeNoFornecedor", evento.target.value)}
-                      aria-label={`Nome no fornecedor de ${item.sku}`}
+                      aria-label={`Descrição fornecedor de ${item.sku}`}
                       placeholder="—"
                       className={`${campo} truncate`}
                     />
