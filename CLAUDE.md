@@ -2063,8 +2063,10 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   `FormData` — salvar por uma aba invalidava os campos das outras.
 - **Arquivo `"use server"` só exporta função assíncrona.** Uma constante exportada faz o
   Next recusar o módulo inteiro.
-- **Limite de corpo de Server Action** é 1 MB por padrão; está em 24 MB no
-  `next.config.mjs` por causa dos PDFs. Acima disso vem 413 **antes** do nosso código.
+- **Limite de corpo de Server Action** é 1 MB por padrão; está em **55 MB** no
+  `next.config.mjs` desde 30/10/2026 (era 24 MB) por causa dos documentos. Acima disso vem 413 **antes** do nosso código,
+  e a tela recebe só "Minified React error #441": por isso o documento também é conferido na tela
+  (`MAXIMO_DOCUMENTO_BYTES`, `lib/limites.js`, **50 MB** desde 30/10/2026 por pedido do dono; era 20 MB).
 - **`next/image` lança exceção** quando o host não está em `images.remotePatterns` — uma URL
   externa inválida derruba a página. Use `<img>` para URL externa (ver `ehLocal`).
 - **Tailwind v4**: `divide-x` usa `border-inline-end`, e o utilitário de translação escreve
@@ -5572,8 +5574,8 @@ Pedido do dono: varrer **todo sábado às 00:00** e, no fim, um relatório com *
   Postgres não remove valor de enum. Não havia nenhum arquivo dos tipos antigos.
 - **Documentos técnicos aceitam `.zip`** (pedido do dono em 04/10/2026; o certificado continua só
   PDF/imagem). O Windows manda `application/x-zip-compressed`, então os dois tipos entram, e o
-  servidor só aceita se o conteúdo começar com `PK` (o tipo vem do navegador). Limite de 20 MB, o
-  mesmo dos PDFs (o `bodySizeLimit` é 24 MB). A rota `/api/arquivos` serve `.zip` como download.
+  servidor só aceita se o conteúdo começar com `PK` (o tipo vem do navegador). Limite de 50 MB, o
+  mesmo dos PDFs (o `bodySizeLimit` é 55 MB; eram 20 e 24 até 30/10/2026). A rota `/api/arquivos` serve `.zip` como download.
 - **O arquivo baixado leva o NOME REAL, e não o hash** (pedido do dono em 05/10/2026: baixava como
   `d408461a…pdf` em vez de `Datasheet ATmega328P.pdf`). O arquivo mora no disco com nome gerado por nós (32
   hexadecimais), mas a lista já mostrava `ProdutoArquivo.nomeOriginal`; a rota `/api/arquivos` não o informava

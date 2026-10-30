@@ -34,7 +34,9 @@ export const MAXIMO_EXTRA_BYTES = 10 * 1024 * 1024;
 /// Documento tecnico e certificado: tamanho maximo do arquivo (o mesmo de `arquivos.js`). Conferido TAMBEM na tela antes de
 /// enviar (29/10/2026): acima de 24 MB o Next recusa o envio antes do codigo do Rise (`bodySizeLimit`) e a tela so recebia
 /// "Minified React error #441", sem dizer que era o tamanho.
-export const MAXIMO_DOCUMENTO_BYTES = 20 * 1024 * 1024;
+/// Era 20 MB ate 30/10/2026; o dono pediu 50 MB (datasheets e pacotes de fornecedor maiores). O `bodySizeLimit` do
+/// `next.config.mjs` fica 5 MB acima.
+export const MAXIMO_DOCUMENTO_BYTES = 50 * 1024 * 1024;
 
 /// Limite de titulo do Mercado Livre. Acima disso o anuncio e recusado.
 export const LIMITE_TITULO_ML = 60;
