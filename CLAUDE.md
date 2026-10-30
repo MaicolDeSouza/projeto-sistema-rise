@@ -344,7 +344,7 @@ npm run teste:mcp                 # 231 asserções do servidor MCP (com o busca
 npm run teste:telegram            # 96 asserções da Entrega C1 (avisos no Telegram): banco, texto dos avisos (4 linhas, neutralizado, mascarado), cliente da API do bot e o token mascarado no log, vínculo por código, a configuração e a aba Canais, e a rotina do worker (linha de base, zerou/voltou/zerou, orçamento 80/100%, varredura que falhou, resumo das 20h, bloqueado, 3 tentativas). Telegram FALSO (SEM rede); Postgres local, só escreve zz-tg-* e ZZ-TG-* e devolve a Conexao TELEGRAM, a configuração e a linha de base do dono
 npm run teste:producao            # 89 asserções das peças próprias e da ordem de produção: regras (custo, cor do estoque, validação, arredondamento), custo pelas peças e o recálculo, trava da entrada manual, preparo do Salvar, clone, rascunho, a ordem (cria, baixa com falta, baixa, clique duplo, conclui com perda, cancela devolvendo, kit recalculado) contra o Bling falso. Postgres local, SEM rede; só escreve ZZ-PROD-*
 npm run teste:compras             # 142 asserções do módulo Compras: regras (totais, desconto % ou R$, a caminho, carrinho, situação), lista do mínimo e rascunho automático (com concorrência), pedido (salvar, itens, situação, preço que não se apaga), lançamento contra o Bling falso (clique duplo, Bling que recusa, desfazer com estoque vendido), proposta pelos bytes, dados da empresa, o PDF e as ferramentas de Compras do MCP. Postgres local, SEM rede; só escreve ZZ-COMPRA-* e "ZZ Compra *"
-npm run teste:aliexpress          # 141 asserções do AliExpress no Compras: regras puras, esquema, chave da extensão, depósito Virtual, casamento (anúncio+opção, fator), importação, chegada, rotas e a leitura para a tela, contra um Bling falso. Postgres local, SEM rede; só escreve ZZ-ALI-*, "ZZ Ali *" e pedidos 99…; `-- --manter` deixa os dados para conferir a tela
+npm run teste:aliexpress          # 145 asserções do AliExpress no Compras: regras puras, esquema, chave da extensão, depósito Virtual (saída por balanço, Reenviar que acerta), casamento (anúncio+opção, fator), importação, chegada, rotas e a leitura para a tela, contra um Bling falso. Postgres local, SEM rede; só escreve ZZ-ALI-*, "ZZ Ali *" e pedidos 99…; `-- --manter` deixa os dados para conferir a tela
 npm run teste:extensao-aliexpress # 15 asserções da leitura da extensão (extensao-aliexpress/leitura.js) com as respostas da página Meus pedidos medidas em 28/10/2026. Puro: sem banco, sem rede, sem Chrome
 npm run teste:saude               # 68 asserções da Saúde do Rise: regras (rotinas, worker, disco, backup, memória, banco, integrações, orçamento, varreduras, PC, healthchecks), o aviso do Telegram, a gravação em RotinaDoWorker e a coleta nos modos PC e VPS. Postgres local, SEM rede; só escreve zz-saude-*
 npm run teste:acessos             # 207 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição, as projeções do lançamento 2 (Painel, lista de Produtos, Cadastros, canais, Scraper, Indicadores), "Ver como", Histórico e o guarda estático de src/app (sem lista de exceções). Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
@@ -5093,8 +5093,22 @@ Pedido do dono: "vincular o AliExpress via API para pegar minhas compras". A API
     Os mesmos motivos viram os avisos âmbar da tela do pedido. Problema no rastreio só aparece depois de um "Enviar ao Rise".
   - MCP: `comprasACaminhoDoProduto` (o que está a caminho de um produto, com status e previsão do pacote) e o
     `lerPedidoDeCompra` traz o bloco do AliExpress.
+  - **Saída do Virtual vai como BALANÇO, nunca "S"** (29/10/2026, erro real no PC-0015 ao trocar o fator: HTTP 400 "Alguns dados
+    informados não são válidos"): o Bling barra saída maior que o saldo DISPONÍVEL do depósito, e no Virtual o disponível fica
+    negativo com as reservas de venda (medido no 120740: físico 4, disponível −135). `saidaDoVirtual` lê o físico do Virtual em
+    `GET /estoques/saldos?codigos[]=` e grava `operacao: "B"` com o novo físico (`virtual.js`); o `motivo()` do erro traz o
+    detalhe por campo (`error.fields`). "Reenviar ao Virtual" acerta uma entrada antiga (tira a velha, põe a esperada).
+  - Lista de pedidos com as colunas **Código, Produto e Quantidade** (um produto: os três; vários: "Diversos" no código e na
+    quantidade e "N produtos" no nome), e clicar em qualquer uma abre a janela com os três em colunas (`CelulaDoProduto` e
+    `JanelaProdutosDoPedido` em `ProdutosDoPedido.jsx`). A coluna Itens e a etiqueta AliExpress saíram: só o nome "Ali" (a loja
+    fica no `title`).
+  - **O Virtual do Bling das compras antigas NÃO se mexe (decisão do dono em 30/10/2026):** ele não entra no estoque de venda
+    (`desconsiderarSaldo`) nem na lista do mínimo, que soma `Produto.estoque` (o disponível do Bling) + o "a caminho" dos pedidos
+    ENVIADO/PARCIAL (`aCaminho` em `lib/compras/regras.js`); o Rise guarda por linha o que pôs lá (`virtualQuantidade`,
+    `virtualLancadoEm`, `virtualErro`). O dono planeja sair do Bling e controlar o estoque só pelo Rise; quando isso vier, a
+    única peça que lê o Bling é o `Produto.estoque`. Reservas do Bling ficam intactas.
 - **Não visto:** a extensão instalada de verdade (o ensaio injetou os scripts na página), uma importação contra o Rise real, o
-  Gerar chave por clique e a escrita real no depósito Virtual (só contra o Bling falso; no PC a trava recusa).
+  Gerar chave por clique. A escrita real no Virtual já aconteceu na VPS (entradas das importações de 28 e 29/10 e o 400 do PC-0015); a saída por balanço ainda não foi vista contra o Bling real.
 
 ## Peças próprias e ordem de produção (26/10/2026)
 
