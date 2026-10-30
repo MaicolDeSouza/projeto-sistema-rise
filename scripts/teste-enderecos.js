@@ -94,6 +94,15 @@ conferir("rotulo", [rotuloDoEndereco("https://loja.com.br/"), rotuloDoEndereco("
   conferir("semana: data da chave; a manual nao tem", [dataDaChave("2026-10-24"), dataDaChave("manual-123")], ["24/10/2026", null]);
   conferir("loja: concluida e ok; falha traz o erro; aberta nao terminou", [situacaoDaLoja({ job: { status: "CONCLUIDO" }, fonte: {} }).situacao, situacaoDaLoja({ job: { status: "FALHOU", erro: "HTTP 503" }, fonte: {} }).texto, situacaoDaLoja({ job: { status: "PROCESSANDO" }, fonte: {} }).situacao], ["ok", "HTTP 503", "aberta"]);
   conferir("loja: sem job, a do PC e a pulada se explicam", [situacaoDaLoja({ job: null, fonte: { varridaNoPc: true } }).situacao, situacaoDaLoja({ job: null, fonte: {} }).situacao], ["so-pc", "pulada"]);
+
+  // Mais vendidos POR CONCORRENTE (pedido do dono em 30/10/2026): a loja com as maiores quedas nao toma as vagas das outras.
+  const { maisVendidosPorLoja } = await import("../src/lib/relatorios/dados.js");
+  const muitos = Array.from({ length: 15 }, (_, i) => ({ loja: "Grande", nome: `G${i}`, vendidos: 100 - i, preco: 10 }));
+  const grupos = maisVendidosPorLoja([...muitos, { loja: "Pequena", nome: "P1", vendidos: 2, preco: 5 }], ["Pequena", "Grande", "Parada"]);
+  conferir("mais vendidos: um grupo por loja que informa estoque, em ordem de nome", grupos.map((g) => g.loja), ["Grande", "Parada", "Pequena"]);
+  conferir("mais vendidos: 10 por loja, da maior queda para a menor", [grupos[0].itens.length, grupos[0].itens[0].nome, grupos[0].itens[9].nome], [10, "G0", "G9"]);
+  conferir("mais vendidos: a loja pequena nao some e a sem queda vem vazia", [grupos[2].itens.map((i) => i.nome), grupos[1].itens.length], [["P1"], 0]);
+  conferir("mais vendidos: empate na queda, o de maior preco primeiro", maisVendidosPorLoja([{ loja: "A", nome: "barato", vendidos: 3, preco: 2 }, { loja: "A", nome: "caro", vendidos: 3, preco: 9 }], []).at(0).itens.map((i) => i.nome), ["caro", "barato"]);
 }
 
 // Nuvemshop (Neoyama): as fotos do produto vem do carrossel da pagina, na ordem dele, e a ficha nao repete a linha lida duas vezes.

@@ -7,11 +7,13 @@ import { dataDaChave } from "./semana";
  *
  * 1) COMO FOI A LEITURA de cada loja da rodada (erro e o motivo, o que nao terminou);
  * 2) PRODUTOS NOVOS dos concorrentes, com o link (a loja que nasceu nesta rodada nao lista: seria a loja inteira);
- * 3) OS 10 MAIS VENDIDOS dos concorrentes que informam a quantidade em estoque — uma ESTIMATIVA: nenhuma loja publica
- *    vendas, entao o que se conta e a QUEDA do saldo entre a leitura anterior e a desta rodada.
+ * 3) OS 10 MAIS VENDIDOS DE CADA CONCORRENTE que informa a quantidade em estoque (pedido do dono em 30/10/2026; ate ali
+ *    eram os 10 do geral, e uma loja grande escondia as outras) — uma ESTIMATIVA: nenhuma loja publica vendas, entao o que
+ *    se conta e a QUEDA do saldo entre a leitura anterior e a desta rodada.
  */
 
 export const LIMITE_DE_NOVOS_POR_LOJA = 100;
+/** Quantos mais vendidos por concorrente. */
 export const TOTAL_DOS_MAIS_VENDIDOS = 10;
 
 /** Um erro de varredura cabe numa linha do PDF; o resto fica no log do worker. */
@@ -108,7 +110,7 @@ export async function montarDadosDoRelatorio({ inicioEm, fontes, semana = null }
     .sort((a, b) => a.loja.localeCompare(b.loja, "pt-BR"));
 
   const nomeDeConcorrente = new Map(concorrentes.map((fonte) => [fonte.id, fonte.nome]));
-  const maisVendidos = await estimarMaisVendidos({ idsDosConcorrentes: concorrentes.map((fonte) => fonte.id), nomeDeConcorrente, inicioEm, semana });
+  const vendidos = await estimarMaisVendidos({ idsDosConcorrentes: concorrentes.map((fonte) => fonte.id), nomeDeConcorrente, inicioEm, semana });
 
   const comQuantidade = new Set(
     (
@@ -118,13 +120,14 @@ export async function montarDadosDoRelatorio({ inicioEm, fontes, semana = null }
       })
     ).map((linha) => linha.fonteId),
   );
+  const informamEstoque = concorrentes.filter((fonte) => comQuantidade.has(fonte.id));
 
   return {
     lojas,
     lojasNovas,
     novos,
-    maisVendidos,
-    lojasQueInformamEstoque: concorrentes.filter((fonte) => comQuantidade.has(fonte.id)).map((fonte) => fonte.nome),
+    maisVendidosPorLoja: maisVendidosPorLoja(vendidos, informamEstoque.map((fonte) => fonte.nome)),
+    lojasQueInformamEstoque: informamEstoque.map((fonte) => fonte.nome),
     totais: {
       lojas: lojas.length,
       comErro: lojas.filter((loja) => loja.situacao === "erro").length,
@@ -135,6 +138,33 @@ export async function montarDadosDoRelatorio({ inicioEm, fontes, semana = null }
 }
 
 const comoPreco = (normal, promocional) => (normal !== null ? Number(normal) : promocional !== null ? Number(promocional) : null);
+
+/**
+ * Os mais vendidos em grupos, um por concorrente que informa estoque, cada um com os `TOTAL_DOS_MAIS_VENDIDOS` de maior
+ * queda. A loja que informa estoque e nao teve queda medida aparece com a lista vazia (o PDF diz isso), para nao parecer
+ * esquecida. Ordem: por nome da loja, como as outras secoes do relatorio. Pura (exportada para o teste).
+ *
+ * @param {{ loja: string, vendidos: number }[]} itens
+ * @param {string[]} lojasQueInformam
+ * @returns {{ loja: string, itens: object[] }[]}
+ */
+export function maisVendidosPorLoja(itens, lojasQueInformam) {
+  const porLoja = new Map(lojasQueInformam.map((loja) => [loja, []]));
+  for (const item of itens) {
+    if (!item.loja) continue;
+    if (!porLoja.has(item.loja)) porLoja.set(item.loja, []);
+    porLoja.get(item.loja).push(item);
+  }
+  return [...porLoja.entries()]
+    .map(([loja, lista]) => ({
+      loja,
+      // Empate na queda: o de maior preco primeiro (vendeu mais em dinheiro), depois o nome, para a ordem nao variar.
+      itens: lista
+        .sort((a, b) => b.vendidos - a.vendidos || (b.preco ?? 0) - (a.preco ?? 0) || String(a.nome ?? "").localeCompare(String(b.nome ?? ""), "pt-BR"))
+        .slice(0, TOTAL_DOS_MAIS_VENDIDOS),
+    }))
+    .sort((a, b) => a.loja.localeCompare(b.loja, "pt-BR"));
+}
 
 /**
  * Os mais vendidos, ESTIMADOS pela queda do saldo (nenhuma loja publica vendas). Duas fontes, nesta ordem:
@@ -162,7 +192,7 @@ async function estimarMaisVendidos({ idsDosConcorrentes, nomeDeConcorrente, inic
           WHERE "produtoId" = a."produtoId" AND "semana" < a."semana" ORDER BY "semana" DESC LIMIT 1
         ) b ON true
         WHERE a."semana" = ${semana} AND p."fonteId" = ANY(${idsDosConcorrentes}::text[]) AND b."quantidade" > a."quantidade"
-        ORDER BY (b."quantidade" - a."quantidade") DESC LIMIT 40`
+        ORDER BY (b."quantidade" - a."quantidade") DESC`
     : await prisma.$queryRaw`
         SELECT p."id", p."fonteId", p."codigo", p."nome", p."url", p."precoNormal", p."precoPromocional",
                b."quantidade" AS "de", p."quantidade" AS "para", b."semana" AS "deSemana"
@@ -172,7 +202,9 @@ async function estimarMaisVendidos({ idsDosConcorrentes, nomeDeConcorrente, inic
         ) b ON true
         WHERE p."fonteId" = ANY(${idsDosConcorrentes}::text[]) AND p."quantidade" IS NOT NULL AND p."ausenteDesde" IS NULL
           AND b."quantidade" > p."quantidade"
-        ORDER BY (b."quantidade" - p."quantidade") DESC LIMIT 40`;
+        ORDER BY (b."quantidade" - p."quantidade") DESC`;
+  // Sem LIMIT de proposito: o corte e por loja (maisVendidosPorLoja). Um LIMIT geral deixava a loja com as maiores quedas
+  // tomar todas as vagas e as outras sumirem do relatorio. So entram produtos com queda, que sao poucos por semana.
 
   const itens = dosSabados.map((linha) => ({
     id: linha.id,
@@ -225,5 +257,5 @@ async function estimarMaisVendidos({ idsDosConcorrentes, nomeDeConcorrente, inic
     });
   }
 
-  return itens.sort((a, b) => b.vendidos - a.vendidos).slice(0, TOTAL_DOS_MAIS_VENDIDOS);
+  return itens;
 }

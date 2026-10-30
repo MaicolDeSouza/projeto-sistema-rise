@@ -95,26 +95,32 @@ export function gerarPdfDoRelatorio({ semana, inicioEm, fimEm, dados, incompleto
       doc.moveDown(0.3);
     }
 
-    titulo("3. Os 10 mais vendidos dos concorrentes (estimativa)");
+    titulo("3. Os 10 mais vendidos de cada concorrente (estimativa)");
     normal(
       "Nenhuma loja publica vendas. A estimativa é a queda do saldo em estoque entre o sábado anterior guardado e esta rodada (nas primeiras semanas, ainda sem sábado anterior, vale a queda que a coleta registrou), e só vale para concorrentes que informam a quantidade. Reposição de estoque na semana faz a estimativa ficar abaixo do real.",
       CINZA,
       8,
     );
     doc.moveDown(0.3);
-    if (dados.lojasQueInformamEstoque.length > 0) {
-      normal(`Concorrentes que informam estoque: ${dados.lojasQueInformamEstoque.join(", ")}.`, CINZA, 8);
-      doc.moveDown(0.3);
+    // Um grupo por concorrente que informa estoque (pedido do dono em 30/10/2026), cada um com os seus 10 primeiros.
+    const grupos = dados.maisVendidosPorLoja ?? [];
+    if (grupos.length === 0) {
+      normal("Nenhum concorrente informa a quantidade em estoque.", CINZA);
     }
-    if (dados.maisVendidos.length === 0) {
-      normal("Nenhuma queda de estoque medida nesta rodada (as lojas precisam ter sido lidas em duas rodadas seguidas).", CINZA);
+    for (const grupo of grupos) {
+      doc.font("Helvetica-Bold").fontSize(10).fillColor("#111827").text(grupo.loja);
+      doc.moveDown(0.2);
+      if (grupo.itens.length === 0) {
+        normal("Nenhuma queda de estoque medida nesta rodada (a loja precisa ter sido lida em duas rodadas seguidas).", CINZA, 8);
+      }
+      grupo.itens.forEach((item, indice) => {
+        doc.font("Helvetica-Bold").fontSize(9).fillColor("#111827").text(`${indice + 1}. ${item.nome ?? "(sem nome)"}`);
+        normal(`${item.codigo && item.codigo !== "N/A" ? `${item.codigo} · ` : ""}${dinheiro(item.preco)} · estoque de ${item.de}${item.desde && dataDaChave(item.desde) ? ` (sábado ${dataDaChave(item.desde).slice(0, 5)})` : ""} para ${item.para} = ${item.vendidos} vendido(s) estimado(s)`);
+        link(item.url);
+        doc.moveDown(0.2);
+      });
+      doc.moveDown(0.4);
     }
-    dados.maisVendidos.forEach((item, indice) => {
-      doc.font("Helvetica-Bold").fontSize(9).fillColor("#111827").text(`${indice + 1}. ${item.nome ?? "(sem nome)"}`);
-      normal(`${item.loja}${item.codigo && item.codigo !== "N/A" ? ` · ${item.codigo}` : ""} · ${dinheiro(item.preco)} · estoque de ${item.de}${item.desde && dataDaChave(item.desde) ? ` (sábado ${dataDaChave(item.desde).slice(0, 5)})` : ""} para ${item.para} = ${item.vendidos} vendido(s) estimado(s)`);
-      link(item.url);
-      doc.moveDown(0.3);
-    });
 
     doc.end();
   });
