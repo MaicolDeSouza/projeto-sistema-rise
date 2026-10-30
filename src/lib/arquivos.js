@@ -6,7 +6,7 @@ import { Readable } from "node:stream";
 
 import { imageSize } from "image-size";
 
-import { MAXIMO_IMAGENS } from "./limites";
+import { MAXIMO_DOCUMENTO_BYTES, MAXIMO_IMAGENS } from "./limites";
 
 export { MAXIMO_IMAGENS };
 
@@ -56,7 +56,7 @@ const REGRAS = {
       "application/zip": ".zip",
       "application/x-zip-compressed": ".zip",
     },
-    tamanhoMaximo: 20 * 1024 * 1024,
+    tamanhoMaximo: MAXIMO_DOCUMENTO_BYTES,
   },
   // O certificado de homologacao continua so PDF/imagem: e o que o anuncio anexa.
   CERTIFICADO: {
@@ -65,7 +65,7 @@ const REGRAS = {
       "image/jpeg": ".jpg",
       "image/png": ".png",
     },
-    tamanhoMaximo: 20 * 1024 * 1024,
+    tamanhoMaximo: MAXIMO_DOCUMENTO_BYTES,
   },
 };
 

@@ -53,7 +53,7 @@ import Card from "@/components/ui/Card";
 import EmptyState from "@/components/ui/EmptyState";
 import { UNIDADES } from "@/lib/unidades";
 import { ORIGENS, TIPOS_ITEM, TIPOS_PRODUCAO } from "@/lib/fiscal";
-import { LIMITE_TITULO_ML, MAXIMO_FOTOS_NO_PAINEL, MAXIMO_IMAGENS } from "@/lib/limites";
+import { LIMITE_TITULO_ML, MAXIMO_DOCUMENTO_BYTES, MAXIMO_FOTOS_NO_PAINEL, MAXIMO_IMAGENS } from "@/lib/limites";
 import { medidasDaDescricao } from "@/lib/medidas";
 import { posicaoDePreco } from "@/lib/posicaoDePreco";
 import { gerarEanDoSku } from "@/lib/eanInterno";
@@ -1853,6 +1853,14 @@ function DocumentosDoProduto({
   function aoEscolher(evento) {
     const arquivo = evento.target.files?.[0];
     if (!arquivo) return;
+    // Conferido AQUI antes de enviar (29/10/2026): acima de 24 MB o Next recusa o envio antes do codigo do Rise, e a tela
+    // recebia so "Minified React error #441". O servidor confere de novo (`validarEGravar`).
+    if (arquivo.size > MAXIMO_DOCUMENTO_BYTES) {
+      const mb = (bytes) => (bytes / 1024 / 1024).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+      setErro(`O arquivo tem ${mb(arquivo.size)} MB; o limite é ${mb(MAXIMO_DOCUMENTO_BYTES)} MB. Comprima o PDF ou divida em partes.`);
+      if (entrada.current) entrada.current.value = "";
+      return;
+    }
     iniciarTransicao(async () => {
       const resultado = await aoEnviar(tipo, arquivo);
       setErro(resultado.ok ? null : resultado.erro);

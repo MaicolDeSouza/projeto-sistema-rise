@@ -31,5 +31,10 @@ export const MAXIMO_PROMPT = 2000;
 /// Nano Banana: tamanho maximo de uma imagem extra enviada de fora (o mesmo teto da foto do produto).
 export const MAXIMO_EXTRA_BYTES = 10 * 1024 * 1024;
 
+/// Documento tecnico e certificado: tamanho maximo do arquivo (o mesmo de `arquivos.js`). Conferido TAMBEM na tela antes de
+/// enviar (29/10/2026): acima de 24 MB o Next recusa o envio antes do codigo do Rise (`bodySizeLimit`) e a tela so recebia
+/// "Minified React error #441", sem dizer que era o tamanho.
+export const MAXIMO_DOCUMENTO_BYTES = 20 * 1024 * 1024;
+
 /// Limite de titulo do Mercado Livre. Acima disso o anuncio e recusado.
 export const LIMITE_TITULO_ML = 60;
