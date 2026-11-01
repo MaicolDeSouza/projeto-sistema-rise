@@ -333,14 +333,16 @@ function ColunaEstoque({ semEstoque, disponivel, quantidade, aChegar, aChegarPre
   const temAChegar = typeof aChegar === "number";
   const temMontagem = typeof emMontagem === "number";
   // Com a chegar ou em montagem na mesma linha, a pronta entrega ganha o nome (01/11/2026, "bem separado").
-  const nomePronta = temAChegar || temMontagem ? "pronta entrega" : "";
+  // Rotulo NA FRENTE, uma linha por situacao, na mesma coluna (pedido do dono em 01/11/2026: "01 linha pronta entrega,
+  // outra linha a chegar e assim por diante").
+  const nomePronta = temAChegar || temMontagem ? "Pronta entrega: " : "";
   const linhaPronta = semEstoque
-    ? { cor: "text-red-600", Icone: PackageX, texto: nomePronta ? "pronta entrega: sem estoque" : "sem estoque" }
+    ? { cor: "text-red-600", Icone: PackageX, texto: `${nomePronta}sem estoque` }
     : disponivel
       ? {
           cor: "text-emerald-700",
           Icone: PackageCheck,
-          texto: typeof quantidade === "number" ? `${quantidade}${nomePronta ? ` ${nomePronta}` : ""}` : "disponivel",
+          texto: typeof quantidade === "number" ? `${nomePronta}${quantidade}` : `${nomePronta}disponível`,
         }
       : null;
 
@@ -353,12 +355,12 @@ function ColunaEstoque({ semEstoque, disponivel, quantidade, aChegar, aChegarPre
     ),
     temAChegar && (
       <span key="chegar" className="flex items-center gap-1 text-amber-700" title={aChegarPrevisao ?? undefined}>
-        <PackageCheck size={12} /> {aChegar} a chegar
+        <PackageCheck size={12} /> A chegar: {aChegar}
       </span>
     ),
     temMontagem && (
       <span key="montagem" className="flex items-center gap-1 text-sky-700">
-        <Wrench size={12} /> {emMontagem} em montagem
+        <Wrench size={12} /> Em montagem: {emMontagem}
       </span>
     ),
   ].filter(Boolean);
@@ -366,7 +368,7 @@ function ColunaEstoque({ semEstoque, disponivel, quantidade, aChegar, aChegarPre
   if (linhas.length === 0) return <span className="text-sm text-suave">—</span>;
 
   return (
-    <div className="text-xs">
+    <div className="text-xs whitespace-nowrap">
       {linhas.map((linha, indice) => (
         <div key={linha.key}>
           {indice > 0 && <div className="my-1 h-px bg-borda" />}
