@@ -73,6 +73,7 @@ export async function aplicarListaDoFornecedor({
   listaEnviadaEm,
   comecou = Date.now(),
   arquivos = 0,
+  zerarAusentes = false,
 }) {
   const anteriores = await lerProdutosDaFonte(fonte.id);
 
@@ -100,6 +101,7 @@ export async function aplicarListaDoFornecedor({
     anteriores,
     novos: produtos,
     dataDaLista: listaEnviadaEm ? new Date(listaEnviadaEm).toISOString() : undefined,
+    zerarAusentes,
   });
 
   const resumo =
@@ -192,6 +194,17 @@ async function reprocessarArquivos(fonte, aoProgredir, sinal) {
     };
   }
 
+  // Fortek (01/11/2026, pedido do dono): item que nao esta na Pronta Entrega do portal fica com pronta entrega ZERO —
+  // o que so esta a chegar ou em montagem nao esta disponivel hoje. Sem isso ficava "nao informado". Vale tambem para o
+  // que saiu de todas as listas (`zerarAusentes` na conciliacao).
+  const prontaZeraOQueFalta = Boolean(regras.listasDoPortalBenser);
+  if (prontaZeraOQueFalta) {
+    for (const produto of produtos) {
+      if (typeof produto.stock?.quantity === "number") continue;
+      produto.stock = { ...produto.stock, quantity: 0, status: "OUT_OF_STOCK" };
+    }
+  }
+
   // Site + arquivo, quando a regra do fornecedor diz que sao o mesmo catalogo
   // pela metade: a Nightech publica foto, texto e endereco no site e preco e
   // saldo na planilha. Mesmo codigo = um produto.
@@ -243,6 +256,7 @@ async function reprocessarArquivos(fonte, aoProgredir, sinal) {
     listaEnviadaEm: fonte.listaEnviadaEm,
     comecou,
     arquivos: guardados.length,
+    zerarAusentes: prontaZeraOQueFalta,
   });
 }
 

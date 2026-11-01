@@ -3493,6 +3493,12 @@ console.log("\n— Fortek: tres listas do portal —");
     ["benser-pronta-entrega.html", "benser-lista-de-reserva.html", "benser-em-montagem.html"],
   ]);
   const falhou = await baixarListasDaBenser({ buscar: async (url) => (url.endsWith("/reserva/") ? { ok: false, erro: "HTTP 503" } : { ok: true, bytes: new Uint8Array([60]) }) });
+  const { conciliar: conciliarFortek } = await import("../src/lib/coleta/conciliar.js");
+  const antigo = { name: "SAIU", code: "99-999", prices: { normal: 2 }, stock: { quantity: 5, status: "IN_STOCK" } };
+  const comZero = conciliarFortek({ anteriores: [antigo], novos: [], dataDaLista: "2026-11-01T00:00:00.000Z", zerarAusentes: true });
+  const semZero = conciliarFortek({ anteriores: [antigo], novos: [], dataDaLista: "2026-11-01T00:00:00.000Z" });
+  conferir("fortek: quem saiu de todas as listas fica com pronta entrega 0 (os outros fornecedores seguem com null)", [comZero.produtos[0].stock.quantity, comZero.produtos[0].ausente?.motivo, semZero.produtos[0].stock.quantity], [0, "nao veio na ultima lista do fornecedor", null]);
+
   conferir("fortek: uma pagina que falha derruba o conjunto", [falhou.erro, falhou.arquivos], ["Lista de Reserva do portal Benser não baixou: HTTP 503", undefined]);
 }
 

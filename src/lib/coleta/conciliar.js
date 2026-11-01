@@ -71,8 +71,11 @@ export function quedaSuspeita({ anteriores, novos, origemAnterior }) {
  * @param {object[]} entrada.anteriores  produtos ja guardados
  * @param {object[]} entrada.novos       produtos lidos da lista de agora
  * @param {string}  [entrada.dataDaLista] quando o fornecedor mandou a lista
+ * @param {boolean} [entrada.zerarAusentes] o ausente fica com pronta entrega 0, e nao null. So a Fortek (01/11/2026,
+ *   pedido do dono: item que nao esta na pronta entrega e zerado nela): a lista dela e o portal lido ao vivo pelo
+ *   Rise, e nao um arquivo que alguem pode ter enviado pela metade.
  */
-export function conciliar({ anteriores, novos, dataDaLista }) {
+export function conciliar({ anteriores, novos, dataDaLista, zerarAusentes = false }) {
   const antigos = porCodigo(anteriores);
   const chegaram = porCodigo(novos);
 
@@ -96,8 +99,8 @@ export function conciliar({ anteriores, novos, dataDaLista }) {
       ...antigo,
       stock: {
         ...antigo.stock,
-        // NULL, e nao 0: ver o cabecalho deste arquivo.
-        quantity: null,
+        // NULL, e nao 0: ver o cabecalho deste arquivo. A excecao e `zerarAusentes` (Fortek).
+        quantity: zerarAusentes ? 0 : null,
         aChegar: null,
         aChegarPrevisao: null,
         emMontagem: null,

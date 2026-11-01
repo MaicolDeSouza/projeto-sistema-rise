@@ -1427,6 +1427,11 @@ sem sessão (medido sem cookie: 1.997 na Pronta Entrega, 4 na Lista de Reserva, 
   montagem" e o preço em montagem, prévia do teste de fonte com a caixa "Em montagem", aba Fornecedores do Produto com
   "+N em montagem" e o preço no relógio, e o MCP (`estoque.emMontagem`, `aChegarPrevisao`, `precoMontagem`). O "disponível" do
   fornecedor continua sendo só a pronta entrega.
+- **O que não está na Pronta Entrega fica com pronta entrega 0** (pedido do dono no mesmo dia: "caso algum item da lista não
+  seja encontrado a pronta entrega o mesmo item deve ser zerado"): o que só está a chegar ou em montagem (`reprocessarArquivos`,
+  só com `listasDoPortalBenser`) e o que saiu de todas as listas (`conciliar({ zerarAusentes })`; continua marcado ausente).
+  **Só a Fortek:** os outros fornecedores seguem com o ausente a null ("ausente não é zero"), porque a lista deles é arquivo
+  que pode chegar pela metade; a da Fortek é o portal lido pelo Rise.
 - **Primeira varredura (PC, 01/11/2026):** 2.218 produtos (239 novos, 22 ausentes: os itens das listas antigas que não estão
   mais no portal).
 
