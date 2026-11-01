@@ -1,0 +1,117 @@
+Escreva a descrição de um shield para placa de desenvolvimento em português brasileiro, no JSON exigido pelo Rise: paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm e decisoes. Não acrescente outros campos. Vale para as placas de expansão que encaixam por cima do Arduino UNO ou Mega (no formato de shield, pelas barras de pinos): shield de display (LCD 16x2 com teclado, TFT), de armazenamento (data logger com cartão SD e RTC), de motor (L293D, L298N, drivers de passo), CNC (para drivers A4988 ou DRV8825), de joystick, de sensores e de bateria. Shields Ethernet (prompt Módulos-Ethernet), módulos avulsos ligados por fios, expansores para Arduino Nano e placas Arduino não entram neste prompt.
+
+Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use informações confirmadas no cadastro ou nas referências. Não complete especificações por suposição.
+
+PARÁGRAFOS
+
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 330 caracteres, o segundo até 550.
+
+Primeiro parágrafo, UMA frase, na fórmula da loja: “O <nome do shield> é uma placa de expansão para Arduino <UNO e Mega, conforme a fonte> que reúne <a função principal: display LCD 16x2 e teclado de 5 botões / slot de cartão SD e relógio RTC DS1307 / driver para 4 motores DC>, indicada para <3 ou 4 aplicações: menus e interfaces, registro de dados de sensores, robôs, máquinas CNC>, que oferece <o diferencial: encaixe direto sem fios nem protoboard, área de prototipagem, bornes para os motores>.” Só o que estiver confirmado.
+
+Segundo parágrafo: o porquê de ele ser bom, em 3 ou 4 frases. Comece por como ele funciona (“O shield encaixa por cima do Arduino e usa os pinos...”) e, a cada recurso citado, diga o que ele permite ou dispensa: os botões lidos por uma só entrada analógica (sobram pinos para sensores); o trimpot de contraste; o RTC com bateria (guarda data e hora com a placa desligada); o slot SD (salvar leituras que abrem no computador); a área de prototipagem (montar o circuito na própria placa); os bornes e a alimentação externa dos motores. Feche com um uso típico ou com “é a escolha ideal para quem...”.
+
+Fale com o comprador: “possui”, não “tem”; “você” quando couber. Ao voltar a falar do produto, use o nome dele ou “o shield”, nunca “ele” no início da frase. Tom: o da Smartkits (explica e ensina, sem vender), sem copiar. Varie o foco e a ordem dos fatos entre as opções, não só os sinônimos. Evite elogios vazios (“alta qualidade”, “indispensável”, “perfeito para qualquer projeto”), repetir o título inteiro ou enumerar especificações. Não mencione valores desconhecidos ou divergentes. Não cite tutoriais, blog ou bibliotecas de uma loja como se fossem do produto: o nome da biblioteca (LiquidCrystal, SD, RTClib) só entra quando a fonte o confirma, e nunca como link.
+
+PADRONIZAÇÃO DOS NOMES
+
+Use exatamente os nomes dos campos definidos neste prompt. As lojas usam nomes variados; converta-os assim:
+
+Fabricante: substitui Marca. Shield genérico, sem fabricante declarado: OEM. Fabricante só com fonte (Keyes, Keyestudio, DFRobot). Nunca o nome da loja: “Eletrogate”, “Casa da Robótica”, “SK - Shields” ou “IMP” (importado) na marca de um anúncio não são o fabricante.
+
+Modelo: o código impresso na placa ou o do fabricante, como “XD-05”, “DFR0009”, “CNC Shield V3”. Nome comercial de loja (“Shield Arduino”, “LCD 16x2 Shield”, um número de catálogo) não é modelo. Sem código confirmado da mesma placa, omita o campo.
+
+Função: substitui Tipo de produto e Aplicação: o que o shield acrescenta, curto: “display LCD 16x2 com teclado”, “registro de dados em cartão SD com relógio”, “controle de 4 motores DC e 2 servos”.
+
+Componente Principal: substitui Chip, Controlador, CI e Driver: o CI que faz o trabalho, com o fabricante quando confirmado: “HD44780 (controlador do LCD)”, “DS1307 (relógio)”, “L293D (2 unidades)”.
+
+Display: só no shield com tela: “LCD 16x2 (16 caracteres por 2 linhas)”, com a cor da luz de fundo e dos caracteres quando confirmadas: “luz de fundo azul e caracteres brancos”.
+
+Botões: substitui Teclado e Botões de comando: “5 botões (SELECT, LEFT, RIGHT, UP, DOWN) e 1 botão RESET”.
+
+Armazenamento: substitui Slot cartão SD e Tipo de cartão de memória: “slot para cartão SD”, e o formato aceito “FAT16 ou FAT32” quando confirmado. Capacidade máxima só com fonte.
+
+Relógio (RTC): substitui RTC integrado e Relógio de Tempo Real: “DS1307 com suporte para bateria CR1220”.
+
+Bateria: “CR1220 3V, não inclusa” ou “CR1220 3V, inclusa”, conforme o CADASTRO (ver ITENS INCLUSOS).
+
+Pinos Utilizados: substitui Pinagem, Pinos usados e Interface com o Arduino: os pinos do Arduino que o shield ocupa, “D4 a D9 (LCD), D10 (luz de fundo) e A0 (botões)”, “D10 a D13 (SPI, cartão SD) e A4/A5 (I2C, RTC)”. É o campo que diz o que sobra livre para o resto do projeto: só com fonte.
+
+Tensão de Alimentação: substitui Tensão de operação, Tensão de trabalho e Tensão: “5V pela placa Arduino”. Quando há entrada própria para cargas: “5V lógica / 4,5V a 16V para os motores (borne externo)”.
+
+Nível Lógico: “3,3V no cartão SD, com regulador e conversão de nível na placa”. Só com fonte.
+
+Corrente: substitui Corrente de trabalho, Corrente do backlight e Corrente de saída: “75mA a 200mA na luz de fundo”, “600mA por canal (1,2A de pico)”. Só com fonte.
+
+Ajustes: substitui Trimpot e Potenciômetro: “trimpot de contraste do LCD”.
+
+Área de Prototipagem: “área de furos para soldar componentes”. Só na placa que tem.
+
+Conector de Ligação: substitui Encaixe e Conexões: “encaixe de shield com pinos macho para o Arduino UNO”, “pinos empilháveis (aceita outro shield por cima)” só com fonte, e os bornes ou conectores de cargas: “2 bornes para motores e 2 conectores de 3 pinos para servos”.
+
+Compatibilidade: substitui Compatível com e Placas compatíveis: as placas que a fonte confirma, “Arduino UNO e Mega 2560”.
+
+Use Tensão, nunca Voltagem; Corrente, nunca Amperagem.
+
+CARACTERÍSTICAS
+
+Cada item contém nome, valor e referencias: nome “Pinos Utilizados”, valor “D4 a D9 (LCD), D10 (luz de fundo) e A0 (botões)”, sem dois-pontos no nome.
+
+Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Ausência comprovada pode ser “Não possui”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: Composição, Origem, Material, Cor, Estado, Aplicações, Datasheet, Área de visualização).
+
+Campos obrigatórios:
+Fabricante; Modelo; Função; Componente Principal; Pinos Utilizados; Tensão de Alimentação; Conector de Ligação; Compatibilidade.
+
+Campos condicionais (só quando o shield tem o recurso; com o recurso e sem valor confirmado, omita o campo):
+Display; Botões; Armazenamento; Relógio (RTC); Bateria; Nível Lógico; Corrente; Ajustes; Área de Prototipagem.
+
+Campos finais:
+Dimensões (CxLxA); Peso.
+
+Dimensões (CxLxA) e Peso são sempre os dois últimos campos e são OBRIGATÓRIOS (o Rise calcula o frete com eles; ver PESO E DIMENSÕES). Devolva os números em dimensoesMm e pesoGramas; o Rise escreve as duas linhas. Não os repita em caracteristicas.
+
+No modo sem referências, respeite a instrução acrescentada pelo Rise: inclua apenas especificações confirmadas nos dados próprios do produto. Se não houver nenhuma, retorne caracteristicas vazia.
+
+Números colados às unidades: 5V, 600mA, 16MHz, 3mm. Use vírgula decimal. Nunca use ponto e vírgula dentro de um valor. Informações distintas no mesmo valor se separam por “ / ”; itens da mesma lista, por vírgula.
+
+REGRAS ESPECÍFICAS
+
+Pinos utilizados: cada loja copia uma lista, e elas divergem (D4 a D9, D5 a D9, com ou sem D10). Prefira o esquema elétrico ou o manual do fabricante (DFRobot, Keyes) e lojas que escrevem a lista inteira com a função de cada pino. Sem acordo entre fontes independentes, registre a divergência e deixe o campo para o operador.
+
+Botões: “6 botões” e “5 botões mais o RESET” são o mesmo teclado. Escreva sempre os 5 programáveis e o RESET separados. Diga que os botões são lidos por uma só entrada analógica (divisor de tensão) só com fonte.
+
+Compatibilidade: escreva só as placas que a fonte confirma. Não acrescente Leonardo, Due, ESP32 ou placas de 3,3V por dedução: o Leonardo e o Mega têm o I2C e o SPI em outros pinos, e um shield de RTC ou SD pode precisar de fio extra neles; diga isso apenas com fonte.
+
+Bateria e cartão: a maioria das lojas vende o data logger SEM a bateria CR1220 e SEM o cartão SD, e algumas escrevem “incluso” por engano. Quem decide o que acompanha é o cadastro do produto (ver ITENS INCLUSOS); referência de outra loja não comprova bateria nem cartão.
+
+Shield de display: o LCD vem soldado no shield e faz parte do produto; não o liste como item separado. A capacidade máxima do cartão SD (“até 32GB”) só entra com fonte que a declare para a mesma placa.
+
+Texto marcado pela loja como “gerado por IA”, “perguntas frequentes” ou “resumo automático” não comprova especificação: use só a ficha técnica dela, e com cuidado. Lista de fornecedor sem ficha técnica não comprova especificação.
+
+FONTES
+
+Em referencias, registre só os números das referências fornecidas que sustentam o valor daquele campo. Para valores vindos só do cadastro ou título, e para valores desconhecidos, use referencias []. Resultado da web só vale se consultado de fato e informado como referência; prefira o manual ou o esquema do fabricante do shield e o datasheet do CI principal. Dados do CI não comprovam alimentação, conectores, medidas ou acessórios da placa. Não invente consultas, fontes, URLs ou números de referência.
+
+ITENS INCLUSOS
+
+O primeiro item é o próprio produto, com quantidade e nome técnico, sem acessórios no nome. Bateria, cartão SD, cabos, drivers e displays avulsos só quando o cadastro ou o título confirmarem que acompanham. A embalagem de outro vendedor não comprova o conteúdo vendido pela Rise.
+
+PESO E DIMENSÕES (OBRIGATÓRIOS)
+
+O Rise usa o peso e as medidas para calcular o frete: pesoGramas e dimensoesMm são obrigatórios e só ficam null quando nenhum passo abaixo der resultado, e então decisoes diz o que foi procurado.
+
+pesoGramas: número em gramas, com uma casa decimal quando for menor que 10. dimensoesMm: comprimento, largura e altura do shield montado em milímetros. A altura conta o display, os conectores e os pinos de encaixe; quando as fontes medem “ignorando os pinos” e outras com eles, prefira a medida com os pinos e registre a divergência. Nunca a embalagem: “peso com embalagem” não vale como peso do shield.
+
+Procure nesta ordem e pare no primeiro que der o número:
+1. O cadastro do produto ou as referências fornecidas da MESMA placa.
+2. O fabricante do shield ou uma loja na internet que publique a MESMA placa.
+3. Placa de outra versão (outro display, outro driver) NÃO serve como está: deixe null e diga em decisoes o que foi procurado.
+
+As lojas trocam a ordem dos eixos (“80mm Largura x 57mm de Comprimento”): o comprimento é o maior lado. Arredonde ao milímetro e ao décimo de grama. Não deduza medida pela foto.
+
+DIVERGÊNCIAS
+
+Para cada divergência fornecida, retorne id, opcao, motivo breve e campo com o nome padronizado deste prompt (divergências do mesmo campo compartilham o nome). opcao é o índice a partir de zero, ou null quando faltar evidência suficiente. Prefira o manual ou o esquema do fabricante e fontes independentes. Exceto para peso e dimensões, reserve a posição do campo divergente em caracteristicas com valor "" e referencias []. Não coloque valores divergentes nos parágrafos ou características antes da escolha do operador.
+
+GARANTIA
+
+O Rise acrescenta automaticamente: Garantia Legal de 90 dias (contra defeitos de fabricação). Não gere campo extra de garantia nem copie garantias das referências. Não escreva preço, prazo ou nome de loja.
