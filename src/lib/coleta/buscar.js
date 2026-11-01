@@ -38,10 +38,16 @@ const TIMEOUT_MS = Number(process.env.COLETA_TIMEOUT_MS) || 20000;
  * O sinal de uma requisicao: o teto de tempo, somado ao cancelamento de quem
  * pediu (o worker cancela a varredura ao encerrar ou quando ela para de andar).
  */
-function sinalDaRequisicao(sinal) {
-  const teto = AbortSignal.timeout(TIMEOUT_MS);
+function sinalDaRequisicao(sinal, tetoMs = TIMEOUT_MS) {
+  const teto = AbortSignal.timeout(tetoMs);
   return sinal ? AbortSignal.any([teto, sinal]) : teto;
 }
+
+/// SITEMAP TEM TEMPO PROPRIO: 8 min. O da Solda Fria (OpenCart, `google_sitemap`) e gerado na hora: 9,5 MB e 38 mil
+/// enderecos, 50 s ate o PRIMEIRO byte (medido em 01/11/2026). Com os 20 s de uma pagina ele dava "Tempo esgotado", a
+/// varredura caia na navegacao (300 paginas, 0 produto) e desde 05/10 a loja nao era lida. Abaixo dos 10 min do vigia
+/// de varredura parada (`fila.SEM_ATIVIDADE_MS`), que nao ve o download andar.
+const TIMEOUT_SITEMAP_MS = Number(process.env.COLETA_TIMEOUT_SITEMAP_MS) || 8 * 60 * 1000;
 
 /** Mensagem de erro de fetch, distinguindo tempo esgotado de cancelamento. */
 function mensagemDeFalha(erro, sinal) {
@@ -607,7 +613,7 @@ async function requisitarBytes(alvo, sinal) {
     // Um byte alem do teto basta para saber que passou, sem baixar o resto.
     const resposta = await obter(alvo, {
       cabecalhos: { "User-Agent": USER_AGENT, Accept: "application/xml,text/xml,*/*" },
-      sinal: sinalDaRequisicao(sinal),
+      sinal: sinalDaRequisicao(sinal, TIMEOUT_SITEMAP_MS),
       tetoDoCorpo: (status) => (status >= 200 && status < 300 ? MAXIMO_BYTES_SITEMAP + 1 : 0),
     });
 

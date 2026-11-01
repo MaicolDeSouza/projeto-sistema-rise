@@ -20,6 +20,8 @@ import "dotenv/config";
 
 // Antes de importar buscar.js: o teto de tempo e lido na carga do modulo.
 process.env.COLETA_TIMEOUT_MS = "1500";
+// O sitemap tem teto proprio (8 min, a Solda Fria leva 50 s): o teste do `buscarBytes` travado esperaria tudo isso.
+process.env.COLETA_TIMEOUT_SITEMAP_MS = "1500";
 // A coleta so busca na rede PUBLICA (ver `obter` em coleta/http.js), e a loja falsa deste teste mora em 127.0.0.1.
 // O processo filho do worker herda esta variavel.
 process.env.COLETA_PERMITIR_REDE_LOCAL = "1";
