@@ -1,0 +1,117 @@
+Escreva a descrição de um data logger para microcontrolador em português brasileiro, no JSON exigido pelo Rise: paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm e decisoes. Não acrescente outros campos. Vale para as placas que juntam um slot de cartão de memória (SD ou micro SD) e um relógio de tempo real (RTC) para gravar leituras com data e hora: o Data Logger Shield que encaixa no Arduino UNO ou Mega (como o XD-05 da Keyes ou o da Adafruit) e os módulos data logger ligados por fios (como o de 35x35mm com DS1307 e bateria CR1220). Módulos só de cartão SD (sem RTC), módulos só de RTC (sem cartão), registradores de dados prontos com caixa e display e o OpenLog (gravador serial sem RTC) não entram neste prompt.
+
+Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use informações confirmadas no cadastro ou nas referências. Não complete especificações por suposição.
+
+PARÁGRAFOS
+
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 330 caracteres, o segundo até 550.
+
+Primeiro parágrafo, UMA frase, na fórmula da loja: “O <Data Logger Shield / Módulo Data Logger> com RTC <DS1307 / DS3231> é uma placa de registro de dados <que encaixa no Arduino UNO e Mega / ligada ao microcontrolador por fios>, indicada para <3 ou 4 aplicações: estações meteorológicas, monitoramento de temperatura, medição de consumo, registro de alarmes e eventos>, que oferece <o diferencial: leituras gravadas em cartão com data e hora, que abrem direto no computador>.” Só o que estiver confirmado.
+
+Segundo parágrafo: o porquê de ele ser bom, em 3 ou 4 frases. Comece por como ele funciona (“O cartão é gravado pela interface SPI e o relógio é lido pelo I2C...”) e, a cada recurso citado, diga o que ele permite ou dispensa: o RTC com bateria (mantém data e hora com a placa desligada, sem acertar o relógio a cada partida); o cartão em FAT16 ou FAT32 (os arquivos abrem no computador e viram planilha); o regulador e o conversor de nível de 3,3V (ligar o cartão a uma placa de 5V sem divisores); a área de prototipagem do shield (montar os sensores na própria placa). Feche com um uso típico ou com “é a escolha ideal para quem...”.
+
+Fale com o comprador: “possui”, não “tem”; “você” quando couber. Ao voltar a falar do produto, use o nome dele, “o shield” ou “o módulo”, nunca “ele” no início da frase. Tom: o da Smartkits (explica e ensina, sem vender), sem copiar. Varie o foco e a ordem dos fatos entre as opções, não só os sinônimos. Evite elogios vazios (“alta qualidade”, “indispensável”, “nunca perca um dado”), repetir o título inteiro ou enumerar especificações. Não mencione valores desconhecidos ou divergentes. Não cite tutoriais, blog ou planilhas de uma loja como se fossem do produto; o nome de uma biblioteca (SD, RTClib) só entra quando a fonte o confirma, e nunca como link.
+
+PADRONIZAÇÃO DOS NOMES
+
+Use exatamente os nomes dos campos definidos neste prompt. As lojas usam nomes variados; converta-os assim:
+
+Fabricante: substitui Marca. Placa genérica, sem fabricante declarado: OEM. Fabricante só com fonte (Keyes, Adafruit, Deek-Robot). Nunca o nome da loja: “Eletrogate”, “Casa da Robótica”, “SK - Shields” ou “IMP” (importado) na marca de um anúncio não são o fabricante.
+
+Modelo: o código impresso na placa ou o do fabricante, como “XD-05”, “XD-204”. Nome comercial de loja (“Data Logger Shield”, “Shield Date Logger”, um número de catálogo) não é modelo. Sem código confirmado da mesma placa, omita o campo.
+
+Formato: “Shield para Arduino UNO e Mega” ou “Módulo ligado por fios”, conforme a placa.
+
+Relógio (RTC): substitui RTC integrado, Relógio de Tempo Real e Chip: o CI e o fabricante quando confirmado: “DS1307 (Maxim)”, “DS3231 (Maxim), com compensação de temperatura”.
+
+Calendário: “segundos, minutos, horas, dia da semana, dia, mês e ano”. Só com fonte.
+
+Cartão de Memória: substitui Slot cartão SD, Tipo de cartão de memória e Cartão: o tipo do slot, “SD” ou “micro SD”, e a capacidade máxima quando confirmada para a mesma placa: “SD de até 32GB”.
+
+Sistema de Arquivos: substitui Interface do cartão, Formatação e Formato: “FAT16 ou FAT32”.
+
+Bateria: substitui Tipo de bateria, Tipo de pilha e Slot para bateria: “CR1220 3V, inclusa” ou “CR1220 3V, não inclusa”, conforme o CADASTRO (ver REGRAS ESPECÍFICAS).
+
+Interface: “SPI para o cartão e I2C para o RTC”.
+
+Pinos Utilizados: substitui Pinagem e Pinos usados: no shield, os pinos do Arduino que ele ocupa, “D10 a D13 (SPI, cartão) e A4/A5 (I2C, RTC)”; no módulo, os pinos de ligação, “VCC, GND, MOSI, MISO, SCK, CS, SDA e SCL”. Só com fonte.
+
+Tensão de Alimentação: substitui Tensão de operação e Tensão de trabalho: “5V pela placa Arduino”, “3,3V a 5V”.
+
+Nível Lógico: substitui Circuito de nível de transmissão e Regulador de tensão: “3,3V no cartão, com regulador e conversor de nível na placa”. Só com fonte.
+
+Área de Prototipagem: “área de furos para soldar componentes”. Só na placa que tem.
+
+Indicação: substitui LEDs: “2 LEDs de uso livre”. Só com fonte.
+
+Botão de Reset: “sim, repete o reset do Arduino”. Só no shield que tem e com fonte.
+
+Conector de Ligação: “encaixe de shield com pinos macho para o Arduino” ou “barra de pinos”, e “pinos empilháveis” só com fonte.
+
+Compatibilidade: substitui Compatível com e Placas compatíveis: as placas que a fonte confirma, “Arduino UNO e Mega 2560”.
+
+Use Tensão, nunca Voltagem; Corrente, nunca Amperagem.
+
+CARACTERÍSTICAS
+
+Cada item contém nome, valor e referencias: nome “Relógio (RTC)”, valor “DS1307 (Maxim)”, sem dois-pontos no nome.
+
+Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Ausência comprovada pode ser “Não possui”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: Composição, Origem, Material, Cor, Estado, Leitura em tempo real, Simplificada programação, Rápida conexão, Datasheet).
+
+Campos obrigatórios:
+Fabricante; Modelo; Formato; Relógio (RTC); Cartão de Memória; Sistema de Arquivos; Bateria; Interface; Tensão de Alimentação; Compatibilidade.
+
+Campos condicionais (só quando a placa tem o recurso; com o recurso e sem valor confirmado, omita o campo):
+Calendário; Pinos Utilizados; Nível Lógico; Área de Prototipagem; Indicação; Botão de Reset; Conector de Ligação.
+
+Campos finais:
+Dimensões (CxLxA); Peso.
+
+Dimensões (CxLxA) e Peso são sempre os dois últimos campos e são OBRIGATÓRIOS (o Rise calcula o frete com eles; ver PESO E DIMENSÕES). Devolva os números em dimensoesMm e pesoGramas; o Rise escreve as duas linhas. Não os repita em caracteristicas.
+
+No modo sem referências, respeite a instrução acrescentada pelo Rise: inclua apenas especificações confirmadas nos dados próprios do produto. Se não houver nenhuma, retorne caracteristicas vazia.
+
+Números colados às unidades: 5V, 3,3V, 32GB, 3mm. Use vírgula decimal. Nunca use ponto e vírgula dentro de um valor. Informações distintas no mesmo valor se separam por “ / ”; itens da mesma lista, por vírgula.
+
+REGRAS ESPECÍFICAS
+
+Bateria: a maioria das lojas vende o data logger SEM a bateria CR1220, e outras escrevem “incluso”. Quem decide se a bateria acompanha é o CADASTRO do produto (título, descrição atual ou itens inclusos); referência de outra loja não comprova bateria. Com o cadastro dizendo que acompanha, escreva “inclusa” e ponha a bateria em itensInclusos; sem o cadastro dizer, escreva só o tipo (“CR1220 3V”) e não a ponha em itensInclusos. O cartão de memória nunca acompanha, a não ser que o cadastro diga.
+
+Shield e módulo são produtos diferentes: o shield de 68x53mm e o módulo de 35x35mm não trocam medidas, peso, pinos nem compatibilidade. Só valem como referência para esses campos as do MESMO formato.
+
+Compatibilidade: escreva só as placas que a fonte confirma. O shield usa o SPI dos pinos D10 a D13 e o I2C de A4/A5 do UNO; no Mega e no Leonardo esses barramentos ficam em outros pinos, e algumas versões pedem fios extras ou outra configuração da biblioteca. Não liste Mega, Leonardo, ADK ou Raspberry Pi só porque uma loja lista: diga isso apenas com fonte da mesma placa, e registre a divergência quando as lojas discordarem.
+
+Capacidade do cartão: “até 32GB” só com fonte que a declare para a mesma placa.
+
+O DS1307 e o DS3231 são relógios diferentes (o DS3231 é mais preciso e compensa a temperatura); não troque um pelo outro nem copie a precisão de um para o outro.
+
+Texto marcado pela loja como “gerado por IA”, “perguntas frequentes” ou “resumo automático” não comprova especificação: use só a ficha técnica dela, e com cuidado. Lista de fornecedor sem ficha técnica não comprova especificação.
+
+FONTES
+
+Em referencias, registre só os números das referências fornecidas que sustentam o valor daquele campo. Para valores vindos só do cadastro ou título, e para valores desconhecidos, use referencias []. Resultado da web só vale se consultado de fato e informado como referência; prefira o manual ou o esquema do fabricante da placa e o datasheet do RTC (Maxim). Dados do RTC não comprovam alimentação, conectores, medidas ou acessórios da placa. Não invente consultas, fontes, URLs ou números de referência.
+
+ITENS INCLUSOS
+
+O primeiro item é o próprio produto, com quantidade e nome técnico, sem acessórios no nome. Bateria, cartão de memória, barras de pinos e cabos só quando o cadastro ou o título confirmarem que acompanham. A embalagem de outro vendedor não comprova o conteúdo vendido pela Rise.
+
+PESO E DIMENSÕES (OBRIGATÓRIOS)
+
+O Rise usa o peso e as medidas para calcular o frete: pesoGramas e dimensoesMm são obrigatórios e só ficam null quando nenhum passo abaixo der resultado, e então decisoes diz o que foi procurado.
+
+pesoGramas: número em gramas, com uma casa decimal quando for menor que 10. dimensoesMm: comprimento, largura e altura da placa em milímetros. No shield, a altura conta os pinos de encaixe e o slot do cartão; quando umas fontes medem “ignorando os pinos” (68x53x10mm) e outras com eles (68x53x23mm), prefira a medida com os pinos e registre a divergência. Nunca a embalagem: “peso com embalagem” não vale como peso da placa.
+
+Procure nesta ordem e pare no primeiro que der o número:
+1. O cadastro do produto ou as referências fornecidas da MESMA placa (mesmo formato, ver REGRAS ESPECÍFICAS).
+2. O fabricante da placa ou uma loja na internet que publique a MESMA placa.
+3. Placa de outro formato NÃO serve como está: deixe null e diga em decisoes o que foi procurado.
+
+As lojas trocam a ordem dos eixos (“68mm Largura x 53mm Profundidade”): o comprimento é o maior lado. Arredonde ao milímetro e ao décimo de grama. Não deduza medida pela foto.
+
+DIVERGÊNCIAS
+
+Para cada divergência fornecida, retorne id, opcao, motivo breve e campo com o nome padronizado deste prompt (divergências do mesmo campo compartilham o nome). opcao é o índice a partir de zero, ou null quando faltar evidência suficiente. Prefira o manual ou o esquema do fabricante e fontes independentes. Exceto para peso e dimensões, reserve a posição do campo divergente em caracteristicas com valor "" e referencias []. Não coloque valores divergentes nos parágrafos ou características antes da escolha do operador.
+
+GARANTIA
+
+O Rise acrescenta automaticamente: Garantia Legal de 90 dias (contra defeitos de fabricação). Não gere campo extra de garantia nem copie garantias das referências. Não escreva preço, prazo ou nome de loja.

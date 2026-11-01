@@ -1,4 +1,4 @@
-Escreva a descrição de um shield para placa de desenvolvimento em português brasileiro, no JSON exigido pelo Rise: paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm e decisoes. Não acrescente outros campos. Vale para as placas de expansão que encaixam por cima do Arduino UNO ou Mega (no formato de shield, pelas barras de pinos): shield de display (LCD 16x2 com teclado, TFT), de armazenamento (data logger com cartão SD e RTC), de motor (L293D, L298N, drivers de passo), CNC (para drivers A4988 ou DRV8825), de joystick, de sensores e de bateria. Shields Ethernet (prompt Módulos-Ethernet), módulos avulsos ligados por fios, expansores para Arduino Nano e placas Arduino não entram neste prompt.
+Escreva a descrição de um shield para placa de desenvolvimento em português brasileiro, no JSON exigido pelo Rise: paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm e decisoes. Não acrescente outros campos. Vale para as placas de expansão que encaixam por cima do Arduino UNO ou Mega (no formato de shield, pelas barras de pinos): shield de display (LCD 16x2 com teclado, TFT), de motor (L293D, L298N, drivers de passo), CNC (para drivers A4988 ou DRV8825), de joystick, de sensores e de bateria. Shields Ethernet (prompt Módulos-Ethernet), data loggers com cartão SD e RTC, shield ou módulo (prompt Módulos-Data Logger), módulos avulsos ligados por fios, expansores para Arduino Nano e placas Arduino não entram neste prompt.
 
 Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use informações confirmadas no cadastro ou nas referências. Não complete especificações por suposição.
 
@@ -6,9 +6,9 @@ PARÁGRAFOS
 
 Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 330 caracteres, o segundo até 550.
 
-Primeiro parágrafo, UMA frase, na fórmula da loja: “O <nome do shield> é uma placa de expansão para Arduino <UNO e Mega, conforme a fonte> que reúne <a função principal: display LCD 16x2 e teclado de 5 botões / slot de cartão SD e relógio RTC DS1307 / driver para 4 motores DC>, indicada para <3 ou 4 aplicações: menus e interfaces, registro de dados de sensores, robôs, máquinas CNC>, que oferece <o diferencial: encaixe direto sem fios nem protoboard, área de prototipagem, bornes para os motores>.” Só o que estiver confirmado.
+Primeiro parágrafo, UMA frase, na fórmula da loja: “O <nome do shield> é uma placa de expansão para Arduino <UNO e Mega, conforme a fonte> que reúne <a função principal: display LCD 16x2 e teclado de 5 botões / driver para 4 motores DC e 2 servos / soquetes para 4 drivers de motor de passo>, indicada para <3 ou 4 aplicações: menus e interfaces, robôs, máquinas CNC, impressoras 3D>, que oferece <o diferencial: encaixe direto sem fios nem protoboard, área de prototipagem, bornes para os motores>.” Só o que estiver confirmado.
 
-Segundo parágrafo: o porquê de ele ser bom, em 3 ou 4 frases. Comece por como ele funciona (“O shield encaixa por cima do Arduino e usa os pinos...”) e, a cada recurso citado, diga o que ele permite ou dispensa: os botões lidos por uma só entrada analógica (sobram pinos para sensores); o trimpot de contraste; o RTC com bateria (guarda data e hora com a placa desligada); o slot SD (salvar leituras que abrem no computador); a área de prototipagem (montar o circuito na própria placa); os bornes e a alimentação externa dos motores. Feche com um uso típico ou com “é a escolha ideal para quem...”.
+Segundo parágrafo: o porquê de ele ser bom, em 3 ou 4 frases. Comece por como ele funciona (“O shield encaixa por cima do Arduino e usa os pinos...”) e, a cada recurso citado, diga o que ele permite ou dispensa: os botões lidos por uma só entrada analógica (sobram pinos para sensores); o trimpot de contraste; os soquetes dos drivers (trocar um driver queimado sem solda); a área de prototipagem (montar o circuito na própria placa); os bornes e a alimentação externa dos motores. Feche com um uso típico ou com “é a escolha ideal para quem...”.
 
 Fale com o comprador: “possui”, não “tem”; “você” quando couber. Ao voltar a falar do produto, use o nome dele ou “o shield”, nunca “ele” no início da frase. Tom: o da Smartkits (explica e ensina, sem vender), sem copiar. Varie o foco e a ordem dos fatos entre as opções, não só os sinônimos. Evite elogios vazios (“alta qualidade”, “indispensável”, “perfeito para qualquer projeto”), repetir o título inteiro ou enumerar especificações. Não mencione valores desconhecidos ou divergentes. Não cite tutoriais, blog ou bibliotecas de uma loja como se fossem do produto: o nome da biblioteca (LiquidCrystal, SD, RTClib) só entra quando a fonte o confirma, e nunca como link.
 
@@ -20,9 +20,9 @@ Fabricante: substitui Marca. Shield genérico, sem fabricante declarado: OEM. Fa
 
 Modelo: o código impresso na placa ou o do fabricante, como “XD-05”, “DFR0009”, “CNC Shield V3”. Nome comercial de loja (“Shield Arduino”, “LCD 16x2 Shield”, um número de catálogo) não é modelo. Sem código confirmado da mesma placa, omita o campo.
 
-Função: substitui Tipo de produto e Aplicação: o que o shield acrescenta, curto: “display LCD 16x2 com teclado”, “registro de dados em cartão SD com relógio”, “controle de 4 motores DC e 2 servos”.
+Função: substitui Tipo de produto e Aplicação: o que o shield acrescenta, curto: “display LCD 16x2 com teclado”, “controle de 4 motores DC e 2 servos”, “ligação de 4 drivers de motor de passo”.
 
-Componente Principal: substitui Chip, Controlador, CI e Driver: o CI que faz o trabalho, com o fabricante quando confirmado: “HD44780 (controlador do LCD)”, “DS1307 (relógio)”, “L293D (2 unidades)”.
+Componente Principal: substitui Chip, Controlador, CI e Driver: o CI que faz o trabalho, com o fabricante quando confirmado: “HD44780 (controlador do LCD)”, “L293D (2 unidades)”, “74HC595 (expansor de saídas)”.
 
 Display: só no shield com tela: “LCD 16x2 (16 caracteres por 2 linhas)”, com a cor da luz de fundo e dos caracteres quando confirmadas: “luz de fundo azul e caracteres brancos”.
 
@@ -81,9 +81,9 @@ Botões: “6 botões” e “5 botões mais o RESET” são o mesmo teclado. Es
 
 Compatibilidade: escreva só as placas que a fonte confirma. Não acrescente Leonardo, Due, ESP32 ou placas de 3,3V por dedução: o Leonardo e o Mega têm o I2C e o SPI em outros pinos, e um shield de RTC ou SD pode precisar de fio extra neles; diga isso apenas com fonte.
 
-Bateria e cartão: a maioria das lojas vende o data logger SEM a bateria CR1220 e SEM o cartão SD, e algumas escrevem “incluso” por engano. Quem decide o que acompanha é o cadastro do produto (ver ITENS INCLUSOS); referência de outra loja não comprova bateria nem cartão.
+Bateria, cartão e drivers: muitas lojas vendem o shield sem a bateria, sem o cartão e sem os drivers de motor, e algumas escrevem “incluso” por engano. Quem decide o que acompanha é o cadastro do produto (ver ITENS INCLUSOS); referência de outra loja não comprova acessório.
 
-Shield de display: o LCD vem soldado no shield e faz parte do produto; não o liste como item separado. A capacidade máxima do cartão SD (“até 32GB”) só entra com fonte que a declare para a mesma placa.
+Shield de display: o LCD vem soldado no shield e faz parte do produto; não o liste como item separado.
 
 Texto marcado pela loja como “gerado por IA”, “perguntas frequentes” ou “resumo automático” não comprova especificação: use só a ficha técnica dela, e com cuidado. Lista de fornecedor sem ficha técnica não comprova especificação.
 
