@@ -187,6 +187,12 @@ function CustoDaVarredura({ id, dado, aberto, aoAlternar }) {
               <span className="ml-1 text-[10px] font-normal text-suave">reserva</span>
             </p>
           )}
+          {typeof dado.precoMontagem === "number" && (
+            <p className="mt-0.5 text-sky-700">
+              {precoComImpostoTexto(dado.precoMontagem, precoComImpostosCalc(dado.precoMontagem, dado.impostos), dado.impostos)}
+              <span className="ml-1 text-[10px] font-normal text-suave">em montagem</span>
+            </p>
+          )}
           {faixas.length > 0 && (
             <div className="mt-1 space-y-0.5">
               {faixas.map((faixa) => (
@@ -606,7 +612,13 @@ export default function Fornecedores({
                       <EstoqueDoFornecedor dado={estoques[vinculo.id]} />
                     )}
                     {estoques[vinculo.id]?.aChegar > 0 && (
-                      <div className="text-[11px] text-amber-700">+{estoques[vinculo.id].aChegar} a chegar</div>
+                      <div className="text-[11px] text-amber-700" title={estoques[vinculo.id].aChegarPrevisao ?? undefined}>
+                        +{estoques[vinculo.id].aChegar} a chegar
+                      </div>
+                    )}
+                    {/* Terceira situacao da Fortek (01/11/2026), em linha propria: nunca somada as outras duas. */}
+                    {estoques[vinculo.id]?.emMontagem > 0 && (
+                      <div className="text-[11px] text-sky-700">+{estoques[vinculo.id].emMontagem} em montagem</div>
                     )}
                   </td>
                   <td className="px-3 py-2">

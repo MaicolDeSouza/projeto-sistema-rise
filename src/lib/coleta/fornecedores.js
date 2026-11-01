@@ -31,6 +31,13 @@ export const FORNECEDORES = [
      * "-2" pode ser voltagem, tamanho ou versao, e juntar apagaria produto.
      */
     sufixoDeCarga: /-(?:A\d*|\d)$/i,
+
+    /**
+     * As listas sao BAIXADAS do portal na varredura (01/11/2026, pedido do dono), e nao mais enviadas por Ctrl+S: a senha
+     * do portal so e conferida no navegador e a pagina traz a lista inteira. Tres paginas, tres situacoes separadas —
+     * Pronta Entrega, Lista de Reserva (a chegar) e Em Montagem. Ver `baixarListasDaBenser` em benser-ao-vivo.js.
+     */
+    listasDoPortalBenser: true,
   },
   {
     id: "nightech",

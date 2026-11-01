@@ -3,7 +3,7 @@ import { mesclarNoExistente } from "./mesclar";
 import { comoNumero, comoTexto } from "./texto-html";
 import { normalizarPagina } from "./normalizar";
 import { juntarComAPatolastore } from "./patolastore";
-import { estoqueAoVivoDaBenser, horaDaLeitura } from "./benser-ao-vivo";
+import { estoqueAoVivoDaBenser, horaDaLeitura, previsoesDaBenser } from "./benser-ao-vivo";
 import { PAGINA_INICIAL_DA_TESPO, documentosDasEsteirasDoSite, juntarDocumentosDasEsteiras } from "./tespo";
 
 /**
@@ -165,12 +165,16 @@ function valorDe(objeto, nomes) {
  * e a excecao combinada: sem ele o produto sai da estrutura de acesso, entao
  * entra como N/A, e a origem registra que a marcacao foi nossa.
  */
-function comoProduto(bruto, { fonte, origem, imagens, modalidade }) {
+function comoProduto(bruto, { fonte, origem, imagens, modalidade, previsoes }) {
   const codigo = comoTexto(valorDe(bruto, CAMPOS.codigo));
   const nome = comoTexto(valorDe(bruto, CAMPOS.nome));
   if (!nome) return null;
 
   const deReserva = modalidade === "RESERVA";
+  // Em montagem e a terceira situacao (01/11/2026): nem pronta entrega nem a chegar. Preco e quantidade da linha vao
+  // para campos proprios, e nada dela entra nos outros dois.
+  const deMontagem = modalidade === "MONTAGEM";
+  const foraDaPronta = deReserva || deMontagem;
 
   const preco = comoNumero(valorDe(bruto, CAMPOS.preco));
   const precoReserva = comoNumero(valorDe(bruto, CAMPOS.precoReserva));
@@ -219,10 +223,13 @@ function comoProduto(bruto, { fonte, origem, imagens, modalidade }) {
       //
       // Num arquivo que E a lista de reserva, o preco da linha e o de reserva:
       // nao ha preco de pronta entrega ali para guardar.
-      normal: deReserva ? null : preco,
+      normal: foraDaPronta ? null : preco,
       promotional: null,
-      reserva: deReserva ? preco : precoReserva,
-      comImpostos: deReserva ? null : precoComImpostos(preco, impostos),
+      reserva: deReserva ? preco : deMontagem ? null : precoReserva,
+      comImpostos: foraDaPronta ? null : precoComImpostos(preco, impostos),
+      // So nas listas com modalidade (pagina do portal): a planilha comum nao ganha a chave, e a assinatura dos
+      // produtos dela nao muda.
+      ...(modalidade ? { montagem: deMontagem ? preco : null } : {}),
     },
     taxes: impostos,
     multiploVenda: multiplo > 0 ? Math.round(multiplo) : null,
@@ -233,7 +240,7 @@ function comoProduto(bruto, { fonte, origem, imagens, modalidade }) {
     // dois num numero so prometeria entrega que o fornecedor nao tem.
     stock: {
       status:
-        deReserva || estoque === null
+        foraDaPronta || estoque === null
           ? "UNKNOWN"
           : estoque > 0
             ? "IN_STOCK"
@@ -241,8 +248,15 @@ function comoProduto(bruto, { fonte, origem, imagens, modalidade }) {
       // Na lista de reserva a quantidade da linha e o que VAI chegar, nao o
       // que ha em casa. Trocar os dois prometeria entrega imediata de algo que
       // ainda esta em transito.
-      quantity: deReserva ? null : estoque,
-      aChegar: deReserva ? estoque : aChegar,
+      quantity: foraDaPronta ? null : estoque,
+      aChegar: deReserva ? estoque : deMontagem ? null : aChegar,
+      ...(modalidade
+        ? {
+            emMontagem: deMontagem ? estoque : null,
+            // A carga e a previsao que a pagina da reserva escreve para o `loc` do item.
+            aChegarPrevisao: deReserva ? (previsoes?.get(String(bruto.loc ?? "").toUpperCase()) ?? null) : null,
+          }
+        : {}),
     },
     description: comoTexto(valorDe(bruto, CAMPOS.descricao)) ?? nome,
     specifications: semImpostos(especificacoes),
@@ -830,6 +844,9 @@ export function modalidadeDoArquivo({ nome, texto, formato }) {
 
   const marcado = `${diz(titulo)} ${diz(nome ?? "")}`;
 
+  // "Benser · Em Montagem" (01/11/2026): a terceira lista do portal. Vem antes da reserva porque a descricao da
+  // pagina copia a da Lista de Reserva — e so o titulo e o nome entram aqui, mas o nome do arquivo pode citar as duas.
+  if (/\bem[\s_-]*montagem\b/.test(marcado)) return "MONTAGEM";
   if (/\breserva\b|\bencomenda\b|\ba\s*chegar\b/.test(marcado)) return "RESERVA";
   return "PRONTA_ENTREGA";
 }
@@ -868,6 +885,7 @@ export async function lerArquivo({ nome, bytes, fonte }) {
   let origem = "arquivo do fornecedor";
   let imagensPorCodigo = null;
   let modalidade = null;
+  let previsoes = null;
   let siteSugerido = null;
   let origemExtra = "";
 
@@ -948,6 +966,7 @@ export async function lerArquivo({ nome, bytes, fonte }) {
     }
 
     modalidade = modalidadeDoArquivo({ nome, texto: html, formato });
+    if (modalidade === "RESERVA") previsoes = previsoesDaBenser(html);
 
     brutos = arrayEmbutido(html);
     origem = "catalogo embutido na pagina salva";
@@ -1002,7 +1021,7 @@ export async function lerArquivo({ nome, bytes, fonte }) {
 
   const produtos = brutos
     .map((bruto) =>
-      comoProduto(bruto, { fonte, origem, imagens: imagensPorCodigo, modalidade }),
+      comoProduto(bruto, { fonte, origem, imagens: imagensPorCodigo, modalidade, previsoes }),
     )
     .filter(Boolean);
 

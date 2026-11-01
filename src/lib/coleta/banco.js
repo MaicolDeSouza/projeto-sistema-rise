@@ -44,6 +44,9 @@ function paraGravar(linha) {
   // Fora da assinatura quando ausente (ver linha.js), mas no banco a ausencia
   // precisa APAGAR o valor antigo: undefined num update deixaria o multiplo velho.
   if (dados.multiploVenda === undefined) dados.multiploVenda = null;
+  for (const campo of ["precoMontagem", "emMontagem", "aChegarPrevisao"]) {
+    if (dados[campo] === undefined) dados[campo] = null;
+  }
   return dados;
 }
 
@@ -146,6 +149,7 @@ export async function gravarColeta({
       precoNormal: true,
       precoPromocional: true,
       precoReserva: true,
+      precoMontagem: true,
       estoqueStatus: true,
       ausenteDesde: true,
       quantidade: true,
@@ -735,8 +739,8 @@ export async function listarProdutos({
       : Promise.resolve(null),
     prisma.$queryRaw`
       SELECT id, origem, codigo, nome, marca, mpn, url, "precoNormal", "precoPromocional",
-             "precoReserva", "precoComImpostos", impostos, "precosPorQuantidade", "estoqueStatus",
-             quantidade, "aChegar", "coletadoEm", "vistoEm", "fonteId", "buscaTexto"
+             "precoReserva", "precoMontagem", "precoComImpostos", impostos, "precosPorQuantidade", "estoqueStatus",
+             quantidade, "aChegar", "aChegarPrevisao", "emMontagem", "coletadoEm", "vistoEm", "fonteId", "buscaTexto"
         FROM "ProdutoColetado"
        WHERE ${onde}
        ORDER BY ${ordenacao}
@@ -801,6 +805,7 @@ export async function listarProdutos({
         normal: numeroDoBanco(linha.precoNormal),
         promotional: numeroDoBanco(linha.precoPromocional),
         reserva: numeroDoBanco(linha.precoReserva),
+        montagem: numeroDoBanco(linha.precoMontagem),
         comImpostos: numeroDoBanco(linha.precoComImpostos),
       },
       taxes: linha.impostos ?? [],
@@ -809,6 +814,8 @@ export async function listarProdutos({
         status: linha.estoqueStatus,
         quantity: linha.quantidade,
         aChegar: linha.aChegar,
+        aChegarPrevisao: linha.aChegarPrevisao,
+        emMontagem: linha.emMontagem,
       },
       coletadoEm: linha.coletadoEm,
       naoVistoDesde: naoVistoDesde(linha.vistoEm, porId.get(linha.fonteId)?.ultimaColetaEm),

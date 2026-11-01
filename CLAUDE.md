@@ -1405,6 +1405,31 @@ Medido no dia: 1.202 de 1.968 itens com outro estoque e 187 com estoque no arqui
   o que mudou. Falha (rede, resposta pequena, JSON quebrado) é aviso: valem os números do arquivo. `buscarJson`, então
   robots.txt (a Benser não tem) e ritmo valem.
 
+**Fortek varrida sozinha pelas TRÊS listas do portal** (01/11/2026, pedido do dono: "Opção 1. Mas deixar bem separado.
+Pronta entrega, a chegar e em montagem"; frequência: "1x por semana junto com a varredura dos concorrentes", mais o botão).
+O "login" do portal da Benser é só a tela de senha conferida no navegador: a página traz a lista inteira e o ao vivo responde
+sem sessão (medido sem cookie: 1.997 na Pronta Entrega, 4 na Lista de Reserva, 490 Em Montagem; as listas não repetem código).
+- **Varredura:** `varrerFonte` (regra `listasDoPortalBenser` em `fornecedores.js`) baixa `/`, `/reserva/` e `/montagem/`
+  (`baixarListasDaBenser`, por `buscarBytes`, teto de 50 MB; a Pronta Entrega tem 16 MB com as fotos em base64), guarda como
+  lista enviada (`benser-pronta-entrega.html`, `benser-lista-de-reserva.html`, `benser-em-montagem.html`, baixáveis na tela),
+  grava `listaArquivos`/`listaEnviadaEm` e segue pelo `reprocessarArquivos` de sempre (ao vivo, junção pelo código com o
+  `sufixoDeCarga`, conciliação, trava de queda). Página que falha derruba o conjunto sem tocar no gravado. A rodada de sábado já
+  inclui a Fortek (`fontesDaRodada`), e "Atualizar dados" é a varredura manual. Medido no PC: 6 s para baixar, 15-27 s no total.
+- **Em Montagem é a modalidade `MONTAGEM`** (`modalidadeDoArquivo`, título "Benser · Em Montagem"); lê o ao vivo da reserva
+  (`/api/estoque-reserva`, o mesmo da página). Vai para colunas próprias: `emMontagem` e `precoMontagem` (migration
+  `20261101_fortek_tres_listas`, também em `PrecoHistorico`). **Nunca** entra em `quantidade` (pronta entrega) nem em `aChegar`.
+- **A chegar ganhou `aChegarPrevisao`**: a carga e a previsão que a página escreve nas funções `cargaLabel`/`cargaPrev`
+  ("Marítimo Outubro — Chegada prevista para a segunda quinzena de outubro"), lidas como texto (`previsoesDaBenser`).
+- **Assinatura:** os três campos novos só entram na linha quando têm valor (a regra do `multiploVenda`), então os produtos das
+  outras fontes não foram regravados; no banco a ausência apaga (`paraGravar`). Conferido: a 2ª varredura seguida grava 0 alterados.
+- **Telas:** coluna Estoque do Scraper com uma linha por situação ("N pronta entrega", "N a chegar" com a previsão no `title`,
+  "N em montagem" em azul), coluna Valor com o preço "montagem", detalhe com "Pronta entrega / A chegar (+previsão) / Em
+  montagem" e o preço em montagem, prévia do teste de fonte com a caixa "Em montagem", aba Fornecedores do Produto com
+  "+N em montagem" e o preço no relógio, e o MCP (`estoque.emMontagem`, `aChegarPrevisao`, `precoMontagem`). O "disponível" do
+  fornecedor continua sendo só a pronta entrega.
+- **Primeira varredura (PC, 01/11/2026):** 2.218 produtos (239 novos, 22 ausentes: os itens das listas antigas que não estão
+  mais no portal).
+
 **Regras por fornecedor** — `src/lib/coleta/fornecedores.js`, dado e não código:
 
 - **Fortek — `sufixoDeCarga`.** `02-268-A` é o mesmo item que `02-268`; o sufixo é a carga.

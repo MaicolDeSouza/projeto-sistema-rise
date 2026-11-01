@@ -26,9 +26,81 @@ export function aoVivoDaBenser(html, modalidade) {
     /<meta[^>]+og:url[^>]+benser\.com\.br/i.test(html ?? "") ||
     /<title[^>]*>\s*Benser\s*·/i.test(html ?? "");
   if (!doPortal) return null;
+  // A pagina Em Montagem le o MESMO ao vivo da reserva (medido em 01/11/2026: os 490 itens dela estao nos 494 do
+  // `/api/estoque-reserva`, e os 4 da Lista de Reserva tambem; as duas listas nao repetem codigo).
+  if (modalidade === "MONTAGEM") return { endereco: `${ORIGEM}/api/estoque-reserva`, minimo: 200, lista: "Em Montagem" };
   return modalidade === "RESERVA"
     ? { endereco: `${ORIGEM}/api/estoque-reserva`, minimo: 200, lista: "Lista de Reserva" }
     : { endereco: `${ORIGEM}/api/estoque`, minimo: 1000, lista: "Pronta Entrega" };
+}
+
+/**
+ * As tres paginas do portal, baixadas pelo Rise sozinho (01/11/2026, pedido do dono: varrer a Fortek sem Ctrl+S).
+ *
+ * O "login" do portal e so a tela de senha conferida no navegador: a lista inteira vem na pagina (16 MB na Pronta
+ * Entrega, com as fotos em base64) e o ao vivo responde sem sessao. Medido em 01/11/2026 sem cookie nenhum: 1.997 itens na
+ * Pronta Entrega, 4 na Lista de Reserva e 490 Em Montagem. O nome do arquivo e o que `modalidadeDoArquivo` le se um
+ * dia o titulo mudar; o titulo da pagina continua valendo primeiro.
+ */
+export const PAGINAS_DA_BENSER = [
+  { caminho: "/", nome: "benser-pronta-entrega.html", lista: "Pronta Entrega" },
+  { caminho: "/reserva/", nome: "benser-lista-de-reserva.html", lista: "Lista de Reserva" },
+  { caminho: "/montagem/", nome: "benser-em-montagem.html", lista: "Em Montagem" },
+];
+
+/**
+ * Baixa as tres paginas. Qualquer uma que falhe derruba o conjunto (`erro`): as listas so fazem sentido juntas — sem
+ * a Pronta Entrega, tudo o que so existe nela viraria ausente, e a trava de queda recusaria de qualquer jeito.
+ *
+ * @param {object} [opcoes]
+ * @param {Function} [opcoes.buscar]  `buscarBytes` (teto de 50 MB; a pagina passa dos 2 MB do `buscarPagina`)
+ */
+export async function baixarListasDaBenser({ buscar, sinal = null } = {}) {
+  const arquivos = [];
+  for (const pagina of PAGINAS_DA_BENSER) {
+    sinal?.throwIfAborted?.();
+    const resposta = await buscar(`${ORIGEM}${pagina.caminho}`, { sinal });
+    if (!resposta?.ok || !resposta.bytes?.length) {
+      return { erro: `${pagina.lista} do portal Benser não baixou: ${resposta?.erro ?? "sem resposta"}` };
+    }
+    arquivos.push({ nome: pagina.nome, bytes: new Uint8Array(resposta.bytes) });
+  }
+  return { arquivos };
+}
+
+/** Desfaz os escapes de texto JavaScript que o portal usa nos rotulos ("Aéreo Outubro"). */
+function textoDoJs(bruto) {
+  return bruto.replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))).replace(/\\(.)/g, "$1");
+}
+
+/** Os pares `if(k==='CHAVE')return 'texto'` de uma funcao da pagina. */
+function paresDaFuncao(html, nome) {
+  const inicio = html.indexOf(`function ${nome}(`);
+  if (inicio < 0) return new Map();
+  const corpo = html.slice(inicio, html.indexOf("}", inicio) + 1);
+  const pares = new Map();
+  for (const [, chave, texto] of corpo.matchAll(/k\s*===?\s*'((?:[^'\\]|\\.)*)'\s*\)\s*return\s*'((?:[^'\\]|\\.)*)'/g)) {
+    pares.set(textoDoJs(chave).toUpperCase(), textoDoJs(texto));
+  }
+  return pares;
+}
+
+/**
+ * Carga e previsao de chegada da Lista de Reserva, por `loc` do item: "Marítimo Outubro — Chegada prevista para a
+ * segunda quinzena de outubro". A pagina escreve os dois em funcoes (`cargaLabel` e `cargaPrev`), e nao no dado do
+ * item; sao lidas como texto a cada varredura, porque a Benser troca as cargas.
+ *
+ * @returns {Map<string, string>} chave = `loc` em maiusculas
+ */
+export function previsoesDaBenser(html) {
+  const rotulos = paresDaFuncao(html ?? "", "cargaLabel");
+  const previsoes = paresDaFuncao(html ?? "", "cargaPrev");
+  const resultado = new Map();
+  for (const chave of new Set([...rotulos.keys(), ...previsoes.keys()])) {
+    const texto = [rotulos.get(chave), previsoes.get(chave)].filter(Boolean).join(" — ");
+    if (texto) resultado.set(chave, texto);
+  }
+  return resultado;
 }
 
 /**

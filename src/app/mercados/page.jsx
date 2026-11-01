@@ -182,6 +182,10 @@ export default async function MercadosPage({ searchParams }) {
       // O que esta comprado e em transito. NUNCA somado a pronta entrega: um
       // numero so prometeria entrega que nao existe.
       aChegar: typeof produto.stock?.aChegar === "number" ? produto.stock.aChegar : null,
+      aChegarPrevisao: produto.stock?.aChegarPrevisao ?? null,
+      // Em montagem no fornecedor (Fortek, 01/11/2026): terceira situacao, nunca somada as outras duas.
+      emMontagem: typeof produto.stock?.emMontagem === "number" ? produto.stock.emMontagem : null,
+      precoMontagem: typeof produto.prices?.montagem === "number" ? produto.prices.montagem : null,
       // Distribuidor cobra imposto por fora — a Benser escreve "Preco unit. sem
       // IPI". Sem isto a lista compara o preco de vitrine do concorrente com um
       // custo de fornecedor que ninguem paga.

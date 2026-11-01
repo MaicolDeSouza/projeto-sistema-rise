@@ -3422,6 +3422,80 @@ console.log("\n— estoque ao vivo do portal Benser —");
   ], ["HTTP 503", "resposta não é JSON", null]);
 }
 
+// Fortek pelas TRES listas do portal (01/11/2026): pronta entrega, a chegar e em montagem, sempre separados.
+console.log("\n— Fortek: tres listas do portal —");
+{
+  const { aoVivoDaBenser, baixarListasDaBenser, previsoesDaBenser, PAGINAS_DA_BENSER } = await import("../src/lib/coleta/benser-ao-vivo.js");
+  const { lerArquivo, juntarListas, modalidadeDoArquivo } = await import("../src/lib/coleta/arquivos.js");
+  const { regrasDoFornecedor } = await import("../src/lib/coleta/fornecedores.js");
+  const { linhaDoProduto, produtoDaLinha } = await import("../src/lib/coleta/linha.js");
+
+  conferir("fortek: titulo de cada pagina da a modalidade", [
+    modalidadeDoArquivo({ nome: "x.html", texto: "<title>Benser · Portal de Pedidos</title>", formato: "html" }),
+    modalidadeDoArquivo({ nome: "x.html", texto: "<title>Benser · Lista de Reserva</title>", formato: "html" }),
+    modalidadeDoArquivo({ nome: "x.html", texto: "<title>Benser · Em Montagem</title>", formato: "html" }),
+    modalidadeDoArquivo({ nome: "benser-em-montagem.html", texto: "", formato: "html" }),
+  ], ["PRONTA_ENTREGA", "RESERVA", "MONTAGEM", "MONTAGEM"]);
+  conferir("fortek: em montagem le o ao vivo da reserva", aoVivoDaBenser("<title>Benser · Em Montagem</title>", "MONTAGEM")?.endereco, "https://benser.com.br/api/estoque-reserva");
+
+  // As funcoes como a pagina da reserva as escreve (medido em 01/11/2026), com escape \u e o "Adiado — ..." da carga antiga.
+  const scriptReserva = "function cargaLabel(loc){const k=cargaKey(loc);if(k==='A-OUTUBRO')return 'A\\u00e9reo Outubro';if(k==='OUTUBRO')return 'Marítimo Outubro';return k||'Outros';}\n" +
+    "function cargaPrev(loc){const k=cargaKey(loc);if(k==='A-AGOSTO')return 'Adiado \\u2014 chegada prevista para o in\\u00edcio de setembro';if(k==='OUTUBRO')return 'Chegada prevista para a segunda quinzena de outubro';return '';}";
+  const previsoes = previsoesDaBenser(`<script>${scriptReserva}</script>`);
+  conferir("fortek: carga e previsao lidas das funcoes da pagina", [previsoes.get("OUTUBRO"), previsoes.get("A-OUTUBRO"), previsoes.get("A-AGOSTO")], [
+    "Marítimo Outubro — Chegada prevista para a segunda quinzena de outubro",
+    "Aéreo Outubro",
+    "Adiado — chegada prevista para o início de setembro",
+  ]);
+
+  // Paginas sem o "Benser ·" no titulo: o leitor nao chama o ao vivo (o teste e SEM rede).
+  const pagina = (titulo, itens, extra = "") =>
+    new TextEncoder().encode(`<html><head><title>${titulo}</title></head><body><script>${extra}\nconst PRODUTOS = ${JSON.stringify(itens)};\nconst BANNERS = [];</script></body></html>`);
+  const fonte = { name: "Fortek", type: "FORNECEDOR" };
+  const pronta = await lerArquivo({ nome: "benser-pronta-entrega.html", bytes: pagina("Portal de Pedidos", [
+    { sku: "01-017", desc: "PLACA NANO", preco: 18.9, estoque: 0, loc: "PLACAS" },
+    { sku: "64-380", desc: "CHAVE BOTAO", preco: 1.29, estoque: 12, loc: "CHAVES" },
+  ]), fonte });
+  const reserva = await lerArquivo({ nome: "benser-lista-de-reserva.html", bytes: pagina("Lista de Reserva", [
+    { sku: "07-005", desc: "KIT ARANHA", preco: 33.9, estoque: 1863, loc: "OUTUBRO" },
+  ], scriptReserva), fonte });
+  const montagem = await lerArquivo({ nome: "benser-em-montagem.html", bytes: pagina("Em Montagem", [
+    { sku: "01-017", desc: "PLACA NANO", preco: 18.5, estoque: 980, loc: "PLACAS" },
+    { sku: "03-261-2", desc: "CARTAO RFID", preco: 0.99, estoque: 20000, loc: "RFID" },
+  ]), fonte });
+  conferir("fortek: cada pagina na sua modalidade", [pronta.modalidade, reserva.modalidade, montagem.modalidade], ["PRONTA_ENTREGA", "RESERVA", "MONTAGEM"]);
+
+  const regras = regrasDoFornecedor({ nome: "Fortek", url: "https://benser.com.br" });
+  const juntos = juntarListas([pronta.produtos, reserva.produtos, montagem.produtos], { sufixoDeCarga: regras.sufixoDeCarga });
+  const linha = (codigo) => {
+    const l = linhaDoProduto(juntos.find((p) => p.code === codigo), { origem: "arquivo" });
+    return [l.quantidade, l.precoNormal, l.aChegar, l.precoReserva, l.aChegarPrevisao, l.emMontagem, l.precoMontagem, l.estoqueStatus];
+  };
+  conferir("fortek: regra da Fortek liga a varredura do portal", regras.listasDoPortalBenser, true);
+  conferir("fortek: 4 produtos (a Nano das duas listas e um so)", juntos.length, 4);
+  conferir("fortek: Nano = pronta zerada + 980 em montagem, cada um com o seu preco", linha("01-017"), [0, 18.9, null, null, undefined, 980, 18.5, "OUT_OF_STOCK"]);
+  conferir("fortek: a chegar com a previsao da carga, sem pronta nem montagem", linha("07-005"), [null, null, 1863, 33.9, "Marítimo Outubro — Chegada prevista para a segunda quinzena de outubro", undefined, undefined, "UNKNOWN"]);
+  conferir("fortek: so em montagem nao vira estoque disponivel", linha("03-261-2"), [null, null, null, null, undefined, 20000, 0.99, "UNKNOWN"]);
+  conferir("fortek: so na pronta entrega fica como sempre", linha("64-380"), [12, 1.29, null, null, undefined, undefined, undefined, "IN_STOCK"]);
+
+  // Ida e volta pelo banco: a linha relida tem de dar a MESMA assinatura (senao toda varredura regrava a lista).
+  const nano = linhaDoProduto(juntos.find((p) => p.code === "01-017"), { origem: "arquivo" });
+  const relida = linhaDoProduto(produtoDaLinha({ ...nano, precosPorQuantidade: null, multiploVenda: null }), { origem: "arquivo" });
+  conferir("fortek: assinatura igual depois de gravar e reler", relida.hashConteudo, nano.hashConteudo);
+  const semNada = linhaDoProduto({ name: "X", code: "X1", prices: { normal: 1 }, stock: { quantity: 2 } }, { origem: "site" });
+  conferir("fortek: produto de outra fonte nao ganha os campos novos (assinatura nao muda)", [semNada.precoMontagem, semNada.emMontagem, semNada.aChegarPrevisao], [undefined, undefined, undefined]);
+
+  conferir("fortek: tres paginas, nesta ordem", PAGINAS_DA_BENSER.map((p) => p.caminho), ["/", "/reserva/", "/montagem/"]);
+  const pedidos = [];
+  const baixou = await baixarListasDaBenser({ buscar: async (url) => (pedidos.push(url), { ok: true, bytes: new Uint8Array([60]) }) });
+  conferir("fortek: baixa as tres e devolve com os nomes", [pedidos, baixou.arquivos.map((a) => a.nome)], [
+    ["https://benser.com.br/", "https://benser.com.br/reserva/", "https://benser.com.br/montagem/"],
+    ["benser-pronta-entrega.html", "benser-lista-de-reserva.html", "benser-em-montagem.html"],
+  ]);
+  const falhou = await baixarListasDaBenser({ buscar: async (url) => (url.endsWith("/reserva/") ? { ok: false, erro: "HTTP 503" } : { ok: true, bytes: new Uint8Array([60]) }) });
+  conferir("fortek: uma pagina que falha derruba o conjunto", [falhou.erro, falhou.arquivos], ["Lista de Reserva do portal Benser não baixou: HTTP 503", undefined]);
+}
+
 // EAN interno derivado do SKU (spec 2026-10-23-gerador-ean-interno-design.md): sem GS1, a faixa 2 e a de uso interno.
 {
   const { calcularDigitoVerificador } = await import("../src/lib/eanNoMercadoLivre.js");

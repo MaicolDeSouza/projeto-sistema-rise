@@ -99,6 +99,8 @@ export function conciliar({ anteriores, novos, dataDaLista }) {
         // NULL, e nao 0: ver o cabecalho deste arquivo.
         quantity: null,
         aChegar: null,
+        aChegarPrevisao: null,
+        emMontagem: null,
         status: "OUT_OF_STOCK",
       },
       // O que a tela mostra no lugar do saldo, e o que impede alguem de olhar

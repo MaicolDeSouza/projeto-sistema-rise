@@ -1078,6 +1078,10 @@ export async function detalhePagina(id) {
     quantidade:
       typeof produto.stock?.quantity === "number" ? produto.stock.quantity : null,
     aChegar: typeof produto.stock?.aChegar === "number" ? produto.stock.aChegar : null,
+    aChegarPrevisao: produto.stock?.aChegarPrevisao ?? null,
+    // Em montagem no fornecedor (Fortek, 01/11/2026): caixa propria, com preco e quantidade dela.
+    emMontagem: typeof produto.stock?.emMontagem === "number" ? produto.stock.emMontagem : null,
+    precoMontagem: typeof produto.prices?.montagem === "number" ? produto.prices.montagem : null,
     semEstoque: produto.stock?.status === "OUT_OF_STOCK",
     // Os dois nomes do mesmo fato: o raspador grava AVAILABLE, os leitores de
     // arquivo IN_STOCK. A lista ja aceitava os dois; o painel so o primeiro.

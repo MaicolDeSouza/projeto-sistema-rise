@@ -24,7 +24,8 @@ export async function estoqueDosFornecedores(vinculos) {
       where: { OR: criterios, fonte: { tipo: "FORNECEDOR" } },
       select: {
         id: true, codigo: true, url: true, quantidade: true, aChegar: true, estoqueStatus: true, ausenteDesde: true,
-        precoNormal: true, precoComImpostos: true, precoReserva: true, impostos: true,
+        aChegarPrevisao: true, emMontagem: true,
+        precoNormal: true, precoComImpostos: true, precoReserva: true, precoMontagem: true, impostos: true,
         precosPorQuantidade: true,
         fonte: { select: { nome: true, dominio: true } },
       },
@@ -42,6 +43,10 @@ export async function estoqueDosFornecedores(vinculos) {
         coletadoId: produto.id,
         quantidade: produto.quantidade,
         aChegar: produto.aChegar,
+        aChegarPrevisao: produto.aChegarPrevisao,
+        // Em montagem (Fortek, 01/11/2026): informacao, NUNCA somada ao disponivel nem ao a chegar.
+        emMontagem: produto.emMontagem,
+        precoMontagem: produto.precoMontagem == null ? null : Number(produto.precoMontagem),
         disponivel: ["AVAILABLE", "IN_STOCK"].includes(produto.estoqueStatus),
         // Os tres campos de `situacaoDeEstoque`, a regra da coluna Estoque dos concorrentes (pedido do dono em
         // 24/10/2026: o mesmo texto nas duas abas). `ativo` falso = saiu da lista do fornecedor.

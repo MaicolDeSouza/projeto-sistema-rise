@@ -53,7 +53,15 @@ function paraFornecedor(linha) {
     precoComImpostos: comImpostos,
     impostos: linha.taxes ?? [],
     precoReserva: numero(linha.prices.reserva),
-    estoque: { status: linha.stock.status ?? null, quantidade: linha.stock.quantity ?? null, aChegar: linha.stock.aChegar ?? null },
+    precoMontagem: numero(linha.prices.montagem),
+    // Tres situacoes separadas (Fortek, 01/11/2026): `quantidade` e a pronta entrega; nunca somar com as outras.
+    estoque: {
+      status: linha.stock.status ?? null,
+      quantidade: linha.stock.quantity ?? null,
+      aChegar: linha.stock.aChegar ?? null,
+      aChegarPrevisao: linha.stock.aChegarPrevisao ?? null,
+      emMontagem: linha.stock.emMontagem ?? null,
+    },
     url: linha.url ?? null,
     vistoEm: emTexto(linha.coletadoEm),
     naoVistoDesde: emTexto(linha.naoVistoDesde),

@@ -1802,6 +1802,9 @@ model ProdutoColetado {
   /// que a pronta entrega (65-276: 82,90 contra 79,90), e num campo so a
   /// inversao sumiria.
   precoReserva     Decimal? @db.Decimal(12, 2)
+  /// O preco do que esta EM MONTAGEM no fornecedor (a lista "Em Montagem" do portal da Benser, 01/11/2026). Terceira
+  /// situacao, separada da pronta entrega e do a chegar por pedido do dono: nunca somada nem misturada com as outras.
+  precoMontagem    Decimal? @db.Decimal(12, 2)
   precoComImpostos Decimal? @db.Decimal(12, 2)
   /// [{nome, percentual}] — quais impostos entraram no preco com impostos.
   impostos         Json?
@@ -1818,6 +1821,11 @@ model ProdutoColetado {
   /// Pronta entrega. NUNCA somada ao que esta a chegar.
   quantidade    Int?
   aChegar       Int?
+  /// A carga do que vai chegar e quando, como o fornecedor escreve: "Marítimo Outubro — Chegada prevista para a
+  /// segunda quinzena de outubro" (lista de reserva da Benser). Nulo = a lista nao disse.
+  aChegarPrevisao String?
+  /// Em montagem no fornecedor (lista "Em Montagem" da Benser). NUNCA somado a pronta entrega nem ao a chegar.
+  emMontagem    Int?
 
   /// O saldo que estava aqui ANTES da ultima mudanca, e quando ele foi visto.
   ///
@@ -1887,6 +1895,7 @@ model PrecoHistorico {
   precoNormal      Decimal? @db.Decimal(12, 2)
   precoPromocional Decimal? @db.Decimal(12, 2)
   precoReserva     Decimal? @db.Decimal(12, 2)
+  precoMontagem    Decimal? @db.Decimal(12, 2)
   estoqueStatus    String?
 
   coletadoEm DateTime @default(now())

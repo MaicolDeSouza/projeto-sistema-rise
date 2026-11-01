@@ -1,5 +1,7 @@
-import { lerArquivosOriginais } from "./arquivo";
+import { guardarArquivosOriginais, lerArquivosOriginais } from "./arquivo";
 import { juntarListas, lerArquivo } from "./arquivos";
+import { baixarListasDaBenser, PAGINAS_DA_BENSER } from "./benser-ao-vivo";
+import { prisma } from "@/lib/db";
 import {
   atualizarTotaisDasCategorias,
   enderecosGravadosDesde,
@@ -8,7 +10,7 @@ import {
 } from "./banco";
 import { colherProdutos, colherVariasUrls, enderecoComparavel } from "./colher";
 import { enderecosDaVarredura } from "./enderecos";
-import { podeVisitar } from "./buscar";
+import { buscarBytes, podeVisitar } from "./buscar";
 import { conciliar, quedaSuspeita } from "./conciliar";
 import { catalogoJsDoEndereco, catalogoShopifyDoEndereco, portalDoEndereco, regrasDoFornecedor } from "./fornecedores";
 import { colherCatalogoJs } from "./catalogo-js";
@@ -171,10 +173,9 @@ async function reprocessarArquivos(fonte, aoProgredir, sinal) {
 
   // A pronta entrega vem primeiro: em juntarListas quem chega antes vence, e o
   // preco a manter e o dela — medido na Fortek, onde o 65-276 custa 79,90 na
-  // reserva e 82,90 na pronta entrega.
-  const ordenados = [...lidos].sort(
-    (a, b) => (a.modalidade === "RESERVA" ? 1 : 0) - (b.modalidade === "RESERVA" ? 1 : 0),
-  );
+  // reserva e 82,90 na pronta entrega. Depois a reserva, e por ultimo o em montagem.
+  const ordem = { RESERVA: 1, MONTAGEM: 2 };
+  const ordenados = [...lidos].sort((a, b) => (ordem[a.modalidade] ?? 0) - (ordem[b.modalidade] ?? 0));
 
   const listas = ordenados.map((leitura) => leitura.produtos);
   let produtos =
@@ -478,6 +479,23 @@ export async function varrerFonte(fonte, aoProgredir, { sinal = null, inicioDaVa
   // A Fortek e um portal atras de login — varrer devolve zero. E onde ha lista
   // enviada, ela e a fonte melhor de qualquer jeito: traz preco e saldo, que a
   // vitrine de atacado nao publica.
+  //
+  // A Fortek e a excecao (01/11/2026): as tres listas do portal sao baixadas aqui, guardadas como se o operador as
+  // tivesse enviado (continuam baixaveis na tela) e reprocessadas pelo mesmo caminho. Falha ao baixar nao toca no
+  // que esta gravado: a varredura termina com erro e o relatorio semanal mostra.
+  const regras = fonte.tipo === "FORNECEDOR" ? regrasDoFornecedor({ nome: fonte.nome, url: `https://${fonte.dominio}` }) : {};
+  if (regras.listasDoPortalBenser && fonte.ativa) {
+    const baixadas = await baixarListasDaBenser({ buscar: buscarBytes, sinal });
+    if (baixadas.erro) {
+      return { total: PAGINAS_DA_BENSER.length, feitas: 0, produtos: 0, erro: baixadas.erro };
+    }
+    sinal?.throwIfAborted();
+    const listaArquivos = await guardarArquivosOriginais(fonte.dominio, baixadas.arquivos);
+    const listaEnviadaEm = new Date();
+    await prisma.fonteColeta.update({ where: { id: fonte.id }, data: { listaArquivos, listaEnviadaEm } });
+    return reprocessarArquivos({ ...fonte, listaArquivos, listaEnviadaEm }, aoProgredir, sinal);
+  }
+
   if (fonte.tipo === "FORNECEDOR" && fonte.ativa && fonte.listaArquivos?.length > 0) {
     return reprocessarArquivos(fonte, aoProgredir, sinal);
   }

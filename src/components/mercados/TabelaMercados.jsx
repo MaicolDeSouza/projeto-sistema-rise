@@ -15,6 +15,7 @@ import {
   PackageX,
   TrendingDown,
   TrendingUp,
+  Wrench,
   X,
   ZoomIn,
 } from "lucide-react";
@@ -265,48 +266,56 @@ function SeloFonte({ tipo }) {
  * aparece aqui: dizer "disponivel" seria afirmar o que ela nao disse, e dizer
  * "sem estoque" seria pior ainda.
  */
-function Estoque({ semEstoque, disponivel, quantidade, aChegar, semMargem }) {
+function Estoque({ semEstoque, disponivel, quantidade, aChegar, aChegarPrevisao, emMontagem, semMargem }) {
   const margem = semMargem ? "" : "mt-0.5 ";
+  const temAChegar = typeof aChegar === "number";
+  const temMontagem = typeof emMontagem === "number";
 
-  if (semEstoque) {
-    return (
-      <span className={`${margem}flex items-center gap-1 text-xs text-red-600`}>
-        <PackageX size={12} /> sem estoque
-      </span>
-    );
-  }
+  /*
+    TRES LINHAS SEPARADAS, cada uma com o seu rotulo (pedido do dono em 01/11/2026: "bem separado. Pronta entrega, a
+    chegar e em montagem"). Nunca somadas: so a pronta entrega da para despachar hoje. Linha PROPRIA para cada uma,
+    como o a chegar ja era desde 22/09/2026.
 
-  // Pronta entrega desconhecida (produto que so veio na lista de RESERVA, sem
-  // linha na de pronta entrega) nao e o mesmo que "nada para mostrar": o
-  // fornecedor pode ter declarado quanto vai chegar, e esconder isso deixava a
-  // reserva invisivel na lista — o unico jeito de ve-la era abrir o detalhe.
-  if (!disponivel) {
-    if (typeof aChegar !== "number") {
-      return semMargem ? <span className="text-sm text-suave">—</span> : null;
-    }
-    return (
-      <span className={`${margem}flex items-center gap-1 text-xs text-amber-700`}>
-        <PackageCheck size={12} /> Estoque a chegar: {aChegar}
+    Pronta entrega desconhecida (produto que so veio na lista de reserva ou na de montagem) nao e o mesmo que "nada
+    para mostrar": esconder deixava o que vai chegar invisivel na lista.
+  */
+  // Com mais de uma situacao, cada linha diz qual e ("Pronta entrega", "A chegar", "Em montagem"); sozinha, a pronta
+  // entrega continua com o texto de sempre (o concorrente so tem ela).
+  const varias = temAChegar || temMontagem;
+  const pronta = semEstoque
+    ? (
+      <span className="flex items-center gap-1 text-xs text-red-600">
+        <PackageX size={12} /> {varias ? "Pronta entrega: sem estoque" : "sem estoque"}
       </span>
-    );
+    )
+    : disponivel
+      ? (
+        <span className="flex items-center gap-1 text-xs text-emerald-700">
+          <PackageCheck size={12} />
+          {varias ? "Pronta entrega" : "Estoque disponível"}
+          {typeof quantidade === "number" ? `: ${quantidade}` : ""}
+        </span>
+      )
+      : null;
+
+  if (!pronta && !temAChegar && !temMontagem) {
+    return semMargem ? <span className="text-sm text-suave">—</span> : null;
   }
 
   return (
-    <div className={margem}>
-      <span className="flex items-center gap-1 text-xs text-emerald-700">
-        <PackageCheck size={12} />
-        {typeof quantidade === "number"
-          ? `Estoque disponível: ${quantidade}`
-          : "Estoque disponível"}
-      </span>
-      {/* Linha PROPRIA, nao mais "· N a chegar" na mesma linha (pedido do
-          dono, 22/09/2026) — pronta entrega e reserva sao numeros de
-          decisoes diferentes, e o rotulo repetido deixa isso explicito.
-          A chegar NUNCA soma com a pronta entrega: um numero so prometeria
-          entrega que nao existe. */}
-      {typeof aChegar === "number" && (
-        <span className="mt-1 flex items-center gap-1 text-xs text-amber-700">
-          <PackageCheck size={12} /> Estoque a chegar: {aChegar}
+    <div className={`${margem}space-y-1`}>
+      {pronta}
+      {temAChegar && (
+        <div>
+          <span className="flex items-center gap-1 text-xs text-amber-700">
+            <PackageCheck size={12} /> A chegar: {aChegar}
+          </span>
+          {aChegarPrevisao && <span className="block pl-4 text-[11px] text-suave">{aChegarPrevisao}</span>}
+        </div>
+      )}
+      {temMontagem && (
+        <span className="flex items-center gap-1 text-xs text-sky-700">
+          <Wrench size={12} /> Em montagem: {emMontagem}
         </span>
       )}
     </div>
@@ -320,33 +329,50 @@ function Estoque({ semEstoque, disponivel, quantidade, aChegar, semMargem }) {
  * concorrente, que nunca tem "a chegar") mostra ela sozinha, sem o traco
  * insinuando uma segunda informacao que nao veio.
  */
-function ColunaEstoque({ semEstoque, disponivel, quantidade, aChegar }) {
+function ColunaEstoque({ semEstoque, disponivel, quantidade, aChegar, aChegarPrevisao, emMontagem }) {
+  const temAChegar = typeof aChegar === "number";
+  const temMontagem = typeof emMontagem === "number";
+  // Com a chegar ou em montagem na mesma linha, a pronta entrega ganha o nome (01/11/2026, "bem separado").
+  const nomePronta = temAChegar || temMontagem ? "pronta entrega" : "";
   const linhaPronta = semEstoque
-    ? { cor: "text-red-600", Icone: PackageX, texto: "sem estoque" }
+    ? { cor: "text-red-600", Icone: PackageX, texto: nomePronta ? "pronta entrega: sem estoque" : "sem estoque" }
     : disponivel
       ? {
           cor: "text-emerald-700",
           Icone: PackageCheck,
-          texto: typeof quantidade === "number" ? String(quantidade) : "disponivel",
+          texto: typeof quantidade === "number" ? `${quantidade}${nomePronta ? ` ${nomePronta}` : ""}` : "disponivel",
         }
       : null;
-  const temAChegar = typeof aChegar === "number";
 
-  if (!linhaPronta && !temAChegar) return <span className="text-sm text-suave">—</span>;
+  // Uma linha por situacao, com o traco entre elas: pronta entrega, a chegar (a previsao no `title`) e em montagem.
+  const linhas = [
+    linhaPronta && (
+      <span key="pronta" className={`flex items-center gap-1 ${linhaPronta.cor}`}>
+        <linhaPronta.Icone size={12} /> {linhaPronta.texto}
+      </span>
+    ),
+    temAChegar && (
+      <span key="chegar" className="flex items-center gap-1 text-amber-700" title={aChegarPrevisao ?? undefined}>
+        <PackageCheck size={12} /> {aChegar} a chegar
+      </span>
+    ),
+    temMontagem && (
+      <span key="montagem" className="flex items-center gap-1 text-sky-700">
+        <Wrench size={12} /> {emMontagem} em montagem
+      </span>
+    ),
+  ].filter(Boolean);
+
+  if (linhas.length === 0) return <span className="text-sm text-suave">—</span>;
 
   return (
     <div className="text-xs">
-      {linhaPronta && (
-        <span className={`flex items-center gap-1 ${linhaPronta.cor}`}>
-          <linhaPronta.Icone size={12} /> {linhaPronta.texto}
-        </span>
-      )}
-      {linhaPronta && temAChegar && <div className="my-1 h-px bg-borda" />}
-      {temAChegar && (
-        <span className="flex items-center gap-1 text-amber-700">
-          <PackageCheck size={12} /> {aChegar} a chegar
-        </span>
-      )}
+      {linhas.map((linha, indice) => (
+        <div key={linha.key}>
+          {indice > 0 && <div className="my-1 h-px bg-borda" />}
+          {linha}
+        </div>
+      ))}
     </div>
   );
 }
@@ -411,8 +437,13 @@ function ColunaValorFornecedor({ linha }) {
       ? precoComImpostos(linha.precoReserva, linha.impostos)
       : null;
   const reservaTexto = precoComImpostoTexto(linha.precoReserva, comImpostosDaReserva, linha.impostos);
+  // O preco do que esta em montagem (Fortek, 01/11/2026), com o mesmo imposto do produto, calculado na hora como o da reserva.
+  const montagemTexto =
+    typeof linha.precoMontagem === "number"
+      ? precoComImpostoTexto(linha.precoMontagem, precoComImpostos(linha.precoMontagem, linha.impostos), linha.impostos)
+      : null;
 
-  if (!prontaTexto && !reservaTexto) {
+  if (!prontaTexto && !reservaTexto && !montagemTexto) {
     return <span className="block text-xs text-suave">—</span>;
   }
 
@@ -426,6 +457,13 @@ function ColunaValorFornecedor({ linha }) {
         <span className="block text-xs font-medium text-amber-700">
           {reservaTexto}
           <span className="ml-1 text-[10px] font-normal text-suave">reserva</span>
+        </span>
+      )}
+      {(prontaTexto || reservaTexto) && montagemTexto && <div className="my-1 h-px bg-borda" />}
+      {montagemTexto && (
+        <span className="block text-xs font-medium text-sky-700">
+          {montagemTexto}
+          <span className="ml-1 text-[10px] font-normal text-suave">montagem</span>
         </span>
       )}
       <DicaFaixas precosPorQuantidade={linha.precosPorQuantidade} impostos={linha.impostos} />
@@ -451,12 +489,17 @@ function CaixaDePreco({
   temReserva,
   precoReserva,
   reservaHerdada,
+  precoMontagem,
   precosPorQuantidade,
 }) {
   const prontaTexto = precoComImpostoTexto(precoAtual, totalComImposto, taxes);
   const reservaTexto = temReserva
     ? precoComImpostoTexto(precoReserva, precoComImpostos(precoReserva, taxes), taxes)
     : null;
+  const montagemTexto =
+    typeof precoMontagem === "number"
+      ? precoComImpostoTexto(precoMontagem, precoComImpostos(precoMontagem, taxes), taxes)
+      : null;
 
   return (
     <div className="min-w-[14rem] flex-1 rounded border border-borda px-3 py-2.5">
@@ -478,6 +521,13 @@ function CaixaDePreco({
         </p>
       )}
 
+      {montagemTexto && (
+        <p className="mt-1 text-lg font-semibold tabular-nums text-sky-700">
+          {montagemTexto}
+          <span className="ml-1 text-xs font-normal text-suave">em montagem</span>
+        </p>
+      )}
+
       <DicaFaixas precosPorQuantidade={precosPorQuantidade} impostos={taxes} />
     </div>
   );
@@ -493,7 +543,7 @@ function CaixaDePreco({
  * Reaproveita o mesmo componente `Estoque` do campo Status (mesma regra dos
  * tres estados), so envolvido na caixa com titulo.
  */
-function CaixaEstoque({ semEstoque, disponivel, quantidade, aChegar }) {
+function CaixaEstoque({ semEstoque, disponivel, quantidade, aChegar, aChegarPrevisao, emMontagem }) {
   return (
     <div className="min-w-[11rem] rounded border border-borda px-3 py-2.5">
       <p className="mb-2 text-xs font-medium tracking-wide text-suave uppercase">Estoque</p>
@@ -502,6 +552,8 @@ function CaixaEstoque({ semEstoque, disponivel, quantidade, aChegar }) {
         disponivel={disponivel}
         quantidade={quantidade}
         aChegar={aChegar}
+        aChegarPrevisao={aChegarPrevisao}
+        emMontagem={emMontagem}
         semMargem
       />
     </div>
@@ -843,6 +895,7 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
                 temReserva={temReserva}
                 precoReserva={precoDeReserva}
                 reservaHerdada={reservaHerdada}
+                precoMontagem={dados.precoMontagem}
                 precosPorQuantidade={dados.precosPorQuantidade}
               />
 
@@ -851,6 +904,8 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
                 disponivel={dados.estoqueConhecido}
                 quantidade={dados.quantidade}
                 aChegar={dados.aChegar}
+                aChegarPrevisao={dados.aChegarPrevisao}
+                emMontagem={dados.emMontagem}
               />
 
               {/*
@@ -1262,6 +1317,8 @@ export default function TabelaMercados({ linhas, ordenar = "", direcao = "" }) {
                     disponivel={linha.estoqueConhecido}
                     quantidade={linha.quantidade}
                     aChegar={linha.fonteTipo === "FORNECEDOR" ? linha.aChegar : null}
+                    aChegarPrevisao={linha.fonteTipo === "FORNECEDOR" ? linha.aChegarPrevisao : null}
+                    emMontagem={linha.fonteTipo === "FORNECEDOR" ? linha.emMontagem : null}
                   />
                 </td>
                 {/*

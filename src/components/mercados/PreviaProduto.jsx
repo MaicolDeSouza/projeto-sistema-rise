@@ -374,6 +374,31 @@ export default function PreviaProduto({ produto, indice }) {
               </div>
             )}
 
+            {/* Em montagem (Fortek, 01/11/2026): caixa propria, como a reserva — preco e quantidade dela. */}
+            {(typeof produto.stock?.emMontagem === "number" || typeof produto.prices?.montagem === "number") && (
+              <div className="min-w-[13rem] rounded border border-sky-200 bg-sky-50/40 px-3 py-2.5">
+                <p className="mb-2 text-xs font-medium tracking-wide text-sky-800 uppercase">Em montagem</p>
+                <div className="flex flex-wrap items-start gap-x-5 gap-y-2">
+                  <div>
+                    <p className="text-xs text-suave">Preço</p>
+                    <p className="text-lg font-semibold tabular-nums">
+                      {typeof produto.prices?.montagem === "number" ? MOEDA.format(produto.prices.montagem) : "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-suave">Quantidade</p>
+                    <p className="text-lg font-semibold tabular-nums">
+                      {typeof produto.stock?.emMontagem === "number" ? (
+                        produto.stock.emMontagem
+                      ) : (
+                        <span className="text-sm font-normal text-suave">não informada</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <RegrasDeCompra
               precoNormal={produto.prices?.normal}
               precosPorQuantidade={produto.precosPorQuantidade}

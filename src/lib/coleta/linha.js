@@ -177,6 +177,11 @@ export function linhaDoProduto(produto, { origem }) {
     estoqueStatus: comoTexto(produto.stock?.status),
     quantidade: comoInteiro(produto.stock?.quantity),
     aChegar: comoInteiro(produto.stock?.aChegar),
+    // As tres listas da Fortek (01/11/2026). Mesma regra do multiplo de venda: fora da assinatura quando vazios, para
+    // os produtos das outras fontes nao mudarem de assinatura; no banco a ausencia apaga (`paraGravar`, banco.js).
+    precoMontagem: comoNumero(produto.prices?.montagem) ?? undefined,
+    emMontagem: comoInteiro(produto.stock?.emMontagem) ?? undefined,
+    aChegarPrevisao: comoTexto(produto.stock?.aChegarPrevisao) ?? undefined,
 
     miniatura: imagens ? String(imagens[0]) : null,
     imagens,
@@ -227,6 +232,7 @@ export function produtoDaLinha(linha) {
       promotional: numeroDoBanco(linha.precoPromocional),
       reserva: numeroDoBanco(linha.precoReserva),
       comImpostos: numeroDoBanco(linha.precoComImpostos),
+      montagem: numeroDoBanco(linha.precoMontagem),
     },
     taxes: linha.impostos ?? [],
     precosPorQuantidade: linha.precosPorQuantidade ?? [],
@@ -235,6 +241,8 @@ export function produtoDaLinha(linha) {
       status: linha.estoqueStatus,
       quantity: linha.quantidade,
       aChegar: linha.aChegar,
+      aChegarPrevisao: linha.aChegarPrevisao ?? null,
+      emMontagem: linha.emMontagem ?? null,
     },
     description: linha.descricao,
     specifications: linha.especificacoes ?? [],
@@ -266,6 +274,7 @@ export function mudouPreco(guardada, nova) {
     numeroDoBanco(guardada.precoNormal) !== nova.precoNormal ||
     numeroDoBanco(guardada.precoPromocional) !== nova.precoPromocional ||
     numeroDoBanco(guardada.precoReserva) !== nova.precoReserva ||
+    numeroDoBanco(guardada.precoMontagem) !== (nova.precoMontagem ?? null) ||
     (guardada.estoqueStatus ?? null) !== nova.estoqueStatus
   );
 }
@@ -276,6 +285,7 @@ export function linhaDePreco(linha) {
     precoNormal: linha.precoNormal,
     precoPromocional: linha.precoPromocional,
     precoReserva: linha.precoReserva,
+    precoMontagem: linha.precoMontagem ?? null,
     estoqueStatus: linha.estoqueStatus,
   };
 }

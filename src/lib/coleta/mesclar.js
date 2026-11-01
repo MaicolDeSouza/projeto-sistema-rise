@@ -35,6 +35,7 @@ export function mesclarNoExistente(existente, novo) {
   existente.prices.promotional ??= novo.prices?.promotional;
   existente.prices.reserva ??= novo.prices?.reserva;
   existente.prices.comImpostos ??= novo.prices?.comImpostos;
+  if (novo.prices && "montagem" in novo.prices) existente.prices.montagem ??= novo.prices.montagem;
 
   // Regras de compra: a planilha costuma ser quem as traz.
   existente.multiploVenda ??= novo.multiploVenda;
@@ -53,6 +54,25 @@ export function mesclarNoExistente(existente, novo) {
       typeof existente.stock.aChegar === "number"
         ? existente.stock.aChegar + novo.stock.aChegar
         : novo.stock.aChegar;
+  }
+
+  // Em montagem segue a mesma regra do a chegar (duas cargas do mesmo item somam), e nunca se mistura com ele.
+  if (typeof novo.stock?.emMontagem === "number") {
+    existente.stock.emMontagem =
+      typeof existente.stock.emMontagem === "number"
+        ? existente.stock.emMontagem + novo.stock.emMontagem
+        : novo.stock.emMontagem;
+  } else if (novo.stock && "emMontagem" in novo.stock) {
+    existente.stock.emMontagem ??= null;
+  }
+
+  // A previsao do que vai chegar: cargas diferentes do mesmo item ficam as duas, sem repetir.
+  if (novo.stock?.aChegarPrevisao) {
+    const vistas = (existente.stock.aChegarPrevisao ?? "").split("; ").filter(Boolean);
+    if (!vistas.includes(novo.stock.aChegarPrevisao)) vistas.push(novo.stock.aChegarPrevisao);
+    existente.stock.aChegarPrevisao = vistas.join("; ");
+  } else if (novo.stock && "aChegarPrevisao" in novo.stock) {
+    existente.stock.aChegarPrevisao ??= null;
   }
 
   if (!existente.stock.status || existente.stock.status === "UNKNOWN") {
