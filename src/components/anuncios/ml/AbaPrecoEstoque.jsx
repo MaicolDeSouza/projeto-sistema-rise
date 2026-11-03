@@ -204,7 +204,17 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
           {!emKit && Number(contexto.produtos?.[rascunho.produtoId]?.precoVenda) > 0 && (
             <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-2 text-xs tabular-nums">
               <dt className="text-suave">Preço na loja</dt>
-              <dd>{MOEDA.format(Number(contexto.produtos[rascunho.produtoId].precoVenda))}</dd>
+              <dd>
+                {MOEDA.format(Number(contexto.produtos[rascunho.produtoId].precoVenda))}
+                {/* O lucro na loja entre parenteses (pedido do dono em 03/11/2026, "R$25 (Lucro=R$5)"): a mesma conta do cadastro
+                    do produto (preco menos o imposto padrao e o custo). So com o acesso a custos e com o custo conhecido. */}
+                {(() => {
+                  const lucroNaLoja = acessos.custos ? lucroLiquido(Number(contexto.produtos[rascunho.produtoId].precoVenda), custo.valor) : null;
+                  return lucroNaLoja === null ? null : (
+                    <span className={`ml-1 ${lucroNaLoja < 0 ? "text-red-600" : "text-suave"}`}>(Lucro = {MOEDA.format(lucroNaLoja)})</span>
+                  );
+                })()}
+              </dd>
             </dl>
           )}
         </Campo>
