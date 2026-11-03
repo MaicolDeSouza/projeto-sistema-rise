@@ -2109,6 +2109,10 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
     ["MÓDULO RELÉ 4 CANAIS\n\nO Módulo Relé...", "MÓDULO RELÉ\r\n\r\nO Módulo\r\n", "MÓDULO\n\nJá tinha"]);
   conferir("texto que nao comeca por titulo em maiusculas fica como esta",
     [espacoAposTitulo("......\nBem vindo"), espacoAposTitulo("Placa X\nTexto"), espacoAposTitulo("")], ["......\nBem vindo", "Placa X\nTexto", ""]);
+  const { maiusculasNosItensInclusos } = await import("../src/lib/ia/revisaoDescricao.js");
+  conferir("todos os itens inclusos em maiusculas; cabecalho, frase solta e garantia ficam",
+    maiusculasNosItensInclusos("T\n\nItens inclusos: (Cod:100212)\n- 01 MÓDULO GPS NEO-6M;\n- 01 Antena cerâmica com cabo;\n\nNão incluso cabo USB\n\nGarantia:\n- Garantia Legal de 90 dias;"),
+    "T\n\nItens inclusos: (Cod:100212)\n- 01 MÓDULO GPS NEO-6M;\n- 01 ANTENA CERÂMICA COM CABO;\n\nNão incluso cabo USB\n\nGarantia:\n- Garantia Legal de 90 dias;");
   conferir("normalizar faz as duas coisas",
     normalizarDescricao("PLACA\nParágrafo.\n\nEspecificações técnicas:\n- Cor: preto;\n\nGarantia:\n- 90 dias;"),
     "PLACA\n\nParágrafo.\n\nEspecificações técnicas:\n- Cor: Preto;\n\nGarantia:\n- 90 dias;");

@@ -704,7 +704,8 @@ export function montarDescricao({
     linhas.push(sku?.trim() ? `Itens inclusos: (Cod:${sku.trim()})` : "Itens inclusos:");
     for (const item of itensInclusos) {
       const quantidade = String(Math.max(1, Number(item.quantidade) || 1)).padStart(2, "0");
-      linhas.push(`- ${quantidade} ${semPontuacaoFinal(item.descricao)};`);
+      // Todos os itens em MAIUSCULAS (pedido do dono em 03/11/2026), como o 1o, que e o Nome.
+      linhas.push(`- ${quantidade} ${semPontuacaoFinal(item.descricao).toLocaleUpperCase("pt-BR")};`);
     }
     linhas.push("");
   }

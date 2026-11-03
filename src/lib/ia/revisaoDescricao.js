@@ -64,7 +64,29 @@ export function espacoAposTitulo(texto) {
 
 /** As duas regras do texto da loja que valem em todo caminho (IA, editor, proposta e o Salvar do produto). */
 export function normalizarDescricao(texto) {
-  return maiusculaNasEspecificacoes(espacoAposTitulo(texto));
+  return maiusculasNosItensInclusos(maiusculaNasEspecificacoes(espacoAposTitulo(texto)));
+}
+
+/**
+ * Todos os itens inclusos em MAIUSCULAS (pedido do dono em 03/11/2026: "as outras linhas dos itens inclusos tambem podem ser
+ * em letras maiusculas"; o 1o ja e o Nome, em maiusculas). So as linhas "- ..." entre "Itens inclusos:" e a secao seguinte:
+ * uma frase solta no meio (descricao antiga com "Nao incluso cabo USB") fica como esta.
+ */
+export function maiusculasNosItensInclusos(texto) {
+  const original = String(texto ?? "");
+  const linhas = original.split("\n");
+  const secao = linhas.findIndex((linha) => LINHA_DOS_ITENS.test(linha.trim()));
+  if (secao < 0) return original;
+  let mudou = false;
+  for (let indice = secao + 1; indice < linhas.length && !CABECALHO_DE_SECAO.test(linhas[indice].trim()); indice++) {
+    if (!/^\s*[-–]/.test(linhas[indice])) continue;
+    const maiuscula = linhas[indice].toLocaleUpperCase("pt-BR");
+    if (maiuscula !== linhas[indice]) {
+      linhas[indice] = maiuscula;
+      mudou = true;
+    }
+  }
+  return mudou ? linhas.join("\n") : original;
 }
 
 /**
@@ -431,5 +453,5 @@ export function organizarDescricao(texto) {
     .map((linha) => "- " + formatarLinhaTecnica(linha.replace(/^[-–]\s*/, "").replace(/[;\s]+$/, "")) + ";");
   const antes = linhas.slice(0, inicio).join("\n").trimEnd();
   const depois = linhas.slice(fim).join("\n").trim();
-  return espacoAposTitulo(`${antes}\n${especificacoes.join("\n")}${depois ? `\n\n${depois}` : ""}`.trim());
+  return normalizarDescricao(`${antes}\n${especificacoes.join("\n")}${depois ? `\n\n${depois}` : ""}`.trim());
 }
