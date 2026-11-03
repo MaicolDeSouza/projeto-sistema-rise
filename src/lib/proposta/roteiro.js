@@ -12,7 +12,9 @@
 // prompt Componentes-Bornes, que quer paragrafos simples: o 1o ate 200 e o 2o com 1 ou 2 frases ate 300).
 // "15" em 27/10/2026: peso e medidas OBRIGATORIOS, porque o Rise calcula o frete com eles (pedido do dono): referencias,
 // datasheet e internet e, por ultimo, calculo registrado na origem; o relatorio diz o que foi calculado.
-export const VERSAO_DO_ROTEIRO = "15";
+// "16" em 03/11/2026: o modelo e SEMPRE proposto (pedido do dono: "sempre preencher o campo de modelo"); sem codigo do
+// fabricante, um modelo descritivo curto no padrao dos que o dono conferiu.
+export const VERSAO_DO_ROTEIRO = "16";
 
 export const ROTEIRO = `ROTEIRO DA PROPOSTA DE PRODUTO (Rise / 4hobby), versão ${VERSAO_DO_ROTEIRO}
 
@@ -92,7 +94,11 @@ conteudo: { "candidatas": [{ "id", "arquivo" (o de baixarCandidatas) ou "fotoAtu
 - marca: o FABRICANTE. Fabricante claro vira a marca (NEXTION, ESPRESSIF, ARDUINO numa placa original); só quando a
   placa realmente não tem fabricante (compatível ou genérica, que as lojas chamam de OEM, IMP ou Genérica): OEM. Nunca
   mais GENÉRICA; MAIÚSCULAS; nome de loja nunca é marca. Na descrição esse campo se chama Fabricante.
-- modelo: pelo mesmo processo (NANO V3); sem evidência, fora.
+- modelo: SEMPRE preenchido (pedido do dono em 03/11/2026). Com o código do fabricante ou a família/variante confirmados,
+  ele (NANO V3, HLK-PM01, KF350-2P). Sem código, um modelo descritivo curto em MAIÚSCULAS com o tipo e a especificação que
+  diferenciam o produto, como os que o dono conferiu: “CONVERSOR I2C PARA LCD”, “HEADER FÊMEA 1X15 PASSO 2,54MM 180°”,
+  “4 CANAIS ISOLADOS PC817”, “ATTINY85 DIGISPARK USB-C”. O produto que já tem modelo fica com o dele, a não ser que a fonte
+  traga o código do fabricante. A origem diz de onde veio ou que é descritivo.
 - unidade: KIT só em composição; MT quando vendido por comprimento; UN no resto (só UN, MT, KIT ou HR).
 - codigo: só se o produto estiver sem código; use o proximoCodigo da leitura. localizacao nunca.
 - garantiaMeses: sempre 3.
