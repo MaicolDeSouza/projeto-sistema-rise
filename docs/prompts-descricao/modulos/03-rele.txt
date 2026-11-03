@@ -40,7 +40,7 @@ Corrente de Acionamento: substitui Corrente típica de operação, Corrente do s
 
 Corrente da Bobina: substitui Consumo do relé e Corrente de operação da bobina: “cerca de 70mA por relé”. Só com fonte.
 
-Capacidade dos Contatos: substitui Carga nominal, Tensão máxima de saída, Contato do relé permite, Corrente máxima, Corrente de comutação e Cargas de acionamento: “10A em 250VAC ou 10A em 30VDC”. No SSR: “2A em 100VAC a 240VAC (só corrente alternada)”.
+Capacidade dos Contatos: substitui Carga nominal, Tensão máxima de saída, Contato do relé permite, Corrente máxima, Corrente de comutação e Cargas de acionamento. Quando a corrente é a MESMA em todas as tensões, escreva só a corrente: “10A” (pedido do dono). Só quando a corrente muda com a tensão, escreva cada par: “10A em 250VAC / 7A em 30VDC”. No SSR, que só comuta corrente alternada: “2A (só corrente alternada)”.
 
 Contatos por Relé: substitui Pinagem, Saídas e Pinagem por relé: “NA, NF e Comum”. No SSR: “saída normalmente aberta”.
 
@@ -62,7 +62,7 @@ Use Tensão, nunca Voltagem; Corrente, nunca Amperagem.
 
 CARACTERÍSTICAS
 
-Cada item contém nome, valor e referencias: nome “Capacidade dos Contatos”, valor “10A em 250VAC ou 10A em 30VDC”, sem dois-pontos no nome.
+Cada item contém nome, valor e referencias: nome “Capacidade dos Contatos”, valor “10A”, sem dois-pontos no nome.
 
 Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Ausência comprovada pode ser “Não possui”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: Composição, Origem, Material, Cor, Aplicações, Temperatura de operação, Datasheet).
 
@@ -85,7 +85,7 @@ REGRAS ESPECÍFICAS
 
 O número de canais muda a placa: o módulo de 1, 2, 4, 6, 8 ou 16 canais tem medidas, peso e preço próprios, e as lojas copiam a ficha de um para o outro (o 4 canais com os 145mm do 8 canais, o 6 canais com o peso do 4). Só valem como referência para medidas, peso, conector e quantidade de LEDs as da MESMA quantidade de canais e do mesmo tipo de relé. Na dúvida, não copie e registre a divergência.
 
-Capacidade dos contatos: o relé SRD-05VDC-SL-C é marcado 10A 250VAC, 15A 125VAC, 10A 30VDC e 10A 28VDC. Na ficha do módulo vale o par “10A em 250VAC ou 10A em 30VDC”, que é o que a placa e os bornes suportam; não escreva 15A, mesmo que a loja escreva. O SSR G3MB-202P comuta só corrente alternada, até 2A por canal: nunca escreva que ele liga carga em corrente contínua.
+Capacidade dos contatos: o relé SRD-05VDC-SL-C é marcado 10A 250VAC, 15A 125VAC, 10A 30VDC e 10A 28VDC. Na ficha do módulo vale “10A”, a mesma corrente em 250VAC e em 30VDC, que é o que a placa e os bornes suportam; não escreva 15A, mesmo que a loja escreva. O SSR G3MB-202P comuta só corrente alternada, até 2A por canal: nunca escreva que ele liga carga em corrente contínua.
 
 Acionamento e nível de sinal: a maioria dos módulos com optoacoplador aciona em nível baixo e espera 5V no IN. Não escreva que funciona com ESP32, ESP8266 ou Raspberry Pi (3,3V) só porque uma loja lista essas placas: diga isso apenas com fonte da mesma placa que explique como (jumper H/L, entrada de 3,3V, JD-VCC).
 

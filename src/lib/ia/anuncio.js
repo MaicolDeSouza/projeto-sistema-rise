@@ -12,7 +12,7 @@ import { somarAoGasto } from "./gasto";
 import { PADRAO_TITULO } from "./padraoTitulo";
 import { integrarDecisoes } from "./decisoes";
 import { idDaCaracteristica, identificarDivergencias, lojasDaCaracteristica, lojasQueTrazem, origemSemLoja } from "./divergencias";
-import { compactarUnidades, formatarLinhaTecnica, normalizarTerminologiaEletrica } from "./revisaoDescricao";
+import { compactarUnidades, formatarLinhaTecnica, maiusculaNoValor, normalizarTerminologiaEletrica } from "./revisaoDescricao";
 import { criarFetchDaOpenAI } from "./gptComoAnthropic";
 import { ehModeloGpt } from "./modelosDaDescricao";
 
@@ -693,7 +693,8 @@ export function montarDescricao({
   if (especificacoes.length > 0 || linhasDeMedida.length > 0) {
     linhas.push("Especificações técnicas:");
     for (const item of especificacoes) {
-      linhas.push(`- ${semPontuacaoFinal(item.nome)}: ${semPontuacaoFinal(item.valor)};`);
+      // O valor comeca com maiuscula (pedido do dono em 03/11/2026), a mesma regra de `formatarLinhaTecnica`.
+      linhas.push(maiusculaNoValor(`- ${semPontuacaoFinal(item.nome)}: ${semPontuacaoFinal(item.valor)};`));
     }
     for (const linha of linhasDeMedida) linhas.push(`- ${linha};`);
     linhas.push("");

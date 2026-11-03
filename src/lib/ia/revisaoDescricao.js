@@ -21,8 +21,50 @@ export function normalizarTerminologiaEletrica(texto) {
   });
 }
 
+// O valor de cada especificacao comeca com letra maiuscula (pedido do dono em 03/11/2026: "apos o ':' das especificacoes as
+// vezes comeca com letra minuscula; ajustar para comecar sempre com letra maiuscula"). So a primeira letra depois do primeiro
+// ":" e so letra latina minuscula: numero, simbolo, unidade com "µ" e o que ja e maiusculo ficam como estao.
+const VALOR_COM_MINUSCULA = /^(\s*(?:[-–]\s*)?[^:\n]+?:\s*)([a-zà-öø-ÿ])/u;
+
+export function maiusculaNoValor(linha) {
+  return String(linha).replace(VALOR_COM_MINUSCULA, (_, antes, letra) => antes + letra.toLocaleUpperCase("pt-BR"));
+}
+
+// Passa por aqui toda linha tecnica, inclusive as chaves que ligam a linha da descricao a loja de origem: a maiuscula
+// entra dos dois lados, e a linha "- Divisivel: Sim" continua achando a loja que publicou "sim".
 export function formatarLinhaTecnica(texto) {
-  return normalizarTerminologiaEletrica(compactarUnidades(texto));
+  return maiusculaNoValor(normalizarTerminologiaEletrica(compactarUnidades(texto)));
+}
+
+/** So as linhas "- Nome: valor" da secao Especificacoes tecnicas, com a maiuscula no valor; o resto do texto fica igual. */
+export function maiusculaNasEspecificacoes(texto) {
+  const original = String(texto ?? "");
+  const { inicio, fim } = limitesEspecificacoes(original);
+  if (inicio < 0) return original;
+  const linhas = original.split("\n");
+  for (let indice = inicio; indice < fim; indice++) {
+    if (/^\s*[-–]/.test(linhas[indice])) linhas[indice] = maiusculaNoValor(linhas[indice]);
+  }
+  return linhas.join("\n");
+}
+
+/**
+ * Uma linha em branco depois do titulo, sempre (pedido do dono em 03/11/2026: "na descricao as vezes comeca sem o espaco;
+ * sempre ter espaco apos o titulo da descricao"). Titulo = a primeira linha, toda em maiusculas, como a loja escreve: texto
+ * que nao comeca por um titulo (descricao antiga com "....", texto livre) fica como esta. Mantem o "\r\n" de quem o usa.
+ */
+export function espacoAposTitulo(texto) {
+  const original = String(texto ?? "");
+  const linhas = original.split(/\r?\n/);
+  const titulo = linhas[0]?.trim() ?? "";
+  const ehTitulo = /\p{Lu}/u.test(titulo) && titulo === titulo.toLocaleUpperCase("pt-BR");
+  if (!ehTitulo || linhas.length < 2 || !linhas[1].trim()) return original;
+  return [linhas[0], "", ...linhas.slice(1)].join(original.includes("\r\n") ? "\r\n" : "\n");
+}
+
+/** As duas regras do texto da loja que valem em todo caminho (IA, editor, proposta e o Salvar do produto). */
+export function normalizarDescricao(texto) {
+  return maiusculaNasEspecificacoes(espacoAposTitulo(texto));
 }
 
 /**
@@ -230,9 +272,23 @@ export function substituirCodigoDosItens(texto, indice, codigo) {
   return linhas.join("\n");
 }
 
-/// O titulo como a descricao o escreve (`montarDescricao`): espacos simples e em maiusculas.
+/// O titulo como a descricao o escreve (`montarDescricao`): espacos simples, em maiusculas e sem o "*SKU" que nomes antigos
+/// trazem no fim ("BARRA DE PINOS 15 VIAS *900211"), que a descricao nao repete.
 function tituloComoNaDescricao(titulo) {
-  return String(titulo ?? "").replace(/\s+/g, " ").trim().toLocaleUpperCase("pt-BR");
+  return String(titulo ?? "").replace(/\s+\*\S+\s*$/, "").replace(/\s+/g, " ").trim().toLocaleUpperCase("pt-BR");
+}
+
+/// O "(Cód. 100265)" que itens inclusos antigos trazem no fim do nome.
+const CODIGO_NO_ITEM = /\s*\(C[oó]d[.:][^)]*\)\s*$/i;
+
+/// Para comparar nomes: sem acento e sem o codigo no fim ("MODULO RELE" e "MÓDULO RELÉ" sao o mesmo nome).
+const paraComparar = (texto) =>
+  tituloComoNaDescricao(String(texto ?? "").replace(CODIGO_NO_ITEM, "")).normalize("NFD").replace(/\p{Diacritic}/gu, "");
+
+/// A primeira linha e um titulo: toda em maiusculas, como a loja escreve, e nao um item nem o titulo de uma secao.
+function ehLinhaDeTitulo(linha) {
+  const texto = String(linha ?? "").trim();
+  return /\p{Lu}/u.test(texto) && texto === texto.toLocaleUpperCase("pt-BR") && !/^[-–]/.test(texto) && !CABECALHO_DE_SECAO.test(texto);
 }
 
 /// Um item incluso: "- 01 PLACA;" -> o que vem antes do nome (marcador e quantidade), o nome e o que vem depois.
@@ -240,15 +296,18 @@ const ITEM_INCLUSO = /^(\s*-\s*(?:\d+\s+)?)(.*?)(\s*[;.]?\s*)$/;
 
 /**
  * O Nome do produto mudou (pedido do dono em 25/10/2026): a descricao acompanha, no titulo da primeira linha e no
- * PRIMEIRO item de "Itens inclusos". So troca a linha que ainda e o titulo de antes: quem editou uma delas a mao (outro
- * texto, uma quantidade, um acessorio no lugar) a mantem, e a outra continua acompanhando, cada uma por si. Sem titulo de
- * antes ou de depois (o Nome apagado de uma vez), ou sem mudanca, devolve o texto como veio.
+ * PRIMEIRO item de "Itens inclusos". Em 03/11/2026 o dono viu os dois ficarem para tras ("ao mudar o titulo, as vezes nao
+ * altera o titulo da descricao e tambem nao altera a primeira linha dos itens inclusos"): a proposta aplica um Nome novo
+ * com a descricao do Nome antigo, e acento, espaco ou o "*SKU" do nome antigo impediam o casamento. Agora:
+ * - o titulo da descricao (a primeira linha em maiusculas) acompanha SEMPRE o Nome;
+ * - o 1o item acompanha quando e o Nome de antes OU o titulo que a descricao trazia (sem acento, codigo ou "*SKU" na
+ *   comparacao); um item que diz outra coisa (outro texto, um acessorio no lugar) fica, e a quantidade fica sempre.
+ * Sem Nome de antes ou de depois (o Nome apagado de uma vez, ou o primeiro digitado num cadastro vazio), devolve o texto.
  */
 export function acompanharTituloNaDescricao(texto, tituloAntes, tituloDepois) {
   const original = String(texto ?? "");
-  const antes = tituloComoNaDescricao(tituloAntes);
   const depois = tituloComoNaDescricao(tituloDepois);
-  if (!antes || !depois || antes === depois) return original;
+  if (!tituloComoNaDescricao(tituloAntes) || !depois) return original;
 
   // O navegador entrega a quebra como "\n", mas a descricao antiga do cadastro pode trazer "\r\n": o "\r" fica onde estava.
   const linhas = original.split("\n");
@@ -256,9 +315,13 @@ export function acompanharTituloNaDescricao(texto, tituloAntes, tituloDepois) {
   let mudou = false;
 
   const primeira = linhas.findIndex((linha) => linha.trim());
-  if (primeira >= 0 && tituloComoNaDescricao(linhas[primeira]) === antes) {
-    linhas[primeira] = depois + fim(linhas[primeira]);
-    mudou = true;
+  const nomesDeAntes = new Set([paraComparar(tituloAntes)]);
+  if (primeira >= 0 && (ehLinhaDeTitulo(linhas[primeira]) || paraComparar(linhas[primeira]) === paraComparar(tituloAntes))) {
+    nomesDeAntes.add(paraComparar(linhas[primeira]));
+    if (linhas[primeira].replace(/\r$/, "") !== depois) {
+      linhas[primeira] = depois + fim(linhas[primeira]);
+      mudou = true;
+    }
   }
 
   const secao = linhas.findIndex((linha) => LINHA_DOS_ITENS.test(linha.trim()));
@@ -266,8 +329,10 @@ export function acompanharTituloNaDescricao(texto, tituloAntes, tituloDepois) {
     // So o primeiro item: a linha logo abaixo do titulo da secao, e so se for mesmo um item.
     const linha = linhas[secao + 1] ?? "";
     const partes = ITEM_INCLUSO.exec(linha.replace(/\r$/, ""));
-    if (partes && partes[2].trim() && tituloComoNaDescricao(partes[2]) === antes) {
-      linhas[secao + 1] = partes[1] + depois + partes[3] + fim(linha);
+    const codigo = partes?.[2].match(CODIGO_NO_ITEM)?.[0] ?? "";
+    const nome = partes ? partes[2].slice(0, partes[2].length - codigo.length) : "";
+    if (partes && nome.trim() && nomesDeAntes.has(paraComparar(nome)) && nome !== depois) {
+      linhas[secao + 1] = partes[1] + depois + codigo + partes[3] + fim(linha);
       mudou = true;
     }
   }
@@ -366,5 +431,5 @@ export function organizarDescricao(texto) {
     .map((linha) => "- " + formatarLinhaTecnica(linha.replace(/^[-–]\s*/, "").replace(/[;\s]+$/, "")) + ";");
   const antes = linhas.slice(0, inicio).join("\n").trimEnd();
   const depois = linhas.slice(fim).join("\n").trim();
-  return `${antes}\n${especificacoes.join("\n")}${depois ? `\n\n${depois}` : ""}`.trim();
+  return espacoAposTitulo(`${antes}\n${especificacoes.join("\n")}${depois ? `\n\n${depois}` : ""}`.trim());
 }

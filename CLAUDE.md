@@ -56,6 +56,14 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
   original (`telefone`, `email`); os demais vão para uma lista (`String[]`). Um `<input>` por linha
   com o mesmo `name`, lido com `formData.getAll`. Linha em branco sai e repetido vira um só.
 - **Marca e Modelo** sempre em MAIÚSCULAS (ver "Produtos: Buscar por código").
+- **Texto da descrição** (pedidos do dono em 03/11/2026, `normalizarDescricao` em `src/lib/ia/revisaoDescricao.js`): sempre
+  uma linha em branco depois do título (`espacoAposTitulo`; só quando a 1ª linha é um título em maiúsculas) e o valor de cada
+  "- Nome: valor" das Especificações técnicas começando com maiúscula (`maiusculaNoValor`, também dentro de
+  `formatarLinhaTecnica`, para a chave da loja de origem casar com a linha). Vale na IA (`montarDescricao`), no editor
+  (`organizarDescricao`), na proposta (`gravarProposta`, seção descricao) e no Salvar do produto (esquema `descricaoBase`).
+  **O título da descrição e o 1º item incluso acompanham o Nome** (`acompanharTituloNaDescricao`): desde 03/11/2026 o título
+  (1ª linha em maiúsculas) acompanha sempre, e o item quando é o Nome de antes ou o título antigo da descrição (sem acento,
+  "*SKU" ou "(Cód. …)" na comparação); a proposta que aplica Nome e descrição juntos também passa por aqui.
 - **% de lucro = MARKUP sobre o custo, nunca margem sobre o preço** (pedido do dono em 24/10/2026: "custo R$ 50 com 100%
   = R$ 100"). Cadastro de Produto e edição rápida: `(preço − custo) ÷ custo`, sem o imposto (`calcularMarkup` em
   `lib/margem.js`; o R$ continua líquido). Mercado Livre: o lucro ÷ o CUSTO TOTAL (fornecedor + comissão + tarifa +

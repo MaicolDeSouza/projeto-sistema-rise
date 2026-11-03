@@ -39,6 +39,7 @@ import {
   MAXIMO_PROMPT_DESCRICAO,
   MAXIMO_REFERENCIAS,
 } from "@/lib/ia/anuncio";
+import { normalizarDescricao } from "@/lib/ia/revisaoDescricao";
 import { gastoDoFormulario, novoGasto, resumoDoGasto, somarResumos } from "@/lib/ia/gasto";
 import { fotosDaPropostaDepoisDoSalvar, marcarSecoesAplicadas, registrarDecisoesDoSalvar } from "@/lib/proposta/banco";
 import { conferirComProposta } from "@/lib/proposta/conferir";
@@ -442,7 +443,9 @@ const ProdutoSchema = z.object({
   // digitar; aqui e a garantia para o que chegar por outro caminho.
   marca: opcional(z.string().trim().transform((valor) => valor.toLocaleUpperCase("pt-BR"))),
   modelo: opcional(z.string().trim().transform((valor) => valor.toLocaleUpperCase("pt-BR"))),
-  descricaoBase: opcional(z.string()),
+  // As regras do texto da loja (pedidos do dono em 03/11/2026): linha em branco depois do titulo e o valor de cada
+  // especificacao com maiuscula. A tela ja as aplica na IA e no editor; aqui e a garantia para o texto digitado ou colado.
+  descricaoBase: opcional(z.string().transform(normalizarDescricao)),
   numeroHomologacao: opcional(z.string().trim()),
   videoUrl: opcional(z.string().trim()),
 

@@ -3324,10 +3324,11 @@ export default function FormularioProduto({
     // ficaria com o padrao do cadastro novo: a Garantia, por exemplo, ficaria com os 3 meses sugeridos).
     const daOrigem = Object.fromEntries(forcarOrigem.map((campo) => [campo, campos[campo] ?? ""]));
     const mesclado = { ...atual, ...trazidos, ...daOrigem };
-    // O Nome trocado por aqui (a lista de titulos) leva a descricao junto, como a digitacao no campo: se a descricao nao veio
-    // nos campos trazidos, o titulo dela e o 1o item incluso acompanham (so se ainda forem o Nome de antes).
-    if (trazidos.tituloBase !== undefined && trazidos.descricaoBase === undefined && typeof mesclado.descricaoBase === "string") {
-      mesclado.descricaoBase = acompanharTituloNaDescricao(mesclado.descricaoBase, atual.tituloBase, mesclado.tituloBase);
+    // O Nome trocado por aqui (a lista de titulos, a proposta) leva a descricao junto, como a digitacao no campo: o titulo dela
+    // e o 1o item incluso acompanham. Vale tambem quando a descricao veio junto (a proposta aplica o Nome novo com a descricao
+    // escrita para o Nome de antes; o dono viu os dois ficarem diferentes em 03/11/2026).
+    if (trazidos.tituloBase !== undefined && typeof mesclado.descricaoBase === "string") {
+      mesclado.descricaoBase = acompanharTituloNaDescricao(mesclado.descricaoBase, atual.tituloBase || mesclado.tituloBase, mesclado.tituloBase);
     }
     // O que outro caminho trouxe (IA, busca por codigo) ja nao e o valor da proposta: a marca sai.
     if (daProposta) setEditadosDaProposta((anteriores) => new Set([...anteriores, ...Object.keys(trazidos), ...Object.keys(daOrigem)]));

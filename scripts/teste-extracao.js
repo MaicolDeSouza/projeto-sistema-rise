@@ -2079,14 +2079,39 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
   conferir("titulo novo: a primeira linha e o 1o item incluso acompanham", comoLinhas(novaPlaca, 0, 8), ["PLACA PRO MICRO 5V 16MHZ", "- 01 PLACA PRO MICRO 5V 16MHZ;"]);
   conferir("o resto da descricao fica como estava", novaPlaca.split("\n").filter((_, indice) => indice !== 0 && indice !== 8), daPlaca.split("\n").filter((_, indice) => indice !== 0 && indice !== 8));
   conferir("so o primeiro item incluso acompanha", acompanharTituloNaDescricao("T\n\nItens inclusos: (Cod:1)\n- 01 CABO;\n- 01 T;", "T", "NOVO"), "NOVO\n\nItens inclusos: (Cod:1)\n- 01 CABO;\n- 01 T;");
-  conferir("titulo da descricao editado a mao: so o item acompanha",
+  // 03/11/2026 (o dono viu o titulo ficar para tras): o titulo da descricao, a primeira linha em maiusculas, acompanha sempre.
+  conferir("titulo da descricao diferente do Nome de antes: acompanha mesmo assim",
     comoLinhas(acompanharTituloNaDescricao(daPlaca.replace("PLACA PRO MICRO 5V\n", "PLACA PRO MICRO - OFERTA\n"), "Placa Pro Micro 5V", "Placa Nova"), 0, 8),
-    ["PLACA PRO MICRO - OFERTA", "- 01 PLACA NOVA;"]);
+    ["PLACA NOVA", "- 01 PLACA NOVA;"]);
   conferir("item incluso editado a mao: so o titulo acompanha",
     comoLinhas(acompanharTituloNaDescricao(daPlaca.replace("- 01 PLACA PRO MICRO 5V;", "- 02 PLACA PRO MICRO 5V + CABO;"), "Placa Pro Micro 5V", "Placa Nova"), 0, 8),
     ["PLACA NOVA", "- 02 PLACA PRO MICRO 5V + CABO;"]);
   conferir("a quantidade do item incluso fica", acompanharTituloNaDescricao(daPlaca.replace("- 01 PLACA PRO MICRO 5V;", "- 05 PLACA PRO MICRO 5V;"), "Placa Pro Micro 5V", "X").split("\n")[8], "- 05 X;");
-  conferir("nenhuma das duas linhas e o titulo de antes: o texto nao muda", acompanharTituloNaDescricao(daPlaca, "Outro nome", "Placa Nova"), daPlaca);
+  // A proposta aplica o Nome novo com a descricao escrita para o Nome antigo: o titulo e o 1o item (igual ao titulo) acompanham.
+  conferir("Nome de antes diferente da descricao: o titulo e o item igual ao titulo acompanham",
+    comoLinhas(acompanharTituloNaDescricao(daPlaca, "Outro nome", "Placa Nova"), 0, 8), ["PLACA NOVA", "- 01 PLACA NOVA;"]);
+  conferir("acento, espaco duplo e o *SKU do Nome antigo nao impedem o item de acompanhar",
+    acompanharTituloNaDescricao("MÓDULO RELÉ 4 CANAIS\n\nItens inclusos: (Cod:100206)\n- 01 MÓDULO RELÉ 4 CANAIS (Cód. 100206);", "Modulo  Rele 4 canais *100206", "Módulo Relé 4 Canais 10A"),
+    "MÓDULO RELÉ 4 CANAIS 10A\n\nItens inclusos: (Cod:100206)\n- 01 MÓDULO RELÉ 4 CANAIS 10A (Cód. 100206);");
+  conferir("titulo em letra minuscula que nao e o Nome de antes fica", acompanharTituloNaDescricao("Texto livre da loja\n\nOutra linha", "A", "B"), "Texto livre da loja\n\nOutra linha");
+
+  // Maiuscula no valor das especificacoes e linha em branco depois do titulo (pedidos do dono em 03/11/2026).
+  const { espacoAposTitulo, formatarLinhaTecnica, maiusculaNasEspecificacoes, maiusculaNoValor, normalizarDescricao } = await import("../src/lib/ia/revisaoDescricao.js");
+  conferir("valor da especificacao com maiuscula",
+    [maiusculaNoValor("- Proteção: diodo de roda livre;"), maiusculaNoValor("Divisível: sim"), maiusculaNoValor("- Ângulo: ângulo reto;"), maiusculaNoValor("- Clock: 16MHz;"), maiusculaNoValor("- Tempo: µs;"), maiusculaNoValor("- Fabricante: OEM;")],
+    ["- Proteção: Diodo de roda livre;", "Divisível: Sim", "- Ângulo: Ângulo reto;", "- Clock: 16MHz;", "- Tempo: µs;", "- Fabricante: OEM;"]);
+  conferir("a linha tecnica formatada leva a maiuscula (a chave da loja de origem casa com a linha)", formatarLinhaTecnica("- Divisível: sim;"), "- Divisível: Sim;");
+  conferir("so as especificacoes mudam: paragrafo com dois-pontos e itens inclusos ficam",
+    maiusculaNasEspecificacoes("TITULO\n\nO módulo possui lógica invertida: com a entrada ativada.\n\nEspecificações técnicas:\n- Proteção: diodo;\n\nItens inclusos: (Cod:1)\n- 01 placa: avulsa;"),
+    "TITULO\n\nO módulo possui lógica invertida: com a entrada ativada.\n\nEspecificações técnicas:\n- Proteção: Diodo;\n\nItens inclusos: (Cod:1)\n- 01 placa: avulsa;");
+  conferir("linha em branco depois do titulo, com \\n e com \\r\\n",
+    [espacoAposTitulo("MÓDULO RELÉ 4 CANAIS\nO Módulo Relé..."), espacoAposTitulo("MÓDULO RELÉ\r\nO Módulo\r\n"), espacoAposTitulo("MÓDULO\n\nJá tinha")],
+    ["MÓDULO RELÉ 4 CANAIS\n\nO Módulo Relé...", "MÓDULO RELÉ\r\n\r\nO Módulo\r\n", "MÓDULO\n\nJá tinha"]);
+  conferir("texto que nao comeca por titulo em maiusculas fica como esta",
+    [espacoAposTitulo("......\nBem vindo"), espacoAposTitulo("Placa X\nTexto"), espacoAposTitulo("")], ["......\nBem vindo", "Placa X\nTexto", ""]);
+  conferir("normalizar faz as duas coisas",
+    normalizarDescricao("PLACA\nParágrafo.\n\nEspecificações técnicas:\n- Cor: preto;\n\nGarantia:\n- 90 dias;"),
+    "PLACA\n\nParágrafo.\n\nEspecificações técnicas:\n- Cor: Preto;\n\nGarantia:\n- 90 dias;");
   conferir("sem mudanca real, ou com o titulo de antes ou de depois vazio: o texto nao muda",
     [acompanharTituloNaDescricao(daPlaca, "Placa Pro Micro 5V", "  placa  pro micro 5v "), acompanharTituloNaDescricao(daPlaca, "", "X"), acompanharTituloNaDescricao(daPlaca, "Placa Pro Micro 5V", "   ")],
     [daPlaca, daPlaca, daPlaca]);

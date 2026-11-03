@@ -10,6 +10,7 @@ import { semAncestraisRedundantes } from "@/lib/canaisDeVenda/li/categorias";
 import { clienteLI } from "@/lib/canaisDeVenda/li/cliente";
 import { listarCategoriasDaLI, textoDoErroLI } from "@/lib/canaisDeVenda/li/leitura";
 import { tituloSeoPadrao } from "@/lib/canaisDeVenda/li/seo";
+import { normalizarDescricao } from "@/lib/ia/revisaoDescricao";
 
 import { decisoesDosCampos, SECOES_APLICAVEIS } from "./aplicar";
 import { assinaturaDaSecao, secoesNaoAplicadas } from "./aplicadas";
@@ -115,6 +116,12 @@ export async function gravarProposta(sku, plano, { bytes = new Map(), testarLink
       ...plano,
       conteudo: { ...plano.conteudo, origem: { valor: 2, origem: doFornecedor }, spedTipoItem: { valor: "00", origem: doFornecedor } },
     };
+  }
+
+  // A descricao da conversa segue as regras do texto da loja, como a da IA do Rise (pedidos do dono em 03/11/2026): linha em
+  // branco depois do titulo e o valor de cada especificacao com maiuscula.
+  if (validado.secao === "descricao") {
+    plano = { ...plano, conteudo: { ...plano.conteudo, texto: normalizarDescricao(plano.conteudo.texto) } };
   }
 
   // O EAN da proposta e SEMPRE o interno do Rise (dono, 23/10/2026: "sempre gerar EAN, independente se tem ou nao"): a
