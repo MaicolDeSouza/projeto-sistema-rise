@@ -2800,10 +2800,20 @@ try {
     // Modelo e Microcontrolador pelas especificacoes da descricao (pedido do dono em 03/11/2026).
     const { completarFichaPelaDescricao, fichaDaDescricao } = await import("../src/lib/canaisDeVenda/ml/atributos.js");
     const descricaoDaPlaca = "PLACA\n\nEspecificações técnicas:\n- Fabricante: OEM;\n- Chip de Interface USB: CH340;\n- Processador: Xtensa LX6;\n- Chip: ESP32-D0WD;\n- Modelo: DevKit V1;\n\nGarantia:\n- 90 dias;";
-    conferir("ficha pela descricao: o Modelo e o Chip (antes do Processador; o chip USB nao conta)", fichaDaDescricao(descricaoDaPlaca), { MODEL: "DevKit V1", MICROCONTROLLER: "ESP32-D0WD" });
+    conferir("ficha pela descricao: o Modelo e o Chip (antes do Processador; o chip USB nao conta)", fichaDaDescricao(descricaoDaPlaca), { MODEL: "DevKit V1", MICROCONTROLLER: "ESP32-D0WD", tensaoLimite: null });
     conferir("ficha pela descricao: CI e Microcontrolador tambem valem; sem as linhas, null",
       [fichaDaDescricao("- CI: ATtiny85;").MICROCONTROLLER, fichaDaDescricao("- Microcontrolador: ATmega328P;\n- CI: X;").MICROCONTROLLER, fichaDaDescricao("Texto sem ficha")],
-      ["ATtiny85", "ATmega328P", { MODEL: null, MICROCONTROLLER: null }]);
+      ["ATtiny85", "ATmega328P", { MODEL: null, MICROCONTROLLER: null, tensaoLimite: null }]);
+    // Tensao limite pela tensao de trabalho (pedido do dono em 03/11/2026): o maior valor; com "limite" na linha, o do limite.
+    const { tensaoLimite } = await import("../src/lib/canaisDeVenda/ml/atributos.js");
+    conferir("tensao limite: faixa da o maior, tensao unica da ela mesma, o limite escrito vence",
+      [tensaoLimite("5V a 12V"), tensaoLimite("5V"), tensaoLimite("7V a 12V pelo VIN / 5V pela USB"), tensaoLimite("7V a 12V por VIN ou jack (limite 6V a 20V) / 5V pela USB"), tensaoLimite("3,3V a 30VDC"), tensaoLimite("100 a 240VAC"), tensaoLimite("sem número")],
+      ["12V", "5V", "12V", "20V", "30V", "240V", null]);
+    conferir("completar: a tensao limite vem da Tensao de Alimentacao, so na categoria que tem o campo",
+      [completarFichaPelaDescricao({}, [{ id: "MICROCONTROLLER_BOARD_LIMIT_INPUT_VOLTAGE" }], "- Tensão de Alimentação: 7V a 12V pelo VIN / 5V pela USB;"),
+        completarFichaPelaDescricao({}, [{ id: "MODEL" }], "- Tensão de Alimentação: 5V;"),
+        completarFichaPelaDescricao({ MICROCONTROLLER_BOARD_LIMIT_INPUT_VOLTAGE: "35V" }, [{ id: "MICROCONTROLLER_BOARD_LIMIT_INPUT_VOLTAGE" }], "- Tensão de Trabalho: 5V;")],
+      [{ MICROCONTROLLER_BOARD_LIMIT_INPUT_VOLTAGE: "12V" }, {}, {}]);
     conferir("completar: so o que falta e so o que a categoria tem",
       [completarFichaPelaDescricao({ MODEL: "UNO R3" }, [{ id: "MODEL" }, { id: "MICROCONTROLLER" }], descricaoDaPlaca), completarFichaPelaDescricao({}, [{ id: "MODEL" }], descricaoDaPlaca)],
       [{ MICROCONTROLLER: "ESP32-D0WD" }, { MODEL: "DevKit V1" }]);

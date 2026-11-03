@@ -44,18 +44,62 @@ export function fichaDaDescricao(descricao) {
     microcontrolador = valorDe(regra);
     if (microcontrolador) break;
   }
-  return { MODEL: valorDe(/^modelo$/i), MICROCONTROLLER: microcontrolador };
+  let tensao = null;
+  for (const regra of NOMES_DA_TENSAO) {
+    tensao = valorDe(regra);
+    if (tensao) break;
+  }
+  return { MODEL: valorDe(/^modelo$/i), MICROCONTROLLER: microcontrolador, tensaoLimite: tensaoLimite(tensao) };
 }
 
+// A tensao de trabalho da placa nas especificacoes, nesta ordem (o nome que cada prompt usa).
+const NOMES_DA_TENSAO = [
+  /^tens[aã]o de alimenta[cç][aã]o$/i,
+  /^tens[aã]o de entrada$/i,
+  /^tens[aã]o de trabalho$/i,
+  /^tens[aã]o de opera[cç][aã]o$/i,
+  /^alimenta[cç][aã]o$/i,
+];
+
+// Um valor de tensao: "12V", "3,3V", "30VDC", "240VAC" (o "V" de "VIN" nao tem numero antes e nao conta).
+const VALOR_DE_TENSAO = /(\d+(?:[.,]\d+)?)\s*V(?:DC|AC|CC)?\b/gi;
+
 /**
- * Os atributos que faltam na ficha e a descricao traz (Modelo e Microcontrolador), SO os que a categoria tem: o
- * Microcontrolador numa categoria de conectores iria ao ML como atributo que ela nao conhece. Nunca troca valor preenchido.
+ * A tensao limite da ficha (pedido do dono em 03/11/2026: "verificar na tensao de trabalho se tem, ex.: 5V a 12V, a tensao
+ * limite sera 12V; se houver apenas uma tensao, ex.: 5V, a tensao limite tambem sera 5V"). O MAIOR valor da linha; quando a
+ * linha ja traz o limite ("7V a 12V por VIN (limite 6V a 20V) / 5V pela USB"), o maior do trecho do limite (20V). Sem
+ * tensao com numero, null.
+ */
+export function tensaoLimite(valor) {
+  const linha = String(valor ?? "");
+  const trechoDoLimite = /limite([^/)]*)/i.exec(linha)?.[1];
+  const maior = (trecho) => {
+    let escolhido = null;
+    for (const [, numero] of String(trecho ?? "").matchAll(VALOR_DE_TENSAO)) {
+      if (!escolhido || Number(numero.replace(",", ".")) > Number(escolhido.replace(",", "."))) escolhido = numero;
+    }
+    return escolhido;
+  };
+  const numero = maior(trechoDoLimite) ?? maior(linha);
+  return numero ? `${numero}V` : null;
+}
+
+// Os atributos de tensao limite das categorias ("Voltagem de entrada limite", MICROCONTROLLER_BOARD_LIMIT_INPUT_VOLTAGE).
+const ehTensaoLimite = (id) => /LIMIT/i.test(id) && /VOLTAGE/i.test(id);
+
+/**
+ * Os atributos que faltam na ficha e a descricao traz (Modelo, Microcontrolador e a tensao limite), SO os que a categoria tem:
+ * o Microcontrolador numa categoria de conectores iria ao ML como atributo que ela nao conhece. Nunca troca valor preenchido.
  */
 export function completarFichaPelaDescricao(atuais, atributosDaCategoria, descricao) {
   const daCategoria = new Set((atributosDaCategoria ?? []).map((atributo) => atributo.id));
+  const { tensaoLimite: limite, ...porId } = fichaDaDescricao(descricao);
   const novos = {};
-  for (const [id, valor] of Object.entries(fichaDaDescricao(descricao))) {
+  for (const [id, valor] of Object.entries(porId)) {
     if (valor && daCategoria.has(id) && !texto(atuais?.[id])) novos[id] = valor;
+  }
+  for (const id of daCategoria) {
+    if (limite && ehTensaoLimite(id) && !texto(atuais?.[id])) novos[id] = limite;
   }
   return novos;
 }
