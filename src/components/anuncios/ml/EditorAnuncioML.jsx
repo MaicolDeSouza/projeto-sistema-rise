@@ -548,6 +548,7 @@ export default function EditorAnuncioML({
                 ? { todosProblemas: problemas, situacao: { statusAtual, rotuloDoStatus, publicacao, idExterno: infoDoML.idExterno, urlExterna: infoDoML.urlExterna } }
                 : {})}
               {...(id === "catalogo" ? { visivel: abaVisivel === "catalogo", idExterno: infoDoML.idExterno ?? null } : {})}
+              {...(id === "ficha" ? { completarPelaDescricao: !bloqueado } : {})}
             />
             </div>
           </Painel>

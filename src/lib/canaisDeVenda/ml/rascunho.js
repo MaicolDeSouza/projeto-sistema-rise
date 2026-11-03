@@ -20,6 +20,7 @@ import {
   unidadesDaComposicao,
 } from "../composicao";
 import { pesoEMedidasDoKit } from "../../composicao";
+import { fichaDaDescricao } from "./atributos";
 
 const texto = (valor) => String(valor ?? "").trim();
 
@@ -59,7 +60,9 @@ function atributosDoProduto(produto, { comGtin }) {
   const atributos = {};
   // O EAN identifica a peca avulsa: um kit e outro produto, e herdar o GTIN dela o
   // apresentaria ao Mercado Livre como a peca avulsa.
-  const valores = { BRAND: produto.marca, MODEL: produto.modelo, ...(comGtin ? { GTIN: produto.ean } : {}) };
+  // Sem Modelo no cadastro, o da linha "Modelo" das especificacoes da descricao (pedido do dono em 03/11/2026).
+  const modelo = texto(produto.modelo) || fichaDaDescricao(produto.descricaoBase).MODEL;
+  const valores = { BRAND: produto.marca, MODEL: modelo, ...(comGtin ? { GTIN: produto.ean } : {}) };
   for (const [id, valor] of Object.entries(valores)) {
     if (texto(valor)) atributos[id] = texto(valor);
   }

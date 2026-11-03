@@ -23,6 +23,43 @@ const EM_MAIUSCULAS = new Set(["BRAND", "MODEL"]);
 
 const texto = (valor) => String(valor ?? "").trim();
 
+// O Microcontrolador da ficha vem, nesta ordem, destas linhas da descricao. "Chip de Interface USB" (o CH340 de uma placa
+// Arduino) e outro chip e nao casa: os nomes sao exatos.
+const NOMES_DO_MICROCONTROLADOR = [/^microcontrolador$/i, /^chip\s*(\(\s*soc\s*\))?$/i, /^ci$/i, /^processador(\s*\/\s*cpu)?$/i];
+
+/**
+ * O que a ficha do ML tira das Especificacoes tecnicas da descricao do produto (pedido do dono em 03/11/2026: "caso nao tenha
+ * modelo, pode buscar na especificacao o modelo e tambem o microcontrolador; nas especificacoes vai estar como chip, CI ou
+ * processador"). Le as linhas "- Nome: valor;"; sem a linha, null.
+ */
+export function fichaDaDescricao(descricao) {
+  const linhas = [];
+  for (const linha of String(descricao ?? "").split(/\r?\n/)) {
+    const casou = /^\s*[-•]\s*([^:]{2,60}):\s*(.+?)\s*[;.]?\s*$/.exec(linha);
+    if (casou) linhas.push({ nome: casou[1].trim(), valor: casou[2].trim() });
+  }
+  const valorDe = (regra) => linhas.find((linha) => regra.test(linha.nome))?.valor || null;
+  let microcontrolador = null;
+  for (const regra of NOMES_DO_MICROCONTROLADOR) {
+    microcontrolador = valorDe(regra);
+    if (microcontrolador) break;
+  }
+  return { MODEL: valorDe(/^modelo$/i), MICROCONTROLLER: microcontrolador };
+}
+
+/**
+ * Os atributos que faltam na ficha e a descricao traz (Modelo e Microcontrolador), SO os que a categoria tem: o
+ * Microcontrolador numa categoria de conectores iria ao ML como atributo que ela nao conhece. Nunca troca valor preenchido.
+ */
+export function completarFichaPelaDescricao(atuais, atributosDaCategoria, descricao) {
+  const daCategoria = new Set((atributosDaCategoria ?? []).map((atributo) => atributo.id));
+  const novos = {};
+  for (const [id, valor] of Object.entries(fichaDaDescricao(descricao))) {
+    if (valor && daCategoria.has(id) && !texto(atuais?.[id])) novos[id] = valor;
+  }
+  return novos;
+}
+
 /**
  * "Nao se aplica" (pedido do dono em 25/10/2026): o atributo que o produto nao tem (a EEPROM do ESP32). O rascunho guarda
  * "-1", o mesmo `value_id` que o site do ML grava quando o vendedor marca "Nao se aplica": medido em 25/10/2026, 698

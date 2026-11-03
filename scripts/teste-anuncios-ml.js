@@ -2797,6 +2797,16 @@ try {
   // -------------------------------------------------------------------------
   {
     console.log("\nProposta do ML: ler e gravar");
+    // Modelo e Microcontrolador pelas especificacoes da descricao (pedido do dono em 03/11/2026).
+    const { completarFichaPelaDescricao, fichaDaDescricao } = await import("../src/lib/canaisDeVenda/ml/atributos.js");
+    const descricaoDaPlaca = "PLACA\n\nEspecificações técnicas:\n- Fabricante: OEM;\n- Chip de Interface USB: CH340;\n- Processador: Xtensa LX6;\n- Chip: ESP32-D0WD;\n- Modelo: DevKit V1;\n\nGarantia:\n- 90 dias;";
+    conferir("ficha pela descricao: o Modelo e o Chip (antes do Processador; o chip USB nao conta)", fichaDaDescricao(descricaoDaPlaca), { MODEL: "DevKit V1", MICROCONTROLLER: "ESP32-D0WD" });
+    conferir("ficha pela descricao: CI e Microcontrolador tambem valem; sem as linhas, null",
+      [fichaDaDescricao("- CI: ATtiny85;").MICROCONTROLLER, fichaDaDescricao("- Microcontrolador: ATmega328P;\n- CI: X;").MICROCONTROLLER, fichaDaDescricao("Texto sem ficha")],
+      ["ATtiny85", "ATmega328P", { MODEL: null, MICROCONTROLLER: null }]);
+    conferir("completar: so o que falta e so o que a categoria tem",
+      [completarFichaPelaDescricao({ MODEL: "UNO R3" }, [{ id: "MODEL" }, { id: "MICROCONTROLLER" }], descricaoDaPlaca), completarFichaPelaDescricao({}, [{ id: "MODEL" }], descricaoDaPlaca)],
+      [{ MICROCONTROLLER: "ESP32-D0WD" }, { MODEL: "DevKit V1" }]);
     await limpar();
     const { criarMLFalso } = await import("./lib/mlFalso.js");
     const { gravarPropostaML, lerParaPropostaML } = await import("../src/lib/propostaDeAnuncio/ml.js");

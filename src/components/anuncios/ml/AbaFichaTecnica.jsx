@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
-import { aceitaNaoSeAplica, motivoSemGtin } from "@/lib/canaisDeVenda/ml/atributos";
+import { aceitaNaoSeAplica, completarFichaPelaDescricao, motivoSemGtin } from "@/lib/canaisDeVenda/ml/atributos";
 import { eanDoKit } from "@/lib/canaisDeVenda/ml/eanDoKit";
 import { linhasDeEspecificacao } from "@/lib/medidas";
 import CampoDeAtributo from "./CampoDeAtributo";
@@ -21,7 +21,7 @@ const DO_GTIN = new Set(["GTIN", "EMPTY_GTIN_REASON"]);
  * O rascunho guarda os atributos como um objeto so (`{ id: valor }`), e o servidor grava ele
  * inteiro: atributo em branco sai do objeto, em vez de ir como "" para o Mercado Livre.
  */
-export default function AbaFichaTecnica({ rascunho, contexto, alterar, problemas, irPara }) {
+export default function AbaFichaTecnica({ rascunho, contexto, alterar, problemas, irPara, completarPelaDescricao = false }) {
   const atributos = rascunho.atributos ?? {};
   const emKit = Boolean(rascunho.composicao);
   const categoria = contexto.categoria && contexto.categoria.id === rascunho.categoriaId ? contexto.categoria : null;
@@ -52,6 +52,20 @@ export default function AbaFichaTecnica({ rascunho, contexto, alterar, problemas
     motivoPostoEm.current = categoria.id;
     alterar((atual) => (String(atual.atributos?.EMPTY_GTIN_REASON ?? "").trim() ? {} : { atributos: { ...atual.atributos, EMPTY_GTIN_REASON: motivoDoKit } }));
   }, [emKit, categoria, motivoDoKit, motivoJaEscolhido, alterar]);
+
+  // Modelo e Microcontrolador vazios saem das especificacoes da descricao do produto (pedido do dono em 03/11/2026: "caso nao
+  // tenha modelo, pode buscar na especificacao o modelo e tambem o microcontrolador"), so os que a categoria tem, uma vez por
+  // categoria (apagar depois e escolha do dono) e so no anuncio ainda nao publicado (no publicado viraria mudanca a enviar).
+  const descricaoDoProduto = contexto.produtos?.[rascunho.produtoId]?.descricaoBase ?? "";
+  const completadoEm = useRef(null);
+  useEffect(() => {
+    if (!completarPelaDescricao || !categoria || completadoEm.current === categoria.id) return;
+    completadoEm.current = categoria.id;
+    alterar((atual) => {
+      const novos = completarFichaPelaDescricao(atual.atributos, categoria.atributos, descricaoDoProduto);
+      return Object.keys(novos).length > 0 ? { atributos: { ...atual.atributos, ...novos } } : {};
+    });
+  }, [completarPelaDescricao, categoria, descricaoDoProduto, alterar]);
 
   // Duas colunas (pedido do dono em 22/10/2026): a esquerda, os atributos que o ML pede, numa caixa so e com "*" nos
   // obrigatorios; a direita, as caracteristicas do produto no Rise, para conferir lado a lado. A direita fica presa no

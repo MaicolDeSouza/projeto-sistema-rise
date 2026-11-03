@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { codigoDaComposicao, custoDaComposicao, errosDaComposicao } from "@/lib/canaisDeVenda/composicao";
-import { problemasDosAtributos } from "@/lib/canaisDeVenda/ml/atributos";
+import { completarFichaPelaDescricao, problemasDosAtributos } from "@/lib/canaisDeVenda/ml/atributos";
 import { contextoDosProdutos, carregarAnuncioML, novoRascunhoML, salvarRascunhoML } from "@/lib/canaisDeVenda/ml/banco";
 import { catalogosDosMeusAnuncios, lerPrimeiroDoCatalogo, sugerirCatalogos } from "@/lib/canaisDeVenda/ml/catalogo";
 import { eanDoKit } from "@/lib/canaisDeVenda/ml/eanDoKit";
@@ -225,6 +225,10 @@ export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, quan
   }
   // No rascunho que a proposta cria, tudo o que vem do produto e o ponto de partida: a proposta preenche por cima.
   const opcoes = existente ? {} : { vazio: () => true };
+
+  // Modelo e Microcontrolador que ninguem preencheu saem das especificacoes da descricao (pedido do dono em 03/11/2026), so
+  // os que a categoria tem; o que a conversa mandou ou o rascunho ja tinha fica.
+  Object.assign(ficha, completarFichaPelaDescricao({ ...base.atributos, ...ficha }, categoria.atributos, produto.descricaoBase));
 
   const propostos = { categoriaId: categoria.id ?? String(categoriaId).trim(), categoriaNome: categoria.nome };
   // Fora da composicao o titulo nao e proposta: o rascunho fica com o do produto (um rascunho antigo, com outro, volta a ele).
