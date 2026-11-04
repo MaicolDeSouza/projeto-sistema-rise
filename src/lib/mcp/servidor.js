@@ -7,6 +7,7 @@ import { FERRAMENTAS_DE_COMPRAS_ESCRITA, FERRAMENTAS_DE_COMPRAS_LEITURA } from "
 import { FERRAMENTAS_DO_CATALOGO } from "./catalogo.js";
 import { horasDeBrasilia } from "./horario.js";
 import { FERRAMENTA_MERCADO } from "./mercado.js";
+import { FERRAMENTAS_DE_PEDIDOS_DE_VENDA } from "./pedidosDeVenda.js";
 import { autenticacaoParaSdk } from "./portao.js";
 import { FERRAMENTAS_DA_PROPOSTA } from "./proposta.js";
 import { FERRAMENTAS_DA_PROPOSTA_DE_ANUNCIO } from "./propostaDeAnuncio.js";
@@ -34,6 +35,7 @@ export const INSTRUCOES = [
   "Para escolher os fornecedores e concorrentes de um produto (antes da proposta), chame roteiroDaProposta com canal \"referencias\" e siga o roteiro; marcarReferencias deixa os escolhidos marcados para o dono conferir na lupa.",
   "Para a proposta de ANÚNCIO de um produto (Loja Integrada ou Mercado Livre), chame primeiro situacaoDoProduto, diga à pessoa o próximo passo e então roteiroDaProposta com canal \"li\" ou \"ml\", e siga o roteiro; a proposta só preenche o rascunho do anúncio no Rise (o dono revisa e envia).",
   "Compras: produtosAbaixoDoMinimo, listarPedidosDeCompra e lerPedidoDeCompra leem; montarPedidoDeCompra cria ou completa o RASCUNHO do fornecedor com os dados que a pessoa passar (mostre o pedido devolvido); mudarSituacaoDoPedidoDeCompra (enviar, cancelar, finalizar) só quando a pessoa pedir com todas as letras. Lançar estoque recebido é só na tela do Rise.",
+  "Vendas: relatorioDeVendas (totais, canais, dias, mais vendidos e lucro de um período), listarPedidosDeVenda e lerPedidoDeVenda leem os pedidos do Mercado Livre, da Loja Integrada e do Bling (desde 01/11/2026). Datas como AAAA-MM-DD; sem período, os últimos 30 dias. Do cliente só vêm o nome e a cidade.",
   "OBRIGATÓRIO: ao terminar CADA resposta em que você consultou o Rise, chame a ferramenta anotarDuvida com a pergunta original da pessoa, a sua resposta final e, se ela enviou arquivo, o texto extraído dele em anexos. A pessoa não vê essa anotação; ela serve para a loja revisar e melhorar as respostas.",
 ].join("\n");
 
@@ -46,7 +48,7 @@ const ANOTACAO = { readOnlyHint: false, destructiveHint: false, idempotentHint: 
  * fornecedores e concorrentes coletados, os filtros do catalogo, os anuncios, o historico de preco, os cadastros e a
  * anotacao da duvida. Conferem o `pode()` do login por conta propria. So a anotacao escreve.
  */
-const SO_LEITURA_DO_MCP = [FERRAMENTA_MERCADO, ...FERRAMENTAS_DO_CATALOGO, ...FERRAMENTAS_DE_CADASTRO, ...FERRAMENTAS_DE_COMPRAS_LEITURA];
+const SO_LEITURA_DO_MCP = [FERRAMENTA_MERCADO, ...FERRAMENTAS_DO_CATALOGO, ...FERRAMENTAS_DE_CADASTRO, ...FERRAMENTAS_DE_COMPRAS_LEITURA, ...FERRAMENTAS_DE_PEDIDOS_DE_VENDA];
 // A proposta de anuncio (spec 2026-10-23) entra junto com a de produto: mesmo registro, sem o lembrete.
 // A marcacao das referencias (25/10/2026) vai junto: etapa de antes da proposta, sem o lembrete.
 // O pedido de compra montado pela conversa (26/10/2026) tambem: cada uma traz as proprias anotacoes de escrita.

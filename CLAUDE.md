@@ -5217,6 +5217,13 @@ transação Serializable), telas em `src/app/pedidos/` e `src/components/pedidos
     não visto: medir na 1ª NF da LI).
   - **Telegram:** avisos `novaVenda` (pedido lido há até 2 h e vendido há até 24 h, não cancelado) e `aguardandoPecas` (vendido
     nos últimos 7 dias), botão para `/pedidos/<id>`; nascem ligados.
+  - **No ar desde 04.11.2026.65**; o dono cadastrou ML, Bling e LI no mesmo dia, e os 7 pedidos do ML com NF foram relidos na VPS.
+- **Vendas pelo MCP (04/11/2026, pedido do dono, Opção 1 "relatório + consulta de pedidos"; SEM deploy):** `src/lib/mcp/pedidosDeVenda.js`,
+  três ferramentas de leitura com o acesso `tela.pedidos` (lucro, comissão e custo só com `dado.custo`): `relatorioDeVendas`
+  (período em dias de Brasília, padrão 30 dias; pedidos, faturamento com e sem frete, ticket médio, lucro pela regra da coluna
+  Lucro, `lucroQueConta` em `banco.js`; cancelados à parte; por canal, status e dia; os 15 mais vendidos, o item fora do Rise pelo
+  código da origem), `listarPedidosDeVenda` e `lerPedidoDeVenda` (pelo número, id na origem ou número no Bling). **Dado pessoal do
+  comprador nunca sai pelo MCP**, nem para quem o vê na tela: só o nome e a cidade (UF). Teste na seção "MCP" do `teste:pedidos`.
 - **Fase 3:** emitir NF pelo Rise (trava `NFE_EMISSAO`, botão "Criar NF" desligado).
 - **Primeira leitura real (VPS, 04/11/2026), o que ela corrigiu (b1e9901):** a busca de pedidos da LI recusa `limit` acima de
   50 ("entre 0 e 50"); o Bling tem a loja ativa **MercadoShops (`203901506`, tipo MercadoShopsML)** que também recebe vendas do

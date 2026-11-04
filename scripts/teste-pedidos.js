@@ -804,6 +804,74 @@ try {
     conferir("telegram: os dois tipos na aba Canais", [TIPOS_DE_AVISO.includes("novaVenda"), TIPOS_DE_AVISO.includes("aguardandoPecas"), ROTULO_DO_AVISO.novaVenda, ROTULO_DO_AVISO.aguardandoPecas], [true, true, "Nova venda", "Pedido aguardando peças"]);
   }
 
+  console.log("\nMCP");
+  {
+    // Pedidos em 2030 (nenhum real cai ali): dois do ML no mesmo dia, um da LI no dia seguinte e um cancelado.
+    const mcp = await import("../src/lib/mcp/pedidosDeVenda.js");
+    const tudo = { pode: () => true };
+    const semCusto = { pode: (id) => id !== "dado.custo" };
+    const nada = { pode: () => false };
+    const produto = await prisma.produto.create({ data: { sku: "ZZ-PED-MCP", tituloBase: "ZZ Ped Produto MCP" } });
+    const base = { atualizadoNaOrigemEm: new Date(), statusDaOrigem: "paid", enderecoDeEntrega: { cidade: "Caxias do Sul", uf: "RS", endereco: "Rua ZZ", numero: "10", cep: "95000-000" }, pagamento: [{ forma: "Pix", tipo: "pix", parcelas: 1, valor: 0 }], envio: { tipo: "me2", transportadora: "Correios", rastreio: "ZZ123BR" }, historico: [], desconto: 0, documentoDoComprador: "123.456.789-09", telefoneDoComprador: "54988990008", emailDoComprador: "zz@zz.test" };
+    const criar = (numero, canal, dia, total, frete, status, lucro, itens) =>
+      prisma.pedidoDeVenda.create({
+        data: {
+          ...base,
+          origem: canal,
+          canal,
+          idExterno: numero,
+          numero,
+          dataDaVenda: new Date(`2030-01-${dia}T15:00:00-03:00`),
+          nomeDoComprador: `ZZ Ped Comprador ${numero}`,
+          status,
+          totalProdutos: total - frete,
+          freteCobrado: frete,
+          total,
+          lucroEstimado: lucro,
+          nf: { numero: "901", chave: "4330", emitidaEm: "2030-01-10T15:00:00Z", status: "authorized", urlPdf: "x", urlXml: "y" },
+          itens: { create: itens.map((item, ordem) => ({ ordem, produtoId: item.produtoId ?? null, codigoNaOrigem: item.codigo ?? null, titulo: item.titulo, quantidade: item.quantidade, precoUnitario: item.preco, desconto: 0, total: item.preco * item.quantidade, custoUnitarioCongelado: 4 })) },
+        },
+      });
+    await criar("ZZ-PED-M1", "MERCADO_LIVRE", "10", 110, 10, "PAGO", 30, [{ produtoId: produto.id, titulo: "Produto MCP", quantidade: 2, preco: 50 }]);
+    await criar("ZZ-PED-M2", "MERCADO_LIVRE", "10", 50, 0, "ENTREGUE", null, [{ codigo: "FORA-DO-RISE", titulo: "Item fora", quantidade: 1, preco: 50 }]);
+    await criar("ZZ-PED-M3", "LOJA_INTEGRADA", "11", 40, 0, "ENVIADO", 12, [{ produtoId: produto.id, titulo: "Produto MCP", quantidade: 1, preco: 40 }]);
+    await criar("ZZ-PED-M4", "MERCADO_LIVRE", "11", 999, 0, "CANCELADO", 100, [{ produtoId: produto.id, titulo: "Produto MCP", quantidade: 9, preco: 111 }]);
+    const periodo = { desde: "2030-01-10", ate: "2030-01-11" };
+
+    const rel = await mcp.relatorioDeVendas(periodo, tudo);
+    conferir(
+      "MCP relatorio: totais sem os cancelados",
+      [rel.pedidos, rel.faturamento, rel.faturamentoProdutos, rel.freteCobrado, rel.ticketMedio, rel.lucro, rel.pedidosSemLucro, rel.cancelados],
+      [3, 200, 190, 10, 66.67, 42, 1, { pedidos: 1, valor: 999 }],
+    );
+    conferir("MCP relatorio: por canal", rel.porCanal.map((c) => [c.canal, c.pedidos, c.faturamento, c.lucro]), [["Mercado Livre", 2, 160, 30], ["Loja Integrada", 1, 40, 12]]);
+    conferir("MCP relatorio: por dia no horario de Brasilia", rel.porDia, [{ dia: "2030-01-10", pedidos: 2, faturamento: 160 }, { dia: "2030-01-11", pedidos: 1, faturamento: 40 }]);
+    conferir("MCP relatorio: mais vendidos (o fora do Rise pelo codigo)", rel.maisVendidos.map((m) => [m.sku, m.quantidade, m.faturamento]), [["ZZ-PED-MCP", 3, 140], ["FORA-DO-RISE", 1, 50]]);
+    conferir("MCP relatorio: filtro de canal", (await mcp.relatorioDeVendas({ ...periodo, canais: ["LOJA_INTEGRADA"] }, tudo)).faturamento, 40);
+    const relSemCusto = await mcp.relatorioDeVendas(periodo, semCusto);
+    conferir("MCP relatorio sem custo esconde o lucro", [relSemCusto.lucro, relSemCusto.porCanal[0].lucro, relSemCusto.faturamento], ["[restrito]", "[restrito]", 200]);
+    conferir("MCP relatorio: periodo invertido recusa", (await mcp.relatorioDeVendas({ desde: "2030-01-11", ate: "2030-01-10" }, tudo).catch((e) => e.message))?.includes("depois"), true);
+    conferir("MCP relatorio: sem acesso recusa", (await mcp.relatorioDeVendas(periodo, nada).catch((e) => e.message))?.includes("não pode"), true);
+
+    const lista = await mcp.listarPedidosDeVenda({ ...periodo, limite: 10 }, tudo);
+    conferir("MCP lista: do mais novo, com status em texto", [lista.total, lista.pedidos.slice(0, 2).map((p) => p.numero).sort(), lista.pedidos.find((p) => p.numero === "ZZ-PED-M3").statusTexto], [4, ["ZZ-PED-M3", "ZZ-PED-M4"], "Enviado"]);
+    conferir("MCP lista: filtro de status", (await mcp.listarPedidosDeVenda({ ...periodo, status: ["CANCELADO"] }, tudo)).pedidos.map((p) => p.numero), ["ZZ-PED-M4"]);
+    conferir("MCP lista: busca pelo SKU", (await mcp.listarPedidosDeVenda({ ...periodo, termos: "FORA-DO-RISE" }, tudo)).pedidos.map((p) => p.numero), ["ZZ-PED-M2"]);
+    conferir("MCP lista sem custo esconde o lucro", (await mcp.listarPedidosDeVenda(periodo, semCusto)).pedidos[0].lucro, "[restrito]");
+
+    const lido = await mcp.lerPedidoDeVenda({ pedido: "zz-ped-m1" }, tudo);
+    conferir(
+      "MCP ler: itens, pagamento, envio e NF",
+      [lido.numero, lido.canal, lido.itens[0].sku, lido.itens[0].custoUnitario, lido.pagamento[0].forma, lido.envio.rastreio, lido.nf.numero, lido.lucro.estimado],
+      ["ZZ-PED-M1", "Mercado Livre", "ZZ-PED-MCP", 4, "Pix", "ZZ123BR", "901", 30],
+    );
+    conferir("MCP ler: do cliente so o nome e a cidade", [lido.cliente.nome, lido.cliente.cidade, JSON.stringify(lido).includes("123.456.789-09"), JSON.stringify(lido).includes("54988990008"), JSON.stringify(lido).includes("zz@zz.test"), JSON.stringify(lido).includes("Rua ZZ")], ["ZZ Ped Comprador ZZ-PED-M1", "Caxias do Sul (RS)", false, false, false, false]);
+    const lidoSemCusto = await mcp.lerPedidoDeVenda({ pedido: "ZZ-PED-M1" }, semCusto);
+    conferir("MCP ler sem custo esconde custo e lucro", [lidoSemCusto.itens[0].custoUnitario, lidoSemCusto.lucro], ["[restrito]", "[restrito]"]);
+    conferir("MCP ler: pedido que nao existe", (await mcp.lerPedidoDeVenda({ pedido: "ZZ-PED-NADA" }, tudo).catch((e) => e.message))?.includes("não encontrado"), true);
+    conferir("MCP: as tres ferramentas na lista", mcp.FERRAMENTAS_DE_PEDIDOS_DE_VENDA.map((f) => f.nome), ["relatorioDeVendas", "listarPedidosDeVenda", "lerPedidoDeVenda"]);
+  }
+
   // Marcador: os blocos seguintes entram acima desta linha.
 } finally {
   if (!manter) await limpar();

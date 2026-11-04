@@ -394,6 +394,11 @@ export async function opcoesDasColunas(filtro = {}) {
  * coluna Lucro: cancelado nao entra; devolvido e fechado entram com o real; os outros com o estimado (ou o real).
  * `semLucro` conta os pedidos sem lucro calculado (item sem custo).
  */
+/** O lucro que conta de um pedido (a regra da coluna Lucro): null quando nao ha lucro calculado; cancelado nao chama. */
+export function lucroQueConta(p) {
+  return p.lucroFechado || p.status === "DEVOLVIDO" ? numero(p.lucroReal) : (numero(p.lucroEstimado) ?? numero(p.lucroReal));
+}
+
 export async function resumoDaLista(filtro = {}) {
   const pedidos = await prisma.pedidoDeVenda.findMany({
     where: filtroDaLista(filtro),
@@ -403,7 +408,7 @@ export async function resumoDaLista(filtro = {}) {
   let semLucro = 0;
   for (const p of pedidos) {
     if (p.status === "CANCELADO") continue;
-    const valor = p.lucroFechado || p.status === "DEVOLVIDO" ? numero(p.lucroReal) : (numero(p.lucroEstimado) ?? numero(p.lucroReal));
+    const valor = lucroQueConta(p);
     if (valor === null) semLucro += 1;
     else lucro += valor;
   }
