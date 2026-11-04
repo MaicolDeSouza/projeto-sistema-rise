@@ -228,6 +228,8 @@ export function criarLojaIntegradaFalsa({
   }
 
   function buscarPedidos(params) {
+    // A LI real recusa mais de 50 por pagina nesta rota (medido em 04/11/2026: 400 "O campo limit deve ficar entre 0 e 50.").
+    if (Number(params?.limit ?? 20) > 50) return resposta(400, { textoBruto: "O campo limit deve ficar entre 0 e 50." });
     const criado = desde(params?.since_criado);
     const atualizado = desde(params?.since_atualizado);
     const lista = [...tabelaPedidos.values()]

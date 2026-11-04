@@ -497,7 +497,9 @@ export async function criarClienteDoPedido(id) {
 /** Anota no pedido do ML ou da LI o espelho dele no Bling (o numero e o id de la). false quando o pedido nao existe. */
 export async function espelharNoBling(origem, numeroNaLoja, { blingPedidoId, blingNumero }) {
   const pedido = await prisma.pedidoDeVenda.findFirst({
-    where: { origem, OR: [{ idExterno: String(numeroNaLoja) }, { numero: String(numeroNaLoja) }] },
+    // O Bling grava no numeroLoja o numero do carrinho (pack) quando o pedido do ML tem um, senao o do pedido (medido na
+    // VPS em 04/11/2026: 14 dos 15 eram o pack).
+    where: { origem, OR: [{ idExterno: String(numeroNaLoja) }, { numero: String(numeroNaLoja) }, { packId: String(numeroNaLoja) }] },
     select: { id: true, avisos: true },
   });
   if (!pedido) return false;

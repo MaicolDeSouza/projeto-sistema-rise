@@ -159,8 +159,9 @@ try {
     conferir("ML falso: fatura inexistente da 404", (await ml.get("/users/212386247/invoices/orders/2000000002")).status, 404);
     conferir("ML falso: pedidos e um Map editavel", ml.pedidos instanceof Map && ml.pedidos.has(2000000001), true);
 
-    conferir("LI falsa: search since_criado", (await li.get("/pedido/search", { since_criado: "2026-11-01T00:00:00", limit: 100, offset: 0 })).dados.objects.map((p) => p.numero), [5001]);
-    conferir("LI falsa: search since_atualizado nao acha o antigo", (await li.get("/pedido/search", { since_atualizado: "2026-11-04T00:00:00", limit: 100 })).dados.meta.total_count, 0);
+    conferir("LI falsa: search since_criado", (await li.get("/pedido/search", { since_criado: "2026-11-01T00:00:00", limit: 50, offset: 0 })).dados.objects.map((p) => p.numero), [5001]);
+    conferir("LI falsa: mais de 50 por pagina e recusado, como na real", (await li.get("/pedido/search", { limit: 100 })).status, 400);
+    conferir("LI falsa: search since_atualizado nao acha o antigo", (await li.get("/pedido/search", { since_atualizado: "2026-11-04T00:00:00", limit: 50 })).dados.meta.total_count, 0);
     conferir("LI falsa: pedido", (await li.get("/pedido/5001")).dados.cliente.cpf, "12345678909");
     conferir("LI falsa: situacoes", (await li.get("/situacao")).dados.objects.find((s) => s.codigo === "pedido_pago").id, 4);
     conferir("LI falsa: historico por numero", (await li.get("/situacao_historico/search", { numero: 5001 })).dados.objects.length, 2);
@@ -223,6 +224,8 @@ try {
     conferir("Bling: sem nf", normalizarPedidoBling({ pedido: fx("bling-pedido")[1], formas: [], situacoes: [], nfe: null }).nf, null);
     conferir("Bling: data de Sao Paulo", bl1.dataDaVenda.toISOString(), "2026-11-02T03:00:00.000Z");
     conferir("Bling: loja", [classificarLojaDoBling(undefined), classificarLojaDoBling(0), classificarLojaDoBling(206326819), classificarLojaDoBling("203593931"), classificarLojaDoBling(203478870), classificarLojaDoBling(999)], ["bling", "bling", "espelhoML", "espelhoML", "espelhoLI", "outra"]);
+    // MercadoShops: a loja do Bling que recebe parte das vendas do ML (medido na VPS em 04/11/2026: numeroLoja = pack do ML).
+    conferir("Bling: MercadoShops e copia do ML", classificarLojaDoBling(203901506), "espelhoML");
   }
 
   console.log("\nStatus");
@@ -359,6 +362,9 @@ try {
     conferir("marcar separacao", [(await marcarEmSeparacao(pago.id, true)).ok, (await prisma.pedidoDeVenda.findUnique({ where: { id: pago.id } })).emSeparacao], [true, true]);
     conferir("separacao recusada em enviado", (await marcarEmSeparacao(a1.id, true)).ok, false);
     conferir("espelho do Bling", [await espelharNoBling("MERCADO_LIVRE", "ZZ-PED-100", { blingPedidoId: "7777", blingNumero: "123" }), await espelharNoBling("MERCADO_LIVRE", "nao-existe", { blingPedidoId: "1", blingNumero: "1" })], [true, false]);
+    // O Bling grava no numeroLoja o numero do carrinho (pack) do ML quando o pedido tem um (medido na VPS em 04/11/2026).
+    await prisma.pedidoDeVenda.update({ where: { id: pago.id }, data: { packId: "ZZ-PED-PACK-1" } });
+    conferir("espelho do Bling pelo pack do ML", [await espelharNoBling("MERCADO_LIVRE", "ZZ-PED-PACK-1", { blingPedidoId: "8888", blingNumero: "124" }), (await prisma.pedidoDeVenda.findUnique({ where: { id: pago.id } })).blingNumero], [true, "124"]);
     const nbling = normalizarPedidoBling({ pedido: fx("bling-pedido")[0], formas: fx("bling-formas").data, situacoes: fx("bling-situacoes").situacoes["98310"], nfe: null });
     nbling.idExterno = nbling.numero = nbling.blingPedidoId = nbling.blingNumero = "ZZ-PED-103";
     const bl = await aplicarPedidoLido(nbling, { agora });

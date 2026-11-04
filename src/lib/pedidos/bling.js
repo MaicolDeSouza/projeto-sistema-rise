@@ -5,7 +5,9 @@ import { dataDeSaoPaulo, digitos, dinheiro, texto, vazio } from "./normalizado";
  * e `LOJA_LI_NO_BLING` (canaisDeVenda/li/blingLoja.js); repetidos aqui porque aqueles modulos puxam a leitura
  * do Bling (banco), e o normalizador tem que continuar puro.
  */
-const LOJAS_DO_ML = new Set(["206326819", "203593931"]); // Rise_ML e ML_4h
+// Rise_ML, ML_4h e MercadoShops: a MercadoShops (tipo MercadoShopsML) tambem recebe vendas do ML, com o numero do
+// carrinho (pack) no numeroLoja (medido na VPS em 04/11/2026: 7 dos 15 pedidos do ML de 01 a 04/11 vieram por ela).
+const LOJAS_DO_ML = new Set(["206326819", "203593931", "203901506"]);
 const LOJA_DA_LI = "203478870";
 
 /**

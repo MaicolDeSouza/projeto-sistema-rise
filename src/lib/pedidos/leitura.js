@@ -22,7 +22,8 @@ const DEZ_MINUTOS_MS = 10 * 60 * 1000;
 const UMA_HORA_MS = 60 * 60 * 1000;
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
 const PAGINA_ML = 50;
-const PAGINA_LI = 100;
+// A busca de pedidos da LI recusa mais de 50 por pagina (medido na VPS em 04/11/2026: 400 "entre 0 e 50").
+const PAGINA_LI = 50;
 const PAGINA_BLING = 100;
 const TETO_DE_PAGINAS = 200;
 const TETO_DE_ESPELHOS_PENDENTES = 500;
