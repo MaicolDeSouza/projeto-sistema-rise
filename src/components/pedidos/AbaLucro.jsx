@@ -31,7 +31,8 @@ function dataDaDevolucao(pedido) {
  * ambar. Pedido devolvido no ML: a venda sai do balanco e so o frete de retorno fica, em vermelho, como prejuizo.
  */
 export default function AbaLucro({ pedido }) {
-  const estimativa = pedido.estimativa ?? null;
+  // Sem estimativa de verdade (o anuncio do ML nao foi lido: `origem` nula), a coluna mostra "—", nunca R$ 0,00.
+  const estimativa = pedido.estimativa?.origem ? pedido.estimativa : null;
   const real = pedido.real ?? null;
   const devolvido = pedido.status === "DEVOLVIDO";
   const cancelado = pedido.status === "CANCELADO";

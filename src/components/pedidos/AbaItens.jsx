@@ -1,17 +1,8 @@
-import Link from "next/link";
 import { Package } from "lucide-react";
 
 import FotoComLupa from "@/components/ui/FotoComLupa";
 
 import { moeda } from "./formato";
-
-const TEXTO_DO_CUSTO = {
-  kit: "Custo do kit: soma das peças no dia da venda",
-  pecas: "Custo das peças próprias no dia da venda",
-  fornecedorPadrao: "Custo do fornecedor padrão no dia da venda",
-  rascunhoBling: "Custo do fornecedor no Bling no dia da venda",
-  cadastro: "Custo do cadastro no dia da venda",
-};
 
 /** O "R" do Rise na linha do item: verde quando o produto esta Conferido, fosco quando nao, cinza quando nao existe no Rise. */
 function IconeDoRise({ item }) {
@@ -33,22 +24,23 @@ function IconeDoRise({ item }) {
 }
 
 /**
- * Aba Itens: foto, nome, codigo, o "R" do Rise, quantidade, preco, custo congelado (so com `dado.custo`; o `title` diz
- * de onde ele veio) e a comissao do canal (o ML a informa por item).
+ * Aba Itens (desenho do dono em 04/11/2026): foto, nome com a localizacao no estoque embaixo, o codigo (abre o produto
+ * no Rise em outra aba), Quantidade, Valor un. e Valor total, e o total do pedido logo abaixo (com o frete cobrado,
+ * quando houver, para a conta fechar). Custo e comissao ficam na aba Lucro.
  */
-export default function AbaItens({ itens, veCusto }) {
-  const temComissao = itens.some((item) => item.comissao !== null && item.comissao !== undefined);
+export default function AbaItens({ pedido }) {
+  const itens = pedido.itens ?? [];
+  const frete = Number(pedido.freteCobrado ?? 0);
+  const desconto = Number(pedido.desconto ?? 0);
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="border-b border-borda text-left text-xs tracking-wide text-suave uppercase">
           <tr>
             <th className="px-5 py-2.5 font-medium">Produto</th>
-            <th className="w-px px-3 py-2.5 text-right font-medium">Qtd.</th>
-            <th className="w-px whitespace-nowrap px-3 py-2.5 text-right font-medium">Preço</th>
-            <th className="w-px whitespace-nowrap px-3 py-2.5 text-right font-medium">Total</th>
-            {veCusto && <th className="w-px whitespace-nowrap px-3 py-2.5 text-right font-medium">Custo un.</th>}
-            {temComissao && <th className="w-px whitespace-nowrap px-5 py-2.5 text-right font-medium">Comissão</th>}
+            <th className="w-px whitespace-nowrap px-3 py-2.5 text-right font-medium">Quantidade</th>
+            <th className="w-px whitespace-nowrap px-3 py-2.5 text-right font-medium">Valor un.</th>
+            <th className="w-px whitespace-nowrap px-5 py-2.5 text-right font-medium">Valor total</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-borda">
@@ -65,12 +57,23 @@ export default function AbaItens({ itens, veCusto }) {
                   )}
                   <span className="min-w-0">
                     <span className="block truncate">{item.titulo}</span>
+                    {item.produto?.localizacao && (
+                      <span className="block text-xs text-suave" title="Localização no estoque">
+                        Local: <span className="font-mono font-medium text-texto">{item.produto.localizacao}</span>
+                      </span>
+                    )}
                     <span className="mt-0.5 flex items-center gap-1.5 text-xs text-suave">
                       <IconeDoRise item={item} />
                       {item.produto ? (
-                        <Link href={`/produtos/${item.produto.id}`} className="font-mono hover:text-acento hover:underline">
+                        <a
+                          href={`/produtos/${item.produto.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Abrir o produto em outra aba"
+                          className="font-mono hover:text-acento hover:underline"
+                        >
                           {item.produto.sku}
-                        </Link>
+                        </a>
                       ) : (
                         <span className="font-mono">{item.codigoNaOrigem ?? "sem código"}</span>
                       )}
@@ -81,22 +84,42 @@ export default function AbaItens({ itens, veCusto }) {
               </td>
               <td className="px-3 py-2.5 text-right tabular-nums">{item.quantidade}</td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">{moeda.format(item.precoUnitario ?? 0)}</td>
-              <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">{moeda.format(item.total ?? 0)}</td>
-              {veCusto && (
-                <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums" title={TEXTO_DO_CUSTO[item.custoOrigem] ?? undefined}>
-                  {item.custoUnitarioCongelado !== null && item.custoUnitarioCongelado !== undefined ? (
-                    moeda.format(item.custoUnitarioCongelado)
-                  ) : (
-                    <span className="text-amber-700" title="Sem custo: o lucro deste pedido fica em aberto">
-                      sem custo
-                    </span>
-                  )}
-                </td>
-              )}
-              {temComissao && <td className="whitespace-nowrap px-5 py-2.5 text-right tabular-nums">{item.comissao !== null && item.comissao !== undefined ? moeda.format(item.comissao) : "—"}</td>}
+              <td className="whitespace-nowrap px-5 py-2.5 text-right tabular-nums">{moeda.format(item.total ?? 0)}</td>
             </tr>
           ))}
         </tbody>
+        <tfoot className="border-t border-borda text-sm">
+          {(frete > 0 || desconto > 0) && (
+            <tr>
+              <td colSpan={3} className="px-3 pt-2.5 text-right text-suave">
+                Produtos
+              </td>
+              <td className="whitespace-nowrap px-5 pt-2.5 text-right tabular-nums">{moeda.format(pedido.totalProdutos ?? 0)}</td>
+            </tr>
+          )}
+          {desconto > 0 && (
+            <tr>
+              <td colSpan={3} className="px-3 pt-1 text-right text-suave">
+                Desconto
+              </td>
+              <td className="whitespace-nowrap px-5 pt-1 text-right tabular-nums">−{moeda.format(desconto)}</td>
+            </tr>
+          )}
+          {frete > 0 && (
+            <tr>
+              <td colSpan={3} className="px-3 pt-1 text-right text-suave">
+                Frete cobrado
+              </td>
+              <td className="whitespace-nowrap px-5 pt-1 text-right tabular-nums">{moeda.format(frete)}</td>
+            </tr>
+          )}
+          <tr className="font-semibold">
+            <td colSpan={3} className="px-3 py-3 text-right">
+              Valor total do pedido
+            </td>
+            <td className="whitespace-nowrap px-5 py-3 text-right text-base tabular-nums">{moeda.format(pedido.total ?? 0)}</td>
+          </tr>
+        </tfoot>
       </table>
     </div>
   );

@@ -5,7 +5,7 @@ import { Check, ExternalLink } from "lucide-react";
 
 import { salvarCustoDoFreteManualAcao } from "@/app/pedidos/acoes";
 
-import { Dado, Secao } from "./AbaGeral";
+import { Dado, enderecoEmLinhas, Secao } from "./AbaGeral";
 import { dataCompleta, linkDoRastreio, moeda } from "./formato";
 import { COR_DO_STATUS_DO_ENVIO, TEXTO_DO_STATUS_DO_ENVIO } from "./textos";
 
@@ -117,7 +117,10 @@ export default function AbaEnvio({ pedido, podeEditarFrete }) {
               )
             ) : null}
           </Dado>
-          <Dado rotulo="Previsão de entrega">{envio.prazo ? dataCompleta(envio.prazo) : null}</Dado>
+          {/* O ML manda a data; a LI e o Bling, o prazo em dias (um numero virava 31/12/1969). */}
+          <Dado rotulo="Previsão de entrega">
+            {typeof envio.prazo === "number" ? `${envio.prazo} ${envio.prazo === 1 ? "dia" : "dias"}` : envio.prazo ? dataCompleta(envio.prazo) : null}
+          </Dado>
           <Dado rotulo="Logística">{envio.tipo ?? null}</Dado>
         </dl>
         {passos.length > 0 && (
@@ -130,6 +133,26 @@ export default function AbaEnvio({ pedido, podeEditarFrete }) {
             ))}
           </ol>
         )}
+      </Secao>
+
+      {/* Destinatario e endereco de entrega (pedido do dono em 04/11/2026): quem recebe pode nao ser o comprador. */}
+      <Secao titulo="Entrega">
+        <dl className="space-y-3">
+          <Dado rotulo="Destinatário">{pedido.enderecoDeEntrega?.nome ?? pedido.nomeDoComprador ?? null}</Dado>
+          <Dado rotulo="Endereço de entrega">
+            {enderecoEmLinhas(pedido.enderecoDeEntrega).length > 0 ? (
+              <address className="leading-relaxed not-italic">
+                {enderecoEmLinhas(pedido.enderecoDeEntrega).map((linha) => (
+                  <span key={linha} className="block">
+                    {linha}
+                  </span>
+                ))}
+              </address>
+            ) : (
+              <span className="text-suave">Não informado</span>
+            )}
+          </Dado>
+        </dl>
       </Secao>
 
       <Secao titulo="Custo do frete">

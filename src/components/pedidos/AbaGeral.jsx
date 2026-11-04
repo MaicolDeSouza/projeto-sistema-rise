@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { abreviarPagamento, dataCompleta, moeda } from "./formato";
 import SeloDoNivel from "./SeloDoNivel";
 
 /** Um par rotulo/valor das abas do pedido; valor vazio nao desenha nada (regra 4: so o que tem dado). */
@@ -26,7 +25,7 @@ export function Secao({ titulo, children, acao = null }) {
   );
 }
 
-function enderecoEmLinhas(endereco) {
+export function enderecoEmLinhas(endereco) {
   if (!endereco) return [];
   const rua = [endereco.endereco, endereco.numero].filter(Boolean).join(", ");
   const cidade = [endereco.cidade, endereco.uf].filter(Boolean).join(" - ");
@@ -51,7 +50,7 @@ function Linha({ rotulo, children }) {
 /**
  * Aba "Dados do cliente" (pedido do dono em 04/11/2026: so Nome, CPF e endereco, bem separados): uma informacao por
  * linha, com o rotulo a esquerda. Sem cliente no cadastro, a faixa ambar com "Vincular cliente" fica em cima. O
- * pagamento e os totais moram no pe da aba Itens.
+ * pagamento tem aba propria e os totais ficam no pe da aba Itens.
  */
 export default function AbaGeral({ pedido, podeVincular, aoVincular }) {
   const cliente = pedido.cliente;
@@ -102,59 +101,6 @@ export default function AbaGeral({ pedido, podeVincular, aoVincular }) {
           )}
         </Linha>
       </dl>
-    </div>
-  );
-}
-
-/** O pagamento e os totais do pedido, no pe da aba Itens. */
-export function PagamentoETotais({ pedido }) {
-  const pagamentos = Array.isArray(pedido.pagamento) ? pedido.pagamento : [];
-  return (
-    <div className="grid gap-x-10 gap-y-6 border-t border-borda p-5 md:grid-cols-2">
-      <Secao titulo="Pagamento">
-        {pagamentos.length === 0 ? (
-          <p className="text-sm text-suave">O canal não informou o pagamento.</p>
-        ) : (
-          <ul className="space-y-2.5">
-            {pagamentos.map((pg, indice) => (
-              <li key={indice} className="flex items-baseline justify-between gap-4 text-sm">
-                <span>
-                  <span className="font-medium">{abreviarPagamento(pg) ?? "Pagamento"}</span>
-                  {pg.forma && abreviarPagamento(pg) !== pg.forma && <span className="ml-1.5 text-xs text-suave">{pg.forma}</span>}
-                  {pg.aprovadoEm && <span className="block text-xs text-suave">Aprovado em {dataCompleta(pg.aprovadoEm)}</span>}
-                </span>
-                <span className="text-right tabular-nums">
-                  {moeda.format(pg.valorPago ?? pg.valor ?? 0)}
-                  {Number(pg.parcelas) > 1 && <span className="block text-xs text-suave">{pg.parcelas}× de {moeda.format((pg.valorPago ?? pg.valor ?? 0) / pg.parcelas)}</span>}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Secao>
-
-      <Secao titulo="Totais">
-        <dl className="space-y-1.5 text-sm">
-          <div className="flex justify-between gap-4">
-            <dt className="text-suave">Produtos</dt>
-            <dd className="tabular-nums">{moeda.format(pedido.totalProdutos ?? 0)}</dd>
-          </div>
-          {pedido.desconto > 0 && (
-            <div className="flex justify-between gap-4">
-              <dt className="text-suave">Desconto</dt>
-              <dd className="tabular-nums">−{moeda.format(pedido.desconto)}</dd>
-            </div>
-          )}
-          <div className="flex justify-between gap-4">
-            <dt className="text-suave">Frete cobrado</dt>
-            <dd className="tabular-nums">{moeda.format(pedido.freteCobrado ?? 0)}</dd>
-          </div>
-          <div className="flex justify-between gap-4 border-t border-borda pt-1.5 font-semibold">
-            <dt>Total</dt>
-            <dd className="tabular-nums">{moeda.format(pedido.total ?? 0)}</dd>
-          </div>
-        </dl>
-      </Secao>
     </div>
   );
 }

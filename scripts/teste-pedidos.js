@@ -488,6 +488,10 @@ try {
       itens: [{ titulo: "x", custoUnitarioCongelado: 5, custoOrigem: "cadastro", comissao: 1 }],
     };
     conferir("projecao: com tudo nao muda nada", projetarPedido(pedido, tudo), pedido);
+    const comLocal = { ...pedido, itens: [{ titulo: "x", produto: { id: "p", sku: "A", localizacao: "R14" } }] };
+    conferir("projecao: sem localizacao o item perde a do produto", projetarPedido(comLocal, (id) => id !== "dado.localizacao").itens[0].produto, { id: "p", sku: "A", localizacao: null });
+    const lido = await lerPedidoDeVenda((await prisma.pedidoDeVenda.findFirst({ where: { numero: "ZZ-PED-102" }, select: { id: true } })).id);
+    conferir("o pedido lido traz a localizacao do produto do item", "localizacao" in (lido.itens[0].produto ?? {}), true);
     const p1 = projetarPedido(pedido, semPessoal);
     conferir(
       "projecao: sem dado pessoal tira documento, telefone, e-mail e endereco",

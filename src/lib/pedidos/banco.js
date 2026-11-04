@@ -368,7 +368,7 @@ function itemParaTela(item) {
     total: numero(item.total),
     comissao: numero(item.comissao),
     custoUnitarioCongelado: numero(item.custoUnitarioCongelado),
-    produto: item.produto ? { id: item.produto.id, sku: item.produto.sku, tituloBase: item.produto.tituloBase, foto: fotoDe(item.produto) } : null,
+    produto: item.produto ? { id: item.produto.id, sku: item.produto.sku, tituloBase: item.produto.tituloBase, localizacao: item.produto.localizacao ?? null, foto: fotoDe(item.produto) } : null,
   };
 }
 

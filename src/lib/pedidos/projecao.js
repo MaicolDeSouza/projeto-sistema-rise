@@ -4,6 +4,7 @@
  *
  * - Sem `dado.pessoalDoCliente` (ver): sai o documento, o telefone, o e-mail e o endereco do comprador e do cliente.
  * - Sem `dado.custo` (ver): sai a estimativa, o real, os lucros e o custo congelado de cada item.
+ * - Sem `dado.localizacao` (ver): sai a localizacao do produto de cada item.
  *
  * Sem imports: `pode(id, nivel)` e o da sessao de Acessos.
  */
@@ -14,7 +15,8 @@ export function projetarPedido(pedido, pode) {
   if (!pedido) return pedido;
   const vePessoal = pode("dado.pessoalDoCliente", "ver");
   const veCusto = pode("dado.custo", "ver");
-  if (vePessoal && veCusto) return pedido;
+  const veLocal = pode("dado.localizacao", "ver");
+  if (vePessoal && veCusto && veLocal) return pedido;
   const copia = { ...pedido };
   if (!vePessoal) {
     Object.assign(copia, { documentoDoComprador: null, telefoneDoComprador: null, emailDoComprador: null, enderecoDeEntrega: null });
@@ -27,6 +29,7 @@ export function projetarPedido(pedido, pode) {
     Object.assign(copia, { estimativa: null, real: null, lucroEstimado: null, lucroReal: null });
     copia.itens = (copia.itens ?? []).map((item) => ({ ...item, custoUnitarioCongelado: null, custoOrigem: null }));
   }
+  if (!veLocal) copia.itens = (copia.itens ?? []).map((item) => (item.produto ? { ...item, produto: { ...item.produto, localizacao: null } } : item));
   return copia;
 }
 

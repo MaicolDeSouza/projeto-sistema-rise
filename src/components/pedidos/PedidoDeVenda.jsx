@@ -6,11 +6,12 @@ import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import Card from "@/components/ui/Card";
 
 import AbaEnvio from "./AbaEnvio";
-import AbaGeral, { PagamentoETotais } from "./AbaGeral";
+import AbaGeral from "./AbaGeral";
 import AbaHistorico from "./AbaHistorico";
 import AbaItens from "./AbaItens";
 import AbaLucro from "./AbaLucro";
 import AbaNotaFiscal from "./AbaNotaFiscal";
+import AbaPagamento from "./AbaPagamento";
 import AbaPecas from "./AbaPecas";
 import JanelaVincularCliente from "./JanelaVincularCliente";
 import RodapeDoPedido from "./RodapeDoPedido";
@@ -29,11 +30,13 @@ export default function PedidoDeVenda({ pedido, veCusto, pode, nfeLigada }) {
   const abas = [
     { id: "geral", rotulo: "Dados do cliente" },
     { id: "itens", rotulo: `Itens (${pedido.itens.length})` },
+    { id: "pagamento", rotulo: "Pagamento" },
     mostrarPecas && { id: "pecas", rotulo: "Peças" },
     { id: "envio", rotulo: "Envio" },
-    veCusto && { id: "lucro", rotulo: "Lucro" },
     { id: "nf", rotulo: "Nota fiscal" },
     { id: "historico", rotulo: "Histórico" },
+    // Lucro por ultimo (pedido do dono em 04/11/2026).
+    veCusto && { id: "lucro", rotulo: "Lucro" },
   ].filter(Boolean);
   const [aba, setAba] = useState("geral");
   const avisos = pedido.avisos ?? [];
@@ -65,8 +68,10 @@ export default function PedidoDeVenda({ pedido, veCusto, pode, nfeLigada }) {
           <AbaGeral pedido={pedido} podeVincular={pode.vincularCliente} aoVincular={() => setVinculando(true)} />
         </Painel>
         <Painel id="itens" aba={aba}>
-          <AbaItens itens={pedido.itens} veCusto={veCusto} />
-          <PagamentoETotais pedido={pedido} />
+          <AbaItens pedido={pedido} />
+        </Painel>
+        <Painel id="pagamento" aba={aba}>
+          <AbaPagamento pedido={pedido} />
         </Painel>
         {mostrarPecas && (
           <Painel id="pecas" aba={aba}>
