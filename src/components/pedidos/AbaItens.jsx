@@ -56,7 +56,20 @@ export default function AbaItens({ pedido }) {
                     </span>
                   )}
                   <span className="min-w-0">
-                    <span className="block truncate">{item.titulo}</span>
+                    {/* O nome tambem abre o produto em nova aba, como o codigo (pedido do dono em 04/11/2026). */}
+                    {item.produto ? (
+                      <a
+                        href={`/produtos/${item.produto.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        title="Abrir o produto em nova aba"
+                        className="block truncate hover:text-acento hover:underline"
+                      >
+                        {item.titulo}
+                      </a>
+                    ) : (
+                      <span className="block truncate">{item.titulo}</span>
+                    )}
                     {item.produto?.localizacao && (
                       <span className="block text-xs text-suave" title="Localização no estoque">
                         Local: <span className="font-mono font-medium text-texto">{item.produto.localizacao}</span>

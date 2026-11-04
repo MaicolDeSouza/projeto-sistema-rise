@@ -1,4 +1,3 @@
-import Link from "next/link";
 
 import SeloDoNivel from "./SeloDoNivel";
 
@@ -86,9 +85,10 @@ export default function AbaGeral({ pedido, podeVincular, aoVincular }) {
         <Linha rotulo="Nome">
           <span className="inline-flex max-w-full items-center gap-2">
             {cliente ? (
-              <Link href={`/cadastros/clientes/${cliente.id}`} title="Abrir o cadastro do cliente" className="truncate hover:text-acento hover:underline">
+              // Abre o cadastro em nova aba (pedido do dono em 04/11/2026: os links do pedido abrem sempre em nova aba).
+              <a href={`/cadastros/clientes/${cliente.id}`} target="_blank" rel="noreferrer" title="Abrir o cadastro do cliente em nova aba" className="truncate hover:text-acento hover:underline">
                 {cliente.nome}
-              </Link>
+              </a>
             ) : (
               <span className="truncate">{pedido.nomeDoComprador ?? "Sem nome"}</span>
             )}
