@@ -261,7 +261,7 @@ export async function aplicarPedidoLido(normalizado, { cliente = null, taxas = n
 // ---- Leitura ----
 
 const FOTO_PRINCIPAL = { where: { tipo: "IMAGEM", papel: "FOTO" }, orderBy: { ordem: "asc" }, take: 1, select: { arquivo: true } };
-const PRODUTO_DA_LINHA = { select: { id: true, sku: true, tituloBase: true, arquivos: FOTO_PRINCIPAL } };
+const PRODUTO_DA_LINHA = { select: { id: true, sku: true, tituloBase: true, localizacao: true, arquivos: FOTO_PRINCIPAL } };
 
 function fotoDe(produto) {
   const arquivo = produto?.arquivos?.[0]?.arquivo;
@@ -334,6 +334,7 @@ export async function listarPedidosDeVenda({ busca, desde, ate, canais, status, 
       numero: p.numero,
       idExterno: p.idExterno,
       blingNumero: p.blingNumero,
+      blingPedidoId: p.blingPedidoId,
       dataDaVenda: p.dataDaVenda,
       cliente: p.cliente ? { id: p.cliente.id, nome: p.cliente.nome, nivel: p.cliente.nivel } : null,
       nomeDoComprador: p.nomeDoComprador,
@@ -352,7 +353,7 @@ export async function listarPedidosDeVenda({ busca, desde, ate, canais, status, 
       avisos: p.avisos,
       quantidadeDeItens: p._count.itens,
       item: primeiro
-        ? { titulo: primeiro.titulo, quantidade: primeiro.quantidade, sku: primeiro.produto?.sku ?? primeiro.codigoNaOrigem ?? null, produtoId: primeiro.produtoId, foto: fotoDe(primeiro.produto) }
+        ? { titulo: primeiro.titulo, quantidade: primeiro.quantidade, sku: primeiro.produto?.sku ?? primeiro.codigoNaOrigem ?? null, localizacao: primeiro.produto?.localizacao ?? null, produtoId: primeiro.produtoId, foto: fotoDe(primeiro.produto) }
         : null,
     };
   });

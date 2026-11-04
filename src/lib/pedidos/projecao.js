@@ -30,10 +30,15 @@ export function projetarPedido(pedido, pode) {
   return copia;
 }
 
-/** A linha da lista de pedidos: sem `dado.custo`, sem os lucros (a coluna some e o numero nao vai junto). */
+/**
+ * A linha da lista de pedidos: sem `dado.custo`, sem os lucros (a coluna some e o numero nao vai junto); sem
+ * `dado.localizacao`, sem a localizacao do item no estoque.
+ */
 export function projetarLinhaDaLista(linha, pode) {
-  if (pode("dado.custo", "ver")) return linha;
-  return { ...linha, lucroEstimado: null, lucroReal: null };
+  let copia = linha;
+  if (!pode("dado.custo", "ver")) copia = { ...copia, lucroEstimado: null, lucroReal: null };
+  if (!pode("dado.localizacao", "ver") && copia.item) copia = { ...copia, item: { ...copia.item, localizacao: null } };
+  return copia;
 }
 
 /** Os clientes da janela Vincular cliente: sem o dado pessoal, sem o documento. */

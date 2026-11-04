@@ -450,7 +450,7 @@ export default function FormularioCliente({ cliente, transportadoras, hoje, some
             <p className="text-sm text-suave">Nenhum pedido de venda deste cliente.</p>
           ) : (
             <>
-              <TabelaPedidosDeVenda linhas={pedidos.linhas} veLucro={veLucro} semCliente ordenavel={false} />
+              <TabelaPedidosDeVenda linhas={pedidos.linhas} veLucro={veLucro} ordenavel={false} />
               {pedidos.total > pedidos.linhas.length && (
                 <p className="mt-2 text-xs text-suave">Os {pedidos.linhas.length} mais recentes de {pedidos.total}.</p>
               )}
