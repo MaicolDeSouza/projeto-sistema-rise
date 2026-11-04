@@ -43,7 +43,7 @@ export default async function PedidoDeVendaPage({ params }) {
         voltarRotulo="Voltar aos pedidos"
         titulo={
           <span className="inline-flex items-center gap-2.5">
-            <IconeDoCanalDoPedido canal={pedido.canal} avisos={pedido.avisos} />
+            <IconeDoCanalDoPedido canal={pedido.canal} avisos={pedido.avisos} doRise={pedido.doRise} />
             Pedido {pedido.numero}
           </span>
         }

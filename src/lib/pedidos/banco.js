@@ -328,6 +328,11 @@ export async function listarPedidosDeVenda({ busca, desde, ate, canais, status, 
       },
     }),
   ]);
+  // A venda veio de um anuncio que o Rise criou? (o "R" no icone do canal, pedido do dono em 04/11/2026)
+  const comAnuncio = pedidos.length
+    ? await prisma.itemDoPedidoDeVenda.findMany({ where: { pedidoId: { in: pedidos.map((p) => p.id) }, anuncioId: { not: null } }, select: { pedidoId: true }, distinct: ["pedidoId"] })
+    : [];
+  const doRise = new Set(comAnuncio.map((i) => i.pedidoId));
   const linhas = pedidos.map((p) => {
     const primeiro = p.itens[0] ?? null;
     return {
@@ -358,6 +363,7 @@ export async function listarPedidosDeVenda({ busca, desde, ate, canais, status, 
       lucroFechado: p.lucroFechado,
       avisos: p.avisos,
       quantidadeDeItens: p._count.itens,
+      doRise: doRise.has(p.id),
       item: primeiro
         ? { titulo: primeiro.titulo, quantidade: primeiro.quantidade, sku: primeiro.produto?.sku ?? primeiro.codigoNaOrigem ?? null, localizacao: primeiro.produto?.localizacao ?? null, produtoId: primeiro.produtoId, foto: fotoDe(primeiro.produto) }
         : null,
@@ -447,6 +453,7 @@ export async function lerPedidoDeVenda(id) {
     lucroReal: numero(p.lucroReal),
     custoDoFreteManual: numero(p.custoDoFreteManual),
     itens: p.itens.map(itemParaTela),
+    doRise: p.itens.some((item) => item.anuncioId),
   };
 }
 

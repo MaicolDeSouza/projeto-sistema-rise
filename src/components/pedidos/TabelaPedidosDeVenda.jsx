@@ -37,7 +37,8 @@ function CelulaDoLucro({ linha }) {
           !
         </span>
       )}
-      <span className={negativo ? "font-medium text-red-600" : fechado ? "" : "text-suave"}>
+      {/* Verde quando deu lucro, vermelho quando deu prejuizo (pedido do dono em 04/11/2026); o "~" marca o estimado. */}
+      <span className={`font-medium ${negativo ? "text-red-600" : valor > 0 ? "text-emerald-700" : "text-suave"}`}>
         {fechado ? "" : "~"}
         {moedaComSinal(valor)}
       </span>
@@ -116,9 +117,27 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
 
   return (
     <div className="overflow-x-auto rounded-lg border border-borda bg-superficie">
-      <table className="w-full text-sm">
+      {/* Larguras FIXAS (pedido do dono em 04/11/2026: ao filtrar, as colunas mudavam de lugar e a leitura se perdia). So a
+          Descricao ocupa o que sobra; o que nao cabe numa coluna e cortado com reticencias (`truncate`) e abre ao passar
+          o mouse. */}
+      <table className="w-full table-fixed text-sm">
+        <colgroup>
+          <col style={{ width: "3.25rem" }} />
+          <col style={{ width: "2.75rem" }} />
+          <col />
+          <col style={{ width: "5.75rem" }} />
+          <col style={{ width: "3.5rem" }} />
+          <col style={{ width: "6.25rem" }} />
+          {veLucro && <col style={{ width: "5.5rem" }} />}
+          <col style={{ width: "7.75rem" }} />
+          <col style={{ width: "8.25rem" }} />
+          <col style={{ width: "6rem" }} />
+          <col style={{ width: "5.5rem" }} />
+          <col style={{ width: "3.25rem" }} />
+        </colgroup>
         <thead className="border-b border-borda bg-fundo text-left text-xs tracking-wide text-suave uppercase">
-          <tr>
+          {/* Divisoria entre as colunas (pedido do dono em 04/11/2026: pareciam todas juntas). */}
+          <tr className="divide-x divide-borda">
             {fixo(<span className="sr-only">Foto</span>, "w-px")}
             {fixo("Qtd.", "w-px whitespace-nowrap text-right")}
             {fixo("Descrição")}
@@ -162,7 +181,7 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
                 key={linha.id}
                 onClick={() => router.push(href)}
                 title="Abrir o pedido no Rise"
-                className={`cursor-pointer transition-colors ${pedeAcao ? "bg-amber-50 hover:bg-amber-100/70" : "hover:bg-fundo/60"}`}
+                className={`cursor-pointer divide-x divide-borda transition-colors ${pedeAcao ? "bg-amber-50 hover:bg-amber-100/70" : "hover:bg-fundo/60"}`}
               >
                 <td className="px-2 py-2">
                   {linha.item?.foto ? (
@@ -178,8 +197,8 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
                   <span className="block truncate">{linha.item?.titulo ?? "—"}</span>
                   {linha.quantidadeDeItens > 1 && <span className="block text-xs text-suave">e mais {linha.quantidadeDeItens - 1}</span>}
                 </td>
-                <td className="whitespace-nowrap px-2 py-2 font-mono text-xs">{linha.item?.sku ?? <span className="font-sans text-suave">—</span>}</td>
-                <td className="whitespace-nowrap px-2 py-2 font-mono text-xs">{linha.item?.localizacao ?? ""}</td>
+                <td className="truncate px-2 py-2 font-mono text-xs">{linha.item?.sku ?? <span className="font-sans text-suave">—</span>}</td>
+                <td className="truncate px-2 py-2 font-mono text-xs">{linha.item?.localizacao ?? ""}</td>
                 {/* Em cima o valor do anuncio (os produtos); embaixo, so quando o cliente pagou frete, o total com o frete
                     (pedido do dono em 04/11/2026). A forma de pagamento fica na dica (tem aba propria no pedido). */}
                 <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums" title={pagamento ? `Pagamento: ${pagamento}` : undefined}>
@@ -191,24 +210,24 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
                     <CelulaDoLucro linha={linha} />
                   </td>
                 )}
-                <td className="whitespace-nowrap px-2 py-2" title={tituloDoStatus}>
+                <td className="truncate px-2 py-2" title={tituloDoStatus}>
                   <span className="inline-flex items-center gap-1.5">
                     <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${COR_DO_STATUS[linha.status] ?? "bg-zinc-300"}`} />
                     {TEXTO_DO_STATUS[linha.status] ?? linha.status}
                   </span>
                 </td>
-                <td className="whitespace-nowrap px-2 py-2" title={tituloDoEnvio}>
+                <td className="truncate px-2 py-2" title={tituloDoEnvio}>
                   <span className="inline-flex items-center gap-1.5">
                     <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${COR_DO_STATUS_DO_ENVIO[linha.statusDoEnvio] ?? "bg-zinc-300"}`} />
                     {TEXTO_DO_STATUS_DO_ENVIO[linha.statusDoEnvio] ?? linha.statusDoEnvio}
                   </span>
                   {/* O servico pode ser longo ("Normal ao endereço"): corta, e o texto inteiro abre ao passar o mouse. */}
-                  {envioDetalhe && <span className="block max-w-28 truncate pl-3.5 text-xs text-suave">{envioDetalhe}</span>}
+                  {envioDetalhe && <span className="block truncate pl-3.5 text-xs text-suave">{envioDetalhe}</span>}
                 </td>
-                <td className="whitespace-nowrap px-2 py-2 tabular-nums text-suave" title={dataCompleta(linha.dataDaVenda)}>
+                <td className="truncate px-2 py-2 tabular-nums text-suave" title={dataCompleta(linha.dataDaVenda)}>
                   {diaEHora(linha.dataDaVenda)}
                 </td>
-                <td className="whitespace-nowrap px-2 py-2 font-mono text-xs font-semibold">
+                <td className="truncate px-2 py-2 font-mono text-xs font-semibold">
                   {noCanal ? (
                     <a href={noCanal} target="_blank" rel="noreferrer" onClick={parar} title={`${abrirNoCanal(linha.origem)}: ${linha.numero}`} className={linkExterno}>
                       {abreviarPedido(linha.numero)}
@@ -223,7 +242,7 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
                   )}
                 </td>
                 <td className="px-2 py-2">
-                  <IconeDoCanalDoPedido canal={linha.canal} avisos={linha.avisos} />
+                  <IconeDoCanalDoPedido canal={linha.canal} avisos={linha.avisos} doRise={linha.doRise} />
                 </td>
               </tr>
             );

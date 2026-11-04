@@ -398,6 +398,11 @@ try {
     conferir("lista so os pedidos de um cliente", [doCliente.total, doCliente.linhas[0]?.id], [1, semDoc.id]);
     const lista = await listarPedidosDeVenda({ busca: "ZZ-PED-10", porPagina: 25 });
     conferir("lista acha pelo numero e traz o cliente", [lista.total >= 3, lista.linhas[0].cliente?.nome !== undefined], [true, true]);
+    // O "R" no icone do canal (pedido do dono em 04/11/2026): a venda veio de um anuncio que o Rise criou.
+    const doRise = await listarPedidosDeVenda({ busca: "ZZ-PED-100" });
+    const deFora = await listarPedidosDeVenda({ busca: "ZZ-PED-103" });
+    conferir("lista marca a venda de anuncio do Rise", [doRise.linhas[0]?.doRise, deFora.linhas[0]?.doRise], [true, false]);
+    conferir("o pedido lido diz se a venda e de anuncio do Rise", (await lerPedidoDeVenda(a1.id)).doRise, true);
     conferir("so com aviso", (await listarPedidosDeVenda({ busca: "ZZ-PED-10", soComAviso: true })).linhas.every((l) => l.avisos.length > 0), true);
     // O filtro das colunas Status e Envio (pedido do dono em 04/11/2026): as opcoes sao as que existem na lista filtrada.
     const opcoes = await opcoesDasColunas({ busca: "ZZ-PED-10" });
