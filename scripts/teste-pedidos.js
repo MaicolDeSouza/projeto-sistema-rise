@@ -30,6 +30,7 @@ const { normalizarPedidoBling, classificarLojaDoBling } = await import("../src/l
 const { statusDoPedido, statusDoEnvio } = await import("../src/lib/pedidos/status.js");
 const { clienteDoPedido } = await import("../src/lib/pedidos/cliente.js");
 const { custoCongeladoDoProduto, casarItens } = await import("../src/lib/pedidos/itens.js");
+const { parcelasDaEstimativa, parcelasDoReal, devolvido, lucroDivergente, lucroFechado } = await import("../src/lib/pedidos/lucro.js");
 
 /** Le uma fixture de scripts/lib/fixtures/pedidos/ (copia nova a cada chamada: o teste edita a vontade). */
 function fx(nome) {
@@ -265,6 +266,21 @@ try {
     const fora = await casarItens(prisma, { origem: "BLING", itens: [{ ordem: 0, idNaOrigem: "0", codigoNaOrigem: "NAO-EXISTE", titulo: "X", quantidade: 1, precoUnitario: 5, desconto: 0, total: 5, comissao: null }] });
     conferir("fora do Rise", [fora.itens[0].produtoId, fora.avisos], [null, ["produtoForaDoRise"]]);
     conferir("Bling nao avisa nao conferido", (await casarItens(prisma, { origem: "BLING", itens: [{ ordem: 0, idNaOrigem: b.blingId, codigoNaOrigem: "ZZ-PED-B", titulo: "B", quantidade: 1, precoUnitario: 5, desconto: 0, total: 5, comissao: null }] })).avisos, []);
+  }
+
+  console.log("\nLucro");
+  {
+    const itemML = { quantidade: 2, precoUnitario: 100, total: 200, comissao: 26, custoUnitarioCongelado: 40 };
+    const est = parcelasDaEstimativa({ origem: "MERCADO_LIVRE", itens: [itemML], totais: { total: 200 }, custosML: { percentual: 0.13, tarifaFixa: 0, frete: 19.05 } });
+    conferir("estimativa ML = editor x quantidade", [est.comissao, est.frete, est.imposto, est.custo, est.lucro, est.origem], [26, 38.1, 12, 80, 43.9, "editorML"]);
+    const real = parcelasDoReal({ origem: "MERCADO_LIVRE", itens: [itemML], totais: { total: 200 }, envio: { custoDoVendedor: 18.12, fonteDoCusto: "envio" }, estimativa: est });
+    conferir("real ML pelo pedido e pelo envio", [real.comissao, real.frete, real.lucro, real.fontes.frete], [26, 18.12, 63.88, "envio"]);
+    conferir("divergente acima da tolerancia", [lucroDivergente(43.9, 63.88), lucroDivergente(43.9, 44.8), lucroDivergente(10, 11.2), lucroDivergente(null, 5)], [true, false, true, false]);
+    conferir("LI sem taxa cadastrada = comissao estimada", parcelasDoReal({ origem: "LOJA_INTEGRADA", itens: [{ quantidade: 1, precoUnitario: 50, total: 50, custoUnitarioCongelado: 20 }], totais: { total: 60 }, envio: { custoDoVendedor: null, fonteDoCusto: "estimado" }, pagamento: [{ tipo: "pix" }], taxas: null, estimativa: { comissao: 0, frete: 0 } }).fontes, { comissao: "estimado", frete: "estimado" });
+    conferir("LI com taxa e etiqueta", parcelasDoReal({ origem: "LOJA_INTEGRADA", itens: [{ quantidade: 1, precoUnitario: 50, total: 50, custoUnitarioCongelado: 20 }], totais: { total: 60 }, envio: { custoDoVendedor: 18.12, fonteDoCusto: "etiqueta" }, pagamento: [{ tipo: "pix" }], taxas: { pagamento: [{ tipo: "pix", percentual: 0.0099, fixa: 0 }] }, estimativa: {} }).comissao, 0.59);
+    conferir("Bling frete manual", parcelasDoReal({ origem: "BLING", itens: [], totais: { total: 100 }, envio: {}, pagamento: [], custoDoFreteManual: 25, estimativa: {} }).fontes.frete, "manual");
+    conferir("devolvido", devolvido(22.5), { receita: 0, comissao: 0, tarifaFixa: 0, frete: 22.5, imposto: 0, custo: 0, lucro: -22.5, fontes: { frete: "envio" } });
+    conferir("fechado so entregue sem estimado", [lucroFechado({ status: "ENTREGUE", real: { fontes: { frete: "envio" } } }), lucroFechado({ status: "ENTREGUE", real: { fontes: { frete: "estimado" } } }), lucroFechado({ status: "ENVIADO", real: { fontes: {} } })], [true, false, false]);
   }
 
   // Marcador: os blocos seguintes entram acima desta linha.
