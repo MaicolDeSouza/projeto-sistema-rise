@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 
 import TabelaAnunciosLI from "@/components/anuncios/li/TabelaAnunciosLI";
+import TaxasDoCanal from "@/components/canais/TaxasDoCanal";
 import Paginacao from "@/components/mercados/Paginacao";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import CampoBusca from "@/components/ui/CampoBusca";
@@ -9,6 +10,7 @@ import LinkDeVolta from "@/components/ui/LinkDeVolta";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { listarAnunciosLI } from "@/lib/canaisDeVenda/li/banco";
+import { lerTaxas } from "@/lib/pedidos/taxas";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Loja Integrada | Sistema Rise" };
@@ -33,8 +35,9 @@ export default async function LojaIntegradaPage({ searchParams }) {
 
   let lista = null;
   let erro = null;
+  let taxas = null;
   try {
-    lista = await listarAnunciosLI({ busca, pagina: textoDe(params?.pagina), ordenar, direcao });
+    [lista, taxas] = await Promise.all([listarAnunciosLI({ busca, pagina: textoDe(params?.pagina), ordenar, direcao }), lerTaxas("LOJA_INTEGRADA")]);
   } catch (e) {
     erro = e;
   }
@@ -51,14 +54,16 @@ export default async function LojaIntegradaPage({ searchParams }) {
         somenteLeitura={podeEditar ? null : "Seu acesso à Loja Integrada é de leitura"}
         descricao="Conteúdo, preço, SEO e dados fiscais dos produtos da loja própria, a partir dos produtos Conferidos. O estoque continua pelo Bling."
         acao={
-          podeEditar && (
           <div className="flex flex-wrap gap-2">
-            <Link href="/canais-de-venda/loja-integrada/novo" className={`${botao} bg-acento text-white hover:opacity-90`}>
-              <Plus size={16} />
-              Novo anúncio
-            </Link>
+            {/* As taxas de venda da loja (Pedidos de venda): o lucro real do pedido da LI tira a taxa da forma de pagamento. */}
+            <TaxasDoCanal canal="LOJA_INTEGRADA" nome="Loja Integrada" taxas={taxas} podeEditar={podeEditar} />
+            {podeEditar && (
+              <Link href="/canais-de-venda/loja-integrada/novo" className={`${botao} bg-acento text-white hover:opacity-90`}>
+                <Plus size={16} />
+                Novo anúncio
+              </Link>
+            )}
           </div>
-          )
         }
       />
 

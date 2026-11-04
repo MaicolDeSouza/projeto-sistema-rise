@@ -107,6 +107,12 @@ const LISTA = [
   naoDelegavel("riseAi.configuracoes.promptCliente", "Rise AI › Configurações › Atendimento › Prompt das respostas ao cliente", "riseAi.configuracoes.atendimento"),
 
   tela("tela.pedidos", "Pedidos", "/pedidos"),
+  // Pedidos de venda (spec 2026-11-04): o que o operador faz num pedido lido do ML, da LI ou do Bling.
+  acao("acao.pedidos.marcarSeparacao", "Marcar pedido em separação", "tela.pedidos"),
+  acao("acao.pedidos.editarCustoDoFrete", "Digitar o custo real do frete (Bling)", "tela.pedidos"),
+  acao("acao.pedidos.vincularCliente", "Vincular cliente ao pedido", "tela.pedidos"),
+  acao("acao.pedidos.emitirNF", "Criar NF pelo pedido", "tela.pedidos", "Desligada pela trava NFE_EMISSAO."),
+  acao("acao.pedidos.baixarNF", "Baixar NF e XML do pedido", "tela.pedidos"),
   tela("tela.estoque", "Estoque", "/estoque"),
   // Ordem de producao (spec 2026-10-26-producao-pecas-proprias-design.md): a lista e a ordem; editar = criar ordem.
   sub("tela.estoque.producao", "Estoque › Ordens de produção", "tela.estoque"),

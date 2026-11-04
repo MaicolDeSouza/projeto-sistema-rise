@@ -35,6 +35,9 @@ const { necessidadeDoPedido, calcularPecas } = await import("../src/lib/pedidos/
 const { aplicarPedidoLido, listarPedidosDeVenda, lerPedidoDeVenda, marcarEmSeparacao, salvarCustoDoFreteManual, vincularCliente, espelharNoBling } = await import("../src/lib/pedidos/banco.js");
 const { rodarLeituraDePedidos } = await import("../src/lib/pedidos/leitura.js");
 const { ROTINAS_DO_WORKER } = await import("../src/lib/saude/regras.js");
+const { RECURSOS } = await import("../src/lib/acessos/recursos.js");
+const { Prisma } = await import("@/generated/prisma/client");
+const { lerTaxas, salvarTaxas, TIPOS_DE_PAGAMENTO_LI } = await import("../src/lib/pedidos/taxas.js");
 
 /** Le uma fixture de scripts/lib/fixtures/pedidos/ (copia nova a cada chamada: o teste edita a vontade). */
 function fx(nome) {
@@ -410,6 +413,31 @@ try {
       await prisma.rotinaDoWorker.deleteMany({ where: { id: "pedidos" } });
       if (rotinaAntes) await prisma.rotinaDoWorker.create({ data: rotinaAntes }).catch(() => {});
     }
+  }
+
+  console.log("\nAcessos e taxas");
+  {
+    conferir(
+      "recursos de pedidos",
+      RECURSOS.filter((r) => r.id.startsWith("acao.pedidos.")).map((r) => r.id),
+      ["acao.pedidos.marcarSeparacao", "acao.pedidos.editarCustoDoFrete", "acao.pedidos.vincularCliente", "acao.pedidos.emitirNF", "acao.pedidos.baixarNF"],
+    );
+    conferir("acoes de pedidos ficam sob a tela de Pedidos", RECURSOS.filter((r) => r.id.startsWith("acao.pedidos.")).every((r) => r.pai === "tela.pedidos"), true);
+    conferir("tipos de pagamento da LI", TIPOS_DE_PAGAMENTO_LI, ["pix", "boleto", "cartao_credito", "cartao_debito", "outro"]);
+    const antes = await prisma.configCanal.findUnique({ where: { canal: "LOJA_INTEGRADA" } });
+    try {
+      conferir("taxas: percentual acima de 1 recusado", (await salvarTaxas("LOJA_INTEGRADA", { pagamento: [{ tipo: "pix", percentual: 5, fixa: 0 }] })).ok, false);
+      conferir("taxas: tipo desconhecido recusado", (await salvarTaxas("LOJA_INTEGRADA", { pagamento: [{ tipo: "cheque", percentual: 0.01, fixa: 0 }] })).ok, false);
+      conferir("taxas: fixa negativa recusada", (await salvarTaxas("LOJA_INTEGRADA", { pagamento: [{ tipo: "pix", percentual: 0.01, fixa: -1 }] })).ok, false);
+      conferir("taxas: canal sem taxa recusado", (await salvarTaxas("MERCADO_LIVRE", { pagamento: [] })).ok, false);
+      conferir("taxas salvas", (await salvarTaxas("LOJA_INTEGRADA", { pagamento: [{ tipo: "pix", percentual: 0.0099, fixa: 0 }] })).ok, true);
+      conferir("taxas gravadas e lidas", await lerTaxas("LOJA_INTEGRADA"), { pagamento: [{ tipo: "pix", percentual: 0.0099, fixa: 0 }], padrao: { percentual: 0, fixa: 0, frete: 0 } });
+      conferir("taxas: o real da LI usa a taxa salva", parcelasDoReal({ origem: "LOJA_INTEGRADA", itens: [{ precoUnitario: 100, quantidade: 1, total: 100, custoUnitarioCongelado: 50 }], totais: { totalProdutos: 100, total: 100 }, pagamento: [{ tipo: "pix" }], taxas: await lerTaxas("LOJA_INTEGRADA") }).comissao, 0.99);
+    } finally {
+      if (antes) await prisma.configCanal.update({ where: { canal: "LOJA_INTEGRADA" }, data: { taxas: antes.taxas ?? Prisma.DbNull } });
+      else await prisma.configCanal.deleteMany({ where: { canal: "LOJA_INTEGRADA" } });
+    }
+    conferir("taxas: sem linha no banco = null", await lerTaxas("SHOPEE"), null);
   }
 
   // Marcador: os blocos seguintes entram acima desta linha.
