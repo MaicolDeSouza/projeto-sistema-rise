@@ -28,6 +28,7 @@ const { normalizarPedidoML } = await import("../src/lib/pedidos/ml.js");
 const { normalizarPedidoLI, escolherEtiquetaEnviali } = await import("../src/lib/pedidos/li.js");
 const { normalizarPedidoBling, classificarLojaDoBling } = await import("../src/lib/pedidos/bling.js");
 const { statusDoPedido, statusDoEnvio } = await import("../src/lib/pedidos/status.js");
+const { clienteDoPedido } = await import("../src/lib/pedidos/cliente.js");
 
 /** Le uma fixture de scripts/lib/fixtures/pedidos/ (copia nova a cada chamada: o teste edita a vontade). */
 function fx(nome) {
@@ -228,6 +229,22 @@ try {
     conferir("envio LI sem Enviali pela situacao", statusDoEnvio({ origem: "LOJA_INTEGRADA", envio: { tipo: "correios", statusDaOrigem: null, situacaoDoPedido: "pedido_enviado" } }), "EM_TRANSITO");
     conferir("sem envio", statusDoEnvio({ origem: "BLING", envio: { tipo: null } }), "SEM_ENVIO");
     conferir("devolvido no envio", statusDoEnvio({ origem: "MERCADO_LIVRE", envio: { statusDaOrigem: "delivered" }, devolucao: { entregueEm: new Date() } }), "DEVOLVIDO");
+  }
+
+  console.log("\nCliente automatico");
+  {
+    const base = { canal: "MERCADO_LIVRE", numero: "ZZ-PED-10", comprador: { nome: "ZZ Ped Comprador", documento: "12345678909", email: "a@b.c", telefone: "54988990008" }, enderecoDeEntrega: { endereco: "Rua A", numero: "10", bairro: "Centro", cidade: "Caxias do Sul", uf: "RS", cep: "95090970" } };
+    const novo = await clienteDoPedido(prisma, base);
+    const criado = await prisma.cliente.findUnique({ where: { id: novo.clienteId }, include: { enderecos: true } });
+    conferir("cria o cliente formatado", [novo.avisos, criado.documento, criado.tipoPessoa, criado.telefone, criado.enderecos[0].tipo, criado.enderecos[0].cep, criado.observacoes], [[], "123.456.789-09", "FISICA", "54988990008", "GERAL", "95090-970", "Criado pelo pedido MERCADO_LIVRE ZZ-PED-10"]);
+    await prisma.cliente.update({ where: { id: novo.clienteId }, data: { nome: "Nome editado pelo dono", email: null } });
+    const deNovo = await clienteDoPedido(prisma, { ...base, comprador: { ...base.comprador, nome: "Outro nome", documento: "123.456.789-09" } });
+    const relido = await prisma.cliente.findUnique({ where: { id: novo.clienteId } });
+    conferir("casa pelo documento com mascara e nao sobrescreve o nome, preenche o email vazio", [deNovo.clienteId === novo.clienteId, relido.nome, relido.email], [true, "Nome editado pelo dono", "a@b.c"]);
+    conferir("sem documento", await clienteDoPedido(prisma, { ...base, comprador: { ...base.comprador, documento: null } }), { clienteId: null, avisos: ["clienteSemDocumento"] });
+    const invalido = await clienteDoPedido(prisma, { ...base, comprador: { ...base.comprador, documento: "00000000000" } });
+    conferir("documento invalido cria com aviso", [invalido.avisos, (await prisma.cliente.findUnique({ where: { id: invalido.clienteId } })).observacoes.includes("documento inválido")], [["documentoInvalido"], true]);
+    conferir("CNPJ vira juridica", (await prisma.cliente.findUnique({ where: { id: (await clienteDoPedido(prisma, { ...base, comprador: { ...base.comprador, documento: "11222333000181" } })).clienteId } })).tipoPessoa, "JURIDICA");
   }
 
   // Marcador: os blocos seguintes entram acima desta linha.
