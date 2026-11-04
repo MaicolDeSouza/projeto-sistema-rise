@@ -129,7 +129,7 @@ export default function TabelaPedidos({ linhas, status, veCusto, podeExcluir = f
                   <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-suave">{linha.prazo ?? "—"}</td>
                   <td className="px-3 py-2.5">
                     <span className="flex items-center gap-1.5">
-                      <SeloDoStatus status={linha.status} />
+                      <SeloDoStatus status={linha.status} fase={linha.fase} />
                       {/* O "!" junta os motivos (atraso, rastreio, situacao no AliExpress, sem produto, entregue): um por linha. */}
                       {linha.alertas?.length > 0 && (
                         <span

@@ -91,7 +91,7 @@ const regras = await import("../src/lib/compras/aliexpress/regras.js");
     "avisos",
     avisosDoPedido({ entregueEm: new Date("2026-10-27T12:00:00Z"), faltaLancar: 3, linhasPendentes: 2, virtualErros: 1 }),
     [
-      "Entregue no AliExpress em 27/10, falta lançar.",
+      "Entregue em 27/10, aguardando conferência para lançar o estoque.",
       "2 item(ns) sem produto: escolha o produto para contar no estoque a caminho.",
       "Entrada no depósito Virtual pendente em 1 item(ns).",
     ],
@@ -182,12 +182,53 @@ const regras = await import("../src/lib/compras/aliexpress/regras.js");
     [
       ["Passou da previsão de entrega (19/11) e não foi entregue."],
       [],
-      ["Entregue no AliExpress em 18/11, falta lançar."],
+      [],
       ["Rastreio: Objeto retido pela alfândega (18/11)."],
       ["Situação no AliExpress: Em disputa."],
       ["2 item(ns) sem produto: escolha o produto para contar no estoque a caminho."],
       [],
     ],
+  );
+  // Entregue pelo rastreio (pedido do dono em 04/11/2026, PC-0015: "Pacote entregue." em 26/10 com o AliExpress ainda em
+  // "Aguardando a entrega" acendia o "!" de atraso). Chegou = "Aguardando conferencia", sem "!".
+  const { entregueNoRastreio, faseDoPedido } = regras;
+  conferir(
+    "entregue no rastreio",
+    [
+      entregueNoRastreio({ codigo: null, descricao: "Pacote entregue." }),
+      entregueNoRastreio({ codigo: null, descricao: "Objeto entregue ao destinatário" }),
+      entregueNoRastreio({ codigo: "AE_CW_SIGN_IN_SUCCESS", descricao: "Chegou ao armazém de consolidação" }),
+      entregueNoRastreio({ codigo: null, descricao: "Pacote entregue à transportadora" }),
+      entregueNoRastreio({ codigo: null, descricao: "Tentativa de entrega não efetuada: destinatário ausente" }),
+      entregueNoRastreio({ codigo: null, descricao: "Objeto não entregue" }),
+      entregueNoRastreio({ codigo: null, descricao: "Pacote saiu das instalações da transportadora" }),
+      entregueNoRastreio(null),
+    ],
+    [true, true, false, false, false, false, false, false],
+  );
+  conferir(
+    "alertas: entregue pelo rastreio nao e atraso",
+    alertasDoPedido({ ...base, prazoFim: new Date("2026-11-19T05:40:00Z"), ultimosEventos: [{ codigo: null, descricao: "Pacote entregue.", em: new Date("2026-11-18T12:00:00Z") }] }),
+    [],
+  );
+  const entregue = { ultimoEvento: "Pacote entregue.", ultimoCodigo: null };
+  const andando = { ultimoEvento: "Pacote saiu das instalações da transportadora", ultimoCodigo: null };
+  const ali = { origem: "ALIEXPRESS", status: "ENVIADO", faltaLancar: 20 };
+  conferir(
+    "fase do pedido na Situacao",
+    [
+      faseDoPedido({ ...ali, pacotes: [] }),
+      faseDoPedido({ ...ali, pacotes: [entregue] }),
+      faseDoPedido({ ...ali, pacotes: [entregue, andando] }),
+      faseDoPedido({ ...ali, pacotes: [andando] }),
+      faseDoPedido({ ...ali, pacotes: [], entregueEm: new Date("2026-10-26T12:00:00Z") }),
+      faseDoPedido({ ...ali, status: "PARCIAL", pacotes: [entregue] }),
+      faseDoPedido({ ...ali, faltaLancar: 0, pacotes: [entregue] }),
+      faseDoPedido({ ...ali, status: "FINALIZADO", pacotes: [] }),
+      faseDoPedido({ ...ali, status: "CANCELADO", pacotes: [] }),
+      faseDoPedido({ ...ali, origem: "RISE", pacotes: [] }),
+    ],
+    ["Aguardando envio", "Aguardando conferência", null, null, "Aguardando conferência", "Aguardando conferência", null, null, null, null],
   );
   // Custo por peca (pedido do dono em 29/10/2026): o total pago (com frete e imposto, menos desconto) / pecas, rateado pelo
   // valor de cada item quando o pedido tem mais de um produto.
@@ -743,8 +784,14 @@ try {
     conferir("MCP: lerPedidoDeCompra traz o AliExpress e o rastreio", [lidoPeloMcp.aliexpress?.numero, lidoPeloMcp.aliexpress?.pacotes?.[0]?.codigo, lidoPeloMcp.aliexpress?.pacotes?.[0]?.previsao], ["9935244197193461", "NN446506474BR", "10/11 a 19/11"]);
 
     await prisma.pedidoAliExpress.update({ where: { id: pa.id }, data: { entregueEm: new Date("2026-10-27T12:00:00Z") } });
-    conferir("entregue sem lancar avisa", (await lerPedido(pa.pedidoId)).avisos, ["Entregue no AliExpress em 27/10, falta lançar."]);
-    conferir("lista: '!' de entregue sem lancar", (await listarPedidos({ busca: "9935244197193461" })).linhas[0]?.alertas, ["Entregue no AliExpress em 27/10, falta lançar."]);
+    conferir("entregue sem lancar avisa", (await lerPedido(pa.pedidoId)).avisos, ["Entregue em 27/10, aguardando conferência para lançar o estoque."]);
+    const naLista = (await listarPedidos({ busca: "9935244197193461" })).linhas[0];
+    conferir("lista: entregue sem lancar = Aguardando conferencia, sem '!'", [naLista?.fase, naLista?.alertas], ["Aguardando conferência", []]);
+    await prisma.pedidoAliExpress.update({ where: { id: pa.id }, data: { entregueEm: null } });
+    await prisma.pacoteAliExpress.updateMany({ where: { pedidoAliExpressId: pa.id }, data: { ultimoEvento: "Pacote entregue.", ultimoCodigo: null, ultimoEventoEm: new Date("2026-10-26T16:05:46Z") } });
+    const peloRastreio = (await listarPedidos({ busca: "9935244197193461" })).linhas[0];
+    conferir("lista: entregue so pelo rastreio = Aguardando conferencia", [peloRastreio?.fase, peloRastreio?.alertas], ["Aguardando conferência", []]);
+    conferir("tela: entregue pelo rastreio avisa com a data do evento", (await lerPedido(pa.pedidoId)).avisos, ["Entregue em 26/10, aguardando conferência para lançar o estoque."]);
     await prisma.itemDoPedidoDeCompra.update({ where: { id: itemId }, data: { quantidadeLancada: 4 } });
     conferir("entregue com tudo lancado: sem aviso", (await lerPedido(pa.pedidoId)).avisos, []);
     await devolverMarca();

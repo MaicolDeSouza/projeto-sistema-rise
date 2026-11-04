@@ -16,7 +16,7 @@ import {
   totaisDoPedido,
 } from "@/lib/compras/regras";
 import { conferirPedido } from "@/lib/compras/esquema";
-import { alertasDoPedido, avisosDoPedido, prazoDoPedido, previsaoEmDatas } from "@/lib/compras/aliexpress/regras";
+import { alertasDoPedido, avisosDoPedido, entregaPeloRastreio, faseDoPedido, prazoDoPedido, previsaoEmDatas } from "@/lib/compras/aliexpress/regras";
 import { apagarPastaDoPedido, apagarPropostaDoPedido, moverPropostaParaPedido } from "@/lib/compras/arquivos";
 
 /**
@@ -446,7 +446,13 @@ function pedidoParaTela(pedido) {
     avisos: pedido.aliexpress
       ? [
           ...motivosDoPedido(pedido, itens).alertas,
-          ...avisosDoPedido({ virtualErros: pedido.aliexpress.linhas.filter((linha) => linha.virtualErro).length }),
+          // Chegou (no AliExpress ou so pelo rastreio) e falta lancar: o aviso ambar fica so aqui; na lista e a Situacao.
+          ...avisosDoPedido({
+            entregueEm: pedido.aliexpress.entregueEm ?? entregaPeloRastreio(pedido.aliexpress.pacotes),
+            canceladoNoAliExpressEm: pedido.aliexpress.canceladoNoAliExpressEm,
+            faltaLancar: ["ENVIADO", "PARCIAL"].includes(pedido.status) ? itens.reduce((soma, item) => soma + faltaLancar(item), 0) : 0,
+            virtualErros: pedido.aliexpress.linhas.filter((linha) => linha.virtualErro).length,
+          }),
         ]
       : [],
   };
@@ -475,7 +481,14 @@ function motivosDoPedido(pedido, itens) {
     ultimosEventos: (ali?.pacotes ?? []).map((pacote) => ({ codigo: pacote.ultimoCodigo, descricao: pacote.ultimoEvento, em: pacote.ultimoEventoEm })),
     statusNoAliExpress: ali?.statusTexto ?? null,
   });
-  return { prazo, alertas };
+  const fase = faseDoPedido({
+    origem: pedido.origem,
+    status: pedido.status,
+    faltaLancar: itens.reduce((soma, item) => soma + faltaLancar(item), 0),
+    entregueEm: ali?.entregueEm ?? null,
+    pacotes: ali?.pacotes ?? [],
+  });
+  return { prazo, alertas, fase };
 }
 
 /** O que a tela mostra do AliExpress: cabecalho, linhas sem produto, opcao e rastreio por item, Virtual pendente. */
@@ -645,7 +658,7 @@ export async function listarPedidos({ status, busca, pagina = 1, porPagina = 25 
       atualizadoEm: pedido.atualizadoEm,
       origem: pedido.origem,
       loja: pedido.aliexpress?.loja ?? null,
-      ...(({ prazo, alertas }) => ({ prazo: prazo?.texto ?? null, alertas }))(motivosDoPedido(pedido, pedido.itens)),
+      ...(({ prazo, alertas, fase }) => ({ prazo: prazo?.texto ?? null, alertas, fase }))(motivosDoPedido(pedido, pedido.itens)),
     })),
   };
 }

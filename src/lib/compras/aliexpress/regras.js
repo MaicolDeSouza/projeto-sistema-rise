@@ -97,7 +97,7 @@ export function formatarDataCurta(data) {
 export function avisosDoPedido({ entregueEm, canceladoNoAliExpressEm, faltaLancar = 0, estoqueLancado = false, linhasPendentes = 0, virtualErros = 0 }) {
   const avisos = [];
   if (canceladoNoAliExpressEm && estoqueLancado) avisos.push(AVISO_CANCELADO_COM_ESTOQUE);
-  if (entregueEm && !canceladoNoAliExpressEm && faltaLancar > 0) avisos.push(`Entregue no AliExpress em ${formatarDataCurta(entregueEm)}, falta lançar.`);
+  if (entregueEm && !canceladoNoAliExpressEm && faltaLancar > 0) avisos.push(`Entregue em ${formatarDataCurta(entregueEm)}, aguardando conferência para lançar o estoque.`);
   if (linhasPendentes > 0) avisos.push(`${linhasPendentes} item(ns) sem produto: escolha o produto para contar no estoque a caminho.`);
   if (virtualErros > 0) avisos.push(`Entrada no depósito Virtual pendente em ${virtualErros} item(ns).`);
   return avisos;
@@ -207,6 +207,40 @@ const TEXTO_DE_PROBLEMA =
   /falha|nao entreg|nao efetuad|ausente|devolvid|devolucao|retornad|retido|apreendid|aguardando pagamento|pagamento pendente|extravi|endereco (incorreto|insuficiente|errado|nao localizado)|recusad|irregular|nao autorizad|problema/;
 const TEXTO_DE_CONCLUSAO = /conclui|liberad|entregue ao destinatario/;
 
+/**
+ * O evento de rastreio diz que o pacote chegou ao comprador? Medido em 04/11/2026 no PC-0015: "Pacote entregue." (fase
+ * "Entregue" na pagina de rastreio) com o pedido ainda "Aguardando a entrega" na lista do AliExpress, que so muda para
+ * "Concluido" quando o comprador confirma ou o prazo vence. "Entregue a transportadora/ao centro" e "nao entregue" nao contam.
+ */
+const NAO_E_A_ENTREGA = /nao |tentativa|transportador|centro|armazem|agente|correio|operador|parceiro|aeroporto|alfandega|ponto de/;
+export function entregueNoRastreio(evento) {
+  if (!evento) return false;
+  if (/DELIVERED|DELIVERY_SUCCESS/i.test(String(evento.codigo ?? ""))) return true;
+  const texto = semAcento(evento.descricao);
+  return /\bentregue\b/.test(texto) && !NAO_E_A_ENTREGA.test(texto);
+}
+
+/** Quando TODOS os pacotes foram entregues pelo rastreio, a data do ultimo evento; senao null. */
+export function entregaPeloRastreio(pacotes) {
+  const lista = pacotes ?? [];
+  if (!lista.length || !lista.every((pacote) => entregueNoRastreio({ codigo: pacote.ultimoCodigo, descricao: pacote.ultimoEvento }))) return null;
+  const datas = lista.map((pacote) => pacote.ultimoEventoEm).filter(Boolean).map((data) => new Date(data).getTime());
+  return datas.length ? new Date(Math.max(...datas)) : new Date(0);
+}
+
+/**
+ * A fase da entrega que a coluna Situacao mostra no lugar do status do Rise (pedido do dono em 04/11/2026: "caso o
+ * vendedor nao tenha enviado mostrar aguardando envio"; "caso o produto tenha chegado informado pelo rastreio deve mostrar
+ * aguardando conferencia"). So pedido do AliExpress em aberto; null = a coluna mostra o status do Rise. As outras fases
+ * (em transito, alfandega...) esperam a aprovacao da lista.
+ */
+export function faseDoPedido({ origem, status, faltaLancar = 0, entregueEm = null, pacotes = [] }) {
+  if (origem !== "ALIEXPRESS" || (status !== "ENVIADO" && status !== "PARCIAL")) return null;
+  if (entregueEm || entregaPeloRastreio(pacotes)) return faltaLancar > 0 ? "Aguardando conferência" : null;
+  if (!(pacotes ?? []).length && status === "ENVIADO") return "Aguardando envio";
+  return null;
+}
+
 /** O evento de rastreio indica problema (falha na entrega, alfandega, devolucao, taxa a pagar, extravio)? */
 export function problemaNoRastreio(evento) {
   if (!evento) return false;
@@ -257,7 +291,9 @@ export function alertasDoPedido({
   if (status !== "ENVIADO" && status !== "PARCIAL") return [];
   const alertas = [];
   const diaDe = (data) => new Date(data).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-  if (prazoFim && !entregueEm && faltaLancar > 0 && diaDe(agora) > diaDe(prazoFim)) {
+  // Chegou pelo rastreio = entregue, mesmo com o pedido ainda "Aguardando a entrega" no AliExpress (PC-0015, 04/11/2026).
+  const chegou = Boolean(entregueEm) || ((ultimosEventos ?? []).length > 0 && ultimosEventos.every((evento) => entregueNoRastreio(evento)));
+  if (prazoFim && !chegou && faltaLancar > 0 && diaDe(agora) > diaDe(prazoFim)) {
     alertas.push(`Passou da previsão de entrega (${formatarDataCurta(prazoFim)}) e não foi entregue.`);
   }
   for (const evento of ultimosEventos ?? []) {
@@ -267,6 +303,7 @@ export function alertasDoPedido({
   if (situacao && /disputa|reembols|cancelad|fechad/.test(situacao) && !(canceladoNoAliExpressEm && estoqueLancado)) {
     alertas.push(`Situação no AliExpress: ${statusNoAliExpress}.`);
   }
-  alertas.push(...avisosDoPedido({ entregueEm, canceladoNoAliExpressEm, faltaLancar, estoqueLancado, linhasPendentes }));
+  // Entregue nao e "!": a Situacao ja diz "Aguardando conferencia" (pedido do dono em 04/11/2026).
+  alertas.push(...avisosDoPedido({ entregueEm: null, canceladoNoAliExpressEm, faltaLancar, estoqueLancado, linhasPendentes }));
   return alertas;
 }
