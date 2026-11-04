@@ -180,9 +180,11 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
                 </td>
                 <td className="whitespace-nowrap px-2 py-2 font-mono text-xs">{linha.item?.sku ?? <span className="font-sans text-suave">—</span>}</td>
                 <td className="whitespace-nowrap px-2 py-2 font-mono text-xs">{linha.item?.localizacao ?? ""}</td>
-                <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">
-                  {moeda.format(linha.total ?? 0)}
-                  {pagamento && <span className="block text-xs text-suave">{pagamento}</span>}
+                {/* Em cima o valor do anuncio (os produtos); embaixo, so quando o cliente pagou frete, o total com o frete
+                    (pedido do dono em 04/11/2026). A forma de pagamento fica na dica (tem aba propria no pedido). */}
+                <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums" title={pagamento ? `Pagamento: ${pagamento}` : undefined}>
+                  {moeda.format(linha.totalProdutos ?? linha.total ?? 0)}
+                  {Number(linha.freteCobrado) > 0 && <span className="block text-xs text-suave">{moeda.format(linha.total ?? 0)} c/ frete</span>}
                 </td>
                 {veLucro && (
                   <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">
