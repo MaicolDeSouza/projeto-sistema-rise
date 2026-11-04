@@ -122,9 +122,9 @@ async function apoioDoBling(bling) {
   return { formas, situacoes };
 }
 
-async function lerPedidoBling(bling, idExterno, apoio) {
+async function lerPedidoBling(bling, idExterno, apoio, pedidoJaLido = null) {
   const id = String(idExterno);
-  const pedido = (await exigir(bling.get(`/pedidos/vendas/${id}`), `GET /pedidos/vendas/${id}`))?.data;
+  const pedido = pedidoJaLido ?? (await exigir(bling.get(`/pedidos/vendas/${id}`), `GET /pedidos/vendas/${id}`))?.data;
   if (!pedido) throw new Error(`GET /pedidos/vendas/${id} veio sem data`);
   const { formas, situacoes } = apoio ?? (await apoioDoBling(bling));
   const notaId = Number(pedido?.notaFiscal?.id ?? 0);
@@ -296,7 +296,7 @@ export async function marcarEspelhosAusentes(agora = new Date()) {
  * Uma volta da rotina: le as tres origens, aplica cada pedido, casa os espelhos do Bling, marca os espelhos ausentes
  * e guarda o cursor por origem. Nunca lanca por uma origem so; `motivo: "erro"` so quando nenhuma origem respondeu.
  */
-export async function rodarLeituraDePedidos({ ml = null, li = null, bling = null, agora = new Date(), taxas = null } = {}) {
+export async function rodarLeituraDePedidos({ ml = null, li = null, bling = null, agora = new Date(), taxas = null, origens = ORIGENS } = {}) {
   const clientes = { ml: ml ?? clienteML(), li: li ?? clienteLI(), bling: bling ?? clienteBling() };
   const memoria = await lerMemoria();
   const cursores = { ...memoria.cursores };
@@ -307,7 +307,7 @@ export async function rodarLeituraDePedidos({ ml = null, li = null, bling = null
   let criados = 0;
   let origensForaDoAr = 0;
 
-  for (const origem of ORIGENS) {
+  for (const origem of origens) {
     let leitura;
     try {
       leitura = await lerPedidosDaOrigem(origem, { ...clientes, cursor: memoria.cursores[origem] ? new Date(memoria.cursores[origem]) : null, agora });
@@ -351,7 +351,7 @@ export async function rodarLeituraDePedidos({ ml = null, li = null, bling = null
   const erros = detalhes.length;
   await gravarMemoria({ cursores, espelhosPendentes: espelhos, ignoradosPorLoja: ignorados, lidos, criados, erros, ultimaVoltaEm: new Date(agora).toISOString() });
 
-  if (origensForaDoAr === ORIGENS.length) {
+  if (origensForaDoAr === origens.length) {
     return { ok: false, motivo: "erro", erro: detalhes.map((d) => `${d.origem}: ${d.erro}`).join("; "), lidos, criados, erros, ignorados, detalhes };
   }
   return {
@@ -365,4 +365,115 @@ export async function rodarLeituraDePedidos({ ml = null, li = null, bling = null
     aviso: erros > 0 ? `${erros} falha(s)` : null,
     detalhes,
   };
+}
+
+// ---- A fila dos webhooks (fase 2) ----
+
+const TENTATIVAS_DA_FILA = 5;
+
+/**
+ * Le e aplica um recurso notificado. Devolve sem lancar quando o aviso nao pede leitura (loja que o Rise ignora, NF de
+ * um pedido que nao esta aqui, pedido apagado no Bling); lanca quando a leitura falha, para a linha tentar de novo.
+ */
+async function tratarRecurso(origem, recurso, clientes, memoria, agora) {
+  const aplicar = (normalizado) => aplicarPedidoLido(normalizado, { cliente: clientes.ml, agora });
+
+  if (origem === "MERCADO_LIVRE") {
+    const [, tipo, id] = String(recurso).split("/");
+    if (!id) return;
+    if (tipo === "orders") return aplicar(await lerPedidoML(clientes.ml, id));
+    if (tipo === "shipments") {
+      // O aviso do envio traz so o id dele: o pedido sai do proprio envio.
+      const envio = await exigir(clientes.ml.get(`/shipments/${id}`), `GET /shipments/${id}`);
+      if (!envio?.order_id) throw new Error(`GET /shipments/${id} veio sem order_id`);
+      return aplicar(await lerPedidoML(clientes.ml, envio.order_id));
+    }
+    return;
+  }
+
+  if (origem === "BLING") {
+    const separador = String(recurso).lastIndexOf(":");
+    const evento = String(recurso).slice(0, separador);
+    const id = String(recurso).slice(separador + 1);
+    // Apagado no Bling: nao ha o que reler (a rotina de 5 min nao o traz mais).
+    if (evento.endsWith(".deleted")) return;
+    if (evento.startsWith("invoice.")) {
+      const pedido = await prisma.pedidoDeVenda.findFirst({ where: { origem: "BLING", nf: { path: ["idExterno"], equals: id } }, select: { idExterno: true } });
+      if (!pedido) return;
+      memoria.apoio = memoria.apoio ?? (await apoioDoBling(clientes.bling));
+      return aplicar(await lerPedidoBling(clientes.bling, pedido.idExterno, memoria.apoio));
+    }
+    if (!evento.startsWith("order.")) return;
+    const lido = (await exigir(clientes.bling.get(`/pedidos/vendas/${id}`), `GET /pedidos/vendas/${id}`))?.data;
+    if (!lido) throw new Error(`GET /pedidos/vendas/${id} veio sem data`);
+    const classe = classificarLojaDoBling(lido?.loja?.id);
+    if (classe === "bling") {
+      memoria.apoio = memoria.apoio ?? (await apoioDoBling(clientes.bling));
+      return aplicar(await lerPedidoBling(clientes.bling, id, memoria.apoio, lido));
+    }
+    if (classe === "espelhoML" || classe === "espelhoLI") {
+      // A copia que o Bling fez da venda do canal: so anota o espelho. O pedido do canal que ainda nao chegou e
+      // casado pela rotina de 5 min (ela guarda o espelho pendente).
+      const blingNumero = lido?.numero === undefined || lido?.numero === null ? null : String(lido.numero);
+      await espelharNoBling(classe === "espelhoML" ? "MERCADO_LIVRE" : "LOJA_INTEGRADA", String(lido?.numeroLoja ?? ""), { blingPedidoId: id, blingNumero });
+    }
+    return;
+  }
+
+  if (origem === "LOJA_INTEGRADA") {
+    const numero = String(recurso).replace(/^pedido:/, "");
+    // A LI pode avisar sem dizer o numero (o formato real e medido na 1a notificacao): le pelo cursor, so a LI.
+    if (!numero || numero === "?") {
+      const volta = await rodarLeituraDePedidos({ ...clientes, agora, origens: ["LOJA_INTEGRADA"] });
+      if (volta?.motivo === "erro") throw new Error(volta.erro);
+      return;
+    }
+    return aplicar(await lerPedidoLI(clientes.li, numero));
+  }
+}
+
+/**
+ * Esvazia a fila das notificacoes dos canais (spec 5.11), a cada volta do worker. Agrupa pelo recurso (dez avisos do
+ * mesmo pedido = uma leitura). Sucesso marca todas as linhas do grupo; falha soma uma tentativa e, na 5a, desiste (a
+ * rotina de 5 min continua cobrindo o pedido). `ids` restringe a linhas certas (o teste, para nao tocar a fila real).
+ */
+export async function processarNotificacoes({ ml = null, li = null, bling = null, limite = 20, agora = new Date(), ids = null } = {}) {
+  const linhas = await prisma.notificacaoDePedido.findMany({
+    where: { processadaEm: null, tentativas: { lt: TENTATIVAS_DA_FILA }, ...(ids ? { id: { in: ids } } : {}) },
+    orderBy: { recebidaEm: "asc" },
+    take: limite * 10,
+    select: { id: true, origem: true, recurso: true, tentativas: true },
+  });
+  if (linhas.length === 0) return { processadas: 0, erros: 0 };
+
+  const grupos = new Map();
+  for (const linha of linhas) {
+    const chave = `${linha.origem} ${linha.recurso}`;
+    if (!grupos.has(chave)) grupos.set(chave, []);
+    grupos.get(chave).push(linha);
+  }
+
+  const clientes = { ml: ml ?? clienteML(), li: li ?? clienteLI(), bling: bling ?? clienteBling() };
+  const memoria = { apoio: null };
+  let processadas = 0;
+  let erros = 0;
+  for (const grupo of [...grupos.values()].slice(0, limite)) {
+    const { origem, recurso } = grupo[0];
+    try {
+      await tratarRecurso(origem, recurso, clientes, memoria, agora);
+      await prisma.notificacaoDePedido.updateMany({ where: { id: { in: grupo.map((l) => l.id) } }, data: { processadaEm: new Date(agora), erro: null } });
+      processadas += grupo.length;
+    } catch (erro) {
+      erros += 1;
+      const texto = String(erro?.message ?? erro).slice(0, 200);
+      for (const linha of grupo) {
+        const tentativas = linha.tentativas + 1;
+        await prisma.notificacaoDePedido.update({
+          where: { id: linha.id },
+          data: { tentativas, erro: texto, ...(tentativas >= TENTATIVAS_DA_FILA ? { processadaEm: new Date(agora) } : {}) },
+        });
+      }
+    }
+  }
+  return { processadas, erros };
 }

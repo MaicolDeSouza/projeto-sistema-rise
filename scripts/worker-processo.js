@@ -60,7 +60,7 @@ const { relerEstadosML } = await import("../src/lib/canaisDeVenda/ml/relerEstado
 const { relerMonitorLI } = await import("../src/lib/canaisDeVenda/li/monitor.js");
 const { rodarAvisosDoTelegram, AVISOS_TELEGRAM_MS } = await import("../src/lib/telegram/avisos.js");
 const { registrarRotina, registrarMemoria } = await import("../src/lib/saude/registro.js");
-const { rodarLeituraDePedidos } = await import("../src/lib/pedidos/leitura.js");
+const { rodarLeituraDePedidos, processarNotificacoes } = await import("../src/lib/pedidos/leitura.js");
 
 /// Os avisos do Telegram (Rise AI, Entrega C1): a cada minuto, so o worker normal. A rotina nao faz nada com o bot
 /// desligado, sem token ou sem ninguem vinculado, e nunca lanca.
@@ -577,6 +577,13 @@ async function laco() {
         const pedidos = await rodarRotina("pedidos", LER_PEDIDOS_MS, () => rodarLeituraDePedidos());
         if (pedidos.motivo === "erro") logErro(`pedidos de venda nao lidos: ${pedidos.erro}`);
         else if (pedidos.lidos > 0 || pedidos.erros > 0) log(`pedidos de venda: ${pedidos.lidos} lido(s), ${pedidos.criados} novo(s), ${pedidos.erros} falha(s)`);
+      }
+      // A fila dos webhooks (fase 2): a cada volta, para a venda nova aparecer em segundos e nao em ate 5 min. A linha
+      // que falha conta tentativa e desiste na 5a; a rotina acima continua cobrindo o pedido.
+      if (!FONTES && !SO_NO_PC) {
+        const fila = await processarNotificacoes().catch((erro) => ({ processadas: 0, erros: 0, falhou: erro?.message ?? String(erro) }));
+        if (fila.falhou) logErro(`fila dos webhooks nao lida: ${fila.falhou}`);
+        else if (fila.processadas > 0 || fila.erros > 0) log(`webhooks de pedidos: ${fila.processadas} processada(s), ${fila.erros} falha(s)`);
       }
       // Os concorrentes do ML (fora do `coletaPausada`, como a foto): so o worker normal. `relerConcorrentesML` nunca lanca.
       if (!FONTES && !SO_NO_PC && Date.now() - concorrentesRelidosEm >= RELER_CONCORRENTES_ML_MS) {

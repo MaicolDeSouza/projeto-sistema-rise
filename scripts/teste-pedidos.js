@@ -583,6 +583,86 @@ try {
     const linha = await prisma.notificacaoDePedido.create({ data: { origem: "MERCADO_LIVRE", recurso: "/orders/ZZ-PED-900", payload: {} } });
     conferir("fila: notificacao nasce sem tentativa e sem processar", [linha.tentativas, linha.processadaEm], [0, null]);
     await prisma.notificacaoDePedido.delete({ where: { id: linha.id } });
+
+    const { processarNotificacoes } = await import("../src/lib/pedidos/leitura.js");
+    const agoraFila = new Date();
+    // Os pedidos das fixtures ja vieram na secao Leitura: saem, para a fila provar que os cria.
+    const tirar = (origem, idExterno) => prisma.pedidoDeVenda.deleteMany({ where: { origem, idExterno } });
+    const naFila = async (origem, recursos) => {
+      const ids = [];
+      for (const recurso of recursos) ids.push((await prisma.notificacaoDePedido.create({ data: { origem, recurso, payload: {} } })).id);
+      return ids;
+    };
+    const linhas = (ids) => prisma.notificacaoDePedido.findMany({ where: { id: { in: ids } }, orderBy: { recebidaEm: "asc" } });
+    const criadas = [];
+    try {
+      await tirar("MERCADO_LIVRE", "2000000001");
+      let f = falsos();
+      let ids = await naFila("MERCADO_LIVRE", ["/orders/2000000001"]);
+      criadas.push(...ids);
+      let r = await processarNotificacoes({ ...f, agora: agoraFila, ids });
+      const doML = await prisma.pedidoDeVenda.findUnique({ where: { origem_idExterno: { origem: "MERCADO_LIVRE", idExterno: "2000000001" } } });
+      conferir("fila: pedido do ML pela notificacao", [r.processadas, r.erros, Boolean(doML), (await linhas(ids))[0].processadaEm?.getTime()], [1, 0, true, agoraFila.getTime()]);
+
+      await tirar("MERCADO_LIVRE", "2000000001");
+      f = falsos();
+      ids = await naFila("MERCADO_LIVRE", ["/orders/2000000001", "/orders/2000000001", "/orders/2000000001"]);
+      criadas.push(...ids);
+      let leituras = 0;
+      const getOriginal = f.ml.get.bind(f.ml);
+      f.ml.get = (rota, ...resto) => {
+        if (rota === "/orders/2000000001") leituras += 1;
+        return getOriginal(rota, ...resto);
+      };
+      r = await processarNotificacoes({ ...f, agora: agoraFila, ids });
+      conferir(
+        "notificacao repetida nao duplica",
+        [leituras, r.processadas, (await linhas(ids)).every((l) => l.processadaEm), await prisma.pedidoDeVenda.count({ where: { origem: "MERCADO_LIVRE", idExterno: "2000000001" } })],
+        [1, 3, true, 1],
+      );
+
+      await tirar("MERCADO_LIVRE", "2000000001");
+      f = falsos();
+      ids = await naFila("MERCADO_LIVRE", ["/shipments/40000000001"]);
+      criadas.push(...ids);
+      r = await processarNotificacoes({ ...f, agora: agoraFila, ids });
+      conferir("fila: shipment acha o pedido", [r.processadas, await prisma.pedidoDeVenda.count({ where: { origem: "MERCADO_LIVRE", idExterno: "2000000001" } })], [1, 1]);
+
+      await prisma.pedidoDeVenda.updateMany({ where: { origem: "MERCADO_LIVRE", idExterno: "2000000001" }, data: { blingNumero: null, blingPedidoId: null } });
+      await tirar("BLING", "7002");
+      f = falsos();
+      ids = await naFila("BLING", ["order.updated:7002"]);
+      criadas.push(...ids);
+      r = await processarNotificacoes({ ...f, agora: agoraFila, ids });
+      conferir(
+        "bling: copia do ML so espelha",
+        [r.processadas, await prisma.pedidoDeVenda.count({ where: { origem: "BLING", OR: [{ numero: "123" }, { idExterno: "7002" }] } }), (await prisma.pedidoDeVenda.findUnique({ where: { origem_idExterno: { origem: "MERCADO_LIVRE", idExterno: "2000000001" } } })).blingNumero],
+        [1, 0, "123"],
+      );
+
+      await tirar("BLING", "7001");
+      f = falsos();
+      ids = await naFila("BLING", ["order.created:7001"]);
+      criadas.push(...ids);
+      r = await processarNotificacoes({ ...f, agora: agoraFila, ids });
+      conferir("bling: pedido digitado vira pedido", [r.processadas, await prisma.pedidoDeVenda.count({ where: { origem: "BLING", idExterno: "7001" } })], [1, 1]);
+
+      f = falsos();
+      ids = await naFila("MERCADO_LIVRE", ["/orders/9"]);
+      criadas.push(...ids);
+      r = await processarNotificacoes({ ...f, agora: agoraFila, ids });
+      const [falhou] = await linhas(ids);
+      conferir("fila: id que nao existe vira erro e tenta de novo", [r.erros, falhou.tentativas, falhou.processadaEm, Boolean(falhou.erro)], [1, 1, null, true]);
+
+      await prisma.notificacaoDePedido.update({ where: { id: falhou.id }, data: { tentativas: 4 } });
+      r = await processarNotificacoes({ ...falsos(), agora: agoraFila, ids });
+      const [desistiu] = await linhas(ids);
+      conferir("fila: na 5a tentativa desiste", [desistiu.tentativas, desistiu.processadaEm?.getTime()], [5, agoraFila.getTime()]);
+      r = await processarNotificacoes({ ...falsos(), agora: agoraFila, ids });
+      conferir("fila: a que desistiu nao volta", r.processadas + r.erros, 0);
+    } finally {
+      await prisma.notificacaoDePedido.deleteMany({ where: { id: { in: criadas } } });
+    }
   }
 
   console.log("\nWebhooks");
