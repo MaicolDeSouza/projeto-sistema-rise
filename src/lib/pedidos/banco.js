@@ -427,6 +427,49 @@ export async function vincularCliente(id, clienteId) {
   return { ok: true };
 }
 
+/**
+ * Os clientes que a janela Vincular cliente oferece: pelo nome (sem caixa) ou pelo CPF/CNPJ (com ou sem pontos; o
+ * documento e gravado formatado, entao os digitos digitados sao procurados nas duas formas). Ate 10, por nome.
+ */
+export async function buscarClientesParaVincular(texto) {
+  const termo = String(texto ?? "").trim();
+  if (!termo) return [];
+  const digitos = termo.replace(/\D/g, "");
+  const ou = [{ nome: { contains: termo, mode: "insensitive" } }, { documento: { contains: termo } }];
+  if (digitos.length >= 3) {
+    const formatado = digitos.length === 11 ? `${digitos.slice(0, 3)}.${digitos.slice(3, 6)}.${digitos.slice(6, 9)}-${digitos.slice(9)}` : null;
+    const cnpj = digitos.length === 14 ? `${digitos.slice(0, 2)}.${digitos.slice(2, 5)}.${digitos.slice(5, 8)}/${digitos.slice(8, 12)}-${digitos.slice(12)}` : null;
+    for (const forma of [formatado, cnpj].filter(Boolean)) ou.push({ documento: forma });
+  }
+  return prisma.cliente.findMany({ where: { OR: ou }, orderBy: { nome: "asc" }, take: 10, select: { id: true, nome: true, documento: true, nivel: true } });
+}
+
+/**
+ * "Criar com este nome" (janela Vincular cliente): cria o cliente com o nome, o contato e o endereco de entrega do
+ * pedido, mesmo sem CPF/CNPJ, e o liga ao pedido. Recusa quando o pedido ja tem cliente.
+ */
+export async function criarClienteDoPedido(id) {
+  return transacao(async (tx) => {
+    const pedido = await tx.pedidoDeVenda.findUnique({ where: { id } });
+    if (!pedido) return { ok: false, erro: "Pedido não encontrado." };
+    if (pedido.clienteId) return { ok: false, erro: "Este pedido já tem cliente." };
+    const normalizado = {
+      origem: pedido.origem,
+      canal: pedido.canal,
+      numero: pedido.numero,
+      comprador: { nome: pedido.nomeDoComprador, documento: pedido.documentoDoComprador, email: pedido.emailDoComprador, telefone: pedido.telefoneDoComprador },
+      enderecoDeEntrega: pedido.enderecoDeEntrega ?? {},
+    };
+    const { clienteId } = await clienteDoPedido(tx, normalizado, { semDocumento: true });
+    if (!clienteId) return { ok: false, erro: "Não foi possível criar o cliente." };
+    await tx.pedidoDeVenda.update({
+      where: { id },
+      data: { clienteId, avisos: pedido.avisos.filter((aviso) => aviso !== "clienteSemDocumento") },
+    });
+    return { ok: true, clienteId };
+  });
+}
+
 /** Anota no pedido do ML ou da LI o espelho dele no Bling (o numero e o id de la). false quando o pedido nao existe. */
 export async function espelharNoBling(origem, numeroNaLoja, { blingPedidoId, blingNumero }) {
   const pedido = await prisma.pedidoDeVenda.findFirst({

@@ -32,7 +32,7 @@ const { clienteDoPedido } = await import("../src/lib/pedidos/cliente.js");
 const { custoCongeladoDoProduto, casarItens } = await import("../src/lib/pedidos/itens.js");
 const { parcelasDaEstimativa, parcelasDoReal, devolvido, lucroDivergente, lucroFechado } = await import("../src/lib/pedidos/lucro.js");
 const { necessidadeDoPedido, calcularPecas } = await import("../src/lib/pedidos/pecas.js");
-const { aplicarPedidoLido, listarPedidosDeVenda, lerPedidoDeVenda, marcarEmSeparacao, salvarCustoDoFreteManual, vincularCliente, espelharNoBling } = await import("../src/lib/pedidos/banco.js");
+const { aplicarPedidoLido, listarPedidosDeVenda, lerPedidoDeVenda, marcarEmSeparacao, salvarCustoDoFreteManual, vincularCliente, espelharNoBling, criarClienteDoPedido, buscarClientesParaVincular } = await import("../src/lib/pedidos/banco.js");
 const { rodarLeituraDePedidos } = await import("../src/lib/pedidos/leitura.js");
 const { ROTINAS_DO_WORKER } = await import("../src/lib/saude/regras.js");
 const { RECURSOS } = await import("../src/lib/acessos/recursos.js");
@@ -367,6 +367,19 @@ try {
     conferir("releitura nao apaga o frete manual", Number((await (async () => { await aplicarPedidoLido(nbling, { agora }); return prisma.pedidoDeVenda.findUnique({ where: { id: bl.id } }); })()).custoDoFreteManual), 25);
     const semCliente = await aplicarPedidoLido({ ...nbling, idExterno: "ZZ-PED-104", numero: "ZZ-PED-104", comprador: { ...nbling.comprador, documento: null } }, { agora });
     conferir("vincular cliente tira o aviso", [semCliente.avisos.includes("clienteSemDocumento"), (await vincularCliente(semCliente.id, g1.clienteId)).ok, (await prisma.pedidoDeVenda.findUnique({ where: { id: semCliente.id } })).avisos.includes("clienteSemDocumento")], [true, true, false]);
+    const semDoc = await aplicarPedidoLido({ ...nbling, idExterno: "ZZ-PED-105", numero: "ZZ-PED-105", comprador: { ...nbling.comprador, documento: null } }, { agora });
+    const criado = await criarClienteDoPedido(semDoc.id);
+    const gSemDoc = await prisma.pedidoDeVenda.findUnique({ where: { id: semDoc.id }, include: { cliente: true } });
+    conferir(
+      "criar cliente sem documento pelo pedido",
+      [criado.ok, gSemDoc.cliente?.nome, gSemDoc.cliente?.documento, gSemDoc.avisos.includes("clienteSemDocumento"), gSemDoc.cliente?.observacoes?.startsWith("Criado pelo pedido")],
+      [true, nbling.comprador.nome, null, false, true],
+    );
+    conferir("criar cliente recusado quando o pedido ja tem cliente", (await criarClienteDoPedido(semDoc.id)).ok, false);
+    const achados = await buscarClientesParaVincular(nbling.comprador.nome.slice(0, 8));
+    conferir("busca de clientes para vincular acha pelo nome", achados.some((c) => c.id === gSemDoc.clienteId), true);
+    conferir("busca de clientes para vincular acha pelo CPF so com digitos", (await buscarClientesParaVincular("12345678909")).some((c) => c.documento === "123.456.789-09"), true);
+    conferir("busca de clientes vazia nao lista nada", await buscarClientesParaVincular(" "), []);
     const lista = await listarPedidosDeVenda({ busca: "ZZ-PED-10", porPagina: 25 });
     conferir("lista acha pelo numero e traz o cliente", [lista.total >= 3, lista.linhas[0].cliente?.nome !== undefined], [true, true]);
     conferir("so com aviso", (await listarPedidosDeVenda({ busca: "ZZ-PED-10", soComAviso: true })).linhas.every((l) => l.avisos.length > 0), true);

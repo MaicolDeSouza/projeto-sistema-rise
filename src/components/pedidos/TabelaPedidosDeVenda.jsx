@@ -7,7 +7,7 @@ import { Package } from "lucide-react";
 import CabecalhoOrdenavel, { parametrosDaOrdenacao } from "@/components/ui/CabecalhoOrdenavel";
 import FotoComLupa from "@/components/ui/FotoComLupa";
 
-import { abreviarPagamento, dataCompleta, diaEHora, moeda } from "./formato";
+import { abreviarPagamento, dataCompleta, diaEHora, moeda, moedaComSinal } from "./formato";
 import IconeDoCanalDoPedido from "./IconeDoCanalDoPedido";
 import SeloDoNivel from "./SeloDoNivel";
 import { COR_DO_STATUS, COR_DO_STATUS_DO_ENVIO, TEXTO_DO_STATUS, TEXTO_DO_STATUS_DO_ENVIO } from "./textos";
@@ -40,7 +40,7 @@ function CelulaDoLucro({ linha }) {
       )}
       <span className={negativo ? "font-medium text-red-600" : fechado ? "" : "text-suave"}>
         {fechado ? "" : "~"}
-        {moeda.format(valor)}
+        {moedaComSinal(valor)}
       </span>
     </span>
   );

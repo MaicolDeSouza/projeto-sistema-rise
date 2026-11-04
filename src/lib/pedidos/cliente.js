@@ -10,15 +10,19 @@ import { telefoneParaGravar } from "@/lib/telefone";
  *
  * `tx` e o cliente Prisma ou a transacao de quem grava o pedido (Tarefa 8), para o cliente e o pedido entrarem juntos.
  */
-export async function clienteDoPedido(tx, normalizado) {
+export async function clienteDoPedido(tx, normalizado, { semDocumento = false } = {}) {
   const comprador = normalizado?.comprador ?? {};
   const avisos = [];
   const digitos = String(comprador.documento ?? "").replace(/\D/g, "");
-  if (!digitos) return { clienteId: null, avisos: ["clienteSemDocumento"] };
+  // `semDocumento`: o "Criar com este nome" do pedido (o operador decidiu criar mesmo sem CPF/CNPJ). Sem documento
+  // nao ha com quem casar, entao sempre cria um cliente novo; a leitura automatica nunca passa por aqui.
+  if (!digitos && !semDocumento) return { clienteId: null, avisos: ["clienteSemDocumento"] };
 
   let tipoPessoa = "FISICA";
-  let documento;
-  if (digitos.length === 14 && validarCnpj(digitos)) {
+  let documento = null;
+  if (!digitos) {
+    tipoPessoa = "FISICA";
+  } else if (digitos.length === 14 && validarCnpj(digitos)) {
     tipoPessoa = "JURIDICA";
     documento = formatarCnpj(digitos);
   } else if (digitos.length === 11 && validarCpf(digitos)) {
@@ -34,7 +38,7 @@ export async function clienteDoPedido(tx, normalizado) {
   const telefone = comprador.telefone ? telefoneParaGravar(String(comprador.telefone)) : null;
   const email = String(comprador.email ?? "").trim() || null;
 
-  const existente = await tx.cliente.findUnique({ where: { documento }, select: { id: true, telefone: true, email: true } });
+  const existente = documento ? await tx.cliente.findUnique({ where: { documento }, select: { id: true, telefone: true, email: true } }) : null;
   if (existente) {
     const preencher = {};
     if (!existente.telefone && telefone) preencher.telefone = telefone;

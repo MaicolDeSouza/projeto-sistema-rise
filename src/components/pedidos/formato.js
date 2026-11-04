@@ -38,3 +38,45 @@ export function abreviarPagamento(pagamento) {
   const original = String(pg.forma ?? pg.tipo ?? "").trim();
   return original ? original.charAt(0).toUpperCase() + original.slice(1) : null;
 }
+
+const DIA_MES = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" });
+/** "02/11" */
+export const diaMes = (data) => (data ? DIA_MES.format(new Date(data)) : "");
+
+/** De onde veio cada parcela do lucro (o `fontes` do real e a `origem` da estimativa), em palavras do operador. */
+export const TEXTO_DA_FONTE = {
+  pedido: "do pedido",
+  envio: "do envio",
+  etiqueta: "da etiqueta",
+  config: "das taxas cadastradas",
+  manual: "digitado",
+  estimado: "estimado",
+  editorML: "editor do ML",
+  lucroNaLoja: "lucro na loja",
+};
+
+/** Os nomes dos canais na tela ("Abrir no Mercado Livre"). */
+export const NOME_DO_CANAL = { MERCADO_LIVRE: "Mercado Livre", LOJA_INTEGRADA: "Loja Integrada", BLING: "Bling", SHOPEE: "Shopee" };
+
+/** O endereco do pedido no painel do canal (rodape "Abrir no ..."). */
+export function linkNoCanal(pedido) {
+  if (pedido.origem === "MERCADO_LIVRE") return `https://www.mercadolivre.com.br/vendas/${encodeURIComponent(pedido.idExterno)}/detalhe`;
+  if (pedido.origem === "LOJA_INTEGRADA") return `https://app.lojaintegrada.com.br/painel/pedido/${encodeURIComponent(pedido.idExterno)}`;
+  if (pedido.origem === "BLING") return `https://www.bling.com.br/vendas.php#edit/${encodeURIComponent(pedido.blingPedidoId ?? pedido.idExterno)}`;
+  return null;
+}
+
+/** O endereco do espelho no Bling (pedido do ML ou da LI copiado para la). */
+export const linkNoBling = (pedido) => (pedido.blingPedidoId ? `https://www.bling.com.br/vendas.php#edit/${encodeURIComponent(pedido.blingPedidoId)}` : null);
+
+/** O rastreio: o link que o canal deu, o do ML, ou o dos Correios para codigo no formato deles (AA123456789BR). */
+export function linkDoRastreio(pedido) {
+  const envio = pedido.envio ?? {};
+  if (envio.link) return envio.link;
+  if (pedido.origem === "MERCADO_LIVRE") return linkNoCanal(pedido);
+  const codigo = String(envio.rastreio ?? "").trim().toUpperCase();
+  return /^[A-Z]{2}\d{9}[A-Z]{2}$/.test(codigo) ? `https://rastreamento.correios.com.br/app/index.php?objeto=${codigo}` : null;
+}
+
+/** Dinheiro com o sinal de menos tipografico ("−R$ 22,50"), o mesmo das parcelas do lucro. */
+export const moedaComSinal = (valor) => (Number(valor) < 0 ? `−${moeda.format(-Number(valor))}` : moeda.format(Number(valor) || 0));
