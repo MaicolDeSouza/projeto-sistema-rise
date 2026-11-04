@@ -585,6 +585,38 @@ try {
     await prisma.notificacaoDePedido.delete({ where: { id: linha.id } });
   }
 
+  console.log("\nWebhooks");
+  {
+    const { createHmac } = await import("node:crypto");
+    const { conferirNotificacao, registrarNotificacao } = await import("../src/lib/pedidos/webhooks.js");
+    const seg = { mlUsuarioId: "212386247", mlClientId: "123", blingClientSecret: "segredo-zz", liToken: "tok-zz" };
+    const corpoML = JSON.stringify({ resource: "/orders/2000000001", user_id: 212386247, topic: "orders_v2", application_id: 123 });
+    conferir("webhook ML valido", conferirNotificacao({ origem: "MERCADO_LIVRE", corpoTexto: corpoML, headers: new Headers(), segredos: seg }).recurso, "/orders/2000000001");
+    conferir("webhook ML de outra conta", conferirNotificacao({ origem: "MERCADO_LIVRE", corpoTexto: corpoML.replace("212386247", "999"), headers: new Headers(), segredos: seg }).status, 401);
+    conferir("webhook ML de outro app", conferirNotificacao({ origem: "MERCADO_LIVRE", corpoTexto: corpoML.replace('"application_id":123', '"application_id":9'), headers: new Headers(), segredos: seg }).status, 401);
+    conferir("webhook ML de outro topico e ignorado", conferirNotificacao({ origem: "MERCADO_LIVRE", corpoTexto: corpoML.replace("orders_v2", "questions"), headers: new Headers(), segredos: seg }).recurso, null);
+    const corpoBling = JSON.stringify({ event: "order.updated", companyId: "x", data: { id: 7002 } });
+    const assinatura = "sha256=" + createHmac("sha256", "segredo-zz").update(corpoBling).digest("hex");
+    conferir("webhook Bling assinado", conferirNotificacao({ origem: "BLING", corpoTexto: corpoBling, headers: new Headers({ "x-bling-signature-256": assinatura }), segredos: seg }).recurso, "order.updated:7002");
+    conferir("webhook Bling sem assinatura", conferirNotificacao({ origem: "BLING", corpoTexto: corpoBling, headers: new Headers(), segredos: seg }).status, 401);
+    conferir("webhook Bling assinatura de outro corpo", conferirNotificacao({ origem: "BLING", corpoTexto: corpoBling.replace("7002", "7003"), headers: new Headers({ "x-bling-signature-256": assinatura }), segredos: seg }).status, 401);
+    conferir("webhook LI com token", conferirNotificacao({ origem: "LOJA_INTEGRADA", corpoTexto: '{"numero":5001}', headers: new Headers({ token: "tok-zz" }), segredos: seg }).recurso, "pedido:5001");
+    conferir("webhook LI com token no Authorization", conferirNotificacao({ origem: "LOJA_INTEGRADA", corpoTexto: "{}", headers: new Headers({ authorization: "Bearer tok-zz" }), segredos: seg }).recurso, "pedido:?");
+    conferir("webhook LI token errado", conferirNotificacao({ origem: "LOJA_INTEGRADA", corpoTexto: '{"numero":5001}', headers: new Headers({ token: "x" }), segredos: seg }).status, 401);
+    conferir("webhook LI sem token cadastrado recusa", conferirNotificacao({ origem: "LOJA_INTEGRADA", corpoTexto: "{}", headers: new Headers({ token: "" }), segredos: { ...seg, liToken: null } }).status, 401);
+    const gravada = await registrarNotificacao({ origem: "MERCADO_LIVRE", recurso: "/orders/ZZ-PED-901", payload: { a: 1 } });
+    conferir("webhook: a notificacao vai para a fila", (await prisma.notificacaoDePedido.findUnique({ where: { id: gravada.id } }))?.recurso, "/orders/ZZ-PED-901");
+
+    const { POST } = await import("../src/app/api/webhooks/[origem]/route.js");
+    const chamar = (origem, corpo, headers = {}) => POST(new Request(`https://rise.test/api/webhooks/${origem}`, { method: "POST", body: corpo, headers }), { params: Promise.resolve({ origem }) });
+    const antes = await prisma.notificacaoDePedido.count();
+    conferir("rota: origem desconhecida = 404", (await chamar("shopee", "{}")).status, 404);
+    conferir("rota: corpo que nao e JSON = 400", (await chamar("mercado-livre", "nao-e-json")).status, 400);
+    conferir("rota: corpo acima de 256 KB = 413", (await chamar("bling", "x".repeat(300 * 1024))).status, 413);
+    conferir("rota: assinatura do Bling errada = 401", (await chamar("bling", corpoBling, { "x-bling-signature-256": "sha256=00" })).status, 401);
+    conferir("rota: nada recusado entra na fila", await prisma.notificacaoDePedido.count(), antes);
+  }
+
   // Marcador: os blocos seguintes entram acima desta linha.
 } finally {
   if (!manter) await limpar();
