@@ -3,6 +3,7 @@ import { precosDaForseti } from "./forseti";
 import { dadosDaPaginaVtex } from "./vtex-pagina";
 import { ehListagemDaNuvemshop, galeriaDaNuvemshop, variantesDaNuvemshop } from "./nuvemshop";
 import { ehListagemDoMagento } from "./magento";
+import { dadosDaMagazord, fotoOriginalDaMagazord } from "./magazord";
 import { produtosDaObr } from "./obr";
 import { caminhoDeCategoria, caminhoDoJsonLd } from "./categoria";
 import { categoriaDaRoboCore, descricaoDaRoboCore, estoqueDaRoboCore, precosDaRoboCore } from "./robocore";
@@ -363,6 +364,8 @@ function versaoGrande(endereco) {
   if (/(^|\.)eletruscomp\.com\.br$/.test(host)) {
     return endereco.replace(/_thumb(\.[A-Za-z0-9]+)$/, "_orig$1");
   }
+  // Magazord (Proesi): "...31365.jpg?ims=fit-in/600x600/..." e a original redimensionada; sem a consulta, a original.
+  if (/(^|\.)magazord\.com\.br$/.test(host)) return fotoOriginalDaMagazord(endereco);
   if (host === "static.wixstatic.com" && url.pathname.startsWith("/media/")) {
     const original = /^(.*?~mv2\.[A-Za-z0-9]+)\/v1\//.exec(endereco);
     if (original) return original[1];
@@ -2280,9 +2283,13 @@ export function normalizarPagina({
   // O escopo do produto evita ler o estoque de um relacionado, que traz a mesma
   // marcacao mais abaixo na pagina.
   const escopo = escopoDoProduto(html);
+  // MAGAZORD (Proesi, 04/11/2026): o produto inteiro vem num JSON da pagina (fotos, descricao com paragrafos,
+  // caracteristicas, saldo dos depositos); o JSON-LD so tem a 1a foto e a descricao numa linha. Ver magazord.js.
+  const magazord = dadosDaMagazord(html, textoDoBlocoDeDescricao);
   const quantidade =
     comoNumero(bruto?.offers?.inventoryLevel?.value) ??
     comoNumero(bruto?.offers?.inventoryLevel) ??
+    magazord?.quantidade ??
     // A RoboCore nunca declara inventoryLevel, e o "(92 un. em estoque)" so
     // existe dentro do JS que atualiza o painel por variante — nao no texto
     // visivel que quantidadeNoTexto varre.
@@ -2333,6 +2340,7 @@ export function normalizarPagina({
     ? semRepetir([...(doCatalogo?.imagens ?? []), ...vtexPagina.imagens])
     : semRepetir([
         ...(doCatalogo?.imagens ?? []),
+        ...(magazord?.imagens ?? []),
         ...doMagento,
         ...estruturadas,
         ...doCarrosselNuvemshop,
@@ -2360,7 +2368,9 @@ export function normalizarPagina({
     /<meta\b[^>]*property=["']og:type["'][^>]*content=["']nuvemshop:product["']/i.test(html)
       ? descricaoDoBloco(html)
       : null;
-  const description = descricaoDaRoboCore(html, url) ?? (blocoDaNuvemshop && blocoDaNuvemshop.length >= 20 ? blocoDaNuvemshop : null) ?? melhorDescricao([
+  // MAGAZORD: a descricao do JSON da pagina (com um paragrafo por linha) vence o JSON-LD, que e o mesmo texto numa
+  // linha so — por ser mais longo ou igual, ele ganhava, e a ficha "Dados Tecnicos" nao saia da descricao.
+  const description = descricaoDaRoboCore(html, url) ?? (blocoDaNuvemshop && blocoDaNuvemshop.length >= 20 ? blocoDaNuvemshop : null) ?? (magazord?.descricao && magazord.descricao.length >= 20 ? magazord.descricao : null) ?? melhorDescricao([
     aspnet?.descricao,
     estruturado?.descricao,
     micro?.descricao,
@@ -2379,7 +2389,8 @@ export function normalizarPagina({
     valor,
   }));
 
-  const declaradas = doJsonLd.length > 0 ? doJsonLd : especificacoesDeTabela(html);
+  // As caracteristicas que a loja Magazord declara (Tamanho, Cor...) entram primeiro, como dado estruturado.
+  const declaradas = juntarFichas(magazord?.especificacoes ?? [], doJsonLd.length > 0 ? doJsonLd : especificacoesDeTabela(html));
 
   // A lista HTML SOMA a tabela, nao espera ela faltar: a Mamute tem uma tabela de
   // atributos com UMA linha ("Fabricante: IMP") e a ficha de verdade na lista da

@@ -3531,6 +3531,37 @@ console.log("\n— Fortek: tres listas do portal —");
   conferir("fortek: uma pagina que falha derruba o conjunto", [falhou.erro, falhou.arquivos], ["Lista de Reserva do portal Benser não baixou: HTTP 503", undefined]);
 }
 
+// Magazord (Proesi, 04/11/2026): fotos, descricao com paragrafos, caracteristicas e estoque vem do JSON da pagina.
+console.log("\n— Magazord (Proesi) —");
+{
+  const produto = {
+    produto_id: 1036,
+    nome: "Caixa \/ Gabinete PB-075",
+    descricao: "<h2>Caixa PB-075<\/h2>\n<p>Gabinete injetado; tampa com abas.<\/p>\n<h3>Dados Técnicos:<\/h3>\n<p>Material PP preto (outros sob consulta).<\/p>\n<p>Medidas: 35x60x75 mm<\/p>\n<p>Código: PB-075<\/p>",
+    midias: [
+      { tipo_midia: 1, midia_url: "https://proesi.cdn.magazord.com.br/img/2024/04/produto/16987/31365.jpg?ims=fit-in/600x600/filters:fill(white)" },
+      { tipo_midia: 1, midia_url: "https://proesi.cdn.magazord.com.br/img/2024/04/produto/16986/31365-2.jpg?ims=fit-in/600x600/filters:fill(white)" },
+    ],
+    caracteristicas: [{ nome: "Tamanho", exibe: true, valor: "35X60X75mm" }],
+    estoque_depositos: [{ deposito: 1, qtde_estoque: 98 }],
+  };
+  const jsonLd = { "@context": "https://schema.org", "@type": "Product", name: "Caixa / Gabinete PB-075", sku: "31365",
+    image: ["https://proesi.cdn.magazord.com.br/img/2024/04/produto/16987/31365.jpg?ims=fit-in/600x600/filters:fill(white)"],
+    description: "Caixa PB-075 Gabinete injetado; tampa com abas. Dados Técnicos: Material PP preto (outros sob consulta). Medidas: 35x60x75 mm Código: PB-075",
+    offers: { "@type": "Offer", priceCurrency: "BRL", availability: "https://schema.org/InStock", price: "14.22" } };
+  const html = `<html><head><title>PB-075</title><script type="application/ld+json">${JSON.stringify(jsonLd)}</script></head><body>` +
+    `<script type="text/javascript">const dataProduct = {\n id: 'pagina-produto-react-app',\n produto: ${JSON.stringify(produto)},\n outro: 1 };</script></body></html>`;
+  const { produtos: [lido] } = normalizarPagina({ html, url: "https://www.proesi.com.br/caixa-gabinete-plastico-patola-pb-075", fonte: { name: "Proesi", type: "CONCORRENTE" } });
+  conferir("magazord: as DUAS fotos, na original (sem ?ims), sem repetir a do JSON-LD", lido.images, [
+    "https://proesi.cdn.magazord.com.br/img/2024/04/produto/16987/31365.jpg",
+    "https://proesi.cdn.magazord.com.br/img/2024/04/produto/16986/31365-2.jpg",
+  ]);
+  conferir("magazord: estoque pelos depositos", lido.stock.quantity, 98);
+  conferir("magazord: caracteristica declarada + ficha Dados Tecnicos da descricao", nomesEspec(lido).slice(0, 3), ["Tamanho", null, "Medidas"]);
+  conferir("magazord: valores da ficha", [espec(lido, "Tamanho"), espec(lido, "Medidas")], ["35X60X75mm", "35x60x75 mm"]);
+  conferir("magazord: descricao com um paragrafo por linha", /Dados Técnicos:\n\nMaterial PP preto/.test(lido.description), true);
+}
+
 // EAN interno derivado do SKU (spec 2026-10-23-gerador-ean-interno-design.md): sem GS1, a faixa 2 e a de uso interno.
 {
   const { calcularDigitoVerificador } = await import("../src/lib/eanNoMercadoLivre.js");
