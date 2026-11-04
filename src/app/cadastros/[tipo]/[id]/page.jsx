@@ -11,6 +11,7 @@ import { formatarTelefone } from "@/lib/telefone";
 import PageHeader from "@/components/ui/PageHeader";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import FormularioCliente from "@/components/cadastros/FormularioCliente";
+import { listarPedidosDeVenda } from "@/lib/pedidos/banco";
 import FormularioParceiro from "@/components/cadastros/FormularioParceiro";
 import FormularioTransportadora from "@/components/cadastros/FormularioTransportadora";
 
@@ -152,6 +153,10 @@ export default async function EditarCadastroPage({ params }) {
   try {
     if (tipo === "clientes") {
       dadosDoCliente = await carregarCliente(id);
+      // A aba Pedidos (Pedidos de venda, spec 5.10): os 50 mais recentes do cliente, so para quem ve a tela de Pedidos.
+      if (dadosDoCliente && pode("tela.pedidos", "ver")) {
+        dadosDoCliente.pedidos = await listarPedidosDeVenda({ clienteId: id, porPagina: 50 });
+      }
     } else if (tipo === "transportadoras") {
       dadosDaTransportadora = await carregarTransportadora(id);
     } else {
@@ -211,6 +216,8 @@ export default async function EditarCadastroPage({ params }) {
           semPessoal={semPessoal}
           somenteLeitura={somenteLeitura}
           transportadoras={dadosDoCliente.transportadoras}
+          pedidos={dadosDoCliente.pedidos ?? null}
+          veLucro={pode("dado.custo", "ver")}
           hoje={new Date().toLocaleDateString("sv-SE")}
         />
       ) : tipo === "transportadoras" ? (

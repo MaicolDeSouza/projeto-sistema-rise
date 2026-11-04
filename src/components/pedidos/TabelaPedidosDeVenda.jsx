@@ -51,8 +51,11 @@ function CelulaDoLucro({ linha }) {
  * Aguardando peças, A postar), com o fundo ambar; a acao principal e abrir o pedido (a linha inteira e o numero).
  * Ordenam: canal, numero, data, cliente, total, status e lucro (no banco, antes de paginar). Itens, pagamento e envio
  * nao ordenam: moram em JSON ou noutra tabela.
+ *
+ * `semCliente` tira a coluna Cliente (a aba Pedidos do cadastro do cliente) e `ordenavel={false}` deixa os cabecalhos
+ * parados (la a ordem e sempre a data, e a URL e a do cadastro).
  */
-export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro }) {
+export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro, semCliente = false, ordenavel = true }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -62,9 +65,12 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
     router.push(texto ? `${pathname}?${texto}` : pathname);
   }
 
-  const cabecalho = (campo, rotulo, className = "") => (
-    <CabecalhoOrdenavel campo={campo} rotulo={rotulo} ordenar={ordenar} direcao={direcao} aoClicar={trocarOrdenacao} className={`px-2.5! ${className}`} />
-  );
+  const cabecalho = (campo, rotulo, className = "") =>
+    ordenavel ? (
+      <CabecalhoOrdenavel campo={campo} rotulo={rotulo} ordenar={ordenar} direcao={direcao} aoClicar={trocarOrdenacao} className={`px-2.5! ${className}`} />
+    ) : (
+      <th className={`px-2.5 py-2.5 font-medium ${className}`}>{rotulo}</th>
+    );
 
   return (
     <div className="overflow-x-auto rounded-lg border border-borda bg-superficie">
@@ -74,7 +80,7 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
             {cabecalho("canal", "Canal", "w-px")}
             {cabecalho("numero", "Número", "w-px whitespace-nowrap")}
             {cabecalho("data", "Data", "w-px whitespace-nowrap")}
-            {cabecalho("cliente", "Cliente", "w-[16%]")}
+            {!semCliente && cabecalho("cliente", "Cliente", "w-[16%]")}
             <th className="w-[26%] px-2.5 py-2.5 font-medium">Itens</th>
             {cabecalho("total", "Total", "w-px whitespace-nowrap text-right [&_button]:justify-end")}
             {cabecalho("status", "Status", "w-px whitespace-nowrap")}
@@ -114,12 +120,14 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
                 <td className="whitespace-nowrap px-2.5 py-2 tabular-nums text-suave" title={dataCompleta(linha.dataDaVenda)}>
                   {diaEHora(linha.dataDaVenda)}
                 </td>
+                {!semCliente && (
                 <td className="max-w-0 px-2.5 py-2">
                   <span className="flex min-w-0 items-center gap-1.5">
                     <span className="truncate">{cliente}</span>
                     <SeloDoNivel nivel={linha.cliente?.nivel} />
                   </span>
                 </td>
+                )}
                 <td className="max-w-0 px-2.5 py-2">
                   <span className="flex min-w-0 items-center gap-2">
                     {linha.item?.foto ? (

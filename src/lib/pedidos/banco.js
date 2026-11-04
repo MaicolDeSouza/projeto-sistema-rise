@@ -256,8 +256,10 @@ const ORDENACOES = {
   lucro: (d) => ({ lucroReal: d }),
 };
 
-function filtroDaLista({ busca, desde, ate, canais, status, soComAviso }) {
+function filtroDaLista({ busca, desde, ate, canais, status, soComAviso, clienteId }) {
   const where = {};
+  // A aba Pedidos do cadastro do cliente lista so os dele.
+  if (clienteId) where.clienteId = clienteId;
   const e = [];
   if (desde || ate) where.dataDaVenda = { ...(desde ? { gte: new Date(desde) } : {}), ...(ate ? { lte: new Date(ate) } : {}) };
   if (Array.isArray(canais) && canais.length > 0) where.canal = { in: canais };
@@ -281,8 +283,8 @@ function filtroDaLista({ busca, desde, ate, canais, status, soComAviso }) {
 }
 
 /** A lista de pedidos: `{ linhas, total }`, com o cliente, o primeiro item (com foto) e quantos itens ha. */
-export async function listarPedidosDeVenda({ busca, desde, ate, canais, status, soComAviso = false, ordenar, direcao, pagina = 1, porPagina = 25 } = {}) {
-  const where = filtroDaLista({ busca, desde, ate, canais, status, soComAviso });
+export async function listarPedidosDeVenda({ busca, desde, ate, canais, status, soComAviso = false, clienteId, ordenar, direcao, pagina = 1, porPagina = 25 } = {}) {
+  const where = filtroDaLista({ busca, desde, ate, canais, status, soComAviso, clienteId });
   const sentido = direcao === "asc" ? "asc" : "desc";
   const orderBy = ORDENACOES[ordenar] ? [ORDENACOES[ordenar](sentido), { dataDaVenda: "desc" }] : [{ dataDaVenda: "desc" }];
   const take = Math.max(1, Number(porPagina) || 25);

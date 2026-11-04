@@ -106,6 +106,18 @@ conferir("filtro tira letras", filtrarDigitacaoDeTelefone("5488990p008u"), "5488
 conferir("filtro deixa a pontuacao de telefone", filtrarDigitacaoDeTelefone("+55 (54) 98899-0008"), "+55 (54) 98899-0008");
 
 // ---------------------------------------------------------------------------
+// Nivel do cliente (Pedidos de venda, 04/11/2026): Bronze, Prata, Ouro, Platinum ou nenhum (sem banco)
+// ---------------------------------------------------------------------------
+
+console.log("\nNivel do cliente");
+const { lerNivelDoCliente, NIVEIS_DO_CLIENTE } = await import("../src/lib/nivelDoCliente.js");
+conferir("niveis em ordem", NIVEIS_DO_CLIENTE.map((n) => n.valor), ["BRONZE", "PRATA", "OURO", "PLATINUM"]);
+conferir("nivel OURO e aceito", lerNivelDoCliente("OURO"), { nivel: "OURO" });
+conferir("nivel vazio = sem nivel", lerNivelDoCliente(""), { nivel: null });
+conferir("nivel ausente = sem nivel", lerNivelDoCliente(undefined), { nivel: null });
+conferir("nivel fora da lista e recusado", lerNivelDoCliente("x"), { erro: "Escolha um nível da lista." });
+
+// ---------------------------------------------------------------------------
 // CNPJ do fornecedor: obrigatorio, salvo o estrangeiro (sem banco)
 // ---------------------------------------------------------------------------
 

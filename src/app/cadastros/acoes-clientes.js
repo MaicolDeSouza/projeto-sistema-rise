@@ -15,6 +15,7 @@ import {
   validarCpf,
 } from "@/lib/documentos";
 import { lerContatos, lerEmails, lerEndereco, lerTelefones } from "@/lib/formularios";
+import { lerNivelDoCliente } from "@/lib/nivelDoCliente";
 import { errosPorCampo, lerCampos, opcional } from "@/lib/validacao";
 
 /**
@@ -136,6 +137,10 @@ export async function salvarCliente(id, _anterior, formData) {
     if (lido.erro) erros.contatos = lido.erro;
   }
 
+  // O nivel (Pedidos de venda, 04/11/2026): vazio = sem nivel; valor fora da lista e recusado no campo.
+  const nivelLido = lerNivelDoCliente(campos.nivel);
+  if (nivelLido.erro) erros.nivel = nivelLido.erro;
+
   if (Object.keys(erros).length > 0) return { ok: false, erros };
 
   const dados = pessoalPreservado(
@@ -170,6 +175,7 @@ export async function salvarCliente(id, _anterior, formData) {
     if (dados.ieIsento) dados.inscricaoEstadual = null;
   }
   dados.ativo = campos.ativo === "on";
+  dados.nivel = nivelLido.nivel;
 
   // Data de "cliente desde": vazia no cadastro novo vale hoje (padrao do banco);
   // vazia na edicao mantem a que ja estava.

@@ -7,6 +7,8 @@ import { Loader } from "lucide-react";
 
 import { salvarCliente } from "@/app/cadastros/acoes-clientes";
 import { formatarCnpj, formatarCpf } from "@/lib/documentos";
+import { NIVEIS_DO_CLIENTE } from "@/lib/nivelDoCliente";
+import TabelaPedidosDeVenda from "@/components/pedidos/TabelaPedidosDeVenda";
 import { filtrarDigitacaoDeTelefone, formatarTelefone } from "@/lib/telefone";
 import Card from "@/components/ui/Card";
 import { BarraDeAbas, Painel, useAbasDoFormulario } from "./Abas";
@@ -42,6 +44,7 @@ const ABA_DO_CAMPO = {
   regimeTributario: "cadastro",
   inscricaoEstadual: "cadastro",
   inscricaoMunicipal: "cadastro",
+  nivel: "cadastro",
   telefones: "contato",
   emails: "contato",
   contatos: "contato",
@@ -92,6 +95,33 @@ function EscolhaDoTipo({ tipo, aoMudar }) {
 }
 
 /**
+ * O nivel do cliente (Pedidos de venda, 04/11/2026): Sem nível, Bronze, Prata, Ouro ou Platinum, lado a lado como o
+ * tipo da pessoa. Radios de verdade e sem estado: o envio le o marcado, e a cor do escolhido vem do `:checked`.
+ */
+function EscolhaDoNivel({ nivel, erro }) {
+  const opcoes = [{ valor: "", rotulo: "Sem nível" }, ...NIVEIS_DO_CLIENTE];
+  return (
+    <div>
+      <span id="rotulo-nivel" className="text-sm font-semibold">
+        Nível
+      </span>
+      <div role="radiogroup" aria-labelledby="rotulo-nivel" className="mt-1 flex w-fit flex-wrap overflow-hidden rounded border border-borda text-sm">
+        {opcoes.map((opcao) => (
+          <label
+            key={opcao.valor || "nenhum"}
+            className="cursor-pointer px-3 py-2 font-medium text-suave transition-colors hover:bg-fundo has-[:checked]:bg-acento has-[:checked]:text-white has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-acento has-[:focus-visible]:ring-inset"
+          >
+            <input type="radio" name="nivel" value={opcao.valor} defaultChecked={(nivel ?? "") === opcao.valor} className="sr-only" />
+            {opcao.rotulo}
+          </label>
+        ))}
+      </div>
+      {erro && <p className="mt-1 text-sm text-red-600">{erro}</p>}
+    </div>
+  );
+}
+
+/**
  * Formulario de Cliente, pessoa fisica ou juridica. `cliente` nulo = cadastro novo.
  *
  * **Os campos dos dois tipos ficam MONTADOS e so um conjunto e visivel**
@@ -121,7 +151,7 @@ function EscolhaDoTipo({ tipo, aoMudar }) {
  * observacoes nao sao desenhados (o servidor nem os mandou), e a aba que ficaria vazia some. O Salvar os mantem como
  * estao no banco.
  */
-export default function FormularioCliente({ cliente, transportadoras, hoje, somenteLeitura = false, semPessoal = false }) {
+export default function FormularioCliente({ cliente, transportadoras, hoje, somenteLeitura = false, semPessoal = false, pedidos = null, veLucro = false }) {
   const router = useRouter();
   const inicial = cliente ?? { ativo: true };
   const [tipo, setTipo] = useState(inicial.tipoPessoa ?? "FISICA");
@@ -148,9 +178,11 @@ export default function FormularioCliente({ cliente, transportadoras, hoje, some
   const valor = (campo) => inicial[campo] ?? "";
   const juridica = tipo === "JURIDICA";
   // Sem o dado pessoal, Endereco nao tem nada e Contato so tem sexo e naturalidade (pessoa fisica).
-  const abasVisiveis = semPessoal
+  const abasDoTipo = semPessoal
     ? ABAS.filter((item) => item.id !== "endereco" && !(item.id === "contato" && juridica))
     : ABAS;
+  // A aba Pedidos so existe na edicao, para quem ve a tela de Pedidos (a pagina so manda `pedidos` nesse caso).
+  const abasVisiveis = pedidos ? [...abasDoTipo, { id: "pedidos", rotulo: `Pedidos (${pedidos.total})` }] : abasDoTipo;
   const abaAtiva = abasVisiveis.some((item) => item.id === aba) ? aba : abasVisiveis[0].id;
 
   // So a pessoa do tipo escolhido enxerga os campos do outro tipo — e nunca os
@@ -274,6 +306,10 @@ export default function FormularioCliente({ cliente, transportadoras, hoje, some
               erro={erros.inscricaoMunicipal}
               defaultValue={valor("inscricaoMunicipal")}
             />
+          </div>
+
+          <div className="md:col-span-3">
+            <EscolhaDoNivel nivel={valor("nivel")} erro={erros.nivel} />
           </div>
         </div>
       </Painel>
@@ -407,6 +443,21 @@ export default function FormularioCliente({ cliente, transportadoras, hoje, some
           Ativo
         </label>
       </Painel>
+
+      {pedidos && (
+        <Painel id="pedidos" aba={abaAtiva}>
+          {pedidos.linhas.length === 0 ? (
+            <p className="text-sm text-suave">Nenhum pedido de venda deste cliente.</p>
+          ) : (
+            <>
+              <TabelaPedidosDeVenda linhas={pedidos.linhas} veLucro={veLucro} semCliente ordenavel={false} />
+              {pedidos.total > pedidos.linhas.length && (
+                <p className="mt-2 text-xs text-suave">Os {pedidos.linhas.length} mais recentes de {pedidos.total}.</p>
+              )}
+            </>
+          )}
+        </Painel>
+      )}
         </div>
       </Card>
     </form>

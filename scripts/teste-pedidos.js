@@ -380,6 +380,8 @@ try {
     conferir("busca de clientes para vincular acha pelo nome", achados.some((c) => c.id === gSemDoc.clienteId), true);
     conferir("busca de clientes para vincular acha pelo CPF so com digitos", (await buscarClientesParaVincular("12345678909")).some((c) => c.documento === "123.456.789-09"), true);
     conferir("busca de clientes vazia nao lista nada", await buscarClientesParaVincular(" "), []);
+    const doCliente = await listarPedidosDeVenda({ clienteId: gSemDoc.clienteId });
+    conferir("lista so os pedidos de um cliente", [doCliente.total, doCliente.linhas[0]?.id], [1, semDoc.id]);
     const lista = await listarPedidosDeVenda({ busca: "ZZ-PED-10", porPagina: 25 });
     conferir("lista acha pelo numero e traz o cliente", [lista.total >= 3, lista.linhas[0].cliente?.nome !== undefined], [true, true]);
     conferir("so com aviso", (await listarPedidosDeVenda({ busca: "ZZ-PED-10", soComAviso: true })).linhas.every((l) => l.avisos.length > 0), true);
