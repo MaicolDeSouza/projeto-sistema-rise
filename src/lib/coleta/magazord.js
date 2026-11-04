@@ -8,7 +8,7 @@
  *   - `midias`: TODAS as fotos, na ordem da loja (a original, sem o `?ims=` de redimensionamento);
  *   - `descricao`: o HTML com <h3> e <p>, que vira texto com uma linha por paragrafo (e a ficha "Dados Tecnicos");
  *   - `caracteristicas`: [{nome, valor}] que a loja declara ("Tamanho: 35X60X75mm");
- *   - `estoque_depositos`: a soma do saldo dos depositos.
+ *   - `estoque_depositos`: a soma do saldo dos depositos (sem eles, `qtde_estoque`).
  */
 
 /** O objeto JSON que comeca em `inicio` (um "{"), lido respeitando strings e escapes; null se nao fechar. */
@@ -122,7 +122,12 @@ export function dadosDaMagazord(html, paraTexto) {
 
   const depositos = Array.isArray(produto.estoque_depositos) ? produto.estoque_depositos : [];
   const saldos = depositos.map((deposito) => Number(deposito?.qtde_estoque)).filter((saldo) => Number.isFinite(saldo));
-  const quantidade = saldos.length > 0 ? Math.max(0, Math.round(saldos.reduce((soma, saldo) => soma + saldo, 0))) : null;
+  // Sem a lista de depositos (`estoque_depositos: null`, o rele 680806 da Proesi), o saldo vem so em `qtde_estoque`: e o
+  // numero que a pagina escreve em "Em estoque 1 unidades (loja e site)". Sem ler os dois, so parte dos itens tinha quantidade.
+  const direto = Number(produto.qtde_estoque);
+  const quantidade = saldos.length > 0
+    ? Math.max(0, Math.round(saldos.reduce((soma, saldo) => soma + saldo, 0)))
+    : produto.qtde_estoque != null && Number.isFinite(direto) ? Math.max(0, Math.round(direto)) : null;
 
   return { imagens, descricao, especificacoes, quantidade };
 }

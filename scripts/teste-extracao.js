@@ -3560,6 +3560,13 @@ console.log("\n— Magazord (Proesi) —");
   conferir("magazord: caracteristica declarada + ficha Dados Tecnicos da descricao", nomesEspec(lido).slice(0, 3), ["Tamanho", null, "Medidas"]);
   conferir("magazord: valores da ficha", [espec(lido, "Tamanho"), espec(lido, "Medidas")], ["35X60X75mm", "35x60x75 mm"]);
   conferir("magazord: descricao com um paragrafo por linha", /Dados Técnicos:\n\nMaterial PP preto/.test(lido.description), true);
+
+  // Rele 680806 (04/11/2026): sem lista de depositos, o saldo vem so em qtde_estoque ("Em estoque 1 unidades").
+  const { dadosDaMagazord } = await import("../src/lib/coleta/magazord.js");
+  const semDepositos = (extra) => dadosDaMagazord(`<script>const dataProduct = { id: 'x', produto: ${JSON.stringify({ ...produto, estoque_depositos: null, ...extra })} };</script>`, (t) => t)?.quantidade;
+  conferir("magazord: sem depositos, o qtde_estoque (1); zero vale; sem os dois, null",
+    [semDepositos({ qtde_estoque: 1 }), semDepositos({ qtde_estoque: 0 }), semDepositos({})], [1, 0, null]);
+  conferir("magazord: com depositos, a soma deles vence o qtde_estoque", dadosDaMagazord(`<script>const dataProduct = { id: 'x', produto: ${JSON.stringify({ ...produto, qtde_estoque: 5 })} };</script>`, (t) => t)?.quantidade, 98);
 }
 
 // EAN interno derivado do SKU (spec 2026-10-23-gerador-ean-interno-design.md): sem GS1, a faixa 2 e a de uso interno.
