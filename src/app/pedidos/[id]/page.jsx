@@ -9,6 +9,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { config } from "@/lib/integracoes/config";
 import { lerPedidoDeVenda } from "@/lib/pedidos/banco";
+import { projetarPedido } from "@/lib/pedidos/projecao";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,8 @@ export async function generateMetadata({ params }) {
 export default async function PedidoDeVendaPage({ params }) {
   const acesso = await exigirAcessoNaPagina("tela.pedidos", "ver");
   const { id } = await params;
-  const pedido = await lerPedidoDeVenda(id);
+  // Dado pessoal e custo saem no servidor para quem nao os ve (o que vai ao componente de cliente chega ao navegador).
+  const pedido = projetarPedido(await lerPedidoDeVenda(id), acesso.pode);
   if (!pedido) notFound();
 
   const pode = {

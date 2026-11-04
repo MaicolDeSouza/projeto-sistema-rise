@@ -12,6 +12,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import FormularioCliente from "@/components/cadastros/FormularioCliente";
 import { listarPedidosDeVenda } from "@/lib/pedidos/banco";
+import { projetarLinhaDaLista } from "@/lib/pedidos/projecao";
 import FormularioParceiro from "@/components/cadastros/FormularioParceiro";
 import FormularioTransportadora from "@/components/cadastros/FormularioTransportadora";
 
@@ -155,7 +156,8 @@ export default async function EditarCadastroPage({ params }) {
       dadosDoCliente = await carregarCliente(id);
       // A aba Pedidos (Pedidos de venda, spec 5.10): os 50 mais recentes do cliente, so para quem ve a tela de Pedidos.
       if (dadosDoCliente && pode("tela.pedidos", "ver")) {
-        dadosDoCliente.pedidos = await listarPedidosDeVenda({ clienteId: id, porPagina: 50 });
+        const pedidos = await listarPedidosDeVenda({ clienteId: id, porPagina: 50 });
+        dadosDoCliente.pedidos = { ...pedidos, linhas: pedidos.linhas.map((linha) => projetarLinhaDaLista(linha, pode)) };
       }
     } else if (tipo === "transportadoras") {
       dadosDaTransportadora = await carregarTransportadora(id);

@@ -27,7 +27,9 @@ const dataOuNula = (valor) => (valor ? new Date(valor) : null);
 async function transacao(corpo) {
   for (let tentativa = 0; ; tentativa += 1) {
     try {
-      return await prisma.$transaction(corpo, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      // Folga de tempo: o padrao do Prisma (5 s) fecha a transacao de um pedido com muitos itens no meio da gravacao. A
+      // leitura do ML (a estimativa) fica FORA daqui, em `custosMLDaEstimativa`, para a rede nunca segurar a transacao.
+      return await prisma.$transaction(corpo, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 10000, timeout: 20000 });
     } catch (erro) {
       if (erro?.code === "P2034" && tentativa === 0) continue;
       throw erro;
@@ -80,21 +82,19 @@ async function taxasDoCanal(tx, origem) {
  * Recalcula o real, a estimativa (so quando ainda nao existe), o status, as pecas, o envio e os avisos de um pedido ja
  * gravado com itens. E o miolo de `aplicarPedidoLido` e das acoes que mudam uma entrada do calculo (frete manual).
  */
-async function recalcular(tx, pedido, { normalizado, cliente, taxas, agora, avisosDosItens = [], criado = false }) {
+async function recalcular(tx, pedido, { normalizado, custosMLLidos = null, taxas, agora, avisosDosItens = [], criado = false }) {
   const n = normalizado;
   const origem = pedido.origem;
   const itens = pedido.itens;
   const avisos = new Set(avisosDosItens);
 
-  // Estimativa: congelada na primeira leitura, nunca refeita.
+  // Estimativa: congelada na primeira leitura, nunca refeita. As taxas do ML vem lidas de antes da transacao.
   let estimativa = pedido.estimativa ?? null;
   if (!estimativa) {
     let custosML = null;
     if (origem === "MERCADO_LIVRE") {
-      const casado = itens.find((item) => item.anuncioId);
-      const lida = casado && cliente ? await estimativaDoAnuncioML(cliente, { id: casado.anuncioId }, numero(casado.custoUnitarioCongelado)).catch(() => null) : null;
-      if (lida) custosML = { percentual: lida.percentual, tarifaFixa: lida.tarifaFixa, frete: lida.frete };
-      else avisos.add("semEstimativa");
+      custosML = custosMLLidos ?? null;
+      if (!custosML) avisos.add("semEstimativa");
     }
     estimativa = parcelasDaEstimativa({ origem, itens, totais: n.totais, custosML, taxas, calculadoEm: agora });
     estimativa = { ...estimativa, calculadoEm: new Date(estimativa.calculadoEm).toISOString() };
@@ -165,6 +165,25 @@ async function recalcular(tx, pedido, { normalizado, cliente, taxas, agora, avis
 }
 
 /**
+ * As taxas do anuncio do ML para a estimativa (`{ percentual, tarifaFixa, frete }`), lidas FORA da transacao: so para
+ * pedido do ML que ainda nao tem estimativa gravada; null quando nao ha anuncio casado ou o ML nao respondeu (aviso
+ * `semEstimativa`). O casamento aqui e so leitura; quem grava os itens e a transacao.
+ */
+async function custosMLDaEstimativa(n, cliente) {
+  if (n.origem !== "MERCADO_LIVRE" || !cliente) return null;
+  const gravado = await prisma.pedidoDeVenda.findUnique({
+    where: { origem_idExterno: { origem: n.origem, idExterno: String(n.idExterno) } },
+    select: { estimativa: true },
+  });
+  if (gravado?.estimativa) return null;
+  const { itens } = await casarItens(prisma, n);
+  const casado = itens.find((item) => item.anuncioId);
+  if (!casado) return null;
+  const lida = await estimativaDoAnuncioML(cliente, { id: casado.anuncioId }, numero(casado.custoUnitarioCongelado)).catch(() => null);
+  return lida ? { percentual: lida.percentual, tarifaFixa: lida.tarifaFixa, frete: lida.frete } : null;
+}
+
+/**
  * Grava (ou atualiza) um pedido normalizado. Devolve `{ id, criado, status, avisos }`, ou `{ ignorado: true }` para
  * pedido vendido antes do corte (`config.pedidos.desde`). `cliente` e o cliente do ML (a estimativa le as taxas do
  * anuncio); `taxas` sao as Taxas do canal (lidas de ConfigCanal quando nao vierem).
@@ -175,6 +194,9 @@ export async function aplicarPedidoLido(normalizado, { cliente = null, taxas = n
   const dataDaVenda = new Date(n.dataDaVenda);
   if (Number.isNaN(dataDaVenda.getTime())) throw new Error(`Pedido ${n.idExterno} sem data da venda.`);
   if (dataDaVenda < config.pedidos.desde) return { ignorado: true };
+
+  // A estimativa do ML le o anuncio no ML (rede): so na primeira leitura do pedido, e antes de abrir a transacao.
+  const custosMLLidos = await custosMLDaEstimativa(n, cliente ?? (n.origem === "MERCADO_LIVRE" ? clienteML() : null));
 
   return transacao(async (tx) => {
     const chave = { origem_idExterno: { origem: n.origem, idExterno: String(n.idExterno) } };
@@ -226,7 +248,7 @@ export async function aplicarPedidoLido(normalizado, { cliente = null, taxas = n
     const pedido = await tx.pedidoDeVenda.findUnique({ where: { id: gravado.id }, include: { itens: { orderBy: { ordem: "asc" } } } });
     const resultado = await recalcular(tx, pedido, {
       normalizado: n,
-      cliente: cliente ?? (n.origem === "MERCADO_LIVRE" ? clienteML() : null),
+      custosMLLidos,
       taxas: taxas ?? (await taxasDoCanal(tx, n.origem)),
       agora,
       avisosDosItens: avisos,

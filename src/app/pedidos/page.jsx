@@ -11,6 +11,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { listarPedidosDeVenda } from "@/lib/pedidos/banco";
+import { projetarLinhaDaLista } from "@/lib/pedidos/projecao";
 import { porPaginaDaUrl } from "@/lib/porPagina";
 
 export const metadata = { title: "Pedidos de venda | Sistema Rise" };
@@ -72,7 +73,8 @@ export default async function PedidosDeVendaPage({ searchParams }) {
   const total = resultado?.total ?? 0;
   const totalPaginas = Math.max(1, Math.ceil(total / porPagina));
   const pagina = Math.min(paginaPedida, totalPaginas);
-  const linhas = resultado?.linhas ?? [];
+  // Sem `dado.custo`, o lucro nao vai nem no conteudo da pagina (a coluna some, e o numero tambem).
+  const linhas = (resultado?.linhas ?? []).map((linha) => projetarLinhaDaLista(linha, acesso.pode));
   const filtrando = Boolean(busca || canais.length || status.length || soComAviso || umDe(params?.desde) || ate);
 
   return (

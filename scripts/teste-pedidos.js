@@ -455,6 +455,66 @@ try {
     conferir("taxas: sem linha no banco = null", await lerTaxas("SHOPEE"), null);
   }
 
+  console.log("\nRevisao final");
+  {
+    const { projetarPedido, projetarLinhaDaLista } = await import("../src/lib/pedidos/projecao.js");
+    const tudo = () => true;
+    const semPessoal = (id) => id !== "dado.pessoalDoCliente";
+    const semCusto = (id) => id !== "dado.custo";
+    const pedido = {
+      documentoDoComprador: "12345678909",
+      telefoneDoComprador: "54988990008",
+      emailDoComprador: "a@b.com",
+      enderecoDeEntrega: { cidade: "Caxias do Sul" },
+      cliente: { id: "c1", nome: "Fulano", nivel: "OURO", documento: "123.456.789-09", telefone: "54988990008", email: "a@b.com" },
+      estimativa: { lucro: 10 },
+      real: { lucro: 8 },
+      lucroEstimado: 10,
+      lucroReal: 8,
+      itens: [{ titulo: "x", custoUnitarioCongelado: 5, custoOrigem: "cadastro", comissao: 1 }],
+    };
+    conferir("projecao: com tudo nao muda nada", projetarPedido(pedido, tudo), pedido);
+    const p1 = projetarPedido(pedido, semPessoal);
+    conferir(
+      "projecao: sem dado pessoal tira documento, telefone, e-mail e endereco",
+      [p1.documentoDoComprador, p1.telefoneDoComprador, p1.emailDoComprador, p1.enderecoDeEntrega, p1.cliente.documento, p1.cliente.telefone, p1.cliente.email, p1.cliente.nome, p1.estimativa.lucro],
+      [null, null, null, null, undefined, undefined, undefined, "Fulano", 10],
+    );
+    const p2 = projetarPedido(pedido, semCusto);
+    conferir(
+      "projecao: sem custo tira estimativa, real, lucros e o custo dos itens",
+      [p2.estimativa, p2.real, p2.lucroEstimado, p2.lucroReal, p2.itens[0].custoUnitarioCongelado, p2.itens[0].custoOrigem, p2.itens[0].comissao, p2.documentoDoComprador],
+      [null, null, null, null, null, null, 1, "12345678909"],
+    );
+    conferir("projecao: a linha da lista sem custo perde o lucro", projetarLinhaDaLista({ id: "1", lucroEstimado: 3, lucroReal: 2, total: 9 }, semCusto), { id: "1", lucroEstimado: null, lucroReal: null, total: 9 });
+
+    // O ML lento (6 s na primeira chamada) nao pode derrubar a gravacao: a transacao do banco fecha em 5 s.
+    const base = criarMLFalso({ pedidos: [fx("ml-order")], envios: [fx("ml-shipment")], faturas: [fx("ml-invoice")], cobrancas: { 2000000001: fx("ml-billing") } });
+    let primeira = true;
+    const lento = {
+      ...base,
+      get: async (...args) => {
+        if (primeira) {
+          primeira = false;
+          await new Promise((resolver) => setTimeout(resolver, 6000));
+        }
+        return base.get(...args);
+      },
+    };
+    const nlento = normalizarPedidoML({ order: fx("ml-order"), billing: fx("ml-billing"), shipment: fx("ml-shipment"), invoice: fx("ml-invoice") });
+    nlento.idExterno = nlento.numero = "ZZ-PED-130";
+    nlento.itens[0].idNaOrigem = "MLBZZPED1";
+    nlento.itens[0].codigoNaOrigem = "ZZ-PED-A";
+    let gravou = null;
+    try {
+      gravou = await aplicarPedidoLido(nlento, { cliente: lento, agora: new Date() });
+    } catch (erro) {
+      gravou = { erro: erro.message.slice(0, 80) };
+    }
+    const gLento = gravou?.id ? await prisma.pedidoDeVenda.findUnique({ where: { id: gravou.id } }) : null;
+    conferir("ML lento: o pedido grava com a estimativa do editor", [Boolean(gravou?.id), gLento?.estimativa?.origem], [true, "editorML"]);
+  }
+
   // Marcador: os blocos seguintes entram acima desta linha.
 } finally {
   if (!manter) await limpar();

@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { negarSemAcesso } from "@/lib/acessos/servidor";
+import { negarSemAcesso, sessaoDeAcessos } from "@/lib/acessos/servidor";
+import { projetarClientesDaBusca } from "@/lib/pedidos/projecao";
 import {
   buscarClientesParaVincular,
   criarClienteDoPedido,
@@ -67,5 +68,9 @@ export async function criarClienteDoPedidoAcao(id) {
 export async function buscarClientesAcao(texto) {
   const negado = await negarSemAcesso("acao.pedidos.vincularCliente", "executar");
   if (negado) return { ...negado, clientes: [] };
-  return protegendo(async () => ({ ok: true, clientes: await buscarClientesParaVincular(String(texto ?? "").slice(0, 80)) }));
+  return protegendo(async () => {
+    // Sem o dado pessoal, a janela lista so nome e nivel (o CPF/CNPJ nao vai ao navegador).
+    const { pode } = await sessaoDeAcessos();
+    return { ok: true, clientes: projetarClientesDaBusca(await buscarClientesParaVincular(String(texto ?? "").slice(0, 80)), pode) };
+  });
 }
