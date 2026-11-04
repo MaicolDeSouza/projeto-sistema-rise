@@ -143,11 +143,13 @@ export function normalizarPedidoML({ order, billing = null, shipments = [], ship
         idExterno: invoice.id === undefined || invoice.id === null ? null : String(invoice.id),
         numero: texto(invoice.invoice_number),
         serie: texto(invoice.invoice_series),
-        chave: texto(invoice.invoice_key),
+        // A fatura real traz a chave e os caminhos dos arquivos em `attributes` (medido em 04/11/2026: sem pdf_url e
+        // xml_url; a DANFE em danfe_location e o XML em xml_location, os dois caminhos da API com o token do vendedor).
+        chave: texto(invoice.attributes?.invoice_key) ?? texto(invoice.invoice_key),
         emitidaEm: data(invoice.issued_date),
         status: texto(invoice.status),
-        urlPdf: texto(invoice.pdf_url),
-        urlXml: texto(invoice.xml_url),
+        urlPdf: texto(invoice.attributes?.danfe_location) ?? texto(invoice.pdf_url),
+        urlXml: texto(invoice.attributes?.xml_location) ?? texto(invoice.xml_url),
         xml: null,
       }
     : null;

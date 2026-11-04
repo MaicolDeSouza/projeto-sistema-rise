@@ -732,6 +732,52 @@ try {
     }
   }
 
+  console.log("\nNF");
+  {
+    const { destinoDaNF, baixarDoML } = await import("../src/lib/pedidos/nf.js");
+    const { lerPedidoDaOrigem } = await import("../src/lib/pedidos/leitura.js");
+    const caminhoPdf = "/users/212386247/invoices/documents/pdf/555/authorized";
+    conferir("nf: ML vira proxy do caminho", destinoDaNF({ origem: "MERCADO_LIVRE", urlPdf: caminhoPdf, urlXml: "/x.xml" }, "pdf"), { tipo: "proxyML", caminho: caminhoPdf });
+    conferir("nf: url fora do ML e recusada", destinoDaNF({ origem: "MERCADO_LIVRE", urlPdf: "https://outro.site/nf.pdf" }, "pdf"), { erro: "Endereço da NF fora da API do ML." });
+    conferir(
+      "nf: LI e Bling redirecionam so https",
+      [
+        destinoDaNF({ origem: "LOJA_INTEGRADA", urlXml: "https://li.test/nf.xml" }, "xml"),
+        destinoDaNF({ origem: "LOJA_INTEGRADA", urlPdf: "http://li.test/nf.pdf" }, "pdf").erro,
+        destinoDaNF({ origem: "BLING", urlXml: null, xml: "https://bling.test/nf.xml" }, "xml"),
+        destinoDaNF({ origem: "BLING", urlPdf: null }, "pdf").erro,
+      ],
+      [{ tipo: "redirecionar", url: "https://li.test/nf.xml" }, "Endereço da NF inválido.", { tipo: "redirecionar", url: "https://bling.test/nf.xml" }, "Este canal não deu o arquivo."],
+    );
+    let pedidoFeito = null;
+    const baixado = await baixarDoML(caminhoPdf, {
+      obterToken: async () => "tok-ml",
+      buscar: async (url, opcoes) => {
+        pedidoFeito = { url, autorizacao: opcoes?.headers?.Authorization };
+        return new Response(new Uint8Array([37, 80, 68, 70]), { status: 200, headers: { "content-type": "application/pdf" } });
+      },
+    });
+    conferir(
+      "nf: baixarDoML manda o Bearer",
+      [pedidoFeito, baixado.tipoDeConteudo, baixado.bytes.length],
+      [{ url: `https://api.mercadolibre.com${caminhoPdf}`, autorizacao: "Bearer tok-ml" }, "application/pdf", 4],
+    );
+    // A fatura real do ML (medida em 04/11/2026 no pedido 2000019299804380): sem pdf_url/xml_url, com os caminhos e a
+    // chave dentro de `attributes`.
+    const faturaReal = { ...fx("ml-invoice"), pdf_url: undefined, xml_url: undefined, invoice_key: undefined, attributes: { invoice_key: "43261199999999999999550020000007851000000785", danfe_location: "/users/212386247/invoices/sites/MLB/documents/danfe/555", xml_location: "/users/212386247/invoices/documents/xml/555/authorized" } };
+    const nfReal = normalizarPedidoML({ order: fx("ml-order"), billing: null, shipments: [], shipment: null, retorno: null, invoice: faturaReal }).nf;
+    conferir("ML: NF real com os caminhos em attributes", [nfReal.urlPdf, nfReal.urlXml, nfReal.chave], [faturaReal.attributes.danfe_location, faturaReal.attributes.xml_location, faturaReal.attributes.invoice_key]);
+    const li = criarLojaIntegradaFalsa({
+      pedidos: [{ ...fx("li-pedido"), nota_fiscal: "/api/v1/pedido_nf/77" }],
+      situacoes: fx("li-situacoes").objects,
+      historicos: fx("li-historico").objects,
+      etiquetas: fx("li-enviali"),
+      notas: [{ id: 77, access_key: "43261100000000000000550010000000881000000881", data: "2026-11-03T10:00:00", enviada: true, numero: "88", serie: "1", url: "https://li.test/nf/77.pdf", url_xml: "https://li.test/nf/77.xml" }],
+    });
+    const lido = await lerPedidoDaOrigem("LOJA_INTEGRADA", 5001, { li });
+    conferir("LI: pedido com pedido_nf le a NF", [lido.nf?.numero, lido.nf?.status, lido.nf?.urlXml, lido.nf?.origem], ["88", "authorized", "https://li.test/nf/77.xml", "LOJA_INTEGRADA"]);
+  }
+
   // Marcador: os blocos seguintes entram acima desta linha.
 } finally {
   if (!manter) await limpar();

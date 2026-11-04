@@ -131,6 +131,8 @@ export function criarLojaIntegradaFalsa({
   situacoes = [],
   historicos = [],
   etiquetas = [],
+  // GET /pedido_nf/{id} (fase 2): a NF que a LI emitiu, por id.
+  notas = [],
 } = {}) {
   const chamadas = [];
   // Trocavel depois de criada (`falsa.falhas = { "GET /pedido/5001": 500 }`): a leitura de pedidos testa a
@@ -323,6 +325,10 @@ export function criarLojaIntegradaFalsa({
 
     if (metodo === "GET") {
       if (recurso === "pedido" && id === "search") return buscarPedidos(params);
+      if (recurso === "pedido_nf" && id && !sub) {
+        const nota = notas.find((n) => String(n.id) === String(id));
+        return nota ? resposta(200, copia(nota)) : naoAchou;
+      }
       if (recurso === "pedido" && id && !sub) {
         const pedido = tabelaPedidos.get(Number(id));
         return pedido ? resposta(200, copia(pedido)) : naoAchou;

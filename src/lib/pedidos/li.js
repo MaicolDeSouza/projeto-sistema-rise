@@ -28,7 +28,7 @@ function reais(centavos) {
  * postada, senao a estimativa); Enviali sem etiqueta ainda = "estimado"; outra forma de envio (retirada,
  * a combinar) = 0 pelo proprio pedido ("pedido"). O status do envio sem Enviali vem da situacao do pedido.
  */
-export function normalizarPedidoLI({ pedido, historico = [], etiquetas = [] }) {
+export function normalizarPedidoLI({ pedido, historico = [], etiquetas = [], nf = null }) {
   const p = vazio();
   p.origem = "LOJA_INTEGRADA";
   p.canal = "LOJA_INTEGRADA";
@@ -130,6 +130,22 @@ export function normalizarPedidoLI({ pedido, historico = [], etiquetas = [] }) {
       entregueEm: null,
     },
   };
+
+  // A NF que a LI emitiu (GET /pedido_nf/{id}, fase 2); a data vem sem fuso, de Sao Paulo, como a do pedido.
+  if (nf) {
+    p.nf = {
+      origem: "LOJA_INTEGRADA",
+      idExterno: nf.id === undefined || nf.id === null ? null : String(nf.id),
+      numero: nf.numero === undefined || nf.numero === null ? null : String(nf.numero),
+      serie: nf.serie === undefined || nf.serie === null ? null : String(nf.serie),
+      chave: texto(nf.access_key),
+      emitidaEm: dataDeSaoPaulo(nf.data),
+      status: nf.enviada ? "authorized" : "pending",
+      urlPdf: texto(nf.url),
+      urlXml: texto(nf.url_xml),
+      xml: null,
+    };
+  }
 
   p.historico = (historico ?? [])
     .map((h) => ({ em: dataDeSaoPaulo(h.data), statusDaOrigem: texto(h.situacao?.codigo) }))

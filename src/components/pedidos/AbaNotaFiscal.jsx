@@ -14,11 +14,18 @@ const SITUACAO = {
   pending: "Pendente",
 };
 
+/** O canal deu o arquivo? Mesma regra de `destinoDaNF` (lib/pedidos/nf.js), so para ligar ou desligar o botao. */
+function temArquivo(nf, tipo) {
+  if (tipo === "pdf") return Boolean(nf.urlPdf);
+  return Boolean(nf.urlXml) || /^https?:\/\//i.test(String(nf.xml ?? ""));
+}
+
 /**
- * Aba Nota fiscal: o que o emissor informou (numero, serie, chave, data, situacao). Baixar o PDF e o XML vem na
- * proxima entrega (os botoes ficam desligados, com o motivo); sem NF, a frase diz em que canal ela ainda falta.
+ * Aba Nota fiscal: o que o emissor informou (numero, serie, chave, data, situacao) e os dois downloads pela rota
+ * `/api/pedidos/[id]/nf` (em outra aba: o ML passa pelo Rise, a LI e o Bling abrem o link deles). Sem o arquivo, o botao
+ * fica desligado com o motivo; sem NF, a frase diz em que canal ela ainda falta.
  */
-export default function AbaNotaFiscal({ pedido }) {
+export default function AbaNotaFiscal({ pedido, podeBaixar = true }) {
   const nf = pedido.nf;
   if (!nf) return <p className="p-5 text-sm text-suave">NF ainda não emitida em {NOME_DO_CANAL[pedido.origem] ?? pedido.origem}.</p>;
   const situacao = SITUACAO[String(nf.status ?? "").toLowerCase()] ?? nf.status;
@@ -38,12 +45,21 @@ export default function AbaNotaFiscal({ pedido }) {
         </Dado>
       </dl>
       <div className="mt-5 flex gap-2">
-        <button type="button" disabled title="Disponível na próxima entrega" className={botao}>
-          <Download size={14} aria-hidden="true" /> Baixar NF
-        </button>
-        <button type="button" disabled title="Disponível na próxima entrega" className={botao}>
-          <Download size={14} aria-hidden="true" /> Baixar XML
-        </button>
+        {[
+          ["pdf", "Baixar NF"],
+          ["xml", "Baixar XML"],
+        ].map(([tipo, rotulo]) => {
+          const motivo = !podeBaixar ? "Sem permissão para baixar NF e XML." : !temArquivo(nf, tipo) ? "Este canal não deu o arquivo." : null;
+          return motivo ? (
+            <button key={tipo} type="button" disabled title={motivo} className={botao}>
+              <Download size={14} aria-hidden="true" /> {rotulo}
+            </button>
+          ) : (
+            <a key={tipo} href={`/api/pedidos/${pedido.id}/nf?tipo=${tipo}`} target="_blank" rel="noopener noreferrer" className={`${botao} hover:bg-fundo`}>
+              <Download size={14} aria-hidden="true" /> {rotulo}
+            </a>
+          );
+        })}
       </div>
     </div>
   );

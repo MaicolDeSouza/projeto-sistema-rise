@@ -110,7 +110,11 @@ async function lerPedidoLI(li, idExterno) {
   } catch {
     etiquetas = [];
   }
-  return normalizarPedidoLI({ pedido, historico, etiquetas });
+  // A NF da LI nao vem no pedido: ele so aponta para ela (`/api/v1/pedido_nf/{id}`, o nome do campo e medido na 1a NF;
+  // por isso a procura e no JSON inteiro). Sem NF ou fora do ar, o pedido entra sem ela e a proxima leitura tenta de novo.
+  const idDaNota = JSON.stringify(pedido ?? {}).match(/\/api\/v1\/pedido_nf\/(\d+)/)?.[1] ?? null;
+  const nf = idDaNota ? await opcional(li.get(`/pedido_nf/${idDaNota}`), `GET /pedido_nf/${idDaNota}`).catch(() => null) : null;
+  return normalizarPedidoLI({ pedido, historico, etiquetas, nf });
 }
 
 /** As listas do Bling que todo pedido usa (formas de pagamento e situacoes de Vendas), lidas uma vez por volta. */

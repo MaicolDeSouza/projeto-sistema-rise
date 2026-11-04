@@ -87,7 +87,7 @@ export default function PedidoDeVenda({ pedido, veCusto, pode, nfeLigada }) {
           </Painel>
         )}
         <Painel id="nf" aba={aba}>
-          <AbaNotaFiscal pedido={pedido} />
+          <AbaNotaFiscal pedido={pedido} podeBaixar={pode.baixarNF} />
         </Painel>
         <Painel id="historico" aba={aba}>
           <AbaHistorico historico={pedido.historico} />

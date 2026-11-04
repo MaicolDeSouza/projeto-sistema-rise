@@ -34,6 +34,7 @@ export default async function PedidoDeVendaPage({ params }) {
     marcarSeparacao: acesso.pode("acao.pedidos.marcarSeparacao", "executar"),
     editarCustoDoFrete: acesso.pode("acao.pedidos.editarCustoDoFrete", "executar"),
     vincularCliente: acesso.pode("acao.pedidos.vincularCliente", "executar"),
+    baixarNF: acesso.pode("acao.pedidos.baixarNF", "executar"),
   };
 
   return (
