@@ -90,11 +90,31 @@
     return candidatos.filter((elemento) => !candidatos.some((outro) => outro !== elemento && elemento.contains(outro))).pop() ?? null;
   }
 
+  /**
+   * As APIs do mtop que a pagina chamou desde `desde` (performance.now), lidas da lista de recursos do navegador
+   * (`/h5/<api>/<versao>/`). Nao depende do gancho: quando a lista "nao responde", diz se a pagina chamou outra API
+   * (o AliExpress trocou o nome), chamou a mesma por outro caminho (o gancho nao a viu) ou nao chamou nada.
+   */
+  function apisChamadasDesde(desde) {
+    const nomes = performance
+      .getEntriesByType("resource")
+      .filter((entrada) => entrada.startTime >= desde)
+      .map((entrada) => /\/h5\/([a-z0-9._-]+)\/\d/i.exec(entrada.name)?.[1])
+      .filter(Boolean);
+    return [...new Set(nomes)];
+  }
+
   async function clicarEEsperar(elemento) {
     const antes = capturas.length;
+    const desde = performance.now();
     elemento.click();
     const capturada = await esperarLista(antes);
-    if (!capturada?.ok) throw new Error("A lista de pedidos não respondeu. O AliExpress mudou a página?");
+    if (!capturada?.ok) {
+      const apis = apisChamadasDesde(desde);
+      const rotulo = elemento.textContent.trim().slice(0, 40);
+      const detalhe = apis.length ? `a página chamou: ${apis.join(", ")}` : "a página não chamou nenhuma API";
+      throw new Error(`A lista de pedidos não respondeu ao clicar em "${rotulo}" (${detalhe}). O AliExpress mudou a página?`);
+    }
     return L.pedidosDaResposta(capturada.resposta?.data);
   }
 
