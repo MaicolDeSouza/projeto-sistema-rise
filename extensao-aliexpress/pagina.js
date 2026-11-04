@@ -118,9 +118,22 @@
     return L.pedidosDaResposta(capturada.resposta?.data);
   }
 
+  /**
+   * A aba da barra do topo ("Processando (1)"). Procura primeiro nos itens da barra de abas: em 04/11/2026 um pedido com
+   * a situacao "Processando" pos o mesmo texto no cartao dele, o `acharPorTexto` (que fica com o ultimo) clicava no
+   * rotulo do pedido, a lista nao era pedida e a extensao dizia "A lista de pedidos nao respondeu". Sem a barra
+   * conhecida, fica com o PRIMEIRO na ordem da pagina (as abas vem antes dos pedidos).
+   */
+  function acharAba(regex) {
+    const naBarra = [...document.querySelectorAll("[role='tab'], [class*='tabs-nav-item']")].find((elemento) => regex.test(elemento.textContent.trim()));
+    if (naBarra) return naBarra;
+    const candidatos = [...document.querySelectorAll("div, span, a, button, li")].filter((elemento) => regex.test(elemento.textContent.trim()));
+    return candidatos.filter((elemento) => !candidatos.some((outro) => outro !== elemento && elemento.contains(outro)))[0] ?? null;
+  }
+
   /** Le uma aba inteira (ou ate o corte, na "Ver tudo"). */
   async function lerAba(rotulo, { lerDesde = null } = {}) {
-    const aba = acharPorTexto(new RegExp(`^${rotulo}(\\s*\\(\\d+\\))?$`));
+    const aba = acharAba(new RegExp(`^${rotulo}(\\s*\\(\\d+\\))?$`));
     if (!aba) throw new Error(`Não achei a aba "${rotulo}". A página está em português?`);
     const pedidos = [];
     let pagina = await clicarEEsperar(aba);

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Rise AliExpress",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Envia as compras de Meus pedidos do AliExpress para o módulo Compras do Rise (4hobby).",
   "permissions": ["storage", "activeTab"],
   "host_permissions": ["https://www.aliexpress.com/*", "https://rise.4hobby.com.br/*", "https://localhost:3000/*"],
