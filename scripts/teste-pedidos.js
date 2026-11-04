@@ -31,6 +31,7 @@ const { statusDoPedido, statusDoEnvio } = await import("../src/lib/pedidos/statu
 const { clienteDoPedido } = await import("../src/lib/pedidos/cliente.js");
 const { custoCongeladoDoProduto, casarItens } = await import("../src/lib/pedidos/itens.js");
 const { parcelasDaEstimativa, parcelasDoReal, devolvido, lucroDivergente, lucroFechado } = await import("../src/lib/pedidos/lucro.js");
+const { necessidadeDoPedido, calcularPecas } = await import("../src/lib/pedidos/pecas.js");
 
 /** Le uma fixture de scripts/lib/fixtures/pedidos/ (copia nova a cada chamada: o teste edita a vontade). */
 function fx(nome) {
@@ -74,10 +75,15 @@ function conferir(nome, obtido, esperado) {
 const DOCUMENTOS_DE_TESTE = ["123.456.789-09", "11.222.333/0001-81", "000.000.000-00"];
 
 async function limpar() {
+  const ZZ = { sku: { startsWith: "ZZ-PED-" } };
   await prisma.pedidoDeVenda.deleteMany({ where: { numero: { startsWith: "ZZ-PED-" } } });
-  // A peca de um kit tem Restrict: a composicao sai antes dos produtos.
-  await prisma.produtoComponente.deleteMany({ where: { kit: { sku: { startsWith: "ZZ-PED-" } } } });
-  await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-PED-" } } });
+  await prisma.ordemDeProducao.deleteMany({ where: { produto: ZZ } });
+  await prisma.pedidoDeCompra.deleteMany({ where: { fornecedor: { nome: { startsWith: "ZZ Ped " } } } });
+  await prisma.fornecedor.deleteMany({ where: { nome: { startsWith: "ZZ Ped " } } });
+  // A peca de um kit e a peca propria tem Restrict: saem antes dos produtos.
+  await prisma.pecaPropriaDoProduto.deleteMany({ where: { OR: [{ produto: ZZ }, { componente: ZZ }] } });
+  await prisma.produtoComponente.deleteMany({ where: { kit: ZZ } });
+  await prisma.produto.deleteMany({ where: ZZ });
   await prisma.cliente.deleteMany({
     where: { OR: [{ documento: { in: DOCUMENTOS_DE_TESTE } }, { nome: { startsWith: "ZZ Ped " } }] },
   });
@@ -281,6 +287,38 @@ try {
     conferir("Bling frete manual", parcelasDoReal({ origem: "BLING", itens: [], totais: { total: 100 }, envio: {}, pagamento: [], custoDoFreteManual: 25, estimativa: {} }).fontes.frete, "manual");
     conferir("devolvido", devolvido(22.5), { receita: 0, comissao: 0, tarifaFixa: 0, frete: 22.5, imposto: 0, custo: 0, lucro: -22.5, fontes: { frete: "envio" } });
     conferir("fechado so entregue sem estimado", [lucroFechado({ status: "ENTREGUE", real: { fontes: { frete: "envio" } } }), lucroFechado({ status: "ENTREGUE", real: { fontes: { frete: "estimado" } } }), lucroFechado({ status: "ENVIADO", real: { fontes: {} } })], [true, false, false]);
+  }
+
+  console.log("\nPecas");
+  {
+    const p1 = await prisma.produto.create({ data: { sku: "ZZ-PED-P1", tituloBase: "ZZ Ped P1", estoque: 3 } });
+    const p2 = await prisma.produto.create({ data: { sku: "ZZ-PED-P2", tituloBase: "ZZ Ped P2", estoque: 0 } });
+    const p3 = await prisma.produto.create({ data: { sku: "ZZ-PED-P3", tituloBase: "ZZ Ped P3", estoque: 0 } });
+    const k = await prisma.produto.create({ data: { sku: "ZZ-PED-K", tituloBase: "ZZ Ped Kit", tipo: "COMPOSICAO", componentes: { create: [{ componenteId: p1.id, quantidade: 2 }] } } });
+    const pp = await prisma.produto.create({ data: { sku: "ZZ-PED-PP", tituloBase: "ZZ Ped PP", pecasProprias: true, pecasDoProduto: { create: [{ componenteId: p2.id, quantidade: 1.5 }] } } });
+    const fornecedor = await prisma.fornecedor.create({ data: { nome: "ZZ Ped Fornecedor" } });
+    const numeroDaCompra = ((await prisma.pedidoDeCompra.aggregate({ _max: { numero: true } }))._max.numero ?? 0) + 1;
+    await prisma.pedidoDeCompra.create({ data: { numero: numeroDaCompra, status: "ENVIADO", fornecedorId: fornecedor.id, enviadoEm: new Date("2026-11-05T12:00:00-03:00"), itens: { create: [{ produtoId: p2.id, quantidade: 10, prazoDias: 7 }] } } });
+    const numeroDaOrdem = ((await prisma.ordemDeProducao.aggregate({ _max: { numero: true } }))._max.numero ?? 0) + 1;
+    const op = await prisma.ordemDeProducao.create({ data: { numero: numeroDaOrdem, produtoId: p3.id, situacao: "ABERTA", quantidadePlanejada: 1 } });
+    const mapa = new Map((await prisma.produto.findMany({ where: { sku: { startsWith: "ZZ-PED-" } }, include: { componentes: true, pecasDoProduto: true } })).map((p) => [p.id, p]));
+    conferir("necessidade: simples, kit e pecas proprias", [...necessidadeDoPedido([{ produtoId: k.id, quantidade: 1 }, { produtoId: pp.id, quantidade: 1 }], mapa).entries()], [[p1.id, 2], [p2.id, 2]]);
+    const novoPedido = (numero, hora, itens) =>
+      prisma.pedidoDeVenda.create({
+        data: { origem: "BLING", canal: "BLING", idExterno: numero, numero, dataDaVenda: new Date(`2026-11-04T${hora}:00-03:00`), atualizadoNaOrigemEm: new Date(), statusDaOrigem: "Em andamento", status: "PAGO", enderecoDeEntrega: {}, pagamento: [], envio: {}, historico: [], totalProdutos: 10, desconto: 0, freteCobrado: 0, total: 10, itens: { create: itens.map((item, ordem) => ({ ordem, produtoId: item.produtoId, titulo: "x", quantidade: item.quantidade, precoUnitario: 1, desconto: 0, total: item.quantidade })) } },
+        include: { itens: true },
+      });
+    const pedidoAntigo = await novoPedido("ZZ-PED-20", "10:00", [{ produtoId: p1.id, quantidade: 2 }]);
+    const pedidoNovo = await novoPedido("ZZ-PED-21", "11:00", [{ produtoId: p1.id, quantidade: 2 }, { produtoId: p2.id, quantidade: 1 }]);
+    const pedidoComP3 = await novoPedido("ZZ-PED-22", "12:00", [{ produtoId: p3.id, quantidade: 1 }]);
+    const r1 = await calcularPecas(prisma, pedidoAntigo);
+    conferir("primeiro pedido tem", [r1.falta, r1.pecas[0].disponivel, r1.pecas[0].falta], [false, 3, 0]);
+    const r2 = await calcularPecas(prisma, pedidoNovo);
+    conferir("segundo pedido desconta a reserva do primeiro", r2.pecas.map((p) => [p.sku, p.disponivel, p.falta]), [["ZZ-PED-P1", 1, 1], ["ZZ-PED-P2", 0, 1]]);
+    conferir("previsao pela compra", r2.pecas[1].previsao, "12/11");
+    conferir("previsao pela producao quando nao ha compra", (await calcularPecas(prisma, pedidoComP3)).pecas.find((p) => p.sku === "ZZ-PED-P3").previsao, "em produção, ordem OP-" + String(op.numero).padStart(4, "0"));
+    await prisma.pedidoDeVenda.update({ where: { id: pedidoAntigo.id }, data: { status: "CANCELADO" } });
+    conferir("pedido cancelado libera a reserva", (await calcularPecas(prisma, pedidoNovo)).pecas[0].falta, 0);
   }
 
   // Marcador: os blocos seguintes entram acima desta linha.
