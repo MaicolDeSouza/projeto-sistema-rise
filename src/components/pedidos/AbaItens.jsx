@@ -1,7 +1,6 @@
 import { Package } from "lucide-react";
 
 import FotoComLupa from "@/components/ui/FotoComLupa";
-import JanelaDaPagina from "@/components/ui/JanelaDaPagina";
 
 import { moeda } from "./formato";
 
@@ -66,9 +65,15 @@ export default function AbaItens({ pedido }) {
                     <span className="mt-0.5 flex items-center gap-1.5 text-xs text-suave">
                       <IconeDoRise item={item} />
                       {item.produto ? (
-                        <JanelaDaPagina href={`/produtos/${item.produto.id}`} titulo={`Produto ${item.produto.sku}`} className="font-mono hover:text-acento hover:underline">
+                        <a
+                          href={`/produtos/${item.produto.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Abrir o produto em outra aba"
+                          className="font-mono hover:text-acento hover:underline"
+                        >
                           {item.produto.sku}
-                        </JanelaDaPagina>
+                        </a>
                       ) : (
                         <span className="font-mono">{item.codigoNaOrigem ?? "sem código"}</span>
                       )}

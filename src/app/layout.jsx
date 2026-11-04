@@ -4,7 +4,6 @@ import { headers } from "next/headers";
 import Sidebar from "@/components/Sidebar";
 import TextoCortadoAoClicar from "@/components/ui/TextoCortadoAoClicar";
 import TravaDaRolagem from "@/components/ui/TravaDaRolagem";
-import MarcaDeJanela from "@/components/ui/MarcaDeJanela";
 import { blocos } from "@/lib/blocos";
 import { blocosOcultos } from "@/lib/acessos/resolucao";
 import { sessaoDeAcessos } from "@/lib/acessos/servidor";
@@ -39,10 +38,7 @@ export default async function RootLayout({ children }) {
     >
       <body className="min-h-full">
         <div className="flex min-h-screen flex-col lg:flex-row">
-          {/* Dentro de um pop-up (`JanelaDaPagina`) o menu some: `data-menu-lateral` + a marca de `MarcaDeJanela`. */}
-          <div data-menu-lateral className="contents">
-            <Sidebar sessao={sessao} hrefsOcultos={hrefsOcultos} />
-          </div>
+          <Sidebar sessao={sessao} hrefsOcultos={hrefsOcultos} />
           <main className="min-w-0 flex-1 px-4 py-6 lg:px-8 lg:py-8">
             {children}
           </main>
@@ -51,8 +47,6 @@ export default async function RootLayout({ children }) {
         <TextoCortadoAoClicar />
         {/* Janela aberta: a tela de tras nao rola (pedido do dono em 23/10/2026). */}
         <TravaDaRolagem />
-        {/* Pagina aberta dentro de um pop-up de outra: marca o <html> para esconder o menu (pedido do dono em 04/11/2026). */}
-        <MarcaDeJanela />
       </body>
     </html>
   );

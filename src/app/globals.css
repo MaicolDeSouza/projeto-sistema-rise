@@ -58,14 +58,3 @@ body {
   background: var(--color-fundo);
   color: var(--color-texto);
 }
-
-/*
-  Pagina aberta dentro do pop-up de outra (`JanelaDaPagina` + `MarcaDeJanela`, pedido do dono em 04/11/2026): sem o menu
-  lateral e com menos espaco em volta, para caber na janela. Fora de um pop-up a marca nao existe e nada muda.
-*/
-html[data-em-janela] [data-menu-lateral] {
-  display: none;
-}
-html[data-em-janela] main {
-  padding: 1rem 1.25rem;
-}
