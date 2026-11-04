@@ -58,6 +58,9 @@ export const TEXTO_DA_FONTE = {
 /** Os nomes dos canais na tela ("Abrir no Mercado Livre"). */
 export const NOME_DO_CANAL = { MERCADO_LIVRE: "Mercado Livre", LOJA_INTEGRADA: "Loja Integrada", BLING: "Bling", SHOPEE: "Shopee" };
 
+/** "Abrir no Mercado Livre", "Abrir na Loja Integrada": o artigo acompanha o nome do canal. */
+export const abrirNoCanal = (origem) => (origem === "LOJA_INTEGRADA" ? "Abrir na Loja Integrada" : `Abrir no ${NOME_DO_CANAL[origem] ?? origem}`);
+
 /** O endereco do pedido no painel do canal (rodape "Abrir no ..."). */
 export function linkNoCanal(pedido) {
   if (pedido.origem === "MERCADO_LIVRE") return `https://www.mercadolivre.com.br/vendas/${encodeURIComponent(pedido.idExterno)}/detalhe`;

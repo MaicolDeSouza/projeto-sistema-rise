@@ -1,7 +1,5 @@
 import Link from "next/link";
 
-import { formatarTelefone } from "@/lib/telefone";
-
 import { abreviarPagamento, dataCompleta, moeda } from "./formato";
 import SeloDoNivel from "./SeloDoNivel";
 
@@ -40,69 +38,79 @@ function enderecoEmLinhas(endereco) {
   ].filter(Boolean);
 }
 
+/** Uma linha da aba Dados do cliente: o rotulo a esquerda, o valor a direita, uma linha divisoria entre elas. */
+function Linha({ rotulo, children }) {
+  return (
+    <div className="grid gap-1 py-4 sm:grid-cols-[10rem_1fr] sm:gap-6">
+      <dt className="text-sm text-suave">{rotulo}</dt>
+      <dd className="min-w-0 text-[15px] font-medium">{children}</dd>
+    </div>
+  );
+}
+
 /**
- * Aba Geral do pedido: o cliente (com o link para o cadastro e o nivel), a entrega, o pagamento e os totais. Sem
- * cliente, a faixa ambar com "Vincular cliente" (a acao fica com quem tem a permissao).
+ * Aba "Dados do cliente" (pedido do dono em 04/11/2026: so Nome, CPF e endereco, bem separados): uma informacao por
+ * linha, com o rotulo a esquerda. Sem cliente no cadastro, a faixa ambar com "Vincular cliente" fica em cima. O
+ * pagamento e os totais moram no pe da aba Itens.
  */
 export default function AbaGeral({ pedido, podeVincular, aoVincular }) {
   const cliente = pedido.cliente;
-  const telefone = cliente?.telefone ?? pedido.telefoneDoComprador;
-  const email = cliente?.email ?? pedido.emailDoComprador;
   const documento = cliente?.documento ?? pedido.documentoDoComprador;
   const linhasDoEndereco = enderecoEmLinhas(pedido.enderecoDeEntrega);
-  const pagamentos = Array.isArray(pedido.pagamento) ? pedido.pagamento : [];
 
   return (
-    <div className="grid gap-x-10 gap-y-7 p-5 md:grid-cols-2">
-      <Secao titulo="Cliente">
-        {!cliente && (
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            <span>Pedido sem cliente no cadastro.</span>
-            <button
-              type="button"
-              onClick={aoVincular}
-              disabled={!podeVincular}
-              title={podeVincular ? undefined : "Sem permissão para vincular cliente"}
-              className="rounded-md border border-amber-300 bg-white px-2.5 py-1 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Vincular cliente
-            </button>
-          </div>
-        )}
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-3">
-          <Dado rotulo="Nome" className="col-span-2">
-            <span className="inline-flex max-w-full items-center gap-1.5">
-              {cliente ? (
-                <Link href={`/cadastros/clientes/${cliente.id}`} className="truncate font-medium hover:text-acento hover:underline">
-                  {cliente.nome}
-                </Link>
-              ) : (
-                <span className="truncate">{pedido.nomeDoComprador ?? "Sem nome"}</span>
-              )}
-              <SeloDoNivel nivel={cliente?.nivel} completo />
-            </span>
-          </Dado>
-          <Dado rotulo="CPF/CNPJ">{documento ? <span className="tabular-nums">{documento}</span> : null}</Dado>
-          <Dado rotulo="Telefone">{telefone ? <span className="tabular-nums">{formatarTelefone(telefone)}</span> : null}</Dado>
-          <Dado rotulo="E-mail" className="col-span-2">{email ? <span className="break-all">{email}</span> : null}</Dado>
-        </dl>
-      </Secao>
+    <div className="max-w-3xl px-5 py-2">
+      {!cliente && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <span>Pedido sem cliente no cadastro.</span>
+          <button
+            type="button"
+            onClick={aoVincular}
+            disabled={!podeVincular}
+            title={podeVincular ? undefined : "Sem permissão para vincular cliente"}
+            className="rounded-md border border-amber-300 bg-white px-2.5 py-1 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Vincular cliente
+          </button>
+        </div>
+      )}
+      <dl className="divide-y divide-borda">
+        <Linha rotulo="Nome">
+          <span className="inline-flex max-w-full items-center gap-2">
+            {cliente ? (
+              <Link href={`/cadastros/clientes/${cliente.id}`} title="Abrir o cadastro do cliente" className="truncate hover:text-acento hover:underline">
+                {cliente.nome}
+              </Link>
+            ) : (
+              <span className="truncate">{pedido.nomeDoComprador ?? "Sem nome"}</span>
+            )}
+            <SeloDoNivel nivel={cliente?.nivel} completo />
+          </span>
+        </Linha>
+        <Linha rotulo="CPF/CNPJ">{documento ? <span className="tabular-nums">{documento}</span> : <span className="font-normal text-suave">Não informado</span>}</Linha>
+        <Linha rotulo="Endereço">
+          {linhasDoEndereco.length > 0 ? (
+            <address className="leading-relaxed not-italic">
+              {linhasDoEndereco.map((linha) => (
+                <span key={linha} className="block">
+                  {linha}
+                </span>
+              ))}
+            </address>
+          ) : (
+            <span className="font-normal text-suave">Não informado</span>
+          )}
+        </Linha>
+      </dl>
+    </div>
+  );
+}
 
-      <Secao titulo="Entrega">
-        {linhasDoEndereco.length > 0 ? (
-          <address className="text-sm leading-relaxed not-italic">
-            {pedido.enderecoDeEntrega?.nome && <span className="block font-medium">{pedido.enderecoDeEntrega.nome}</span>}
-            {linhasDoEndereco.map((linha) => (
-              <span key={linha} className="block">
-                {linha}
-              </span>
-            ))}
-          </address>
-        ) : (
-          <p className="text-sm text-suave">O canal não informou o endereço.</p>
-        )}
-      </Secao>
-
+/** O pagamento e os totais do pedido, no pe da aba Itens. */
+export function PagamentoETotais({ pedido }) {
+  const pagamentos = Array.isArray(pedido.pagamento) ? pedido.pagamento : [];
+  return (
+    <div className="grid gap-x-10 gap-y-6 border-t border-borda p-5 md:grid-cols-2">
       <Secao titulo="Pagamento">
         {pagamentos.length === 0 ? (
           <p className="text-sm text-suave">O canal não informou o pagamento.</p>

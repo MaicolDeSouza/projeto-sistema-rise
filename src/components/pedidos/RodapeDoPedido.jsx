@@ -5,7 +5,7 @@ import { ExternalLink, FileText, PackageCheck } from "lucide-react";
 
 import { marcarEmSeparacaoAcao } from "@/app/pedidos/acoes";
 
-import { linkNoBling, linkNoCanal, NOME_DO_CANAL } from "./formato";
+import { abrirNoCanal, linkNoBling, linkNoCanal } from "./formato";
 
 const QUE_SEPARAM = new Set(["PAGO", "AGUARDANDO_PECAS", "EM_SEPARACAO"]);
 
@@ -36,7 +36,7 @@ export default function RodapeDoPedido({ pedido, podeSeparar, nfeLigada }) {
       <div className="flex flex-wrap items-center gap-1">
         {noCanal && (
           <a href={noCanal} target="_blank" rel="noreferrer" className={link}>
-            <ExternalLink size={14} aria-hidden="true" /> Abrir no {NOME_DO_CANAL[pedido.origem] ?? pedido.origem}
+            <ExternalLink size={14} aria-hidden="true" /> {abrirNoCanal(pedido.origem)}
           </a>
         )}
         {noBling && (

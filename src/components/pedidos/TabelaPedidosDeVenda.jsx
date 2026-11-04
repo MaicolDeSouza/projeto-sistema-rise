@@ -6,7 +6,7 @@ import { Package } from "lucide-react";
 import CabecalhoOrdenavel, { parametrosDaOrdenacao } from "@/components/ui/CabecalhoOrdenavel";
 import FotoComLupa from "@/components/ui/FotoComLupa";
 
-import { abreviarPagamento, dataCompleta, diaEHora, linkNoBling, linkNoCanal, moedaComSinal, moeda, NOME_DO_CANAL } from "./formato";
+import { abreviarPagamento, abrirNoCanal, dataCompleta, diaEHora, linkNoBling, linkNoCanal, moedaComSinal, moeda } from "./formato";
 import IconeDoCanalDoPedido from "./IconeDoCanalDoPedido";
 import { COR_DO_STATUS, COR_DO_STATUS_DO_ENVIO, TEXTO_DO_STATUS, TEXTO_DO_STATUS_DO_ENVIO } from "./textos";
 
@@ -109,7 +109,6 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
             const pagamento = abreviarPagamento(linha.pagamento);
             const noCanal = linkNoCanal(linha);
             const noBling = linha.origem !== "BLING" ? linkNoBling(linha) : null;
-            const nomeDoCanal = NOME_DO_CANAL[linha.origem] ?? linha.origem;
             const parar = (evento) => evento.stopPropagation();
             return (
               <tr
@@ -161,7 +160,7 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
                 </td>
                 <td className="whitespace-nowrap px-2 py-2 font-mono text-xs font-semibold">
                   {noCanal ? (
-                    <a href={noCanal} target="_blank" rel="noreferrer" onClick={parar} title={`Abrir no ${nomeDoCanal}`} className={linkExterno}>
+                    <a href={noCanal} target="_blank" rel="noreferrer" onClick={parar} title={abrirNoCanal(linha.origem)} className={linkExterno}>
                       {linha.numero}
                     </a>
                   ) : (

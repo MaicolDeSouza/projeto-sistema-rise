@@ -6,7 +6,7 @@ import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import Card from "@/components/ui/Card";
 
 import AbaEnvio from "./AbaEnvio";
-import AbaGeral from "./AbaGeral";
+import AbaGeral, { PagamentoETotais } from "./AbaGeral";
 import AbaHistorico from "./AbaHistorico";
 import AbaItens from "./AbaItens";
 import AbaLucro from "./AbaLucro";
@@ -27,7 +27,7 @@ export default function PedidoDeVenda({ pedido, veCusto, pode, nfeLigada }) {
   const [vinculando, setVinculando] = useState(false);
   const mostrarPecas = pedido.status === "AGUARDANDO_PECAS" || Boolean(pedido.pecas?.falta);
   const abas = [
-    { id: "geral", rotulo: "Geral" },
+    { id: "geral", rotulo: "Dados do cliente" },
     { id: "itens", rotulo: `Itens (${pedido.itens.length})` },
     mostrarPecas && { id: "pecas", rotulo: "Peças" },
     { id: "envio", rotulo: "Envio" },
@@ -66,6 +66,7 @@ export default function PedidoDeVenda({ pedido, veCusto, pode, nfeLigada }) {
         </Painel>
         <Painel id="itens" aba={aba}>
           <AbaItens itens={pedido.itens} veCusto={veCusto} />
+          <PagamentoETotais pedido={pedido} />
         </Painel>
         {mostrarPecas && (
           <Painel id="pecas" aba={aba}>
