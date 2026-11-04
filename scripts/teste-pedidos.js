@@ -29,6 +29,7 @@ const { normalizarPedidoLI, escolherEtiquetaEnviali } = await import("../src/lib
 const { normalizarPedidoBling, classificarLojaDoBling } = await import("../src/lib/pedidos/bling.js");
 const { statusDoPedido, statusDoEnvio } = await import("../src/lib/pedidos/status.js");
 const { clienteDoPedido } = await import("../src/lib/pedidos/cliente.js");
+const { custoCongeladoDoProduto, casarItens } = await import("../src/lib/pedidos/itens.js");
 
 /** Le uma fixture de scripts/lib/fixtures/pedidos/ (copia nova a cada chamada: o teste edita a vontade). */
 function fx(nome) {
@@ -73,6 +74,8 @@ const DOCUMENTOS_DE_TESTE = ["123.456.789-09", "11.222.333/0001-81", "000.000.00
 
 async function limpar() {
   await prisma.pedidoDeVenda.deleteMany({ where: { numero: { startsWith: "ZZ-PED-" } } });
+  // A peca de um kit tem Restrict: a composicao sai antes dos produtos.
+  await prisma.produtoComponente.deleteMany({ where: { kit: { sku: { startsWith: "ZZ-PED-" } } } });
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-PED-" } } });
   await prisma.cliente.deleteMany({
     where: { OR: [{ documento: { in: DOCUMENTOS_DE_TESTE } }, { nome: { startsWith: "ZZ Ped " } }] },
@@ -245,6 +248,23 @@ try {
     const invalido = await clienteDoPedido(prisma, { ...base, comprador: { ...base.comprador, documento: "00000000000" } });
     conferir("documento invalido cria com aviso", [invalido.avisos, (await prisma.cliente.findUnique({ where: { id: invalido.clienteId } })).observacoes.includes("documento inválido")], [["documentoInvalido"], true]);
     conferir("CNPJ vira juridica", (await prisma.cliente.findUnique({ where: { id: (await clienteDoPedido(prisma, { ...base, comprador: { ...base.comprador, documento: "11222333000181" } })).clienteId } })).tipoPessoa, "JURIDICA");
+  }
+
+  console.log("\nItens");
+  {
+    const a = await prisma.produto.create({ data: { sku: "ZZ-PED-A", tituloBase: "ZZ Ped A", custo: 10, conferido: true } });
+    const b = await prisma.produto.create({ data: { sku: "ZZ-PED-B", tituloBase: "ZZ Ped B", conferido: false, blingId: "ZZPEDB", fornecedorRascunho: { precoCusto: 7.5 } } });
+    await prisma.produto.create({ data: { sku: "ZZ-PED-KIT", tituloBase: "ZZ Ped Kit", tipo: "COMPOSICAO", componentes: { create: [{ componenteId: a.id, quantidade: 2 }] } } });
+    await prisma.anuncio.create({ data: { produtoId: a.id, canal: "MERCADO_LIVRE", idExterno: "MLBZZPED1", status: "PUBLICADO" } });
+    conferir("custo: fornecedor padrao > rascunho > cadastro", [custoCongeladoDoProduto({ custo: 10, fornecedores: [{ padrao: true, precoFornecedor: 8 }] }), custoCongeladoDoProduto({ custo: 10, fornecedorRascunho: { precoCusto: 7.5 }, fornecedores: [] }), custoCongeladoDoProduto({ custo: 10, fornecedores: [] }), custoCongeladoDoProduto({ custo: null, fornecedores: [] })], [{ custo: 8, origem: "fornecedorPadrao" }, { custo: 7.5, origem: "rascunhoBling" }, { custo: 10, origem: "cadastro" }, { custo: null, origem: null }]);
+    conferir("custo do kit soma as pecas", custoCongeladoDoProduto({ tipo: "COMPOSICAO", custo: null, fornecedores: [], componentes: [{ quantidade: 2, componente: { custo: 10, fornecedores: [] } }] }), { custo: 20, origem: "kit" });
+    const ml = await casarItens(prisma, { origem: "MERCADO_LIVRE", itens: [{ ordem: 0, idNaOrigem: "MLBZZPED1", codigoNaOrigem: null, titulo: "A", quantidade: 2, precoUnitario: 30, desconto: 0, total: 60, comissao: 7.8 }] });
+    conferir("ML casa pelo MLB", [ml.itens[0].produtoId === a.id, ml.itens[0].custoUnitarioCongelado, ml.itens[0].conferido, ml.avisos], [true, 10, true, []]);
+    const li = await casarItens(prisma, { origem: "LOJA_INTEGRADA", itens: [{ ordem: 0, idNaOrigem: "999", codigoNaOrigem: "zz-ped-b", titulo: "B", quantidade: 1, precoUnitario: 5, desconto: 0, total: 5, comissao: null }] });
+    conferir("LI cai no sku sem caixa; nao conferido e custo do rascunho", [li.itens[0].produtoId === b.id, li.itens[0].custoUnitarioCongelado, li.itens[0].custoOrigem, li.avisos], [true, 7.5, "rascunhoBling", ["produtoNaoConferido"]]);
+    const fora = await casarItens(prisma, { origem: "BLING", itens: [{ ordem: 0, idNaOrigem: "0", codigoNaOrigem: "NAO-EXISTE", titulo: "X", quantidade: 1, precoUnitario: 5, desconto: 0, total: 5, comissao: null }] });
+    conferir("fora do Rise", [fora.itens[0].produtoId, fora.avisos], [null, ["produtoForaDoRise"]]);
+    conferir("Bling nao avisa nao conferido", (await casarItens(prisma, { origem: "BLING", itens: [{ ordem: 0, idNaOrigem: b.blingId, codigoNaOrigem: "ZZ-PED-B", titulo: "B", quantidade: 1, precoUnitario: 5, desconto: 0, total: 5, comissao: null }] })).avisos, []);
   }
 
   // Marcador: os blocos seguintes entram acima desta linha.
