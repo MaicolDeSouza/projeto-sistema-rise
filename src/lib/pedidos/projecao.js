@@ -9,7 +9,7 @@
  * Sem imports: `pode(id, nivel)` e o da sessao de Acessos.
  */
 
-const PESSOAIS_DO_CLIENTE = ["documento", "telefone", "email"];
+const PESSOAIS_DO_CLIENTE = ["documento", "telefone", "email", "enderecos"];
 
 export function projetarPedido(pedido, pode) {
   if (!pedido) return pedido;

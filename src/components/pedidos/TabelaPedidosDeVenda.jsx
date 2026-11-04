@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Package } from "lucide-react";
+import { Filter, Package } from "lucide-react";
 
 import CabecalhoOrdenavel, { parametrosDaOrdenacao } from "@/components/ui/CabecalhoOrdenavel";
 import FotoComLupa from "@/components/ui/FotoComLupa";
@@ -49,21 +49,60 @@ function CelulaDoLucro({ linha }) {
 const linkExterno = "rounded hover:text-acento hover:underline focus-visible:outline-2 focus-visible:outline-acento";
 
 /**
- * A lista de Pedidos de venda, na ordem pedida pelo dono em 04/11/2026: Data, Foto, Descrição, Código, Quantidade,
- * Localização, Total, Lucro, Status, Envio, Número e Canal por ultimo. Linha-guia: o operador ve primeiro os pedidos
- * que pedem acao (fundo ambar); a linha abre o pedido no Rise, e o NUMERO abre o pedido no canal (ML, LI) e o "Bling" o
- * pedido no Bling, em outra aba. Um pedido com varios itens mostra o 1o e "e mais N".
- * Ordenam: data, total, lucro, status e numero (no banco, antes de paginar).
- *
- * `ordenavel={false}` deixa os cabecalhos parados (a aba Pedidos do cadastro do cliente: la a ordem e sempre a data).
+ * O cabecalho que filtra (Status e Envio, pedido do dono em 04/11/2026): cada clique passa para a proxima opcao que
+ * existe na coluna e, depois da ultima, volta a "todos". A opcao escolhida aparece no proprio cabecalho.
  */
-export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro, ordenavel = true }) {
+function CabecalhoQueFiltra({ rotulo, opcoes, atual, textos, aoMudar }) {
+  const indice = atual ? opcoes.indexOf(atual) : -1;
+  const proxima = indice + 1 < opcoes.length ? opcoes[indice + 1] : null;
+  const dica = opcoes.length === 0 ? "Nada para filtrar" : proxima ? `Clique para mostrar só: ${textos[proxima] ?? proxima}` : "Clique para mostrar todos";
+  return (
+    <th className="w-px whitespace-nowrap px-2 py-2.5 font-medium">
+      <button
+        type="button"
+        onClick={() => aoMudar(proxima)}
+        disabled={opcoes.length === 0}
+        title={dica}
+        aria-label={`${rotulo}: ${atual ? (textos[atual] ?? atual) : "todos"}. ${dica}`}
+        className={`inline-flex items-center gap-1 uppercase hover:text-texto disabled:cursor-default ${atual ? "font-semibold text-acento" : ""}`}
+      >
+        {atual ? <span className="normal-case tracking-normal">{textos[atual] ?? atual}</span> : rotulo}
+        <Filter size={12} aria-hidden="true" className={atual ? "text-acento" : "text-suave"} />
+      </button>
+    </th>
+  );
+}
+
+/** Os ultimos 6 digitos do pedido (o numero inteiro fica na dica); numero curto aparece inteiro. */
+const abreviarPedido = (numero) => {
+  const texto = String(numero ?? "");
+  return texto.length > 8 ? `…${texto.slice(-6)}` : texto;
+};
+
+/**
+ * A lista de Pedidos de venda, na ordem do dono (04/11/2026): Foto, Qtd. ("2x"), Descrição, Código, Local, Total, Lucro,
+ * Status e Envio (cabecalhos que filtram), Data, Pedido (abreviado; abre o pedido no canal, e o "Bling N" no Bling) e
+ * Canal. Linha-guia: o operador ve primeiro os pedidos que pedem acao (fundo ambar); a linha abre o pedido no Rise. Um
+ * pedido com varios itens mostra o 1o e "e mais N". Ordenam: data, total, lucro e pedido (no banco, antes de paginar).
+ *
+ * `ordenavel={false}` deixa os cabecalhos parados e sem filtro (a aba Pedidos do cadastro do cliente).
+ */
+export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro, ordenavel = true, opcoes = null, statusAtual = null, envioAtual = null }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   function trocarOrdenacao(campo) {
     const texto = parametrosDaOrdenacao(searchParams, campo, ordenar, direcao).toString();
+    router.push(texto ? `${pathname}?${texto}` : pathname);
+  }
+
+  function filtrar(parametro, valor) {
+    const params = new URLSearchParams(searchParams);
+    params.delete(parametro);
+    if (valor) params.set(parametro, valor);
+    params.delete("pagina");
+    const texto = params.toString();
     router.push(texto ? `${pathname}?${texto}` : pathname);
   }
 
@@ -80,17 +119,25 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
       <table className="w-full text-sm">
         <thead className="border-b border-borda bg-fundo text-left text-xs tracking-wide text-suave uppercase">
           <tr>
-            {cabecalho("data", "Data", "w-px whitespace-nowrap")}
             {fixo(<span className="sr-only">Foto</span>, "w-px")}
+            {fixo("Qtd.", "w-px whitespace-nowrap text-right")}
             {fixo("Descrição")}
             {fixo("Código", "w-px whitespace-nowrap")}
-            {fixo("Qtd.", "w-px whitespace-nowrap text-right")}
             {fixo(<span title="Localização no estoque">Local</span>, "w-px whitespace-nowrap")}
             {cabecalho("total", "Total", "w-px whitespace-nowrap text-right [&_button]:justify-end")}
             {veLucro && cabecalho("lucro", "Lucro", "w-px whitespace-nowrap text-right [&_button]:justify-end")}
-            {cabecalho("status", "Status", "w-px whitespace-nowrap")}
-            {fixo("Envio", "w-px whitespace-nowrap")}
-            {cabecalho("numero", "Número", "w-px whitespace-nowrap")}
+            {ordenavel && opcoes ? (
+              <CabecalhoQueFiltra rotulo="Status" opcoes={opcoes.status} atual={statusAtual} textos={TEXTO_DO_STATUS} aoMudar={(valor) => filtrar("status", valor)} />
+            ) : (
+              fixo("Status", "w-px whitespace-nowrap")
+            )}
+            {ordenavel && opcoes ? (
+              <CabecalhoQueFiltra rotulo="Envio" opcoes={opcoes.envio} atual={envioAtual} textos={TEXTO_DO_STATUS_DO_ENVIO} aoMudar={(valor) => filtrar("envio", valor)} />
+            ) : (
+              fixo("Envio", "w-px whitespace-nowrap")
+            )}
+            {cabecalho("data", "Data", "w-px whitespace-nowrap")}
+            {cabecalho("numero", "Pedido", "w-px whitespace-nowrap")}
             {fixo("Canal", "w-px")}
           </tr>
         </thead>
@@ -117,9 +164,6 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
                 title="Abrir o pedido no Rise"
                 className={`cursor-pointer transition-colors ${pedeAcao ? "bg-amber-50 hover:bg-amber-100/70" : "hover:bg-fundo/60"}`}
               >
-                <td className="whitespace-nowrap px-2 py-2 tabular-nums text-suave" title={dataCompleta(linha.dataDaVenda)}>
-                  {diaEHora(linha.dataDaVenda)}
-                </td>
                 <td className="px-2 py-2">
                   {linha.item?.foto ? (
                     <FotoComLupa src={linha.item.foto} alt={linha.item.titulo} className="h-9 w-9" />
@@ -129,12 +173,12 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
                     </span>
                   )}
                 </td>
+                <td className="whitespace-nowrap px-2 py-2 text-right font-medium tabular-nums">{linha.item?.quantidade ? `${linha.item.quantidade}x` : "—"}</td>
                 <td className="max-w-0 px-2 py-2">
                   <span className="block truncate">{linha.item?.titulo ?? "—"}</span>
                   {linha.quantidadeDeItens > 1 && <span className="block text-xs text-suave">e mais {linha.quantidadeDeItens - 1}</span>}
                 </td>
                 <td className="whitespace-nowrap px-2 py-2 font-mono text-xs">{linha.item?.sku ?? <span className="font-sans text-suave">—</span>}</td>
-                <td className="px-2 py-2 text-right tabular-nums">{linha.item?.quantidade ?? "—"}</td>
                 <td className="whitespace-nowrap px-2 py-2 font-mono text-xs">{linha.item?.localizacao ?? ""}</td>
                 <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">
                   {moeda.format(linha.total ?? 0)}
@@ -156,15 +200,19 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
                     <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${COR_DO_STATUS_DO_ENVIO[linha.statusDoEnvio] ?? "bg-zinc-300"}`} />
                     {TEXTO_DO_STATUS_DO_ENVIO[linha.statusDoEnvio] ?? linha.statusDoEnvio}
                   </span>
-                  {envioDetalhe && <span className="block pl-3.5 text-xs text-suave">{envioDetalhe}</span>}
+                  {/* O servico pode ser longo ("Normal ao endereço"): corta, e o texto inteiro abre ao passar o mouse. */}
+                  {envioDetalhe && <span className="block max-w-28 truncate pl-3.5 text-xs text-suave">{envioDetalhe}</span>}
+                </td>
+                <td className="whitespace-nowrap px-2 py-2 tabular-nums text-suave" title={dataCompleta(linha.dataDaVenda)}>
+                  {diaEHora(linha.dataDaVenda)}
                 </td>
                 <td className="whitespace-nowrap px-2 py-2 font-mono text-xs font-semibold">
                   {noCanal ? (
-                    <a href={noCanal} target="_blank" rel="noreferrer" onClick={parar} title={abrirNoCanal(linha.origem)} className={linkExterno}>
-                      {linha.numero}
+                    <a href={noCanal} target="_blank" rel="noreferrer" onClick={parar} title={`${abrirNoCanal(linha.origem)}: ${linha.numero}`} className={linkExterno}>
+                      {abreviarPedido(linha.numero)}
                     </a>
                   ) : (
-                    linha.numero
+                    <span title={linha.numero}>{abreviarPedido(linha.numero)}</span>
                   )}
                   {noBling && (
                     <a href={noBling} target="_blank" rel="noreferrer" onClick={parar} title="Abrir no Bling" className={`block font-sans text-[11px] font-normal text-suave ${linkExterno}`}>

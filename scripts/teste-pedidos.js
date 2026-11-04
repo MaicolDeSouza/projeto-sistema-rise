@@ -32,7 +32,7 @@ const { clienteDoPedido } = await import("../src/lib/pedidos/cliente.js");
 const { custoCongeladoDoProduto, casarItens } = await import("../src/lib/pedidos/itens.js");
 const { parcelasDaEstimativa, parcelasDoReal, devolvido, lucroDivergente, lucroFechado } = await import("../src/lib/pedidos/lucro.js");
 const { necessidadeDoPedido, calcularPecas } = await import("../src/lib/pedidos/pecas.js");
-const { aplicarPedidoLido, listarPedidosDeVenda, lerPedidoDeVenda, marcarEmSeparacao, salvarCustoDoFreteManual, vincularCliente, espelharNoBling, criarClienteDoPedido, buscarClientesParaVincular } = await import("../src/lib/pedidos/banco.js");
+const { aplicarPedidoLido, listarPedidosDeVenda, lerPedidoDeVenda, marcarEmSeparacao, salvarCustoDoFreteManual, vincularCliente, espelharNoBling, criarClienteDoPedido, buscarClientesParaVincular, opcoesDasColunas, resumoDaLista } = await import("../src/lib/pedidos/banco.js");
 const { rodarLeituraDePedidos } = await import("../src/lib/pedidos/leitura.js");
 const { ROTINAS_DO_WORKER } = await import("../src/lib/saude/regras.js");
 const { RECURSOS } = await import("../src/lib/acessos/recursos.js");
@@ -399,6 +399,20 @@ try {
     const lista = await listarPedidosDeVenda({ busca: "ZZ-PED-10", porPagina: 25 });
     conferir("lista acha pelo numero e traz o cliente", [lista.total >= 3, lista.linhas[0].cliente?.nome !== undefined], [true, true]);
     conferir("so com aviso", (await listarPedidosDeVenda({ busca: "ZZ-PED-10", soComAviso: true })).linhas.every((l) => l.avisos.length > 0), true);
+    // O filtro das colunas Status e Envio (pedido do dono em 04/11/2026): as opcoes sao as que existem na lista filtrada.
+    const opcoes = await opcoesDasColunas({ busca: "ZZ-PED-10" });
+    conferir("opcoes das colunas: status e envio que existem, na ordem da tabela", [opcoes.status.includes("PAGO"), opcoes.status.includes("FINALIZADO"), opcoes.envio.length > 0], [true, false, true]);
+    const soEnvio = await listarPedidosDeVenda({ busca: "ZZ-PED-10", envio: [opcoes.envio[0]] });
+    conferir("filtro pelo status do envio", soEnvio.linhas.every((l) => l.statusDoEnvio === opcoes.envio[0]) && soEnvio.total > 0, true);
+    // O lucro do periodo (pedido do dono em 04/11/2026): a mesma regra da coluna Lucro, sobre a lista filtrada inteira.
+    const todos = await listarPedidosDeVenda({ busca: "ZZ-PED-10", porPagina: 100 });
+    const esperado = todos.linhas.reduce((soma, l) => {
+      if (l.status === "CANCELADO") return soma;
+      const valor = l.lucroFechado || l.status === "DEVOLVIDO" ? l.lucroReal : (l.lucroEstimado ?? l.lucroReal);
+      return valor === null ? soma : soma + valor;
+    }, 0);
+    const resumo = await resumoDaLista({ busca: "ZZ-PED-10" });
+    conferir("lucro do periodo soma pela regra da coluna", [Math.round(resumo.lucro * 100), resumo.pedidos], [Math.round(esperado * 100), todos.total]);
     const lido = await lerPedidoDeVenda(a1.id);
     conferir("ler o pedido traz itens com produto e o cliente", [lido.itens[0].produto.sku, typeof lido.cliente.nome, typeof lido.total], ["ZZ-PED-A", "string", "number"]);
   }
@@ -480,7 +494,7 @@ try {
       telefoneDoComprador: "54988990008",
       emailDoComprador: "a@b.com",
       enderecoDeEntrega: { cidade: "Caxias do Sul" },
-      cliente: { id: "c1", nome: "Fulano", nivel: "OURO", documento: "123.456.789-09", telefone: "54988990008", email: "a@b.com" },
+      cliente: { id: "c1", nome: "Fulano", nivel: "OURO", documento: "123.456.789-09", telefone: "54988990008", email: "a@b.com", enderecos: [{ tipo: "GERAL", cidade: "Caxias do Sul" }] },
       estimativa: { lucro: 10 },
       real: { lucro: 8 },
       lucroEstimado: 10,
@@ -492,11 +506,12 @@ try {
     conferir("projecao: sem localizacao o item perde a do produto", projetarPedido(comLocal, (id) => id !== "dado.localizacao").itens[0].produto, { id: "p", sku: "A", localizacao: null });
     const lido = await lerPedidoDeVenda((await prisma.pedidoDeVenda.findFirst({ where: { numero: "ZZ-PED-102" }, select: { id: true } })).id);
     conferir("o pedido lido traz a localizacao do produto do item", "localizacao" in (lido.itens[0].produto ?? {}), true);
+    conferir("o pedido lido traz os enderecos do cadastro do cliente", Array.isArray(lido.cliente?.enderecos), true);
     const p1 = projetarPedido(pedido, semPessoal);
     conferir(
       "projecao: sem dado pessoal tira documento, telefone, e-mail e endereco",
-      [p1.documentoDoComprador, p1.telefoneDoComprador, p1.emailDoComprador, p1.enderecoDeEntrega, p1.cliente.documento, p1.cliente.telefone, p1.cliente.email, p1.cliente.nome, p1.estimativa.lucro],
-      [null, null, null, null, undefined, undefined, undefined, "Fulano", 10],
+      [p1.documentoDoComprador, p1.telefoneDoComprador, p1.emailDoComprador, p1.enderecoDeEntrega, p1.cliente.documento, p1.cliente.telefone, p1.cliente.email, p1.cliente.nome, p1.estimativa.lucro, p1.cliente.enderecos],
+      [null, null, null, null, undefined, undefined, undefined, "Fulano", 10, undefined],
     );
     const p2 = projetarPedido(pedido, semCusto);
     conferir(

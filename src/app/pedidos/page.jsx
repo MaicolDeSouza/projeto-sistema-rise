@@ -3,14 +3,15 @@ import { ShoppingCart } from "lucide-react";
 import FiltrosDePedidos from "@/components/pedidos/FiltrosDePedidos";
 import { diaIso } from "@/components/pedidos/formato";
 import TabelaPedidosDeVenda from "@/components/pedidos/TabelaPedidosDeVenda";
-import { STATUS } from "@/components/pedidos/textos";
+import { STATUS, TEXTO_DO_STATUS_DO_ENVIO } from "@/components/pedidos/textos";
+import { moedaComSinal } from "@/components/pedidos/formato";
 import NavegacaoDoTopo from "@/components/mercados/NavegacaoDoTopo";
 import Paginacao from "@/components/mercados/Paginacao";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import EmptyState from "@/components/ui/EmptyState";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
-import { listarPedidosDeVenda } from "@/lib/pedidos/banco";
+import { listarPedidosDeVenda, opcoesDasColunas, resumoDaLista } from "@/lib/pedidos/banco";
 import { projetarLinhaDaLista } from "@/lib/pedidos/projecao";
 import { porPaginaDaUrl } from "@/lib/porPagina";
 
@@ -40,6 +41,7 @@ export default async function PedidosDeVendaPage({ searchParams }) {
   const ate = ehDia(umDe(params?.ate)) ? umDe(params.ate) : "";
   const canais = lista(params?.canal).filter((canal) => CANAIS.includes(canal));
   const status = lista(params?.status).filter((valor) => STATUS.includes(valor));
+  const envio = lista(params?.envio).filter((valor) => valor in TEXTO_DO_STATUS_DO_ENVIO);
   const soComAviso = umDe(params?.aviso) === "1";
   const ordenar = ORDENACOES.includes(umDe(params?.ordenar)) ? umDe(params.ordenar) : "";
   const direcao = umDe(params?.direcao) === "asc" ? "asc" : "desc";
@@ -48,6 +50,9 @@ export default async function PedidosDeVendaPage({ searchParams }) {
   const veLucro = acesso.pode("dado.custo", "ver");
 
   let resultado = null;
+  // As opcoes do filtro de Status e Envio e o lucro do periodo saem do mesmo filtro da lista (sem a pagina).
+  let opcoes = null;
+  let resumo = null;
   let erro = null;
   try {
     const filtro = {
@@ -57,12 +62,17 @@ export default async function PedidosDeVendaPage({ searchParams }) {
       ate: ate ? new Date(`${ate}T23:59:59.999-03:00`) : undefined,
       canais,
       status,
+      envio,
       soComAviso,
       ordenar: ordenar || undefined,
       direcao,
       porPagina,
     };
-    resultado = await listarPedidosDeVenda({ ...filtro, pagina: paginaPedida });
+    [resultado, opcoes, resumo] = await Promise.all([
+      listarPedidosDeVenda({ ...filtro, pagina: paginaPedida }),
+      opcoesDasColunas(filtro),
+      veLucro ? resumoDaLista(filtro) : null,
+    ]);
     // Pagina alem do fim (link antigo, filtro que encolheu a lista): mostra a ultima que existe.
     const ultima = Math.max(1, Math.ceil(resultado.total / porPagina));
     if (paginaPedida > ultima) resultado = await listarPedidosDeVenda({ ...filtro, pagina: ultima });
@@ -75,7 +85,7 @@ export default async function PedidosDeVendaPage({ searchParams }) {
   const pagina = Math.min(paginaPedida, totalPaginas);
   // Sem `dado.custo`, o lucro nao vai nem no conteudo da pagina (a coluna some, e o numero tambem).
   const linhas = (resultado?.linhas ?? []).map((linha) => projetarLinhaDaLista(linha, acesso.pode));
-  const filtrando = Boolean(busca || canais.length || status.length || soComAviso || umDe(params?.desde) || ate);
+  const filtrando = Boolean(busca || canais.length || status.length || envio.length || soComAviso || umDe(params?.desde) || ate);
 
   return (
     <>
@@ -90,7 +100,19 @@ export default async function PedidosDeVendaPage({ searchParams }) {
         canais={canais}
         status={status}
         soComAviso={soComAviso}
-        navegacao={<NavegacaoDoTopo pagina={pagina} totalPaginas={totalPaginas} total={total} porPagina={porPagina} />}
+        navegacao={
+          <div className="ml-auto flex items-end gap-6">
+            {/* O lucro do periodo (pedido do dono em 04/11/2026): a lista filtrada inteira, pela regra da coluna Lucro. */}
+            {resumo && (
+              <div className="text-right" title={resumo.semLucro > 0 ? `${resumo.semLucro} pedido(s) sem lucro calculado (item sem custo) ficaram de fora` : "Cancelados não entram; devolvidos entram com o prejuízo do frete de retorno"}>
+                <p className="text-xs text-suave">Lucro no período</p>
+                <p className={`text-lg leading-tight font-semibold tabular-nums ${resumo.lucro < 0 ? "text-red-600" : "text-emerald-700"}`}>{moedaComSinal(resumo.lucro)}</p>
+                {resumo.semLucro > 0 && <p className="text-xs text-suave">{resumo.semLucro} sem lucro calculado</p>}
+              </div>
+            )}
+            <NavegacaoDoTopo pagina={pagina} totalPaginas={totalPaginas} total={total} porPagina={porPagina} />
+          </div>
+        }
       />
 
       {!erro && linhas.length === 0 ? (
@@ -102,7 +124,7 @@ export default async function PedidosDeVendaPage({ searchParams }) {
       ) : (
         linhas.length > 0 && (
           <>
-            <TabelaPedidosDeVenda linhas={linhas} ordenar={ordenar} direcao={direcao} veLucro={veLucro} />
+            <TabelaPedidosDeVenda linhas={linhas} ordenar={ordenar} direcao={direcao} veLucro={veLucro} opcoes={opcoes} statusAtual={status.length === 1 ? status[0] : null} envioAtual={envio.length === 1 ? envio[0] : null} />
             {totalPaginas > 1 && (
               <div className="mt-4">
                 <Paginacao

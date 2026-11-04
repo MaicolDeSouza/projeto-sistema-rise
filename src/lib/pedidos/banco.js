@@ -278,7 +278,7 @@ const ORDENACOES = {
   lucro: (d) => ({ lucroReal: d }),
 };
 
-function filtroDaLista({ busca, desde, ate, canais, status, soComAviso, clienteId }) {
+function filtroDaLista({ busca, desde, ate, canais, status, envio, soComAviso, clienteId }) {
   const where = {};
   // A aba Pedidos do cadastro do cliente lista so os dele.
   if (clienteId) where.clienteId = clienteId;
@@ -287,6 +287,7 @@ function filtroDaLista({ busca, desde, ate, canais, status, soComAviso, clienteI
   if (Array.isArray(canais) && canais.length > 0) where.canal = { in: canais };
   if (Array.isArray(status) && status.length > 0) where.status = { in: status };
   else if (typeof status === "string" && status) where.status = status;
+  if (Array.isArray(envio) && envio.length > 0) where.statusDoEnvio = { in: envio };
   if (soComAviso) where.avisos = { isEmpty: false };
   const texto = String(busca ?? "").trim();
   if (texto) {
@@ -305,8 +306,8 @@ function filtroDaLista({ busca, desde, ate, canais, status, soComAviso, clienteI
 }
 
 /** A lista de pedidos: `{ linhas, total }`, com o cliente, o primeiro item (com foto) e quantos itens ha. */
-export async function listarPedidosDeVenda({ busca, desde, ate, canais, status, soComAviso = false, clienteId, ordenar, direcao, pagina = 1, porPagina = 25 } = {}) {
-  const where = filtroDaLista({ busca, desde, ate, canais, status, soComAviso, clienteId });
+export async function listarPedidosDeVenda({ busca, desde, ate, canais, status, envio, soComAviso = false, clienteId, ordenar, direcao, pagina = 1, porPagina = 25 } = {}) {
+  const where = filtroDaLista({ busca, desde, ate, canais, status, envio, soComAviso, clienteId });
   const sentido = direcao === "asc" ? "asc" : "desc";
   const orderBy = ORDENACOES[ordenar] ? [ORDENACOES[ordenar](sentido), { dataDaVenda: "desc" }] : [{ dataDaVenda: "desc" }];
   const take = Math.max(1, Number(porPagina) || 25);
@@ -360,6 +361,44 @@ export async function listarPedidosDeVenda({ busca, desde, ate, canais, status, 
   return { linhas, total };
 }
 
+const ORDEM_DO_STATUS = ["AGUARDANDO_PAGAMENTO", "PAGO", "AGUARDANDO_PECAS", "EM_SEPARACAO", "ENVIADO", "ENTREGUE", "FINALIZADO", "CANCELADO", "DEVOLVIDO"];
+const ORDEM_DO_ENVIO = ["SEM_ENVIO", "A_POSTAR", "POSTADO", "EM_TRANSITO", "ENTREGUE", "NAO_ENTREGUE", "DEVOLVIDO", "CANCELADO"];
+
+/**
+ * As opcoes do filtro das colunas Status e Envio (pedido do dono em 04/11/2026: cada clique no cabecalho passa para a
+ * proxima): os valores que EXISTEM na lista com os outros filtros, sem o da propria coluna, na ordem da tabela.
+ */
+export async function opcoesDasColunas(filtro = {}) {
+  const [porStatus, porEnvio] = await Promise.all([
+    prisma.pedidoDeVenda.groupBy({ by: ["status"], where: filtroDaLista({ ...filtro, status: undefined }) }),
+    prisma.pedidoDeVenda.groupBy({ by: ["statusDoEnvio"], where: filtroDaLista({ ...filtro, envio: undefined }) }),
+  ]);
+  const status = new Set(porStatus.map((g) => g.status));
+  const envio = new Set(porEnvio.map((g) => g.statusDoEnvio));
+  return { status: ORDEM_DO_STATUS.filter((v) => status.has(v)), envio: ORDEM_DO_ENVIO.filter((v) => envio.has(v)) };
+}
+
+/**
+ * O lucro do periodo (pedido do dono em 04/11/2026), sobre a lista filtrada inteira (nao so a pagina), pela regra da
+ * coluna Lucro: cancelado nao entra; devolvido e fechado entram com o real; os outros com o estimado (ou o real).
+ * `semLucro` conta os pedidos sem lucro calculado (item sem custo).
+ */
+export async function resumoDaLista(filtro = {}) {
+  const pedidos = await prisma.pedidoDeVenda.findMany({
+    where: filtroDaLista(filtro),
+    select: { status: true, lucroFechado: true, lucroEstimado: true, lucroReal: true },
+  });
+  let lucro = 0;
+  let semLucro = 0;
+  for (const p of pedidos) {
+    if (p.status === "CANCELADO") continue;
+    const valor = p.lucroFechado || p.status === "DEVOLVIDO" ? numero(p.lucroReal) : (numero(p.lucroEstimado) ?? numero(p.lucroReal));
+    if (valor === null) semLucro += 1;
+    else lucro += valor;
+  }
+  return { lucro: Math.round(lucro * 100) / 100, pedidos: pedidos.length, semLucro };
+}
+
 function itemParaTela(item) {
   return {
     ...item,
@@ -377,7 +416,18 @@ export async function lerPedidoDeVenda(id) {
   const p = await prisma.pedidoDeVenda.findUnique({
     where: { id },
     include: {
-      cliente: { select: { id: true, nome: true, nivel: true, documento: true, telefone: true, email: true } },
+      // Os enderecos do cadastro (a aba Dados do cliente mostra o GERAL e, quando a entrega e outra, as duas).
+      cliente: {
+        select: {
+          id: true,
+          nome: true,
+          nivel: true,
+          documento: true,
+          telefone: true,
+          email: true,
+          enderecos: { select: { tipo: true, cep: true, uf: true, cidade: true, bairro: true, logradouro: true, numero: true, complemento: true } },
+        },
+      },
       itens: { orderBy: { ordem: "asc" }, include: { produto: PRODUTO_DA_LINHA } },
     },
   });

@@ -55,7 +55,16 @@ function Linha({ rotulo, children }) {
 export default function AbaGeral({ pedido, podeVincular, aoVincular }) {
   const cliente = pedido.cliente;
   const documento = cliente?.documento ?? pedido.documentoDoComprador;
-  const linhasDoEndereco = enderecoEmLinhas(pedido.enderecoDeEntrega);
+  // O endereco do cadastro (GERAL) e o "Endereço"; a entrega so ganha linha propria quando e outro lugar (pedido do dono
+  // em 04/11/2026). Sem endereco no cadastro, o da entrega e o "Endereço".
+  const geral = (cliente?.enderecos ?? []).find((e) => e.tipo === "GERAL");
+  const doCadastro = geral
+    ? { endereco: geral.logradouro, numero: geral.numero, complemento: geral.complemento, bairro: geral.bairro, cidade: geral.cidade, uf: geral.uf, cep: geral.cep }
+    : null;
+  const entrega = pedido.enderecoDeEntrega;
+  const chave = (e) => `${String(e?.cep ?? "").replace(/\D/g, "")}|${String(e?.numero ?? "").trim().toLowerCase()}`;
+  const linhasDoEndereco = enderecoEmLinhas(doCadastro ?? entrega);
+  const linhasDaEntrega = doCadastro && enderecoEmLinhas(entrega).length > 0 && chave(doCadastro) !== chave(entrega) ? enderecoEmLinhas(entrega) : [];
 
   return (
     <div className="max-w-3xl px-5 py-2">
@@ -100,6 +109,18 @@ export default function AbaGeral({ pedido, podeVincular, aoVincular }) {
             <span className="font-normal text-suave">Não informado</span>
           )}
         </Linha>
+        {linhasDaEntrega.length > 0 && (
+          <Linha rotulo="Endereço de entrega">
+            <address className="leading-relaxed not-italic">
+              {entrega?.nome && entrega.nome !== (cliente?.nome ?? pedido.nomeDoComprador) && <span className="block text-suave">Para {entrega.nome}</span>}
+              {linhasDaEntrega.map((linha) => (
+                <span key={linha} className="block">
+                  {linha}
+                </span>
+              ))}
+            </address>
+          </Linha>
+        )}
       </dl>
     </div>
   );
