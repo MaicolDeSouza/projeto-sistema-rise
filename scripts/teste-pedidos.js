@@ -49,6 +49,7 @@ function falsos() {
   const ml = criarMLFalso({
     pedidos: [fx("ml-order")],
     envios: [fx("ml-shipment"), fx("ml-shipment-return")],
+    custosDosEnvios: { 40000000001: fx("ml-shipment-costs"), 40000000002: fx("ml-shipment-return-costs") },
     faturas: [fx("ml-invoice")],
     cobrancas: { 2000000001: fx("ml-billing") },
   });
@@ -151,10 +152,11 @@ try {
     conferir("ML falso: envios do pedido (ida e retorno)", (await ml.get("/orders/2000000001/shipments")).dados.map((e) => e.type ?? "forward"), ["forward", "return"]);
     conferir(
       "ML falso: shipment com X-Api-Version",
-      (await ml.get("/shipments/40000000001", { views: "destination" }, { headers: { "X-Api-Version": "2" } })).dados.order_cost,
-      18.12,
+      (await ml.get("/shipments/40000000001", { views: "destination" }, { headers: { "X-Api-Version": "2" } })).dados.tracking_number,
+      "BR123456789BR",
     );
     conferir("ML falso: chamadas guardam os headers", ml.chamadas.at(-1).headers, { "X-Api-Version": "2" });
+    conferir("ML falso: custos do envio (o frete de cada lado)", (await ml.get("/shipments/40000000001/costs")).dados.senders[0].cost, 18.12);
     conferir("ML falso: fatura do pedido", (await ml.get("/users/212386247/invoices/orders/2000000001")).dados.invoice_number, "1234");
     conferir("ML falso: fatura inexistente da 404", (await ml.get("/users/212386247/invoices/orders/2000000002")).status, 404);
     conferir("ML falso: pedidos e um Map editavel", ml.pedidos instanceof Map && ml.pedidos.has(2000000001), true);
@@ -190,15 +192,21 @@ try {
   // -------------------------------------------------------------------------
   console.log("\nNormalizar");
   {
-    const ml1 = normalizarPedidoML({ order: fx("ml-order"), billing: fx("ml-billing"), shipments: [{ id: 40000000001, type: "forward" }], shipment: fx("ml-shipment"), retorno: null, invoice: fx("ml-invoice") });
+    const ml1 = normalizarPedidoML({ order: fx("ml-order"), billing: fx("ml-billing"), shipments: [{ id: 40000000001, type: "forward" }], shipment: fx("ml-shipment"), custos: fx("ml-shipment-costs"), retorno: null, invoice: fx("ml-invoice") });
     conferir("ML: cabecalho", [ml1.origem, ml1.idExterno, ml1.numero, ml1.comprador.documento], ["MERCADO_LIVRE", "2000000001", "2000000001", "12345678909"]);
     conferir("ML: comprador e endereco", [ml1.comprador.nome, ml1.comprador.telefone, ml1.enderecoDeEntrega.cidade, ml1.enderecoDeEntrega.uf, ml1.enderecoDeEntrega.cep], ["Joao ZZ Ped Silva", "54988990008", "Caxias do Sul", "RS", "95010000"]);
     conferir("ML: item com comissao", [ml1.itens[0].quantidade, ml1.itens[0].comissao, ml1.itens[0].codigoNaOrigem], [2, 25.9, "100101"]);
     conferir("ML: frete do vendedor do envio", [ml1.envio.custoDoVendedor, ml1.envio.fonteDoCusto, ml1.envio.rastreio], [18.12, "envio", "BR123456789BR"]);
     conferir("ML: totais e pagamento", [ml1.totais, ml1.pagamento[0].tipo, ml1.pagamento[0].status], [{ totalProdutos: 119.8, desconto: 0, freteCobrado: 18.12, total: 137.92 }, "account_money", "approved"]);
+    // O order_cost do envio e o VALOR DO PEDIDO (medido na VPS em 04/11/2026): sem os custos do envio, o frete fica estimado.
+    conferir(
+      "ML: order_cost do envio nunca vira frete",
+      (({ custoDoVendedor, fonteDoCusto }) => [custoDoVendedor, fonteDoCusto])(normalizarPedidoML({ order: fx("ml-order"), billing: null, shipments: [], shipment: fx("ml-shipment"), retorno: null, invoice: null }).envio),
+      [null, "estimado"],
+    );
     conferir("ML: sem envio = estimado", normalizarPedidoML({ order: fx("ml-order"), billing: null, shipments: [], shipment: null, retorno: null, invoice: null }).envio.fonteDoCusto, "estimado");
     conferir("ML: sem devolucao", ml1.devolucao, null);
-    conferir("ML: devolucao entregue com frete de retorno", normalizarPedidoML({ order: fx("ml-order"), billing: null, shipments: [], shipment: fx("ml-shipment"), retorno: fx("ml-shipment-return"), invoice: null }).devolucao, { entregueEm: new Date("2026-11-20T14:00:00.000Z"), custoDoRetorno: 22.5 });
+    conferir("ML: devolucao entregue com frete de retorno", normalizarPedidoML({ order: fx("ml-order"), billing: null, shipments: [], shipment: fx("ml-shipment"), custos: fx("ml-shipment-costs"), retorno: fx("ml-shipment-return"), custosDoRetorno: fx("ml-shipment-return-costs"), invoice: null }).devolucao, { entregueEm: new Date("2026-11-20T14:00:00.000Z"), custoDoRetorno: 22.5 });
     conferir("ML: tag refunded sem retorno = devolucao sem custo", normalizarPedidoML({ order: { ...fx("ml-order"), tags: ["paid", "refunded"] }, billing: null, shipments: [], shipment: null, retorno: null, invoice: null }).devolucao?.custoDoRetorno, 0);
     conferir("ML: nf do emissor", [ml1.nf.numero, ml1.nf.status, ml1.nf.urlXml], ["1234", "authorized", "/users/212386247/invoices/documents/xml/555/authorized"]);
     conferir("ML: datas", [ml1.dataDaVenda.toISOString(), ml1.atualizadoNaOrigemEm.toISOString()], ["2026-11-02T13:15:00.000Z", "2026-11-03T12:00:00.000Z"]);
@@ -338,7 +346,7 @@ try {
     // tipo e as medidas do pacote (lidas do produto).
     await prisma.produto.update({ where: { sku: "ZZ-PED-A" }, data: { pesoKg: 0.05, alturaCm: 2, larguraCm: 6, comprimentoCm: 7 } });
     await prisma.anuncio.updateMany({ where: { canal: "MERCADO_LIVRE", idExterno: "MLBZZPED1" }, data: { categoriaExternaId: "MLB99779", dados: { preco: 59.9, tipoAnuncio: "gold_special", envio: { logistica: "xd_drop_off", freteGratis: false } } } });
-    const nml = normalizarPedidoML({ order: fx("ml-order"), billing: fx("ml-billing"), shipment: fx("ml-shipment"), invoice: fx("ml-invoice") });
+    const nml = normalizarPedidoML({ order: fx("ml-order"), billing: fx("ml-billing"), shipment: fx("ml-shipment"), custos: fx("ml-shipment-costs"), invoice: fx("ml-invoice") });
     nml.idExterno = nml.numero = "ZZ-PED-100";
     nml.itens[0].idNaOrigem = "MLBZZPED1";
     nml.itens[0].codigoNaOrigem = "ZZ-PED-A";
@@ -401,7 +409,7 @@ try {
     const agoraMais5 = new Date(agora.getTime() + 5 * 60 * 1000);
     const agoraMais10 = new Date(agora.getTime() + 10 * 60 * 1000);
     // O ML falso desta secao nao tem o envio de retorno: a fixture do retorno e "entregue", e o pedido viraria devolvido.
-    const mlFalso = criarMLFalso({ pedidos: [fx("ml-order")], envios: [fx("ml-shipment")], faturas: [fx("ml-invoice")], cobrancas: { 2000000001: fx("ml-billing") } });
+    const mlFalso = criarMLFalso({ pedidos: [fx("ml-order")], envios: [fx("ml-shipment")], custosDosEnvios: { 40000000001: fx("ml-shipment-costs") }, faturas: [fx("ml-invoice")], cobrancas: { 2000000001: fx("ml-billing") } });
     const { li: liFalsa, bling: blingFalso } = falsos();
     // 5002: o mesmo pedido da LI, vendido 2 h antes de `agora` e sem copia no Bling (a data da LI e naive, de Sao Paulo).
     const naiveSP = (d) => new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(d).replace(" ", "T");
@@ -493,9 +501,17 @@ try {
       [null, null, null, null, null, null, 1, "12345678909"],
     );
     conferir("projecao: a linha da lista sem custo perde o lucro", projetarLinhaDaLista({ id: "1", lucroEstimado: 3, lucroReal: 2, total: 9 }, semCusto), { id: "1", lucroEstimado: null, lucroReal: null, total: 9 });
+    const semLocal = (id) => id !== "dado.localizacao";
+    conferir(
+      "projecao: a linha da lista sem localizacao perde a do item",
+      projetarLinhaDaLista({ id: "1", item: { sku: "A", localizacao: "R14" } }, semLocal).item,
+      { sku: "A", localizacao: null },
+    );
+    const lista = await listarPedidosDeVenda({ busca: "ZZ-PED-102" });
+    conferir("a linha da lista traz a localizacao do produto do 1o item", "localizacao" in (lista.linhas[0]?.item ?? {}), true);
 
     // O ML lento (6 s na primeira chamada) nao pode derrubar a gravacao: a transacao do banco fecha em 5 s.
-    const base = criarMLFalso({ pedidos: [fx("ml-order")], envios: [fx("ml-shipment")], faturas: [fx("ml-invoice")], cobrancas: { 2000000001: fx("ml-billing") } });
+    const base = criarMLFalso({ pedidos: [fx("ml-order")], envios: [fx("ml-shipment")], custosDosEnvios: { 40000000001: fx("ml-shipment-costs") }, faturas: [fx("ml-invoice")], cobrancas: { 2000000001: fx("ml-billing") } });
     let primeira = true;
     const lento = {
       ...base,
@@ -507,7 +523,7 @@ try {
         return base.get(...args);
       },
     };
-    const nlento = normalizarPedidoML({ order: fx("ml-order"), billing: fx("ml-billing"), shipment: fx("ml-shipment"), invoice: fx("ml-invoice") });
+    const nlento = normalizarPedidoML({ order: fx("ml-order"), billing: fx("ml-billing"), shipment: fx("ml-shipment"), custos: fx("ml-shipment-costs"), invoice: fx("ml-invoice") });
     nlento.idExterno = nlento.numero = "ZZ-PED-130";
     nlento.itens[0].idNaOrigem = "MLBZZPED1";
     nlento.itens[0].codigoNaOrigem = "ZZ-PED-A";

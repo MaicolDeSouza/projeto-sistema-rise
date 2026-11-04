@@ -89,9 +89,13 @@ async function lerPedidoML(ml, idExterno) {
     envioId ? opcional(ml.get(`/shipments/${envioId}`, { views: "destination" }, { headers: { "X-Api-Version": "2" } }), `GET /shipments/${envioId}`) : null;
   const shipment = await lerEnvio(idDaIda);
   const retorno = await lerEnvio(idDoRetorno);
+  // O frete da loja mora nos custos do envio (o `order_cost` do envio e o valor do pedido, medido em 04/11/2026).
+  const lerCustos = (envioId) => (envioId ? opcional(ml.get(`/shipments/${envioId}/costs`), `GET /shipments/${envioId}/costs`) : null);
+  const custos = await lerCustos(idDaIda);
+  const custosDoRetorno = await lerCustos(idDoRetorno);
   const usuario = await ml.usuarioId();
   const invoice = await opcional(ml.get(`/users/${usuario}/invoices/orders/${id}`), `GET /users/${usuario}/invoices/orders/${id}`);
-  return normalizarPedidoML({ order, billing, shipments: lista, shipment, retorno, invoice });
+  return normalizarPedidoML({ order, billing, shipments: lista, shipment, retorno, invoice, custos, custosDoRetorno });
 }
 
 async function lerPedidoLI(li, idExterno) {

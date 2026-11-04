@@ -454,6 +454,9 @@ export function criarMLFalso(opcoes = {}) {
   const envios = new Map((opcoes.envios ?? []).map((e) => [Number(e.id), structuredClone(e)]));
   const faturas = (opcoes.faturas ?? []).map((f) => structuredClone(f));
   const cobrancas = structuredClone(opcoes.cobrancas ?? {});
+  // GET /shipments/{id}/costs por id do envio: o custo do frete de cada lado (o `order_cost` do envio e o valor do pedido,
+  // nao o frete; medido na VPS em 04/11/2026).
+  const custosDosEnvios = structuredClone(opcoes.custosDosEnvios ?? {});
 
   // GET /orders/search: filtra pelo vendedor e pelas datas "a partir de" (criacao ou ultima atualizacao),
   // ordena por data de criacao crescente e pagina por offset/limit, como o real.
@@ -491,6 +494,11 @@ export function criarMLFalso(opcoes = {}) {
     partes = rota.match(/^\/orders\/(\d+)\/shipments$/);
     if (partes) {
       return resposta(200, structuredClone([...envios.values()].filter((e) => String(e.order_id) === partes[1])));
+    }
+    partes = rota.match(/^\/shipments\/(\d+)\/costs$/);
+    if (partes) {
+      const custos = custosDosEnvios[partes[1]];
+      return custos ? resposta(200, structuredClone(custos)) : naoAchou(`Costs for shipment ${partes[1]} not found`);
     }
     partes = rota.match(/^\/shipments\/(\d+)$/);
     if (partes) {

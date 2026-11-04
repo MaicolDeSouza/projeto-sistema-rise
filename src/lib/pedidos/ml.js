@@ -1,5 +1,13 @@
 import { data, digitos, dinheiro, telefone, texto, vazio } from "./normalizado";
 
+/** O custo do frete do lado da loja (o `user_id` do vendedor) nos custos de um envio; null quando nao ha custos lidos. */
+function custoDaLoja(custos, vendedorId) {
+  if (!custos || vendedorId === null || vendedorId === undefined) return null;
+  const lados = [custos.receiver, ...(Array.isArray(custos.senders) ? custos.senders : [])].filter(Boolean);
+  const daLoja = lados.find((lado) => String(lado.user_id) === String(vendedorId));
+  return daLoja ? dinheiro(daLoja.cost ?? 0) : null;
+}
+
 /**
  * Pedido do Mercado Livre no formato comum (spec 5.2). Entrada: o que a leitura (Tarefa 10) traz da API:
  *   order     = GET /orders/{id}
@@ -9,12 +17,15 @@ import { data, digitos, dinheiro, telefone, texto, vazio } from "./normalizado";
  *   retorno   = GET /shipments/{id} do envio de retorno (devolucao) ou null
  *   invoice   = GET /users/{id}/invoices/orders/{order_id} ou null (404 = nao emitida)
  *
- * Regras fixadas na spec: comissao do item = sale_fee x quantity (a medir no 1o pedido real se o sale_fee e
- * por unidade); o frete do vendedor e o `order_cost` do envio de ida ("envio"); sem envio lido, o lucro usa a
- * estimativa ("estimado"). Devolucao: retorno entregue ou tag `refunded`; o custo e o `order_cost` do retorno
- * (0 quando o ML ou o comprador bancou).
+ *   custos          = GET /shipments/{id}/costs do envio de ida ou null
+ *   custosDoRetorno = GET /shipments/{id}/costs do envio de retorno ou null
+ *
+ * Comissao do item = sale_fee x quantity. O frete da loja e o `cost` do lado da loja (o `user_id` do vendedor) em
+ * `/shipments/{id}/costs` ("envio"); sem os custos lidos, o lucro usa a estimativa ("estimado"). O `order_cost` do envio
+ * NAO e frete: e o valor do pedido (medido na VPS em 04/11/2026, uma fonte de R$ 49,70 saia com R$ 49,70 de frete).
+ * Devolucao: retorno entregue ou tag `refunded`; o custo e o lado da loja nos custos do retorno (0 sem custos).
  */
-export function normalizarPedidoML({ order, billing = null, shipments = [], shipment = null, retorno = null, invoice = null }) {
+export function normalizarPedidoML({ order, billing = null, shipments = [], shipment = null, retorno = null, invoice = null, custos = null, custosDoRetorno = null }) {
   const p = vazio();
   p.origem = "MERCADO_LIVRE";
   p.canal = "MERCADO_LIVRE";
@@ -91,6 +102,8 @@ export function normalizarPedidoML({ order, billing = null, shipments = [], ship
   const desconto = dinheiro(order.coupon?.amount ?? 0);
   p.totais = { totalProdutos, desconto, freteCobrado, total: dinheiro(totalProdutos + freteCobrado - desconto) };
 
+  const vendedorId = order?.seller?.id ?? null;
+  const freteDaLoja = shipment ? custoDaLoja(custos, vendedorId) : null;
   const historicoDoEnvio = shipment?.status_history ?? {};
   const iso = (valor) => data(valor)?.toISOString() ?? null;
   p.envio = {
@@ -102,8 +115,8 @@ export function normalizarPedidoML({ order, billing = null, shipments = [], ship
     statusDaOrigem: texto(shipment?.status),
     substatus: texto(shipment?.substatus),
     situacaoDoPedido: p.statusDaOrigem,
-    custoDoVendedor: shipment ? dinheiro(shipment.order_cost ?? 0) : null,
-    fonteDoCusto: shipment ? "envio" : "estimado",
+    custoDoVendedor: freteDaLoja,
+    fonteDoCusto: freteDaLoja === null ? "estimado" : "envio",
     cobradoDoCliente: freteCobrado,
     prazo: iso(shipment?.shipping_option?.estimated_delivery_time?.date),
     historico: {
@@ -120,7 +133,7 @@ export function normalizarPedidoML({ order, billing = null, shipments = [], ship
   p.devolucao = devolvido
     ? {
         entregueEm: data(retorno?.status_history?.date_delivered) ?? data(retorno?.last_updated) ?? null,
-        custoDoRetorno: dinheiro(retorno?.order_cost ?? 0),
+        custoDoRetorno: custoDaLoja(custosDoRetorno, vendedorId) ?? 0,
       }
     : null;
 

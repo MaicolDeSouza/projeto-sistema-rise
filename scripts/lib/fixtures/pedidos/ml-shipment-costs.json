@@ -1,0 +1,25 @@
+{
+  "gross_amount": 25.88,
+  "receiver": {
+    "user_id": 111222333,
+    "cost": 18.12,
+    "save": 0,
+    "compensation": 0,
+    "compensations": [],
+    "fees": [],
+    "discounts": [],
+    "cost_details": [{ "sender_id": 212386247, "amount": 18.12 }]
+  },
+  "senders": [
+    {
+      "user_id": 212386247,
+      "cost": 18.12,
+      "save": 7.76,
+      "compensation": 0,
+      "compensations": [],
+      "charges": { "charge_flex": 0 },
+      "fees": [],
+      "discounts": [{ "rate": 0.3, "type": "mandatory", "promoted_amount": 7.76 }]
+    }
+  ]
+}
