@@ -15,7 +15,7 @@ export function clienteLI() {
   return {
     get: (caminho, params, opcoes) => clienteLojaIntegrada.get(caminho, params, opcoes),
     post: (caminho, corpo) => clienteLojaIntegrada.post(caminho, corpo),
-    put: (caminho, corpo) => clienteLojaIntegrada.put(caminho, corpo),
+    put: (caminho, corpo, opcoes) => clienteLojaIntegrada.put(caminho, corpo, opcoes),
     delete: (caminho) => clienteLojaIntegrada.delete(caminho),
     exigirEscrita(sku) {
       exigirTravaLiberada("LOJA_INTEGRADA");

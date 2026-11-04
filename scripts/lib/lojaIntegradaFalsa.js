@@ -304,9 +304,12 @@ export function criarLojaIntegradaFalsa({
       ...(headers ? { headers: copia(headers) } : {}),
       ...(base ? { base } : {}),
     });
-    if (metodo !== "GET") exigirLiberada();
+    // O cadastro do webhook nao e escrita de produto (nao passa pelo exigirEscrita(sku)); o codigo confere a trava geral.
+    const ehWebhook = base === "raiz" && caminho.startsWith("/webhooks/");
+    if (metodo !== "GET" && !ehWebhook) exigirLiberada();
     const simulada = falhaSimulada(metodo, caminho);
     if (simulada) return simulada;
+    if (ehWebhook && metodo === "PUT" && caminho === "/webhooks/v1/pedido") return resposta(200, { notifyUrl: corpo?.notifyUrl ?? null });
 
     const [recurso, id, sub] = caminho.split("/").filter(Boolean);
     const produto = recurso === "produto" && id ? tabelaProdutos.find((p) => String(p.id) === String(id)) : null;
@@ -439,7 +442,7 @@ export function criarLojaIntegradaFalsa({
   return {
     get: (caminho, params, { headers, base } = {}) => chamar("GET", caminho, { params, headers, base }),
     post: (caminho, corpo) => chamar("POST", caminho, { corpo }),
-    put: (caminho, corpo) => chamar("PUT", caminho, { corpo }),
+    put: (caminho, corpo, { base } = {}) => chamar("PUT", caminho, { corpo, base }),
     delete: (caminho) => chamar("DELETE", caminho),
     exigirEscrita(sku) {
       chamadas.push({ metodo: "TRAVA", caminho: null, params: { sku }, corpo: null });

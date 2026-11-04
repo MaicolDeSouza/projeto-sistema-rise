@@ -14,6 +14,7 @@ import AvisoBanco from "@/components/ui/AvisoBanco";
 import { conectores } from "@/lib/integracoes/registro";
 import { listarConexoes } from "@/lib/integracoes/conexoes";
 import { config } from "@/lib/integracoes/config";
+import { notificacoesLILigadasEm } from "@/lib/pedidos/webhooksLI";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,12 @@ export default async function IntegracoesPage({ searchParams }) {
   } catch (excecao) {
     erroBanco = excecao;
   }
+
+  // Cartao da LI: as notificacoes de pedidos (fase 2). Sem URL publica (o PC) o botao fica desligado com o motivo.
+  const notificacoesLI = {
+    ligadasEm: erroBanco ? null : await notificacoesLILigadasEm(),
+    semUrlPublica: !config.appUrlPublica,
+  };
 
   // Cartao "Servidor VPS": so no Rise do PC, aberto em localhost (nunca na VPS, nunca pela rede local).
   const mostrarServidorVps = ehOPcDeDesenvolvimento(process.env, (await headers()).get("host"));
@@ -145,6 +152,7 @@ export default async function IntegracoesPage({ searchParams }) {
               conector={conector}
               conexao={conexoes.get(conector.id) ?? null}
               podeEditar={podeEditar}
+              notificacoes={conector.id === "LOJA_INTEGRADA" ? notificacoesLI : null}
               tokenPertoDoVencimento={tokenVencePerto(
                 conector,
                 conexoes.get(conector.id),

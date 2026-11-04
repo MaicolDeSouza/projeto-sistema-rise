@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import {
+  Bell,
   Cable,
   CircleCheck,
   CircleX,
@@ -16,6 +17,7 @@ import Card from "./ui/Card";
 import Badge from "./ui/Badge";
 import {
   desconectarAction,
+  ligarNotificacoesLIAcao,
   salvarChavesAction,
   testarConexao,
 } from "@/app/integracoes/acoes";
@@ -48,6 +50,8 @@ export default function CartaoConector({
   tokenPertoDoVencimento = false,
   // Tela em `ver` (Acessos): sem Conectar, Testar, Desconectar nem o formulario das chaves.
   podeEditar = true,
+  // So no cartao da Loja Integrada: { ligadasEm, semUrlPublica } das notificacoes de pedidos (webhook, fase 2).
+  notificacoes = null,
 }) {
   const [pendente, iniciarTransicao] = useTransition();
   const [resultado, setResultado] = useState(null);
@@ -65,6 +69,13 @@ export default function CartaoConector({
     iniciarTransicao(async () => {
       await desconectarAction(conector.id);
       setResultado(null);
+    });
+  }
+
+  function aoLigarNotificacoes() {
+    iniciarTransicao(async () => {
+      const r = await ligarNotificacoesLIAcao();
+      setResultado(r.ok ? { ok: true, conta: "Notificações de pedidos ligadas", latenciaMs: null } : { ok: false, erro: r.erro ?? "Não foi possível ligar." });
     });
   }
 
@@ -100,6 +111,12 @@ export default function CartaoConector({
           <div className="flex gap-2">
             <dt className="text-suave">Token expira:</dt>
             <dd>{formatarData(conexao.expiraEm)}</dd>
+          </div>
+        )}
+        {notificacoes?.ligadasEm && (
+          <div className="flex gap-2">
+            <dt className="text-suave">Notificações de pedidos:</dt>
+            <dd>ligadas em {formatarData(notificacoes.ligadasEm)}</dd>
           </div>
         )}
         {conexao?.ultimoTesteEm && (
@@ -144,7 +161,7 @@ export default function CartaoConector({
           )}
           <span className="break-words">
             {resultado.ok
-              ? `${resultado.conta}${resultado.detalhe ? ` — ${resultado.detalhe}` : ""} (${resultado.latenciaMs}ms)`
+              ? `${resultado.conta}${resultado.detalhe ? ` — ${resultado.detalhe}` : ""}${resultado.latenciaMs !== null && resultado.latenciaMs !== undefined ? ` (${resultado.latenciaMs}ms)` : ""}`
               : `${resultado.erro}${resultado.detalheTecnico ? ` — ${resultado.detalheTecnico}` : ""}`}
           </span>
         </div>
@@ -225,6 +242,22 @@ export default function CartaoConector({
               <Unplug size={14} />
               Desconectar
             </button>
+            {notificacoes && (
+              <button
+                type="button"
+                onClick={aoLigarNotificacoes}
+                disabled={pendente || notificacoes.semUrlPublica}
+                title={
+                  notificacoes.semUrlPublica
+                    ? "Só na VPS: falta APP_URL_PUBLICA."
+                    : "Cadastra na Loja Integrada o endereço do Rise para receber cada pedido na hora."
+                }
+                className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Bell size={14} />
+                {notificacoes.ligadasEm ? "Religar notificações" : "Ligar notificações"}
+              </button>
+            )}
           </>
         )}
 

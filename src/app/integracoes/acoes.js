@@ -8,6 +8,7 @@ import { gerarChaveDaExtensao } from "@/lib/compras/aliexpress/chave";
 import { marcarFornecedorDoAliExpress } from "@/lib/compras/aliexpress/fornecedor";
 import { desconectar, registrarTeste } from "@/lib/integracoes/conexoes";
 import { obterConector } from "@/lib/integracoes/registro";
+import { ligarNotificacoesLI } from "@/lib/pedidos/webhooksLI";
 
 /**
  * Server Actions da tela de Integracoes.
@@ -91,6 +92,18 @@ export async function gerarChaveAliExpressAcao() {
   const { chave } = await gerarChaveDaExtensao();
   revalidatePath("/integracoes");
   return { ok: true, chave };
+}
+
+/**
+ * Cartao da Loja Integrada: "Ligar notificacoes" de pedidos (fase 2 dos Pedidos de venda). Cadastra a URL publica do
+ * Rise na LI com um token novo; o token nao volta para a tela.
+ */
+export async function ligarNotificacoesLIAcao() {
+  const negado = await negarSemAcessos(["tela.integracoes", "editar"]);
+  if (negado) return negado;
+  const resultado = await ligarNotificacoesLI();
+  if (resultado.ok) revalidatePath("/integracoes");
+  return resultado.ok ? { ok: true, ligadasEm: resultado.ligadasEm.toISOString() } : resultado;
 }
 
 /** Cartao AliExpress: qual fornecedor recebe as compras do AliExpress. */

@@ -127,7 +127,8 @@ export function criarLojaIntegradaClient({
     // O 3o argumento e opcional: `headers` extras (o `x-correlation-id` do Enviali) e `base: "raiz"` para sair do /v1.
     get: (caminho, params, { headers, base } = {}) => chamar("GET", caminho, { params, headers, base }),
     post: (caminho, corpo) => chamar("POST", caminho, { corpo }),
-    put: (caminho, corpo) => chamar("PUT", caminho, { corpo }),
+    // `base: "raiz"` tambem no PUT: o cadastro do webhook de pedidos mora em `/webhooks/v1/pedido`, fora do /v1.
+    put: (caminho, corpo, { base } = {}) => chamar("PUT", caminho, { corpo, base }),
     delete: (caminho, corpo) => chamar("DELETE", caminho, { corpo }),
   };
 }

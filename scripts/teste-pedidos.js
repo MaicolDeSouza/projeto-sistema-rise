@@ -697,6 +697,41 @@ try {
     conferir("rota: nada recusado entra na fila", await prisma.notificacaoDePedido.count(), antes);
   }
 
+  console.log("\nNotificações da LI");
+  {
+    const { ligarNotificacoesLI } = await import("../src/lib/pedidos/webhooksLI.js");
+    const { lerSegredo, salvarConexao } = await import("../src/lib/integracoes/conexoes.js");
+    const conexaoAntes = await prisma.conexao.findUnique({ where: { servico: "LOJA_INTEGRADA" } });
+    const segredoAntes = await lerSegredo("LOJA_INTEGRADA");
+    const travaAntes = config.travas.liEscrita;
+    try {
+      conferir("LI: ligar sem base recusa", await ligarNotificacoesLI({ cliente: falsos().li, base: null }), { ok: false, erro: "Só na VPS: falta APP_URL_PUBLICA." });
+      config.travas.liEscrita = true;
+      await salvarConexao("LOJA_INTEGRADA", { segredo: { personalToken: "zz-pt" } });
+      const li = falsos().li;
+      const r = await ligarNotificacoesLI({ cliente: li, base: "https://rise.test", gerarToken: () => "tok-zz-ped" });
+      const put = li.chamadas.find((c) => c.metodo === "PUT" && c.caminho === "/webhooks/v1/pedido");
+      const segredo = await lerSegredo("LOJA_INTEGRADA");
+      conferir(
+        "LI: ligar manda a URL e guarda o token cifrado",
+        [r.ok, put?.base, put?.corpo, segredo.webhookToken, segredo.personalToken, Boolean(segredo.webhookLigadoEm)],
+        [true, "raiz", { notifyUrl: "https://rise.test/api/webhooks/loja-integrada", token: "tok-zz-ped" }, "tok-zz-ped", "zz-pt", true],
+      );
+      li.falhas = { "PUT /webhooks/v1/pedido": 500 };
+      conferir("LI: recusa da LI nao grava token novo", [(await ligarNotificacoesLI({ cliente: li, base: "https://rise.test", gerarToken: () => "outro" })).ok, (await lerSegredo("LOJA_INTEGRADA")).webhookToken], [false, "tok-zz-ped"]);
+      config.travas.liEscrita = false;
+      conferir("LI: trava fechada recusa", (await ligarNotificacoesLI({ cliente: falsos().li, base: "https://rise.test" })).ok, false);
+    } finally {
+      config.travas.liEscrita = travaAntes;
+      if (conexaoAntes) {
+        await prisma.conexao.update({ where: { servico: "LOJA_INTEGRADA" }, data: { segredoCifrado: conexaoAntes.segredoCifrado } });
+      } else {
+        await prisma.conexao.deleteMany({ where: { servico: "LOJA_INTEGRADA" } });
+      }
+      conferir("LI: segredo restaurado", JSON.stringify(await lerSegredo("LOJA_INTEGRADA")), JSON.stringify(segredoAntes));
+    }
+  }
+
   // Marcador: os blocos seguintes entram acima desta linha.
 } finally {
   if (!manter) await limpar();
