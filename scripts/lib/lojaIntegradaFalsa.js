@@ -335,6 +335,10 @@ export function criarLojaIntegradaFalsa({
       }
       if (recurso === "situacao" && !id) return resposta(200, paginar(copia(tabelaSituacoes), params, "/situacao"));
       if (recurso === "situacao_historico" && id === "search") {
+        // Medido na LI real em 04/11/2026: limit acima de 50 aqui da 400 (o /pedido/search aceita 50 tambem).
+        if (params?.limit !== undefined && !(Number(params.limit) >= 0 && Number(params.limit) <= 50)) {
+          return resposta(400, "O campo limit deve ser um número inteiro entre 0 e 50.");
+        }
         const numero = String(params?.numero ?? "");
         const lista = tabelaHistoricos.filter((h) => String(h.numero) === numero);
         return resposta(200, paginar(copia(lista), params, "/situacao_historico"));

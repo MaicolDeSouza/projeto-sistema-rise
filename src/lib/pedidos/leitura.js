@@ -101,7 +101,7 @@ async function lerPedidoML(ml, idExterno) {
 async function lerPedidoLI(li, idExterno) {
   const numero = String(idExterno);
   const pedido = await exigir(li.get(`/pedido/${numero}`), `GET /pedido/${numero}`);
-  const historico = (await exigir(li.get("/situacao_historico/search", { numero, limit: 100 }), `GET /situacao_historico/search?numero=${numero}`))?.objects ?? [];
+  const historico = (await exigir(li.get("/situacao_historico/search", { numero, limit: 50 }), `GET /situacao_historico/search?numero=${numero}`))?.objects ?? [];
   // A etiqueta do Enviali e outro servico (a raiz, fora do /v1): fora do ar, o frete fica "estimado" ate a proxima volta.
   let etiquetas = [];
   try {
