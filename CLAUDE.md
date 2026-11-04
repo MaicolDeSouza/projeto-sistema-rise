@@ -5182,8 +5182,34 @@ transação Serializable), telas em `src/app/pedidos/` e `src/components/pedidos
 - **Status e peças:** tabelas por origem em `status.js` (código desconhecido mantém o anterior e avisa `statusDesconhecido`);
   AGUARDANDO_PECAS quando o estoque, descontados os pedidos abertos mais antigos, não cobre o pedido; previsão pela compra
   enviada (+ prazo) ou pela ordem de produção. "Marcar em separação" é a única ação de estado do operador.
-- **Fase 2 (não feita):** webhooks (`/api/webhooks/[origem]`, fila `NotificacaoDePedido`), baixar NF/XML, a NF da LI (medir no 1º
-  pedido real onde o `pedido_nf` aparece). **Fase 3:** emitir NF pelo Rise (trava `NFE_EMISSAO`, botão "Criar NF" desligado).
+- **Fase 2 (04/11/2026, no GitHub, SEM deploy; plano `docs/superpowers/plans/2026-11-04-pedidos-de-venda-fase-2.md`):**
+  - **Webhooks:** rota PÚBLICA `POST /api/webhooks/[origem]` (`mercado-livre`, `bling`, `loja-integrada`; exceção `@webhooks` no
+    Caddyfile, só `/api/webhooks/*`). Confere quem mandou em `src/lib/pedidos/webhooks.js` (ML: `user_id` = vendedor conectado e
+    `application_id` = `ML_CLIENT_ID`, tópicos `orders_v2`/`shipments`; Bling: `X-Bling-Signature-256` = HMAC-SHA256 do corpo cru
+    com o client secret, sem conferir `companyId`; LI: o token que o Rise gerou, em `token`/`x-token`/`x-webhook-token`/
+    `Authorization`/`x-li-token`) e só grava a linha em `NotificacaoDePedido` (teto 256 KB; 400 não-JSON, 401 conferência, 404
+    canal). Nada é lido na rota (o ML exige resposta em menos de 500 ms).
+  - **Fila:** o worker normal chama `processarNotificacoes` (`leitura.js`) a cada volta; agrupa pelo recurso (dez avisos do mesmo
+    pedido = uma leitura), ML `/orders/{id}` e `/shipments/{id}` (pelo `order_id`), Bling `order.*` (pela loja: digitado vira
+    pedido, cópia do ML/LI só espelha, `.deleted` é ignorado) e `invoice.*` (relê o pedido BLING da NF), LI `pedido:<numero>` ou
+    `pedido:?` (lê só a LI pelo cursor). Falha soma tentativa e desiste na 5ª; a rotina de 5 min continua cobrindo tudo.
+  - **"Ligar notificações" da LI** (cartão da LI em Integrações; desligado sem `APP_URL_PUBLICA`, "Só na VPS"): `PUT
+    /webhooks/v1/pedido` na raiz com `{ notifyUrl, token }`; o token novo vai para o segredo cifrado da Conexao (`webhookToken`,
+    `webhookLigadoEm`) só depois de a LI aceitar.
+  - **O que o DONO cadastra:** no DevCenter do ML, "Notificações" com `https://rise.4hobby.com.br/api/webhooks/mercado-livre` e os
+    tópicos `orders_v2` e `shipments`; no app do Bling, aba "Webhooks", `https://rise.4hobby.com.br/api/webhooks/bling` com os
+    eventos de pedido de venda e de NF-e; a LI pelo botão.
+  - **Medir na 1ª notificação real:** o corpo e o header do token da LI, e o corpo do Bling (`event`, `data.id`, `companyId`).
+  - **Baixar NF e XML** (aba Nota fiscal, `GET /api/pedidos/[id]/nf?tipo=pdf|xml`, acesso `acao.pedidos.baixarNF`): ML passa pelo
+    Rise com o token (`destinoDaNF` só aceita caminho da API, nunca URL absoluta); LI e Bling redirecionam para o link `https`.
+    **Medido no ML real (04/11/2026):** a fatura NÃO traz `pdf_url`/`xml_url`; os caminhos são `attributes.danfe_location`
+    (`/users/{id}/invoices/sites/MLB/documents/danfe/{nf}`, PDF) e `attributes.xml_location`, e a chave é
+    `attributes.invoice_key`. Pedido do ML gravado antes disso fica sem os caminhos até ser relido.
+  - **NF da LI:** `lerPedidoLI` procura `/api/v1/pedido_nf/(\d+)` no JSON do pedido e lê `GET /pedido_nf/{id}` (campo real ainda
+    não visto: medir na 1ª NF da LI).
+  - **Telegram:** avisos `novaVenda` (pedido lido há até 2 h e vendido há até 24 h, não cancelado) e `aguardandoPecas` (vendido
+    nos últimos 7 dias), botão para `/pedidos/<id>`; nascem ligados.
+- **Fase 3:** emitir NF pelo Rise (trava `NFE_EMISSAO`, botão "Criar NF" desligado).
 - **Primeira leitura real (VPS, 04/11/2026), o que ela corrigiu (b1e9901):** a busca de pedidos da LI recusa `limit` acima de
   50 ("entre 0 e 50"); o Bling tem a loja ativa **MercadoShops (`203901506`, tipo MercadoShopsML)** que também recebe vendas do
   ML (7 das 15); e o `numeroLoja` das cópias do ML no Bling é o **pack** do pedido (14 de 15), não o número do pedido. Depois da
