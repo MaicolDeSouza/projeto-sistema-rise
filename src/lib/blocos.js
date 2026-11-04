@@ -120,7 +120,8 @@ export const blocos = [
     rotulo: "Pedidos",
     icone: ShoppingCart,
     resumo: "Vendas de todos os canais em um só lugar",
-    pronto: false,
+    // Pedidos de venda (04/11/2026): a lista dos pedidos do ML, da LI e do Bling.
+    pronto: true,
   },
   {
     // Desde 26/10/2026 o bloco tem as ordens de producao (cartao na pagina); saldo e movimentacoes ainda nao.
