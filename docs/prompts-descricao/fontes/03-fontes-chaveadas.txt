@@ -1,0 +1,141 @@
+Escreva a descrição de uma fonte chaveada em português brasileiro, no JSON exigido pelo Rise: paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm e decisoes. Não acrescente outros campos. Vale para dois tipos de fonte chaveada que convertem a tensão da rede em tensão contínua: a de tomada (corpo plástico que vai na tomada ou com cabo de força, e cabo de saída com conector: micro USB, USB-C, plug P4; inclusive a de mesa, tipo notebook) e a colmeia (caixa metálica perfurada, ligada por fios nos bornes; inclusive a slim e a de trilho DIN). Mini fontes para soldar na placa (Hi-Link, IRM), fontes de bancada reguláveis, fontes de tubo laser, injetores PoE, módulos de fonte para protoboard, conversores DC-DC, carregadores de bateria e fontes ATX não entram neste prompt.
+
+Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use informações confirmadas no cadastro ou nas referências. Não complete especificações por suposição.
+
+TIPO DA FONTE
+
+Antes de escrever, decida o tipo pelo título, pelo cadastro e pelas referências: de tomada (cabo e conector de saída, plugue de tomada) ou colmeia (caixa metálica, bornes com parafuso). O tipo decide quais campos entram (ver CARACTERÍSTICAS). Registre o tipo em decisoes.
+
+PARÁGRAFOS
+
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Simples e direto: diga o que a fonte faz e para que serve, sem propaganda. Tamanho, contando espaços: o primeiro até 250 caracteres, o segundo até 400.
+
+Primeiro parágrafo, UMA frase: “A Fonte Chaveada <tensão> <corrente> <conector ou “colmeia”> converte a tensão da rede, de <entrada>, em <saída> com até <corrente> contínua, indicada para <1 ou 2 usos confirmados>.” Só o que estiver confirmado.
+
+Segundo parágrafo, duas ou três frases práticas, só com recursos confirmados. Na de tomada: a entrada bivolt automática (só quando a faixa cobre 100 a 240VAC sem chave), o conector e o comprimento do cabo, e o que ela alimenta. Na colmeia: a ligação nos bornes, o ajuste fino da tensão de saída, as proteções e a refrigeração, e o uso típico (fitas de LED, CNC, impressora 3D, CFTV, automação). Feche com um uso típico.
+
+Fale com o comprador: “possui”, não “tem”. Ao voltar a falar do produto, use “a fonte”, nunca “ela” no início da frase. Varie a ordem dos fatos entre as opções. Sem elogios vazios (“ótima qualidade”, “excelente estabilidade”, “máxima eficiência”, “extremamente leve”) e sem repetir o título inteiro.
+
+PADRONIZAÇÃO DOS NOMES
+
+Use exatamente os nomes dos campos definidos neste prompt. As lojas usam nomes variados; converta-os assim:
+
+Fabricante: substitui Marca. Quem fabrica a fonte, como está impresso nela e confirmado no título, no cadastro ou nas referências: “Mean Well”, “Andeli”. Distribuidor, importador e loja não são fabricante. Fonte genérica, sem fabricante declarado (as lojas escrevem OEM, IMP, Genérica, ou avisam que a carcaça muda conforme o lote): OEM.
+
+Modelo: o código do fabricante, como “LRS-150-24”, “S-120-12”, “MS-120-12”, “INF-168”; substitui Part Number e P/N. Sem código do fabricante, omita o campo.
+
+Tipo de Fonte: substitui Tipo, Tipo construtivo e Tipo de produto: “Fonte chaveada de tomada”, “Fonte chaveada de mesa”, “Fonte chaveada colmeia”, “Fonte chaveada colmeia slim” ou “Fonte chaveada para trilho DIN”.
+
+Tensão de Entrada: substitui Entrada, Alimentação, Tensão de alimentação e Tensão de entrada AC: a faixa sem chave, “100VAC a 240VAC (bivolt automático)”; com chave seletora, “110VAC / 220VAC (chave seletora)”. Quando a fonte separa a nominal da faixa, escreva as duas: “100VAC a 240VAC (nominal) / 85VAC a 264VAC (faixa)”.
+
+Frequência de Entrada: substitui Frequência: “50/60Hz”.
+
+Tensão de Saída: substitui Saída, Voltagem de saída e Tensão nominal de saída: “5VDC”, “12VDC”.
+
+Corrente de Saída: substitui Corrente, Corrente máxima, Corrente de saída máxima e Corrente nominal: a contínua, “3A”, “10A”. O pico, só quando publicado separado, depois: “10A contínua / 12A de pico”.
+
+Potência de Saída: substitui Potência, Potência máxima e Potência nominal: “15W”, “120W”.
+
+Conector de Saída: substitui Plug, Plug de saída, Conector e Conexão, só na de tomada: “Micro USB” (“V8” e “micro USB-B” são o mesmo conector), “USB-C”, “Plug P4 5,5x2,1mm”. A polaridade do P4 (“positivo no centro”) só com fonte.
+
+Comprimento do Cabo: substitui Tamanho do cabo, só na de tomada: “120cm”.
+
+Plugue de Tomada: substitui Plug AC e Padrão do plug, só na de tomada: “Padrão brasileiro”, com o número de pinos só com fonte.
+
+Compatibilidade: substitui Compatível e Aplicação: as placas e os aparelhos que a fonte confirma, “Raspberry Pi 3 Model B e B+ / placas ESP32 e ESP8266 com entrada micro USB”.
+
+Ajuste da Tensão de Saída: só na colmeia, “Trimpot, ±10%”.
+
+Ligação: só na colmeia, substitui Montagem e Conexões: “Bornes com parafuso (L, N, terra, V+ e V-)”, como a fonte descreve.
+
+Proteções: em uma linha, só as confirmadas: “Curto-circuito / sobrecarga / sobretensão”.
+
+Refrigeração: só na colmeia: “Ventilação natural” ou “Cooler”, com o acionamento quando publicado (“Cooler com acionamento por temperatura”).
+
+Indicação: “LED de saída ligada”.
+
+Eficiência: substitui Eficiência típica: “85%”.
+
+Grau de Proteção: “IP20”, só com fonte do mesmo modelo.
+
+Temperatura de Operação: substitui Temperatura de trabalho: “-10°C a 60°C”.
+
+Material do Gabinete: substitui Material: “Alumínio”, “Aço galvanizado”, “Plástico antichama”, só com fonte.
+
+Certificações: só as que o fabricante declara como obtidas, como ele escreve.
+
+Use Tensão, nunca Voltagem; Corrente, nunca Amperagem. Troque ≤ e < por “até” ou “menor que”, e ≥ e > por “mínimo” ou “maior que”.
+
+CARACTERÍSTICAS
+
+Cada item contém nome, valor e referencias: nome “Tensão de Saída”, valor “5VDC”, sem dois-pontos no nome.
+
+Com referências disponíveis, os campos obrigatórios do tipo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: Corrente de entrada, Corrente de partida, Ripple, Regulação de linha e de carga, MTBF, Temperatura de armazenamento, Umidade, Tempo de retenção, Cor, Origem, Categoria, Unidade de venda, Datasheet).
+
+Fonte de tomada, campos obrigatórios:
+Fabricante; Tipo de Fonte; Tensão de Entrada; Frequência de Entrada; Tensão de Saída; Corrente de Saída; Potência de Saída; Conector de Saída; Comprimento do Cabo.
+Campos condicionais (só com fonte), depois dos obrigatórios:
+Modelo (logo depois de Fabricante); Plugue de Tomada; Proteções; Indicação; Compatibilidade.
+
+Fonte colmeia, campos obrigatórios:
+Fabricante; Modelo; Tipo de Fonte; Tensão de Entrada; Frequência de Entrada; Tensão de Saída; Corrente de Saída; Potência de Saída; Ajuste da Tensão de Saída; Ligação; Proteções; Refrigeração.
+Campos condicionais (só com fonte do mesmo modelo), depois dos obrigatórios:
+Indicação; Eficiência; Grau de Proteção; Temperatura de Operação; Material do Gabinete; Certificações.
+
+Campos finais:
+Dimensões (CxLxA); Peso.
+
+Dimensões (CxLxA) e Peso são sempre os dois últimos campos e são OBRIGATÓRIOS (ver PESO E DIMENSÕES). Devolva os números em dimensoesMm e pesoGramas; o Rise escreve as duas linhas. Não os repita em caracteristicas.
+
+Não entram em caracteristicas: Garantia, Peso com embalagem, textos de aplicação e propaganda (“Ideal para carregamento rápido”, “Ótima estabilidade”, “Excelente custo-benefício”).
+
+No modo sem referências, respeite a instrução acrescentada pelo Rise: inclua apenas especificações confirmadas nos dados próprios do produto. Se não houver nenhuma, retorne caracteristicas vazia.
+
+Números colados às unidades: 5VDC, 3A, 15W, 240VAC, 50/60Hz, 120cm. Use vírgula decimal. Nunca use ponto e vírgula dentro de um valor. Informações distintas no mesmo valor se separam por “ / ”; itens da mesma lista, por vírgula.
+
+REGRAS ESPECÍFICAS
+
+A tensão de saída e a corrente contínua decidem a compra. Se o título, o cadastro e a referência discordarem da tensão ou da corrente, não escreva o valor e registre a divergência.
+
+“Real” e “RMS” na corrente são palavras de venda, não medida: “3A real” e “10A RMS” viram “3A” e “10A”. Registre em decisoes.
+
+A potência é a tensão vezes a corrente do mesmo modelo. Sem potência publicada, calcule (5V x 3A = 15W) e registre a conta em decisoes. Quando o título ou o fabricante arredondam (12V 29A escrito 350W), fica o número do fabricante.
+
+Bivolt automático e chave seletora são coisas diferentes: só escreva “bivolt automático” quando a faixa cobre 100 a 240VAC sem chave. A colmeia com chave 110/220V queima se ligada em 220V na posição 110V: quando a fonte confirmar a chave, diga no segundo parágrafo que ela deve ser posta na tensão da rede antes de ligar.
+
+Compatibilidade só com fonte. Nunca diga que serve no Raspberry Pi 4 uma fonte micro USB (o Pi 4 usa USB-C), nem no Raspberry Pi 5 uma fonte de 5V 3A (o Pi 5 pede 5V 5A). Não chame de “fonte oficial” o que não for a fonte do próprio fabricante da placa.
+
+Fonte genérica cuja carcaça muda conforme o lote: não descreva cor, formato ou material da carcaça sem fonte do produto vendido, e não diga “antichama” sem fonte.
+
+Não copie entre modelos: corrente, eficiência, medidas e peso mudam com a potência. Não diga que a colmeia serve para uso externo ou é à prova d’água sem grau de proteção publicado.
+
+Lista de fornecedor sem ficha técnica não comprova especificação.
+
+FONTES
+
+Em referencias, registre só os números das referências fornecidas que sustentam o valor daquele campo. Para valores vindos só do cadastro ou título, e para valores desconhecidos, use referencias []. Resultado da web só vale se consultado de fato e informado como referência; na colmeia de fabricante conhecido, prefira o datasheet do modelo. Não invente consultas, fontes, URLs ou números de referência.
+
+ITENS INCLUSOS
+
+O primeiro item é a própria fonte, com quantidade e nome técnico: “01 FONTE CHAVEADA 5V 3A MICRO USB”, “01 FONTE CHAVEADA COLMEIA 12V 10A 120W”. Cabo de força separado só quando o cadastro diz que acompanha.
+
+PESO E DIMENSÕES (OBRIGATÓRIOS)
+
+O Rise usa o peso e as medidas para calcular o frete: pesoGramas e dimensoesMm são obrigatórios e só ficam null quando nenhum passo abaixo der resultado, e então decisoes diz o que foi procurado.
+
+pesoGramas: a fonte sem embalagem (a de tomada com o cabo). dimensoesMm: comprimento (o lado maior), largura e altura em milímetros, do corpo da fonte (na de tomada, sem o cabo; na colmeia, a caixa metálica). Nunca a embalagem; “Peso com embalagem” não serve.
+
+Procure nesta ordem e pare no primeiro que der o número:
+1. As referências fornecidas, do mesmo modelo, ou da mesma tensão, corrente e conector na fonte genérica.
+2. O datasheet do fabricante do mesmo modelo (Mean Well e Andeli publicam o peso e o desenho).
+3. Uma loja na internet com a mesma fonte (mesma tensão, corrente e conector). “Peso” sem dizer se é com embalagem vale só aqui, e decisoes diz que pode incluir a embalagem.
+
+Arredonde ao milímetro e ao grama. Não deduza medida pela foto.
+
+DIVERGÊNCIAS
+
+Para cada divergência fornecida, retorne id, opcao, motivo breve e campo com o nome padronizado deste prompt. opcao é o índice a partir de zero, ou null quando faltar evidência suficiente. Prefira o datasheet do fabricante, o mesmo modelo e fontes independentes. Exceto para peso e dimensões, reserve a posição do campo divergente em caracteristicas com valor "" e referencias []. Não coloque valores divergentes nos parágrafos ou características antes da escolha do operador.
+
+GARANTIA
+
+O Rise acrescenta automaticamente: Garantia Legal de 90 dias (contra defeitos de fabricação). Não gere campo extra de garantia nem copie garantias das referências. Não escreva preço, prazo ou nome de loja.

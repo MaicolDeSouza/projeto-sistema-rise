@@ -19,6 +19,16 @@
   peso máximo pela largura total); a fita vendida enrolada mostra a fita esticada na descrição e fica com o rolo nos
   campos de frete. Parágrafos curtos (até 250 e 400). Na biblioteca da VPS, o nome "Fontes-Fitas de Níquel". Esperando
   a aprovação do dono.
+- [Fontes chaveadas](03-fontes-chaveadas.txt) (04/11/2026, pedido do dono com o 111008, fonte 5V 3A micro USB): os dois
+  tipos que o catálogo tem, a de tomada (micro USB, USB-C, P4, as de mesa Andeli) e a colmeia (caixa metálica com
+  bornes, slim, trilho DIN), cada um com a sua lista de campos obrigatórios. Feito a partir das fichas coletadas: 181
+  fontes de tomada de 17 lojas (tensão de entrada e de saída, cabo, plugue, corrente, peso) e 272 colmeias de 20 lojas
+  (tensão, corrente, potência, entrada AC, proteções, grau de proteção, eficiência). Regras: "real" e "RMS" na corrente
+  saem, potência = tensão × corrente quando não publicada, bivolt automático não é chave seletora, compatibilidade com
+  Raspberry Pi só a que o conector permite (micro USB não serve no Pi 4; 5V 3A não serve no Pi 5), e "peso com
+  embalagem" nunca. Ficam de fora as mini fontes para placa (prompt 01), bancada, tubo laser, PoE e DC-DC. Parágrafos
+  até 250 e 400, e os itens que o dono tirou das mini fontes (ripple, MTBF, corrente de entrada...) também não entram.
+  Na biblioteca da VPS, o nome "Fontes-Fontes Chaveadas". Esperando a aprovação do dono.
 
 Regras próprias, porque as lojas erram aqui: a corrente contínua e a de pico são coisas diferentes (o pico nunca vira
 a corrente de saída); a tensão nominal (100 a 240VAC) e a faixa do fabricante (90 a 264VAC) ficam separadas; a versão
