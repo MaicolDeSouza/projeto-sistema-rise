@@ -27,6 +27,7 @@ const { readFileSync } = await import("node:fs");
 const { normalizarPedidoML } = await import("../src/lib/pedidos/ml.js");
 const { normalizarPedidoLI, escolherEtiquetaEnviali } = await import("../src/lib/pedidos/li.js");
 const { normalizarPedidoBling, classificarLojaDoBling } = await import("../src/lib/pedidos/bling.js");
+const { statusDoPedido, statusDoEnvio } = await import("../src/lib/pedidos/status.js");
 
 /** Le uma fixture de scripts/lib/fixtures/pedidos/ (copia nova a cada chamada: o teste edita a vontade). */
 function fx(nome) {
@@ -205,6 +206,28 @@ try {
     conferir("Bling: sem nf", normalizarPedidoBling({ pedido: fx("bling-pedido")[1], formas: [], situacoes: [], nfe: null }).nf, null);
     conferir("Bling: data de Sao Paulo", bl1.dataDaVenda.toISOString(), "2026-11-02T03:00:00.000Z");
     conferir("Bling: loja", [classificarLojaDoBling(undefined), classificarLojaDoBling(0), classificarLojaDoBling(206326819), classificarLojaDoBling("203593931"), classificarLojaDoBling(203478870), classificarLojaDoBling(999)], ["bling", "bling", "espelhoML", "espelhoML", "espelhoLI", "outra"]);
+  }
+
+  console.log("\nStatus");
+  {
+    const s = (e) => statusDoPedido({ agora: new Date("2026-12-10T00:00:00Z"), ...e }).status;
+    conferir("ML aguardando", s({ origem: "MERCADO_LIVRE", statusDaOrigem: "payment_required", tags: [], envio: {} }), "AGUARDANDO_PAGAMENTO");
+    conferir("ML pago sem envio", s({ origem: "MERCADO_LIVRE", statusDaOrigem: "paid", tags: [], envio: { statusDaOrigem: "handling" } }), "PAGO");
+    conferir("ML enviado", s({ origem: "MERCADO_LIVRE", statusDaOrigem: "paid", tags: [], envio: { statusDaOrigem: "shipped" } }), "ENVIADO");
+    conferir("ML entregue recente", s({ origem: "MERCADO_LIVRE", statusDaOrigem: "paid", tags: [], envio: { statusDaOrigem: "delivered", historico: { entregueEm: "2026-12-01T00:00:00Z" } } }), "ENTREGUE");
+    conferir("ML finalizado apos 30 dias", s({ origem: "MERCADO_LIVRE", statusDaOrigem: "paid", tags: [], envio: { statusDaOrigem: "delivered", historico: { entregueEm: "2026-11-01T00:00:00Z" } } }), "FINALIZADO");
+    conferir("ML devolvido", s({ origem: "MERCADO_LIVRE", statusDaOrigem: "paid", tags: [], envio: { statusDaOrigem: "delivered" }, devolucao: { entregueEm: new Date(), custoDoRetorno: 0 } }), "DEVOLVIDO");
+    conferir("ML cancelado vence separacao", s({ origem: "MERCADO_LIVRE", statusDaOrigem: "cancelled", tags: [], envio: {}, emSeparacao: true }), "CANCELADO");
+    conferir("em separacao manual sobre pago", s({ origem: "LOJA_INTEGRADA", statusDaOrigem: "pedido_pago", envio: {}, emSeparacao: true }), "EM_SEPARACAO");
+    conferir("LI codigos", ["pedido_efetuado", "pedido_pago", "pedido_enviado", "pedido_entregue", "pedido_cancelado"].map((c) => s({ origem: "LOJA_INTEGRADA", statusDaOrigem: c, envio: {} })), ["AGUARDANDO_PAGAMENTO", "PAGO", "ENVIADO", "ENTREGUE", "CANCELADO"]);
+    conferir("desconhecido mantem o anterior", statusDoPedido({ origem: "LOJA_INTEGRADA", statusDaOrigem: "pedido_em_analise", envio: {}, anterior: "PAGO" }), { status: "PAGO", desconhecido: true });
+    conferir("Bling nomes", ["Em aberto", "Em andamento", "Cancelado"].map((n) => s({ origem: "BLING", statusDaOrigem: n, envio: {} })), ["AGUARDANDO_PAGAMENTO", "PAGO", "CANCELADO"]);
+    conferir("Bling atendido com rastreio", s({ origem: "BLING", statusDaOrigem: "Atendido", envio: { rastreio: "X1" } }), "ENVIADO");
+    conferir("envio ML", ["pending", "ready_to_ship", "shipped", "delivered", "not_delivered", "cancelled"].map((st) => statusDoEnvio({ origem: "MERCADO_LIVRE", envio: { statusDaOrigem: st } })), ["A_POSTAR", "A_POSTAR", "EM_TRANSITO", "ENTREGUE", "NAO_ENTREGUE", "CANCELADO"]);
+    conferir("envio LI pelo Enviali", ["created", "posted", "transit", "delivering", "delivered", "returned", "cancelled"].map((st) => statusDoEnvio({ origem: "LOJA_INTEGRADA", envio: { tipo: "enviali", statusDaOrigem: st } })), ["A_POSTAR", "POSTADO", "EM_TRANSITO", "EM_TRANSITO", "ENTREGUE", "NAO_ENTREGUE", "CANCELADO"]);
+    conferir("envio LI sem Enviali pela situacao", statusDoEnvio({ origem: "LOJA_INTEGRADA", envio: { tipo: "correios", statusDaOrigem: null, situacaoDoPedido: "pedido_enviado" } }), "EM_TRANSITO");
+    conferir("sem envio", statusDoEnvio({ origem: "BLING", envio: { tipo: null } }), "SEM_ENVIO");
+    conferir("devolvido no envio", statusDoEnvio({ origem: "MERCADO_LIVRE", envio: { statusDaOrigem: "delivered" }, devolucao: { entregueEm: new Date() } }), "DEVOLVIDO");
   }
 
   // Marcador: os blocos seguintes entram acima desta linha.

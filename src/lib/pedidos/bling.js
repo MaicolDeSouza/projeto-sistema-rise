@@ -128,8 +128,11 @@ export function normalizarPedidoBling({ pedido, formas = [], situacoes = [], nfe
 
   const volume = (transporte.volumes ?? [])[0] ?? null;
   const rastreio = texto(volume?.codigoRastreamento);
+  // O Bling nao diz a forma de envio; ha pacote quando ha volume, transportadora ou frete cobrado.
+  const temPacote = Boolean(volume || transporte.contato?.nome || freteCobrado > 0);
+  const saiuEm = dataDeSaoPaulo(pedido.dataSaida);
   p.envio = {
-    tipo: null,
+    tipo: temPacote ? "transporte" : null,
     servico: texto(volume?.servico),
     transportadora: texto(transporte.contato?.nome),
     rastreio,
@@ -141,7 +144,8 @@ export function normalizarPedidoBling({ pedido, formas = [], situacoes = [], nfe
     fonteDoCusto: "estimado",
     cobradoDoCliente: freteCobrado,
     prazo: transporte.prazoEntrega === undefined || transporte.prazoEntrega === null ? null : Number(transporte.prazoEntrega),
-    historico: {},
+    // A data de saida e o unico "postado em" que o Bling da; o status unificado conta 15 e 30 dias a partir dela.
+    historico: saiuEm ? { postadoEm: saiuEm.toISOString() } : {},
   };
 
   p.nf = nfe
