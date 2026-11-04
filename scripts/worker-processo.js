@@ -60,6 +60,7 @@ const { relerEstadosML } = await import("../src/lib/canaisDeVenda/ml/relerEstado
 const { relerMonitorLI } = await import("../src/lib/canaisDeVenda/li/monitor.js");
 const { rodarAvisosDoTelegram, AVISOS_TELEGRAM_MS } = await import("../src/lib/telegram/avisos.js");
 const { registrarRotina, registrarMemoria } = await import("../src/lib/saude/registro.js");
+const { rodarLeituraDePedidos } = await import("../src/lib/pedidos/leitura.js");
 
 /// Os avisos do Telegram (Rise AI, Entrega C1): a cada minuto, so o worker normal. A rotina nao faz nada com o bot
 /// desligado, sem token ou sem ninguem vinculado, e nunca lanca.
@@ -74,6 +75,10 @@ let healthchecksBatidoEm = 0;
 /// Sao Paulo (`relerConcorrentesML` decide). So LEITURA do ML. So o worker normal.
 const RELER_CONCORRENTES_ML_MS = 60 * 60 * 1000;
 let concorrentesRelidosEm = 0;
+/// Os pedidos de venda (04/11/2026, spec 5.2): a cada 5 min le o que mudou no ML, na LI e no Bling desde o cursor de
+/// cada origem. So LEITURA. So o worker normal: o do PC grava no banco da VPS e nao pode se passar por ele.
+const LER_PEDIDOS_MS = 5 * 60 * 1000;
+let pedidosLidosEm = 0;
 /// Anuncios do ML publicados sem estoque (pausados, `aguardandoEstoque`): de hora em hora o worker os ativa quando o ML
 /// ja mostra estoque (Opcao 2 do dono em 24/10/2026). Escreve no ML (passa pelas travas). So o worker normal.
 const ATIVA_AGUARDANDO_ESTOQUE_MS = 60 * 60 * 1000;
@@ -564,6 +569,14 @@ async function laco() {
         if (estoque.rodou) log(`estoque do Bling: ${estoque.atualizados} atualizados, ${estoque.semCodigoNoBling} sem codigo, ${estoque.falhas} falhas`);
         else if (estoque.motivo === "erro") logErro(`estoque do Bling nao lido: ${estoque.erro}`);
         else log(`estoque do Bling nao lido: ${estoque.motivo}`);
+      }
+      // Os pedidos de venda (fora do `coletaPausada`): so o worker normal. Uma origem fora do ar nao para as outras, e a
+      // rotina so lanca quando o banco cai (o `try` da volta trata).
+      if (!FONTES && !SO_NO_PC && Date.now() - pedidosLidosEm >= LER_PEDIDOS_MS) {
+        pedidosLidosEm = Date.now();
+        const pedidos = await rodarRotina("pedidos", LER_PEDIDOS_MS, () => rodarLeituraDePedidos());
+        if (pedidos.motivo === "erro") logErro(`pedidos de venda nao lidos: ${pedidos.erro}`);
+        else if (pedidos.lidos > 0 || pedidos.erros > 0) log(`pedidos de venda: ${pedidos.lidos} lido(s), ${pedidos.criados} novo(s), ${pedidos.erros} falha(s)`);
       }
       // Os concorrentes do ML (fora do `coletaPausada`, como a foto): so o worker normal. `relerConcorrentesML` nunca lanca.
       if (!FONTES && !SO_NO_PC && Date.now() - concorrentesRelidosEm >= RELER_CONCORRENTES_ML_MS) {

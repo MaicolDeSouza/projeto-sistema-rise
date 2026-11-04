@@ -14,6 +14,7 @@ export const ROTINAS_DO_WORKER = [
   { id: "monitorLI", rotulo: "Anúncios na Loja Integrada" },
   { id: "concorrentesML", rotulo: "Concorrentes do Mercado Livre" },
   { id: "aguardandoEstoque", rotulo: "Anúncios do ML sem estoque" },
+  { id: "pedidos", rotulo: "Pedidos de venda" },
   { id: "telegram", rotulo: "Avisos do Telegram" },
   { id: "rotinaSemanal", rotulo: "Rodada semanal e relatório" },
   { id: "fotoMensal", rotulo: "Foto mensal de preço e estoque" },

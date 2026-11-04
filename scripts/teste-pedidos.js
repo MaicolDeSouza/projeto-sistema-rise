@@ -33,6 +33,8 @@ const { custoCongeladoDoProduto, casarItens } = await import("../src/lib/pedidos
 const { parcelasDaEstimativa, parcelasDoReal, devolvido, lucroDivergente, lucroFechado } = await import("../src/lib/pedidos/lucro.js");
 const { necessidadeDoPedido, calcularPecas } = await import("../src/lib/pedidos/pecas.js");
 const { aplicarPedidoLido, listarPedidosDeVenda, lerPedidoDeVenda, marcarEmSeparacao, salvarCustoDoFreteManual, vincularCliente, espelharNoBling } = await import("../src/lib/pedidos/banco.js");
+const { rodarLeituraDePedidos } = await import("../src/lib/pedidos/leitura.js");
+const { ROTINAS_DO_WORKER } = await import("../src/lib/saude/regras.js");
 
 /** Le uma fixture de scripts/lib/fixtures/pedidos/ (copia nova a cada chamada: o teste edita a vontade). */
 function fx(nome) {
@@ -77,7 +79,7 @@ const DOCUMENTOS_DE_TESTE = ["123.456.789-09", "11.222.333/0001-81", "000.000.00
 
 async function limpar() {
   const ZZ = { sku: { startsWith: "ZZ-PED-" } };
-  await prisma.pedidoDeVenda.deleteMany({ where: { numero: { startsWith: "ZZ-PED-" } } });
+  await prisma.pedidoDeVenda.deleteMany({ where: { OR: [{ numero: { startsWith: "ZZ-PED-" } }, { nomeDoComprador: { contains: "ZZ Ped" } }] } });
   await prisma.ordemDeProducao.deleteMany({ where: { produto: ZZ } });
   await prisma.pedidoDeCompra.deleteMany({ where: { fornecedor: { nome: { startsWith: "ZZ Ped " } } } });
   await prisma.fornecedor.deleteMany({ where: { nome: { startsWith: "ZZ Ped " } } });
@@ -367,6 +369,47 @@ try {
     conferir("so com aviso", (await listarPedidosDeVenda({ busca: "ZZ-PED-10", soComAviso: true })).linhas.every((l) => l.avisos.length > 0), true);
     const lido = await lerPedidoDeVenda(a1.id);
     conferir("ler o pedido traz itens com produto e o cliente", [lido.itens[0].produto.sku, typeof lido.cliente.nome, typeof lido.total], ["ZZ-PED-A", "string", "number"]);
+  }
+
+  console.log("\nLeitura");
+  {
+    const agora = new Date();
+    const agoraMais5 = new Date(agora.getTime() + 5 * 60 * 1000);
+    const agoraMais10 = new Date(agora.getTime() + 10 * 60 * 1000);
+    // O ML falso desta secao nao tem o envio de retorno: a fixture do retorno e "entregue", e o pedido viraria devolvido.
+    const mlFalso = criarMLFalso({ pedidos: [fx("ml-order")], envios: [fx("ml-shipment")], faturas: [fx("ml-invoice")], cobrancas: { 2000000001: fx("ml-billing") } });
+    const { li: liFalsa, bling: blingFalso } = falsos();
+    // 5002: o mesmo pedido da LI, vendido 2 h antes de `agora` e sem copia no Bling (a data da LI e naive, de Sao Paulo).
+    const naiveSP = (d) => new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(d).replace(" ", "T");
+    const ha2h = naiveSP(new Date(agora.getTime() - 2 * 60 * 60 * 1000));
+    liFalsa.pedidos.set(5002, { ...fx("li-pedido"), numero: 5002, data_criacao: ha2h, data_modificacao: ha2h });
+    const rotinaAntes = await prisma.rotinaDoWorker.findUnique({ where: { id: "pedidos" } });
+    await prisma.rotinaDoWorker.deleteMany({ where: { id: "pedidos" } });
+    try {
+      const r1 = await rodarLeituraDePedidos({ ml: mlFalso, li: liFalsa, bling: blingFalso, agora, taxas: null });
+      conferir("carga inicial le as tres origens", [r1.lidos, r1.criados, r1.erros, r1.ignorados], [4, 4, 0, { "Shopee 4hobby": 1 }]);
+      const rot = await prisma.rotinaDoWorker.findUnique({ where: { id: "pedidos" } });
+      conferir("cursor gravado por origem", Object.keys(rot.dados.cursores).sort(), ["BLING", "LOJA_INTEGRADA", "MERCADO_LIVRE"]);
+      const porNumero = async (origem, idExterno) => prisma.pedidoDeVenda.findUnique({ where: { origem_idExterno: { origem, idExterno } } });
+      conferir("espelho do Bling preenchido no pedido do ML", (await porNumero("MERCADO_LIVRE", "2000000001")).blingNumero, "123");
+      conferir("pedido do ML nao duplicou pelo Bling", await prisma.pedidoDeVenda.count({ where: { origem: "BLING", numero: "123" } }), 0);
+      mlFalso.pedidos.get(2000000001).status = "cancelled";
+      mlFalso.pedidos.get(2000000001).last_updated = agoraMais5.toISOString();
+      const r2 = await rodarLeituraDePedidos({ ml: mlFalso, li: liFalsa, bling: blingFalso, agora: agoraMais5, taxas: null });
+      conferir("segunda volta so o alterado", [r2.lidos, r2.criados, (await porNumero("MERCADO_LIVRE", "2000000001")).status], [1, 0, "CANCELADO"]);
+      liFalsa.falhas = { "GET /pedido/5001": 500 };
+      liFalsa.pedidos.get(5001).data_modificacao = naiveSP(agoraMais10);
+      const r3 = await rodarLeituraDePedidos({ ml: mlFalso, li: liFalsa, bling: blingFalso, agora: agoraMais10, taxas: null });
+      conferir("pedido que falha nao para a rotina", [r3.erros, r3.aviso], [1, "1 falha(s)"]);
+      conferir("pedido que falhou ganha o aviso", (await porNumero("LOJA_INTEGRADA", "5001")).avisos.includes("leituraFalhou"), true);
+      // a 5002 nao tem copia no Bling e foi vendida 2 h antes de `agora`; a 5001 tem o espelho 7003
+      conferir("espelho ausente depois de 1 h", [(await porNumero("LOJA_INTEGRADA", "5002")).avisos.includes("espelhoNoBlingAusente"), (await porNumero("LOJA_INTEGRADA", "5001")).avisos.includes("espelhoNoBlingAusente")], [true, false]);
+      conferir("espelhar tira o aviso", [await espelharNoBling("LOJA_INTEGRADA", "5002", { blingPedidoId: "7777", blingNumero: "777" }), (await porNumero("LOJA_INTEGRADA", "5002")).avisos.includes("espelhoNoBlingAusente")], [true, false]);
+      conferir("ROTINAS_DO_WORKER tem pedidos", ROTINAS_DO_WORKER.some((r) => r.id === "pedidos"), true);
+    } finally {
+      await prisma.rotinaDoWorker.deleteMany({ where: { id: "pedidos" } });
+      if (rotinaAntes) await prisma.rotinaDoWorker.create({ data: rotinaAntes }).catch(() => {});
+    }
   }
 
   // Marcador: os blocos seguintes entram acima desta linha.

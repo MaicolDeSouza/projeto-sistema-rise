@@ -426,12 +426,17 @@ export async function vincularCliente(id, clienteId) {
 export async function espelharNoBling(origem, numeroNaLoja, { blingPedidoId, blingNumero }) {
   const pedido = await prisma.pedidoDeVenda.findFirst({
     where: { origem, OR: [{ idExterno: String(numeroNaLoja) }, { numero: String(numeroNaLoja) }] },
-    select: { id: true },
+    select: { id: true, avisos: true },
   });
   if (!pedido) return false;
   await prisma.pedidoDeVenda.update({
     where: { id: pedido.id },
-    data: { blingPedidoId: blingPedidoId === null || blingPedidoId === undefined ? null : String(blingPedidoId), blingNumero: blingNumero === null || blingNumero === undefined ? null : String(blingNumero) },
+    data: {
+      blingPedidoId: blingPedidoId === null || blingPedidoId === undefined ? null : String(blingPedidoId),
+      blingNumero: blingNumero === null || blingNumero === undefined ? null : String(blingNumero),
+      // A copia chegou ao Bling: o aviso de espelho ausente (rotina de leitura) sai junto.
+      avisos: pedido.avisos.filter((aviso) => aviso !== "espelhoNoBlingAusente"),
+    },
   });
   return true;
 }
