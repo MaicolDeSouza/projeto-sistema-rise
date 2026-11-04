@@ -13,7 +13,7 @@ import { clienteLojaIntegrada } from "@/lib/integracoes/lojaIntegrada/client";
  */
 export function clienteLI() {
   return {
-    get: (caminho, params) => clienteLojaIntegrada.get(caminho, params),
+    get: (caminho, params, opcoes) => clienteLojaIntegrada.get(caminho, params, opcoes),
     post: (caminho, corpo) => clienteLojaIntegrada.post(caminho, corpo),
     put: (caminho, corpo) => clienteLojaIntegrada.put(caminho, corpo),
     delete: (caminho) => clienteLojaIntegrada.delete(caminho),

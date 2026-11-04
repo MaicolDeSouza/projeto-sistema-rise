@@ -1,0 +1,117 @@
+{
+  "numero": 5001,
+  "resource_uri": "/api/v1/pedido/5001",
+  "id_externo": null,
+  "id_anymarket": null,
+  "data_criacao": "2026-11-02T14:30:00.123456",
+  "data_modificacao": "2026-11-03T08:00:00.000000",
+  "data_expiracao": "2026-11-09T14:30:00.000000",
+  "cliente": {
+    "id": 34220641,
+    "resource_uri": "/api/v1/cliente/34220641",
+    "nome": "Maria ZZ Ped Souza",
+    "razao_social": null,
+    "cpf": "12345678909",
+    "cnpj": null,
+    "email": "maria.zzped@example.com",
+    "telefone_celular": "54988990008",
+    "telefone_principal": null,
+    "data_nascimento": null,
+    "sexo": ""
+  },
+  "cliente_obs": null,
+  "cupom_desconto": null,
+  "endereco_entrega": {
+    "id": 51870053,
+    "tipo": "PF",
+    "nome": "Maria ZZ Ped Souza",
+    "razao_social": null,
+    "cpf": "12345678909",
+    "cnpj": null,
+    "rg": null,
+    "ie": "isento",
+    "endereco": "Rua Sinimbu",
+    "numero": "1500",
+    "complemento": "Sala 3",
+    "bairro": "Centro",
+    "cidade": "Caxias do Sul",
+    "estado": "RS",
+    "cep": "95090970",
+    "pais": "Brasil",
+    "referencia": null
+  },
+  "envios": [
+    {
+      "id": 69291055,
+      "data_criacao": "2026-11-02T14:30:00.722569",
+      "data_modificacao": "2026-11-03T08:00:00.000000",
+      "forma_envio": { "id": 141909, "code": "PAC", "nome": "Enviali", "tipo": "enviali" },
+      "objeto": "AB123456789BR",
+      "prazo": 7,
+      "valor": "18.12"
+    }
+  ],
+  "itens": [
+    {
+      "id": 156487061,
+      "linha": 1,
+      "sku": "100101",
+      "nome": "Placa Arduino Uno R3",
+      "tipo": "normal",
+      "quantidade": "2.00",
+      "preco_cheio": "59.90",
+      "preco_promocional": "0.00",
+      "preco_venda": "59.90",
+      "preco_subtotal": "119.80",
+      "preco_custo": null,
+      "peso": "0.040",
+      "altura": 2,
+      "largura": 8,
+      "profundidade": 12,
+      "disponibilidade": 10,
+      "pedido": "/api/v1/pedido/5001",
+      "produto": { "id_externo": 88568855, "resource_uri": "/api/v1/produto/88568855?id_externo=1" },
+      "produto_pai": null
+    }
+  ],
+  "pagamentos": [
+    {
+      "id": 69291176,
+      "forma_pagamento": {
+        "id": 24,
+        "codigo": "pix",
+        "nome": "Pix",
+        "resource_uri": "/api/v1/pagamento/24",
+        "configuracoes": { "ativo": true, "disponivel": true }
+      },
+      "pagamento_tipo": "pix",
+      "bandeira": null,
+      "banco": null,
+      "parcelamento": { "numero_parcelas": 1, "valor_parcela": 137.92 },
+      "valor": "137.92",
+      "valor_pago": "137.92",
+      "transacao_id": "PIX-000001",
+      "authorization_code": null,
+      "codigo_retorno_gateway": null,
+      "mensagem_gateway": null,
+      "identificador_id": null
+    }
+  ],
+  "peso_real": "0.080",
+  "situacao": {
+    "id": 4,
+    "codigo": "pedido_pago",
+    "nome": "Pedido Pago",
+    "aprovado": true,
+    "cancelado": false,
+    "final": false,
+    "padrao": false,
+    "notificar_comprador": true,
+    "resource_uri": "/api/v1/situacao/4"
+  },
+  "utm_campaign": null,
+  "valor_subtotal": "119.80",
+  "valor_desconto": "0.00",
+  "valor_envio": "18.12",
+  "valor_total": "137.92"
+}

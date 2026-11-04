@@ -1,0 +1,8 @@
+{
+  "data": [
+    { "id": 206326819, "descricao": "Rise_ML", "tipo": "MercadoLivre", "situacao": 1 },
+    { "id": 203593931, "descricao": "ML_4h", "tipo": "MercadoLivre", "situacao": 1 },
+    { "id": 203478870, "descricao": "Loja Integrada", "tipo": "LojaIntegrada", "situacao": 1 },
+    { "id": 203000000, "descricao": "Shopee 4hobby", "tipo": "Shopee", "situacao": 1 }
+  ]
+}

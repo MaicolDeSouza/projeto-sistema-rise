@@ -121,8 +121,27 @@ function paginar(lista, params, caminho) {
   };
 }
 
-export function criarLojaIntegradaFalsa({ produtos = [], marcas = [], categorias = [], seos = {}, falhas = {} } = {}) {
+export function criarLojaIntegradaFalsa({
+  produtos = [],
+  marcas = [],
+  categorias = [],
+  seos = {},
+  falhas = {},
+  pedidos = [],
+  situacoes = [],
+  historicos = [],
+  etiquetas = [],
+} = {}) {
   const chamadas = [];
+  // Trocavel depois de criada (`falsa.falhas = { "GET /pedido/5001": 500 }`): a leitura de pedidos testa a
+  // falha no meio de uma rodada, com o mesmo falso.
+  let falhasAtuais = falhas;
+  // Pedidos de venda (04/11/2026): detalhe completo por numero, situacoes da loja, historico de situacoes e
+  // as etiquetas do Enviali (`/enviali/v2/postage`, fora do /v1).
+  const tabelaPedidos = new Map(pedidos.map((p) => [Number(p.numero), copia(p)]));
+  const tabelaSituacoes = copia(situacoes);
+  const tabelaHistoricos = copia(historicos);
+  const tabelaEtiquetas = copia(etiquetas);
   let escritaLiberada = false;
   let proximoId = 900000;
   const tabelaSeo = new Map(Object.entries(seos).map(([id, seo]) => [String(id), { title: "", description: "", ...seo }]));
@@ -190,8 +209,43 @@ export function criarLojaIntegradaFalsa({ produtos = [], marcas = [], categorias
   }
 
   function falhaSimulada(metodo, caminho) {
-    const status = falhas[`${metodo} ${caminho}`];
+    const status = falhasAtuais[`${metodo} ${caminho}`];
     return status ? resposta(status, { detail: "falha simulada" }) : null;
+  }
+
+  // A lista do /pedido/search e resumida como a real: sem itens, pagamentos, envios nem o cliente aberto.
+  function resumoDoPedido(pedido) {
+    const { itens, pagamentos, envios, endereco_entrega, cliente, cliente_obs, cupom_desconto, ...resto } = pedido;
+    return { ...resto, cliente: cliente?.resource_uri ?? null };
+  }
+
+  // Datas da LI sao "AAAA-MM-DDTHH:MM:SS.ffffff" sem fuso; o filtro compara o texto ate os segundos, e um
+  // `since_*` so com a data vale desde a meia-noite dela.
+  function desde(texto) {
+    const valor = String(texto ?? "").trim();
+    if (!valor) return null;
+    return (valor.length === 10 ? `${valor}T00:00:00` : valor).slice(0, 19);
+  }
+
+  function buscarPedidos(params) {
+    const criado = desde(params?.since_criado);
+    const atualizado = desde(params?.since_atualizado);
+    const lista = [...tabelaPedidos.values()]
+      .filter((p) => criado === null || String(p.data_criacao).slice(0, 19) >= criado)
+      .filter((p) => atualizado === null || String(p.data_modificacao).slice(0, 19) >= atualizado)
+      .sort((a, b) => a.numero - b.numero)
+      .map(resumoDoPedido);
+    return resposta(200, paginar(copia(lista), params, "/pedido"));
+  }
+
+  function etiquetasDoEnviali(params) {
+    const procura = String(params?.search ?? "").trim();
+    const casa = (e) =>
+      !procura ||
+      String(e.order?.code ?? "") === procura ||
+      String(e.postage?.tracking_code ?? "") === procura ||
+      String(e.recipient?.name ?? "").toLowerCase().includes(procura.toLowerCase());
+    return resposta(200, copia(tabelaEtiquetas.filter(casa)));
   }
 
   function putDoProduto(produto, corpo) {
@@ -238,9 +292,16 @@ export function criarLojaIntegradaFalsa({ produtos = [], marcas = [], categorias
     return resposta(201, detalhe(novo));
   }
 
-  async function chamar(metodo, caminhoCompleto, { params, corpo } = {}) {
+  async function chamar(metodo, caminhoCompleto, { params, corpo, headers, base } = {}) {
     const [caminho] = String(caminhoCompleto).split("?");
-    chamadas.push({ metodo, caminho, params: copia(params) ?? null, corpo: copia(corpo) ?? null });
+    chamadas.push({
+      metodo,
+      caminho,
+      params: copia(params) ?? null,
+      corpo: copia(corpo) ?? null,
+      ...(headers ? { headers: copia(headers) } : {}),
+      ...(base ? { base } : {}),
+    });
     if (metodo !== "GET") exigirLiberada();
     const simulada = falhaSimulada(metodo, caminho);
     if (simulada) return simulada;
@@ -249,7 +310,24 @@ export function criarLojaIntegradaFalsa({ produtos = [], marcas = [], categorias
     const produto = recurso === "produto" && id ? tabelaProdutos.find((p) => String(p.id) === String(id)) : null;
     const naoAchou = resposta(404, { detail: "Not found" });
 
+    // Fora do /v1 so existe o Enviali; qualquer outro caminho pela raiz e erro do teste.
+    if (base === "raiz") {
+      if (metodo === "GET" && recurso === "enviali" && id === "v2" && sub === "postage") return etiquetasDoEnviali(params);
+      throw new Error(`LI falsa: endpoint desconhecido pela raiz ${metodo} ${caminhoCompleto}`);
+    }
+
     if (metodo === "GET") {
+      if (recurso === "pedido" && id === "search") return buscarPedidos(params);
+      if (recurso === "pedido" && id && !sub) {
+        const pedido = tabelaPedidos.get(Number(id));
+        return pedido ? resposta(200, copia(pedido)) : naoAchou;
+      }
+      if (recurso === "situacao" && !id) return resposta(200, paginar(copia(tabelaSituacoes), params, "/situacao"));
+      if (recurso === "situacao_historico" && id === "search") {
+        const numero = String(params?.numero ?? "");
+        const lista = tabelaHistoricos.filter((h) => String(h.numero) === numero);
+        return resposta(200, paginar(copia(lista), params, "/situacao_historico"));
+      }
       if (recurso === "produto" && !id) {
         const sku = params?.sku === undefined ? null : String(params.sku).trim().toLowerCase();
         const lista = tabelaProdutos.filter((p) => sku === null || String(p.sku ?? "").trim().toLowerCase() === sku).map(detalhe);
@@ -357,7 +435,7 @@ export function criarLojaIntegradaFalsa({ produtos = [], marcas = [], categorias
   }
 
   return {
-    get: (caminho, params) => chamar("GET", caminho, { params }),
+    get: (caminho, params, { headers, base } = {}) => chamar("GET", caminho, { params, headers, base }),
     post: (caminho, corpo) => chamar("POST", caminho, { corpo }),
     put: (caminho, corpo) => chamar("PUT", caminho, { corpo }),
     delete: (caminho) => chamar("DELETE", caminho),
@@ -366,6 +444,14 @@ export function criarLojaIntegradaFalsa({ produtos = [], marcas = [], categorias
       escritaLiberada = true;
     },
     chamadas,
+    get falhas() {
+      return falhasAtuais;
+    },
+    set falhas(valor) {
+      falhasAtuais = valor ?? {};
+    },
+    /// Map numero -> pedido completo, editavel pelo teste (uma mudanca de situacao entre duas leituras).
+    pedidos: tabelaPedidos,
     produtos: () => tabelaProdutos.map((p) => copia(detalhe(p))),
     // O dono mexendo no painel da loja (o monitor do worker, 25/10/2026): muda o produto guardado, sem passar pela API.
     mudarProduto(id, campos) {

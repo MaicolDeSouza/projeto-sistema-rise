@@ -209,6 +209,15 @@ export function criarBlingFalso(opcoes = {}) {
   const origensDasFotos = new Map(); // id do produto -> origens ja baixadas
   const bytesDosLinks = new Map(Object.entries(opcoes.bytesDasFotos ?? {}));
 
+  // ---- Pedidos de venda (04/11/2026) ----
+  // Detalhe completo por id (a lista do GET /pedidos/vendas e derivada dele), as formas de pagamento, os modulos e
+  // as situacoes por modulo (`{ modulos, situacoes: { [idDoModulo]: [...] } }`), os canais e as notas por id.
+  const pedidosDeVenda = new Map((opcoes.pedidosDeVenda ?? []).map((p) => [Number(p.id), copia(p)]));
+  const formasDePagamento = copia(opcoes.formasDePagamento ?? []);
+  const situacoesDeVenda = copia(opcoes.situacoesDeVenda ?? { modulos: [], situacoes: {} });
+  const canaisDeVenda = copia(opcoes.canaisDeVenda ?? []);
+  const notas = new Map((opcoes.notas ?? []).map((n) => [Number(n.id), copia(n)]));
+
   const produtos = new Map(); // id -> produto como o Bling o guarda (sem o saldo)
   const saldos = new Map(); // id do produto -> { virtual, fisico }
   const contatos = new Map();
@@ -459,7 +468,57 @@ export function criarBlingFalso(opcoes = {}) {
     return campos.filter((campo) => ausente(corpo?.[campo]));
   }
 
+  // A lista do GET /pedidos/vendas e resumida como a real (so o cabecalho do pedido).
+  function resumoDoPedidoDeVenda(pedido) {
+    const { id, numero, numeroLoja, data, dataSaida, dataPrevista, totalProdutos, total, contato, situacao, loja } = pedido;
+    return copia({ id, numero, numeroLoja, data, dataSaida, dataPrevista, totalProdutos, total, contato, situacao, loja });
+  }
+
   const rotas = [
+    // ---- Pedidos de venda (04/11/2026) ----
+    [
+      "GET",
+      /^\/pedidos\/vendas$/,
+      (_partes, { consulta }) => {
+        const um = (chave) => consulta[chave]?.[0];
+        // Datas no formato AAAA-MM-DD, inclusivas nas duas pontas; a de alteracao cai na data do pedido quando a
+        // fixture nao tem `dataAlteracao` (o Bling nao a devolve: so filtra por ela).
+        const dentro = (data, inicio, fim) => (!inicio || data >= inicio) && (!fim || data <= fim);
+        const lista = [...pedidosDeVenda.values()]
+          .filter((p) => dentro(p.data, um("dataInicial"), um("dataFinal")))
+          .filter((p) => dentro(p.dataAlteracao ?? p.data, um("dataAlteracaoInicial"), um("dataAlteracaoFinal")))
+          .sort((a, b) => a.id - b.id)
+          .map(resumoDoPedidoDeVenda);
+        const limite = Number(um("limite") ?? 100);
+        const pagina = Number(um("pagina") ?? 1);
+        return resposta(200, { data: lista.slice((pagina - 1) * limite, pagina * limite) });
+      },
+    ],
+    [
+      "GET",
+      /^\/pedidos\/vendas\/(\d+)$/,
+      ([, id]) => {
+        const pedido = pedidosDeVenda.get(Number(id));
+        return pedido ? resposta(200, { data: copia(pedido) }) : naoEncontrado();
+      },
+    ],
+    ["GET", /^\/formas-pagamentos$/, () => resposta(200, { data: copia(formasDePagamento) })],
+    ["GET", /^\/situacoes\/modulos$/, () => resposta(200, { data: copia(situacoesDeVenda.modulos ?? []) })],
+    [
+      "GET",
+      /^\/situacoes\/modulos\/(\d+)$/,
+      ([, id]) => resposta(200, { data: copia(situacoesDeVenda.situacoes?.[String(id)] ?? []) }),
+    ],
+    ["GET", /^\/canais-venda$/, () => resposta(200, { data: copia(canaisDeVenda) })],
+    [
+      "GET",
+      /^\/nfe\/(\d+)$/,
+      ([, id]) => {
+        const nota = notas.get(Number(id));
+        return nota ? resposta(200, { data: copia(nota) }) : naoEncontrado();
+      },
+    ],
+
     // ---- Produtos ----
     [
       "GET",

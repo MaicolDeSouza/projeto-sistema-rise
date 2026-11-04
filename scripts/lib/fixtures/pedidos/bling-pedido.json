@@ -1,0 +1,210 @@
+[
+  {
+    "id": 7001,
+    "numero": 7001,
+    "numeroLoja": "",
+    "data": "2026-11-02",
+    "dataSaida": "2026-11-03",
+    "dataPrevista": "2026-11-06",
+    "totalProdutos": 119.8,
+    "total": 137.92,
+    "contato": { "id": 5000001, "nome": "ZZ Ped Comercio Ltda", "tipoPessoa": "J", "numeroDocumento": "11222333000181" },
+    "situacao": { "id": 15, "valor": 15 },
+    "loja": { "id": 0 },
+    "numeroPedidoCompra": "OC-77",
+    "outrasDespesas": 0,
+    "observacoes": "Entregar no horario comercial",
+    "observacoesInternas": "",
+    "desconto": { "valor": 0, "unidade": "REAL" },
+    "categoria": { "id": 0 },
+    "notaFiscal": { "id": 9001 },
+    "tributacao": { "totalICMS": 0, "totalIPI": 0 },
+    "itens": [
+      {
+        "id": 8000001,
+        "codigo": "100101",
+        "unidade": "UN",
+        "quantidade": 2,
+        "desconto": 0,
+        "valor": 59.9,
+        "aliquotaIPI": 0,
+        "descricao": "Placa Arduino Uno R3",
+        "descricaoDetalhada": "",
+        "produto": { "id": 16000000001 },
+        "comissao": { "base": 0, "aliquota": 0, "valor": 0 }
+      }
+    ],
+    "parcelas": [
+      { "id": 9000001, "dataVencimento": "2026-11-02", "valor": 137.92, "observacoes": "", "formaPagamento": { "id": 1 } }
+    ],
+    "transporte": {
+      "fretePorConta": 0,
+      "frete": 18.12,
+      "quantidadeVolumes": 1,
+      "pesoBruto": 0.08,
+      "prazoEntrega": 4,
+      "contato": { "id": 0, "nome": "Correios" },
+      "etiqueta": { "nome": "ZZ Ped Comercio Ltda", "endereco": "Av. Julio de Castilhos", "numero": "2000", "complemento": "", "municipio": "Caxias do Sul", "uf": "RS", "cep": "95010-005", "bairro": "Centro", "nomePais": "BRASIL" },
+      "volumes": [{ "id": 10000001, "servico": "SEDEX", "codigoRastreamento": "QB123456789BR" }]
+    },
+    "vendedor": { "id": 0 },
+    "intermediador": { "cnpj": "", "nomeUsuario": "" },
+    "taxas": { "taxaComissao": 0, "custoFrete": 0, "valorBase": 0 }
+  },
+  {
+    "id": 7002,
+    "numero": 123,
+    "numeroLoja": "2000000001",
+    "data": "2026-11-02",
+    "dataSaida": "2026-11-03",
+    "dataPrevista": "2026-11-06",
+    "totalProdutos": 119.8,
+    "total": 137.92,
+    "contato": { "id": 5000002, "nome": "Joao ZZ Ped Silva", "tipoPessoa": "F", "numeroDocumento": "12345678909" },
+    "situacao": { "id": 15, "valor": 15 },
+    "loja": { "id": 206326819 },
+    "numeroPedidoCompra": "",
+    "outrasDespesas": 0,
+    "observacoes": "",
+    "observacoesInternas": "",
+    "desconto": { "valor": 0, "unidade": "REAL" },
+    "categoria": { "id": 0 },
+    "notaFiscal": { "id": 0 },
+    "tributacao": { "totalICMS": 0, "totalIPI": 0 },
+    "itens": [
+      {
+        "id": 8000002,
+        "codigo": "100101",
+        "unidade": "UN",
+        "quantidade": 2,
+        "desconto": 0,
+        "valor": 59.9,
+        "aliquotaIPI": 0,
+        "descricao": "Placa Arduino Uno R3",
+        "descricaoDetalhada": "",
+        "produto": { "id": 16000000001 },
+        "comissao": { "base": 0, "aliquota": 0, "valor": 0 }
+      }
+    ],
+    "parcelas": [
+      { "id": 9000002, "dataVencimento": "2026-11-02", "valor": 137.92, "observacoes": "", "formaPagamento": { "id": 5 } }
+    ],
+    "transporte": {
+      "fretePorConta": 0,
+      "frete": 18.12,
+      "quantidadeVolumes": 1,
+      "pesoBruto": 0.08,
+      "prazoEntrega": 4,
+      "contato": { "id": 0, "nome": "Mercado Envios" },
+      "etiqueta": { "nome": "Joao ZZ Ped Silva", "endereco": "Rua das Flores", "numero": "123", "complemento": "Apto 2", "municipio": "Caxias do Sul", "uf": "RS", "cep": "95010-000", "bairro": "Centro", "nomePais": "BRASIL" },
+      "volumes": [{ "id": 10000002, "servico": "Mercado Envios", "codigoRastreamento": "BR123456789BR" }]
+    },
+    "vendedor": { "id": 0 },
+    "intermediador": { "cnpj": "03007331000141", "nomeUsuario": "4HOBBY_STORE" },
+    "taxas": { "taxaComissao": 25.9, "custoFrete": 18.12, "valorBase": 119.8 }
+  },
+  {
+    "id": 7003,
+    "numero": 124,
+    "numeroLoja": "5001",
+    "data": "2026-11-02",
+    "dataSaida": "",
+    "dataPrevista": "2026-11-09",
+    "totalProdutos": 119.8,
+    "total": 137.92,
+    "contato": { "id": 5000003, "nome": "Maria ZZ Ped Souza", "tipoPessoa": "F", "numeroDocumento": "12345678909" },
+    "situacao": { "id": 6, "valor": 6 },
+    "loja": { "id": 203478870 },
+    "numeroPedidoCompra": "",
+    "outrasDespesas": 0,
+    "observacoes": "",
+    "observacoesInternas": "",
+    "desconto": { "valor": 0, "unidade": "REAL" },
+    "categoria": { "id": 0 },
+    "notaFiscal": { "id": 0 },
+    "tributacao": { "totalICMS": 0, "totalIPI": 0 },
+    "itens": [
+      {
+        "id": 8000003,
+        "codigo": "100101",
+        "unidade": "UN",
+        "quantidade": 2,
+        "desconto": 0,
+        "valor": 59.9,
+        "aliquotaIPI": 0,
+        "descricao": "Placa Arduino Uno R3",
+        "descricaoDetalhada": "",
+        "produto": { "id": 16000000001 },
+        "comissao": { "base": 0, "aliquota": 0, "valor": 0 }
+      }
+    ],
+    "parcelas": [
+      { "id": 9000003, "dataVencimento": "2026-11-02", "valor": 137.92, "observacoes": "", "formaPagamento": { "id": 1 } }
+    ],
+    "transporte": {
+      "fretePorConta": 0,
+      "frete": 18.12,
+      "quantidadeVolumes": 1,
+      "pesoBruto": 0.08,
+      "prazoEntrega": 7,
+      "contato": { "id": 0, "nome": "Correios" },
+      "etiqueta": { "nome": "Maria ZZ Ped Souza", "endereco": "Rua Sinimbu", "numero": "1500", "complemento": "Sala 3", "municipio": "Caxias do Sul", "uf": "RS", "cep": "95090-970", "bairro": "Centro", "nomePais": "BRASIL" },
+      "volumes": [{ "id": 10000003, "servico": "PAC", "codigoRastreamento": "AB123456789BR" }]
+    },
+    "vendedor": { "id": 0 },
+    "intermediador": { "cnpj": "", "nomeUsuario": "" },
+    "taxas": { "taxaComissao": 0, "custoFrete": 0, "valorBase": 0 }
+  },
+  {
+    "id": 7004,
+    "numero": 125,
+    "numeroLoja": "SHP-0001",
+    "data": "2026-11-02",
+    "dataSaida": "",
+    "dataPrevista": "",
+    "totalProdutos": 29.9,
+    "total": 29.9,
+    "contato": { "id": 5000004, "nome": "Carlos ZZ Ped Lima", "tipoPessoa": "F", "numeroDocumento": "00000000000" },
+    "situacao": { "id": 6, "valor": 6 },
+    "loja": { "id": 203000000 },
+    "numeroPedidoCompra": "",
+    "outrasDespesas": 0,
+    "observacoes": "",
+    "observacoesInternas": "",
+    "desconto": { "valor": 0, "unidade": "REAL" },
+    "categoria": { "id": 0 },
+    "notaFiscal": { "id": 0 },
+    "tributacao": { "totalICMS": 0, "totalIPI": 0 },
+    "itens": [
+      {
+        "id": 8000004,
+        "codigo": "100102",
+        "unidade": "UN",
+        "quantidade": 1,
+        "desconto": 0,
+        "valor": 29.9,
+        "aliquotaIPI": 0,
+        "descricao": "Sensor ultrassonico HC-SR04",
+        "descricaoDetalhada": "",
+        "produto": { "id": 16000000002 },
+        "comissao": { "base": 0, "aliquota": 0, "valor": 0 }
+      }
+    ],
+    "parcelas": [
+      { "id": 9000004, "dataVencimento": "2026-11-02", "valor": 29.9, "observacoes": "", "formaPagamento": { "id": 5 } }
+    ],
+    "transporte": {
+      "fretePorConta": 0,
+      "frete": 0,
+      "quantidadeVolumes": 1,
+      "pesoBruto": 0.02,
+      "prazoEntrega": 0,
+      "contato": { "id": 0, "nome": "" },
+      "etiqueta": { "nome": "Carlos ZZ Ped Lima", "endereco": "Rua A", "numero": "1", "complemento": "", "municipio": "Porto Alegre", "uf": "RS", "cep": "90000-000", "bairro": "Centro", "nomePais": "BRASIL" },
+      "volumes": []
+    },
+    "vendedor": { "id": 0 },
+    "intermediador": { "cnpj": "", "nomeUsuario": "" },
+    "taxas": { "taxaComissao": 0, "custoFrete": 0, "valorBase": 0 }
+  }
+]

@@ -1,0 +1,50 @@
+{
+  "data": {
+    "id": 9001,
+    "tipo": 1,
+    "situacao": 5,
+    "numero": "1234",
+    "serie": 1,
+    "dataEmissao": "2026-11-02 11:00:00",
+    "dataOperacao": "2026-11-02 11:00:00",
+    "chaveAcesso": "43261112345678000195550010000012341000012345",
+    "xml": "https://www.bling.com.br/xml/43261112345678000195550010000012341000012345.xml",
+    "linkDanfe": "https://www.bling.com.br/danfe/43261112345678000195550010000012341000012345",
+    "linkPDF": "https://www.bling.com.br/relatorios/nfe.pdf?id=9001",
+    "valorNota": 137.92,
+    "valorFrete": 18.12,
+    "finalidade": 1,
+    "tipoNota": "NF-e",
+    "optanteSimplesNacional": true,
+    "numeroPedidoLoja": "",
+    "contato": { "id": 5000001, "nome": "ZZ Ped Comercio Ltda", "numeroDocumento": "11222333000181", "email": "", "telefone": "" },
+    "naturezaOperacao": { "id": 1, "descricao": "Venda de mercadorias" },
+    "loja": { "id": 0 },
+    "transporte": {
+      "fretePorConta": 0,
+      "transportador": { "nome": "Correios", "numeroDocumento": "34028316000103" },
+      "volumes": [{ "id": 10000001 }],
+      "etiqueta": { "nome": "ZZ Ped Comercio Ltda", "endereco": "Av. Julio de Castilhos", "numero": "2000", "complemento": "", "municipio": "Caxias do Sul", "uf": "RS", "cep": "95010-005", "bairro": "Centro" }
+    },
+    "vendedor": { "id": 0 },
+    "itens": [
+      {
+        "codigo": "100101",
+        "descricao": "Placa Arduino Uno R3",
+        "unidade": "UN",
+        "quantidade": 2,
+        "valor": 59.9,
+        "valorTotal": 119.8,
+        "tipo": "P",
+        "pesoBruto": 0.04,
+        "pesoLiquido": 0.04,
+        "classificacaoFiscal": "8471.80.00",
+        "origem": 2,
+        "gtin": "",
+        "cfop": "5102"
+      }
+    ],
+    "parcelas": [{ "data": "2026-11-02", "valor": 137.92, "observacoes": "", "formaPagamento": { "id": 1 } }],
+    "intermediador": { "cnpj": "", "nomeUsuario": "" }
+  }
+}

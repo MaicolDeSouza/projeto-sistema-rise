@@ -1,0 +1,15 @@
+{
+  "id": 555,
+  "user_id": 212386247,
+  "order_id": 2000000001,
+  "shipment_id": 40000000001,
+  "status": "authorized",
+  "invoice_number": "1234",
+  "invoice_series": "1",
+  "invoice_key": "43261112345678000195550010000012341000012345",
+  "issued_date": "2026-11-02T15:00:00.000-03:00",
+  "authorization_date": "2026-11-02T15:00:05.000-03:00",
+  "fiscal_data": { "issuer_cnpj": "12345678000195", "amount": 137.92 },
+  "pdf_url": "/users/212386247/invoices/documents/pdf/555/authorized",
+  "xml_url": "/users/212386247/invoices/documents/xml/555/authorized"
+}

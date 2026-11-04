@@ -1,0 +1,23 @@
+{
+  "modulos": [
+    { "id": 98310, "nome": "Vendas", "descricao": "Pedidos de venda", "criarSituacoes": true },
+    { "id": 98309, "nome": "Compras", "descricao": "Pedidos de compra", "criarSituacoes": true },
+    { "id": 98305, "nome": "Notas fiscais", "descricao": "Notas fiscais de saída", "criarSituacoes": false }
+  ],
+  "situacoes": {
+    "98310": [
+      { "id": 6, "nome": "Em aberto", "idHerdado": 6, "cor": "#f2f2f2" },
+      { "id": 9, "nome": "Atendido", "idHerdado": 9, "cor": "#d1f5d3" },
+      { "id": 12, "nome": "Cancelado", "idHerdado": 12, "cor": "#ffd6d6" },
+      { "id": 15, "nome": "Em andamento", "idHerdado": 15, "cor": "#fff2cc" },
+      { "id": 18, "nome": "Venda agenciada", "idHerdado": 18, "cor": "#e0e0ff" },
+      { "id": 21, "nome": "Em digitação", "idHerdado": 21, "cor": "#ffffff" },
+      { "id": 24, "nome": "Verificado", "idHerdado": 24, "cor": "#cce5ff" },
+      { "id": 480000, "nome": "Aguardando peças", "idHerdado": 15, "cor": "#ffe0b3" }
+    ],
+    "98309": [
+      { "id": 2, "nome": "Em aberto", "idHerdado": 2, "cor": "#f2f2f2" },
+      { "id": 3, "nome": "Atendido", "idHerdado": 3, "cor": "#d1f5d3" }
+    ]
+  }
+}

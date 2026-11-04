@@ -4,6 +4,9 @@ import { lerSegredo } from "../conexoes";
 
 const SERVICO = "LOJA_INTEGRADA";
 const API = "https://api.awsli.com.br/v1";
+// A raiz sem o `/v1`: as etiquetas do Enviali moram em `/enviali/v2/...` (Pedidos de venda, 04/11/2026), e o
+// mesmo Personal Token vale la.
+const RAIZ = "https://api.awsli.com.br";
 
 // A documentacao publica 100 requisicoes/minuto por loja. A margem evita que
 // pequenas diferencas de relogio encostem no limite real.
@@ -12,8 +15,8 @@ const MAX_POR_MINUTO = 90;
 const preenchido = (valor) =>
   valor !== undefined && valor !== null && valor !== "";
 
-export function urlDaLojaIntegrada(caminho, params) {
-  const url = new URL(`${API}${caminho}`);
+export function urlDaLojaIntegrada(caminho, params, { base } = {}) {
+  const url = new URL(`${base === "raiz" ? RAIZ : API}${caminho}`);
 
   for (const [chave, valor] of Object.entries(params ?? {})) {
     if (preenchido(valor)) url.searchParams.set(chave, String(valor));
@@ -97,14 +100,14 @@ export function criarLojaIntegradaClient({
   limitarHttp = limitar,
   exigirEscrita = () => exigirTravaLiberada(SERVICO),
 } = {}) {
-  async function chamar(metodo, caminho, { params, corpo } = {}) {
+  async function chamar(metodo, caminho, { params, corpo, headers, base } = {}) {
     if (!configuracao.lojaIntegrada.enabled) {
       throw new Error("A integração com a Loja Integrada está desabilitada.");
     }
     if (metodo !== "GET") exigirEscrita();
 
     const token = await obterToken();
-    const url = urlDaLojaIntegrada(caminho, params);
+    const url = urlDaLojaIntegrada(caminho, params, { base });
 
     await limitarHttp(SERVICO, MAX_POR_MINUTO, 60_000);
 
@@ -112,7 +115,7 @@ export function criarLojaIntegradaClient({
       servico: SERVICO,
       url,
       metodo,
-      headers: { Authorization: `Basic ${token}` },
+      headers: { Authorization: `Basic ${token}`, ...(headers ?? {}) },
       corpo,
       // Escritas nunca repetem sozinhas: a API pode ter aplicado a mudanca e
       // perdido apenas a resposta. A leitura posterior decide o que fazer.
@@ -121,7 +124,8 @@ export function criarLojaIntegradaClient({
   }
 
   return {
-    get: (caminho, params) => chamar("GET", caminho, { params }),
+    // O 3o argumento e opcional: `headers` extras (o `x-correlation-id` do Enviali) e `base: "raiz"` para sair do /v1.
+    get: (caminho, params, { headers, base } = {}) => chamar("GET", caminho, { params, headers, base }),
     post: (caminho, corpo) => chamar("POST", caminho, { corpo }),
     put: (caminho, corpo) => chamar("PUT", caminho, { corpo }),
     delete: (caminho, corpo) => chamar("DELETE", caminho, { corpo }),

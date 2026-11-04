@@ -1,0 +1,18 @@
+[
+  {
+    "postage": {
+      "id": 1798038,
+      "status": "posted",
+      "date_time": "2026-11-02T18:00:00.000Z",
+      "expires_at": "2026-11-16T00:00:00.000Z",
+      "service_name": "PAC",
+      "service_slug": "pac",
+      "tracking_code": "AB123456789BR",
+      "tracking_status": "transit",
+      "price": 1812
+    },
+    "order": { "code": "5001", "date_time": "2026-11-02T17:30:00.000Z", "merchandise_value": 11980 },
+    "recipient": { "name": "Maria ZZ Ped Souza" },
+    "estimate": { "price": 1812, "eta": "7.00:00:00" }
+  }
+]

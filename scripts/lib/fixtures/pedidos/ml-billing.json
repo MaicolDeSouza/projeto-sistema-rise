@@ -1,0 +1,10 @@
+{
+  "billing_info": {
+    "doc_type": "CPF",
+    "doc_number": "12345678909",
+    "additional_info": [
+      { "type": "FIRST_NAME", "value": "Joao" },
+      { "type": "LAST_NAME", "value": "ZZ Ped Silva" }
+    ]
+  }
+}

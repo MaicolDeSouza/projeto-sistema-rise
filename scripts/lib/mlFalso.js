@@ -447,10 +447,71 @@ export function criarMLFalso(opcoes = {}) {
     });
   }
 
-  async function get(caminho, params) {
+  // ---- Pedidos de venda (04/11/2026) ----
+  // `pedidos`, `envios` e `faturas` vem das fixtures de scripts/lib/fixtures/pedidos/; `cobrancas` e o
+  // billing_info por id de pedido. Os Maps ficam expostos para o teste mudar um pedido entre duas leituras.
+  const pedidos = new Map((opcoes.pedidos ?? []).map((p) => [Number(p.id), structuredClone(p)]));
+  const envios = new Map((opcoes.envios ?? []).map((e) => [Number(e.id), structuredClone(e)]));
+  const faturas = (opcoes.faturas ?? []).map((f) => structuredClone(f));
+  const cobrancas = structuredClone(opcoes.cobrancas ?? {});
+
+  // GET /orders/search: filtra pelo vendedor e pelas datas "a partir de" (criacao ou ultima atualizacao),
+  // ordena por data de criacao crescente e pagina por offset/limit, como o real.
+  function buscarPedidos(params) {
+    const instante = (texto) => (texto ? new Date(texto).getTime() : null);
+    const desdeCriacao = instante(params["order.date_created.from"]);
+    const desdeAtualizacao = instante(params["order.date_last_updated.from"]);
+    const lista = [...pedidos.values()]
+      .filter((p) => !params.seller || String(p.seller?.id) === String(params.seller))
+      .filter((p) => desdeCriacao === null || new Date(p.date_created).getTime() >= desdeCriacao)
+      .filter((p) => desdeAtualizacao === null || new Date(p.last_updated).getTime() >= desdeAtualizacao)
+      .sort((a, b) => new Date(a.date_created) - new Date(b.date_created));
+    const offset = Number(params.offset ?? 0);
+    const limit = Number(params.limit ?? 50);
+    return resposta(200, {
+      query: "",
+      results: structuredClone(lista.slice(offset, offset + limit)),
+      sort: { id: params.sort ?? "date_asc", name: "Date ascending" },
+      paging: { total: lista.length, offset, limit },
+    });
+  }
+
+  function rotasDePedidos(rota, params) {
+    if (rota === "/orders/search") return buscarPedidos(params ?? {});
+    let partes = rota.match(/^\/orders\/(\d+)$/);
+    if (partes) {
+      const pedido = pedidos.get(Number(partes[1]));
+      return pedido ? resposta(200, structuredClone(pedido)) : naoAchou(`Order ${partes[1]} not found`);
+    }
+    partes = rota.match(/^\/orders\/(\d+)\/billing_info$/);
+    if (partes) {
+      const cobranca = cobrancas[partes[1]];
+      return cobranca ? resposta(200, structuredClone(cobranca)) : naoAchou(`Billing info for order ${partes[1]} not found`);
+    }
+    partes = rota.match(/^\/orders\/(\d+)\/shipments$/);
+    if (partes) {
+      return resposta(200, structuredClone([...envios.values()].filter((e) => String(e.order_id) === partes[1])));
+    }
+    partes = rota.match(/^\/shipments\/(\d+)$/);
+    if (partes) {
+      const envio = envios.get(Number(partes[1]));
+      return envio ? resposta(200, structuredClone(envio)) : naoAchou(`Shipment ${partes[1]} not found`);
+    }
+    partes = rota.match(/^\/users\/(\d+)\/invoices\/orders\/(\d+)$/);
+    if (partes) {
+      const fatura = faturas.find((f) => String(f.order_id) === partes[2]);
+      return fatura ? resposta(200, structuredClone(fatura)) : naoAchou(`Invoice for order ${partes[2]} not found`);
+    }
+    return null;
+  }
+
+  async function get(caminho, params, { headers } = {}) {
     const pedido = separar(caminho, params);
-    chamadas.push({ caminho: pedido.rota, params: pedido.params });
+    // `headers` so entra no registro quando veio: os testes antigos comparam a chamada inteira.
+    chamadas.push({ caminho: pedido.rota, params: pedido.params, ...(headers ? { headers: structuredClone(headers) } : {}) });
     const { rota } = pedido;
+    const dePedidos = rotasDePedidos(rota, pedido.params);
+    if (dePedidos) return dePedidos;
 
     // Falha programada tambem em leitura (o 429 da rodada diaria dos concorrentes), uma vez cada.
     const casaGet = (item) => (item.exato ? rota === item.caminho : rota.startsWith(item.caminho));
@@ -535,5 +596,8 @@ export function criarMLFalso(opcoes = {}) {
     itens,
     fotos,
     estado,
+    pedidos,
+    envios,
+    faturas,
   };
 }

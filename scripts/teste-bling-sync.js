@@ -1206,7 +1206,8 @@ try {
       );
       conferir("exigirEscrita com o codigo da lista (outra caixa) passa e libera a escrita", [mensagemDe(() => restrito.exigirEscrita("zz-ok")), (await restrito.patch("/produtos/111", { preco: 1 })).ok], [null, true]);
 
-      conferir("falso: endpoint que ele nao conhece rejeita com 'nao suportado' (erro de teste, nao do Bling)", casa(await rejeicaoDe(falso.get("/pedidos/vendas")), /nao suportado/), true);
+      // `/pedidos/vendas` deixou de servir de exemplo em 04/11/2026: o falso passou a conhece-lo (Pedidos de venda).
+      conferir("falso: endpoint que ele nao conhece rejeita com 'nao suportado' (erro de teste, nao do Bling)", casa(await rejeicaoDe(falso.get("/contas/pagar")), /nao suportado/), true);
       conferir("falso: GET /produtos?codigo= (nao documentado, Emenda 8) e recusado: o certo e codigos[]", casa(await rejeicaoDe(falso.get("/produtos?codigo=ZZ-F-1")), /codigos\[\]/), true);
       conferir("falso: listagem de produtos sem codigos[] tambem", casa(await rejeicaoDe(falso.get("/produtos", { pagina: 1, limite: 100 })), /codigos\[\]/), true);
       conferir("falso: verbo que o endpoint nao tem (PUT /depositos) tambem e recusado", casa(await rejeicaoDe(falso.put("/depositos", {})), /nao suportado/), true);

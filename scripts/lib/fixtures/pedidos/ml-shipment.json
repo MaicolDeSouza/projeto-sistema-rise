@@ -1,0 +1,57 @@
+{
+  "id": 40000000001,
+  "external_reference": null,
+  "status": "shipped",
+  "substatus": null,
+  "date_created": "2026-11-02T10:16:30.000-03:00",
+  "last_updated": "2026-11-03T09:00:00.000-03:00",
+  "date_first_printed": "2026-11-02T14:00:00.000-03:00",
+  "mode": "me2",
+  "logistic_type": "drop_off",
+  "tracking_number": "BR123456789BR",
+  "tracking_method": "Correios",
+  "service_id": 182,
+  "sender_id": 212386247,
+  "receiver_id": 987654321,
+  "order_id": 2000000001,
+  "order_cost": 18.12,
+  "base_cost": 18.12,
+  "shipping_option": {
+    "id": 700000001,
+    "shipping_method_id": 182,
+    "name": "Correios SEDEX",
+    "currency_id": "BRL",
+    "list_cost": 18.12,
+    "cost": 18.12,
+    "delivery_type": "estimated",
+    "estimated_delivery_time": {
+      "type": "known",
+      "date": "2026-11-06T00:00:00.000-03:00",
+      "shipping": 48,
+      "handling": 24
+    }
+  },
+  "receiver_address": {
+    "id": 1100000001,
+    "address_line": "Rua das Flores 123",
+    "street_name": "Rua das Flores",
+    "street_number": "123",
+    "comment": "Apto 2",
+    "zip_code": "95010000",
+    "city": { "id": "TUxCQ0NBWDE2NjM", "name": "Caxias do Sul" },
+    "state": { "id": "BR-RS", "name": "Rio Grande do Sul" },
+    "country": { "id": "BR", "name": "Brasil" },
+    "neighborhood": { "id": null, "name": "Centro" },
+    "receiver_name": "Joao ZZ Ped Silva",
+    "receiver_phone": "54988990008"
+  },
+  "status_history": {
+    "date_handling": "2026-11-02T10:16:30.000-03:00",
+    "date_ready_to_ship": "2026-11-02T14:00:00.000-03:00",
+    "date_shipped": "2026-11-03T09:00:00.000-03:00",
+    "date_delivered": null,
+    "date_not_delivered": null,
+    "date_cancelled": null,
+    "date_returned": null
+  }
+}

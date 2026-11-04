@@ -1,0 +1,10 @@
+{
+  "data": [
+    { "id": 1, "descricao": "Pix", "tipoPagamento": 17, "situacao": 1, "fixa": false, "padrao": 1, "condicao": "", "destino": 1 },
+    { "id": 2, "descricao": "Boleto bancário", "tipoPagamento": 15, "situacao": 1, "fixa": false, "padrao": 0, "condicao": "", "destino": 1 },
+    { "id": 3, "descricao": "Dinheiro", "tipoPagamento": 1, "situacao": 1, "fixa": true, "padrao": 0, "condicao": "", "destino": 1 },
+    { "id": 4, "descricao": "Cartão de débito", "tipoPagamento": 4, "situacao": 1, "fixa": false, "padrao": 0, "condicao": "", "destino": 1 },
+    { "id": 5, "descricao": "Cartão de crédito", "tipoPagamento": 3, "situacao": 1, "fixa": false, "padrao": 0, "condicao": "", "destino": 1 },
+    { "id": 6, "descricao": "Transferência bancária", "tipoPagamento": 16, "situacao": 1, "fixa": false, "padrao": 0, "condicao": "", "destino": 1 }
+  ]
+}

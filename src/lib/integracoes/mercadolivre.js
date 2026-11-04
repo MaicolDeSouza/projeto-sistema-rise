@@ -114,7 +114,9 @@ export async function obterAccessToken() {
   return guardar(dados, segredo);
 }
 
-async function chamar(metodo, caminho, { params, corpo, tentativas } = {}) {
+// `headers` extras entram por cima do Authorization: o endpoint de envios exige `X-Api-Version: 2`
+// (Pedidos de venda, 04/11/2026), e a assinatura comum nao tinha como mandar.
+async function chamar(metodo, caminho, { params, corpo, tentativas, headers } = {}) {
   if (metodo !== "GET") exigirTravaLiberada(SERVICO);
 
   const token = await obterAccessToken();
@@ -132,13 +134,13 @@ async function chamar(metodo, caminho, { params, corpo, tentativas } = {}) {
     servico: SERVICO,
     url: url.toString(),
     metodo,
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${token}`, ...(headers ?? {}) },
     corpo,
     ...(tentativas ? { tentativas } : {}),
   });
 }
 
-export const mlGet = (caminho, params) => chamar("GET", caminho, { params });
+export const mlGet = (caminho, params, { headers } = {}) => chamar("GET", caminho, { params, headers });
 
 // Escrita: UMA tentativa so. Uma resposta perdida nao quer dizer que o ML nao recebeu, e repetir
 // a criacao de um anuncio criaria dois iguais no ar. Todas passam pela trava ML_PUBLICACAO em `chamar`.

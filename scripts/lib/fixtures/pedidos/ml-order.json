@@ -1,0 +1,57 @@
+{
+  "id": 2000000001,
+  "date_created": "2026-11-02T10:15:00.000-03:00",
+  "date_closed": "2026-11-02T10:16:30.000-03:00",
+  "last_updated": "2026-11-03T09:00:00.000-03:00",
+  "status": "paid",
+  "status_detail": null,
+  "tags": ["paid", "not_delivered"],
+  "pack_id": null,
+  "pickup_id": null,
+  "currency_id": "BRL",
+  "total_amount": 119.8,
+  "paid_amount": 137.92,
+  "coupon": { "id": null, "amount": 0 },
+  "buying_mode": "buy_equals_pay",
+  "seller": { "id": 212386247, "nickname": "4HOBBY_STORE" },
+  "buyer": { "id": 987654321, "nickname": "ZZPEDSILVA", "first_name": "Joao", "last_name": "ZZ Ped Silva" },
+  "order_items": [
+    {
+      "item": {
+        "id": "MLB4000000001",
+        "title": "Placa Arduino Uno R3",
+        "category_id": "MLB1648",
+        "variation_id": null,
+        "seller_sku": "100101",
+        "seller_custom_field": "100101",
+        "condition": "new"
+      },
+      "quantity": 2,
+      "unit_price": 59.9,
+      "full_unit_price": 59.9,
+      "currency_id": "BRL",
+      "sale_fee": 12.95,
+      "listing_type_id": "gold_special"
+    }
+  ],
+  "payments": [
+    {
+      "id": 90000000001,
+      "order_id": 2000000001,
+      "payer_id": 987654321,
+      "status": "approved",
+      "status_detail": "accredited",
+      "payment_type": "account_money",
+      "payment_method_id": "account_money",
+      "installments": 1,
+      "transaction_amount": 119.8,
+      "shipping_cost": 18.12,
+      "total_paid_amount": 137.92,
+      "currency_id": "BRL",
+      "date_created": "2026-11-02T10:15:30.000-03:00",
+      "date_approved": "2026-11-02T10:16:00.000-03:00"
+    }
+  ],
+  "shipping": { "id": 40000000001 },
+  "feedback": { "sale": null, "purchase": null }
+}

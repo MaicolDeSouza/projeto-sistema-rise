@@ -1,0 +1,29 @@
+{
+  "id": 40000000002,
+  "type": "return",
+  "status": "delivered",
+  "substatus": null,
+  "date_created": "2026-11-15T10:00:00.000-03:00",
+  "last_updated": "2026-11-20T14:00:00.000Z",
+  "mode": "me2",
+  "logistic_type": "drop_off",
+  "tracking_number": "BR987654321BR",
+  "tracking_method": "Correios",
+  "sender_id": 987654321,
+  "receiver_id": 212386247,
+  "order_id": 2000000001,
+  "order_cost": 22.5,
+  "base_cost": 22.5,
+  "shipping_option": {
+    "id": 700000002,
+    "name": "Correios PAC",
+    "currency_id": "BRL",
+    "list_cost": 22.5,
+    "cost": 22.5
+  },
+  "status_history": {
+    "date_shipped": "2026-11-16T09:00:00.000-03:00",
+    "date_delivered": "2026-11-20T14:00:00.000Z",
+    "date_cancelled": null
+  }
+}
