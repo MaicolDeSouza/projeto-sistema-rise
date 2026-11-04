@@ -89,7 +89,9 @@ async function recalcular(tx, pedido, { normalizado, custosMLLidos = null, taxas
   const avisos = new Set(avisosDosItens);
 
   // Estimativa: congelada na primeira leitura, nunca refeita. As taxas do ML vem lidas de antes da transacao.
-  let estimativa = pedido.estimativa ?? null;
+  // Estimativa sem `origem` e a vazia (o anuncio vendido nao estava no Rise): nao conta como calculada, entao e tentada
+  // de novo a cada leitura e o aviso `semEstimativa` continua (medido na VPS em 04/11/2026: o aviso sumia na releitura).
+  let estimativa = pedido.estimativa?.origem ? pedido.estimativa : null;
   if (!estimativa) {
     let custosML = null;
     if (origem === "MERCADO_LIVRE") {
@@ -175,7 +177,7 @@ async function custosMLDaEstimativa(n, cliente) {
     where: { origem_idExterno: { origem: n.origem, idExterno: String(n.idExterno) } },
     select: { estimativa: true },
   });
-  if (gravado?.estimativa) return null;
+  if (gravado?.estimativa?.origem) return null;
   const { itens } = await casarItens(prisma, n);
   const casado = itens.find((item) => item.anuncioId);
   if (!casado) return null;

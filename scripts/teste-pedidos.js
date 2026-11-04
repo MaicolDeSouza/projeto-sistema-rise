@@ -554,6 +554,21 @@ try {
     }
     const gLento = gravou?.id ? await prisma.pedidoDeVenda.findUnique({ where: { id: gravou.id } }) : null;
     conferir("ML lento: o pedido grava com a estimativa do editor", [Boolean(gravou?.id), gLento?.estimativa?.origem], [true, "editorML"]);
+
+    // Venda de um anuncio que o Rise nao tem (medido na VPS em 04/11/2026, 14 de 15): a estimativa vazia nao pode
+    // ficar congelada; o aviso continua a cada leitura e, quando o anuncio passa a existir no Rise, ela e calculada.
+    const nsem = { ...nlento, idExterno: "ZZ-PED-131", numero: "ZZ-PED-131", itens: [{ ...nlento.itens[0], idNaOrigem: "MLBZZFORA" }] };
+    const s1 = await aplicarPedidoLido(nsem, { cliente: base, agora: new Date() });
+    const s2 = await aplicarPedidoLido(nsem, { cliente: base, agora: new Date() });
+    conferir("sem anuncio no Rise: o aviso sem estimativa continua na releitura", [s1.avisos.includes("semEstimativa"), s2.avisos.includes("semEstimativa")], [true, true]);
+    await prisma.anuncio.updateMany({ where: { canal: "MERCADO_LIVRE", idExterno: "MLBZZPED1" }, data: { idExterno: "MLBZZFORA" } });
+    try {
+      const s3 = await aplicarPedidoLido(nsem, { cliente: base, agora: new Date() });
+      const g3 = await prisma.pedidoDeVenda.findUnique({ where: { id: s3.id } });
+      conferir("anuncio que passou a existir: a estimativa vazia e calculada na releitura", [g3.estimativa?.origem, s3.avisos.includes("semEstimativa")], ["editorML", false]);
+    } finally {
+      await prisma.anuncio.updateMany({ where: { canal: "MERCADO_LIVRE", idExterno: "MLBZZFORA" }, data: { idExterno: "MLBZZPED1" } });
+    }
   }
 
   // Marcador: os blocos seguintes entram acima desta linha.
