@@ -84,6 +84,7 @@ const DOCUMENTOS_DE_TESTE = ["123.456.789-09", "11.222.333/0001-81", "000.000.00
 async function limpar() {
   const ZZ = { sku: { startsWith: "ZZ-PED-" } };
   await prisma.pedidoDeVenda.deleteMany({ where: { OR: [{ numero: { startsWith: "ZZ-PED-" } }, { nomeDoComprador: { contains: "ZZ Ped" } }] } });
+  if (prisma.notificacaoDePedido) await prisma.notificacaoDePedido.deleteMany({ where: { recurso: { contains: "ZZ-PED" } } });
   await prisma.ordemDeProducao.deleteMany({ where: { produto: ZZ } });
   await prisma.pedidoDeCompra.deleteMany({ where: { fornecedor: { nome: { startsWith: "ZZ Ped " } } } });
   await prisma.fornecedor.deleteMany({ where: { nome: { startsWith: "ZZ Ped " } } });
@@ -574,6 +575,14 @@ try {
     } finally {
       await prisma.anuncio.updateMany({ where: { canal: "MERCADO_LIVRE", idExterno: "MLBZZFORA" }, data: { idExterno: "MLBZZPED1" } });
     }
+  }
+
+  console.log("\nFila");
+  {
+    // Fase 2: a fila das notificacoes dos canais (webhooks), esvaziada pelo worker.
+    const linha = await prisma.notificacaoDePedido.create({ data: { origem: "MERCADO_LIVRE", recurso: "/orders/ZZ-PED-900", payload: {} } });
+    conferir("fila: notificacao nasce sem tentativa e sem processar", [linha.tentativas, linha.processadaEm], [0, null]);
+    await prisma.notificacaoDePedido.delete({ where: { id: linha.id } });
   }
 
   // Marcador: os blocos seguintes entram acima desta linha.

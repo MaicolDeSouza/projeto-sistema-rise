@@ -2503,3 +2503,21 @@ model ItemDoPedidoDeVenda {
   @@index([pedidoId])
   @@index([produtoId])
 }
+
+/// A fila das notificacoes dos canais (webhooks, fase 2 dos Pedidos de venda, spec 5.11). A rota publica so grava a linha
+/// e responde; o worker normal a esvazia a cada volta, lendo o pedido com o proprio token (notificacao falsa nao produz
+/// nada). `recurso`: ML `/orders/123` ou `/shipments/456`; Bling `order.updated:7002`; LI `pedido:5001` ou `pedido:?`.
+model NotificacaoDePedido {
+  id           String    @id @default(cuid())
+  origem       Canal
+  recurso      String
+  payload      Json
+  recebidaEm   DateTime  @default(now())
+  /// Preenchida quando o worker leu (ou desistiu na 5a tentativa: a rotina de 5 min cobre).
+  processadaEm DateTime?
+  erro         String?
+  tentativas   Int       @default(0)
+
+  @@index([processadaEm])
+  @@index([origem, recurso])
+}
