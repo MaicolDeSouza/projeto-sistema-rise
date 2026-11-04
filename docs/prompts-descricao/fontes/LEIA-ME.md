@@ -12,6 +12,13 @@
   bateria. Na biblioteca da VPS, o nome "Fontes-Mini Fontes AC-DC". Aprovado pelo dono em 27/10/2026.
   Depois de ver a descrição do 220505, o dono tirou (27/10/2026) corrente de entrada, corrente de partida, ripple,
   regulação de linha e de carga, pinagem, temperatura de armazenamento, umidade e MTBF: o prompt manda não escrevê-los.
+- [Fitas de níquel](02-fitas-de-niquel.txt) (04/11/2026, pedido do dono com 900907, 900908 e 900911): tiras e fitas
+  simples ou duplas (2P) de níquel puro ou de aço niquelado para solda ponto em packs 18650/21700. Regra principal: o
+  material decide a compra, e "Aço Níquel" é aço niquelado, nunca "níquel puro", mesmo que o título diga só "níquel".
+  Corrente só com fonte da mesma medida. Peso calculado pelo volume (aço 7,85g/cm³, níquel 8,9g/cm³; na fita dupla, o
+  peso máximo pela largura total); a fita vendida enrolada mostra a fita esticada na descrição e fica com o rolo nos
+  campos de frete. Parágrafos curtos (até 250 e 400). Na biblioteca da VPS, o nome "Fontes-Fitas de Níquel". Esperando
+  a aprovação do dono.
 
 Regras próprias, porque as lojas erram aqui: a corrente contínua e a de pico são coisas diferentes (o pico nunca vira
 a corrente de saída); a tensão nominal (100 a 240VAC) e a faixa do fabricante (90 a 264VAC) ficam separadas; a versão

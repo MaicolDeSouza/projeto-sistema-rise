@@ -1,0 +1,121 @@
+Escreva a descrição de um módulo sensor de gás da série MQ em português brasileiro, no JSON exigido pelo Rise: paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm e decisoes. Não acrescente outros campos. Vale para as placas com um sensor semicondutor MQ (MQ-2, MQ-3, MQ-4, MQ-5, MQ-6, MQ-7, MQ-8, MQ-9, MQ-131, MQ-135 e semelhantes) e comparador para ligar a um microcontrolador. O sensor MQ avulso (só o componente, sem placa), detectores prontos de parede, sensores de chama e sensores de partículas não entram neste prompt.
+
+Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use informações confirmadas no cadastro ou nas referências. Não complete especificações por suposição.
+
+PARÁGRAFOS
+
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 330 caracteres, o segundo até 550.
+
+Primeiro parágrafo, UMA frase, na fórmula da loja: “O Sensor de Gás <MQ-x> <gás principal> é um módulo de detecção com o sensor semicondutor <MQ-x> e comparador <LM393>, indicado para <3 ou 4 aplicações do gás dele: alarmes de vazamento de GLP, bafômetros experimentais, monitoramento da qualidade do ar, exaustão automática>, que oferece <o diferencial: saída analógica para acompanhar a variação e saída digital com limite ajustável>.” Só o que estiver confirmado.
+
+Segundo parágrafo: o porquê de ele ser bom, em 3 ou 4 frases. Comece por como ele funciona (“O Sensor de Gás MQ-x possui um elemento aquecido cuja resistência muda com a concentração do gás...”) e, a cada recurso citado, diga o que ele permite ou dispensa: a saída analógica (acompanhar a variação da concentração no conversor AD do microcontrolador); a saída digital com o trimpot (acionar um alarme, um relé ou um exaustor quando passar do limite, sem programar a comparação); os LEDs (ver a alimentação e o disparo sem medir). Diga com que placas funciona só quando a fonte confirmar (ver REGRAS ESPECÍFICAS). Feche com um uso típico ou com “é a escolha ideal para quem...”.
+
+Fale com o comprador: “possui”, não “tem”; “você” quando couber. Ao voltar a falar do produto, use o nome dele ou “o módulo”, nunca “ele” no início da frase. Tom: o da Smartkits (explica e ensina, sem vender), sem copiar. Varie o foco e a ordem dos fatos entre as opções, não só os sinônimos. Evite elogios vazios (“alta precisão”, “máxima segurança”, “resposta instantânea”), repetir o título inteiro ou enumerar especificações. Não mencione valores desconhecidos ou divergentes.
+
+O módulo é para projetos, protótipos e ensino: nunca o apresente como equipamento de segurança, detector certificado ou proteção da sua casa e da sua família (as próprias lojas avisam que ele não serve para segurança humana ou patrimonial). Escreva “projetos de alarme e monitoramento”, nunca “garante a sua segurança”.
+
+PADRONIZAÇÃO DOS NOMES
+
+Use exatamente os nomes dos campos definidos neste prompt. As lojas usam nomes variados; converta-os assim:
+
+Fabricante: substitui Marca. Placa genérica, sem fabricante declarado: OEM. Nunca o nome da loja: “Eletrogate”, “Casa da Robótica”, “SK - Gas”, “IMP” ou “Importado” na marca de um anúncio não são o fabricante. Hanwei ou Winsen só quando a fonte disser que o sensor da placa vendida é dessa marca.
+
+Modelo: o sensor, “MQ-135”, “MQ-7”. O código interno da loja (9203, 7988, SK1211) nunca é modelo.
+
+Gases Detectados: substitui Detecção, Sinal de Estimulação, Tipos de gases, Gases de detecção e Detecção de gases (alta sensibilidade): os gases de ALTA sensibilidade do datasheet do sensor, em português, separados por vírgula: “GLP, isobutano e propano”, “monóxido de carbono (CO)”.
+
+Baixa Sensibilidade: substitui Detecção de gases (baixa sensibilidade): os gases que o datasheet cita como de baixa sensibilidade ou interferência: “álcool e fumaça”. Só com fonte.
+
+Faixa de Detecção: substitui Concentração de detecção, Faixa de medição e Zona de Detecção: a do datasheet do mesmo sensor, com o gás quando houver mais de um: “200ppm a 10.000ppm”, “amônia 10ppm a 300ppm / benzeno 10ppm a 1.000ppm”. Ponto como separador de milhar em ppm.
+
+Tensão de Alimentação: substitui Tensão de operação, Tensão de funcionamento, Alimentação e Tensão de trabalho: “5V”.
+
+Saídas: substitui Saída, Interface e Interface/Saída: “analógica (AO) e digital (DO)”. A faixa da analógica (0V a 5V) só com fonte.
+
+Comparador: substitui Chip, CI do módulo e Controlador: “LM393”.
+
+Ajuste de Sensibilidade: substitui Sensibilidade e Potenciômetro: “trimpot para o limite da saída digital”.
+
+Acionamento da Saída Digital: substitui Nível da saída digital: “nível lógico baixo ao passar do limite”. Só com fonte da mesma placa; lojas divergem (ver REGRAS ESPECÍFICAS).
+
+Indicação: substitui LED indicador e Led indicador para: “LED de alimentação e LED da saída digital”.
+
+Conector de Ligação: substitui Pinagem e Pinos: “barra de 4 pinos (VCC, GND, DO, AO)”.
+
+Tipo de Sensor: “semicondutor (SnO2)”. Só com fonte; nunca “eletroquímico” para um MQ.
+
+Tensão de Aquecimento: “5V ± 0,2V”. Resistência de Aquecimento: “31Ω ± 3Ω”. Potência de Aquecimento: “até 350mW”. Corrente de Consumo: substitui Consumo de energia e Corrente de operação: “150mA”. Tempo de Resposta: “até 10s”. Pré-aquecimento: substitui Tempo de pré-aquecimento: “24h no primeiro uso”. Resistência de Carga: “20kΩ”. Temperatura de Operação: “-10°C a 50°C”. Todos só com fonte, e os do sensor só do datasheet do mesmo número.
+
+Fixação: substitui Furos para fixação: “furo de 3mm”. Só com fonte da mesma placa.
+
+Compatibilidade: as placas que a fonte confirma, “Arduino, PIC e Raspberry Pi (com conversor AD externo)”.
+
+Use Tensão, nunca Voltagem; Corrente, nunca Amperagem.
+
+CARACTERÍSTICAS
+
+Cada item contém nome, valor e referencias: nome “Faixa de Detecção”, valor “200ppm a 10.000ppm”, sem dois-pontos no nome.
+
+Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: Composição, Origem, Material, Cor, Umidade, Aplicações, Datasheet, Característica “fácil instalação”).
+
+Campos obrigatórios:
+Fabricante; Modelo; Gases Detectados; Faixa de Detecção; Tensão de Alimentação; Saídas; Comparador; Ajuste de Sensibilidade; Indicação; Conector de Ligação.
+
+Campos condicionais (só quando a placa ou o sensor tem o dado; sem valor confirmado, omita o campo):
+Baixa Sensibilidade; Acionamento da Saída Digital; Tipo de Sensor; Tensão de Aquecimento; Resistência de Aquecimento; Potência de Aquecimento; Corrente de Consumo; Tempo de Resposta; Pré-aquecimento; Resistência de Carga; Temperatura de Operação; Fixação; Compatibilidade.
+
+Campos finais:
+Dimensões (CxLxA); Peso.
+
+Dimensões (CxLxA) e Peso são sempre os dois últimos campos e são OBRIGATÓRIOS (o Rise calcula o frete com eles; ver PESO E DIMENSÕES). Devolva os números em dimensoesMm e pesoGramas; o Rise escreve as duas linhas. Não os repita em caracteristicas.
+
+No modo sem referências, respeite a instrução acrescentada pelo Rise: inclua apenas especificações confirmadas nos dados próprios do produto. Se não houver nenhuma, retorne caracteristicas vazia.
+
+Números colados às unidades: 5V, 150mA, 350mW, 31Ω, 20kΩ, 10s, 200ppm, 3mm. Use vírgula decimal. Nunca use ponto e vírgula dentro de um valor. Informações distintas no mesmo valor se separam por “ / ”; itens da mesma lista, por vírgula.
+
+REGRAS ESPECÍFICAS
+
+O número do MQ muda o sensor: gases, faixa, aquecimento e tempos de um MQ não servem para outro, e as lojas copiam a ficha de um para o outro (casos reais: o MQ-6 com “metano 300 a 1000ppm” do MQ-4; o MQ-7 com “gases inflamáveis entre 100 e 10.000ppm”, que é do MQ-9; o datasheet do MQ-135 publicado no anúncio do MQ-3). Para Gases Detectados, Faixa de Detecção e os dados do aquecedor, a fonte preferida é o datasheet do sensor de MESMO número (Hanwei ou Winsen); entre lojas, só vale a que concorda com ele. Loja que diverge do datasheet entra em decisoes, não na ficha. Fabricantes diferentes publicam números diferentes para o mesmo sensor (o MQ-7 da Hanwei mede 20ppm a 2.000ppm, o de outro fabricante 10ppm a 10.000ppm; o MQ-4 vai de 200ppm ou de 300ppm): use os dados de UM datasheet, o mesmo para a faixa e o aquecedor, e registre o outro em decisoes.
+
+Tensão: o aquecedor do MQ trabalha em 5V ± 0,2V. Não escreva “3,3V”, “3V a 5V” ou “3,3V a 5V” na Tensão de Alimentação, mesmo que a loja escreva: com menos de 5V o sensor não aquece direito. Também não escreva que funciona com ESP32, ESP8266 ou Raspberry Pi só porque uma loja lista essas placas: a saída analógica vai até 5V e o Raspberry Pi não tem entrada analógica; diga isso só com fonte que explique como (divisor de tensão, conversor AD externo).
+
+MQ-7 e MQ-9: o datasheet mede o monóxido de carbono com o aquecedor alternando 5V (60s) e uma tensão baixa de 1,4V a 1,5V (90s), conforme o fabricante. O módulo comum alimenta o aquecedor em 5V contínuo: ele indica a presença do gás, mas a leitura em ppm exige o ciclo e a calibração. Não prometa medição exata.
+
+A saída analógica não sai em ppm: converter exige calibrar o sensor pela curva do datasheet. Escreva “acompanhar a variação da concentração”, nunca “mede a concentração em ppm” como se fosse pronto.
+
+O aquecedor esquenta o sensor e é normal um cheiro leve no primeiro uso; o pré-aquecimento (24h ou 48h, conforme o datasheet) só entra com fonte.
+
+Acionamento da saída digital: na placa mais comum o DO vai a nível baixo e o LED acende quando a concentração passa do limite, mas há lojas que escrevem o contrário. Só com fonte da MESMA placa; na divergência, omita o campo e registre.
+
+Existem placas diferentes para o mesmo sensor: a mais comum mede cerca de 32x20mm, e há versões de 35x22mm e 40x25mm. Medidas e peso só valem da MESMA placa; a do produto se confirma pelo cadastro e pela loja que vende a mesma placa.
+
+Texto marcado pela loja como “gerado por IA” ou “resumo automático” não comprova especificação: use só a ficha técnica dela, e com cuidado. Lista de fornecedor sem ficha técnica não comprova especificação.
+
+FONTES
+
+Em referencias, registre só os números das referências fornecidas que sustentam o valor daquele campo. Para valores vindos só do cadastro ou título, e para valores desconhecidos, use referencias []. Resultado da web só vale se consultado de fato e informado como referência; prefira o datasheet do sensor para gases, faixa e aquecedor. Dados do sensor não comprovam o comparador, os LEDs, os pinos, as medidas ou os acessórios da placa. Não invente consultas, fontes, URLs ou números de referência.
+
+ITENS INCLUSOS
+
+O primeiro item é o próprio produto, com quantidade e nome técnico, sem acessórios no nome. Cabos e jumpers só quando o cadastro ou o título confirmarem que acompanham. A embalagem de outro vendedor não comprova o conteúdo vendido pela Rise.
+
+PESO E DIMENSÕES (OBRIGATÓRIOS)
+
+O Rise usa o peso e as medidas para calcular o frete: pesoGramas e dimensoesMm são obrigatórios e só ficam null quando nenhum passo abaixo der resultado, e então decisoes diz o que foi procurado.
+
+pesoGramas: número em gramas, com uma casa decimal quando for menor que 10. dimensoesMm: comprimento, largura e altura do módulo montado em milímetros (a altura inclui o sensor e os pinos). Nunca a embalagem: “peso com embalagem” não vale como peso do módulo. Um módulo destes pesa poucos gramas: peso acima de 15g numa placa de 32x20mm é de embalagem ou erro de loja; não use e registre em decisoes.
+
+Procure nesta ordem e pare no primeiro que der o número:
+1. O cadastro do produto ou as referências fornecidas da MESMA placa e do mesmo sensor.
+2. O fabricante da placa ou uma loja na internet que publique a MESMA placa.
+3. O mesmo modelo de placa com outro sensor MQ (a placa de 32x20mm é a mesma em vários sensores): vale para medidas e peso, e decisoes diz de onde veio.
+
+As lojas trocam a ordem dos eixos (“40mm Largura x 25mm de Comprimento”): o comprimento é o maior lado. Arredonde ao milímetro e ao décimo de grama. Não deduza medida pela foto.
+
+DIVERGÊNCIAS
+
+Para cada divergência fornecida, retorne id, opcao, motivo breve e campo com o nome padronizado deste prompt (divergências do mesmo campo compartilham o nome). opcao é o índice a partir de zero, ou null quando faltar evidência suficiente. Prefira o datasheet do sensor de mesmo número, a mesma placa e fontes independentes. Exceto para peso e dimensões, reserve a posição do campo divergente em caracteristicas com valor "" e referencias []. Não coloque valores divergentes nos parágrafos ou características antes da escolha do operador.
+
+GARANTIA
+
+O Rise acrescenta automaticamente: Garantia Legal de 90 dias (contra defeitos de fabricação). Não gere campo extra de garantia nem copie garantias das referências. Não escreva preço, prazo ou nome de loja.

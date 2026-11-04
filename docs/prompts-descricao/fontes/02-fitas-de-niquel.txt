@@ -1,0 +1,90 @@
+Escreva a descrição de uma fita ou tira de níquel para montar packs de bateria em português brasileiro, no JSON exigido pelo Rise: paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm e decisoes. Não acrescente outros campos. Vale para fitas e tiras lisas de níquel puro ou de aço niquelado, simples ou duplas (2P), vendidas em tira cortada ou em metro, para ligar células 18650, 21700, 26650 e semelhantes por solda ponto. Máquinas de solda ponto, suportes de bateria, módulos BMS, barramentos de cobre e terminais com olhal não entram neste prompt.
+
+Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use informações confirmadas no cadastro ou nas referências. Não complete especificações por suposição.
+
+PARÁGRAFOS
+
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 250 caracteres, o segundo até 400.
+
+Primeiro parágrafo, UMA frase: “A Fita de <material> <espessura>x<largura> <simples/dupla> é uma tira condutora para ligar células de bateria em série ou paralelo, indicada para <2 ou 3 usos: montar packs 18650, consertar baterias de ferramentas, bicicletas elétricas>, que oferece <o diferencial: largura para mais corrente, formato duplo para duas fileiras, comprimento para cortar sob medida>.” Só o que estiver confirmado.
+
+Segundo parágrafo: o porquê de ela ser boa, em 2 ou 3 frases. Diga como ela é usada (soldada por pontos no polo da célula, sem aquecer a bateria como o ferro de solda aqueceria) e, a cada recurso citado, o que ele permite: a largura e a espessura (mais corrente no pack), o formato duplo (ligar duas fileiras de uma vez), o comprimento (cortar no tamanho de cada ligação). Feche com um uso típico.
+
+Fale com o comprador: “possui”, não “tem”; “você” quando couber. Ao voltar a falar do produto, use “a fita” ou “a tira”, nunca “ela” no início da frase. Tom: explica e ensina, sem vender. Evite elogios vazios (“altíssima condutividade”, “a melhor do mercado”), repetir o título inteiro ou enumerar especificações.
+
+PADRONIZAÇÃO DOS NOMES
+
+Use exatamente os nomes dos campos definidos neste prompt. As lojas usam nomes variados; converta-os assim:
+
+Material: substitui Composição e Liga: “aço niquelado” ou “níquel puro”, com o teor quando a fonte disser (“níquel puro 99,6%”). “Aço Níquel”, “Nickel plated steel” e “tira niquelada” são aço niquelado.
+
+Formato: “fita simples” ou “fita dupla (2P)”. O furo ou o recorte entre as fileiras só com fonte.
+
+Largura: “8mm”. Espessura: “0,15mm”. Comprimento: substitui Comprimento total: “100mm”, “1m”. Na fita dupla, a Largura é a total e a de cada fileira só com fonte.
+
+Passo: substitui Distância entre células e Espaçamento: a distância entre os centros das células que a fita dupla atende, “18,5mm”. Só com fonte.
+
+Aplicação: as células que a fonte confirma: “células 18650 e 21700”.
+
+Método de Solda: “solda ponto”. “Solda com estanho” só com fonte, e então diga que pede fluxo.
+
+Corrente Suportada: substitui Corrente máxima e Capacidade de corrente: só com fonte que diga a largura e a espessura a que se refere; nunca de outra medida.
+
+Use Corrente, nunca Amperagem.
+
+CARACTERÍSTICAS
+
+Cada item contém nome, valor e referencias: nome “Espessura”, valor “0,15mm”, sem dois-pontos no nome.
+
+Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: Cor, Origem, Resistência à abrasão, “pode ser cortada com tesoura”).
+
+Campos obrigatórios:
+Material; Formato; Largura; Espessura; Comprimento; Aplicação; Método de Solda.
+
+Campos condicionais (só com fonte):
+Passo; Corrente Suportada.
+
+Campos finais:
+Dimensões (CxLxA); Peso.
+
+Dimensões (CxLxA) e Peso são sempre os dois últimos campos e são OBRIGATÓRIOS (ver PESO E DIMENSÕES). Devolva os números em dimensoesMm e pesoGramas; o Rise escreve as duas linhas. Não os repita em caracteristicas.
+
+No modo sem referências, respeite a instrução acrescentada pelo Rise: inclua apenas especificações confirmadas nos dados próprios do produto. Se não houver nenhuma, retorne caracteristicas vazia.
+
+Números colados às unidades: 8mm, 0,15mm, 1m, 5A. Use vírgula decimal (0,12mm, nunca 0.12mm). Nunca use ponto e vírgula dentro de um valor.
+
+REGRAS ESPECÍFICAS
+
+Material decide a compra: o níquel puro conduz melhor e não enferruja; o aço niquelado é mais barato, esquenta mais com a mesma corrente e pode oxidar no corte. Nunca chame de “níquel puro” o que a fonte chama de aço niquelado ou “aço níquel”, mesmo que o título diga só “níquel”. Sem fonte do material, omita o campo e registre em decisoes.
+
+Largura, espessura e comprimento vêm do título e do cadastro; a corrente só com fonte da mesma medida. Não escreva que serve para baterias de chumbo, para correntes altas de patinete ou carro elétrico, nem que dispensa a máquina de solda ponto, sem fonte.
+
+As células, o suporte e a máquina que aparecem nas fotos não acompanham a fita.
+
+FONTES
+
+Em referencias, registre só os números das referências fornecidas que sustentam o valor daquele campo. Para valores vindos só do cadastro ou título, e para valores desconhecidos, use referencias []. Resultado da web só vale se consultado de fato e informado como referência. Não invente consultas, fontes, URLs ou números de referência.
+
+ITENS INCLUSOS
+
+O primeiro e único item é a própria fita, com quantidade e nome técnico: “01 FITA DE AÇO NIQUELADO 0,15X8MM COM 100MM”. Na fita vendida por metro, a quantidade é em metros.
+
+PESO E DIMENSÕES (OBRIGATÓRIOS)
+
+O Rise usa o peso e as medidas para calcular o frete: pesoGramas e dimensoesMm são obrigatórios.
+
+dimensoesMm: comprimento, largura e espessura da fita esticada, em milímetros, como o título diz (100 x 8 x 0,15). Fita vendida enrolada (1m ou mais): em dimensoesMm, a fita esticada (1000 x 27 x 0,12); nos campos de frete do produto fica o rolo do cadastro, com a largura da fita. Diga isso em decisoes.
+
+pesoGramas: procure nesta ordem e pare no primeiro que der o número:
+1. O cadastro do produto ou uma referência que publique o peso da MESMA medida (largura, espessura e comprimento).
+2. Cálculo pelo volume: comprimento × largura × espessura em milímetros ÷ 1000 × densidade (aço niquelado 7,85g/cm³; níquel puro 8,9g/cm³). Ex.: 100 x 8 x 0,15mm de aço = 120mm³ = 0,9g. Na fita dupla com recortes, o cálculo pela largura total é o peso máximo: use-o e diga em decisoes. Registre a conta em decisoes.
+
+Peso com uma casa decimal quando menor que 10g. Não deduza medida pela foto.
+
+DIVERGÊNCIAS
+
+Para cada divergência fornecida, retorne id, opcao, motivo breve e campo com o nome padronizado deste prompt (divergências do mesmo campo compartilham o nome). opcao é o índice a partir de zero, ou null quando faltar evidência suficiente. Prefira o título e o cadastro para as medidas e fontes independentes para o material. Exceto para peso e dimensões, reserve a posição do campo divergente em caracteristicas com valor "" e referencias []. Não coloque valores divergentes nos parágrafos ou características antes da escolha do operador.
+
+GARANTIA
+
+O Rise acrescenta automaticamente: Garantia Legal de 90 dias (contra defeitos de fabricação). Não gere campo extra de garantia nem copie garantias das referências. Não escreva preço, prazo ou nome de loja.
