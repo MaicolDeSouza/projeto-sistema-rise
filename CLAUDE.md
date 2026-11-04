@@ -5157,6 +5157,12 @@ Pedido do dono: "vincular o AliExpress via API para pegar minhas compras". A API
     ENVIADO/PARCIAL (`aCaminho` em `lib/compras/regras.js`); o Rise guarda por linha o que pôs lá (`virtualQuantidade`,
     `virtualLancadoEm`, `virtualErro`). O dono planeja sair do Bling e controlar o estoque só pelo Rise; quando isso vier, a
     única peça que lê o Bling é o `Produto.estoque`. Reservas do Bling ficam intactas.
+- **04/11/2026, extensão 1.0.2 ("A lista de pedidos não respondeu"):** a página ganhou o título "Encomendas", mas a API
+  continua `mtop.aliexpress.trade.buyer.order.list` pelo `lib.mtop.request` (medido). A causa era a busca da aba: um pedido com
+  a situação "Processando" põe o mesmo texto no cartão, e `acharPorTexto` (que fica com o último) clicava no rótulo do pedido.
+  `acharAba` procura primeiro na barra (`[role=tab]`, `[class*=tabs-nav-item]`) e, sem ela, fica com o PRIMEIRO na ordem da
+  página. O erro agora diz a aba clicada e as APIs que a página chamou (`apisChamadasDesde`, pela lista de recursos do
+  navegador). Ensaio na conta real: Processando 1 pedido, Processado e Ver tudo 10 por página com mais páginas.
 - **Não visto:** a extensão instalada de verdade (o ensaio injetou os scripts na página), uma importação contra o Rise real, o
   Gerar chave por clique. A escrita real no Virtual já aconteceu na VPS (entradas das importações de 28 e 29/10 e o 400 do PC-0015); a saída por balanço ainda não foi vista contra o Bling real.
 
