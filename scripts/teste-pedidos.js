@@ -32,6 +32,7 @@ const { clienteDoPedido } = await import("../src/lib/pedidos/cliente.js");
 const { custoCongeladoDoProduto, casarItens } = await import("../src/lib/pedidos/itens.js");
 const { parcelasDaEstimativa, parcelasDoReal, devolvido, lucroDivergente, lucroFechado } = await import("../src/lib/pedidos/lucro.js");
 const { necessidadeDoPedido, calcularPecas } = await import("../src/lib/pedidos/pecas.js");
+const { aplicarPedidoLido, listarPedidosDeVenda, lerPedidoDeVenda, marcarEmSeparacao, salvarCustoDoFreteManual, vincularCliente, espelharNoBling } = await import("../src/lib/pedidos/banco.js");
 
 /** Le uma fixture de scripts/lib/fixtures/pedidos/ (copia nova a cada chamada: o teste edita a vontade). */
 function fx(nome) {
@@ -319,6 +320,53 @@ try {
     conferir("previsao pela producao quando nao ha compra", (await calcularPecas(prisma, pedidoComP3)).pecas.find((p) => p.sku === "ZZ-PED-P3").previsao, "em produção, ordem OP-" + String(op.numero).padStart(4, "0"));
     await prisma.pedidoDeVenda.update({ where: { id: pedidoAntigo.id }, data: { status: "CANCELADO" } });
     conferir("pedido cancelado libera a reserva", (await calcularPecas(prisma, pedidoNovo)).pecas[0].falta, 0);
+  }
+
+  console.log("\nAplicar");
+  {
+    const agora = new Date();
+    const { ml: mlFalso } = falsos();
+    // O anuncio ML do ZZ-PED-A (criado na secao Itens) ganha o que a estimativa do editor precisa: categoria, preco,
+    // tipo e as medidas do pacote (lidas do produto).
+    await prisma.produto.update({ where: { sku: "ZZ-PED-A" }, data: { pesoKg: 0.05, alturaCm: 2, larguraCm: 6, comprimentoCm: 7 } });
+    await prisma.anuncio.updateMany({ where: { canal: "MERCADO_LIVRE", idExterno: "MLBZZPED1" }, data: { categoriaExternaId: "MLB99779", dados: { preco: 59.9, tipoAnuncio: "gold_special", envio: { logistica: "xd_drop_off", freteGratis: false } } } });
+    const nml = normalizarPedidoML({ order: fx("ml-order"), billing: fx("ml-billing"), shipment: fx("ml-shipment"), invoice: fx("ml-invoice") });
+    nml.idExterno = nml.numero = "ZZ-PED-100";
+    nml.itens[0].idNaOrigem = "MLBZZPED1";
+    nml.itens[0].codigoNaOrigem = "ZZ-PED-A";
+    const a1 = await aplicarPedidoLido(nml, { cliente: mlFalso, agora });
+    const g1 = await prisma.pedidoDeVenda.findUnique({ where: { id: a1.id }, include: { itens: true } });
+    conferir("cria o pedido completo", [a1.criado, g1.status, g1.statusDoEnvio, g1.itens.length, g1.clienteId !== null, g1.estimativa?.origem, g1.lucroReal !== null], [true, "ENVIADO", "EM_TRANSITO", 1, true, "editorML", true]);
+    const a2 = await aplicarPedidoLido({ ...nml, totais: { ...nml.totais, totalProdutos: 999, total: 999 } }, { cliente: mlFalso, agora });
+    const g2 = await prisma.pedidoDeVenda.findUnique({ where: { id: a1.id }, include: { itens: true } });
+    conferir("segunda leitura atualiza sem duplicar e nao mexe na estimativa", [a2.criado, a2.id === a1.id, g2.itens.length, Number(g2.total), g2.estimativa.lucro === g1.estimativa.lucro, g2.avisos.includes("lucroDivergente")], [false, true, 1, 999, true, true]);
+    conferir("anterior ao corte e ignorado", (await aplicarPedidoLido({ ...nml, idExterno: "ZZ-PED-101", dataDaVenda: new Date("2026-10-31T12:00:00Z") }, { cliente: mlFalso, agora })).ignorado, true);
+    conferir("status desconhecido mantem e avisa", (await aplicarPedidoLido({ ...nml, statusDaOrigem: "xyz" }, { cliente: mlFalso, agora })).avisos.includes("statusDesconhecido"), true);
+    conferir("fraude avisa", (await aplicarPedidoLido({ ...nml, tags: ["fraud_risk_detected"] }, { cliente: mlFalso, agora })).avisos.includes("fraude"), true);
+    const entregue = await aplicarPedidoLido({ ...nml, envio: { ...nml.envio, statusDaOrigem: "delivered", historico: { entregueEm: agora.toISOString() } } }, { cliente: mlFalso, agora });
+    conferir("entregue fecha o lucro", (await prisma.pedidoDeVenda.findUnique({ where: { id: entregue.id } })).lucroFechado, true);
+    const dev = await aplicarPedidoLido({ ...nml, devolucao: { entregueEm: agora, custoDoRetorno: 22.5 }, nf: { ...nml.nf, status: "authorized" } }, { cliente: mlFalso, agora });
+    const gd = await prisma.pedidoDeVenda.findUnique({ where: { id: dev.id } });
+    conferir("devolucao reabre, zera e deixa o retorno como prejuizo", [gd.status, gd.statusDoEnvio, gd.lucroFechado, Number(gd.lucroReal), gd.real.receita, gd.avisos.includes("lucroDivergente"), gd.avisos.includes("nfACancelar"), gd.clienteId === g1.clienteId], ["DEVOLVIDO", "DEVOLVIDO", false, -22.5, 0, false, true, true]);
+    conferir("nf cancelada apaga o aviso", (await aplicarPedidoLido({ ...nml, devolucao: { entregueEm: agora, custoDoRetorno: 22.5 }, nf: { ...nml.nf, status: "cancelled" } }, { cliente: mlFalso, agora })).avisos.includes("nfACancelar"), false);
+    const pago = await aplicarPedidoLido({ ...nml, idExterno: "ZZ-PED-102", numero: "ZZ-PED-102", statusDaOrigem: "paid", envio: { ...nml.envio, statusDaOrigem: "handling" }, itens: [{ ...nml.itens[0], quantidade: 50 }] }, { cliente: mlFalso, agora });
+    conferir("falta de peca vira aguardando pecas", pago.status, "AGUARDANDO_PECAS");
+    conferir("marcar separacao", [(await marcarEmSeparacao(pago.id, true)).ok, (await prisma.pedidoDeVenda.findUnique({ where: { id: pago.id } })).emSeparacao], [true, true]);
+    conferir("separacao recusada em enviado", (await marcarEmSeparacao(a1.id, true)).ok, false);
+    conferir("espelho do Bling", [await espelharNoBling("MERCADO_LIVRE", "ZZ-PED-100", { blingPedidoId: "7777", blingNumero: "123" }), await espelharNoBling("MERCADO_LIVRE", "nao-existe", { blingPedidoId: "1", blingNumero: "1" })], [true, false]);
+    const nbling = normalizarPedidoBling({ pedido: fx("bling-pedido")[0], formas: fx("bling-formas").data, situacoes: fx("bling-situacoes").situacoes["98310"], nfe: null });
+    nbling.idExterno = nbling.numero = nbling.blingPedidoId = nbling.blingNumero = "ZZ-PED-103";
+    const bl = await aplicarPedidoLido(nbling, { agora });
+    conferir("Bling: frete manual recalcula o real", [(await salvarCustoDoFreteManual(bl.id, 25)).ok, (await prisma.pedidoDeVenda.findUnique({ where: { id: bl.id } })).real.fontes.frete], [true, "manual"]);
+    conferir("frete manual recusado fora do Bling", (await salvarCustoDoFreteManual(a1.id, 25)).ok, false);
+    conferir("releitura nao apaga o frete manual", Number((await (async () => { await aplicarPedidoLido(nbling, { agora }); return prisma.pedidoDeVenda.findUnique({ where: { id: bl.id } }); })()).custoDoFreteManual), 25);
+    const semCliente = await aplicarPedidoLido({ ...nbling, idExterno: "ZZ-PED-104", numero: "ZZ-PED-104", comprador: { ...nbling.comprador, documento: null } }, { agora });
+    conferir("vincular cliente tira o aviso", [semCliente.avisos.includes("clienteSemDocumento"), (await vincularCliente(semCliente.id, g1.clienteId)).ok, (await prisma.pedidoDeVenda.findUnique({ where: { id: semCliente.id } })).avisos.includes("clienteSemDocumento")], [true, true, false]);
+    const lista = await listarPedidosDeVenda({ busca: "ZZ-PED-10", porPagina: 25 });
+    conferir("lista acha pelo numero e traz o cliente", [lista.total >= 3, lista.linhas[0].cliente?.nome !== undefined], [true, true]);
+    conferir("so com aviso", (await listarPedidosDeVenda({ busca: "ZZ-PED-10", soComAviso: true })).linhas.every((l) => l.avisos.length > 0), true);
+    const lido = await lerPedidoDeVenda(a1.id);
+    conferir("ler o pedido traz itens com produto e o cliente", [lido.itens[0].produto.sku, typeof lido.cliente.nome, typeof lido.total], ["ZZ-PED-A", "string", "number"]);
   }
 
   // Marcador: os blocos seguintes entram acima desta linha.
