@@ -228,17 +228,126 @@ export function entregaPeloRastreio(pacotes) {
   return datas.length ? new Date(Math.max(...datas)) : new Date(0);
 }
 
+// ---------------------------------------------------------------------------
+// A fase da entrega na coluna Situacao (lista aprovada pelo dono em 04/11/2026, Opcao 1)
+// ---------------------------------------------------------------------------
+
+// Ordem do caminho: o pacote "menos adiantado" e o que a coluna mostra quando ha varios.
+const FASES = {
+  envio: { rotulo: "Aguardando envio", ordem: 0, tom: "neutro" },
+  postado: { rotulo: "Postado", ordem: 1, tom: "caminho" },
+  transito: { rotulo: "Em trânsito", ordem: 2, tom: "caminho" },
+  alfandega: { rotulo: "Na alfândega", ordem: 3, tom: "alfandega" },
+  brasil: { rotulo: "No Brasil", ordem: 4, tom: "caminho" },
+  saiu: { rotulo: "Saiu para entrega", ordem: 5, tom: "entrega" },
+  entregue: { rotulo: "Entregue", ordem: 6, tom: "entrega" },
+};
+
+// Os codigos do rastreio do AliExpress, medidos na conta do dono em 04/11/2026 (16 pedidos abertos e 3 entregues). A
+// ordem real: armazem e coleta na China (GWMS, PICK_UP, CW, SC, CC_EX, LH_HO), voo (LH_DEPART, LH_ARRIVE), chegada e
+// transportadora no Brasil (TD, GTMS_ACCEPT), alfandega (CC_IM_START), liberado (CC_IM_SUCCESS, GTMS_SC_DEPART),
+// entrega (GTMS_DELIVERING, GTMS_SIGNED). A primeira regra que casa vence.
+const FASE_POR_CODIGO = [
+  [/^AE_GTMS_SIGNED/, "entregue"],
+  [/^AE_GTMS_DELIVERING/, "saiu"],
+  [/^AE_CC_IM_START/, "alfandega"],
+  [/^AE_CC_IM_|^AE_GTMS_|^AE_TD_/, "brasil"],
+  [/^AE_LH_HO_/, "postado"],
+  [/^AE_LH_/, "transito"],
+  [/^AE_GWMS_(OUTBOUND|JIT)|^AE_PICK_UP|^AE_CW_|^AE_SC_|^AE_CC_EX_/, "postado"],
+  [/^AE_GWMS_/, "envio"],
+];
+
+// Sem codigo (eventos antigos e os do vendedor): pelas palavras, na mesma ordem.
+const FASE_POR_TEXTO = [
+  [/saiu para entrega/, "saiu"],
+  [/(aduaneir|alfandeg).*(conclui|liberad)/, "brasil"],
+  [/aduaneir|alfandeg/, "alfandega"],
+  [/saiu do pais|aeroporto local/, "transito"],
+  [/sendo preparado|pedido foi feito|embalad|pronto para ser enviado/, "envio"],
+  [/partida|origem|armazem|enviou|empresa de logistica|aeroporto/, "postado"],
+  [/transportadora|centro de distribuicao/, "brasil"],
+];
+
+/** O rotulo do problema no rastreio (o evento ja passou por `problemaNoRastreio`). */
+function problemaDoEvento(evento) {
+  const texto = `${semAcento(evento.descricao)} ${String(evento.codigo ?? "").toLowerCase()}`;
+  if (/devolvid|devolucao|retornad|return/.test(texto)) return "Devolvido";
+  if (/retido|apreendid|taxa|imposto|pagamento|detain|hold/.test(texto)) return "Retido ou taxa a pagar";
+  return "Falha na entrega";
+}
+
+/** A fase de um evento do rastreio: `{ rotulo, ordem, tom }`, `{ rotulo, tom: "problema" }` ou null (sem evento). */
+export function faseDoEvento(evento) {
+  if (!evento || (!evento.codigo && !String(evento.descricao ?? "").trim())) return null;
+  if (problemaNoRastreio(evento)) return { rotulo: problemaDoEvento(evento), tom: "problema" };
+  if (entregueNoRastreio(evento)) return FASES.entregue;
+  const codigo = String(evento.codigo ?? "");
+  const porCodigo = FASE_POR_CODIGO.find(([regra]) => regra.test(codigo));
+  if (porCodigo) return FASES[porCodigo[1]];
+  const texto = semAcento(evento.descricao);
+  const porTexto = FASE_POR_TEXTO.find(([regra]) => regra.test(texto));
+  return FASES[porTexto?.[1] ?? "transito"];
+}
+
+const DIAS_SEM_ATUALIZACAO = 10;
+const diaEmSaoPaulo = (data) => new Date(data).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+
 /**
- * A fase da entrega que a coluna Situacao mostra no lugar do status do Rise (pedido do dono em 04/11/2026: "caso o
- * vendedor nao tenha enviado mostrar aguardando envio"; "caso o produto tenha chegado informado pelo rastreio deve mostrar
- * aguardando conferencia"). So pedido do AliExpress em aberto; null = a coluna mostra o status do Rise. As outras fases
- * (em transito, alfandega...) esperam a aprovacao da lista.
+ * O rastreio estava parado ha mais de 10 dias quando foi lido? Devolve a data do ultimo evento, ou null. Conta pela
+ * leitura e nao por hoje: sem um novo "Enviar ao Rise" nao ha como saber se andou.
  */
-export function faseDoPedido({ origem, status, faltaLancar = 0, entregueEm = null, pacotes = [] }) {
-  if (origem !== "ALIEXPRESS" || (status !== "ENVIADO" && status !== "PARCIAL")) return null;
-  if (entregueEm || entregaPeloRastreio(pacotes)) return faltaLancar > 0 ? "Aguardando conferência" : null;
-  if (!(pacotes ?? []).length && status === "ENVIADO") return "Aguardando envio";
-  return null;
+function rastreioParado(pacotes, rastreioLidoEm) {
+  if (!rastreioLidoEm) return null;
+  const datas = (pacotes ?? []).map((pacote) => pacote.ultimoEventoEm).filter(Boolean).map((data) => new Date(data).getTime());
+  if (!datas.length) return null;
+  const ultimo = Math.max(...datas);
+  return new Date(rastreioLidoEm).getTime() - ultimo > DIAS_SEM_ATUALIZACAO * 24 * 60 * 60 * 1000 ? new Date(ultimo) : null;
+}
+
+/**
+ * A fase que a coluna Situacao mostra no lugar do status do Rise (lista aprovada pelo dono em 04/11/2026). Rascunho,
+ * Finalizado e Cancelado devolvem null (a coluna mostra o status do Rise). Em aberto, nesta ordem: chegou (Aguardando
+ * conferencia), problema no rastreio, disputa, atraso, rastreio parado, entrega parcial, sem pacote (Aguardando envio) e
+ * a fase do pacote menos adiantado. Fornecedor sem rastreio: Aguardando entrega. `detalhe` = uma linha por pacote.
+ */
+export function faseDoPedido({
+  origem,
+  status,
+  faltaLancar = 0,
+  entregueEm = null,
+  pacotes = [],
+  prazoFim = null,
+  agora = new Date(),
+  rastreioLidoEm = null,
+  statusNoAliExpress = null,
+}) {
+  if (status !== "ENVIADO" && status !== "PARCIAL") return null;
+  const lista = pacotes ?? [];
+  const eventoDe = (pacote) => ({ codigo: pacote.ultimoCodigo, descricao: pacote.ultimoEvento });
+  const detalhe = lista.map((pacote) => {
+    const fase = faseDoEvento(eventoDe(pacote));
+    return `${pacote.codigo ?? "Pacote"}: ${fase?.rotulo ?? "sem evento"}${pacote.ultimoEventoEm ? ` (${formatarDataCurta(pacote.ultimoEventoEm)})` : ""}`;
+  });
+  const com = (rotulo, tom) => ({ rotulo, tom, detalhe });
+  const atrasado = Boolean(prazoFim) && faltaLancar > 0 && diaEmSaoPaulo(agora) > diaEmSaoPaulo(prazoFim);
+
+  if (origem !== "ALIEXPRESS") {
+    if (atrasado) return com("Atrasado", "problema");
+    return status === "PARCIAL" ? com("Recebido em parte", "parcial") : com("Aguardando entrega", "neutro");
+  }
+  if (entregueEm || entregaPeloRastreio(lista)) return faltaLancar > 0 ? com("Aguardando conferência", "conferencia") : null;
+  const problema = lista.map((pacote) => faseDoEvento(eventoDe(pacote))).find((fase) => fase?.tom === "problema");
+  if (problema) return com(problema.rotulo, "problema");
+  if (/disputa|reembols/.test(semAcento(statusNoAliExpress))) return com("Em disputa", "problema");
+  if (atrasado) return com("Atrasado", "problema");
+  if (rastreioParado(lista, rastreioLidoEm)) return com("Sem atualização", "problema");
+  if (status === "PARCIAL") return com("Recebido em parte", "parcial");
+  if (!lista.length) return com(FASES.envio.rotulo, FASES.envio.tom);
+  // Varios pacotes: o menos adiantado entre os que ainda nao chegaram (o entregue ja nao decide).
+  const fases = lista.map((pacote) => faseDoEvento(eventoDe(pacote)) ?? FASES.envio).filter((fase) => fase.ordem < FASES.entregue.ordem);
+  const atras = fases.sort((a, b) => a.ordem - b.ordem)[0] ?? FASES.transito;
+  return com(atras.rotulo, atras.tom);
 }
 
 /** O evento de rastreio indica problema (falha na entrega, alfandega, devolucao, taxa a pagar, extravio)? */
@@ -287,6 +396,7 @@ export function alertasDoPedido({
   linhasPendentes = 0,
   ultimosEventos = [],
   statusNoAliExpress = null,
+  rastreioLidoEm = null,
 }) {
   if (status !== "ENVIADO" && status !== "PARCIAL") return [];
   const alertas = [];
@@ -299,6 +409,8 @@ export function alertasDoPedido({
   for (const evento of ultimosEventos ?? []) {
     if (problemaNoRastreio(evento)) alertas.push(`Rastreio: ${evento.descricao}${evento.em ? ` (${formatarDataCurta(evento.em)})` : ""}.`);
   }
+  const parado = chegou ? null : rastreioParado((ultimosEventos ?? []).map((evento) => ({ ultimoEventoEm: evento.em })), rastreioLidoEm);
+  if (parado) alertas.push(`Rastreio sem atualização desde ${formatarDataCurta(parado)}.`);
   const situacao = semAcento(statusNoAliExpress);
   if (situacao && /disputa|reembols|cancelad|fechad/.test(situacao) && !(canceladoNoAliExpressEm && estoqueLancado)) {
     alertas.push(`Situação no AliExpress: ${statusNoAliExpress}.`);

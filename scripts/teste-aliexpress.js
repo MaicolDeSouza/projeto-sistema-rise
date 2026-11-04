@@ -211,24 +211,99 @@ const regras = await import("../src/lib/compras/aliexpress/regras.js");
     alertasDoPedido({ ...base, prazoFim: new Date("2026-11-19T05:40:00Z"), ultimosEventos: [{ codigo: null, descricao: "Pacote entregue.", em: new Date("2026-11-18T12:00:00Z") }] }),
     [],
   );
-  const entregue = { ultimoEvento: "Pacote entregue.", ultimoCodigo: null };
-  const andando = { ultimoEvento: "Pacote saiu das instalações da transportadora", ultimoCodigo: null };
-  const ali = { origem: "ALIEXPRESS", status: "ENVIADO", faltaLancar: 20 };
+  // Fases da Situacao (lista aprovada pelo dono em 04/11/2026, Opcao 1). Codigos e textos medidos na conta do dono no
+  // mesmo dia: a ordem real e armazem/coleta na China, voo, alfandega no Brasil, transportadora nacional, entrega.
+  const { faseDoEvento } = regras;
+  const ev = (codigo, descricao = "") => faseDoEvento({ codigo, descricao })?.rotulo ?? null;
+  conferir(
+    "fase de cada evento (codigos reais)",
+    [
+      ev("AE_GWMS_ACCEPT", "Seu pedido está sendo embalado"),
+      ev("AE_GWMS_PACKAGE", "Pronto para ser enviado pelo armazém"),
+      ev(null, "Seu pacote está sendo preparado"),
+      ev("AE_PICK_UP_SUCCESS", "Recebido pela empresa de logística"),
+      ev("AE_GWMS_JIT_ARRIVE", "Seu pacote chegou ao armazém."),
+      ev("AE_GWMS_OUTBOUND", "Saiu do armazém"),
+      ev("AE_CW_SIGN_IN_SUCCESS", "Chegou ao armazém de consolidação"),
+      ev("AE_SC_OUTBOUND_SUCCESS", "Saiu do centro de distribuição do país/região de partida"),
+      ev("AE_CC_EX_START", "Desembaraço aduaneiro iniciado"),
+      ev("AE_LH_HO_IN_SUCCESS", "Seu pacote chegou ao aeroporto de origem e está aguardando o transporte."),
+      ev("AE_LH_DEPART", "Saiu do país/região de partida."),
+      ev("AE_LH_ARRIVE", "Seu pacote chegou ao aeroporto local"),
+      ev("AE_TD_TRANS_ARRIVE", "Pacote chegou ao centro de distribuição"),
+      ev("AE_GTMS_ACCEPT", "Pacote chegou às instalações regionais da transportadora"),
+      ev("AE_CC_IM_START", "Desembaraço aduaneiro iniciado"),
+      ev("AE_CC_IM_SUCCESS", "Desembaraço aduaneiro concluído"),
+      ev("AE_GTMS_SC_DEPART", "Pacote saiu das instalações da transportadora"),
+      ev("AE_GTMS_DELIVERING", "Pacote saiu para entrega"),
+      ev("AE_GTMS_SIGNED", "Pacote entregue."),
+      ev("AE_GTMS_DEL_FAILURE", "A entrega do seu pacote não foi bem-sucedida. Endereços desconhecidos ou incorretos."),
+      ev(null, "Objeto devolvido ao remetente"),
+      ev(null, "Aguardando pagamento do imposto"),
+      ev(null, "Pacote saiu para entrega"),
+      ev(null, "Desembaraço aduaneiro iniciado"),
+      ev(null, "Pacote saiu das instalações da transportadora"),
+      ev(null, ""),
+    ],
+    [
+      "Aguardando envio", "Aguardando envio", "Aguardando envio", "Postado", "Postado", "Postado", "Postado", "Postado", "Postado", "Postado",
+      "Em trânsito", "Em trânsito", "No Brasil", "No Brasil", "Na alfândega", "No Brasil", "No Brasil", "Saiu para entrega", "Entregue",
+      "Falha na entrega", "Devolvido", "Retido ou taxa a pagar", "Saiu para entrega", "Na alfândega", "No Brasil", null,
+    ],
+  );
+  const pac = (ultimoCodigo, ultimoEvento, ultimoEventoEm = "2026-11-03T12:00:00Z") => ({ ultimoCodigo, ultimoEvento, ultimoEventoEm: new Date(ultimoEventoEm), codigo: "NN1BR" });
+  const entregue = pac("AE_GTMS_SIGNED", "Pacote entregue.");
+  const naAlfandega = pac("AE_CC_IM_START", "Desembaraço aduaneiro iniciado");
+  const noBrasil = pac("AE_GTMS_SC_DEPART", "Pacote saiu das instalações da transportadora");
+  const ali = { origem: "ALIEXPRESS", status: "ENVIADO", faltaLancar: 20, agora: new Date("2026-11-04T15:00:00Z"), rastreioLidoEm: new Date("2026-11-04T12:00:00Z") };
+  const fase = (dados) => faseDoPedido({ ...ali, ...dados })?.rotulo ?? null;
   conferir(
     "fase do pedido na Situacao",
     [
-      faseDoPedido({ ...ali, pacotes: [] }),
-      faseDoPedido({ ...ali, pacotes: [entregue] }),
-      faseDoPedido({ ...ali, pacotes: [entregue, andando] }),
-      faseDoPedido({ ...ali, pacotes: [andando] }),
-      faseDoPedido({ ...ali, pacotes: [], entregueEm: new Date("2026-10-26T12:00:00Z") }),
-      faseDoPedido({ ...ali, status: "PARCIAL", pacotes: [entregue] }),
-      faseDoPedido({ ...ali, faltaLancar: 0, pacotes: [entregue] }),
-      faseDoPedido({ ...ali, status: "FINALIZADO", pacotes: [] }),
-      faseDoPedido({ ...ali, status: "CANCELADO", pacotes: [] }),
-      faseDoPedido({ ...ali, origem: "RISE", pacotes: [] }),
+      fase({ pacotes: [] }),
+      fase({ pacotes: [pac("AE_GWMS_ACCEPT", "Seu pedido está sendo embalado")] }),
+      fase({ pacotes: [pac("AE_LH_DEPART", "Saiu do país/região de partida.")] }),
+      fase({ pacotes: [naAlfandega] }),
+      fase({ pacotes: [noBrasil] }),
+      fase({ pacotes: [pac("AE_GTMS_DELIVERING", "Pacote saiu para entrega")] }),
+      fase({ pacotes: [entregue] }),
+      fase({ pacotes: [], entregueEm: new Date("2026-10-26T12:00:00Z") }),
+      fase({ faltaLancar: 0, pacotes: [entregue] }),
+      fase({ pacotes: [entregue, naAlfandega] }),
+      fase({ pacotes: [noBrasil, naAlfandega] }),
+      fase({ pacotes: [pac("AE_GTMS_DEL_FAILURE", "A entrega do seu pacote não foi bem-sucedida.")] }),
+      fase({ pacotes: [pac(null, "Objeto devolvido ao remetente")] }),
+      fase({ pacotes: [pac(null, "Aguardando pagamento do imposto")] }),
+      fase({ pacotes: [noBrasil], statusNoAliExpress: "Em disputa" }),
+      fase({ pacotes: [noBrasil], prazoFim: new Date("2026-11-01T12:00:00Z") }),
+      fase({ pacotes: [pac("AE_LH_DEPART", "Saiu do país/região de partida.", "2026-10-20T12:00:00Z")] }),
+      fase({ pacotes: [pac("AE_LH_DEPART", "Saiu do país/região de partida.", "2026-10-30T12:00:00Z")] }),
+      fase({ status: "PARCIAL", pacotes: [noBrasil] }),
+      fase({ status: "PARCIAL", pacotes: [entregue] }),
+      fase({ origem: "RISE", pacotes: [] }),
+      fase({ origem: "RISE", status: "PARCIAL", pacotes: [] }),
+      fase({ origem: "RISE", pacotes: [], prazoFim: new Date("2026-11-01T12:00:00Z") }),
+      fase({ status: "FINALIZADO", pacotes: [] }),
+      fase({ status: "CANCELADO", pacotes: [] }),
+      fase({ status: "RASCUNHO", pacotes: [] }),
     ],
-    ["Aguardando envio", "Aguardando conferência", null, null, "Aguardando conferência", "Aguardando conferência", null, null, null, null],
+    [
+      "Aguardando envio", "Aguardando envio", "Em trânsito", "Na alfândega", "No Brasil", "Saiu para entrega", "Aguardando conferência",
+      "Aguardando conferência", null, "Na alfândega", "Na alfândega", "Falha na entrega", "Devolvido", "Retido ou taxa a pagar", "Em disputa",
+      "Atrasado", "Sem atualização", "Em trânsito", "Recebido em parte", "Aguardando conferência", "Aguardando entrega", "Recebido em parte",
+      "Atrasado", null, null, null,
+    ],
+  );
+  const doisPacotes = faseDoPedido({ ...ali, pacotes: [{ ...entregue, codigo: "NN1BR" }, { ...naAlfandega, codigo: "NN2BR" }] });
+  conferir(
+    "fase: tom e detalhe por pacote",
+    [doisPacotes.tom, doisPacotes.detalhe, faseDoPedido({ ...ali, pacotes: [pac("AE_GTMS_DEL_FAILURE", "Falhou")] }).tom],
+    ["alfandega", ["NN1BR: Entregue (03/11)", "NN2BR: Na alfândega (03/11)"], "problema"],
+  );
+  conferir(
+    "alertas: rastreio sem atualizacao",
+    alertasDoPedido({ status: "ENVIADO", agora: ali.agora, faltaLancar: 4, rastreioLidoEm: ali.rastreioLidoEm, ultimosEventos: [{ codigo: "AE_LH_DEPART", descricao: "Saiu do país/região de partida.", em: new Date("2026-10-20T12:00:00Z") }] }),
+    ["Rastreio sem atualização desde 20/10."],
   );
   // Custo por peca (pedido do dono em 29/10/2026): o total pago (com frete e imposto, menos desconto) / pecas, rateado pelo
   // valor de cada item quando o pedido tem mais de um produto.
@@ -786,11 +861,11 @@ try {
     await prisma.pedidoAliExpress.update({ where: { id: pa.id }, data: { entregueEm: new Date("2026-10-27T12:00:00Z") } });
     conferir("entregue sem lancar avisa", (await lerPedido(pa.pedidoId)).avisos, ["Entregue em 27/10, aguardando conferência para lançar o estoque."]);
     const naLista = (await listarPedidos({ busca: "9935244197193461" })).linhas[0];
-    conferir("lista: entregue sem lancar = Aguardando conferencia, sem '!'", [naLista?.fase, naLista?.alertas], ["Aguardando conferência", []]);
+    conferir("lista: entregue sem lancar = Aguardando conferencia, sem '!'", [naLista?.fase?.rotulo, naLista?.alertas], ["Aguardando conferência", []]);
     await prisma.pedidoAliExpress.update({ where: { id: pa.id }, data: { entregueEm: null } });
     await prisma.pacoteAliExpress.updateMany({ where: { pedidoAliExpressId: pa.id }, data: { ultimoEvento: "Pacote entregue.", ultimoCodigo: null, ultimoEventoEm: new Date("2026-10-26T16:05:46Z") } });
     const peloRastreio = (await listarPedidos({ busca: "9935244197193461" })).linhas[0];
-    conferir("lista: entregue so pelo rastreio = Aguardando conferencia", [peloRastreio?.fase, peloRastreio?.alertas], ["Aguardando conferência", []]);
+    conferir("lista: entregue so pelo rastreio = Aguardando conferencia", [peloRastreio?.fase?.rotulo, peloRastreio?.alertas], ["Aguardando conferência", []]);
     conferir("tela: entregue pelo rastreio avisa com a data do evento", (await lerPedido(pa.pedidoId)).avisos, ["Entregue em 26/10, aguardando conferência para lançar o estoque."]);
     await prisma.itemDoPedidoDeCompra.update({ where: { id: itemId }, data: { quantidadeLancada: 4 } });
     conferir("entregue com tudo lancado: sem aviso", (await lerPedido(pa.pedidoId)).avisos, []);

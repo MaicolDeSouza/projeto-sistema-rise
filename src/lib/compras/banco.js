@@ -480,6 +480,7 @@ function motivosDoPedido(pedido, itens) {
     linhasPendentes: ali ? ali.linhas.filter((linha) => !linha.itemId).length : 0,
     ultimosEventos: (ali?.pacotes ?? []).map((pacote) => ({ codigo: pacote.ultimoCodigo, descricao: pacote.ultimoEvento, em: pacote.ultimoEventoEm })),
     statusNoAliExpress: ali?.statusTexto ?? null,
+    rastreioLidoEm: ali?.rastreioLidoEm ?? null,
   });
   const fase = faseDoPedido({
     origem: pedido.origem,
@@ -487,6 +488,9 @@ function motivosDoPedido(pedido, itens) {
     faltaLancar: itens.reduce((soma, item) => soma + faltaLancar(item), 0),
     entregueEm: ali?.entregueEm ?? null,
     pacotes: ali?.pacotes ?? [],
+    prazoFim: prazo?.fim ?? null,
+    rastreioLidoEm: ali?.rastreioLidoEm ?? null,
+    statusNoAliExpress: ali?.statusTexto ?? null,
   });
   return { prazo, alertas, fase };
 }
@@ -628,8 +632,9 @@ export async function listarPedidos({ status, busca, pagina = 1, porPagina = 25 
             statusTexto: true,
             entregueEm: true,
             canceladoNoAliExpressEm: true,
+            rastreioLidoEm: true,
             linhas: { select: { itemId: true } },
-            pacotes: { select: { previsaoInicio: true, previsaoFim: true, ultimoEvento: true, ultimoCodigo: true, ultimoEventoEm: true } },
+            pacotes: { select: { codigo: true, previsaoInicio: true, previsaoFim: true, ultimoEvento: true, ultimoCodigo: true, ultimoEventoEm: true } },
           },
         },
       },
