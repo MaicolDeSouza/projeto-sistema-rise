@@ -281,7 +281,8 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Relatórios | **Relatório semanal da coleta** em PDF (tela `/relatorios`, 20/10/2026, sem deploy): lista das rodadas, "Gerar agora" e baixar o PDF. Ver "Relatório semanal da coleta" |
 | Compras | Pedidos de compra e reposição do estoque mínimo (26/10/2026, sem deploy): lista dos conferidos abaixo do mínimo com popup de fornecedores e rascunho automático por fornecedor, editor do pedido no molde do Bling, estoque a caminho calculado, lançar estoque no Bling por item com Desfazer, proposta anexada e PDF para o fornecedor. Ver "Compras (26/10/2026)". **AliExpress (28/10/2026):** extensão do Chrome "Enviar ao Rise" importa os pedidos do site com rastreio por item e depósito Virtual do Bling; ver "AliExpress no Compras (28/10/2026)" |
 | Estoque | Ordens de produção dos produtos com peças próprias (26/10/2026, sem deploy): baixa das peças, conclusão com perda, cancelamento que devolve. Saldo e movimentações ainda não. Ver "Peças próprias e ordem de produção (26/10/2026)" |
-| Pedidos, Financeiro | Esqueleto |
+| Pedidos | **Pedidos de venda, fase 1 (04/11/2026, SEM deploy):** o worker lê a cada 5 min os pedidos do ML, da LI e do Bling (desde 01/11/2026), cria o cliente pelo CPF/CNPJ, casa os itens com os produtos, calcula status, peças em falta e lucro estimado × real; lista `/pedidos`, tela do pedido com abas, taxas da LI e nível do cliente. Ver "Pedidos de venda (04/11/2026)" |
+| Financeiro | Esqueleto |
 
 **O que está no ar (24/10/2026):** o deploy 24.10.2026.29 (commit `5ede491`) subiu TUDO o que estava na main até esse commit
 (conferido com `git merge-base --is-ancestor`: concorrentes do ML e o ranking pelos catálogos de referência, o anúncio publicado
@@ -353,6 +354,7 @@ npm run teste:telegram            # 96 asserções da Entrega C1 (avisos no Tele
 npm run teste:producao            # 89 asserções das peças próprias e da ordem de produção: regras (custo, cor do estoque, validação, arredondamento), custo pelas peças e o recálculo, trava da entrada manual, preparo do Salvar, clone, rascunho, a ordem (cria, baixa com falta, baixa, clique duplo, conclui com perda, cancela devolvendo, kit recalculado) contra o Bling falso. Postgres local, SEM rede; só escreve ZZ-PROD-*
 npm run teste:compras             # 142 asserções do módulo Compras: regras (totais, desconto % ou R$, a caminho, carrinho, situação), lista do mínimo e rascunho automático (com concorrência), pedido (salvar, itens, situação, preço que não se apaga), lançamento contra o Bling falso (clique duplo, Bling que recusa, desfazer com estoque vendido), proposta pelos bytes, dados da empresa, o PDF e as ferramentas de Compras do MCP. Postgres local, SEM rede; só escreve ZZ-COMPRA-* e "ZZ Compra *"
 npm run teste:aliexpress          # 145 asserções do AliExpress no Compras: regras puras, esquema, chave da extensão, depósito Virtual (saída por balanço, Reenviar que acerta), casamento (anúncio+opção, fator), importação, chegada, rotas e a leitura para a tela, contra um Bling falso. Postgres local, SEM rede; só escreve ZZ-ALI-*, "ZZ Ali *" e pedidos 99…; `-- --manter` deixa os dados para conferir a tela
+npm run teste:pedidos             # 153 asserções dos Pedidos de venda: falsos (ML, LI, Bling), normalizadores, status, cliente automático, itens e custo congelado, lucro e devolução, peças, aplicarPedidoLido, a leitura com cursor, acessos e taxas da LI. Postgres local, SEM rede; só escreve ZZ-PED-*, "ZZ Ped *" e os documentos de teste, e devolve a linha "pedidos" de RotinaDoWorker e as taxas da LI; `-- --manter` deixa os pedidos para conferir a tela
 npm run teste:extensao-aliexpress # 15 asserções da leitura da extensão (extensao-aliexpress/leitura.js) com as respostas da página Meus pedidos medidas em 28/10/2026. Puro: sem banco, sem rede, sem Chrome
 npm run teste:saude               # 68 asserções da Saúde do Rise: regras (rotinas, worker, disco, backup, memória, banco, integrações, orçamento, varreduras, PC, healthchecks), o aviso do Telegram, a gravação em RotinaDoWorker e a coleta nos modos PC e VPS. Postgres local, SEM rede; só escreve zz-saude-*
 npm run teste:acessos             # 207 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição, as projeções do lançamento 2 (Painel, lista de Produtos, Cadastros, canais, Scraper, Indicadores), "Ver como", Histórico e o guarda estático de src/app (sem lista de exceções). Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
@@ -5149,6 +5151,43 @@ Pedido do dono: "vincular o AliExpress via API para pegar minhas compras". A API
     única peça que lê o Bling é o `Produto.estoque`. Reservas do Bling ficam intactas.
 - **Não visto:** a extensão instalada de verdade (o ensaio injetou os scripts na página), uma importação contra o Rise real, o
   Gerar chave por clique. A escrita real no Virtual já aconteceu na VPS (entradas das importações de 28 e 29/10 e o 400 do PC-0015); a saída por balanço ainda não foi vista contra o Bling real.
+
+## Pedidos de venda (04/11/2026, fase 1, SEM deploy)
+
+Spec `docs/superpowers/specs/2026-11-04-modulo-pedidos-de-venda-design.md`, plano `docs/superpowers/plans/2026-11-04-modulo-pedidos-de-venda.md`.
+Tabelas `PedidoDeVenda` (único por origem + `idExterno`) e `ItemDoPedidoDeVenda`; `Cliente.nivel`; `ConfigCanal.taxas`. Código em
+`src/lib/pedidos/` (um normalizador por origem para o formato comum de `normalizado.js`, depois `banco.js` grava tudo numa
+transação Serializable), telas em `src/app/pedidos/` e `src/components/pedidos/`.
+
+- **Corte:** só pedidos vendidos desde `PEDIDOS_DESDE` (padrão `2026-11-01`, 00:00 de São Paulo). Pedido anterior é ignorado,
+  inclusive uma alteração dele.
+- **Sem duplicar com o Bling:** o Bling copia as vendas do ML (lojas `206326819` Rise_ML e `203593931` ML_4h) e da LI (`203478870`).
+  Pedido do Bling dessas lojas NÃO vira pedido: só preenche o espelho (`blingPedidoId`/`blingNumero`) no pedido do ML/LI pelo
+  `numeroLoja`; o que chega antes do pedido do canal fica em `espelhosPendentes` e casa na volta seguinte. Loja do Bling sem `loja.id`
+  (0) é venda digitada no Bling e vira pedido BLING. Qualquer outra loja (Shopee) é contada em `ignoradosPorLoja` e não entra.
+  Pedido do ML/LI sem cópia no Bling depois de 1 h ganha o "!" `espelhoNoBlingAusente` (o estoque não baixou).
+- **Rotina `pedidos` do worker (5 min, só o worker normal):** um cursor por origem em `RotinaDoWorker.dados.cursores`; o cursor só
+  avança quando a origem inteira foi lida sem falha (o pedido que falhou volta na próxima). Carga inicial por data de criação;
+  depois ML `date_last_updated` − 10 min, LI `since_atualizado` − 10 min, Bling `dataAlteracaoInicial` − 1 dia (o filtro é por dia).
+  Falha num pedido vira o aviso `leituraFalhou` e "N falha(s)" amarelo na Saúde do Rise.
+- **Frete da LI pelo Enviali:** `GET /enviali/v2/postage?search=<numero>` na raiz (fora do `/v1`, header `x-correlation-id`), em
+  centavos; vale a etiqueta mais recente não cancelada, `postage.price` depois de postada, `estimate.price` antes.
+- **Lucro:** estimativa congelada na 1ª leitura (ML: as taxas do anúncio lidas do ML com o `lerCustosDoAnuncio` do editor, sobre o
+  preço vendido; LI/Bling: o "Lucro na loja"); o real é refeito a cada leitura até fechar (ENTREGUE/FINALIZADO sem parcela
+  "estimado"). Custo do item congelado no dia (fornecedor padrão > rascunho do Bling > cadastro; kit soma as peças) e nunca
+  recongelado. Bling: o frete é digitado na aba Envio. LI: comissão das Taxas de venda (botão no topo da lista da LI).
+- **Devolução no ML (regra do dono, 04/11/2026):** a venda sai do balanço (receita, comissão, imposto e custo zerados), o frete de
+  retorno pago fica como prejuízo, o lucro reabre, e com NF autorizada o "!" `nfACancelar` pede para cancelar a NF (some quando a
+  NF aparece cancelada). Só no ML.
+- **Status e peças:** tabelas por origem em `status.js` (código desconhecido mantém o anterior e avisa `statusDesconhecido`);
+  AGUARDANDO_PECAS quando o estoque, descontados os pedidos abertos mais antigos, não cobre o pedido; previsão pela compra
+  enviada (+ prazo) ou pela ordem de produção. "Marcar em separação" é a única ação de estado do operador.
+- **Fase 2 (não feita):** webhooks (`/api/webhooks/[origem]`, fila `NotificacaoDePedido`), baixar NF/XML, a NF da LI (medir no 1º
+  pedido real onde o `pedido_nf` aparece). **Fase 3:** emitir NF pelo Rise (trava `NFE_EMISSAO`, botão "Criar NF" desligado).
+- **Não medido:** nenhum pedido real foi lido ainda (só os falsos com as fixtures de `scripts/lib/fixtures/pedidos/`); o nome do
+  comprador no `billing_info` do ML e o formato real do Enviali são os primeiros suspeitos.
+- **Armadilha de dev:** arquivo reescrito por script (Python) às vezes não é recompilado pelo `next dev`; o servidor desenha a
+  versão antiga e o navegador acusa erro de hidratação. Uma edição pelo editor resolve.
 
 ## Peças próprias e ordem de produção (26/10/2026)
 
