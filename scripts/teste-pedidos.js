@@ -778,6 +778,32 @@ try {
     conferir("LI: pedido com pedido_nf le a NF", [lido.nf?.numero, lido.nf?.status, lido.nf?.urlXml, lido.nf?.origem], ["88", "authorized", "https://li.test/nf/77.xml", "LOJA_INTEGRADA"]);
   }
 
+  console.log("\nTelegram");
+  {
+    const { avisosDevidos, caminhoDoAviso } = await import("../src/lib/telegram/avisos.js");
+    const { mensagemDoAviso } = await import("../src/lib/telegram/texto.js");
+    const { TIPOS_DE_AVISO, ROTULO_DO_AVISO } = await import("../src/lib/telegram/avisosTipos.js");
+    const agora = Date.now();
+    const base = { origem: "MERCADO_LIVRE", canal: "MERCADO_LIVRE", atualizadoNaOrigemEm: new Date(agora), statusDaOrigem: "paid", status: "PAGO", enderecoDeEntrega: {}, pagamento: [], envio: {}, historico: [], totalProdutos: 49.7, desconto: 0, freteCobrado: 0, total: 49.7, nomeDoComprador: "ZZ Ped Nicollas" };
+    const nova = await prisma.pedidoDeVenda.create({ data: { ...base, idExterno: "ZZ-PED-TG1", numero: "ZZ-PED-TG1", dataDaVenda: new Date(agora - 60 * 60 * 1000) } });
+    const velha = await prisma.pedidoDeVenda.create({ data: { ...base, idExterno: "ZZ-PED-TG2", numero: "ZZ-PED-TG2", dataDaVenda: new Date(agora - 3 * 24 * 60 * 60 * 1000) } });
+    const parada = await prisma.pedidoDeVenda.create({
+      data: { ...base, idExterno: "ZZ-PED-TG3", numero: "ZZ-PED-TG3", status: "AGUARDANDO_PECAS", dataDaVenda: new Date(agora - 2 * 24 * 60 * 60 * 1000), pecas: { falta: true, pecas: [{ sku: "900211", falta: 2, previsao: "12/11" }, { sku: "100101", falta: 0, previsao: null }] } },
+    });
+    const meus = (lista) => lista.filter((a) => [nova.id, velha.id, parada.id].some((id) => a.chave.endsWith(`:${id}`)));
+    const novas = meus(await avisosDevidos("novaVenda", { agora }));
+    conferir("telegram: nova venda de pedido recem lido", novas.map((a) => [a.chave, mensagemDoAviso("novaVenda", a.dados).texto]), [[`nova-venda:${nova.id}`, "Nova venda Mercado Livre ZZ-PED-TG1\nZZ Ped Nicollas, R$ 49,70"]]);
+    conferir("telegram: venda antiga nao avisa", novas.some((a) => a.chave.endsWith(velha.id)), false);
+    const paradas = meus(await avisosDevidos("aguardandoPecas", { agora }));
+    conferir("telegram: aguardando pecas com a falta no texto", paradas.map((a) => mensagemDoAviso("aguardandoPecas", a.dados).texto), ["Pedido ZZ-PED-TG3 aguardando peças\nfalta 2× 900211 (previsão 12/11)"]);
+    conferir(
+      "telegram: o botao abre o pedido",
+      [caminhoDoAviso(`nova-venda:${nova.id}:55`), caminhoDoAviso(`aguardando-pecas:${parada.id}:55`), mensagemDoAviso("novaVenda", novas[0].dados).caminho],
+      [`/pedidos/${nova.id}`, `/pedidos/${parada.id}`, `/pedidos/${nova.id}`],
+    );
+    conferir("telegram: os dois tipos na aba Canais", [TIPOS_DE_AVISO.includes("novaVenda"), TIPOS_DE_AVISO.includes("aguardandoPecas"), ROTULO_DO_AVISO.novaVenda, ROTULO_DO_AVISO.aguardandoPecas], [true, true, "Nova venda", "Pedido aguardando peças"]);
+  }
+
   // Marcador: os blocos seguintes entram acima desta linha.
 } finally {
   if (!manter) await limpar();

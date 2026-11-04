@@ -4,7 +4,7 @@
  * `avisosDevidos` (avisos.js).
  */
 
-export const TIPOS_DE_AVISO = ["resumoDoDia", "produtoZerou", "orcamento", "varreduraPeloPc", "varreduraFalhou", "saudeDoRise", "catalogoML"];
+export const TIPOS_DE_AVISO = ["resumoDoDia", "produtoZerou", "orcamento", "varreduraPeloPc", "varreduraFalhou", "saudeDoRise", "catalogoML", "novaVenda", "aguardandoPecas"];
 
 export const ROTULO_DO_AVISO = {
   resumoDoDia: "Resumo do dia às 20h",
@@ -14,6 +14,8 @@ export const ROTULO_DO_AVISO = {
   varreduraFalhou: "Varredura que falhou",
   saudeDoRise: "Saúde do Rise: item em vermelho",
   catalogoML: "Anúncio do ML entrou ou saiu do catálogo",
+  novaVenda: "Nova venda",
+  aguardandoPecas: "Pedido aguardando peças",
 };
 
 /** O que a configuracao de fabrica traz: bot desligado e todos os avisos marcados (ligar o bot ja manda tudo). */

@@ -193,7 +193,40 @@ async function catalogosDoML() {
     });
 }
 
+/// Nova venda: so o pedido lido ha pouco (2 h) e vendido ha pouco (24 h). A carga inicial e as releituras criam linhas
+/// de vendas antigas, e o aviso de uma venda de ontem nao serve para nada.
+const DUAS_HORAS_MS = 2 * 60 * 60 * 1000;
+const SETE_DIAS_MS = 7 * UM_DIA_MS;
+
+async function novasVendas({ agora }) {
+  const pedidos = await prisma.pedidoDeVenda.findMany({
+    where: { criadoEm: { gte: new Date(agora - DUAS_HORAS_MS) }, dataDaVenda: { gte: new Date(agora - UM_DIA_MS) }, status: { not: "CANCELADO" } },
+    select: { id: true, canal: true, numero: true, nomeDoComprador: true, total: true },
+    orderBy: { dataDaVenda: "asc" },
+  });
+  return pedidos.map((p) => ({ chave: `nova-venda:${p.id}`, dados: { pedidoId: p.id, canal: p.canal, numero: p.numero, cliente: p.nomeDoComprador, total: Number(p.total) } }));
+}
+
+/** "falta 2× 900211 (previsão 12/11); falta 1× 100101" a partir do `pecas` gravado no pedido. */
+function linhaDasFaltas(pecas) {
+  return (pecas?.pecas ?? [])
+    .filter((peca) => Number(peca?.falta) > 0)
+    .map((peca) => `falta ${peca.falta}× ${peca.sku ?? "peça"}${peca.previsao ? ` (previsão ${peca.previsao})` : ""}`)
+    .join("; ");
+}
+
+/** Pedido parado esperando peca, vendido na ultima semana: um aviso por pedido (a chave nao repete). */
+async function pedidosAguardandoPecas({ agora }) {
+  const pedidos = await prisma.pedidoDeVenda.findMany({
+    where: { status: "AGUARDANDO_PECAS", dataDaVenda: { gte: new Date(agora - SETE_DIAS_MS) } },
+    select: { id: true, numero: true, pecas: true },
+  });
+  return pedidos.map((p) => ({ chave: `aguardando-pecas:${p.id}`, dados: { pedidoId: p.id, numero: p.numero, pecas: linhaDasFaltas(p.pecas) } }));
+}
+
 const CALCULO = {
+  novaVenda: novasVendas,
+  aguardandoPecas: pedidosAguardandoPecas,
   catalogoML: () => catalogosDoML(),
   saudeDoRise: saudeEmVermelho,
   resumoDoDia: resumosDevidos,
@@ -209,8 +242,9 @@ export function avisosDevidos(tipo, contexto) {
 }
 
 /** O caminho do botao "Abrir no Rise", tirado da chave (o texto gravado nao guarda o link). */
-function caminhoDoAviso(chave) {
+export function caminhoDoAviso(chave) {
   const [fato, id] = chave.split(":");
+  if (fato === "nova-venda" || fato === "aguardando-pecas") return `/pedidos/${id}`;
   if (fato === "produto-zerou") return `/produtos/${id}`;
   if (fato === "orcamento") return "/rise-ai/configuracoes";
   if (fato === "pc-esperando" || fato === "varredura-falhou") return "/mercados/fontes";

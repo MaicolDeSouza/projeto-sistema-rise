@@ -37,6 +37,7 @@ function formatarReais(valor) {
 }
 
 const ESCOPO = { CLIENTES: "dos clientes", INTERNO: "interno" };
+const NOME_DO_CANAL = { MERCADO_LIVRE: "Mercado Livre", LOJA_INTEGRADA: "Loja Integrada", BLING: "Bling", SHOPEE: "Shopee" };
 
 /** Cada tipo monta as linhas e diz para onde o botao "Abrir no Rise" leva. `dados` vem de quem calculou o aviso. */
 const TIPOS = {
@@ -62,6 +63,15 @@ const TIPOS = {
   catalogoML: ({ anuncioId, sku, texto }) => ({
     linhas: [`Mercado Livre: anúncio do ${trechoSeguro(sku, 40)} ${trechoSeguro(texto)}`, "Confira se o catálogo é o certo para o produto."],
     caminho: `/canais-de-venda/mercado-livre/${anuncioId}`,
+  }),
+  // Pedidos de venda (fase 2): o nome do cliente passa pelo trecho seguro (mascara telefone/documento se vierem juntos).
+  novaVenda: ({ pedidoId, canal, numero, cliente, total }) => ({
+    linhas: [`Nova venda ${NOME_DO_CANAL[canal] ?? canal} ${trechoSeguro(numero, 40)}`, `${cliente ? `${trechoSeguro(cliente, 60)}, ` : ""}R$ ${formatarReais(total)}`],
+    caminho: `/pedidos/${pedidoId}`,
+  }),
+  aguardandoPecas: ({ pedidoId, numero, pecas }) => ({
+    linhas: [`Pedido ${trechoSeguro(numero, 40)} aguardando peças`, trechoSeguro(pecas)],
+    caminho: `/pedidos/${pedidoId}`,
   }),
   saudeDoRise: ({ rotulo, detalhe }) => ({
     linhas: [`Saúde do Rise: ${trechoSeguro(rotulo, 60)}`, trechoSeguro(detalhe)],
