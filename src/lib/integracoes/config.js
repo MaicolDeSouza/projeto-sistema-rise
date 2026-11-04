@@ -25,6 +25,16 @@ export function separarLista(texto) {
     .filter(Boolean);
 }
 
+/**
+ * "2026-11-01" vira a meia-noite desse dia em Sao Paulo (UTC-3, sem horario de verao desde 2019), em UTC.
+ * Data invalida cai em 01/11/2026, o corte combinado com o dono: um .env errado nao pode abrir a leitura de
+ * todo o historico.
+ */
+function dataDeSaoPaulo(texto) {
+  const data = /^\d{4}-\d{2}-\d{2}$/.test(texto) ? new Date(`${texto}T00:00:00-03:00`) : null;
+  return data && !Number.isNaN(data.getTime()) ? data : new Date("2026-11-01T00:00:00-03:00");
+}
+
 export const config = {
   // Onde a interface roda. Tem que ser localhost: o navegador bloqueia os
   // scripts quando servidos de dominios de loopback publico (localtest.me e
@@ -63,10 +73,18 @@ export const config = {
     dominio: ler("LI_DOMINIO"),
   },
 
+  // Pedidos de venda (04/11/2026): o Rise so le pedidos criados a partir desta data (00:00 de Sao Paulo).
+  // Pedido anterior e ignorado, inclusive uma alteracao dele. Fica no .env para um dia mudar sem codigo.
+  pedidos: {
+    desde: dataDeSaoPaulo(ler("PEDIDOS_DESDE", "2026-11-01")),
+  },
+
   // Travas de seguranca. Enquanto false, nada e escrito nas plataformas.
   // A conta do Bling tem anuncios e estoque reais: a trava impede escrita
   // acidental por construcao, nao por disciplina.
   travas: {
+    // Emissao de NF pelo Rise (Pedidos de venda). Enquanto false, o botao "Criar NF" fica desabilitado.
+    nfe: lerBooleano("NFE_EMISSAO"),
     mlPublicacao: lerBooleano("ML_PUBLICACAO"),
     // Segunda trava do Mercado Livre, no molde da do Bling: com ML_PUBLICACAO ligada, so os codigos
     // desta lista (o SKU do anuncio, ou o codigo do kit) podem ser publicados. Vazia = todos.

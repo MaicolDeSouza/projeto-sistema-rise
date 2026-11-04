@@ -61,6 +61,7 @@
     "acessos:admin": "node scripts/acessos-admin.js",
     "teste:compras": "node scripts/teste-compras.js",
     "teste:producao": "node scripts/teste-producao.js",
+    "teste:pedidos": "node scripts/teste-pedidos.js",
     "teste:aliexpress": "node scripts/teste-aliexpress.js",
     "teste:extensao-aliexpress": "node scripts/teste-extensao-aliexpress.js",
     "aliexpress:recalcular": "node scripts/aliexpress-recalcular.js"
