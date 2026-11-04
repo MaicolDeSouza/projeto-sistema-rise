@@ -281,7 +281,7 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Relatórios | **Relatório semanal da coleta** em PDF (tela `/relatorios`, 20/10/2026, sem deploy): lista das rodadas, "Gerar agora" e baixar o PDF. Ver "Relatório semanal da coleta" |
 | Compras | Pedidos de compra e reposição do estoque mínimo (26/10/2026, sem deploy): lista dos conferidos abaixo do mínimo com popup de fornecedores e rascunho automático por fornecedor, editor do pedido no molde do Bling, estoque a caminho calculado, lançar estoque no Bling por item com Desfazer, proposta anexada e PDF para o fornecedor. Ver "Compras (26/10/2026)". **AliExpress (28/10/2026):** extensão do Chrome "Enviar ao Rise" importa os pedidos do site com rastreio por item e depósito Virtual do Bling; ver "AliExpress no Compras (28/10/2026)" |
 | Estoque | Ordens de produção dos produtos com peças próprias (26/10/2026, sem deploy): baixa das peças, conclusão com perda, cancelamento que devolve. Saldo e movimentações ainda não. Ver "Peças próprias e ordem de produção (26/10/2026)" |
-| Pedidos | **Pedidos de venda, fase 1 (04/11/2026, SEM deploy):** o worker lê a cada 5 min os pedidos do ML, da LI e do Bling (desde 01/11/2026), cria o cliente pelo CPF/CNPJ, casa os itens com os produtos, calcula status, peças em falta e lucro estimado × real; lista `/pedidos`, tela do pedido com abas, taxas da LI e nível do cliente. Ver "Pedidos de venda (04/11/2026)" |
+| Pedidos | **Pedidos de venda, fase 1 (04/11/2026, NO AR na VPS desde 04.11.2026.60):** o worker lê a cada 5 min os pedidos do ML, da LI e do Bling (desde 01/11/2026), cria o cliente pelo CPF/CNPJ, casa os itens com os produtos, calcula status, peças em falta e lucro estimado × real; lista `/pedidos`, tela do pedido com abas, taxas da LI e nível do cliente. Ver "Pedidos de venda (04/11/2026)" |
 | Financeiro | Esqueleto |
 
 **O que está no ar (24/10/2026):** o deploy 24.10.2026.29 (commit `5ede491`) subiu TUDO o que estava na main até esse commit
@@ -5152,7 +5152,7 @@ Pedido do dono: "vincular o AliExpress via API para pegar minhas compras". A API
 - **Não visto:** a extensão instalada de verdade (o ensaio injetou os scripts na página), uma importação contra o Rise real, o
   Gerar chave por clique. A escrita real no Virtual já aconteceu na VPS (entradas das importações de 28 e 29/10 e o 400 do PC-0015); a saída por balanço ainda não foi vista contra o Bling real.
 
-## Pedidos de venda (04/11/2026, fase 1, SEM deploy)
+## Pedidos de venda (04/11/2026, fase 1, NO AR na VPS desde 04.11.2026.60)
 
 Spec `docs/superpowers/specs/2026-11-04-modulo-pedidos-de-venda-design.md`, plano `docs/superpowers/plans/2026-11-04-modulo-pedidos-de-venda.md`.
 Tabelas `PedidoDeVenda` (único por origem + `idExterno`) e `ItemDoPedidoDeVenda`; `Cliente.nivel`; `ConfigCanal.taxas`. Código em
@@ -5184,8 +5184,12 @@ transação Serializable), telas em `src/app/pedidos/` e `src/components/pedidos
   enviada (+ prazo) ou pela ordem de produção. "Marcar em separação" é a única ação de estado do operador.
 - **Fase 2 (não feita):** webhooks (`/api/webhooks/[origem]`, fila `NotificacaoDePedido`), baixar NF/XML, a NF da LI (medir no 1º
   pedido real onde o `pedido_nf` aparece). **Fase 3:** emitir NF pelo Rise (trava `NFE_EMISSAO`, botão "Criar NF" desligado).
-- **Não medido:** nenhum pedido real foi lido ainda (só os falsos com as fixtures de `scripts/lib/fixtures/pedidos/`); o nome do
-  comprador no `billing_info` do ML e o formato real do Enviali são os primeiros suspeitos.
+- **Primeira leitura real (VPS, 04/11/2026), o que ela corrigiu (b1e9901):** a busca de pedidos da LI recusa `limit` acima de
+  50 ("entre 0 e 50"); o Bling tem a loja ativa **MercadoShops (`203901506`, tipo MercadoShopsML)** que também recebe vendas do
+  ML (7 das 15); e o `numeroLoja` das cópias do ML no Bling é o **pack** do pedido (14 de 15), não o número do pedido. Depois da
+  correção o cursor do Bling foi apagado à mão para reler desde 01/11: os 15 pedidos do ML ficaram com o espelho, sem falha.
+  A LI não teve venda de 01 a 04/11 (a última é a 1408, de 31/10). 13 dos 15 têm "sem estimativa": vendas de anúncios que o
+  Rise não criou (não há `Anuncio` dele). **Ainda não medido:** pedido da LI, etiqueta real do Enviali e pedido digitado no Bling.
 - **Armadilha de dev:** arquivo reescrito por script (Python) às vezes não é recompilado pelo `next dev`; o servidor desenha a
   versão antiga e o navegador acusa erro de hidratação. Uma edição pelo editor resolve.
 
