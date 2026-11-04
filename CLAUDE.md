@@ -1611,6 +1611,14 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
     leem `SANTANA_USUARIO`/`SANTANA_SENHA` do `.env`. A coleta de verdade usa o login cifrado da
     fonte; as linhas do `.env` podem sair quando os scripts não forem mais usados.
 
+- **Magazord (Proesi, 04/11/2026): o produto inteiro vem num JSON da página** (`const dataProduct = { ..., produto: {...} }`),
+  porque a tela é montada no navegador. O JSON-LD só traz a 1ª foto e a descrição numa linha só, e o dono viu a Proesi entrar
+  sem a 2ª foto e sem características. Leitor `src/lib/coleta/magazord.js` (`dadosDaMagazord`), ligado no `normalizarPagina`:
+  todas as fotos de `midias` na ORIGINAL (sem o `?ims=fit-in/600x600`, 39 KB contra 13 KB; `versaoGrande` faz o mesmo com a
+  do JSON-LD, então não repete), a descrição do HTML da loja (um parágrafo por linha; vence o JSON-LD), as `caracteristicas`
+  declaradas ("Tamanho") e a ficha dos parágrafos depois do título "Dados Técnicos" (`fichaDaDescricaoMagazord`, linha sem
+  dois-pontos entra sem nome; a regra geral da descrição encerrava a ficha nela), e o estoque somando `estoque_depositos`.
+  **A Proesi bloqueia a VPS (HTTP 403)**: cadastrar com "Cadastrar para varrer pelo PC".
 - **Nuvemshop (Oceantech, 09/10/2026): cada tamanho é um produto.** Leitor em `src/lib/coleta/nuvemshop.js`
   (`variantesDaNuvemshop`), ligado em `normalizarPagina`. A página tem só UM item no JSON-LD, que descreve a primeira
   variante sem nenhuma opção escolhida, e o resto está no JS `LS.variants` (uma linha por variante). No "Fuso com Castanha
