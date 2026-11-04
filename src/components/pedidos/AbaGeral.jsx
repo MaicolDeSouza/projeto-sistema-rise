@@ -1,4 +1,4 @@
-import Link from "next/link";
+import JanelaDaPagina from "@/components/ui/JanelaDaPagina";
 
 import SeloDoNivel from "./SeloDoNivel";
 
@@ -86,9 +86,9 @@ export default function AbaGeral({ pedido, podeVincular, aoVincular }) {
         <Linha rotulo="Nome">
           <span className="inline-flex max-w-full items-center gap-2">
             {cliente ? (
-              <Link href={`/cadastros/clientes/${cliente.id}`} title="Abrir o cadastro do cliente" className="truncate hover:text-acento hover:underline">
+              <JanelaDaPagina href={`/cadastros/clientes/${cliente.id}`} titulo={`Cadastro do cliente ${cliente.nome}`} className="truncate hover:text-acento hover:underline">
                 {cliente.nome}
-              </Link>
+              </JanelaDaPagina>
             ) : (
               <span className="truncate">{pedido.nomeDoComprador ?? "Sem nome"}</span>
             )}
