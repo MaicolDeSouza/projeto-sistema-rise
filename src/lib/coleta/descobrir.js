@@ -80,6 +80,16 @@ export function parametroRuim(url) {
  * sem nunca ver um. Os dois sinais valem em quase toda loja: terminacao .html
  * (PrestaShop, Magento) e o id numerico no fim do slug.
  */
+/**
+ * Listagem com o tipo no comeco do nome do arquivo (Codigo G, 05/11/2026): "/land-fresas_para_mdf-18.html",
+ * "/departamento-Fresas-1.html", "/categoria-Lubrificante-159-15.html", "/subcategoria-...-3.html". Terminam em
+ * ".html", e o `pareceProduto` as punha na frente da fila: o sitemap lista 285 delas antes do 1o produto
+ * ("/item-...-62.htm"), e o teste da fonte gastava a amostra abrindo categoria.
+ */
+function listagemComPrefixo(caminho) {
+  return /\/(?:land|departamento|categoria|subcategoria)-[^/]*-\d+\.html?$/i.test(caminho);
+}
+
 export function pareceProduto(url) {
   const caminho = url.split("?")[0];
   // RoboCore usa /categoria/produto, sem extensao nem id numerico no final.
@@ -90,6 +100,7 @@ export function pareceProduto(url) {
   // OBR: "/produtos/item/718/obr-sfur-1605-4" nao termina em .html nem em "-<id>", e a navegacao
   // abria categoria atras de categoria (25 paginas no teste) sem chegar a produto nenhum.
   if (ehObr(url)) return ehProdutoDaObr(url);
+  if (listagemComPrefixo(caminho)) return false;
   return (
     /\.html?$/i.test(caminho) ||
     /-\d{3,}(\.|\/|$)/.test(caminho) ||
@@ -105,7 +116,8 @@ export function pareceProduto(url) {
  */
 export function pareceListagem(url) {
   const caminho = url.split("?")[0];
-  return /\/(produtos|categorias?|category|categories|departamentos?|colecao|colecoes|marcas?|brands?)(\/|$)/i.test(caminho);
+  if (listagemComPrefixo(caminho)) return true;
+  return/\/(produtos|categorias?|category|categories|departamentos?|colecao|colecoes|marcas?|brands?)(\/|$)/i.test(caminho);
 }
 
 /**

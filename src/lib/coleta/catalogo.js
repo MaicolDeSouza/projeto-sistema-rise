@@ -63,7 +63,7 @@ function paginaDe(url, numero) {
  *   cancelada, devolve o que ja leu (quem chamou confere o sinal e desiste)
  * @returns {Promise<{total: number|null, itens: object[], erro: string|null}>}
  */
-export async function lerCatalogo(catalogo, { limite = 0, sinal = null } = {}) {
+export async function lerCatalogo(catalogo, { limite = 0, sinal = null, aproveitavel = null } = {}) {
   if (!catalogo?.url || catalogo.formato !== "json") {
     return { total: null, itens: [], erro: "sem catalogo publico" };
   }
@@ -109,7 +109,11 @@ export async function lerCatalogo(catalogo, { limite = 0, sinal = null } = {}) {
 
     // So o total foi pedido: uma pagina basta, e as outras 45 nao sao abertas.
     if (limite === 0) break;
-    if (itens.length >= limite) break;
+    // `aproveitavel` (CNC Fresas, 05/11/2026): so conta para o limite o item que a colheita vai mesmo abrir. Na CNC Fresas
+    // 360 dos 508 itens do catalogo sao desativados (`available: "0"`, link para "Produto nao encontrado") e a 1a pagina
+    // tinha 9 ativos: a "Amostra variada" do teste, ja sem os 3 mostrados, gastava as 25 paginas em link morto e voltava zero.
+    const uteis = aproveitavel ? itens.filter(aproveitavel).length : itens.length;
+    if (uteis >= limite) break;
   }
 
   // itens.length SO vale como total quando a paginacao ESGOTOU (pagina vazia

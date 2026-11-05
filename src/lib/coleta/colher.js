@@ -37,6 +37,9 @@ import { dentroDaCategoria, lerListagemDaCategoria } from "./listagem";
 // coletar.js e o teste do worker, que a importam daqui.
 export { enderecoComparavel };
 
+/** Item do catalogo publico que a loja desativou (Tray: `available: "0"`, a pagina leva a "Produto nao encontrado"). */
+const desativadoNoCatalogo = (item) => String(item?.available) === "0";
+
 function passo(nome, ok, detalhe = null) {
   return { nome, ok, detalhe };
 }
@@ -362,6 +365,12 @@ export async function colherProdutos({
   const tratados = new Set(
     evitar ? [...evitar].map((endereco) => enderecoComparavel(endereco)) : [],
   );
+  // O mostrado tem o endereco FINAL da pagina, e o sitemap pode trazer outro que redireciona para ele (Codigo G,
+  // 05/11/2026: "https://.../item-Fresa_Raiada...-62.htm" vira "http://.../item-fresa_raiada...-62.htm"). Sem esquema
+  // e sem caixa, so para o `evitar` do teste: a varredura e a retomada continuam pelo `enderecoComparavel` exato.
+  const chaveSolta = (endereco) => enderecoComparavel(endereco).replace(/^https?:/i, "").toLowerCase();
+  const evitarSolto = new Set(evitar ? [...evitar].map(chaveSolta) : []);
+  const evitado = (endereco) => evitarSolto.size > 0 && evitarSolto.has(chaveSolta(endereco));
 
   /*
     O MESMO PRODUTO POR OUTRO ENDERECO (19/09/2026).
@@ -408,7 +417,7 @@ export async function colherProdutos({
   /** true se o endereco ja foi tratado; senao o marca e devolve false. */
   const jaTratado = (endereco) => {
     const chave = enderecoComparavel(endereco);
-    if (tratados.has(chave)) return true;
+    if (tratados.has(chave) || evitado(endereco)) return true;
     tratados.add(chave);
     return ehVariante(endereco);
   };
@@ -505,10 +514,22 @@ export async function colherProdutos({
       ),
     );
   } else if (catalogo) {
-    const leitura = await lerCatalogo(catalogo, { limite, sinal });
+    // So conta para o limite o item ativo e ainda nao tratado (o `evitar` da "Amostra variada" ja esta em `tratados`).
+    const aproveitavel = (item) => {
+      if (desativadoNoCatalogo(item)) return false;
+      const endereco = urlDoItem(item, alvo.origin);
+      return Boolean(endereco) && !tratados.has(enderecoComparavel(endereco)) && !evitado(endereco);
+    };
+    const leitura = await lerCatalogo(catalogo, { limite, sinal, aproveitavel });
     conferirSinal();
     totalDoCatalogo = leitura.total;
-    itensDoCatalogo = leitura.itens;
+    // ATIVOS PRIMEIRO (CNC Fresas, 05/11/2026): o item desativado da Tray (`available: "0"`) leva a "Produto nao
+    // encontrado" e nao e gravado (`produtoDoItemDoCatalogo`, decisao do dono em 23/10/2026). Continua sendo aberto, por
+    // ultimo (a pagina viva ainda vale), mas nao gasta mais a amostra do teste nem atrasa os produtos de verdade.
+    itensDoCatalogo = [
+      ...leitura.itens.filter((item) => !desativadoNoCatalogo(item)),
+      ...leitura.itens.filter((item) => desativadoNoCatalogo(item)),
+    ];
 
     passos.push(
       passo(
@@ -681,7 +702,7 @@ export async function colherProdutos({
   // sitemap: na Policomp (10/10/2026) a 3a busca so tinha produtos removidos ali
   // ("A pagina solicitada nao existe") e voltava com zero.
   const candidatasDoSitemap = urlsSitemap
-    .filter((endereco) => !tratados.has(enderecoComparavel(endereco)))
+    .filter((endereco) => !tratados.has(enderecoComparavel(endereco)) && !evitado(endereco))
     .slice(0, amostraSitemap);
 
   for (const candidata of candidatasDoSitemap) {

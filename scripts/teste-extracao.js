@@ -3368,6 +3368,20 @@ console.log("\n— catalogo da OBR —");
     pareceProduto("https://www.obr.com.br/subcategoria/30/207/modelo-obr-sfur"),
     pareceProduto("https://www.obr.com.br/produtos/divisao/31/182/322/carro-standard"),
   ], [false, false, true, false, false]);
+  {
+    const { pareceListagem } = await import("../src/lib/coleta/descobrir.js");
+    const enderecos = [
+      "https://www.codigog.com.br/land-fresas_para_mdf-18.html",
+      "https://www.codigog.com.br/departamento-Fresas-1.html",
+      "https://www.codigog.com.br/categoria-Lubrificante-159-15.html",
+      "https://www.codigog.com.br/subcategoria-Fresas_Para_MDF-12-3.html",
+      "https://www.codigog.com.br/item-Fresa_Raiada_1.5mm_x_8.5mm_Metal_Duro_com_cobertura_de_AlTin-62.htm",
+      "https://loja.com.br/produto-categoria-de-exemplo.html",
+    ];
+    conferir("codigo g (05/11/2026): land/departamento/categoria/subcategoria-...-N.html e listagem; item-...htm e produto",
+      [enderecos.map(pareceProduto), enderecos.map(pareceListagem)],
+      [[false, false, false, false, true, true], [true, true, true, true, false, false]]);
+  }
   conferir("obr: cara de codigo", ["MA5-VA", "8101", "OBR-A 15 S", "Densidade 1000 (kg/m³)", "CORDA (GAXETA) FG", "Corrente", "NMS 12 ..."].map(pareceCodigo), [true, true, true, false, false, false, false]);
 
   // Adaptador "OL-A OBR": a coluna Modelo lista as GUIAS em que ele serve, e a peca aparece ao lado.

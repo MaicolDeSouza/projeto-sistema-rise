@@ -1653,6 +1653,14 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   sem o aviso "*Imagens meramente ilustrativas", e a ficha ("Dimensões da fresa", "Haste: 12mm") sai dela pela leitura sem título.
   Esgotado não tem painel de preço (fica o preço do JSON-LD) mas tem a descrição. Fotos: cada uma vem em `_pp`, `_p` (webp e jpg) e
   `_g`; `versaoGrande` leva todas para `/fotos/produto/webp/<id>/<nome>_g.webp` (4 fotos em vez de 9).
+- **"Amostra variada" do teste de fonte voltava zero (CNC Fresas e Código G, 05/11/2026), três causas, todas gerais:**
+  (1) o catálogo da Tray lista o produto DESATIVADO (`available: "0"`, link para "Produto não encontrado"; 360 dos 508 na
+  CNC Fresas) e o teste lia só a 1ª página (9 ativos): `lerCatalogo` ganhou `aproveitavel` (só o ativo e ainda não mostrado
+  conta para o limite) e a colheita abre os ativos primeiro (os desativados continuam sendo abertos, por último);
+  (2) `pareceProduto` tomava `/land-…-18.html`, `/departamento-…`, `/categoria-…` e `/subcategoria-…-N.html` por produto, e o
+  sitemap da Código G lista 285 delas antes do 1º `item-…htm` (`listagemComPrefixo` em `descobrir.js`; agora são listagem);
+  (3) o produto guarda o endereço FINAL (a Código G redireciona `https://…/item-Fresa…` para `http://…/item-fresa…`) e o
+  "já mostrado" não casava com o do sitemap: o `evitar` compara também sem esquema e sem caixa (`chaveSolta`, só no teste).
 - **Yampi (Engenharia FSI, 05/11/2026)**: `src/lib/coleta/yampi.js` (`dadosDaYampi`) lê o `window.data = {"product":{"data":...}}`
   da página: todas as fotos (`images.data`), `price_sale` como normal (com promoção `price` é o riscado), `pix.price` como à vista,
   o saldo somando `skus.data[].total_in_stock` e a situação por `stock_status`, e a categoria pelos `breadcrumbs`. O JSON-LD só tinha
