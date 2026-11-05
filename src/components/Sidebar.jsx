@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogOut, Menu, Monitor, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
 
-import { blocos, ehRotaAtiva } from "@/lib/blocos";
+import { blocosDoMenu, ehRotaAtiva } from "@/lib/blocos";
 import { normalizar } from "@/lib/texto";
 import { inicialDoNome } from "@/lib/sessao";
 import { rotuloDaVersao } from "@/lib/versao";
@@ -130,7 +130,7 @@ export default function Sidebar({ sessao = null, hrefsOcultos = [] }) {
   // Bloco aparece se o proprio nome casa (com todos os filhos) ou se algum filho
   // casar (so com os que casaram): quem procura "marcas" acha Cadastros > Marcas.
   const blocosFiltrados = useMemo(() => {
-    const visiveis = blocos.filter((bloco) => !hrefsOcultos.includes(bloco.href));
+    const visiveis = blocosDoMenu.filter((bloco) => !hrefsOcultos.includes(bloco.href));
     const termo = normalizar(busca);
     if (!termo) return visiveis;
 
@@ -169,7 +169,8 @@ export default function Sidebar({ sessao = null, hrefsOcultos = [] }) {
       <aside
         className={[
           "z-50 flex shrink-0 flex-col bg-menu text-menu-texto transition-[width,transform] duration-200",
-          recolhida ? "w-16" : "w-64",
+          // 224 px aberto (era 256 ate 05/11/2026: o dono pediu o menu mais estreito, para sobrar espaco a tela).
+          recolhida ? "w-16" : "w-56",
           // Mobile: gaveta sobreposta. Desktop: coluna fixa que acompanha a rolagem.
           "fixed inset-y-0 left-0 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0",
           aberta ? "translate-x-0" : "-translate-x-full",
@@ -286,7 +287,8 @@ export default function Sidebar({ sessao = null, hrefsOcultos = [] }) {
         */}
         {!recolhida && (
           <p
-            className="px-4 pb-2 text-[10px] text-menu-texto/60"
+            // px-3 e tracking-tight: no menu de 224 px a linha da VPS ("Versao 05.11.2026 (build 69) - 9f19152") cabe inteira.
+            className="px-3 pb-2 text-[10px] tracking-tight text-menu-texto/60"
             title={COMMIT ? `commit ${COMMIT}` : undefined}
           >
             Versão {VERSAO}

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CircleAlert, CircleCheck, Lock, Megaphone, Package } from "lucide-react";
 
-import { blocos } from "@/lib/blocos";
+import { blocos, blocosDoMenu } from "@/lib/blocos";
 import { prisma } from "@/lib/db";
 import { haAdministrador } from "@/lib/acessos/banco";
 import { avisoDoPainel, cartoesDoPainel } from "@/lib/acessos/painel";
@@ -34,7 +34,7 @@ export default async function PainelPage() {
   const acesso = await sessaoDeAcessos();
   const cartoes = cartoesDoPainel(acesso.pode);
   const ocultos = blocosOcultos(acesso.permissoes, blocos.map((bloco) => bloco.href));
-  const outrosBlocos = blocos.filter((bloco) => bloco.href !== "/" && !ocultos.includes(bloco.href));
+  const outrosBlocos = blocosDoMenu.filter((bloco) => bloco.href !== "/" && !ocultos.includes(bloco.href));
 
   if (!cartoes.algum || acesso.estado === "erro-banco") {
     const aviso = avisoDoPainel({
@@ -99,8 +99,8 @@ export default async function PainelPage() {
             {cartoes.blocos && (
               <CardIndicador
                 rotulo="Blocos disponíveis"
-                valor={blocos.filter((bloco) => bloco.pronto).length}
-                detalhe={`de ${blocos.length} previstos`}
+                valor={blocosDoMenu.filter((bloco) => bloco.pronto).length}
+                detalhe={`de ${blocosDoMenu.length} previstos`}
                 icone={Megaphone}
               />
             )}

@@ -29,6 +29,7 @@ import {
  * @property {boolean} pronto  Falso enquanto o bloco ainda nao foi implementado.
  * @property {{href: string, rotulo: string, icone: React.ComponentType}[]} [filhos]
  *   Subitens em cascata sob o bloco. So um nivel: cada filho e um link simples.
+ * @property {boolean} [foraDoMenu]  Fica fora do menu e do Painel (`blocosDoMenu`), mas continua no catalogo.
  * @property {string[]} [rotasExtras]  Rotas fora do prefixo do bloco que tambem o acendem (Configuracoes: as telas
  *   que viraram cartao dele sem mudar de endereco).
  */
@@ -67,6 +68,9 @@ export const blocos = [
     icone: Megaphone,
     resumo: "Criar, editar e acompanhar anúncios em todos os canais",
     pronto: true,
+    // Saiu do menu e do Painel a pedido do dono em 05/11/2026 (os anuncios moram em Canais de Venda). Fica na lista
+    // porque o catalogo de Acessos (`tela.anuncios`) e o teste dele leem os blocos; a rota /anuncios continua no ar.
+    foraDoMenu: true,
   },
   {
     // Pedido do dono em 30/09/2026: criar e gerenciar anuncios por canal (Mercado Livre,
@@ -168,6 +172,9 @@ export const blocos = [
     rotasExtras: ["/integracoes", "/rise-ai/configuracoes"],
   },
 ];
+
+/** O que o menu lateral e os cartoes do Painel mostram. */
+export const blocosDoMenu = blocos.filter((bloco) => !bloco.foraDoMenu);
 
 export function ehRotaAtiva(pathname, href, rotasExtras = []) {
   const dentro = (base) => pathname === base || pathname.startsWith(`${base}/`);
