@@ -2535,6 +2535,36 @@ console.log("\n— Nuvemshop: o bloco da descricao vence o resumo do JSON-LD (co
   conferir("ficha com o nome de uma letra maiuscula (D)", cone.specifications.map((e) => e.nome), ["Modelo", "Rotação maxima", "L1", "D", "Material", "Precisão"]);
 }
 
+console.log("\n— Codigo G (front proprio) e Yampi (Engenharia FSI), 05/11/2026 —");
+{
+  const { dadosDaCodigoG } = await import("../src/lib/coleta/codigog.js");
+  const { dadosDaYampi } = await import("../src/lib/coleta/yampi.js");
+  const { textoDoBlocoDeDescricao } = await import("../src/lib/coleta/normalizar.js");
+  const painel = '<div class="old-price" >De R$284,59 </div><br> <div class="price"><small>Por</small> R$250,34</div> <div class=\'desconto_pg_produto\'>à vista no PIX</div> <div class="sem_desconto">ou R$263,52</div> <button title="Colocar no Carrinho" name="btn_carrinho" id="btn_2073" data-amount="26352" class="btn">x</button>';
+  const desc = '<div class="produto-desc"> <div class="desc-tab">Descrição do Produto</div> <p>Fresa com haste aliviada para usinagem profunda.</p><p><b><ins>Dimensões da fresa</ins></b><br>Haste: 12mm<br>Diâmetro do corte: 12mm<br>Comprimento total: 80mm<br><br><em>*Imagens meramente ilustrativas.</em></p> </div>';
+  const g = dadosDaCodigoG(painel + desc, textoDoBlocoDeDescricao);
+  conferir("codigo g: normal = cartao (o riscado nao vale), pix como a vista", [g.normal, g.aVista], [263.52, 250.34]);
+  conferir("codigo g: descricao sem o rotulo da aba nem o aviso das imagens",
+    [/Descrição do Produto|meramente/.test(g.descricao), /\nDimensões da fresa\nHaste: 12mm/.test(g.descricao)], [false, true]);
+  conferir("codigo g: produto esgotado (sem painel) ainda le a descricao",
+    [dadosDaCodigoG('<div class="disponibilidade indisponivel">Produto Indisponivel</div>' + desc, textoDoBlocoDeDescricao)?.normal, !!dadosDaCodigoG(desc, textoDoBlocoDeDescricao)?.descricao],
+    [null, true]);
+  conferir("codigo g: pagina de outra loja nao e lida", dadosDaCodigoG("<div class='price'>R$ 10,00</div>", textoDoBlocoDeDescricao), null);
+
+  const dados = { product: { data: { name: "Fresa", images: { data: [{ url: "https://images.yampi.me/a-large.png" }, { url: "https://images.yampi.me/b-large.png" }] },
+    prices: { data: { price: 60, price_sale: 51, has_promotion: true, pix: { price: 48.45 } } },
+    skus: { data: [{ total_in_stock: 3, stock_status: "in_stock" }] },
+    breadcrumbs: { data: [{ name: "FRESAS" }, { name: "Fresas Para Madeira" }] } } } };
+  const y = dadosDaYampi(`<script>window.Yampi = {}; window.data = ${JSON.stringify(dados)}; </script>`);
+  conferir("yampi: fotos, venda (o riscado nao vale), pix, saldo, situacao e categoria",
+    [y.imagens.length, y.normal, y.aVista, y.quantidade, y.disponibilidade, y.categoria],
+    [2, 51, 48.45, 3, "InStock", "FRESAS > Fresas Para Madeira"]);
+  dados.product.data.skus.data = [{ total_in_stock: 0, stock_status: "out_of_stock" }];
+  const esgotado = dadosDaYampi(`window.data = ${JSON.stringify(dados)};`);
+  conferir("yampi: esgotado = 0 e OutOfStock", [esgotado.quantidade, esgotado.disponibilidade], [0, "OutOfStock"]);
+  conferir("yampi: sem window.data nao e Yampi", dadosDaYampi("<html></html>"), null);
+}
+
 console.log("\n— Ficha com subtitulo por peca do kit (CNC Fresas, 05/11/2026) —");
 {
   const { especificacoesDaDescricao } = await import("../src/lib/coleta/normalizar.js");

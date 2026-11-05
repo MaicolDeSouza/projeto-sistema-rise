@@ -4,6 +4,8 @@ import { dadosDaPaginaVtex } from "./vtex-pagina";
 import { ehListagemDaNuvemshop, galeriaDaNuvemshop, variantesDaNuvemshop } from "./nuvemshop";
 import { ehListagemDoMagento } from "./magento";
 import { dadosDaMagazord, fotoOriginalDaMagazord } from "./magazord";
+import { dadosDaCodigoG } from "./codigog";
+import { dadosDaYampi } from "./yampi";
 import { produtosDaObr } from "./obr";
 import { caminhoDeCategoria, caminhoDoJsonLd } from "./categoria";
 import { categoriaDaRoboCore, descricaoDaRoboCore, estoqueDaRoboCore, precosDaRoboCore } from "./robocore";
@@ -366,6 +368,12 @@ function versaoGrande(endereco) {
   }
   // Magazord (Proesi): "...31365.jpg?ims=fit-in/600x600/..." e a original redimensionada; sem a consulta, a original.
   if (/(^|\.)magazord\.com\.br$/.test(host)) return fotoOriginalDaMagazord(endereco);
+  // Codigo G (05/11/2026): cada foto vem em "_pp", "_p" (webp e jpg) e "_g"; a pagina so poe as pequenas no HTML e as
+  // 4 fotos do produto viravam 9. A "_g.webp" e a grande e existe para toda foto.
+  if (/(^|\.)codigog\.com\.br$/.test(host)) {
+    const foto = /^\/fotos\/produto\/(?:webp\/)?(\d+)\/(.+)_(?:pp|p|g)\.(?:webp|jpe?g|png)$/i.exec(url.pathname);
+    if (foto) return `${url.origin}/fotos/produto/webp/${foto[1]}/${foto[2]}_g.webp`;
+  }
   if (host === "static.wixstatic.com" && url.pathname.startsWith("/media/")) {
     const original = /^(.*?~mv2\.[A-Za-z0-9]+)\/v1\//.exec(endereco);
     if (original) return original[1];
@@ -2170,9 +2178,15 @@ export function normalizarPagina({
   const simuladorWoo = precosDoSimuladorWoo(html);
   // VTEX: o preco de tabela e a foto grande so existem nos JSONs da pagina (ver vtex-pagina.js).
   const vtexPagina = dadosDaPaginaVtex(html);
+  // Codigo G (front proprio): o JSON-LD traz o preco do PIX; o normal e o de cartao do painel. Ver codigog.js.
+  const codigoG = dadosDaCodigoG(html, textoDoBlocoDeDescricao);
+  // Yampi (Engenharia FSI): fotos, preco de venda, pix, saldo e categoria no `window.data` da pagina. Ver yampi.js.
+  const yampi = dadosDaYampi(html);
 
   const declaradoNormal =
     (trayComRiscado ? trayPrecoVenda : null) ??
+    codigoG?.normal ??
+    yampi?.normal ??
     aspnet?.de ??
     vtexPagina?.normal ??
     simuladorWoo?.normal ??
@@ -2218,6 +2232,8 @@ export function normalizarPagina({
     robocore?.aVista ?? null,
     simuladorWoo?.aVista ?? null,
     vtexPagina?.aVista ?? null,
+    codigoG?.aVista ?? null,
+    yampi?.aVista ?? null,
   ].filter((n) => typeof n === "number");
 
   const prices = decidirPrecos({ declaradoNormal, candidatos });
@@ -2300,6 +2316,7 @@ export function normalizarPagina({
     aspnet?.disponibilidade ??
     micro?.disponibilidade ??
     bruto?.offers?.availability ??
+    yampi?.disponibilidade ??
     meta["product:availability"] ??
     meta.availability ??
     null;
@@ -2314,6 +2331,7 @@ export function normalizarPagina({
     comoNumero(bruto?.offers?.inventoryLevel?.value) ??
     comoNumero(bruto?.offers?.inventoryLevel) ??
     magazord?.quantidade ??
+    yampi?.quantidade ??
     // A RoboCore nunca declara inventoryLevel, e o "(92 un. em estoque)" so
     // existe dentro do JS que atualiza o painel por variante — nao no texto
     // visivel que quantidadeNoTexto varre.
@@ -2365,6 +2383,7 @@ export function normalizarPagina({
     : semRepetir([
         ...(doCatalogo?.imagens ?? []),
         ...(magazord?.imagens ?? []),
+        ...(yampi?.imagens ?? []),
         ...doMagento,
         ...estruturadas,
         ...doCarrosselNuvemshop,
@@ -2394,7 +2413,7 @@ export function normalizarPagina({
       : null;
   // MAGAZORD: a descricao do JSON da pagina (com um paragrafo por linha) vence o JSON-LD, que e o mesmo texto numa
   // linha so — por ser mais longo ou igual, ele ganhava, e a ficha "Dados Tecnicos" nao saia da descricao.
-  const description = descricaoDaRoboCore(html, url) ?? (blocoDaNuvemshop && blocoDaNuvemshop.length >= 20 ? blocoDaNuvemshop : null) ?? (magazord?.descricao && magazord.descricao.length >= 20 ? magazord.descricao : null) ?? melhorDescricao([
+  const description = descricaoDaRoboCore(html, url) ?? codigoG?.descricao ?? (blocoDaNuvemshop && blocoDaNuvemshop.length >= 20 ? blocoDaNuvemshop : null) ?? (magazord?.descricao && magazord.descricao.length >= 20 ? magazord.descricao : null) ?? melhorDescricao([
     aspnet?.descricao,
     estruturado?.descricao,
     micro?.descricao,
@@ -2496,6 +2515,7 @@ export function normalizarPagina({
     [caminhoDoJsonLd(html, name), "breadcrumb do JSON-LD"],
     [comoTexto(bruto?.category), "json-ld category"],
     [ficha?.categoria, "ficha tecnica da loja"],
+    [yampi?.categoria, "breadcrumb do JSON da Yampi"],
     [doDataLayer(html, code), "dataLayer de analytics"],
   );
 

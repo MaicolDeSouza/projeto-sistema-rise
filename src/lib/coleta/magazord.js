@@ -12,7 +12,8 @@
  */
 
 /** O objeto JSON que comeca em `inicio` (um "{"), lido respeitando strings e escapes; null se nao fechar. */
-function objetoJsonEm(texto, inicio) {
+// Exportada: o leitor da Yampi (yampi.js) le o `window.data` da pagina com a mesma regra.
+export function objetoJsonEm(texto, inicio) {
   let profundidade = 0;
   let emString = false;
   for (let i = inicio; i < texto.length; i++) {

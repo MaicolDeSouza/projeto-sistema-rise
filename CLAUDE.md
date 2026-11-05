@@ -1646,6 +1646,18 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   declaradas ("Tamanho") e a ficha dos parágrafos depois do título "Dados Técnicos" (`fichaDaDescricaoMagazord`, linha sem
   dois-pontos entra sem nome; a regra geral da descrição encerrava a ficha nela), e o estoque somando `estoque_depositos`.
   **A Proesi bloqueia a VPS (HTTP 403)**: cadastrar com "Cadastrar para varrer pelo PC".
+- **Código G (codigog.com.br, front próprio, 05/11/2026)**: `src/lib/coleta/codigog.js` (`dadosDaCodigoG`). O JSON-LD traz o
+  preço do **pix** como `price` (269,80 contra 284,00 no cartão) e a descrição cortada em 155 caracteres. O normal é o de cartão
+  (`data-amount` do botão `btn_carrinho` em centavos, ou o "ou R$..." de `sem_desconto`); o "Por R$..." de `price` antes de "à vista
+  no PIX" entra como à vista; "De R$..." (`old-price`) é o riscado e não vale. A descrição é o `produto-desc` sem o rótulo da aba e
+  sem o aviso "*Imagens meramente ilustrativas", e a ficha ("Dimensões da fresa", "Haste: 12mm") sai dela pela leitura sem título.
+  Esgotado não tem painel de preço (fica o preço do JSON-LD) mas tem a descrição. Fotos: cada uma vem em `_pp`, `_p` (webp e jpg) e
+  `_g`; `versaoGrande` leva todas para `/fotos/produto/webp/<id>/<nome>_g.webp` (4 fotos em vez de 9).
+- **Yampi (Engenharia FSI, 05/11/2026)**: `src/lib/coleta/yampi.js` (`dadosDaYampi`) lê o `window.data = {"product":{"data":...}}`
+  da página: todas as fotos (`images.data`), `price_sale` como normal (com promoção `price` é o riscado), `pix.price` como à vista,
+  o saldo somando `skus.data[].total_in_stock` e a situação por `stock_status`, e a categoria pelos `breadcrumbs`. O JSON-LD só tinha
+  nome, código, uma foto e o preço. Amostra de 15 produtos conferida (estoque com número, esgotados com 0). Produto com variações
+  ficaria como um só (nenhum na FSI).
 - **Nuvemshop (Oceantech, 09/10/2026): cada tamanho é um produto.** Leitor em `src/lib/coleta/nuvemshop.js`
   (`variantesDaNuvemshop`), ligado em `normalizarPagina`. A página tem só UM item no JSON-LD, que descreve a primeira
   variante sem nenhuma opção escolhida, e o resto está no JS `LS.variants` (uma linha por variante). No "Fuso com Castanha
