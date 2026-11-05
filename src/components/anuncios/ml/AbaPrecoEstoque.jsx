@@ -2,6 +2,7 @@
 
 import { MarcaDaPropostaNoCampo, SugestaoDaProposta } from "@/components/anuncios/PropostaDoAnuncio";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { ExternalLink, Search } from "lucide-react";
 
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
 import { custoDaComposicao } from "@/lib/canaisDeVenda/composicao";
@@ -233,6 +234,26 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
         {acessos.custos && <CustosDoML rascunho={rascunho} contexto={contexto} setContexto={setContexto} custo={custo} conta={conta} />}
       </div>
       </SecaoDoAnuncio>
+      {/* "Pesquisar concorrentes" (pedido do dono em 05/11/2026): abre a busca do ML em outra aba com o nome do produto base,
+          para ver o preco que os concorrentes praticam. A busca publica do ML pela API da 403; a pagina de lista abre normal. */}
+      {linkDaBuscaNoML(contexto.produtos?.[rascunho.produtoId]?.tituloBase) && (
+        <a
+          href={linkDaBuscaNoML(contexto.produtos[rascunho.produtoId].tituloBase)}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-1.5 text-sm text-acento hover:bg-fundo"
+        >
+          <Search size={14} />
+          Pesquisar concorrentes
+          <ExternalLink size={13} />
+        </a>
+      )}
     </div>
   );
+}
+
+/** A pagina de busca do ML para um nome: as palavras separadas por hifen, como o proprio site monta o endereco. */
+function linkDaBuscaNoML(nome) {
+  const termo = String(nome ?? "").trim().replace(/\s+/g, "-");
+  return termo ? `https://lista.mercadolivre.com.br/${encodeURIComponent(termo)}` : null;
 }
