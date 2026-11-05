@@ -5162,6 +5162,21 @@ plano `docs/superpowers/plans/2026-10-26-modulo-compras.md` (12 tarefas, inline)
   `mudarStatus` da tela (enviar exige preço em todos os itens). Ambas pedem `tela.compras.pedidos` editar, sem o lembrete
   de `anotarDuvida`. **Lançar estoque NÃO existe no MCP** (escreve no Bling real; só na tela).
 
+### Vincular Fortek e Nightech aos não conferidos (05/11/2026)
+
+Pedido do dono: uma página para marcar, produto a produto, os itens da Fortek e da Nightech, e eu gravar tudo no Rise
+depois (spec `docs/superpowers/specs/2026-11-05-vincular-fornecedores-fortek-nightech-design.md`). Dois scripts, que rodam
+na VPS pela entrada do `docker compose exec -T app node --input-type=module -` (comandos no cabeçalho de cada um):
+- `scripts/vincular-fornecedores-gerar.js` lê os `ativo` e não `conferido` e escreve `dados/vincular-fornecedores/index.html`
+  + `fotos/` (sharp, 120 px). Candidatos: vínculo existente (travado), o código do rascunho do Bling quando existe na fonte
+  (marcado; "Benser" conta como Fortek; `02-268-A` acha o `02-268`), os parecidos pela regra da lupa (até 4 por fonte) e,
+  sem nenhum, até 2 "parecidos fracos" (30% do peso). Só lê o banco. Na VPS, 05/11/2026: 1.251 não conferidos, 858 com
+  candidato, 393 sem, em 19 s.
+- A página guarda as marcas no `localStorage` e salva `vinculos-fortek-nightech.json`; `scripts/vincular-fornecedores-aplicar.js`
+  (sem `--confirmo` só lista) chama `marcarReferencias` por produto: nunca padrão, custo não muda, nada vai ao Bling/LI/ML.
+- Teste puro: `node scripts/teste-vincular-fornecedores.js`. **Armadilha vista na tela:** `display:grid` vence o atributo
+  `hidden`; a página precisa de `[hidden]{display:none!important}` para o filtro esconder a linha.
+
 ## AliExpress no Compras (28/10/2026)
 
 Pedido do dono: "vincular o AliExpress via API para pegar minhas compras". A API oficial não lista os pedidos do comprador
