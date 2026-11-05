@@ -76,6 +76,23 @@ export default async function FontesPage({ searchParams }) {
 
   const varreduraPorFonte = situacaoNaFila(jobsAbertos);
 
+  // O cadastro (Cadastros) por tras de cada fonte, para o nome da linha abrir o formulario dele numa aba nova
+  // (pedido do dono em 05/11/2026). Fonte sem cadastro (anterior a 18/09/2026) fica sem link.
+  const cadastroPorFonte = new Map();
+  if (fontes?.length) {
+    const ids = fontes.map((fonte) => fonte.id);
+    try {
+      const [fornecedores, concorrentes] = await Promise.all([
+        prisma.fornecedor.findMany({ where: { fonteId: { in: ids } }, select: { id: true, fonteId: true } }),
+        prisma.concorrente.findMany({ where: { fonteId: { in: ids } }, select: { id: true, fonteId: true } }),
+      ]);
+      for (const item of fornecedores) cadastroPorFonte.set(item.fonteId, `/cadastros/fornecedores/${item.id}`);
+      for (const item of concorrentes) cadastroPorFonte.set(item.fonteId, `/cadastros/concorrentes/${item.id}`);
+    } catch {
+      // Sem o link a tela continua inteira.
+    }
+  }
+
   // PEDIDO PELO PC SEM RESPOSTA (11/10/2026): o Rise do PC deixa um sinal na VPS a cada 15 s. Fonte do PC com pedido
   // esperando ha mais de 3 min e sem sinal do PC nesse tempo mostra o erro na linha.
   let sinalDoPc = null;
@@ -109,6 +126,7 @@ export default async function FontesPage({ searchParams }) {
     ativa: fonte.ativa,
     varridaNoPc: fonte.varridaNoPc,
     robotsPermite: fonte.robotsPermite,
+    cadastroHref: cadastroPorFonte.get(fonte.id) ?? null,
     // Do produto coletado mais recente que reconheceu uma (ver
     // plataformasPorFonte): fonte sem produto ainda, ou cuja plataforma nao foi
     // catalogada, fica sem esta informacao — nunca um palpite.

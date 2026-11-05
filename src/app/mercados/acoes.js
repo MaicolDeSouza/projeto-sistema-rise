@@ -980,7 +980,10 @@ export async function enviarArquivosDaFonte(fonteId, dados) {
 
   await prisma.fonteColeta.update({
     where: { id: fonte.id },
-    data: { listaArquivos, listaEnviadaEm },
+    // A lista enviada e reprocessada sem visitar o site (a mesma regra do cadastro em `salvarFonte`): a fonte
+    // cadastrada sem arquivo nascia com `robotsPermite` falso e, mesmo depois de receber a lista, "Varrer agora" e
+    // "Retomar" ficavam travados com "robots.txt bloqueia" (NexMind, 05/11/2026).
+    data: { listaArquivos, listaEnviadaEm, robotsPermite: true },
   });
 
   revalidatePath("/mercados/fontes");

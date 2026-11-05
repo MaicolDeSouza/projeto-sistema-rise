@@ -210,7 +210,20 @@ export default function LinhaFonte({ fonte, mostrarLista = false, noPc = false, 
                 Fornecedores so gasta largura.
               */}
               <p className="flex items-center gap-1 font-medium">
-                {fonte.nome}
+                {/* O nome abre o cadastro da empresa (Cadastros) numa aba nova (pedido do dono em 05/11/2026). */}
+                {fonte.cadastroHref ? (
+                  <a
+                    href={fonte.cadastroHref}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="hover:text-acento hover:underline"
+                    title={`Abrir o cadastro de ${fonte.nome} em outra aba`}
+                  >
+                    {fonte.nome}
+                  </a>
+                ) : (
+                  fonte.nome
+                )}
                 {/*
                   Plataforma da loja (Tray, Loja Integrada...), do produto
                   coletado mais recente que a reconheceu (plataformasPorFonte em
