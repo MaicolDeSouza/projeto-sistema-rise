@@ -424,6 +424,25 @@ export async function colherProdutos({
   // Encontrados nesta passada mais os retomados de antes da queda.
   const achados = () => encontrados.length + retomados;
 
+  /*
+    PAGINAS QUE NAO ABRIRAM (05/11/2026). A colheita jogava fora o `erro` de cada `tentarUrl`, e um site que
+    responde 429/503 ou corta a conexao aparecia na tela como "0 valido(s) em 25 pagina(s)" com o motivo "o site nao
+    publica JSON-LD, Microdata nem OpenGraph" — culpa do site, quando a verdade e que nenhuma pagina chegou. O dono
+    viu isso na CNC Fresas e concluiu que a extracao tinha quebrado. Aqui cada falha e contada pelo motivo, e o passo
+    e a mensagem de falha dizem o que houve.
+  */
+  const falhas = new Map();
+  const anotarFalha = (erro) => {
+    if (!erro) return;
+    falhas.set(erro, (falhas.get(erro) ?? 0) + 1);
+  };
+  const totalDeFalhas = () => [...falhas.values()].reduce((soma, n) => soma + n, 0);
+  const resumoDasFalhas = () =>
+    [...falhas.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([erro, n]) => `${erro} (${n}×)`)
+      .join(", ");
+
   const guardar = (novos, formatosDaPagina) => {
     for (const produto of novos) {
       // A mesma chave do BANCO (`chaveDoProduto`: codigo, senao endereco, senao
@@ -570,6 +589,7 @@ export async function colherProdutos({
       sinal,
     );
     visitas++;
+    anotarFalha(tentativa.erro);
     guardar(tentativa.produtos, tentativa.formatos);
 
     // A pagina nao traz dado de produto (Kalatec: os 36 itens desativados/esgotados da Tray vem sem dataLayer nem
@@ -719,6 +739,7 @@ export async function colherProdutos({
     const antes = encontrados.length;
     const tentativa = await tentarUrl(candidata, fonte, plataforma, null, memoriaPagamento, sinal);
     visitas++;
+    anotarFalha(tentativa.erro);
     guardar(tentativa.produtos, tentativa.formatos);
     if (encontrados.length > antes) produtosDoSitemap++;
 
@@ -819,6 +840,7 @@ export async function colherProdutos({
     // Somando dentro do aoAchar, o numero era o de acertos, nao o de visitas —
     // e e o de visitas que diz se a fonte e cara de varrer.
     visitas += varredura.visitadas;
+    for (const [erro, n] of varredura.falhas ?? []) falhas.set(erro, (falhas.get(erro) ?? 0) + n);
 
     // Parou pelo freio de secura: e resultado, nao defeito, e a tela precisa
     // dizer isso — senao "2.030 de 2.033" parece varredura incompleta por erro.
@@ -841,7 +863,8 @@ export async function colherProdutos({
     passo(
       "Produtos encontrados",
       encontrados.length > 0,
-      `${encontrados.length} válido(s) em ${visitas} página(s) abertas`,
+      `${encontrados.length} válido(s) em ${visitas} página(s) abertas` +
+        (totalDeFalhas() > 0 ? ` — ${totalDeFalhas()} não abriram: ${resumoDasFalhas()}` : ""),
     ),
   );
 
@@ -876,7 +899,12 @@ export async function colherProdutos({
     motivo:
       achados() > 0
         ? null
-        : "Não foram encontrados produtos válidos. O site não publica JSON-LD, Microdata nem OpenGraph de produto nas páginas que abrimos." +
+        : // A maioria das paginas nao chegou (a home abre, as de produto levam 429): o problema e de acesso, nao de
+          // formato. Dizer "nao publica JSON-LD" aqui mandaria o operador procurar defeito na extracao.
+          totalDeFalhas() > 0 && totalDeFalhas() * 2 >= visitas
+          ? `${totalDeFalhas()} das ${visitas} página(s) não abriram: ${resumoDasFalhas()}. O site está recusando ou limitando o acesso neste momento; espere alguns minutos e clique em Buscar dados de novo.`
+          : "Não foram encontrados produtos válidos. O site não publica JSON-LD, Microdata nem OpenGraph de produto nas páginas que abrimos." +
+          (totalDeFalhas() > 0 ? ` ${totalDeFalhas()} de ${visitas} página(s) nem abriram (${resumoDasFalhas()}).` : "") +
           (plataforma.id === "desconhecida"
             ? ""
             : ` A loja roda em ${plataforma.nome}: ${plataforma.entrega.resumo}`) +

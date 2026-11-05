@@ -237,6 +237,9 @@ export async function rastrear({
 
   let visitadas = 0;
   let produtos = 0;
+  // Pagina que nao abriu, contada pelo motivo (HTTP 429, conexao cortada...). A colheita junta com as
+  // dela para a tela dizer "N nao abriram" em vez de "o site nao publica JSON-LD" (05/11/2026).
+  const falhas = new Map();
   // Paginas abertas desde o ultimo produto NOVO. Retomado nao zera: ele nao
   // custou visita e nao prova que ainda ha o que achar por aqui.
   let semAchado = 0;
@@ -276,7 +279,11 @@ export async function rastrear({
       continue;
     }
 
-    if (!resposta.ok || !resposta.corpo) continue;
+    if (!resposta.ok || !resposta.corpo) {
+      const motivo = resposta.erro ?? (resposta.status ? `HTTP ${resposta.status}` : "sem resposta");
+      falhas.set(motivo, (falhas.get(motivo) ?? 0) + 1);
+      continue;
+    }
 
     const dados = extrairProduto(resposta.corpo, resposta.urlFinal ?? url);
 
@@ -321,6 +328,7 @@ export async function rastrear({
     // Parou pelo freio de secura, e nao por acabar o site ou o orcamento.
     secou,
     semAchado,
+    falhas,
     urls: urlsDeProduto,
     // Sobrou fila: o orcamento acabou antes do site. A tela precisa saber para
     // nao dar o numero como total do catalogo.

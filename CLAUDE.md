@@ -1669,6 +1669,14 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   sitemap da Código G lista 285 delas antes do 1º `item-…htm` (`listagemComPrefixo` em `descobrir.js`; agora são listagem);
   (3) o produto guarda o endereço FINAL (a Código G redireciona `https://…/item-Fresa…` para `http://…/item-fresa…`) e o
   "já mostrado" não casava com o do sitemap: o `evitar` compara também sem esquema e sem caixa (`chaveSolta`, só no teste).
+  **O "0 em 25 páginas" da CNC Fresas depois da correção era tela velha** (sem F5): o log do servidor mostrou que só as duas
+  primeiras chamadas levaram 59 s (25 páginas × 2 s) e todas as seguintes 14–19 s (4 páginas, 3 válidos).
+- **Página que não abre agora é contada e nomeada (05/11/2026):** a colheita jogava fora o `erro` de cada `tentarUrl` e do
+  `rastrear`, e um site que responde 429/503 ou corta a conexão aparecia como "0 válido(s) em N página(s)" com o motivo "o
+  site não publica JSON-LD" — culpa do site quando nenhuma página chegou. `falhas` (por motivo) em `colher.js`, somando as do
+  `rastrear` (campo novo `falhas` no retorno); o passo "Produtos encontrados" ganha "— N não abriram: HTTP 429 (6×)" e, quando
+  metade ou mais das páginas falhou e nada foi achado, o motivo diz que o site está recusando ou limitando o acesso e
+  para tentar em alguns minutos. Conferido com uma loja falsa em 127.0.0.1 que devolve 429 nas páginas de produto.
 - **Yampi (Engenharia FSI, 05/11/2026)**: `src/lib/coleta/yampi.js` (`dadosDaYampi`) lê o `window.data = {"product":{"data":...}}`
   da página: todas as fotos (`images.data`), `price_sale` como normal (com promoção `price` é o riscado), `pix.price` como à vista,
   o saldo somando `skus.data[].total_in_stock` e a situação por `stock_status`, e a categoria pelos `breadcrumbs`. O JSON-LD só tinha
