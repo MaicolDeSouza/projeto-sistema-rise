@@ -183,9 +183,13 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
           }} formatar={(valor) => MOEDA_DA_PROPOSTA.format(Number(valor))} />
           {contexto.proposta?.preco?.valor != null && (
             <p className="mt-1 text-[11px] text-amber-800">
-              {/* Proposta gravada antes de 24/10/2026 tem a margem (sobre o preco), a nova tem o markup. */}
-              Proposta: {contexto.proposta.preco.markup ?? contexto.proposta.preco.margem}% de{" "}
-              {contexto.proposta.preco.markup != null ? "markup" : "margem"}, {contexto.proposta.preco.posicao}º de {contexto.proposta.preco.total} no ranking da proposta.
+              {/* Desde 05/11/2026 a proposta mira o lucro da loja (pedido do dono) e guarda os dois lucros; a gravada antes tem o
+                  markup (de 24/10/2026) ou a margem sobre o preco (antes disso). */}
+              Proposta:{" "}
+              {contexto.proposta.preco.lucroNaLoja != null
+                ? `lucro de ${MOEDA.format(contexto.proposta.preco.lucro)} (na loja ${MOEDA.format(contexto.proposta.preco.lucroNaLoja)})`
+                : `${contexto.proposta.preco.markup ?? contexto.proposta.preco.margem}% de ${contexto.proposta.preco.markup != null ? "markup" : "margem"}`}
+              , {contexto.proposta.preco.posicao}º de {contexto.proposta.preco.total} no ranking da proposta.
             </p>
           )}
           <MensagensDoCampo problemas={problemas} campo="preco" />

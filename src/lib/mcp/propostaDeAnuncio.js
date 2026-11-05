@@ -95,7 +95,7 @@ const GRAVAR_PROPOSTA_ML = {
   descricao: [
     "Grava a proposta do anúncio do Mercado Livre no rascunho do Rise (sempre um Clássico): categoria folha, ficha (atributos), até 10 catálogos do mesmo produto e, sem catálogo, até 5 links com preço. O título do anúncio é o nome do produto base e o Rise o põe sozinho: só o produto com composição (kit) e o kit no ML aceitam o título que você mandar.",
     "Kit no ML: com quantidade N o anúncio é o do próprio produto com o Kit de N ligado (código {sku}_{N}, estoque do produto base, custo, peso e medidas das N unidades); nenhum produto novo no Rise.",
-    "O Rise lê o 1º de cada catálogo, descarta os de menos de 5 anúncios e CALCULA O PREÇO (no mínimo 40% de markup, lucro sobre o total dos custos com as taxas do ML, e o top 5). Nada é publicado e nada entra no ranking: o dono revisa, adiciona os catálogos e publica. Gravar de novo substitui a proposta.",
+    "O Rise lê o 1º de cada catálogo, descarta os de menos de 5 anúncios e CALCULA O PREÇO (o que deixa no ML, com as taxas dele e o imposto, o mesmo lucro em R$ que o produto dá na loja; sem regra de %, e o ranking só dá a posição). Nada é publicado e nada entra no ranking: o dono revisa, adiciona os catálogos e publica. Gravar de novo substitui a proposta.",
   ].join(" "),
   esquema: z.object({
     sku: SKU,

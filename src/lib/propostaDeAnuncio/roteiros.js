@@ -17,8 +17,9 @@
 // produto nao tem, e o Microcontrolador e o chip ou, sem ele, o Processador/CPU da descricao (pedidos do dono). "7" em
 // 25/10/2026: o Publicar exige a ficha inteira preenchida (pedido do dono), e o roteiro diz isso a LLM. "8" em 28/10/2026: o
 // kit no ML ("anuncio com 10 pecas do 900211"), montado no editor e ligado ao produto base, nunca um produto novo, com o titulo
-// "10x ..." (pedidos do dono).
-export const VERSAO_ROTEIRO_ML = "8";
+// "10x ..." (pedidos do dono). "9" em 05/11/2026: o preco sai do lucro na loja (o mesmo lucro em R$ no ML), sem regra de %,
+// e o ranking so da a posicao (pedido do dono).
+export const VERSAO_ROTEIRO_ML = "9";
 
 export const ROTEIRO_ML = `ROTEIRO DA PROPOSTA DE ANÚNCIO DO MERCADO LIVRE (Rise / 4hobby), versão ${VERSAO_ROTEIRO_ML}
 
@@ -64,14 +65,15 @@ KIT NO ML: quando o dono pede o anúncio em kit ("anúncio com 10 peças", "kit 
    - CATÁLOGOS: até 10 do MESMO produto (não de um parecido), cada um com 5 ou mais anúncios. Use os candidatos da
      leitura; o Rise descarta os de menos de 5. Menos de 5 catálogos, tudo bem.
    - SEM NENHUM CATÁLOGO do mesmo produto: pesquise no navegador e ache 5 anúncios do MESMO produto no Mercado Livre;
-     mande url, título e preço de cada um em linksSemCatalogo. Esses links não são salvos no Rise: só entram na conta
-     do preço e no relatório.
+     mande url, título e preço de cada um em linksSemCatalogo. Esses links não são salvos no Rise: só entram na posição
+     do ranking e no relatório.
 4. gravarPropostaML(sku, categoriaId, atributos, catalogos, linksSemCatalogo, relatorio), com titulo só no kit e
    quantidade só no kit no ML. O
    relatório em tópicos curtos: por que a categoria, de onde veio cada valor da ficha, por que cada catálogo é o mesmo
    produto. Se voltar erro, corrija e grave de novo.
-5. Mostre à pessoa o que o Rise devolveu: o título usado, o preço, o markup (lucro sobre o total dos custos: fornecedor, comissão e
-   frete do ML e imposto; o mínimo é 30% e o desejado, 40%: abaixo de 40% vem um aviso), a posição no ranking, os
-   catálogos aceitos e os avisos.
+5. Mostre à pessoa o que o Rise devolveu: o título usado, o preço, o lucro no ML ao lado do lucro na loja (o Rise
+   calcula o preço do ML para deixar o MESMO lucro em R$ que o produto dá na loja, depois da comissão, do frete do ML e
+   do imposto; não há regra de %), a posição no ranking (só informa: fora dos 5 primeiros vem um aviso), os catálogos
+   aceitos e os avisos.
    Diga que o dono revisa no editor do Mercado Livre, adiciona os catálogos ao ranking se quiser, e publica (o "P" no
    ícone some no Publicar).`;

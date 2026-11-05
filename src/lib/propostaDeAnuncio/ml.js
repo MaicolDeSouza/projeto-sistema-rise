@@ -63,6 +63,16 @@ function custoDoAnuncio(produto, kit) {
   return kit ? custoDaComposicao(kit.itens, { [produto.id]: unitario }).valor : unitario;
 }
 
+/**
+ * O preco das mesmas unidades na loja (o preco de venda do produto; no kit no ML, N vezes ele), de onde sai o lucro que o
+ * preco do ML tem de repetir (pedido do dono em 05/11/2026). `null` sem preco de venda.
+ */
+function precoNaLojaDoAnuncio(produto, kit) {
+  const unitario = Number(produto.precoVenda);
+  if (!(unitario > 0)) return null;
+  return kit ? unitario * kit.itens[0].quantidade : unitario;
+}
+
 const meuVendedor = async (cliente) => (typeof cliente.usuarioId === "function" ? cliente.usuarioId().catch(() => null) : null);
 const doCatalogo = (catalogo) => ({ id: catalogo.id, nome: catalogo.nome, total: catalogo.total, primeiro: catalogo.primeiro ? { preco: catalogo.primeiro.preco, meu: Boolean(catalogo.primeiro.meu) } : null });
 
@@ -237,7 +247,7 @@ export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, quan
   for (const [id, valor] of Object.entries(ficha)) propostos[`atributos.${id}`] = valor;
   const primeira = aplicarProposta(base, propostos, opcoes);
 
-  const preco = await precoDaPropostaML(cliente, { ...primeira.rascunho, tipoAnuncio: CLASSICO }, { custo: custoDoAnuncio(produto, kit), precos: precosDoRanking });
+  const preco = await precoDaPropostaML(cliente, { ...primeira.rascunho, tipoAnuncio: CLASSICO }, { custo: custoDoAnuncio(produto, kit), precoNaLoja: precoNaLojaDoAnuncio(produto, kit), precos: precosDoRanking });
   avisos.push(...preco.avisos);
   const segunda = preco.valor === null ? { rascunho: primeira.rascunho, campos: [], sugestoes: {}, valores: {} } : aplicarProposta(primeira.rascunho, { preco: preco.valor }, opcoes);
 
@@ -262,7 +272,7 @@ export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, quan
       avisos,
       catalogosSugeridos: aceitos,
       links,
-      preco: { valor: preco.valor, markup: preco.markup, posicao: preco.posicao, total: preco.total, piso: preco.piso, teto: preco.teto },
+      preco: { valor: preco.valor, lucro: preco.lucro, lucroNaLoja: preco.lucroNaLoja, precoNaLoja: preco.precoNaLoja, markup: preco.markup, posicao: preco.posicao, total: preco.total, teto: preco.teto },
     },
   });
   await gravarProposta(salvo.id, proposta);

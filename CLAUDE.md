@@ -70,8 +70,9 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
   frete + imposto, o "Total dos custos" da tela; dono: "quero que o custo total entre na conta"), em
   `custosDoAnuncio().markup`; o modo "percentual" do `precoPorMargem` resolve `P = (1+m)·fixos ÷ (1 − (1+m)·(comissão% +
   imposto%))` (custo R$ 80,48 + frete R$ 19,05 com 13% de comissão e 40% dá R$ 189,85). Proposta de produto: opções de 60,
-  80 e 100%, piso de 30% e aviso abaixo de 60% (25/10/2026); proposta do ML: piso de 30% com as taxas, desejado 40% (25/10/2026,
-  eram 40% de piso e antes 30% de margem). Propostas gravadas antes guardaram `margem` e
+  80 e 100%, piso de 30% e aviso abaixo de 60% (25/10/2026); proposta do ML: **desde 05/11/2026 sem %**, o preço que deixa no
+  ML o mesmo lucro em R$ da loja (ver "Preço do ML" na proposta de anúncio; de 25/10 a 05/11/2026 era piso de 30% com as
+  taxas e desejado 40%, antes 40% de piso e antes 30% de margem). Propostas gravadas antes guardaram `margem` e
   aparecem como margem. Os nomes antigos (`calcularMargem`, `CalculadoraDeMargem`, `dado.margem`) ficaram; tela nova
   mostra markup. **As seções abaixo que falam de "margem" de 30% ou 60% descrevem o que valia antes.**
 
@@ -342,7 +343,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 952 asserções do anúncio do Mercado Livre (com a proposta do ML e o kit no ML): composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 973 asserções do anúncio do Mercado Livre (com a proposta do ML e o kit no ML): composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # 420 asserções da sincronização Rise -> Loja Integrada (com o cadastro automático, o estoque acertado pelo Bling no Sincronizar e as categorias e o SEO que vêm do produto): slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio, ícone e as etapas do Cadastrar (LI falsa e Bling de mentira, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
@@ -6688,13 +6689,18 @@ com o roteiro v2** (título inventado no rascunho do ML): refazer a proposta do 
   links com preço, guardados só em `dados.proposta.links`. **Nada entra em `CatalogoReferenciaML`**: o editor mostra
   "Sugeridos pela proposta" no ranking com Adicionar. Atualiza o Clássico ainda não publicado; nunca mexe no publicado.
   `sugerirCategoria` roda com uma IA vazia (nunca a paga).
-- **Preço do ML** (`precoDaPropostaML`): piso = 30% de MARKUP sobre o custo total com as taxas relidas no preço (25/10/2026, pedido do
-  dono: "no ML o mínimo é 30%, se possível manter 40%"; era 40% de piso, e antes 30% de margem; arredondado para cima aos 5 centavos e
-  conferido de novo, porque pode cruzar R$ 79); teto = o 5º menor preço do ranking (menos de 5, o maior); valor = o maior de 5 em 5
-  centavos R$ 0,10 abaixo do teto com pelo menos 30%; se esse candidato fica abaixo de 40% e cruza R$ 79 (o frete grátis come o lucro),
-  vale o de R$ 78,95 quando rende mais; piso acima do teto = o piso com o aviso "fica em Nº de M". Os 40% (`MARKUP_DESEJADO`) são só
-  AVISO ("abaixo dos 40% desejados"); **sem concorrente mira os 40%**. A Usinainfo NÃO entra no ML (preço de site; lá vale o ranking do
-  catálogo). Roteiro do ML v5. Sem custo, sem preço. **Só vale na VPS depois do deploy.**
+- **Preço do ML** (`precoDaPropostaML`), **regra desde 05/11/2026** (pedido do dono ao ver o MQ-4 100253 a R$ 27,50 no ML com R$ 6,34
+  de lucro contra R$ 4,93 na loja a R$ 14,90: "o valor de venda deve respeitar para que o lucro no ML seja similar ao lucro na LI, não
+  olhar mais para regra de % no ML"): o preço é o que deixa no ML, com as taxas relidas no próprio preço (comissão, tarifa, frete do
+  vendedor e imposto de 6%), **o mesmo lucro em R$ que o produto dá na loja** (`lucroLiquido(precoVenda, custo)`, a conta do "Preço na
+  loja (Lucro = ...)" do editor), arredondado para cima aos 5 centavos e conferido de novo (pode cruzar R$ 79 e ligar o frete grátis; aí
+  refaz com ele). A procura começa no preço da loja, então acha a solução mais barata (abaixo de R$ 79 quando existe). No kit no ML o
+  preço da loja é o das N unidades e o custo o das N (o lucro de vender as N na loja; `precoNaLojaDoAnuncio` em `ml.js`). **Sem regra de
+  %** e **o ranking só informa a posição**: fora dos 5 primeiros vem o aviso "fica em Nº de M"; concorrente mais caro não sobe o preço
+  (o lucro passaria o da loja). Sem custo, sem preço de venda ou com a loja sem lucro: sem preço, com aviso. A proposta guarda `lucro`,
+  `lucroNaLoja` e `precoNaLoja`, e o editor mostra "Proposta: lucro de R$ x (na loja R$ y), Nº de M". Roteiro do ML v9. **De 25/10 a
+  05/11/2026** valia: piso de 30% de markup, teto R$ 0,10 abaixo do 5º do ranking, 40% desejado (só aviso) e mirado sem concorrente.
+  A Usinainfo NÃO entra no ML (preço de site). **Só vale na VPS depois do deploy.**
 - **Kit no ML (28/10/2026, roteiro do ML v8):** pedido do dono: "crie um anúncio no ML com 10 peças do 900211, não quero que você
   crie kit no Rise, apenas no ML vinculando o kit ao produto base para controle de estoque". `lerParaPropostaML` e `gravarPropostaML`
   aceitam `quantidade` N (2 a 9999, a regra de `errosDaComposicao`): o Clássico é o do PRÓPRIO produto com a composição do anúncio

@@ -2764,32 +2764,42 @@ try {
     const rascunho = { categoriaId: "MLB99779", tipoAnuncio: "gold_special", envio: { alturaCm: 5, larguraCm: 8, comprimentoCm: 8, pesoKg: 0.05, logistica: "xd_drop_off", freteGratis: false } };
     const multiplo5 = (valor) => Math.round(valor * 100) % 5 === 0;
 
-    const top5 = await precoDaPropostaML(ml, rascunho, { custo: 20, precos: [45, 48, 50, 52, 55, 70] });
-    // R$ 0,10 abaixo do teto (pedido do dono em 24/10/2026): o 5º preco e 55, o anuncio vai a 54,90 e fica em 5º sem empatar.
-    // Piso = 40% de markup sobre o custo total (24/10/2026): 1,4 * (20 + 6,85) / (1 - 1,4 * 0,18) = 50,25..., vai a 50,30.
-    conferir("no top 5: R$ 0,10 abaixo do teto, com 40% ou mais de markup, em 5º", [top5.valor, top5.markup >= 40, top5.posicao, top5.total, top5.teto, top5.avisos], [54.9, true, 5, 7, 55, []]);
+    // O lucro da loja (pedido do dono em 05/11/2026: "o lucro no ML seja similar ao lucro na LI, nao olhar mais para regra de %"):
+    // a R$ 35 com custo 20 a loja deixa 35 * 0,94 - 20 = R$ 12,90. No ML (12% + 6% de imposto, frete 6,85 abaixo de R$ 79):
+    // (20 + 6,85 + 12,90) / 0,82 = 48,48, vai a 48,50 e deixa R$ 12,92.
+    const top5 = await precoDaPropostaML(ml, rascunho, { custo: 20, precoNaLoja: 35, precos: [45, 48, 50, 52, 55, 70] });
+    conferir("o preço do lucro da loja, de 5 em 5 centavos para cima, e a posição só informada",
+      [top5.valor, top5.lucroNaLoja, top5.lucro, top5.precoNaLoja, top5.posicao, top5.total, top5.teto, top5.avisos], [48.5, 12.9, 12.92, 35, 3, 7, 55, []]);
 
-    // Piso de 30% (pedido do dono em 25/10/2026: "o minimo e 30%, se possivel manter 40%"): 1,3 * 26,85 / 0,766 = 45,57, vai a 45,60.
-    const caro = await precoDaPropostaML(ml, rascunho, { custo: 20, precos: [30, 31, 32, 33, 34] });
-    conferir("30% fora do top 5: fica no piso e avisa a posição e o markup abaixo do desejado",
-      [caro.valor, caro.valor === caro.piso, caro.markup >= 30 && caro.markup < 40, caro.avisos.some((aviso) => /fica em 6º de 6/.test(aviso)), caro.avisos.some((aviso) => /abaixo dos 40% desejados/.test(aviso))], [45.6, true, true, true, true]);
+    // O ranking nao decide mais: concorrente mais barato nao derruba o preco (so avisa), e o mais caro nao o sobe (o lucro
+    // ficaria maior que o da loja, que e o que o dono recusou no MQ-4 100253).
+    const caro = await precoDaPropostaML(ml, rascunho, { custo: 20, precoNaLoja: 35, precos: [30, 31, 32, 33, 34] });
+    conferir("concorrentes mais baratos: o mesmo preço, e avisa que fica fora dos 5 primeiros",
+      [caro.valor, caro.avisos.some((aviso) => /fica em 6º de 6/.test(aviso)), caro.avisos.some((aviso) => /%/.test(aviso))], [48.5, true, false]);
+    const barato = await precoDaPropostaML(ml, rascunho, { custo: 20, precoNaLoja: 35, precos: [80, 90, 100, 110, 120] });
+    conferir("concorrentes mais caros: o preço não sobe até eles", [barato.valor, barato.posicao, barato.avisos], [48.5, 1, []]);
 
-    // Entre o piso e o desejado, dentro do top 5: o 5º preco e 49, o anuncio vai a 48,90 e fica com ~37% (entre 30 e 40): mantem o preco e avisa.
-    const meio = await precoDaPropostaML(ml, rascunho, { custo: 20, precos: [40, 42, 45, 47, 49, 60] });
-    conferir("entre 30% e 40% no top 5: mantém o preço do top 5 e avisa o desejado", [meio.valor, meio.markup >= 30 && meio.markup < 40, meio.posicao, meio.avisos.some((aviso) => /abaixo dos 40% desejados/.test(aviso))], [48.9, true, 5, true]);
+    // Acima de R$ 79 o frete gratis obrigatorio (12,95): custo 40 e loja a R$ 70 (lucro R$ 25,80). Com o frete de 6,85 o preco
+    // passaria de 79, entao vale o do frete gratis: (40 + 12,95 + 25,80) / 0,82 = 96,04, vai a 96,05.
+    const acima = await precoDaPropostaML(ml, rascunho, { custo: 40, precoNaLoja: 70, precos: [] });
+    conferir("acima de R$ 79: com o frete grátis na conta", [acima.valor, acima.lucro >= acima.lucroNaLoja, acima.lucroNaLoja], [96.05, true, 25.8]);
 
-    // Custo 32: a R$ 79,90 (frete gratis, 12,95) o markup cai a ~35%; a R$ 78,95 (frete 6,85) fica em ~49%.
-    const virada = await precoDaPropostaML(ml, rascunho, { custo: 32, precos: [60, 70, 75, 78, 80, 90] });
-    conferir("cruzar R$ 79 perde markup pelo frete: fica abaixo de 79", [virada.valor, virada.markup >= 40], [78.95, true]);
+    // Arredondar cruza R$ 79: custo 30 e loja a R$ 61,60 (lucro R$ 27,90) dao 78,97, que sobe a 79,00 e liga o frete gratis.
+    // Refaz com ele: (30 + 12,95 + 27,90) / 0,82 = 86,41, vai a 86,45 (a R$ 78,95 o lucro seria R$ 27,89, um centavo a menos).
+    const virada = await precoDaPropostaML(ml, rascunho, { custo: 30, precoNaLoja: 61.6, precos: [] });
+    conferir("arredondar cruza R$ 79: refaz com o frete grátis", [virada.valor, virada.lucro >= virada.lucroNaLoja], [86.45, true]);
 
-    const semCusto = await precoDaPropostaML(ml, rascunho, { custo: null, precos: [45] });
+    const semCusto = await precoDaPropostaML(ml, rascunho, { custo: null, precoNaLoja: 35, precos: [45] });
     conferir("sem custo: sem preço e avisa", [semCusto.valor, semCusto.avisos.some((aviso) => /custo/.test(aviso))], [null, true]);
+    const semLoja = await precoDaPropostaML(ml, rascunho, { custo: 20, precoNaLoja: null, precos: [45] });
+    conferir("sem preço na loja: sem preço e avisa", [semLoja.valor, semLoja.avisos.some((aviso) => /preço de venda do produto/.test(aviso))], [null, true]);
+    const semLucro = await precoDaPropostaML(ml, rascunho, { custo: 20, precoNaLoja: 20, precos: [] });
+    conferir("loja sem lucro: sem preço e avisa", [semLucro.valor, semLucro.lucroNaLoja, semLucro.avisos.some((aviso) => /não dá lucro/.test(aviso))], [null, -1.2, true]);
 
-    const sozinho = await precoDaPropostaML(ml, rascunho, { custo: 20, precos: [] });
-    // Sem teto nao ha o que ficar abaixo: mira o desejado (40% = 50,30), com o piso de 30% (45,60) guardado.
-    conferir("sem concorrente: mira os 40% e avisa", [sozinho.valor, sozinho.piso, sozinho.avisos.some((aviso) => /sem concorrente/.test(aviso)), sozinho.markup >= 40], [50.3, 45.6, true, true]);
+    const sozinho = await precoDaPropostaML(ml, rascunho, { custo: 20, precoNaLoja: 35, precos: [] });
+    conferir("sem concorrente: o mesmo preço, sem aviso", [sozinho.valor, sozinho.teto, sozinho.avisos], [48.5, null, []]);
 
-    conferir("todo preço de 5 em 5 centavos", [top5, caro, virada, sozinho].every((resultado) => multiplo5(resultado.valor)), true);
+    conferir("todo preço de 5 em 5 centavos", [top5, caro, acima, virada, sozinho].every((resultado) => multiplo5(resultado.valor)), true);
   }
 
   // -------------------------------------------------------------------------
@@ -2878,9 +2888,10 @@ try {
     conferir(
       "gravar: Clássico com categoria, título, ficha e preço",
       [anuncio.status, anuncio.dados.tipoAnuncio, anuncio.categoriaExternaId, anuncio.titulo, anuncio.atributos.BRAND, anuncio.dados.preco, gravada.preco.valor],
-      // R$ 0,10 abaixo do 5º preco do ranking (R$ 60; regra do dono de 24/10/2026). O titulo e o do produto base, e o que a
-      // LLM mandou ("Placa Uno R3 CH340 compatível") e ignorado e avisado (regra do dono de 24/10/2026).
-      ["RASCUNHO", "gold_special", "MLB99779", "PLACA UNO R3 CH340 ZZ", "ARDUINO", 59.9, 59.9],
+      // O lucro da loja (R$ 49 com custo 20: R$ 26,06; regra do dono de 05/11/2026) com 13% de comissao e frete de 6,85:
+      // (20 + 6,85 + 26,06) / 0,81 = 65,33, vai a 65,35. O titulo e o do produto base, e o que a LLM mandou ("Placa Uno R3
+      // CH340 compatível") e ignorado e avisado (regra do dono de 24/10/2026).
+      ["RASCUNHO", "gold_special", "MLB99779", "PLACA UNO R3 CH340 ZZ", "ARDUINO", 65.35, 65.35],
     );
     conferir("titulo: o da LLM é ignorado e avisado, sem marca de proposta no campo", [gravada.titulo, gravada.avisos.some((a) => /título enviado foi ignorado/.test(a)), gravada.campos.includes("titulo")], ["PLACA UNO R3 CH340 ZZ", true, false]);
     conferir("GTIN e o motivo mandados pela LLM ficam fora", [anuncio.atributos.GTIN ?? null, anuncio.atributos.EMPTY_GTIN_REASON ?? null], [null, null]);
@@ -2888,7 +2899,9 @@ try {
     conferir("o ranking do produto continua vazio", await prisma.catalogoReferenciaML.count({ where: { produtoId: produto.id } }), 0);
     // A versao vem da constante: o numero fixo quebrava a cada mudanca de regra do roteiro (4 -> 5 em 25/10/2026).
     const { VERSAO_ROTEIRO_ML } = await import("../src/lib/propostaDeAnuncio/roteiros.js");
-    conferir("a proposta guardada com o preço e os catálogos", [anuncio.dados.proposta.preco.valor, anuncio.dados.proposta.catalogosSugeridos.length, anuncio.dados.proposta.versaoDoRoteiro], [59.9, 2, VERSAO_ROTEIRO_ML]);
+    conferir("a proposta guardada com o preço, os dois lucros e os catálogos",
+      [anuncio.dados.proposta.preco.valor, anuncio.dados.proposta.preco.lucroNaLoja, anuncio.dados.proposta.preco.lucro >= 26.06, anuncio.dados.proposta.catalogosSugeridos.length, anuncio.dados.proposta.versaoDoRoteiro],
+      [65.35, 26.06, true, 2, VERSAO_ROTEIRO_ML]);
 
     // Um rascunho antigo da proposta, com outro titulo, volta ao nome do produto (o titulo nao e proposta fora do kit).
     await prisma.anuncio.update({ where: { id: gravada.anuncioId }, data: { titulo: "Titulo antigo da proposta" } });
@@ -2915,7 +2928,7 @@ try {
 
     // Kit no ML (pedido do dono em 28/10/2026: "anuncio no ML com 10 pecas do 900211 ... vinculando o kit ao produto base
     // para controle de estoque"): o anuncio do PROPRIO produto com o Kit de 10, sem produto novo no Rise.
-    const barra = await criarPronto("ZZ-ML-PA8", { tituloBase: "BARRA ZZ 1X15", custo: 0.5, estoque: 205, pesoKg: 0.001, alturaCm: 1.16, larguraCm: 0.23, comprimentoCm: 3.85 });
+    const barra = await criarPronto("ZZ-ML-PA8", { tituloBase: "BARRA ZZ 1X15", custo: 0.5, precoVenda: 1.5, estoque: 205, pesoKg: 0.001, alturaCm: 1.16, larguraCm: 0.23, comprimentoCm: 3.85 });
     const lidaKitML = await lerParaPropostaML(ml(), "ZZ-ML-PA8", { quantidade: 10 });
     conferir(
       "kit no ML: a leitura dá o custo das 10, o código e o título de partida, e libera o título",
@@ -2932,8 +2945,10 @@ try {
     );
     conferir("kit no ML: nenhum produto novo no Rise", await prisma.produto.count({ where: { sku: { startsWith: "ZZ-ML-PA8" } } }), 1);
     conferir("kit no ML: o anúncio simples do produto fica à parte", [simplesDaBarra.anuncioId !== kitML.anuncioId, (await prisma.anuncio.findUnique({ where: { id: simplesDaBarra.anuncioId } })).dados.composicao ?? null], [true, null]);
-    // O preco do kit sai do custo das 10 (R$ 5): bem acima do anuncio de 1 unidade, com os 40% desejados (sem concorrente).
-    conferir("kit no ML: o preço pelo custo das 10 unidades", [kitML.preco.valor > simplesDaBarra.preco.valor, kitML.preco.markup >= 40, kitML.preco.valor === anKitML.dados.preco], [true, true, true]);
+    // O kit repete o lucro de vender as 10 na loja (10 x R$ 1,50 com custo R$ 5: R$ 9,10, dez vezes o de uma, R$ 0,91):
+    // (5 + 6,85 + 9,10) / 0,81 = 25,87, vai a 25,90. O de 1 unidade: (0,50 + 6,85 + 0,91) / 0,81 = 10,20.
+    conferir("kit no ML: o preço pelo lucro das 10 unidades na loja",
+      [kitML.preco.valor, kitML.preco.lucroNaLoja, simplesDaBarra.preco.valor, simplesDaBarra.preco.lucroNaLoja, kitML.preco.valor === anKitML.dados.preco], [25.9, 9.1, 10.2, 0.91, true]);
     conferir("kit no ML: peso das 10 unidades no envio", anKitML.dados.envio.pesoKg, 0.01);
 
     const kitDeNovo = await gravarPropostaML(ml(), "ZZ-ML-PA8", { quantidade: 10, categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] });
