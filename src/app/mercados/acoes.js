@@ -12,6 +12,7 @@ import { detalheDoProduto } from "@/lib/coleta/banco";
 import { enfileirar, jobLargado, workerNoAr } from "@/lib/coleta/fila";
 import { podeVisitar } from "@/lib/coleta/buscar";
 import { juntarListas, lerArquivo } from "@/lib/coleta/arquivos";
+import { cambioDoFornecedor } from "@/lib/coleta/coletar";
 import { coletaPausada, definirPausaColeta } from "@/lib/coleta/controle";
 import { iniciarWorkerPc } from "@/lib/coleta/workerPc";
 import { portalDoEndereco, regrasDoFornecedor } from "@/lib/coleta/fornecedores";
@@ -190,6 +191,8 @@ export async function testarArquivoAcao(dados) {
         nome: arquivo.name,
         bytes,
         fonte: { name: nome, type: tipo },
+        // Lista em dolar: o fator do fornecedor de mesmo nome, se ja cadastrado (senao 1).
+        cambio: await cambioDoFornecedor({ nome }),
       });
 
       lidos.push(leitura);
@@ -481,7 +484,7 @@ export async function salvarFonteComArquivos(dados) {
   for (const arquivo of arquivos) {
     try {
       const bytes = new Uint8Array(await arquivo.arrayBuffer());
-      const leitura = await lerArquivo({ nome: arquivo.name, bytes, fonte: { name: nome, type: tipo } });
+      const leitura = await lerArquivo({ nome: arquivo.name, bytes, fonte: { name: nome, type: tipo }, cambio: await cambioDoFornecedor({ nome }) });
       if (leitura.produtos.length === 0) {
         return { ok: false, erro: `Nenhum produto reconhecido em ${arquivo.name}.` };
       }

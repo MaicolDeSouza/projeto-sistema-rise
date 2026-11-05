@@ -26,6 +26,8 @@ const LOTE = 500;
 /// NULL do banco ou o valor JSON null —, e o que se quer e NULL do banco.
 const CAMPOS_JSON = [
   "impostos",
+  // undefined (lista em reais) tambem vira NULL: a fonte que deixar de mandar em dolar perde o original velho.
+  "precoOriginal",
   "precosPorQuantidade",
   "imagens",
   "especificacoes",
@@ -739,7 +741,7 @@ export async function listarProdutos({
       : Promise.resolve(null),
     prisma.$queryRaw`
       SELECT id, origem, codigo, nome, marca, mpn, url, "precoNormal", "precoPromocional",
-             "precoReserva", "precoMontagem", "precoComImpostos", impostos, "precosPorQuantidade", "estoqueStatus",
+             "precoReserva", "precoMontagem", "precoComImpostos", impostos, "precoOriginal", "precosPorQuantidade", "estoqueStatus",
              quantidade, "aChegar", "aChegarPrevisao", "emMontagem", "coletadoEm", "vistoEm", "fonteId", "buscaTexto"
         FROM "ProdutoColetado"
        WHERE ${onde}
@@ -807,6 +809,7 @@ export async function listarProdutos({
         reserva: numeroDoBanco(linha.precoReserva),
         montagem: numeroDoBanco(linha.precoMontagem),
         comImpostos: numeroDoBanco(linha.precoComImpostos),
+        original: linha.precoOriginal ?? null,
       },
       taxes: linha.impostos ?? [],
       precosPorQuantidade: linha.precosPorQuantidade ?? [],

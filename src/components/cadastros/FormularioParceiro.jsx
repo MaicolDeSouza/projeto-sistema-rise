@@ -111,6 +111,33 @@ export default function FormularioParceiro({ slug, parceiro, fontes, usos, somen
               erro={erros.pedidoMinimo}
               defaultValue={valor("pedidoMinimo") === "" ? "" : String(valor("pedidoMinimo"))}
             />
+            <Campo
+              nome="moedaLista"
+              rotulo="Moeda da lista"
+              erro={erros.moedaLista}
+              ajuda="Lista em dólar é convertida em reais com o PTAX do dia a cada Atualizar dados."
+            >
+              <select
+                id="moedaLista"
+                name="moedaLista"
+                defaultValue={valor("moedaLista") || "BRL"}
+                className={`${CLASSE_CAMPO} ${bordaDoCampo(erros.moedaLista)}`}
+              >
+                <option value="BRL">R$ (real)</option>
+                <option value="USD">US$ (dólar)</option>
+              </select>
+            </Campo>
+            <Campo
+              nome="fatorImportacao"
+              rotulo="Fator de importação"
+              type="number"
+              min="1"
+              step="0.01"
+              placeholder="1"
+              erro={erros.fatorImportacao}
+              defaultValue={valor("fatorImportacao") === "" ? "" : String(valor("fatorImportacao"))}
+              ajuda="Frete e impostos da importação. Fator 2: R$ 10 convertidos viram R$ 20 de custo. Vazio = 1."
+            />
             <div className="md:col-span-2">
               <Campo
                 nome="condicoesPagamento"

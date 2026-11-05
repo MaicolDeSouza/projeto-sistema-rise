@@ -187,6 +187,9 @@ export default async function EditarCadastroPage({ params }) {
   const parceiro = registro && {
     ...registro,
     pedidoMinimo: registro.pedidoMinimo != null ? Number(registro.pedidoMinimo) : null,
+    ...("fatorImportacao" in registro
+      ? { fatorImportacao: registro.fatorImportacao != null ? Number(registro.fatorImportacao) : null }
+      : {}),
   };
 
   const plural = tipo === "clientes" ? "Clientes" : config.plural;

@@ -145,6 +145,20 @@ export async function aplicarListaDoFornecedor({
  * leitores de hoje. Por isso o resumo diz a data da LISTA, e nao so a do
  * reprocessamento.
  */
+/**
+ * O fator de importacao do fornecedor da fonte (NexMind, 04/11/2026), para a lista em dolar sair em reais com frete e
+ * impostos. So o FATOR vem do cadastro: a lista diz sozinha em que moeda esta (o "US$" de cada preco), e a cotacao do dia
+ * so e buscada por `lerArquivo` quando a lista e mesmo em dolar. O fornecedor e o ligado a fonte (`fonteId`) ou, na
+ * falta, o de mesmo nome.
+ */
+export async function cambioDoFornecedor({ id = null, nome = null } = {}) {
+  const ou = [id ? { fonteId: id } : null, nome ? { nome } : null].filter(Boolean);
+  const fornecedor = ou.length
+    ? await prisma.fornecedor.findFirst({ where: { OR: ou }, select: { fatorImportacao: true } })
+    : null;
+  return { fator: fornecedor?.fatorImportacao != null ? Number(fornecedor.fatorImportacao) : 1 };
+}
+
 async function reprocessarArquivos(fonte, aoProgredir, sinal) {
   const comecou = Date.now();
   const regras = regrasDoFornecedor({ nome: fonte.nome, url: `https://${fonte.dominio}` });
@@ -160,6 +174,7 @@ async function reprocessarArquivos(fonte, aoProgredir, sinal) {
   }
 
   const lidos = [];
+  const cambio = await cambioDoFornecedor(fonte);
 
   for (const arquivo of guardados) {
     sinal?.throwIfAborted();
@@ -167,6 +182,7 @@ async function reprocessarArquivos(fonte, aoProgredir, sinal) {
       nome: arquivo.nome,
       bytes: arquivo.bytes,
       fonte: { name: fonte.nome, type: fonte.tipo },
+      cambio,
     });
     lidos.push(leitura);
 

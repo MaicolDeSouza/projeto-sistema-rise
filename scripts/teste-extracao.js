@@ -3599,5 +3599,54 @@ console.log("\n— Magazord (Proesi) —");
   conferir("custo: sem preco nenhum, null", custoDoFornecedor({}), null);
 }
 
+// ---------------------------------------------------------------- lista em dolar (NexMind, 04/11/2026)
+console.log("\n— Lista em dólar (NexMind) —");
+{
+  const { listaEmDolarDoPdf } = await import("../src/lib/coleta/arquivos.js");
+  const { converterParaReais, precoOriginalEmTexto, contaDoPrecoOriginal } = await import("../src/lib/coleta/moeda.js");
+  // O texto como o pdf-parse devolve a lista da NexMind: colunas por tabulacao, nome em ate tres linhas, preco no fim.
+  const texto = [
+    "Shenzhen \tNexMind \tTechnology \tCo., \tLtd", "Tom", "Email:tom@nexmindtech.cc", "Tel/Whatsapp:+86 \t15559193892",
+    "Product \tName \tPicture \tUnit \tPrice",
+    "UNO \tR3 \tATmega16U2 \tAVR \tModule \tBoard \tFor \tArduino", "With \tUSB \tCable US$2.95",
+    "LilyPad \t328 \tMain \tBoard \tATmega328P \t16M \tUS$2.63",
+    "", "-- 1 of 2 --", "",
+    "Mega2560 \tR3 \tATMEGA2560-16AU \t+ \tCH340", "Development \tBoard", "US$9.43",
+    "2 \tx \tAA \tBattery \tCase \tStorage \tHolder US$0.30",
+    "2 \tx \tAA \tBattery \tCase \tStorage \tHolder US$0.35",
+    "TL866II \tPlus \tProgrammer US$1,045.45",
+    "", "-- 2 of 2 --",
+  ].join("\n");
+  const itens = listaEmDolarDoPdf(texto);
+  conferir("dólar: nomes de várias linhas, sem o cabeçalho do fornecedor", itens.map((item) => item.desc), [
+    "UNO R3 ATmega16U2 AVR Module Board For Arduino With USB Cable",
+    "LilyPad 328 Main Board ATmega328P 16M",
+    "Mega2560 R3 ATMEGA2560-16AU + CH340 Development Board",
+    "2 x AA Battery Case Storage Holder",
+    "2 x AA Battery Case Storage Holder (2)",
+    "TL866II Plus Programmer",
+  ]);
+  conferir("dólar: preço (milhar com vírgula), página e posição na página", itens.map((item) => [item.preco, item.pagina, item.posicao]), [
+    [2.95, 1, 0], [2.63, 1, 1], [9.43, 2, 0], [0.3, 2, 1], [0.35, 2, 2], [1045.45, 2, 3],
+  ]);
+  conferir("dólar: lista sem US$ não é desta regra", listaEmDolarDoPdf("020-2160 \t 2K X 1600V \t 10"), []);
+
+  // O exemplo do dono: fator 2, R$ 10 convertidos viram R$ 20 de custo.
+  const cotacao = { valor: 5, data: "2026-11-04", origem: "ptax" };
+  const produto = converterParaReais({ prices: { normal: 2, moeda: "USD" }, taxes: [], origens: { price: "lista" } }, { cotacao, fator: 2 });
+  conferir("dólar: US$ 2 × 5 = R$ 10; com fator 2, custo R$ 20", [produto.prices.normal, produto.prices.comImpostos], [10, 20]);
+  conferir("dólar: o fator vira 'Importação 100%' e o original fica guardado", [produto.taxes, produto.prices.original, "moeda" in produto.prices], [
+    [{ nome: "Importação", percentual: 100 }],
+    { moeda: "USD", valor: 2, cotacao: 5, cotacaoData: "2026-11-04", cotacaoOrigem: "ptax", fator: 2 },
+    false,
+  ]);
+  conferir("dólar: o custo do fornecedor sai em reais com o fator", (await import("../src/lib/coleta/impostos.js")).custoDoFornecedor(produto.prices, produto.taxes), 20);
+  const semFator = converterParaReais({ prices: { normal: 2.95, moeda: "USD" } }, { cotacao: { valor: 5.6123 }, fator: null });
+  conferir("dólar: sem fator, só a conversão (centavos), sem imposto", [semFator.prices.normal, semFator.prices.comImpostos, semFator.taxes], [16.56, null, []]);
+  conferir("dólar: textos da tela", [precoOriginalEmTexto(produto.prices.original), contaDoPrecoOriginal(produto.prices.original), precoOriginalEmTexto(null)], [
+    "US$ 2,00", "US$ 2,00 × 5 (PTAX 2026-11-04) × fator 2", null,
+  ]);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);

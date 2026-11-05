@@ -55,6 +55,12 @@ const FornecedorSchema = exigirCnpjSalvoEstrangeiro(
     prazoEntregaDias,
     condicoesPagamento: opcional(z.string()),
     pedidoMinimo: decimal(),
+    // Lista em moeda estrangeira (NexMind, 04/11/2026): a moeda e o fator de importacao (frete + impostos). Ausente =
+    // lista em reais e sem fator.
+    moedaLista: z.preprocess((valor) => (valor === "USD" ? "USD" : "BRL"), z.enum(["BRL", "USD"])),
+    fatorImportacao: opcional(
+      z.coerce.number({ message: "Informe um número válido." }).min(1, "Use 1 ou mais (1 = sem acréscimo).").max(20, "Fator alto demais."),
+    ),
   }),
 );
 

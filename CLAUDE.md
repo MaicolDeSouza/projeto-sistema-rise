@@ -1445,6 +1445,27 @@ sem sessão (medido sem cookie: 1.997 na Pronta Entrega, 4 na Lista de Reserva, 
 - **Primeira varredura (PC, 01/11/2026):** 2.218 produtos (239 novos, 22 ausentes: os itens das listas antigas que não estão
   mais no portal).
 
+**Lista em DÓLAR (NexMind, Shenzhen, 04/11/2026, Opção 1 do dono):** fornecedor estrangeiro fica no MESMO cadastro de
+Fornecedor, com dois campos novos (migration `20261104c_moeda_do_fornecedor`): **Moeda da lista** (`moedaLista`, R$/US$) e
+**Fator de importação** (`fatorImportacao`, frete + impostos; o dono: "fator 2x", R$ 10 convertidos viram R$ 20).
+- **Leitor:** `listaEmDolarDoPdf` (`arquivos.js`): PDF "Product Name | Picture | Unit Price", nome em até três linhas terminando
+  em "US$2.95", página fechando em "-- N of M --". **Sem código, sem estoque**: o produto é reconhecido pelo NOME (`N/A`,
+  chave `nome:`, decisão do dono); nome repetido na lista (três "2 x AA Battery Case Storage Holder") ganha " (2)", " (3)" na
+  ordem da lista. Medido: 654 produtos em 100 páginas, ~8 s.
+- **Fotos pela POSIÇÃO na página** (`fotosDaListaEmDolar`): a lista de imagens do PDF NÃO vem na ordem das linhas (a página 10
+  devolvia fotos de ESP-01 para linhas de HC-05) e a mesma foto é desenhada em duas linhas. O operador `paintImageXObject` do
+  pdf.js dá onde cada foto é desenhada; cada produto fica com a foto cujo centro está mais perto da altura do PREÇO dele (até
+  meia linha). Reduzida a 300 px JPEG (~15 KB, data URI). 647 de 654 com foto, conferidas à vista em amostras.
+- **Convertido NA GRAVAÇÃO, não na tela** (`moeda.js`, `converterParaReais`): `normal` = US$ × PTAX do dia, `comImpostos` =
+  normal × fator, `taxes` = "Importação 100%" (fator 2), e `precoOriginal` (coluna JSON nova em `ProdutoColetado`) guarda o
+  dólar, a cotação e o fator. Assim o custo do produto, o Compras, a proposta e o MCP (que leem o preço do fornecedor em reais,
+  `custoDoFornecedor`) não precisaram mudar. A conversão é refeita a cada "Atualizar dados" e na rodada de sábado; PTAX fora do
+  ar = cotação fixa, com aviso. O fator vem do Fornecedor ligado à fonte (`cambioDoFornecedor` em `coletar.js`) ou de mesmo
+  nome; a cotação só é buscada quando a lista é mesmo em dólar.
+- **Tela:** coluna Valor do Scraper com "US$ 3,96" pequeno embaixo dos reais (a conta no `title`); cadastro do fornecedor com
+  os dois campos ao lado do pedido mínimo. Conferido de ponta a ponta no PC com uma fonte ZZ-TESTE-NEXMIND (apagada): 654
+  gravados, PTAX 5,4778, 2ª varredura "0 atualizados".
+
 **Regras por fornecedor** — `src/lib/coleta/fornecedores.js`, dado e não código:
 
 - **Fortek — `sufixoDeCarga`.** `02-268-A` é o mesmo item que `02-268`; o sufixo é a carga.

@@ -192,6 +192,8 @@ export default async function MercadosPage({ searchParams }) {
       precoComImpostos:
         typeof produto.prices?.comImpostos === "number" ? produto.prices.comImpostos : null,
       impostos: produto.taxes ?? [],
+      // Lista em dolar (NexMind, 04/11/2026): o que a lista dizia, para a coluna mostrar "US$ 2,95" embaixo dos reais.
+      precoOriginal: produto.prices?.original ?? null,
       // Faixas por quantidade (a Santana publica 3-4 e 5+ un., com desconto
       // sobre a unidade): a lista mostra todas, o detalhe (RegrasDeCompra)
       // repete a mesma tabela com o multiplo de venda ao lado.

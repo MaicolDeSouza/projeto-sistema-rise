@@ -167,6 +167,8 @@ export function linhaDoProduto(produto, { origem }) {
     precoReserva: comoNumero(produto.prices?.reserva),
     precoComImpostos: comoNumero(produto.prices?.comImpostos),
     impostos: comoLista(produto.taxes),
+    // Lista em dolar (NexMind, 04/11/2026): o que a lista dizia e a conta. Fora da assinatura quando vazio, como o multiplo.
+    precoOriginal: comoObjeto(produto.prices?.original) ?? undefined,
 
     // So entram na linha quando existem: `undefined` fica fora da assinatura, e
     // os produtos que nunca tiveram estes campos nao mudam de assinatura — senao
@@ -233,6 +235,7 @@ export function produtoDaLinha(linha) {
       reserva: numeroDoBanco(linha.precoReserva),
       comImpostos: numeroDoBanco(linha.precoComImpostos),
       montagem: numeroDoBanco(linha.precoMontagem),
+      ...(linha.precoOriginal ? { original: linha.precoOriginal } : {}),
     },
     taxes: linha.impostos ?? [],
     precosPorQuantidade: linha.precosPorQuantidade ?? [],

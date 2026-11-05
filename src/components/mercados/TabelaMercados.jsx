@@ -29,6 +29,7 @@ import FotoComLupa from "@/components/ui/FotoComLupa";
 import RegrasDeCompra from "@/components/mercados/RegrasDeCompra";
 import { precoComImpostoTexto, precoDaFaixaTexto } from "@/components/mercados/precoTexto";
 import { precoComImpostos } from "@/lib/coleta/impostos";
+import { contaDoPrecoOriginal, precoOriginalEmTexto } from "@/lib/coleta/moeda";
 import { detalhePagina } from "@/app/mercados/acoes";
 
 const MOEDA = new Intl.NumberFormat("pt-BR", {
@@ -466,6 +467,12 @@ function ColunaValorFornecedor({ linha }) {
         <span className="block text-xs font-medium text-sky-700">
           {montagemTexto}
           <span className="ml-1 text-[10px] font-normal text-suave">montagem</span>
+        </span>
+      )}
+      {/* Lista em dolar: o preco como a lista diz; a conta (cotacao e fator) no title. */}
+      {precoOriginalEmTexto(linha.precoOriginal) && (
+        <span className="block text-[10px] text-suave" title={contaDoPrecoOriginal(linha.precoOriginal) ?? undefined}>
+          {precoOriginalEmTexto(linha.precoOriginal)}
         </span>
       )}
       <DicaFaixas precosPorQuantidade={linha.precosPorQuantidade} impostos={linha.impostos} />

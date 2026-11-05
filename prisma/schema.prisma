@@ -1221,6 +1221,12 @@ model Fornecedor {
   /// da migration 20261028_compras_aliexpress (o migrate diff vai propor apaga-lo; nao apagar).
   aliexpress Boolean @default(false)
 
+  /// Moeda da lista que o fornecedor manda ("BRL" ou "USD"; NexMind em dolar, 04/11/2026, Opcao 1 do dono). Lista em
+  /// dolar e convertida em reais na gravacao, com o PTAX do dia (src/lib/coleta/moeda.js).
+  moedaLista      String   @default("BRL")
+  /// Frete + impostos da importacao, multiplicando o preco convertido (o dono: "fator 2x", R$ 10 vira R$ 20). Nulo = 1.
+  fatorImportacao Decimal? @db.Decimal(6, 3)
+
   @@index([fonteId])
 }
 
@@ -1821,6 +1827,9 @@ model ProdutoColetado {
   precoComImpostos Decimal? @db.Decimal(12, 2)
   /// [{nome, percentual}] — quais impostos entraram no preco com impostos.
   impostos         Json?
+  /// Lista em moeda estrangeira (NexMind, 04/11/2026): {moeda, valor, cotacao, cotacaoData, cotacaoOrigem, fator}. Os
+  /// precos acima ja estao em REAIS; isto e o que a lista dizia e a conta que os produziu.
+  precoOriginal    Json?
 
   /// Como a loja declarou: AVAILABLE, IN_STOCK, OUT_OF_STOCK... ou nada.
   estoqueStatus       String?

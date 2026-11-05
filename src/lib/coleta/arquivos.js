@@ -230,6 +230,8 @@ function comoProduto(bruto, { fonte, origem, imagens, modalidade, previsoes }) {
       // So nas listas com modalidade (pagina do portal): a planilha comum nao ganha a chave, e a assinatura dos
       // produtos dela nao muda.
       ...(modalidade ? { montagem: deMontagem ? preco : null } : {}),
+      // Lista em moeda estrangeira (NexMind): o `normal` acima esta em DOLAR ate `lerArquivo` converter (moeda.js).
+      ...(bruto.moeda ? { moeda: bruto.moeda } : {}),
     },
     taxes: impostos,
     multiploVenda: multiplo > 0 ? Math.round(multiplo) : null,
@@ -738,6 +740,170 @@ export function orcamentoDeVendaDoPdf(texto) {
   return itens;
 }
 
+/**
+ * LISTA DE PRECOS EM DOLAR (NexMind, Shenzhen, 04/11/2026): "Product Name | Picture | Unit Price", sem codigo, sem estoque.
+ * O nome quebra em ate tres linhas e termina no preco ("... With USB Cable US$2.95"); cada pagina fecha com "-- N of M --".
+ * Cada item guarda a pagina e a posicao nela, para casar com a foto (a foto da linha vem na mesma ordem dentro da pagina).
+ * O preco fica em DOLAR aqui (`moeda: "USD"`); quem converte para reais e `lerArquivo`, com a cotacao e o fator.
+ */
+export function listaEmDolarDoPdf(texto) {
+  if (!/US\$\s*\d/.test(texto ?? "")) return [];
+  const itens = [];
+  let pagina = 1;
+  let naPagina = 0;
+  let acumulado = [];
+  for (const bruta of String(texto).split("\n")) {
+    const linha = bruta.replace(/\s+/g, " ").trim();
+    const fimDaPagina = /^--\s*(\d+)\s+of\s+\d+\s*--$/i.exec(linha);
+    if (fimDaPagina) {
+      pagina = Number(fimDaPagina[1]) + 1;
+      naPagina = 0;
+      acumulado = [];
+      continue;
+    }
+    // O cabecalho da tabela (e o do contato do fornecedor, que vem antes dele na 1a pagina) nao e produto.
+    if (/^product name picture unit price$/i.test(linha)) {
+      acumulado = [];
+      continue;
+    }
+    if (!linha) continue;
+    const preco = /^(.*?)\s*US\$\s*([\d.,]+)\s*$/i.exec(linha);
+    if (!preco) {
+      acumulado.push(linha);
+      continue;
+    }
+    const nome = [...acumulado, preco[1]].join(" ").replace(/\s+/g, " ").trim();
+    acumulado = [];
+    const valor = Number(preco[2].replace(/,/g, ""));
+    if (!nome || !Number.isFinite(valor)) continue;
+    itens.push({ desc: nome, preco: valor, moeda: "USD", pagina, posicao: naPagina });
+    naPagina++;
+  }
+  // Sem codigo, o produto e reconhecido pelo NOME (decisao do dono, 04/11/2026). A NexMind repete nomes (tres "2 x AA
+  // Battery Case Storage Holder", com fotos e precos diferentes): sem diferenciar, o segundo reescreveria o primeiro. O
+  // repetido ganha " (2)", " (3)" na ordem da lista, que e a mesma de uma lista para a outra.
+  const vistos = new Map();
+  for (const item of itens) {
+    const vez = (vistos.get(item.desc) ?? 0) + 1;
+    vistos.set(item.desc, vez);
+    if (vez > 1) item.desc = `${item.desc} (${vez})`;
+  }
+  return itens;
+}
+
+// Operadores do pdf.js usados para saber ONDE cada foto e desenhada (numeros estaveis do `OPS` do pdf.js).
+const OP_SALVAR = 10;
+const OP_RESTAURAR = 11;
+const OP_TRANSFORMAR = 12;
+const OP_FOTO = 85; // paintImageXObject
+
+function multiplicar(m, n) {
+  return [
+    m[0] * n[0] + m[2] * n[1],
+    m[1] * n[0] + m[3] * n[1],
+    m[0] * n[2] + m[2] * n[3],
+    m[1] * n[2] + m[3] * n[3],
+    m[0] * n[4] + m[2] * n[5] + m[4],
+    m[1] * n[4] + m[3] * n[5] + m[5],
+  ];
+}
+
+/** Pixels de uma foto do pdf.js (kind 1 = 1 bit cinza, 2 = RGB, 3 = RGBA) em JPEG de ate 300 px. */
+async function fotoEmJpeg(sharp, foto) {
+  const { width, height, kind, data } = foto ?? {};
+  if (!width || !height || !data) return null;
+  let pixels = data;
+  let canais = kind === 3 ? 4 : 3;
+  if (kind === 1) {
+    // 1 bit por pixel, linhas alinhadas ao byte: vira RGB.
+    const porLinha = Math.ceil(width / 8);
+    pixels = new Uint8Array(width * height * 3);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const v = (data[y * porLinha + (x >> 3)] >> (7 - (x & 7))) & 1 ? 255 : 0;
+        pixels.set([v, v, v], (y * width + x) * 3);
+      }
+    }
+    canais = 3;
+  }
+  const jpeg = await sharp(Buffer.from(pixels.buffer, pixels.byteOffset, pixels.byteLength), {
+    raw: { width, height, channels: canais },
+  })
+    .resize(300, 300, { fit: "inside", withoutEnlargement: true })
+    .flatten({ background: "#ffffff" })
+    .jpeg({ quality: 80 })
+    .toBuffer();
+  return `data:image/jpeg;base64,${jpeg.toString("base64")}`;
+}
+
+/**
+ * As fotos da lista em dolar, casadas PELA POSICAO NA PAGINA (medido em 04/11/2026): a lista de imagens do PDF nao vem
+ * na ordem das linhas, e a mesma foto e desenhada em duas linhas (o "Ai-Thinker ESP-01" e o "ESP-01" usam a mesma). O
+ * centro de cada foto desenhada cai na altura do preco do seu produto (ESP-01: foto em 661, preco em 657); cada produto
+ * fica com a foto mais proxima da linha do preco dele, ate meia linha de distancia. Pagina em que o numero de precos nao
+ * bate com o de produtos lidos do texto fica sem foto: foto de outro produto e pior que nenhuma.
+ */
+async function fotosDaListaEmDolar(bytes, itens) {
+  const avisos = [];
+  const { PDFParse } = await import("pdf-parse");
+  const sharp = (await import("sharp")).default;
+  const leitor = new PDFParse({ data: new Uint8Array(bytes) });
+  const jpegs = new Map();
+  try {
+    const documento = await leitor.load();
+    const paginas = [...new Set(itens.map((item) => item.pagina))];
+    for (const numero of paginas) {
+      if (numero > documento.numPages) continue;
+      const daPagina = itens.filter((item) => item.pagina === numero).sort((a, b) => a.posicao - b.posicao);
+      const pagina = await documento.getPage(numero);
+      const texto = await pagina.getTextContent();
+      const precos = texto.items.filter((trecho) => /US\$\s*\d/.test(trecho.str ?? "")).map((trecho) => trecho.transform[5]);
+      if (precos.length !== daPagina.length) {
+        avisos.push(`página ${numero}: ${precos.length} preço(s) para ${daPagina.length} produto(s), ficou sem foto`);
+        pagina.cleanup();
+        continue;
+      }
+
+      const operacoes = await pagina.getOperatorList();
+      const desenhadas = [];
+      const pilha = [];
+      let ctm = [1, 0, 0, 1, 0, 0];
+      operacoes.fnArray.forEach((operador, i) => {
+        if (operador === OP_SALVAR) pilha.push(ctm);
+        else if (operador === OP_RESTAURAR) ctm = pilha.pop() ?? ctm;
+        else if (operador === OP_TRANSFORMAR) ctm = multiplicar(ctm, operacoes.argsArray[i]);
+        else if (operador === OP_FOTO) desenhadas.push({ nome: operacoes.argsArray[i]?.[0], centro: ctm[5] + ctm[3] / 2 });
+      });
+
+      // Meia distancia entre duas linhas: mais longe que isso, a foto e de outra linha (ou nao e de produto).
+      const passo = precos.length > 1
+        ? Math.min(...precos.slice(1).map((y, i) => Math.abs(precos[i] - y)))
+        : 100;
+      for (const [indice, item] of daPagina.entries()) {
+        const melhor = desenhadas
+          .map((foto) => ({ ...foto, distancia: Math.abs(foto.centro - precos[indice]) }))
+          .filter((foto) => foto.distancia < passo / 2)
+          .sort((a, b) => a.distancia - b.distancia)[0];
+        if (!melhor?.nome) continue;
+        try {
+          if (!jpegs.has(melhor.nome)) {
+            const dados = pagina.objs.has(melhor.nome) ? pagina.objs.get(melhor.nome) : pagina.commonObjs.get(melhor.nome);
+            jpegs.set(melhor.nome, await fotoEmJpeg(sharp, dados));
+          }
+          const jpeg = jpegs.get(melhor.nome);
+          if (jpeg) item.imagens = [jpeg];
+        } catch {
+          // Foto que nao se le: o produto fica sem foto, nunca com a de outro.
+        }
+      }
+      pagina.cleanup();
+    }
+  } finally {
+    await leitor.destroy?.();
+  }
+  return avisos;
+}
+
 /** Catalogos com colunas visuais podem perder todos os separadores no getText(). */
 async function linhasDeTabelaVisualPdf(leitor) {
   const documento = await leitor.load();
@@ -878,7 +1044,7 @@ export function formatoDoArquivo(nome, bytes) {
  * @param {Uint8Array} entrada.bytes
  * @param {object} entrada.fonte   {name, type}
  */
-export async function lerArquivo({ nome, bytes, fonte }) {
+export async function lerArquivo({ nome, bytes, fonte, cambio = null }) {
   const formato = formatoDoArquivo(nome, bytes);
   const avisos = [];
   let brutos = [];
@@ -899,11 +1065,12 @@ export async function lerArquivo({ nome, bytes, fonte }) {
     if (aviso) avisos.push(aviso);
   } else if (formato === "pdf") {
     const { texto, tabela } = await textoDoPdf(bytes);
-    const orcamento = (() => {
+    const emDolar = listaEmDolarDoPdf(texto);
+    const orcamento = emDolar.length ? [] : (() => {
       const racEAfins = orcamentoDoPdf(texto);
       return racEAfins.length ? racEAfins : orcamentoDeVendaDoPdf(texto);
     })();
-    const esteiras = orcamento.length || tabela.length ? [] : esteirasDoPdf(texto);
+    const esteiras = emDolar.length || orcamento.length || tabela.length ? [] : esteirasDoPdf(texto);
     // UNICA EXCECAO a "arquivo nao usa rede" (13/10/2026): os documentos de cada esteira (desenho da serie em PDF e os
     // modelos 3D em STEP) moram no SITE da Tespo, que nao publica os itens com codigo. Falha do site e aviso, nunca erro:
     // o catalogo vale sozinho. Ver tespo.js.
@@ -917,7 +1084,18 @@ export async function lerArquivo({ nome, bytes, fonte }) {
         avisos.push(`documentos do site da Tespo não lidos: ${erro?.message ?? erro}`);
       }
     }
-    brutos = orcamento.length ? orcamento : tabela.length ? tabela : esteiras.length ? esteiras : linhasDePdf(texto);
+    brutos = emDolar.length
+      ? emDolar
+      : orcamento.length ? orcamento : tabela.length ? tabela : esteiras.length ? esteiras : linhasDePdf(texto);
+    if (emDolar.length > 0) {
+      try {
+        const semFoto = await fotosDaListaEmDolar(bytes, emDolar);
+        if (semFoto.length) avisos.push(`Fotos não casadas: ${semFoto.join("; ")}.`);
+      } catch (erro) {
+        avisos.push(`Fotos do PDF não lidas: ${erro?.message ?? erro}.`);
+      }
+      origemExtra = ` · ${emDolar.filter((item) => item.imagens).length} de ${emDolar.length} com foto`;
+    }
     // OUTRA EXCECAO a "arquivo nao usa rede" (20/10/2026): o orcamento da Patola so tem codigo e preco; foto, descricao e ficha
     // estao na Patolastore, casados pela referencia do fabricante. Falha da loja e aviso, nunca erro.
     if (orcamento.length > 0 && /PATOLA Eletropl/i.test(texto)) {
@@ -930,7 +1108,9 @@ export async function lerArquivo({ nome, bytes, fonte }) {
       }
     }
     siteSugerido = sitePublicadoNoPdf(texto);
-    origem = orcamento.length
+    origem = emDolar.length
+      ? `lista de preços em dólar (PDF)${origemExtra}`
+      : orcamento.length
       ? `orçamento em PDF do fornecedor${origemExtra}`
       : esteiras.length
         ? `catálogo de esteiras em PDF (tabela de medidas)${origemExtra}`
@@ -1024,6 +1204,17 @@ export async function lerArquivo({ nome, bytes, fonte }) {
       comoProduto(bruto, { fonte, origem, imagens: imagensPorCodigo, modalidade, previsoes }),
     )
     .filter(Boolean);
+
+  // Lista em moeda estrangeira: tudo sai daqui em REAIS, em todo caminho (envio, teste e Atualizar dados). Quem chama passa
+  // a cotacao e o fator do fornecedor; sem eles (o teste de um arquivo novo), o PTAX do dia e fator 1.
+  if (produtos.some((produto) => produto.prices?.moeda)) {
+    const { converterParaReais } = await import("./moeda");
+    const usado = cambio?.cotacao
+      ? cambio
+      : { cotacao: await (await import("@/lib/cotacaoDoDia")).garantirCotacaoDoDia(), fator: cambio?.fator ?? 1 };
+    for (const produto of produtos) if (produto.prices?.moeda) converterParaReais(produto, usado);
+    if (usado.cotacao.origem !== "ptax") avisos.push("PTAX do Banco Central indisponível: preço convertido pela cotação fixa do sistema.");
+  }
 
   return { formato, produtos, avisos, origem, modalidade, siteSugerido };
 }
