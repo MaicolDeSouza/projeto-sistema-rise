@@ -1046,6 +1046,20 @@ function fichaDaLoja(html) {
   };
 }
 
+/**
+ * Saldo da caixa "Estoque Disponivel" do tema da Tray (CNC Fresas, 05/11/2026, pedido do dono: "o site informa a
+ * quantidade, porem o rise nao coleta"). A pagina repete a caixa em cada relacionado, entao so vale a do PRODUTO: a
+ * oculta `produto-estoque-<idProduct>` ("Estoque da Variacao: <strong>2067</strong>"), com o id do dataLayer.
+ */
+function estoqueDaTrayPorId(html, id) {
+  if (!id || !/^\d+$/.test(String(id))) return null;
+  const caixa = new RegExp(
+    `class=["'][^"']*\\bprodutos?-estoque-${id}["'][^>]*>[\\s\\S]{0,200}?<strong>\\s*(\\d{1,6})\\s*</strong>`,
+    "i",
+  ).exec(html);
+  return caixa ? Number(caixa[1]) : null;
+}
+
 /** Especificacoes a partir de tabelas do HTML, quando nao ha dados estruturados. */
 function especificacoesDeTabela(html) {
   const itens = [];
@@ -2337,6 +2351,7 @@ export function normalizarPagina({
     // visivel que quantidadeNoTexto varre.
     estoqueDaRoboCore(html, url, code) ??
     ficha?.quantidade ??
+    estoqueDaTrayPorId(html, tray?.idProduct) ??
     quantidadeNoTexto(escopo);
 
   const status = situacaoDe(disponibilidade);

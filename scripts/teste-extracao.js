@@ -2575,6 +2575,16 @@ console.log("\n— Ficha com subtitulo por peca do kit (CNC Fresas, 05/11/2026) 
   conferir("cnc fresas: subtitulos entram sem nome e a ficha nao sai vazia",
     ficha.map((e) => e.nome ?? `[${e.valor}]`),
     ["[Ballnose 12mm]", "Diâmetro", "Haste", "[Fresa V Bit 90 Graus]", "Ângulo", "Aplicação"]);
+
+  // Estoque da caixa do tema: a pagina repete a caixa nos relacionados (1147 vem antes), so a do idProduct vale.
+  const caixa = (id, saldo) => `<div class="box-produto-estoque">Estoque <span>Dispon&iacute;vel</span>: <strong>${saldo}</strong></div>` +
+    `<div class="box-produto-estoque produto-estoque-${id}" style="display: none;">Estoque da Varia&ccedil;&atilde;o: <strong>${saldo}</strong></div>`;
+  const pagina = (id) => `<html><head><title>Gabarito</title><script>dataLayer = [{"idProduct":"${id}","reference":"GAB-NIV-TL","price":"135.11"}];</script></head><body>
+<div itemscope itemtype="http://schema.org/Product"><h1 itemprop="name">Gabarito Nivelamento</h1><input type="hidden" id="preco_atual" value="135.11"></div>
+${caixa(1147, 1791)}${caixa(1055, 2067)}</body></html>`;
+  const estoque = (id) => normalizarPagina({ html: pagina(id), url: "https://www.cncfresas.com.br/gabaritos/gabarito" }).produtos[0]?.stock?.quantity ?? null;
+  conferir("cnc fresas: estoque da caixa do produto (produto-estoque-<idProduct>), nunca a de um relacionado; sem caixa, nada",
+    [estoque(1055), estoque(1147), estoque(999)], [2067, 1791, null]);
 }
 
 console.log("\n— Ficha sem titulo: nome de 4-5 palavras, legenda solta e propaganda (Policomp, 10/10/2026) —");

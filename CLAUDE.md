@@ -1232,6 +1232,10 @@ mesmo CI são o mesmo item.
   marcador, sem valor depois dos dois-pontos e seguida de item marcado "- Nome: valor" entra sem nome e a leitura continua
   ("Garantia:" seguido de frase continua encerrando). Item marcado aceita valor de até 250 caracteres (era 120). Vale para
   toda loja; produtos já gravados só mudam na próxima varredura (reiniciar o worker).
+- **Tray, caixa "Estoque Disponível" do tema (CNC Fresas, 05/11/2026, pedido do dono):** a página traz o saldo numa caixa
+  por produto, inclusive os relacionados; só vale a oculta `produto-estoque-<idProduct>` ("Estoque da Variação: <strong>2067")
+  com o id do dataLayer (`estoqueDaTrayPorId`, depois do quadro `id="ficha"` e antes do texto). Vale para toda loja Tray com o
+  tema; os produtos já gravados só ganham o saldo na próxima varredura (reiniciar o worker).
 - **Tray, quadro `id="ficha"` (Código, Estoque, Categoria)** (`fichaDaLoja`): vira `code` (só na falta dos outros), `stock.quantity`
   e `category` (depois dos breadcrumbs, antes do dataLayer), e as três linhas **saem das características**. Produtos já
   gravados só mudam na próxima varredura, e o worker (ou `worker:pc`) precisa ser reiniciado para carregar o código.
