@@ -29,6 +29,13 @@
   embalagem" nunca. Ficam de fora as mini fontes para placa (prompt 01), bancada, tubo laser, PoE e DC-DC. Parágrafos
   até 250 e 400, e os itens que o dono tirou das mini fontes (ripple, MTBF, corrente de entrada...) também não entram.
   Na biblioteca da VPS, o nome "Fontes-Fontes Chaveadas". Esperando a aprovação do dono.
+  Em 05/11/2026 o dono pediu a temperatura mínima e máxima de operação em toda fonte chaveada: a Temperatura de
+  Operação virou campo OBRIGATÓRIO nos dois tipos (era condicional, só na colmeia), sempre com as duas pontas. Ordem:
+  datasheet do mesmo modelo, referência do mesmo modelo ou da mesma fonte genérica, e só então a faixa padrão do tipo,
+  com a decisão registrada: de tomada 0°C a 40°C (fonte oficial da Raspberry Pi e fontes plásticas genéricas medidas)
+  e colmeia genérica -10°C a 60°C (série S-xxx). Mean Well LRS publica -25°C a 70°C com redução de potência: vale o
+  datasheet. Quase nenhuma loja publica a faixa nas fontes coletadas: 0 a 40°C nas de tomada da Eletrus e na do
+  Raspberry Pi 5 da Smartkits, -20 a 60°C na 12V 5A da Smartkits.
 
 Regras próprias, porque as lojas erram aqui: a corrente contínua e a de pico são coisas diferentes (o pico nunca vira
 a corrente de saída); a tensão nominal (100 a 240VAC) e a faixa do fabricante (90 a 264VAC) ficam separadas; a versão

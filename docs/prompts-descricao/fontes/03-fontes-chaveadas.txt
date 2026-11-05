@@ -58,7 +58,7 @@ Eficiência: substitui Eficiência típica: “85%”.
 
 Grau de Proteção: “IP20”, só com fonte do mesmo modelo.
 
-Temperatura de Operação: substitui Temperatura de trabalho: “-10°C a 60°C”.
+Temperatura de Operação: substitui Temperatura de trabalho, Temperatura ambiente de operação e Temperatura de funcionamento: sempre a mínima e a máxima, “0°C a 40°C”, “-10°C a 60°C”, “-25°C a 70°C”. Quando o fabricante publica a temperatura a partir da qual a potência cai, depois de “ / ”: “-25°C a 70°C / potência total até 50°C”.
 
 Material do Gabinete: substitui Material: “Alumínio”, “Aço galvanizado”, “Plástico antichama”, só com fonte.
 
@@ -73,14 +73,14 @@ Cada item contém nome, valor e referencias: nome “Tensão de Saída”, valor
 Com referências disponíveis, os campos obrigatórios do tipo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: Corrente de entrada, Corrente de partida, Ripple, Regulação de linha e de carga, MTBF, Temperatura de armazenamento, Umidade, Tempo de retenção, Cor, Origem, Categoria, Unidade de venda, Datasheet).
 
 Fonte de tomada, campos obrigatórios:
-Fabricante; Tipo de Fonte; Tensão de Entrada; Frequência de Entrada; Tensão de Saída; Corrente de Saída; Potência de Saída; Conector de Saída; Comprimento do Cabo.
+Fabricante; Tipo de Fonte; Tensão de Entrada; Frequência de Entrada; Tensão de Saída; Corrente de Saída; Potência de Saída; Conector de Saída; Comprimento do Cabo; Temperatura de Operação.
 Campos condicionais (só com fonte), depois dos obrigatórios:
 Modelo (logo depois de Fabricante); Plugue de Tomada; Proteções; Indicação; Compatibilidade.
 
 Fonte colmeia, campos obrigatórios:
-Fabricante; Modelo; Tipo de Fonte; Tensão de Entrada; Frequência de Entrada; Tensão de Saída; Corrente de Saída; Potência de Saída; Ajuste da Tensão de Saída; Ligação; Proteções; Refrigeração.
+Fabricante; Modelo; Tipo de Fonte; Tensão de Entrada; Frequência de Entrada; Tensão de Saída; Corrente de Saída; Potência de Saída; Ajuste da Tensão de Saída; Ligação; Proteções; Refrigeração; Temperatura de Operação.
 Campos condicionais (só com fonte do mesmo modelo), depois dos obrigatórios:
-Indicação; Eficiência; Grau de Proteção; Temperatura de Operação; Material do Gabinete; Certificações.
+Indicação; Eficiência; Grau de Proteção; Material do Gabinete; Certificações.
 
 Campos finais:
 Dimensões (CxLxA); Peso.
@@ -108,6 +108,8 @@ Compatibilidade só com fonte. Nunca diga que serve no Raspberry Pi 4 uma fonte 
 Fonte genérica cuja carcaça muda conforme o lote: não descreva cor, formato ou material da carcaça sem fonte do produto vendido, e não diga “antichama” sem fonte.
 
 Não copie entre modelos: corrente, eficiência, medidas e peso mudam com a potência. Não diga que a colmeia serve para uso externo ou é à prova d’água sem grau de proteção publicado.
+
+A Temperatura de Operação nunca fica de fora, nos dois tipos. Procure nesta ordem: o datasheet do mesmo modelo (Mean Well, Andeli, a fonte oficial da Raspberry Pi), a referência do mesmo modelo, e na fonte genérica a referência da mesma tensão, corrente e conector. Sem nenhum desses, use a faixa padrão do tipo e registre em decisoes que é a padrão, não a publicada: de tomada (e de mesa), “0°C a 40°C”; colmeia genérica (slim e trilho DIN inclusive), “-10°C a 60°C”. Temperatura de armazenamento não é de operação e nunca entra no lugar dela.
 
 Lista de fornecedor sem ficha técnica não comprova especificação.
 
