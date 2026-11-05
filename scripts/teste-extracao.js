@@ -2551,6 +2551,17 @@ console.log("\n— Codigo G (front proprio) e Yampi (Engenharia FSI), 05/11/2026
     [null, true]);
   conferir("codigo g: pagina de outra loja nao e lida", dadosDaCodigoG("<div class='price'>R$ 10,00</div>", textoDoBlocoDeDescricao), null);
 
+  // Fotos (fresa 62): a pagina final e http:// (redirecionamento da loja), o og:image e https e fica em
+  // "/fotos/produto/62/..._p.jpg", e a galeria (relativa) em "/fotos/produto/webp/62/": 4 fotos, todas https e grandes.
+  const thumb = (n) => `<img width="100" src="/fotos/produto/webp/62/Fresa_${n}_pp.webp" class="image-listener" data-src="/fotos/produto/webp/62/Fresa_${n}_p.webp">`;
+  const outro = `<img src="/fotos/produto/webp/1837/Outra_grid.webp">`;
+  const pagina62 = `<html><head><meta property="og:image" content="https://www.codigog.com.br/fotos/produto/62/Fresa_1120_p.jpg" />
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"Fresa Raiada 1.5mm","sku":"62","image":"https://www.codigog.com.br/fotos/produto/62/Fresa_1120_p.jpg","offers":{"@type":"Offer","price":"46.74","priceCurrency":"BRL","availability":"https://schema.org/InStock"}}</script></head>
+<body><img id="imagem_p" src="/fotos/produto/webp/62/Fresa_1120_p.webp">${thumb(1120)}${thumb(1272)}${thumb(1273)}${thumb(1274)}${outro}${painel}${desc}</body></html>`;
+  const fotos62 = normalizarPagina({ html: pagina62, url: "http://www.codigog.com.br/item-fresa_raiada-62.htm" }).produtos[0].images;
+  conferir("codigo g: galeria entra mesmo com a pagina em http e a principal em https/jpg; 4 fotos grandes, todas https",
+    fotos62, [1120, 1272, 1273, 1274].map((n) => `https://www.codigog.com.br/fotos/produto/webp/62/Fresa_${n}_g.webp`));
+
   const dados = { product: { data: { name: "Fresa", images: { data: [{ url: "https://images.yampi.me/a-large.png" }, { url: "https://images.yampi.me/b-large.png" }] },
     prices: { data: { price: 60, price_sale: 51, has_promotion: true, pix: { price: 48.45 } } },
     skus: { data: [{ total_in_stock: 3, stock_status: "in_stock" }] },

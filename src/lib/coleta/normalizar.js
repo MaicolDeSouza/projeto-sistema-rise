@@ -101,7 +101,11 @@ function partesSemDimensao(endereco) {
     // da galeria), so com hashes diferentes. Sem tirar isso da identidade, uma
     // foto contava como tres — na Saravati, as "2 imagens" coletadas eram a
     // mesma foto duas vezes.
-    .filter((parte) => parte !== "cache" && !/^[0-9a-f]{32}$/i.test(parte));
+    .filter((parte) => parte !== "cache" && !/^[0-9a-f]{32}$/i.test(parte))
+    // Codigo G (05/11/2026): a foto principal (og:image) mora em "/fotos/produto/62/..._p.jpg" e a galeria em
+    // "/fotos/produto/webp/62/...": o "webp" e pasta de FORMATO, nao de produto, e com ele no caminho a galeria
+    // inteira caia fora por "outro diretorio" — a fresa 62 ficava com 1 foto de 4.
+    .filter((parte, indice, partes) => !(parte === "webp" && partes[indice - 1] === "produto" && partes[indice - 2] === "fotos"));
 }
 
 /**
@@ -117,7 +121,9 @@ function diretorioDaImagem(endereco) {
   try {
     const partes = partesSemDimensao(endereco);
     partes.pop();
-    return `${new URL(endereco).origin}/${partes.join("/")}`;
+    // Sem o esquema: a Codigo G redireciona a pagina para http:// e o og:image continua https://, e com a origem
+    // inteira a galeria (relativa, resolvida em http) nunca casava com a principal — a fresa 62 ficava com 1 foto de 4.
+    return `${new URL(endereco).host.toLowerCase()}/${partes.join("/")}`;
   } catch {
     return null;
   }
@@ -372,7 +378,8 @@ function versaoGrande(endereco) {
   // 4 fotos do produto viravam 9. A "_g.webp" e a grande e existe para toda foto.
   if (/(^|\.)codigog\.com\.br$/.test(host)) {
     const foto = /^\/fotos\/produto\/(?:webp\/)?(\d+)\/(.+)_(?:pp|p|g)\.(?:webp|jpe?g|png)$/i.exec(url.pathname);
-    if (foto) return `${url.origin}/fotos/produto/webp/${foto[1]}/${foto[2]}_g.webp`;
+    // Sempre https: a pagina do produto redireciona para http:// e as fotos relativas herdariam o esquema.
+    if (foto) return `https://${url.host}/fotos/produto/webp/${foto[1]}/${foto[2]}_g.webp`;
   }
   if (host === "static.wixstatic.com" && url.pathname.startsWith("/media/")) {
     const original = /^(.*?~mv2\.[A-Za-z0-9]+)\/v1\//.exec(endereco);

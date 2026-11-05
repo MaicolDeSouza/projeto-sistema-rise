@@ -1656,7 +1656,11 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
   no PIX" entra como à vista; "De R$..." (`old-price`) é o riscado e não vale. A descrição é o `produto-desc` sem o rótulo da aba e
   sem o aviso "*Imagens meramente ilustrativas", e a ficha ("Dimensões da fresa", "Haste: 12mm") sai dela pela leitura sem título.
   Esgotado não tem painel de preço (fica o preço do JSON-LD) mas tem a descrição. Fotos: cada uma vem em `_pp`, `_p` (webp e jpg) e
-  `_g`; `versaoGrande` leva todas para `/fotos/produto/webp/<id>/<nome>_g.webp` (4 fotos em vez de 9).
+  `_g`; `versaoGrande` leva todas para `https://…/fotos/produto/webp/<id>/<nome>_g.webp` (4 fotos em vez de 9). **A página
+  redireciona para `http://`** (o sitemap lista `https://…/item-Fresa…` e a loja responde `http://…/item-fresa…`): o og:image
+  continua https e em `/fotos/produto/62/…_p.jpg`, e a galeria (relativa, em `/fotos/produto/webp/62/`) caía fora por "outro
+  diretório" — a fresa 62 ficava com 1 foto de 4 (dono, 05/11/2026). `diretorioDaImagem` compara pelo host sem o esquema e
+  `partesSemDimensao` ignora o `webp` de formato; o `versaoGrande` da Código G fixa https.
 - **"Amostra variada" do teste de fonte voltava zero (CNC Fresas e Código G, 05/11/2026), três causas, todas gerais:**
   (1) o catálogo da Tray lista o produto DESATIVADO (`available: "0"`, link para "Produto não encontrado"; 360 dos 508 na
   CNC Fresas) e o teste lia só a 1ª página (9 ativos): `lerCatalogo` ganhou `aproveitavel` (só o ativo e ainda não mostrado
