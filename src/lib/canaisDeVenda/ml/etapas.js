@@ -9,7 +9,9 @@
  * e ativado depois do vinculo no Bling.
  */
 
-export const ETAPAS = ["fotos", "validar", "criar", "pausar", "descricao", "kit_bling", "vinculo", "registrar_bling", "ativar", "gravar"];
+// "fiscal" (05/11/2026): os dados fiscais do SKU no ML, ANTES de ativar, para o anuncio nascer faturavel (sem eles o
+// faturador do ML nao emite a nota e o pacote nao sai). Anuncio que estava no meio da publicacao a faz no Retomar.
+export const ETAPAS = ["fotos", "validar", "criar", "pausar", "descricao", "fiscal", "kit_bling", "vinculo", "registrar_bling", "ativar", "gravar"];
 
 export const ROTULO_DA_ETAPA = {
   fotos: "Enviar as fotos",
@@ -17,6 +19,7 @@ export const ROTULO_DA_ETAPA = {
   criar: "Criar o anúncio pausado",
   pausar: "Conferir que ficou pausado",
   descricao: "Enviar a descrição",
+  fiscal: "Enviar os dados fiscais",
   kit_bling: "Garantir o kit no Bling",
   vinculo: "Vincular o produto à loja no Bling",
   registrar_bling: "Registrar o anúncio no Bling",

@@ -333,10 +333,59 @@ export function criarMLFalso(opcoes = {}) {
     return resposta(falha.status, falha.dados ?? { message: "falha programada", error: "erro", status: falha.status, cause: [] });
   }
 
+  // ---- Dados fiscais (05/11/2026): o SKU com os dados e o vinculo SKU -> anuncio, nos formatos medidos na conta ----
+  const fiscais = new Map(Object.entries(structuredClone(opcoes.fiscais ?? {})));
+  const ligacoes = new Map(Object.entries(opcoes.ligacoesFiscais ?? {}));
+  const existeItem = (id) => itens.has(id) || Object.values(estado.meusItens).flat().some((item) => item.id === id);
+
+  function rotasFiscaisGet(rota) {
+    let partes = rota.match(/^\/items\/fiscal_information\/([^/]+)$/);
+    if (partes) {
+      const sku = decodeURIComponent(partes[1]);
+      return fiscais.has(sku) ? resposta(200, { seller_id: estado.usuarioId, ...structuredClone(fiscais.get(sku)) }) : resposta(404, { error_code: "not_found", message: `Sku not found by sku: ${sku} and caller.id: ${estado.usuarioId}` });
+    }
+    partes = rota.match(/^\/items\/([^/]+)\/fiscal_information\/detail$/);
+    if (partes) {
+      const sku = ligacoes.get(partes[1]);
+      return sku && fiscais.has(sku) ? resposta(200, { item_id: partes[1], seller_id: estado.usuarioId, sku: structuredClone(fiscais.get(sku)) }) : resposta(404, { error_code: "not_found", message: "Item not found." });
+    }
+    partes = rota.match(/^\/can_invoice\/items\/([^/]+)$/);
+    if (partes) return resposta(200, { item_id: partes[1], seller_id: estado.usuarioId, variation_id: "", status: Boolean(ligacoes.get(partes[1]) && fiscais.has(ligacoes.get(partes[1]))) });
+    return null;
+  }
+
+  function erroFiscal(campo, mensagem, codigo) {
+    return resposta(400, { message: "Many errors. 1 embedded errors, see errorlist property for details", error_code: "json_validation_error", fields: [{ field: campo, message: mensagem, error_code: codigo }] });
+  }
+
+  function gravarFiscal(sku, corpo) {
+    if (corpo?.type === "bundle") {
+      const falta = (corpo.bundle ?? []).find((peca) => !fiscais.has(peca.sku));
+      if (falta) return erroFiscal("bundle", `Sku ${falta.sku} not found.`, "10086");
+      fiscais.set(sku, { ...structuredClone(corpo), sku });
+      return null;
+    }
+    if (!/^\d{8}$/.test(String(corpo?.tax_information?.ncm ?? ""))) return erroFiscal("tax_information.ncm", "tax_information.ncm is required.", "10027");
+    fiscais.set(sku, { ...structuredClone(corpo), sku, register_type: corpo.register_type ?? "final" });
+    return null;
+  }
+
   async function post(caminho, corpo) {
     const { rota } = separar(caminho);
     const falhou = antesDeEscrever("POST", rota, corpo);
     if (falhou) return falhou;
+
+    if (rota === "/items/fiscal_information") {
+      if (fiscais.has(corpo?.sku)) return resposta(400, { message: `Sku ${corpo.sku} already exists`, error_code: "10085" });
+      const erro = gravarFiscal(corpo?.sku, corpo);
+      return erro ?? resposta(201, { seller_id: estado.usuarioId, ...structuredClone(fiscais.get(corpo.sku)) });
+    }
+    if (rota === "/items/fiscal_information/items") {
+      if (!existeItem(corpo?.item_id)) return resposta(404, { message: "Item not found or does not belong to this seller.", error_code: "10095" });
+      if (!fiscais.has(corpo?.sku)) return resposta(400, { message: `Sku not found by sku: ${corpo?.sku} and caller.id: ${estado.usuarioId}`, error_code: "10086" });
+      ligacoes.set(corpo.item_id, corpo.sku);
+      return resposta(201, { sku: corpo.sku, item_id: corpo.item_id, variation_id: corpo.variation_id ?? "", status: "active" });
+    }
 
     if (rota === "/items/validate") {
       return opcoes.validacao ? resposta(opcoes.validacao.status, structuredClone(opcoes.validacao.dados)) : resposta(204, null);
@@ -380,6 +429,13 @@ export function criarMLFalso(opcoes = {}) {
     const { rota } = separar(caminho);
     const falhou = antesDeEscrever("PUT", rota, corpo);
     if (falhou) return falhou;
+    const doFiscal = rota.match(/^\/items\/fiscal_information\/([^/]+)$/);
+    if (doFiscal) {
+      const sku = decodeURIComponent(doFiscal[1]);
+      if (!fiscais.has(sku)) return resposta(404, { message: `Sku not found by sku: ${sku}`, error_code: "404 NOT_FOUND" });
+      const erro = gravarFiscal(sku, corpo);
+      return erro ?? resposta(200, { seller_id: estado.usuarioId, ...structuredClone(fiscais.get(sku)) });
+    }
     // A descricao de um anuncio ja publicado (o "Enviar mudancas ao ML", spec 2026-10-24).
     const daDescricao = rota.match(/^\/items\/([^/]+)\/description$/);
     if (daDescricao) {
@@ -530,6 +586,9 @@ export function criarMLFalso(opcoes = {}) {
       return resposta(falhaGet.status, falhaGet.dados ?? { message: "Too many requests", status: falhaGet.status });
     }
 
+    const fiscal = rotasFiscaisGet(rota);
+    if (fiscal) return fiscal;
+
     if (rota === "/products/search") return buscarCatalogos(pedido.params);
     let catalogo = rota.match(/^\/products\/([^/]+)\/items$/);
     if (catalogo) return itensDoCatalogo(decodeURIComponent(catalogo[1]), pedido.params);
@@ -607,5 +666,7 @@ export function criarMLFalso(opcoes = {}) {
     pedidos,
     envios,
     faturas,
+    fiscais,
+    ligacoes,
   };
 }

@@ -8,6 +8,7 @@ import { carregarAnuncioML, gravarPublicacao, lerPublicacao } from "./banco";
 import { impressaoDoConteudo } from "./impressao";
 import { conferirKitNoBling, criarKitNoBling, registrarAnuncioNoBlingML, vincularNoBlingML, vinculoNoBlingML } from "./bling";
 import { ETAPAS, etapasDoAnuncio, proximaEtapa } from "./etapas";
+import { garantirFiscalNoML, planoFiscalDoRascunho } from "./fiscalNoML";
 import { iniciarProgressoML } from "./progresso";
 import { ROTULO_DA_PARTE, atributosDaRetomada, impressaoDaCriacao, partesMudadas } from "./criadoCom";
 import { lerCategoriaCompleta, textoDoErroML } from "./leitura";
@@ -98,6 +99,11 @@ async function prepararInterno(anuncioId, { ml, bling }) {
     }
   }
 
+  // Dados fiscais (05/11/2026, "todos os produtos devem nascer ja com dados fiscais"): NCM e origem de cada produto do
+  // anuncio conferidos ANTES de escrever, para o Publicar nao parar com o item criado e pausado por falta deles.
+  const fiscal = await planoFiscalDoRascunho(rascunho);
+  if (!fiscal.ok) motivos.push(...fiscal.problemas);
+
   const payload = montarPayloadML(rascunho, contexto);
   const resumo = {
     familyName: payload.item.family_name,
@@ -114,7 +120,7 @@ async function prepararInterno(anuncioId, { ml, bling }) {
     motivos,
     resumo,
     ...base,
-    interno: { rascunho, contexto, payload, codigo, publicacao, etapas, principal },
+    interno: { rascunho, contexto, payload, codigo, publicacao, etapas, principal, fiscal },
   };
 }
 
@@ -215,7 +221,7 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto, p
   if (!preparado.ok) {
     return { ok: false, etapa: null, feitas: preparado.interno?.publicacao?.feitas ?? [], erro: preparado.motivos.join(" "), motivos: preparado.motivos };
   }
-  const { rascunho, payload, codigo, etapas, principal, contexto } = preparado.interno;
+  const { rascunho, payload, codigo, etapas, principal, contexto, fiscal } = preparado.interno;
   let pub = preparado.interno.publicacao ?? { feitas: [], fotos: {}, itemId: null, statusML: null, incerta: false };
   if (pub.incerta && !recriar && !soValidar) return { ok: false, etapa: "criar", feitas: pub.feitas ?? [], erro: RECADO_INCERTA, incerta: true };
   // Com o item ja criado, as etapas de validar ficam para tras: "Validar no ML" seguiria direto para a
@@ -392,6 +398,10 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto, p
         return falhar(etapa, `Falha ao enviar a descrição: ${textoDe(erro)}`);
       }
       if (!resposta?.ok) return falhar(etapa, textoDaRecusaML(resposta, "a descrição"));
+    } else if (etapa === "fiscal") {
+      const enviado = await garantirFiscalNoML(ml, fiscal, { itemId: pub.itemId });
+      if (!enviado.ok) return falhar(etapa, `Dados fiscais: ${enviado.erro}`);
+      if (enviado.podeFaturar === false) avisos = [...avisos, `O Mercado Livre ainda não marcou o anúncio ${pub.itemId} como apto a faturar: confira em Faturamento no ML.`];
     } else if (etapa === "kit_bling") {
       const itens = (rascunho.composicao?.itens ?? []).map((item) => ({ sku: contexto.produtos[item.produtoId]?.sku, quantidade: Number(item.quantidade) }));
       const conferido = await conferirKitNoBling(bling, { codigo, itens });

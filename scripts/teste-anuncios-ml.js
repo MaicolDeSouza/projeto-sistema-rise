@@ -1637,12 +1637,12 @@ try {
       await limpar();
       const { ETAPAS, ROTULO_DA_ETAPA, proximaEtapa, etapasDoAnuncio } = await import("../src/lib/canaisDeVenda/ml/etapas.js");
       const { lerPublicacao, gravarPublicacao } = await import("../src/lib/canaisDeVenda/ml/banco.js");
-      conferir("etapas: ordem", ETAPAS, ["fotos", "validar", "criar", "pausar", "descricao", "kit_bling", "vinculo", "registrar_bling", "ativar", "gravar"]);
+      conferir("etapas: ordem", ETAPAS, ["fotos", "validar", "criar", "pausar", "descricao", "fiscal", "kit_bling", "vinculo", "registrar_bling", "ativar", "gravar"]);
       conferir("etapas: todas com rotulo", ETAPAS.every((etapa) => typeof ROTULO_DA_ETAPA[etapa] === "string"), true);
       conferir("etapas: simples nao tem kit_bling", etapasDoAnuncio({ kit: false }).includes("kit_bling"), false);
       conferir("etapas: kit tem kit_bling", etapasDoAnuncio({ kit: true }).includes("kit_bling"), true);
       conferir("proximaEtapa: depois de fotos e validar vem criar", proximaEtapa({ feitas: ["fotos", "validar"] }), "criar");
-      conferir("proximaEtapa: simples pula kit_bling", proximaEtapa({ feitas: ["fotos", "validar", "criar", "pausar", "descricao"] }, etapasDoAnuncio({ kit: false })), "vinculo");
+      conferir("proximaEtapa: simples pula kit_bling", proximaEtapa({ feitas: ["fotos", "validar", "criar", "pausar", "descricao", "fiscal"] }, etapasDoAnuncio({ kit: false })), "vinculo");
       conferir("proximaEtapa: sem publicacao comeca nas fotos", proximaEtapa(null), "fotos");
       conferir("proximaEtapa: tudo feito e null", proximaEtapa({ feitas: [...ETAPAS] }), null);
 
@@ -1673,7 +1673,7 @@ try {
     const { criarBlingFalso } = await import("./lib/blingFalso.js");
     async function cenarioDePublicacao() {
       const criar = (sku, extra = {}) =>
-        prisma.produto.create({ data: { sku, tituloBase: `ZZ ${sku}`, descricaoBase: `Descricao de ${sku}`, conferido: true, blingId: "1", pesoKg: 0.05, alturaCm: 2, larguraCm: 6, comprimentoCm: 7, estoque: 10, ...extra } });
+        prisma.produto.create({ data: { sku, tituloBase: `ZZ ${sku}`, descricaoBase: `Descricao de ${sku}`, conferido: true, blingId: "1", pesoKg: 0.05, alturaCm: 2, larguraCm: 6, comprimentoCm: 7, estoque: 10, ncm: "8473.30.49", origem: 0, ...extra } });
       const s1 = await criar("ZZ-ML-S1");
       const semBling = await criar("ZZ-ML-SB", { blingId: null });
       const k1 = await criar("ZZ-ML-K1");
@@ -1774,6 +1774,104 @@ try {
       const criacao2 = mlDuas.escritas.find((escrita) => escrita.metodo === "POST" && escrita.caminho === "/items").corpo;
       conferir("publicar: categoria de 2 fotos leva 2", [r2.ok, criacao2.pictures.length], [true, 2]);
       conferir("publicar: o corte da categoria nao acende o '!'", await mudancasDe(id2), { partes: [], naoConferido: false });
+    }
+
+    {
+      console.log("\nDados fiscais do ML (05/11/2026)");
+      const { CSOSN_DA_LOJA, corpoFiscalSimples, partilhaDoKit, planoFiscal, problemasFiscais, tipoDeOrigemML, fiscalIgual } = await import("../src/lib/canaisDeVenda/ml/dadosFiscais.js");
+      // Regras puras.
+      conferir("fiscal: origem 0 e revenda", tipoDeOrigemML({ origem: 0, tipoProducao: "REVENDA" }), "reseller");
+      conferir("fiscal: origem 1 e 6 sao importacao direta", [tipoDeOrigemML({ origem: 1 }), tipoDeOrigemML({ origem: 6 })], ["imported", "imported"]);
+      conferir("fiscal: origem 2 (estrangeira comprada no Brasil) e revenda", tipoDeOrigemML({ origem: 2 }), "reseller");
+      conferir("fiscal: fabricacao propria", tipoDeOrigemML({ origem: 0, tipoProducao: "FABRICACAO_PROPRIA" }), "manufacturer");
+      conferir("fiscal: sem NCM e sem origem", problemasFiscais({ sku: "X1", ncm: "8473", origem: null }).length, 2);
+      conferir("fiscal: CEST com digitos errados", problemasFiscais({ sku: "X1", ncm: "84733049", origem: 0, cest: "01064" }).some((p) => /CEST/.test(p)), true);
+      conferir("fiscal: produto completo", problemasFiscais({ sku: "X1", ncm: "8473.30.49", origem: 2, cest: "01.064.00" }), []);
+      const corpo = corpoFiscalSimples({ sku: "X1", tituloBase: "Placa ESP32", ncm: "8473.30.49", cest: "0106400", origem: 2, tipoProducao: "REVENDA", ean: "7891234567895", pesoKg: 0.012, custo: 18.5 });
+      conferir("fiscal: corpo do single no formato medido", corpo, {
+        sku: "X1", title: "Placa ESP32", type: "single", measurement_unit: "UN", cost: 18.5, register_type: "final",
+        tax_information: { ncm: "84733049", origin_type: "reseller", origin_detail: "2", csosn: CSOSN_DA_LOJA, cest: "0106400", ean: "7891234567895", net_weight: 0.012, gross_weight: 0.012 },
+      });
+      conferir("fiscal: CSOSN 102 (Simples Nacional)", CSOSN_DA_LOJA, "102");
+      conferir("fiscal: EAN interno do Rise nao vai para a nota", "ean" in corpoFiscalSimples({ sku: "X1", tituloBase: "a", ncm: "84733049", origem: 0, ean: "2000001001018" }).tax_information, false);
+      conferir("fiscal: partilha pelo custo soma 100", partilhaDoKit([{ produto: { custo: 10 }, quantidade: 1 }, { produto: { custo: 5 }, quantidade: 2 }, { produto: { custo: 1 }, quantidade: 1 }]), [48, 48, 4]);
+      conferir("fiscal: partilha sem custo vai pelo preco", partilhaDoKit([{ produto: { precoVenda: 30 }, quantidade: 1 }, { produto: { custo: 1, precoVenda: 10 }, quantidade: 1 }]), [75, 25]);
+      conferir("fiscal: kit de N do mesmo produto = 100%", partilhaDoKit([{ produto: { custo: 2 }, quantidade: 10 }]), [100]);
+      conferir("fiscal: partilha de tres iguais soma 100", partilhaDoKit([1, 2, 3].map(() => ({ produto: {}, quantidade: 1 }))).reduce((a, b) => a + b, 0), 100);
+      const pecaA = { sku: "PA", tituloBase: "Peça A", ncm: "85340000", origem: 0, custo: 10 };
+      const pecaB = { sku: "PB", tituloBase: "Peça B", ncm: "85340000", origem: 2, custo: 10 };
+      const planoKit = planoFiscal({ sku: "KIT1", titulo: "Kit", pecas: [{ produto: pecaA, quantidade: 1 }, { produto: pecaB, quantidade: 1 }] });
+      conferir("fiscal: plano do kit manda as pecas antes do bundle", [planoKit.ok, planoKit.corpos.map((c) => [c.sku, c.type])], [true, [["PA", "single"], ["PB", "single"], ["KIT1", "bundle"]]]);
+      conferir("fiscal: bundle com as partes", planoKit.corpos[2].bundle, [{ sku: "PA", quantity: 1, percentage_share: 50 }, { sku: "PB", quantity: 1, percentage_share: 50 }]);
+      conferir("fiscal: peca sem NCM barra o kit", planoFiscal({ sku: "KIT1", pecas: [{ produto: { ...pecaA, ncm: null }, quantidade: 1 }] }).ok, false);
+      conferir("fiscal: kit dentro de kit recusa", planoFiscal({ sku: "KIT1", pecas: [{ produto: { ...pecaA, tipo: "COMPOSICAO" }, quantidade: 1 }] }).problemas.some((p) => /kit dentro de kit/.test(p)), true);
+      conferir("fiscal: sem SKU recusa", planoFiscal({ sku: "", produto: pecaA }).ok, false);
+      conferir("fiscal: igual ignora titulo e unidade", fiscalIgual({ ...corpo, title: "outro", measurement_unit: "UNID" }, corpo), true);
+      conferir("fiscal: NCM diferente nao e igual", fiscalIgual({ ...corpo, tax_information: { ...corpo.tax_information, ncm: "85340000" } }, corpo), false);
+      const { mesclarComML } = await import("../src/lib/canaisDeVenda/ml/dadosFiscais.js");
+      const semCest = corpoFiscalSimples({ sku: "X2", tituloBase: "a", ncm: "84733049", origem: 0 });
+      conferir("fiscal: CEST e EAN vazios no Rise nao apagam os do ML", mesclarComML({ tax_information: { cest: "0106400", ean: "7891234567895", origin_type: "manufacturer" } }, semCest).tax_information, { ncm: "84733049", origin_type: "reseller", origin_detail: "0", csosn: "102", cest: "0106400", ean: "7891234567895" });
+      conferir("fiscal: CEST do Rise vence o do ML", mesclarComML({ tax_information: { cest: "0106400" } }, corpo).tax_information.cest, "0106400");
+
+      // Contra o ML falso e o banco: o Publicar, o anuncio antigo sem dados (o ESP32) e o kit.
+      await limpar();
+      const { publicarAnuncioML, prepararPublicacaoML } = await import("../src/lib/canaisDeVenda/ml/publicar.js");
+      const { garantirFiscalNoML, planoFiscalDoProduto, planoFiscalDoSku, enviarDadosFiscaisDoAnuncio, situacaoFiscalDoAnuncio } = await import("../src/lib/canaisDeVenda/ml/fiscalNoML.js");
+      const c = await cenarioDePublicacao();
+      const lerFoto = async () => Buffer.from("jpg");
+
+      const semNcm = await c.anuncioSimples(c.s1);
+      await prisma.produto.update({ where: { id: c.s1.id }, data: { ncm: null } });
+      const recusa = await prepararPublicacaoML(semNcm, { ml: criarMLFalso(), bling: c.novoBling() });
+      conferir("publicar: produto sem NCM nao comeca", [recusa.ok, recusa.motivos.some((m) => /ZZ-ML-S1 está sem NCM/.test(m))], [false, true]);
+      await prisma.produto.update({ where: { id: c.s1.id }, data: { ncm: "8473.30.49", cest: "0106400" } });
+
+      const ml = criarMLFalso();
+      const id = await c.anuncioSimples(c.s1);
+      const r = await publicarAnuncioML(id, { ml, bling: c.novoBling(), lerFoto });
+      const itemId = r.itemId;
+      conferir("publicar: nasce com os dados fiscais e o vinculo", [r.ok, ml.fiscais.get("ZZ-ML-S1")?.tax_information, ml.ligacoes.get(itemId)], [true, { ncm: "84733049", origin_type: "reseller", origin_detail: "0", csosn: "102", cest: "0106400", net_weight: 0.05, gross_weight: 0.05 }, "ZZ-ML-S1"]);
+      const posFiscal = ml.escritas.findIndex((e) => e.metodo === "POST" && e.caminho === "/items/fiscal_information");
+      const posAtivar = ml.escritas.findIndex((e) => e.metodo === "PUT" && e.caminho === `/items/${itemId}` && e.corpo?.status === "active");
+      conferir("publicar: fiscal antes de ativar", posFiscal >= 0 && posAtivar > posFiscal, true);
+      const anuncio = await prisma.anuncio.findUnique({ where: { id }, select: { dados: true } });
+      conferir("publicar: etapa fiscal marcada", anuncio.dados.publicacao.feitas.includes("fiscal"), true);
+
+      // Segundo envio do mesmo anuncio: nada a escrever.
+      const antes = ml.escritas.length;
+      const denovo = await enviarDadosFiscaisDoAnuncio(id, { ml });
+      conferir("reenviar: igual nao escreve", [denovo.ok, denovo.feitos, denovo.podeFaturar, ml.escritas.length - antes], [true, [], true, 0]);
+      conferir("situacao: lida no ML", await situacaoFiscalDoAnuncio(id, { ml }), { ok: true, ligado: true, sku: "ZZ-ML-S1", podeFaturar: true, problemas: [], skuDoRise: "ZZ-ML-S1" });
+
+      // Anuncio antigo: SKU com dados velhos no ML e sem vinculo -> corrige e vincula.
+      const mlVelho = criarMLFalso({ meusItens: { "ZZ-ML-S1": [{ id: "MLB777", status: "active" }] }, fiscais: { "ZZ-ML-S1": { sku: "ZZ-ML-S1", type: "single", tax_information: { ncm: "85340000", origin_type: "manufacturer", origin_detail: "0", csosn: "102" } } } });
+      mlVelho.exigirEscrita("ZZ-ML-S1");
+      const velho = await garantirFiscalNoML(mlVelho, await planoFiscalDoProduto({ id: c.s1.id }), { itemId: "MLB777" });
+      conferir("antigo: corrige o SKU e vincula", [velho.ok, velho.feitos, mlVelho.fiscais.get("ZZ-ML-S1").tax_information.ncm, mlVelho.escritas.map((e) => `${e.metodo} ${e.caminho}`)], [true, ["Dados fiscais do SKU ZZ-ML-S1 corrigidos.", "SKU ZZ-ML-S1 vinculado ao anúncio MLB777."], "84733049", ["PUT /items/fiscal_information/ZZ-ML-S1", "POST /items/fiscal_information/items"]]);
+      conferir("antigo: o PUT nao leva o SKU no corpo", "sku" in mlVelho.escritas[0].corpo, false);
+
+      // Kit do cadastro (ZZ-ML-KP = 2x K1 + 1x K2): as pecas primeiro, depois o bundle.
+      await prisma.produtoComponente.createMany({ data: [{ kitId: c.kitDoRise.id, componenteId: c.k1.id, quantidade: 2, ordem: 0 }, { kitId: c.kitDoRise.id, componenteId: c.k2.id, quantidade: 1, ordem: 1 }] });
+      await prisma.produto.updateMany({ where: { id: { in: [c.k1.id, c.k2.id] } }, data: { custo: 5 } });
+      const mlKit = criarMLFalso({ meusItens: { "ZZ-ML-KP": [{ id: "MLB888", status: "active" }] } });
+      mlKit.exigirEscrita("ZZ-ML-KP");
+      const kit = await garantirFiscalNoML(mlKit, await planoFiscalDoSku("ZZ-ML-KP"), { itemId: "MLB888" });
+      conferir("kit: pecas, bundle e vinculo", [kit.ok, mlKit.escritas.map((e) => `${e.metodo} ${e.caminho}`), mlKit.fiscais.get("ZZ-ML-KP")?.bundle], [true, ["POST /items/fiscal_information", "POST /items/fiscal_information", "POST /items/fiscal_information", "POST /items/fiscal_information/items"], [{ sku: "ZZ-ML-K1", quantity: 2, percentage_share: 67 }, { sku: "ZZ-ML-K2", quantity: 1, percentage_share: 33 }]]);
+      conferir("kit: o ML confirma que pode faturar", kit.podeFaturar, true);
+
+      // Kit do ML (anuncio de composicao com codigo proprio): o plano vem do anuncio gravado.
+      const idKitML = await c.anuncioDeKit("ZZ-ML-KITN", 2);
+      conferir("kit do ML: plano pelo codigo do kit", (await planoFiscalDoSku("ZZ-ML-KITN")).corpos.map((corpoDoKit) => corpoDoKit.sku), ["ZZ-ML-K1", "ZZ-ML-K2", "ZZ-ML-KITN"]);
+      conferir("kit do ML: rascunho nao publicado nao envia", (await enviarDadosFiscaisDoAnuncio(idKitML, { ml: mlKit })).ok, false);
+      conferir("sku desconhecido", (await planoFiscalDoSku("NAO-EXISTE-ZZ")).ok, false);
+
+      // Recusa do ML chega como texto, sem lancar.
+      const mlRecusa = criarMLFalso({ falhas: [{ metodo: "POST", caminho: "/items/fiscal_information", exato: true, status: 400, dados: { message: "bad", error: "bad_request", status: 400, cause: [{ type: "error", code: "x", message: "ncm invalido" }] } }] });
+      mlRecusa.exigirEscrita("ZZ-ML-S1");
+      const recusado = await garantirFiscalNoML(mlRecusa, await planoFiscalDoProduto({ id: c.s1.id }), { itemId: "MLB1" });
+      conferir("recusa: volta o erro do ML", [recusado.ok, /recusou os dados fiscais do SKU ZZ-ML-S1/.test(recusado.erro ?? "")], [false, true]);
+
+      await prisma.produtoComponente.deleteMany({ where: { kitId: c.kitDoRise.id } });
     }
 
     {
@@ -2033,7 +2131,7 @@ try {
       let r = await publicarAnuncioML(idSimples, { ml, bling: bf, lerFoto });
       conferir("publicar: a proposta de anuncio sai no Publicar que deu certo", await temProposta(idSimples), false);
       conferir("publicar: tudo certo", [r.ok, r.feitas.at(-1), (await estado(idSimples)).status], [true, "gravar", "PUBLICADO"]);
-      conferir("publicar: ordem das escritas no ML", ml.escritas.map(semMLB), ["POST /pictures/items/upload", "POST /pictures/items/upload", "POST /items/validate", "POST /items", "POST /items/MLB/description", "PUT /items/MLB"]);
+      conferir("publicar: ordem das escritas no ML", ml.escritas.map(semMLB), ["POST /pictures/items/upload", "POST /pictures/items/upload", "POST /items/validate", "POST /items", "POST /items/MLB/description", "POST /items/fiscal_information", "POST /items/fiscal_information/items", "PUT /items/MLB"]);
       conferir("publicar: criou pausado, com preco e fotos por id, sem title", (({ status, price, pictures, title }) => [status, price, pictures.length, pictures.every((foto) => /^999-MLB/.test(foto.id)), title])(ml.escritas[3].corpo), ["paused", 49.9, 2, true, undefined]);
       conferir("publicar: ativou no fim", ml.escritas.at(-1).corpo, { status: "active" });
       conferir("publicar: descricao do produto", ml.escritas[4].corpo.plain_text.startsWith("Descricao de ZZ-ML-S1"), true);

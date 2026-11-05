@@ -11,6 +11,7 @@ import { prepararPublicacaoML, publicarAnuncioML, validarNoML } from "@/lib/cana
 import { enviarMudancasML } from "@/lib/canaisDeVenda/ml/atualizar";
 import { conferirExclusaoML, excluirAnuncioML } from "@/lib/canaisDeVenda/ml/excluir";
 import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
+import { enviarDadosFiscaisDoAnuncio, situacaoFiscalDoAnuncio } from "@/lib/canaisDeVenda/ml/fiscalNoML";
 import {
   buscarCatalogos,
   catalogosDosMeusAnuncios,
@@ -419,6 +420,25 @@ export async function enviarMudancasMLAcao(anuncioId) {
     revalidatePath("/produtos");
     return resultado;
   });
+}
+
+/** A situacao dos dados fiscais do anuncio publicado (aba Status). So le o ML. */
+export async function situacaoFiscalMLAcao(anuncioId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"]);
+  if (negado) return negado;
+  if (!ehId(anuncioId)) return PEDIDO_INVALIDO;
+  return protegendo(() => situacaoFiscalDoAnuncio(anuncioId, { ml: clienteML() }));
+}
+
+/**
+ * "Enviar dados fiscais" (05/11/2026): cadastra ou corrige no ML os dados fiscais do SKU do anuncio publicado e o vincula.
+ * Escreve no ML: o mesmo acesso do Publicar.
+ */
+export async function enviarDadosFiscaisMLAcao(anuncioId) {
+  const negado = await negarSemAcessos(["acao.mercadoLivre.publicar", "executar"]);
+  if (negado) return negado;
+  if (!ehId(anuncioId)) return PEDIDO_INVALIDO;
+  return protegendo(() => enviarDadosFiscaisDoAnuncio(anuncioId, { ml: clienteML() }));
 }
 
 // ---------------------------------------------------------------------------

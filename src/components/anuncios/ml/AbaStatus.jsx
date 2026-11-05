@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { CircleCheck, ExternalLink, Loader } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { CircleCheck, ExternalLink, Loader, Send } from "lucide-react";
 
-import { validarNoMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
+import { enviarDadosFiscaisMLAcao, situacaoFiscalMLAcao, validarNoMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
 import Badge from "@/components/ui/Badge";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { precisaAgirNoML, textoDoCatalogo, textoDoEstadoML } from "@/lib/canaisDeVenda/ml/estadoNoML";
@@ -80,6 +80,78 @@ function ValidarNoML({ anuncioId, podeValidar }) {
   );
 }
 
+/**
+ * Os dados fiscais do anuncio publicado (05/11/2026): sem eles o faturador do ML nao emite a nota e o pacote nao sai. Le o
+ * ML ao abrir a aba; "Enviar dados fiscais" cadastra ou corrige o SKU com o NCM, a origem e o CSOSN do Rise e o vincula.
+ */
+function DadosFiscais({ anuncioId }) {
+  const [lido, setLido] = useState(null);
+  const [envio, setEnvio] = useState(null);
+  const [enviando, iniciar] = useTransition();
+
+  useEffect(() => {
+    let vivo = true;
+    situacaoFiscalMLAcao(anuncioId)
+      .then((resultado) => vivo && setLido(resultado))
+      .catch(() => vivo && setLido({ ok: false, erro: "Não foi possível ler o Mercado Livre." }));
+    return () => {
+      vivo = false;
+    };
+  }, [anuncioId]);
+
+  function enviar() {
+    setEnvio(null);
+    iniciar(async () => {
+      let resultado;
+      try {
+        resultado = await enviarDadosFiscaisMLAcao(anuncioId);
+      } catch {
+        resultado = { ok: false, erro: "Não foi possível falar com o servidor." };
+      }
+      setEnvio(resultado);
+      if (resultado?.ok) setLido((antes) => ({ ...(antes ?? {}), ok: true, ligado: true, sku: antes?.skuDoRise ?? antes?.sku, podeFaturar: resultado.podeFaturar }));
+    });
+  }
+
+  const problemas = lido?.problemas ?? [];
+  const completo = lido?.ok && lido.ligado && lido.podeFaturar !== false;
+  let estado;
+  if (!lido) estado = <span className="text-suave">Lendo...</span>;
+  else if (!lido.ok) estado = <span className="text-amber-700">{lido.erro}</span>;
+  else if (completo) {
+    estado = (
+      <span className="inline-flex items-center gap-1.5 text-emerald-700">
+        <CircleCheck size={14} aria-hidden="true" /> Sim, SKU <span className="font-mono">{lido.sku}</span>
+      </span>
+    );
+  } else estado = <span className="font-medium text-red-700">{lido.ligado ? "Incompletos: o ML não fatura este anúncio" : "Não: o ML não emite a nota"}</span>;
+
+  return (
+    <LinhaDeDado rotulo="Dados fiscais">
+      <span className="flex flex-col items-end gap-1.5">
+        <span className="inline-flex flex-wrap items-center justify-end gap-2">
+          {estado}
+          {lido?.ok && (
+            <button
+              type="button"
+              onClick={enviar}
+              disabled={enviando || problemas.length > 0}
+              title={problemas.length > 0 ? problemas.join(" ") : "Cadastra ou corrige no ML o NCM, a origem e o CSOSN do produto, e vincula ao anúncio."}
+              className="inline-flex items-center gap-1.5 rounded border border-borda bg-superficie px-2.5 py-1 text-xs hover:bg-fundo disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {enviando ? <Loader size={13} className="animate-spin" /> : <Send size={13} />}
+              {completo ? "Reenviar dados fiscais" : "Enviar dados fiscais"}
+            </button>
+          )}
+        </span>
+        {problemas.length > 0 && <span className="text-xs text-red-700">{problemas[0]}</span>}
+        {envio && !envio.ok && <span role="alert" className="text-xs text-red-700">{envio.erro}</span>}
+        {envio?.ok && <span className="text-xs text-emerald-700">{envio.feitos?.length ? envio.feitos.join(" ") : "Já estava tudo certo no ML."}</span>}
+      </span>
+    </LinhaDeDado>
+  );
+}
+
 /** O que falta para publicar, uma linha por problema, os bloqueantes primeiro, cada um com o atalho para a aba dele. */
 function OQueFalta({ problemas, irPara }) {
   const nomeDaAba = new Map(ABAS_ML.map((aba) => [aba.id, aba.rotulo]));
@@ -147,6 +219,7 @@ export default function AbaStatus({ rascunho, contexto, irPara, todosProblemas, 
               <span className="text-suave">Ainda não publicado</span>
             )}
           </LinhaDeDado>
+          {publicado && idExterno && <DadosFiscais anuncioId={anuncioId} />}
           <LinhaDeDado rotulo="Catálogo">{publicado ? textoDoCatalogo(estado?.catalogo) ?? <span className="text-suave">Ainda não lido</span> : <span className="text-suave">Depois de publicar</span>}</LinhaDeDado>
           <LinhaDeDado rotulo="Última sincronização">
             {publicado ? dataHora(publicacao?.enviado?.em ?? publicacao?.atualizadoEm) ?? <span className="text-suave">Sem registro</span> : <span className="text-suave">Nunca enviado</span>}
