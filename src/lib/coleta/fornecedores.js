@@ -58,6 +58,13 @@ export const FORNECEDORES = [
      * e a busca por codigo devolve os dois sem dizer qual usar.
      */
     mesclarSiteComArquivo: true,
+
+    /**
+     * O que esta no site e NAO esta na planilha fica sem estoque (0), e o que saiu da planilha tambem (pedido do
+     * dono em 05/11/2026). A planilha e o que ela tem para vender; o site diz "disponivel" no catalogo inteiro.
+     * So aqui: na R&AC o arquivo e um orcamento com os itens pedidos, e o resto do catalogo nao esta esgotado.
+     */
+    foraDaListaEsgotado: true,
   },
   {
     id: "santana",

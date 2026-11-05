@@ -2811,6 +2811,32 @@ console.log("\n— Orcamento em PDF da R&AC + catalogo do site (10/10/2026) —"
   conferir("mescla: nome, foto e categoria do site", [juntos[0].name, juntos[0].images.length, juntos[0].category], ["Chave Gangorra KCD1-202 20A/8A 250V Preta c/ Marcação", 1, "Chaves gangorra"]);
   conferir("mescla: preco do orcamento, sem faixa de quantidade", [juntos[0].prices.normal, juntos[0].precosPorQuantidade ?? null], [2.65, null]);
   conferir("mescla: item fora do orcamento continua sem preco", juntos[1].prices.normal, null);
+  // R&AC NAO esgota o que ficou fora do orcamento; a Nightech sim (regra `foraDaListaEsgotado`).
+  conferir("mescla: R&AC fora do orcamento continua sem julgamento de estoque", juntos[1].stock.status !== "OUT_OF_STOCK", true);
+}
+
+console.log("\n— Nightech: produto do site fora da planilha fica sem estoque (05/11/2026) —");
+{
+  const { esgotarForaDaLista, juntarListas } = await import("../src/lib/coleta/arquivos.js");
+  const { regrasDoFornecedor } = await import("../src/lib/coleta/fornecedores.js");
+  conferir("regra: so a Nightech esgota o que esta fora da lista", [
+    Boolean(regrasDoFornecedor({ url: "https://www.nightech.com.br/" }).foraDaListaEsgotado),
+    Boolean(regrasDoFornecedor({ url: "https://www.rac.tec.br/" }).foraDaListaEsgotado),
+  ], [true, false]);
+  const estoque = (status, quantity = null) => ({ status, quantity, aChegar: null });
+  const site = [
+    { name: "Sensor PIR", code: "ROB0106", prices: { normal: null }, stock: estoque("AVAILABLE"), origens: { quantidade: "site" } },
+    { name: "Kit IR", code: "ROB0111", prices: { normal: null }, stock: estoque("AVAILABLE") },
+    { name: "Sem codigo", code: "N/A", prices: { normal: null }, stock: estoque("AVAILABLE") },
+  ];
+  const planilha = [{ name: "Kit IR", code: "ROB0111", prices: { normal: 4.59 }, stock: { status: "IN_STOCK", quantity: 901, aChegar: 1000 } }];
+  const codigos = planilha.map((p) => p.code);
+  const juntos = esgotarForaDaLista(juntarListas([site, planilha]), codigos);
+  const porCodigo = Object.fromEntries(juntos.map((p) => [p.code, p]));
+  conferir("fora da planilha: sem estoque, 0", [porCodigo.ROB0106.stock.status, porCodigo.ROB0106.stock.quantity], ["OUT_OF_STOCK", 0]);
+  conferir("fora da planilha: a origem diz por que", porCodigo.ROB0106.origens.quantidade, "fora da lista do fornecedor: sem estoque");
+  conferir("na planilha: saldo e preco da planilha ficam", [porCodigo.ROB0111.stock.quantity, porCodigo.ROB0111.stock.aChegar, porCodigo.ROB0111.prices.normal], [901, 1000, 4.59]);
+  conferir("sem codigo: nao e julgado", porCodigo["N/A"].stock.status, "AVAILABLE");
 }
 
 // Eletrodex (Tray, 10/10/2026): o bloco `description` abre com um <div class="title">

@@ -1237,6 +1237,23 @@ export async function lerArquivo({ nome, bytes, fonte, cambio = null }) {
  * @param {object} [opcoes]
  * @param {RegExp} [opcoes.sufixoDeCarga]
  */
+/**
+ * Produto do SITE que nao esta na lista do fornecedor fica SEM ESTOQUE (pedido do dono em 05/11/2026, Nightech: "caso o
+ * produto nao esteja na lista varrida deve constar como indisponivel"). A planilha e o que ele tem para vender hoje; o
+ * site mostra o catalogo inteiro e diz "disponivel" em tudo, inclusive no que nao tem preco nem saldo na lista.
+ *
+ * `codigosDaLista` sao os codigos lidos da lista. Produto sem codigo nao e julgado. Muta e devolve.
+ */
+export function esgotarForaDaLista(produtos, codigosDaLista) {
+  const naLista = new Set([...codigosDaLista].map((codigo) => String(codigo)));
+  for (const produto of produtos) {
+    if (!produto.code || produto.code === "N/A" || naLista.has(String(produto.code))) continue;
+    produto.stock = { ...(produto.stock ?? {}), quantity: 0, status: "OUT_OF_STOCK" };
+    produto.origens = { ...(produto.origens ?? {}), quantidade: "fora da lista do fornecedor: sem estoque" };
+  }
+  return produtos;
+}
+
 export function juntarListas(listas, { sufixoDeCarga } = {}) {
   // A chave de agrupamento: o codigo, sem o sufixo de carga quando o
   // fornecedor tem essa regra declarada.

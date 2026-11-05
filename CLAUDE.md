@@ -1484,6 +1484,12 @@ Fornecedor, com dois campos novos (migration `20261104c_moeda_do_fornecedor`): *
   para ela**: noutro catálogo `-2` pode ser voltagem ou versão, e juntar apagaria produto.
 - **Nightech — `mesclarSiteComArquivo`.** O site tem foto, texto de venda e endereço; a
   planilha tem preço e saldo. Mesmo código = um produto.
+  - **`foraDaListaEsgotado` (05/11/2026, pedido do dono: "caso o produto não esteja na lista varrida deve constar como
+    indisponível"):** o produto do site que não tem linha na planilha ficava "disponível" (o site diz isso no catálogo
+    inteiro) e sem preço. Agora `esgotarForaDaLista` (`arquivos.js`, depois do `juntarListas` em `reprocessarArquivos`)
+    põe estoque 0 / `OUT_OF_STOCK` com a origem "fora da lista do fornecedor", e o que saiu da planilha também fica com 0
+    (`zerarAusentes`, a regra da Fortek). **Só a Nightech:** o arquivo da R&AC é um orçamento com os itens pedidos. Vale
+    na próxima "Atualizar dados" dela (reiniciar o worker).
 
 A mesclagem em si mora em `src/lib/coleta/mesclar.js`, **sem imports**, usada pelo servidor
 (duas listas) e pela tela (site + arquivo). Duplicá-la faria as duas divergirem em silêncio.

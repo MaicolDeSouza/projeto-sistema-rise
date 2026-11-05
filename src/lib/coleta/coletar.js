@@ -1,5 +1,5 @@
 import { guardarArquivosOriginais, lerArquivosOriginais } from "./arquivo";
-import { juntarListas, lerArquivo } from "./arquivos";
+import { esgotarForaDaLista, juntarListas, lerArquivo } from "./arquivos";
 import { baixarListasDaBenser, PAGINAS_DA_BENSER } from "./benser-ao-vivo";
 import { prisma } from "@/lib/db";
 import {
@@ -259,7 +259,10 @@ async function reprocessarArquivos(fonte, aoProgredir, sinal) {
     // Site ANTES do arquivo: quem chega primeiro vence, e a foto e a descricao
     // de venda sao do site.
     if (doSite.produtos.length > 0) {
+      const codigosDaLista = produtos.map((produto) => produto.code);
       produtos = juntarListas([doSite.produtos, produtos]);
+      // Nightech: o que o site tem e a planilha nao tem esta esgotado, nao "disponivel" (05/11/2026).
+      if (regras.foraDaListaEsgotado) esgotarForaDaLista(produtos, codigosDaLista);
     }
   }
 
@@ -272,7 +275,8 @@ async function reprocessarArquivos(fonte, aoProgredir, sinal) {
     listaEnviadaEm: fonte.listaEnviadaEm,
     comecou,
     arquivos: guardados.length,
-    zerarAusentes: prontaZeraOQueFalta,
+    // Fortek e Nightech: o que saiu da lista fica com 0, e nao "nao informado".
+    zerarAusentes: prontaZeraOQueFalta || Boolean(regras.foraDaListaEsgotado),
   });
 }
 
