@@ -718,9 +718,31 @@ function especificacoesDeLista(texto) {
   // secao marcada e secao sem marcador terminam por sinais diferentes.
   let listaMarcada = null;
 
-  for (const linhaBruta of linhas.slice(inicio + 1)) {
+  // Subtitulo de grupo DENTRO da ficha (CNC Fresas, 05/11/2026): o kit de 6 fresas escreve
+  // "Especificações Técnicas:" e depois uma peca por bloco, "Ballnose 12mm:" ou "Fresa V Bit 90
+  // Graus" seguidos de "- Diâmetro: 12,0mm". O subtitulo parecia titulo de outra secao (ou linha
+  // sem marcador numa lista marcada) e a ficha saia VAZIA. Vale so quando a linha seguinte e um
+  // item MARCADO "- Nome: valor": "Garantia:" seguido de frase continua encerrando. Entra sem nome,
+  // para a ficha dizer de que peca e cada medida.
+  const itemMarcadoComPar = (linha) => /^\s*[-•*]\s*[^:]{1,40}:\s*\S/.test(linha);
+  const ehSubgrupo = (linha, indice) =>
+    linha.length < 60 &&
+    linha.split(/\s+/).length <= 8 &&
+    !/^\s*[-•*]\s/.test(linha) &&
+    !/[.!?]$/.test(linha) &&
+    !/:\s*\S/.test(linha) &&
+    itemMarcadoComPar(proximaNaoVazia(indice));
+
+  for (let indice = inicio + 1; indice < linhas.length; indice++) {
+    const linhaBruta = linhas[indice];
     if (!linhaBruta) {
       houveBranco = true;
+      continue;
+    }
+    if (ehSubgrupo(linhaBruta, indice)) {
+      itens.push({ nome: null, valor: linhaBruta.replace(/:\s*$/, "").trim() });
+      houveBranco = false;
+      seguidasSemPar = 0;
       continue;
     }
     if (ehTitulo(linhaBruta)) break;
@@ -762,7 +784,9 @@ function especificacoesDeLista(texto) {
       rotulo &&
       valor &&
       separador <= 40 &&
-      valor.length <= 120 &&
+      // Item marcado aceita valor mais longo (CNC Fresas: "- Aplicação: Ideal para gravação e
+      // desbaste em materiais como ..." com 190 caracteres saia sem nome).
+      valor.length <= (temMarcador ? 250 : 120) &&
       rotulo.split(/\s+/).length <= (temMarcador ? 10 : 6);
 
     // Ser par vem ANTES de julgar se e paragrafo. Ao contrario, uma

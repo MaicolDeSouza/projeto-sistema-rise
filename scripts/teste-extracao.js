@@ -2535,6 +2535,18 @@ console.log("\n— Nuvemshop: o bloco da descricao vence o resumo do JSON-LD (co
   conferir("ficha com o nome de uma letra maiuscula (D)", cone.specifications.map((e) => e.nome), ["Modelo", "Rotação maxima", "L1", "D", "Material", "Precisão"]);
 }
 
+console.log("\n— Ficha com subtitulo por peca do kit (CNC Fresas, 05/11/2026) —");
+{
+  const { especificacoesDaDescricao } = await import("../src/lib/coleta/normalizar.js");
+  const html = "<p>Especificações Técnicas:<br />\nBallnose 12mm:<br />\n- Diâmetro: 12,0mm<br />\n- Haste: 6mm</p>\n\n" +
+    "<p>Fresa V Bit 90 Graus<br />\n- Ângulo: 90 graus<br />\n- Aplicação: " + "Ideal para gravação e desbaste em materiais como circuitos impressos, metais, cobre, alumínio, ouro, prata, nylon, acrílico, resina, grafite, madeira, MDF e MDF Laminado" + "</p>\n\n" +
+    "<p>Garantia:<br />\nOferecemos uma garantia de 1 mês contra defeitos de fabricação.</p>";
+  const ficha = especificacoesDaDescricao(html);
+  conferir("cnc fresas: subtitulos entram sem nome e a ficha nao sai vazia",
+    ficha.map((e) => e.nome ?? `[${e.valor}]`),
+    ["[Ballnose 12mm]", "Diâmetro", "Haste", "[Fresa V Bit 90 Graus]", "Ângulo", "Aplicação"]);
+}
+
 console.log("\n— Ficha sem titulo: nome de 4-5 palavras, legenda solta e propaganda (Policomp, 10/10/2026) —");
 {
   const { especificacoesDaDescricao } = await import("../src/lib/coleta/normalizar.js");
