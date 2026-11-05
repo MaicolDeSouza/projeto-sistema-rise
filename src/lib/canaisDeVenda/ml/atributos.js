@@ -90,6 +90,8 @@ const ehTensaoLimite = (id) => /LIMIT/i.test(id) && /VOLTAGE/i.test(id);
 /**
  * Os atributos que faltam na ficha e a descricao traz (Modelo, Microcontrolador e a tensao limite), SO os que a categoria tem:
  * o Microcontrolador numa categoria de conectores iria ao ML como atributo que ela nao conhece. Nunca troca valor preenchido.
+ * O Fabricante vazio recebe a Marca (pedido do dono em 05/11/2026: "o fabricante e o mesmo que a marca"); "Nao se aplica"
+ * marcado conta como preenchido e fica.
  */
 export function completarFichaPelaDescricao(atuais, atributosDaCategoria, descricao) {
   const daCategoria = new Set((atributosDaCategoria ?? []).map((atributo) => atributo.id));
@@ -101,6 +103,8 @@ export function completarFichaPelaDescricao(atuais, atributosDaCategoria, descri
   for (const id of daCategoria) {
     if (limite && ehTensaoLimite(id) && !texto(atuais?.[id])) novos[id] = limite;
   }
+  const marca = texto(atuais?.BRAND);
+  if (marca && !ehNaoSeAplica(marca) && daCategoria.has("MANUFACTURER") && !texto(atuais?.MANUFACTURER)) novos.MANUFACTURER = marca;
   return novos;
 }
 

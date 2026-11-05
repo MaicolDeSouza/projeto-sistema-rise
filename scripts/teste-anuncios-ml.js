@@ -2817,6 +2817,14 @@ try {
     conferir("completar: so o que falta e so o que a categoria tem",
       [completarFichaPelaDescricao({ MODEL: "UNO R3" }, [{ id: "MODEL" }, { id: "MICROCONTROLLER" }], descricaoDaPlaca), completarFichaPelaDescricao({}, [{ id: "MODEL" }], descricaoDaPlaca)],
       [{ MICROCONTROLLER: "ESP32-D0WD" }, { MODEL: "DevKit V1" }]);
+    // Fabricante = Marca (pedido do dono em 05/11/2026), so vazio e so na categoria que tem o campo.
+    conferir("completar: o Fabricante vazio recebe a Marca; preenchido, \"Nao se aplica\" ou sem o campo na categoria, nao",
+      [completarFichaPelaDescricao({ BRAND: "OEM" }, [{ id: "BRAND" }, { id: "MANUFACTURER" }], ""),
+        completarFichaPelaDescricao({ BRAND: "OEM", MANUFACTURER: "ESPRESSIF" }, [{ id: "MANUFACTURER" }], ""),
+        completarFichaPelaDescricao({ BRAND: "OEM", MANUFACTURER: "-1" }, [{ id: "MANUFACTURER" }], ""),
+        completarFichaPelaDescricao({ BRAND: "OEM" }, [{ id: "BRAND" }], ""),
+        completarFichaPelaDescricao({}, [{ id: "MANUFACTURER" }], "")],
+      [{ MANUFACTURER: "OEM" }, {}, {}, {}, {}]);
     await limpar();
     const { criarMLFalso } = await import("./lib/mlFalso.js");
     const { gravarPropostaML, lerParaPropostaML } = await import("../src/lib/propostaDeAnuncio/ml.js");

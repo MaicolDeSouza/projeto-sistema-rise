@@ -3481,6 +3481,10 @@ plano: `docs/superpowers/plans/2026-10-21-concorrentes-ml-catalogo.md` (inline).
   EEPROM marcada, e o `GET /items` devolve `EEPROM_CAPACITY` com `value_id "-1"` e `value_name` nulo; o 170113 e o 170110 ficaram
   com a EEPROM marcada no rascunho. Prompt novo **Embarcados-ESP32-CAM** (`06-esp32-cam.txt`, `ba9e042`), **gravado na biblioteca
   da VPS em 25/10/2026** (10.307 caracteres), junto com o Embarcados-ESP32 atualizado (a câmera tem prompt próprio).
+- **Fabricante = Marca** (pedido do dono em 05/11/2026: "o fabricante é o mesmo que a marca. Ajustar para as próximas"): na
+  categoria que tem `MANUFACTURER`, o Fabricante vazio recebe a Marca (`completarFichaPelaDescricao`, `ml/atributos.js`), na
+  proposta do ML (`gravarPropostaML`) e ao abrir a Ficha técnica de um rascunho não publicado. Preenchido ou "Não se aplica"
+  fica como está.
 - **Aba "Preço e custos"** (era "Preço e estoque", pedidos do dono no mesmo dia): os Custos totais ficam à DIREITA do
   Preço de venda, no formato de campo; o campo Estoque saiu. **Estoque e descrição do anúncio são SEMPRE os do Rise**
   (`estoqueDoRise` e `descricaoDoRise` em `rascunho.js`): o do produto ou, no kit, o que as peças montam e a descrição do
