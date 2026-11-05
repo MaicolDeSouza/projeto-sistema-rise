@@ -46,6 +46,8 @@ const CAMPOS_DO_CONTEXTO = {
   videoUrl: true,
   conferido: true,
   blingId: true,
+  // O saldo do Bling (o virtual, lido pelo Rise): a aba Divergencias compara o estoque da loja com ele (05/11/2026).
+  blingSaldo: true,
   // Categorias e SEO da loja sao DO PRODUTO (25/10/2026): a LI le daqui, o rascunho do anuncio nao os guarda mais.
   categoriasLI: true,
   seoTituloLI: true,

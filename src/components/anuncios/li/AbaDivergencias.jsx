@@ -62,7 +62,7 @@ export default function AbaDivergencias({ leitura, lerLoja, lendo, linkDoPainel 
   const fotosMudam = ["diferentes", "faltam"].includes(fotos?.estado);
   // Os motivos do "!" do icone: campos que o Sincronizar corrige (o "Ativo na loja" inclusive), e o que so o painel da LI
   // corrige (origem e tipo de producao). A aba abre com qualquer um deles (`resumoDasDivergenciasLI`).
-  const { diferentes, fiscais } = resumoDasDivergenciasLI(leitura);
+  const { diferentes, fiscais, estoque } = resumoDasDivergenciasLI(leitura);
   const soNoPainel = fiscais;
 
   return (
@@ -103,6 +103,24 @@ export default function AbaDivergencias({ leitura, lerLoja, lendo, linkDoPainel 
               Fotos<span className="ml-1.5 text-xs font-normal text-suave">diferente</span>
             </p>
             <p className="mt-1 text-xs">{fotos.texto}</p>
+          </li>
+        )}
+        {/* O estoque (05/11/2026): o Bling e a referencia, e o Sincronizar grava o saldo dele na loja. */}
+        {estoque && (
+          <li className="rounded border border-amber-200 bg-amber-50/50 p-3">
+            <p className="text-sm font-medium text-texto">
+              Estoque<span className="ml-1.5 text-xs font-normal text-suave">diferente</span>
+            </p>
+            <dl className="mt-1.5 grid grid-cols-2 gap-3 text-xs tabular-nums">
+              <div>
+                <dt className="text-[11px] text-suave">No Bling (referência)</dt>
+                <dd>{estoque.bling} un.</dd>
+              </div>
+              <div>
+                <dt className="text-[11px] text-suave">Na Loja Integrada</dt>
+                <dd>{estoque.loja} un.</dd>
+              </div>
+            </dl>
           </li>
         )}
       </ul>

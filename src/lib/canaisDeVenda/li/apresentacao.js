@@ -20,6 +20,7 @@ export const ETAPAS_DO_ENVIO_LI = {
     { id: "campos", rotulo: "Enviar os campos" },
     { id: "preco", rotulo: "Enviar o preço" },
     { id: "fotos", rotulo: "Enviar as fotos" },
+    { id: "estoque", rotulo: "Acertar o estoque pelo Bling" },
     { id: "conferir", rotulo: "Conferir o resultado na loja" },
   ],
   cadastrar: [
@@ -84,8 +85,9 @@ export function resumirEnvioLI(tipo, resultado, rotulos = {}) {
     const ignoradas = Array.isArray(resultado.categoriasIgnoradas) ? resultado.categoriasIgnoradas : [];
     if (ignoradas.length) linhas.push(`Categorias que não existem mais na loja ficaram de fora: ${ignoradas.join(", ")}.`);
     if (resultado.fotos) linhas.push(resultado.fotos);
+    if (resultado.estoque) linhas.push(resultado.estoque);
     if (ok) {
-      return alterados.length > 0 || resultado.fotos
+      return alterados.length > 0 || resultado.fotos || resultado.estoque
         ? { titulo: "Sincronizado com a Loja Integrada.", linhas }
         : { titulo: "Nada para enviar: a Loja Integrada já estava igual ao Rise.", linhas };
     }
@@ -128,19 +130,32 @@ export function resumirEnvioLI(tipo, resultado, rotulos = {}) {
  * - `fiscais`: origem e tipo de producao vazios ou diferentes (so o painel da LI os grava).
  */
 export function resumoDasDivergenciasLI(leitura) {
-  if (!leitura?.ok || leitura.situacao !== "existe") return { diferentes: 0, fiscais: 0, total: 0 };
+  if (!leitura?.ok || leitura.situacao !== "existe") return { diferentes: 0, fiscais: 0, total: 0, estoque: null };
+  const estoque = estoqueDiferenteNaLeitura(leitura);
   const diferentes =
     (leitura.diferencas ?? []).filter((item) => item.tipo === "diferente" && !(leitura.cadastroFalhou && item.campo === "ativo")).length +
-    (["diferentes", "faltam"].includes(leitura.fotos?.estado) ? 1 : 0);
+    (["diferentes", "faltam"].includes(leitura.fotos?.estado) ? 1 : 0) +
+    (estoque ? 1 : 0);
   const fiscais = (leitura.fiscais ?? []).length;
-  return { diferentes, fiscais, total: diferentes + fiscais };
+  return { diferentes, fiscais, total: diferentes + fiscais, estoque };
+}
+
+/**
+ * O estoque da loja diferente do saldo do Bling (pedido do dono em 05/11/2026: o "!" do icone acusava o estoque e a aba
+ * Divergencias nao o mostrava). Na tela vale ja na primeira leitura (o "!" do icone espera 2 do worker, porque o Bling leva
+ * minutos para repassar uma venda); o Sincronizar acerta. So loja que controla o estoque. `{ loja, bling }` ou null.
+ */
+export function estoqueDiferenteNaLeitura(leitura) {
+  const naLoja = leitura?.estoqueNaLI;
+  if (!naLoja?.gerenciado || typeof leitura.estoqueBling !== "number") return null;
+  return naLoja.quantidade === leitura.estoqueBling ? null : { loja: naLoja.quantidade, bling: leitura.estoqueBling };
 }
 
 /** Se o envio pode ter mudado algo (no Rise ou na LI): o pop-up le de novo e a lista e revalidada. */
 export function mudouNaLI(tipo, resultado) {
   if (!resultado) return false;
   if (tipo === "sincronizar") {
-    return resultado.ok === true || (Array.isArray(resultado.alterados) && resultado.alterados.length > 0) || Boolean(resultado.marcaCriada) || Boolean(resultado.fotos);
+    return resultado.ok === true || (Array.isArray(resultado.alterados) && resultado.alterados.length > 0) || Boolean(resultado.marcaCriada) || Boolean(resultado.fotos) || Boolean(resultado.estoque);
   }
   if (tipo === "cadastrar" || tipo === "completar") return resultado.ok === true || Boolean(resultado.idExterno);
   return false;

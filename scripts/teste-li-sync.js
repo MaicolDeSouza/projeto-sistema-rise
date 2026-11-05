@@ -37,7 +37,7 @@ const { estadoDoIconeLI, iconeLIDoProduto, produtoIdValido } = await import("../
 const { criarLojaIntegradaFalsa } = await import("./lib/lojaIntegradaFalsa.js");
 const { buscarNaLI, lerDetalheDaLI, lerParaPopupLI, listarCategoriasDaLI, listarMarcasDaLI, urlNaLoja } = await import("../src/lib/canaisDeVenda/li/leitura.js");
 const { cadastrarNaLI, completarCadastroLI, sincronizarProdutoLI } = await import("../src/lib/canaisDeVenda/li/envio.js");
-const { ETAPAS_DO_ENVIO_LI, mudouNaLI, resumirEnvioLI, resumoDasDivergenciasLI, valorParaTela } = await import("../src/lib/canaisDeVenda/li/apresentacao.js");
+const { ETAPAS_DO_ENVIO_LI, estoqueDiferenteNaLeitura, mudouNaLI, resumirEnvioLI, resumoDasDivergenciasLI, valorParaTela } = await import("../src/lib/canaisDeVenda/li/apresentacao.js");
 const { lerProgresso } = await import("../src/lib/canaisDeVenda/li/progresso.js");
 const { etapasComOResultado, etapasIniciais, mesclarEtapas } = await import("../src/lib/andamentoDoEnvio.js");
 const { ROTULO_DO_TIPO_PRODUCAO, STATUS_LI } = await import("../src/lib/canaisDeVenda/li/rotulos.js");
@@ -602,7 +602,7 @@ try {
       const { resumoDasDivergenciasLI } = await import("../src/lib/canaisDeVenda/li/apresentacao.js");
       const lida = { ok: true, situacao: "existe", diferencas: [], fiscais: [], ativoNaLI: true, cadastroFalhou: null };
       conferir("divergencias: loja igual, nada", resumoDasDivergenciasLI(lida).total, 0);
-      conferir("divergencias: origem e tipo vazios na loja abrem a aba", resumoDasDivergenciasLI({ ...lida, fiscais: [{ campo: "origem" }, { campo: "tipoProducao" }] }), { diferentes: 0, fiscais: 2, total: 2 });
+      conferir("divergencias: origem e tipo vazios na loja abrem a aba", resumoDasDivergenciasLI({ ...lida, fiscais: [{ campo: "origem" }, { campo: "tipoProducao" }] }), { diferentes: 0, fiscais: 2, total: 2, estoque: null });
       // Desde 26/10/2026 o inativo na loja e o campo "Ativo na loja" contra o liga/desliga do Rise, e nao mais um aviso a parte.
       const ativoDiferente = [{ campo: "ativo", rotulo: "Ativo na loja", tipo: "diferente", rise: true, li: false }];
       conferir("divergencias: loja inativa com o Rise ligado abre a aba", resumoDasDivergenciasLI({ ...lida, ativoNaLI: false, diferencas: ativoDiferente }).total, 1);
@@ -1072,21 +1072,21 @@ try {
     conferir("andamento do cadastro pausado: a etapa ativar conta como feita e diz que ficou pausado", lerProgresso(p5.id).etapas.find((e) => e.id === "ativar"), { id: "ativar", estado: "feito", detalhe: "mantido pausado" });
     conferir("resumo do cadastro pausado diz que ficou pausado", resumirEnvioLI("cadastrar", pausado).titulo, "Produto cadastrado na Loja Integrada, pausado (Ativo na loja desligado).");
     conferir("resumo do cadastro de sempre continua dizendo ativo", resumirEnvioLI("cadastrar", { ...pausado, ativo: true }).titulo, "Produto cadastrado e ativo na Loja Integrada.");
-    const semMudanca = await sincronizarProdutoLI(p5.id, li5);
+    const semMudanca = await sincronizarProdutoLI(p5.id, li5, b5);
     conferir("sincronizar com o Ativo desligado e a loja inativa: nada para enviar", [semMudanca.ok, semMudanca.alterados.map((a) => a.campo), li5.produtos().at(-1).ativo], [true, [], false]);
     const leituraPausada = await lerParaPopupLI(p5.id, li5);
     conferir("a leitura nao acusa o produto pausado de proposito", [leituraPausada.diferencas.some((d) => d.campo === "ativo"), resumoDasDivergenciasLI(leituraPausada).diferentes], [false, 0]);
     // Liga: o Sincronizar ativa a loja.
     await salvarRascunhoLI(an5.id, { ...rascunhoDoAnuncio(an5, p5), ativo: true });
-    const ligar = await sincronizarProdutoLI(p5.id, li5);
+    const ligar = await sincronizarProdutoLI(p5.id, li5, b5);
     const an5b = await anuncioLIDoProduto(p5.id);
     const progLigar = lerProgresso(p5.id);
-    conferir("andamento do sincronizar: etapas na ordem, concluidas, com o que cada uma fez", [progLigar.tipo, progLigar.terminou, progLigar.etapas.map((e) => [e.id, e.estado, e.detalhe])], ["sincronizar", true, [["permissao", "feito", null], ["ler", "feito", null], ["campos", "feito", "1 campo(s)"], ["preco", "feito", "já igual"], ["fotos", "feito", "já iguais"]]]);
+    conferir("andamento do sincronizar: etapas na ordem, concluidas, com o que cada uma fez", [progLigar.tipo, progLigar.terminou, progLigar.etapas.map((e) => [e.id, e.estado, e.detalhe])], ["sincronizar", true, [["permissao", "feito", null], ["ler", "feito", null], ["campos", "feito", "1 campo(s)"], ["preco", "feito", "já igual"], ["fotos", "feito", "já iguais"], ["estoque", "feito", "já igual ao Bling"]]]);
     conferir("ligar o Ativo e sincronizar: a loja fica ativa, o campo vai no envio e a situacao vira ATIVA", [ligar.ok, ligar.alterados.map((a) => [a.campo, a.de, a.para]), li5.produtos().at(-1).ativo, an5b.situacaoCanal], [true, [["ativo", false, true]], true, "ATIVA"]);
     conferir("ligar o Ativo: o resto do produto da loja ficou como estava", [li5.produtos().at(-1).estoque_gerenciado, li5.produtos().at(-1).estoque_quantidade], [true, 3]);
     // Desliga: o Sincronizar pausa a loja, e o icone nao ganha "!" por isso.
     await salvarRascunhoLI(an5.id, { ...rascunhoDoAnuncio(an5b, p5), ativo: false });
-    const desligar = await sincronizarProdutoLI(p5.id, li5);
+    const desligar = await sincronizarProdutoLI(p5.id, li5, b5);
     const an5c = await anuncioLIDoProduto(p5.id);
     conferir("desligar o Ativo e sincronizar: a loja pausa e a situacao vira PAUSADA", [desligar.ok, desligar.alterados.map((a) => [a.campo, a.de, a.para]), li5.produtos().at(-1).ativo, an5c.situacaoCanal], [true, [["ativo", true, false]], false, "PAUSADA"]);
     const iconePausado = iconeLIDoProduto({ ...(await prisma.produto.findUnique({ where: { id: p5.id } })), blingId: "1" }, an5c, { documentos: [] });
@@ -1103,23 +1103,45 @@ try {
     const p6 = await novo("ZZ-LI-35");
     const li6 = criarLojaIntegradaFalsa({});
     const parou = await cadastrarNaLI(p6.id, li6, criarBlingDaLI({ saldoAusente: true }));
-    const sincDoIncompleto = await sincronizarProdutoLI(p6.id, li6);
+    const sincDoIncompleto = await sincronizarProdutoLI(p6.id, li6, criarBlingDaLI({ saldo: 1 }));
     // Sincronizar recusado (produto nao vinculado): o andamento marca a primeira etapa como a que falhou, com o motivo.
     const semVinculo = await novo("ZZ-LI-36");
-    await sincronizarProdutoLI(semVinculo.id, criarLojaIntegradaFalsa({}));
+    await sincronizarProdutoLI(semVinculo.id, criarLojaIntegradaFalsa({}), criarBlingDaLI());
     const progRecusa = lerProgresso(semVinculo.id);
-    conferir("andamento do sincronizar recusado: falha na permissao com o motivo, o resto espera", [progRecusa.terminou, progRecusa.etapas.map((e) => e.estado), /Cadastrar na LI/.test(progRecusa.etapas[0].detalhe ?? "")], [true, ["falhou", "espera", "espera", "espera", "espera"], true]);
+    conferir("andamento do sincronizar recusado: falha na permissao com o motivo, o resto espera", [progRecusa.terminou, progRecusa.etapas.map((e) => e.estado), /Cadastrar na LI/.test(progRecusa.etapas[0].detalhe ?? "")], [true, ["falhou", "espera", "espera", "espera", "espera", "espera"], true]);
     conferir("etapas da tela: a conferencia da loja e so da tela, e o cadastro leva as etapas depois de criar", [ETAPAS_DO_ENVIO_LI.sincronizar.at(-1).id, ETAPAS_DO_ENVIO_LI.cadastrar.map((e) => e.id).slice(4)], ["conferir", ["ligar_bling", "estoque", "ativar", "conferir"]]);
     {
       // As contas comuns do popup (Bling e LI): mesclar o que o servidor marcou e fechar com o que a acao devolveu.
       const iniciais = etapasIniciais(ETAPAS_DO_ENVIO_LI.sincronizar);
-      conferir("etapas iniciais: so a primeira anda", iniciais.map((e) => e.estado), ["andando", "espera", "espera", "espera", "espera", "espera"]);
+      conferir("etapas iniciais: so a primeira anda", iniciais.map((e) => e.estado), ["andando", "espera", "espera", "espera", "espera", "espera", "espera"]);
       const mescladas = mesclarEtapas(iniciais, [{ id: "permissao", estado: "feito", detalhe: null }, { id: "ler", estado: "feito", detalhe: null }]);
-      conferir("mesclar: entre uma etapa e a outra a primeira que falta fica andando", mescladas.map((e) => e.estado), ["feito", "feito", "andando", "espera", "espera", "espera"]);
-      conferir("fechar com sucesso: tudo concluido menos a conferencia, que e da tela", etapasComOResultado(mescladas, { ok: true }).map((e) => e.estado), ["feito", "feito", "feito", "feito", "feito", "espera"]);
-      conferir("fechar com falha sem marca do servidor: a que andava falha com o erro", etapasComOResultado(mescladas, { ok: false, erro: "Deu ruim" }).map((e) => [e.estado, e.detalhe]), [["feito", null], ["feito", null], ["falhou", "Deu ruim"], ["espera", null], ["espera", null], ["espera", null]]);
+      conferir("mesclar: entre uma etapa e a outra a primeira que falta fica andando", mescladas.map((e) => e.estado), ["feito", "feito", "andando", "espera", "espera", "espera", "espera"]);
+      conferir("fechar com sucesso: tudo concluido menos a conferencia, que e da tela", etapasComOResultado(mescladas, { ok: true }).map((e) => e.estado), ["feito", "feito", "feito", "feito", "feito", "feito", "espera"]);
+      conferir("fechar com falha sem marca do servidor: a que andava falha com o erro", etapasComOResultado(mescladas, { ok: false, erro: "Deu ruim" }).map((e) => [e.estado, e.detalhe]), [["feito", null], ["feito", null], ["falhou", "Deu ruim"], ["espera", null], ["espera", null], ["espera", null], ["espera", null]]);
     }
     conferir("cadastro incompleto: o Sincronizar nao ativa o produto", [parou.etapa, sincDoIncompleto.alterados.some((a) => a.campo === "ativo"), li6.produtos().at(-1).ativo], ["estoque", false, false]);
+
+    // O Bling e a referencia do estoque (pedido do dono em 05/11/2026, 100246): a aba mostra e o Sincronizar acerta a loja.
+    console.log("\nEstoque da loja pelo saldo do Bling");
+    const p7 = await novo("ZZ-LI-37");
+    const li7 = criarLojaIntegradaFalsa({});
+    await cadastrarNaLI(p7.id, li7, criarBlingDaLI({ saldo: 3 }));
+    await prisma.produto.update({ where: { id: p7.id }, data: { blingSaldo: 7 } });
+    const lidaEstoque = await lerParaPopupLI(p7.id, li7);
+    const resumoEstoque = resumoDasDivergenciasLI(lidaEstoque);
+    conferir("aba Divergencias: estoque da loja diferente do Bling aparece e conta", [resumoEstoque.estoque, resumoEstoque.diferentes >= 1], [{ loja: 3, bling: 7 }, true]);
+    conferir("aba Divergencias: estoque igual, ou loja sem controle, nao conta", [estoqueDiferenteNaLeitura({ estoqueNaLI: { gerenciado: true, quantidade: 7 }, estoqueBling: 7 }), estoqueDiferenteNaLeitura({ estoqueNaLI: { gerenciado: false, quantidade: 0 }, estoqueBling: 7 }), estoqueDiferenteNaLeitura({ estoqueNaLI: { gerenciado: true, quantidade: 2 }, estoqueBling: null })], [null, null, null]);
+    const putsDeEstoque = () => li7.chamadas.filter((c) => c.metodo === "PUT" && String(c.caminho).startsWith("/produto_estoque")).length;
+    const antes = putsDeEstoque();
+    const acerto = await sincronizarProdutoLI(p7.id, li7, criarBlingDaLI({ saldo: 7 }));
+    conferir("sincronizar: grava na loja o saldo do Bling e diz no resumo", [acerto.ok, estoqueNaLI(li7), putsDeEstoque() - antes, acerto.estoque, resumirEnvioLI("sincronizar", acerto).linhas.includes(acerto.estoque)], [true, [true, 7, -1], 1, "Estoque na loja: de 3 para 7 (o saldo do Bling).", true]);
+    conferir("sincronizar: com o estoque acertado o resumo diz Sincronizado", resumirEnvioLI("sincronizar", acerto).titulo, "Sincronizado com a Loja Integrada.");
+    const deNovoEstoque = await sincronizarProdutoLI(p7.id, li7, criarBlingDaLI({ saldo: 7 }));
+    conferir("sincronizar de novo: estoque ja igual, nenhum PUT", [deNovoEstoque.ok, deNovoEstoque.estoque, putsDeEstoque() - antes, lerProgresso(p7.id).etapas.find((e) => e.id === "estoque").detalhe], [true, null, 1, "já igual ao Bling"]);
+    const negativo = await sincronizarProdutoLI(p7.id, li7, criarBlingDaLI({ saldo: -2 }));
+    conferir("saldo negativo no Bling (reservas): a loja fica com 0", [negativo.ok, estoqueNaLI(li7)], [true, [true, 0, -1]]);
+    const semSaldoBling = await sincronizarProdutoLI(p7.id, li7, criarBlingDaLI({ saldoAusente: true }));
+    conferir("Bling sem o saldo do codigo: o Sincronizar termina, nao mexe no estoque e avisa", [semSaldoBling.ok, estoqueNaLI(li7), /não conferido/.test(semSaldoBling.estoque ?? "")], [true, [true, 0, -1], true]);
   }
 
   {

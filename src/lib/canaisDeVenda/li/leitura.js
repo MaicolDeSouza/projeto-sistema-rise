@@ -184,6 +184,7 @@ function resultado(campos) {
     estoqueGerenciado: null,
     // A quantidade na loja (o monitor do worker a compara com o saldo do Bling, 25/10/2026): nulo = nao lido.
     estoqueNaLI: null,
+    estoqueBling: null,
     cadastroFalhou: null,
     ...campos,
   };
@@ -297,6 +298,8 @@ export async function lerParaPopupLI(produtoId, cliente = clienteLI()) {
       ativoNaLI: detalhe.produto?.ativo === true,
       estoqueGerenciado: estoqueNaLI ? estoqueNaLI.gerenciado : null,
       estoqueNaLI,
+      // O saldo do Bling que o Rise guardou (o mesmo do monitor): a aba Divergencias mostra o estoque diferente (05/11/2026).
+      estoqueBling: typeof produto.blingSaldo === "number" ? Math.max(0, produto.blingSaldo) : null,
       cadastroFalhou: anuncio.dados?.cadastroLI ?? null,
     });
   } catch (erro) {

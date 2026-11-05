@@ -30,8 +30,9 @@ import { validarRascunhoLI } from "./validacao";
  *
  * Regras que vem da spec e da medicao de 07/10/2026:
  * - so Produto Conferido; as duas travas (`exigirEscrita`) ANTES da primeira escrita;
- * - nunca estoque (o Bling e o dono), salvo UMA vez no cadastro automatico (`etapasDepoisDeCriar`, 24/10/2026: ligar
- *   no Bling nao manda o saldo, e o produto ativo ficaria sem controle de estoque); nunca origem nem tipo de producao;
+ * - o estoque e o do Bling (o dono): o cadastro automatico grava o inicial (`etapasDepoisDeCriar`, 24/10/2026: ligar no
+ *   Bling nao manda o saldo) e, desde 05/11/2026, o Sincronizar acerta a loja quando ela difere do saldo do Bling
+ *   (`acertarEstoqueLI`; pedido do dono: "o Bling deve ser sempre a referencia"); nunca origem nem tipo de producao;
  * - o preco de venda vai pelo /produto_preco/{id} (decisao do dono em 07/10/2026: o Sincronizar do Rise ja muda
  *   o preco no Bling, e o Bling nao mandava preco a LI). So o `cheio`: custo e promocional voltam como a LI tem;
  * - o PUT leva o produto inteiro, mesclado sobre o GET, e antes dele o GET vai para CopiaProdutoCanal;
@@ -267,6 +268,31 @@ async function etapasDepoisDeCriar(cliente, bling, { sku, idExterno, feitas, ati
   progresso?.feita("ativar");
 }
 
+/**
+ * O estoque da loja igual ao saldo do Bling (pedido do dono em 05/11/2026, com o 100246: a LI estava diferente do Bling, o
+ * "!" acusava e o Sincronizar nao mexia no estoque). O Bling deveria repassar sozinho; quando nao repassa, o Sincronizar
+ * acerta. Le o saldo NA HORA no Bling (so GET), e so escreve na loja que controla o estoque: a que nao controla e caso do
+ * "Completar o cadastro". Nao derruba o Sincronizar: o conteudo ja foi, e o estoque que nao deu para conferir vira texto.
+ * Devolve `{ texto, detalhe, enviado }` (`enviado` = o corpo do PUT, quando houve).
+ */
+async function acertarEstoqueLI(cliente, bling, sku, idExterno) {
+  const naLoja = await ler("estoque", () => lerEstoqueDaLI(cliente, idExterno));
+  if (!naLoja.gerenciado) return { texto: null, detalhe: "loja sem controle de estoque", enviado: null };
+  const saldos = await lerSaldosDoBling(bling, [sku]);
+  if (!saldos.ok) return { texto: `Estoque não conferido: ${saldos.erro}`, detalhe: "não conferido", enviado: null };
+  const doCodigo = saldos.itens.filter((item) => item.codigo.trim().toLowerCase() === String(sku).trim().toLowerCase());
+  if (doCodigo.length !== 1 || typeof doCodigo[0].saldo !== "number") {
+    return { texto: `Estoque não conferido: o Bling não devolveu um saldo único para o código ${sku}.`, detalhe: "não conferido", enviado: null };
+  }
+  // O saldo virtual do Bling desconta reservas e pode ficar negativo; a loja nao aceita menos que zero.
+  const saldo = Math.max(0, doCodigo[0].saldo);
+  if (naLoja.quantidade === saldo) return { texto: null, detalhe: "já igual ao Bling", enviado: null };
+  // A situacao "sem estoque" fica como a loja tem (o corpo do cadastro so a poe quando a loja nao tem nenhuma).
+  const corpo = { ...corpoDoEstoqueInicialLI(saldo), ...(naLoja.situacaoSemEstoque === null ? {} : { situacao_sem_estoque: naLoja.situacaoSemEstoque }) };
+  await escrever("estoque", () => cliente.put(`/produto_estoque/${idExterno}`, corpo));
+  return { texto: `Estoque na loja: de ${naLoja.quantidade} para ${saldo} (o saldo do Bling).`, detalhe: `${naLoja.quantidade} → ${saldo}`, enviado: corpo };
+}
+
 async function gravarSucesso(anuncioId, produtoId, { assinatura, payload, url, ativo, idExterno }) {
   const anuncio = await prisma.anuncio.findUnique({ where: { id: anuncioId }, select: { dados: true } });
   await prisma.$transaction([
@@ -297,7 +323,7 @@ function primeiroBloqueio(rascunho, produto) {
  * ordem: trava, leitura, marca, produto, seo, preco, gravacao. Falha depois da trava deixa o anuncio
  * em ERRO com a etapa, e a assinatura nao muda (o icone continua dizendo que ha o que enviar).
  */
-export async function sincronizarProdutoLI(produtoId, cliente = clienteLI()) {
+export async function sincronizarProdutoLI(produtoId, cliente = clienteLI(), bling = clienteBling()) {
   const vazio = { alterados: [], marcaCriada: null, categoriasIgnoradas: [] };
   const recusa = (erro, etapa = "trava") => ({ ok: false, erro, etapa, ...vazio });
 
@@ -394,6 +420,12 @@ export async function sincronizarProdutoLI(produtoId, cliente = clienteLI()) {
       if (estado.fotos.enviadas || estado.fotos.apagadas) payload.fotos = { apagadas: estado.fotos.apagadas, enviadas: estado.fotos.enviadas };
       progresso.feita("fotos", estado.fotos.enviadas ? `${estado.fotos.enviadas} foto(s)` : estado.fotos.apagadas ? "trocadas" : "já iguais");
 
+      progresso.andando("estoque");
+      estado.etapa = "estoque";
+      estado.estoque = await acertarEstoqueLI(cliente, bling, produto.sku, anuncio.idExterno);
+      if (estado.estoque.enviado) payload.estoque = estado.estoque.enviado;
+      progresso.feita("estoque", estado.estoque.detalhe);
+
       estado.etapa = "gravacao";
       const final = Object.keys(payload).length ? await ler("gravacao", () => lerDetalheDaLI(cliente, anuncio.idExterno)) : detalhe;
       await gravarSucesso(anuncio.id, produtoId, {
@@ -402,12 +434,12 @@ export async function sincronizarProdutoLI(produtoId, cliente = clienteLI()) {
         url: urlNaLoja(final.produto.url ?? final.produto.apelido),
         ativo: final.produto.ativo,
       });
-      return { ok: true, etapa: "gravacao", alterados: estado.alterados, marcaCriada: estado.marcaCriada, categoriasIgnoradas: estado.categoriasIgnoradas, fotos: estado.fotos?.texto ?? null };
+      return { ok: true, etapa: "gravacao", alterados: estado.alterados, marcaCriada: estado.marcaCriada, categoriasIgnoradas: estado.categoriasIgnoradas, fotos: estado.fotos?.texto ?? null, estoque: estado.estoque?.texto ?? null };
     } catch (erro) {
       const texto = erro instanceof FalhaDoEnvio ? erro.message : `Erro inesperado no envio a Loja Integrada: ${erro?.message ?? erro}`;
       const etapa = erro instanceof FalhaDoEnvio ? erro.etapa : estado.etapa;
       await gravarFalha(anuncio.id, etapa, texto);
-      return { ok: false, erro: texto, etapa, alterados: estado.alterados, marcaCriada: estado.marcaCriada, categoriasIgnoradas: estado.categoriasIgnoradas, fotos: estado.fotos?.texto ?? null };
+      return { ok: false, erro: texto, etapa, alterados: estado.alterados, marcaCriada: estado.marcaCriada, categoriasIgnoradas: estado.categoriasIgnoradas, fotos: estado.fotos?.texto ?? null, estoque: estado.estoque?.texto ?? null };
     }
   }));
 }
