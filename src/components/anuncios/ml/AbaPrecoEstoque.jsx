@@ -194,7 +194,18 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
           {emKit && unidadesDoKit > 0 && (somaAvulsa !== null || preco > 0) && (
             <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-2 text-xs tabular-nums">
               <dt className="text-suave">Preço na loja (UN)</dt>
-              <dd>{somaAvulsa !== null ? MOEDA.format(somaAvulsa / unidadesDoKit) : "—"}</dd>
+              <dd>
+                {somaAvulsa !== null ? MOEDA.format(somaAvulsa / unidadesDoKit) : "—"}
+                {/* O lucro por unidade na loja (pedido do dono em 05/11/2026: "no kit nao mostra o lucro igual ao produto unico"):
+                    a mesma conta do anuncio simples (preco menos o imposto padrao e o custo), sobre a soma das pecas e o custo do
+                    kit, dividida pelas unidades. */}
+                {(() => {
+                  const lucroDoKit = acessos.custos && somaAvulsa !== null ? lucroLiquido(somaAvulsa, custo.valor) : null;
+                  if (lucroDoKit === null) return null;
+                  const lucroPorUnidade = lucroDoKit / unidadesDoKit;
+                  return <span className={`ml-1 ${lucroPorUnidade < 0 ? "text-red-600" : "text-suave"}`}>(Lucro = {MOEDA.format(lucroPorUnidade)})</span>;
+                })()}
+              </dd>
               <dt className="text-suave">Preço no ML (UN)</dt>
               <dd className="font-medium">{preco > 0 ? MOEDA.format(preco / unidadesDoKit) : "—"}</dd>
             </dl>
