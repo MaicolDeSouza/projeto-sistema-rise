@@ -30,18 +30,30 @@ function CelulaDoLucro({ linha }) {
       : fechado
         ? "Lucro real (fechado)"
         : `Lucro estimado${linha.lucroReal !== null ? `; real até agora: ${moeda.format(linha.lucroReal)}` : ""}`;
+  const cor = negativo ? "text-red-600" : valor > 0 ? "text-emerald-700" : "text-suave";
+  // O % embaixo (pedido do dono em 05/11/2026) e o MARKUP da regra do Rise: lucro ÷ custo total, e o custo total e o que
+  // sobra da receita (os produtos) depois do lucro: comissao, tarifa, frete, imposto e custo do produto. O devolvido saiu
+  // do balanco (receita zero) e nao tem %.
+  const receita = linha.totalProdutos ?? linha.total;
+  const custoTotal = receita - valor;
+  const percentual = linha.status !== "DEVOLVIDO" && receita > 0 && custoTotal > 0 ? (valor / custoTotal) * 100 : null;
   return (
-    <span className="inline-flex items-center justify-end gap-1" title={divergente ? `${titulo}\nO real está diferente do estimado.` : titulo}>
-      {divergente && (
-        <span aria-hidden="true" className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[9px] leading-none font-bold text-amber-950">
-          !
+    <span className="inline-flex flex-col items-end" title={divergente ? `${titulo}\nO real está diferente do estimado.` : titulo}>
+      <span className="inline-flex items-center gap-1">
+        {divergente && (
+          <span aria-hidden="true" className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[9px] leading-none font-bold text-amber-950">
+            !
+          </span>
+        )}
+        {/* Verde quando deu lucro, vermelho quando deu prejuizo (pedido do dono em 04/11/2026); o "~" marca o estimado. */}
+        <span className={`font-medium ${cor}`}>
+          {fechado ? "" : "~"}
+          {moedaComSinal(valor)}
         </span>
-      )}
-      {/* Verde quando deu lucro, vermelho quando deu prejuizo (pedido do dono em 04/11/2026); o "~" marca o estimado. */}
-      <span className={`font-medium ${negativo ? "text-red-600" : valor > 0 ? "text-emerald-700" : "text-suave"}`}>
-        {fechado ? "" : "~"}
-        {moedaComSinal(valor)}
       </span>
+      {percentual !== null && (
+        <span className={`text-xs ${cor}`}>{percentual.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</span>
+      )}
     </span>
   );
 }
@@ -127,7 +139,9 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
           <col />
           <col style={{ width: "5.75rem" }} />
           <col style={{ width: "3.5rem" }} />
-          <col style={{ width: "6.25rem" }} />
+          {/* Total com 8.25rem (era 6.25): o "R$ 940,47 c/ frete" da 2a linha passava da coluna (05/11/2026); assim cabe ate
+              "R$ 1.234,56 c/ frete", e o que passar disso corta e abre ao passar o mouse. */}
+          <col style={{ width: "8.25rem" }} />
           {veLucro && <col style={{ width: "5.5rem" }} />}
           <col style={{ width: "7.75rem" }} />
           <col style={{ width: "8.25rem" }} />
@@ -203,7 +217,7 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
                     (pedido do dono em 04/11/2026). A forma de pagamento fica na dica (tem aba propria no pedido). */}
                 <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums" title={pagamento ? `Pagamento: ${pagamento}` : undefined}>
                   {moeda.format(linha.totalProdutos ?? linha.total ?? 0)}
-                  {Number(linha.freteCobrado) > 0 && <span className="block text-xs text-suave">{moeda.format(linha.total ?? 0)} c/ frete</span>}
+                  {Number(linha.freteCobrado) > 0 && <span className="block truncate text-xs text-suave">{moeda.format(linha.total ?? 0)} c/ frete</span>}
                 </td>
                 {veLucro && (
                   <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">
