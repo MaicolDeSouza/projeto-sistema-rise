@@ -2825,6 +2825,26 @@ try {
         completarFichaPelaDescricao({ BRAND: "OEM" }, [{ id: "BRAND" }], ""),
         completarFichaPelaDescricao({}, [{ id: "MANUFACTURER" }], "")],
       [{ MANUFACTURER: "OEM" }, {}, {}, {}, {}]);
+    // Temperatura minima e maxima de operacao pela linha da descricao (pedido do dono em 05/11/2026).
+    const { temperaturaDeOperacao } = await import("../src/lib/canaisDeVenda/ml/atributos.js");
+    conferir("temperatura de operacao: as grafias das lojas, a faixa antes do ' / ' e o que nao e faixa",
+      [temperaturaDeOperacao("- Temperatura de Operação: 0°C a 40°C;"),
+        temperaturaDeOperacao("- Temperatura de Operação: -25°C a 70°C / potência total até 50°C;"),
+        temperaturaDeOperacao("- Temperatura de trabalho: -10ºC à 85ºC;"),
+        temperaturaDeOperacao("- Temperatura de Operação: -20°C ~ 60°C;"),
+        temperaturaDeOperacao("- Temperatura de Operação: 0 °C a +40 °C;"),
+        temperaturaDeOperacao("- Temperatura de Operação: -10 a 60°C;"),
+        temperaturaDeOperacao("- Temperatura de Operação: 25°C;"),
+        temperaturaDeOperacao("- Temperatura de Armazenamento: -20°C a 85°C;")],
+      [{ minima: "0°C", maxima: "40°C" }, { minima: "-25°C", maxima: "70°C" }, { minima: "-10°C", maxima: "85°C" },
+        { minima: "-20°C", maxima: "60°C" }, { minima: "0°C", maxima: "40°C" }, { minima: "-10°C", maxima: "60°C" }, null, null]);
+    const temperaturaDaCategoria = [{ id: "MIN_OPERATING_TEMPERATURE", unidades: ["°C", "°F"] }, { id: "MAX_OPERATING_TEMPERATURE", unidades: ["°C", "°F"] }];
+    conferir("completar: a temperatura minima e a maxima so vazias e so na categoria que tem os campos",
+      [completarFichaPelaDescricao({}, temperaturaDaCategoria, "- Temperatura de Operação: 0°C a 40°C;"),
+        completarFichaPelaDescricao({ MAX_OPERATING_TEMPERATURE: "50°C" }, temperaturaDaCategoria, "- Temperatura de Operação: 0°C a 40°C;"),
+        completarFichaPelaDescricao({}, [{ id: "MODEL" }], "- Temperatura de Operação: 0°C a 40°C;"),
+        completarFichaPelaDescricao({}, [{ id: "MIN_OPERATING_TEMPERATURE", unidades: ["°F"] }], "- Temperatura de Operação: 0°C a 40°C;")],
+      [{ MIN_OPERATING_TEMPERATURE: "0°C", MAX_OPERATING_TEMPERATURE: "40°C" }, { MIN_OPERATING_TEMPERATURE: "0°C" }, {}, {}]);
     await limpar();
     const { criarMLFalso } = await import("./lib/mlFalso.js");
     const { gravarPropostaML, lerParaPropostaML } = await import("../src/lib/propostaDeAnuncio/ml.js");

@@ -32,12 +32,17 @@ const NOMES_DO_MICROCONTROLADOR = [/^microcontrolador$/i, /^chip\s*(\(\s*soc\s*\
  * modelo, pode buscar na especificacao o modelo e tambem o microcontrolador; nas especificacoes vai estar como chip, CI ou
  * processador"). Le as linhas "- Nome: valor;"; sem a linha, null.
  */
-export function fichaDaDescricao(descricao) {
+function linhasDaFicha(descricao) {
   const linhas = [];
   for (const linha of String(descricao ?? "").split(/\r?\n/)) {
     const casou = /^\s*[-•]\s*([^:]{2,60}):\s*(.+?)\s*[;.]?\s*$/.exec(linha);
     if (casou) linhas.push({ nome: casou[1].trim(), valor: casou[2].trim() });
   }
+  return linhas;
+}
+
+export function fichaDaDescricao(descricao) {
+  const linhas = linhasDaFicha(descricao);
   const valorDe = (regra) => linhas.find((linha) => regra.test(linha.nome))?.valor || null;
   let microcontrolador = null;
   for (const regra of NOMES_DO_MICROCONTROLADOR) {
@@ -87,11 +92,41 @@ export function tensaoLimite(valor) {
 // Os atributos de tensao limite das categorias ("Voltagem de entrada limite", MICROCONTROLLER_BOARD_LIMIT_INPUT_VOLTAGE).
 const ehTensaoLimite = (id) => /LIMIT/i.test(id) && /VOLTAGE/i.test(id);
 
+const NUMERO_DE_TEMPERATURA = "([-−+]?\\s?\\d+(?:[.,]\\d+)?)";
+// "0°C a 40°C", "-10ºC à 85ºC", "-20°C ~ 60°C", "0 °C a +40 °C", "-10 a 60°C": a minima e a maxima, com o °C ao menos na
+// segunda. O hifen nao separa as duas (seria o sinal de uma negativa).
+const FAIXA_DE_TEMPERATURA = new RegExp(`${NUMERO_DE_TEMPERATURA}\\s*(?:[°º]\\s*C)?\\s*(?:a|à|até|~|to|–)\\s*${NUMERO_DE_TEMPERATURA}\\s*[°º]\\s*C`, "i");
+const numeroDaTemperatura = (numero) => numero.replace(/\s/g, "").replace("−", "-").replace(/^\+/, "");
+
+/**
+ * A minima e a maxima da linha "Temperatura de Operacao" das especificacoes (pedido do dono em 05/11/2026, nas fontes
+ * chaveadas: "nas proximas sim"), em °C e no formato do rascunho ("-10°C", "60°C"). So a faixa antes de " / " (depois vem a
+ * temperatura da reducao de potencia). Sem a linha ou sem as duas pontas, null.
+ */
+export function temperaturaDeOperacao(descricao) {
+  const linha = linhasDaFicha(descricao).find((item) => /^temperatura de (opera[cç][aã]o|trabalho)$/i.test(item.nome));
+  const casou = FAIXA_DE_TEMPERATURA.exec(String(linha?.valor ?? "").split(" / ")[0]);
+  if (!casou) return null;
+  const [minima, maxima] = [numeroDaTemperatura(casou[1]), numeroDaTemperatura(casou[2])];
+  if (Number(minima.replace(",", ".")) > Number(maxima.replace(",", "."))) return null;
+  return { minima: `${minima}°C`, maxima: `${maxima}°C` };
+}
+
+// Os atributos de temperatura de operacao das categorias (MIN_OPERATING_TEMPERATURE, MAX_OPERATING_TEMPERATURE), so os que
+// aceitam °C (ou nao dizem a unidade).
+const PONTA_DA_TEMPERATURA = { MIN: "minima", MAX: "maxima" };
+function pontaDaTemperatura(atributo) {
+  const casou = /^(MIN|MAX)_(?:[A-Z_]*_)?OPERATING_TEMPERATURE$/.exec(String(atributo?.id ?? ""));
+  if (!casou) return null;
+  const unidades = atributo.unidades ?? [];
+  return unidades.length === 0 || unidades.includes("°C") ? PONTA_DA_TEMPERATURA[casou[1]] : null;
+}
+
 /**
  * Os atributos que faltam na ficha e a descricao traz (Modelo, Microcontrolador e a tensao limite), SO os que a categoria tem:
  * o Microcontrolador numa categoria de conectores iria ao ML como atributo que ela nao conhece. Nunca troca valor preenchido.
  * O Fabricante vazio recebe a Marca (pedido do dono em 05/11/2026: "o fabricante e o mesmo que a marca"); "Nao se aplica"
- * marcado conta como preenchido e fica.
+ * marcado conta como preenchido e fica. A temperatura minima e a maxima de operacao saem da linha "Temperatura de Operacao".
  */
 export function completarFichaPelaDescricao(atuais, atributosDaCategoria, descricao) {
   const daCategoria = new Set((atributosDaCategoria ?? []).map((atributo) => atributo.id));
@@ -102,6 +137,11 @@ export function completarFichaPelaDescricao(atuais, atributosDaCategoria, descri
   }
   for (const id of daCategoria) {
     if (limite && ehTensaoLimite(id) && !texto(atuais?.[id])) novos[id] = limite;
+  }
+  const temperatura = temperaturaDeOperacao(descricao);
+  for (const atributo of temperatura ? atributosDaCategoria ?? [] : []) {
+    const ponta = pontaDaTemperatura(atributo);
+    if (ponta && !texto(atuais?.[atributo.id])) novos[atributo.id] = temperatura[ponta];
   }
   const marca = texto(atuais?.BRAND);
   if (marca && !ehNaoSeAplica(marca) && daCategoria.has("MANUFACTURER") && !texto(atuais?.MANUFACTURER)) novos.MANUFACTURER = marca;
