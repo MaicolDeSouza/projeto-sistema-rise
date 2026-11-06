@@ -185,6 +185,35 @@ try {
   const { FERRAMENTAS } = await import("../src/lib/ferramentas/catalogo.js");
   conferir("cartao em Ferramentas", FERRAMENTAS.find((f) => f.href === "/ferramentas/licencas")?.recurso, "tela.ferramentas.licencas");
 
+  console.log("\nBanco: licencas e linhas");
+  const B = await import("../src/lib/ferramentas/licencas/banco.js");
+  const chaveId = (await prisma.software.create({ data: { nome: "ZZ Lic Chave", slug: "zz-lic-chave", identificacao: "CHAVE", temPortal: true, ativacoesPermitidas: 3, linhasIniciais: 3, ordem: 90 } })).id;
+  const arquivoId = (await prisma.software.create({ data: { nome: "ZZ Lic Arquivo", slug: "zz-lic-arquivo", identificacao: "ARQUIVO", ordem: 91 } })).id;
+  const comDoc = (await prisma.cliente.create({ data: { nome: "ZZ LIC Com Documento", documento: "529.982.247-25" } })).id;
+  const semDoc = (await prisma.cliente.create({ data: { nome: "ZZ LIC Sem Documento" } })).id;
+  conferir("programa: nome repetido recusado, slug derivado", [(await B.salvarSoftware(null, { nome: "ZZ Lic Chave", identificacao: "CHAVE" })).erros?.nome, (await B.listarSoftwares({ soAtivos: false })).find((s) => s.slug === "zz-lic-chave")?.identificacao], ["Já existe um programa com esse nome.", "CHAVE"]);
+  const nova = await B.criarLicenca({ softwareId: chaveId, identificador: " zz-lic-aaaa-1 ", tipo: "Core", compradaEm: R.lerDataIso("2026-11-01") });
+  conferir("licenca nova: chave em maiusculas e aparada, origem manual", [nova.ok, (await B.lerLicenca(nova.id)).identificador, (await B.lerLicenca(nova.id)).origem], [true, "ZZ-LIC-AAAA-1", "manual"]);
+  conferir("licenca repetida (outra caixa) recusada", (await B.criarLicenca({ softwareId: chaveId, identificador: "ZZ-LIC-AAAA-1" })).erro, "A licença ZZ-LIC-AAAA-1 já existe neste programa.");
+  conferir("programa ARQUIVO exige o arquivo", (await B.criarLicenca({ softwareId: arquivoId, identificador: "ZZ-LIC-M1" })).erro, "Envie o arquivo da licença.");
+  conferir("linha: sem cliente, cliente sem documento, com documento", [(await B.criarLinha(nova.id, {})).erro, (await B.criarLinha(nova.id, { clienteId: semDoc })).erro, (await B.criarLinha(nova.id, { clienteId: comDoc, nomeDoPc: " DESKTOP-ZZ ", canal: "MERCADO_LIVRE", data: R.lerDataIso("2026-11-02") })).ok], ["Escolha o cliente.", "O cliente precisa ter CPF ou CNPJ.", true]);
+  let lida = await B.lerLicenca(nova.id);
+  conferir("projecao: linha 1 com cliente, 'ainda nao ativou' (sem ativacao), nao lida", [lida.linhas.length, lida.linhas[0].cliente.nome, lida.linhas[0].nomeDoPc, lida.linhas[0].ativacao, lida.vagas.lida, lida.situacao.texto], [1, "ZZ LIC Com Documento", "DESKTOP-ZZ", null, false, "Não lida do portal"]);
+  await B.encerrarLinha(lida.linhas[0].id);
+  lida = await B.lerLicenca(nova.id);
+  conferir("encerrar: sai das linhas, entra no historico; reabrir volta", [lida.linhas.length, lida.historico.length, lida.historico[0].situacao], [0, 1, "ENCERRADA"]);
+  await B.reabrirLinha(lida.historico[0].id);
+  conferir("reaberta", (await B.lerLicenca(nova.id)).linhas.length, 1);
+  const lista = await B.listarLicencas({ softwareId: chaveId, busca: "com documento" });
+  conferir("lista: busca pelo nome do cliente acha a chave", lista.linhas.map((l) => l.identificador), ["ZZ-LIC-AAAA-1"]);
+  conferir("lista: busca pelos digitos do CPF", (await B.listarLicencas({ softwareId: chaveId, busca: "52998224725" })).total, 1);
+  await B.editarLicenca(nova.id, { arquivada: true });
+  conferir("arquivada some da lista e volta com mostrarArquivadas; linha nova recusada", [(await B.listarLicencas({ softwareId: chaveId })).total, (await B.listarLicencas({ softwareId: chaveId, mostrarArquivadas: true })).total, (await B.criarLinha(nova.id, { clienteId: comDoc })).erro], [0, 1, "Licença arquivada."]);
+  conferir("licencas do cliente", (await B.licencasDoCliente(comDoc)).map((l) => [l.identificador, l.situacao]), [["ZZ-LIC-AAAA-1", "ATIVA"]]);
+  conferir("o que sai com a licenca", await B.oQueSaiComALicenca(nova.id), { identificador: "ZZ-LIC-AAAA-1", linhas: 1, ativacoes: 0, arquivos: [] });
+  conferir("excluir programa com licencas recusado", (await B.excluirSoftware(chaveId)).erro, "Este programa tem 1 licença(s).");
+  conferir("excluir licenca", [(await B.excluirLicenca(nova.id)).ok, await B.lerLicenca(nova.id)], [true, null]);
+
   // Marcador: os blocos de banco seguintes entram acima desta linha.
 } finally {
   if (!manter) await devolverConexao();
