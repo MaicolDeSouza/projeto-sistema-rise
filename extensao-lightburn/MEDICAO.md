@@ -107,5 +107,14 @@ no Rise é o que o dono digita ou o que a planilha importa, e a leitura do porta
 - `/v3/me/activations?limit=100` não responde em 40 s (duas tentativas); usar 50.
 - O filtro `licenseId=<id>` na query de `/v3/me/activations` falhou ("Failed to fetch"); não é preciso, a lista inteira
   já traz `licenseId` em cada item.
-- A validade do JWT em `CTX_AT` e as chaves do objeto `location` não foram lidas (a última sondagem falhou na
-  ferramenta); nada depende delas.
+- As chaves do objeto `location` não foram lidas (a sondagem falhou na ferramenta); nada depende delas.
+
+## Conferido em 06/11/2026
+
+- **O token (`CTX_AT`) vale 1 hora.** Com a aba parada desde a véspera ele tinha vencido e a API respondeu 401;
+  recarregar a página do portal renovou o token sozinho (pelo `CTX_RT`), sem pedir login. É o que a mensagem da
+  extensão manda fazer ("recarregue a página do portal").
+- **A leitura do `pagina.js` contra o portal de verdade** (o mesmo código, rodado na aba do portal, só GET): 78
+  licenças em 1 página (1,7 s) e 102 ativações em 3 páginas de 50 (15 a 16 s cada); 4 chamadas, 53 s, leitura
+  completa; todas as 102 ativações casaram com uma licença lida e o `totalActivations` bateu com os PCs em 78 de 78;
+  9 ativas e 69 expiradas; corpo de 81 KB, sem `email`, `name` nem `location`.
