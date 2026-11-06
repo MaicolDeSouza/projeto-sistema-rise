@@ -60,6 +60,7 @@ conferir("frescor", [R.frescorDaLeitura(null).cor, R.frescorDaLeitura(agora, ago
 const proj = (identificador, livres, ultimoUso) => ({ identificador, vagas: { livres }, ultimoUso });
 conferir("ordem padrao: mais livres, depois uso mais antigo (nunca usada primeiro), depois chave", R.ordenarLicencas([proj("C", 1, null), proj("A", 2, new Date("2026-01-01")), proj("B", 2, null), proj("D", null, null)]).map((p) => p.identificador), ["B", "A", "C", "D"]);
 conferir("datas", [R.lerDataIso("2026-11-05")?.toISOString(), R.lerDataIso(""), R.formatarDataCurta(new Date("2026-11-05T00:00:00Z"))], ["2026-11-05T00:00:00.000Z", null, "05/11/26"]);
+conferir("chaves em hexadecimal na ordem do texto (03EF... antes de 3D77...)", R.ordenarLicencas([proj("3D7796-CC0493", null, null), proj("03EF6F-36C50E", null, null), proj("2C5F6D-0A22BE", null, null)]).map((p) => p.identificador), ["03EF6F-36C50E", "2C5F6D-0A22BE", "3D7796-CC0493"]);
 conferir("resumo da leitura", R.textoDoResumoDaLeitura({ licencas: 78, novas: 2, alteradas: 5, sumiram: 1, pcsSemCliente: 3 }), "78 chaves lidas · 2 novas · 5 alteradas · 1 PC sumiu · 3 PCs sem cliente (abra o Rise)");
 
 // ---------------------------------------------------------------------------

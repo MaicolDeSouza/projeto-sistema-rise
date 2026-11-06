@@ -144,7 +144,9 @@ export function frescorDaLeitura(lidaEm, agora = new Date()) {
 // Ordem da situacao quando o dono ordena por ela: o que pede acao primeiro (vermelho), depois o que vence logo.
 const PESO_DA_COR = { vermelho: 0, ambar: 1, cinza: 2, verde: 3 };
 
-const comparaTexto = (a, b) => String(a).localeCompare(String(b), "pt-BR", { sensitivity: "base", numeric: true });
+// Sem `numeric`: a chave do LightBurn e hexadecimal ("03EF6F...", "3D7796..."), e a ordem numerica dos digitos a
+// embaralhava na tela (conferido com as 81 chaves reais em 06/11/2026).
+const comparaTexto = (a, b) => String(a).localeCompare(String(b), "pt-BR", { sensitivity: "base" });
 const tempo = (data) => (data ? new Date(data).getTime() : null);
 
 function valorParaOrdenar(projetada, campo) {
