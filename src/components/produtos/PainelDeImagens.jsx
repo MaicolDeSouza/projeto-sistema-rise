@@ -318,7 +318,19 @@ export default function PainelDeImagens({
           problemas.push(`${arquivo.name}: ${resposta.erro}`);
           continue;
         }
-        setImagens((anteriores) => [...anteriores, resposta.imagem]);
+        // A foto enviada pelo dono ja nasce VALIDADA (pedido do dono em 06/11/2026): foi ele quem escolheu o arquivo,
+        // e sem o check ela seria excluida no Salvar. Entra logo depois da ultima validada (a fila da esquerda, a mesma
+        // regra do `finalizar`), entao sem nenhuma validada antes ela vira a principal.
+        const nova = { ...resposta.imagem, finalizada: true };
+        setImagens((anteriores) => {
+          const ultimaValidada = anteriores.reduce(
+            (ultima, outra, posicao) => (outra.finalizada && !outra.excluida ? posicao : ultima),
+            -1,
+          );
+          const lista = [...anteriores];
+          lista.splice(ultimaValidada + 1, 0, nova);
+          return lista;
+        });
         aoAlterar();
       }
       setErro(problemas.length > 0 ? problemas.join(" ") : null);
@@ -650,6 +662,20 @@ export default function PainelDeImagens({
           >
             <Sparkles size={12} /> Melhorar
           </button>
+          {/* Enviar foto ao lado do Melhorar (pedido do dono em 06/11/2026); antes era o quadrado no fim da tira. */}
+          <button
+            type="button"
+            onClick={() => entrada.current?.click()}
+            disabled={ocupado || cheio}
+            title={
+              cheio
+                ? `Limite de ${MAXIMO_FOTOS_NO_PAINEL} fotos no painel`
+                : "Enviar fotos do computador. Cada uma é ajustada para 1024x1024, fundo branco, e já entra validada."
+            }
+            className="inline-flex items-center gap-1 rounded border border-borda px-2 py-1 text-[11px] text-texto hover:bg-fundo disabled:opacity-50"
+          >
+            <ImagePlus size={12} /> Enviar foto
+          </button>
           {botaoDaProposta}
           {botaoDaReserva}
           {/*
@@ -707,22 +733,7 @@ export default function PainelDeImagens({
           atualBase={atual?.base ?? null}
           aoEscolher={setFoco}
           aoReordenar={reordenar}
-        >
-          <button
-            type="button"
-            onClick={() => entrada.current?.click()}
-            disabled={ocupado || cheio}
-            title={
-              cheio
-                ? `Limite de ${MAXIMO_FOTOS_NO_PAINEL} fotos no painel`
-                : "Adicionar fotos. Cada uma é ajustada para 1024x1024, fundo branco."
-            }
-            className="flex h-11 w-11 shrink-0 flex-col items-center justify-center gap-0.5 rounded border border-dashed border-borda text-suave hover:border-acento hover:text-acento disabled:opacity-40"
-          >
-            <ImagePlus size={15} />
-            <span className="text-[9px]">{imagens.length}</span>
-          </button>
-        </TiraDeFotos>
+        />
       </div>
 
       {imagens.length > 0 && (
@@ -741,7 +752,7 @@ export default function PainelDeImagens({
           </span>
           {/* Mensagem informativa: icone "i" (padrao do sistema), e nao texto fixo nem dica escondida. */}
           <BolhaDeAjuda
-            texto={`Ao salvar o produto, só as fotos validadas (com o check verde) são salvas: as demais são excluídas. Valide em Melhorar > Escolher essa. O produto leva no máximo ${MAXIMO_IMAGENS} fotos, na ordem da tira, e a primeira é a principal: arraste as miniaturas para ordenar.`}
+            texto={`Ao salvar o produto, só as fotos validadas (com o check verde) são salvas: as demais são excluídas. Valide em Melhorar > Escolher essa; a foto que você envia já entra validada. O produto leva no máximo ${MAXIMO_IMAGENS} fotos, na ordem da tira, e a primeira é a principal: arraste as miniaturas para ordenar.`}
             variante="inline"
           />
         </p>
