@@ -171,6 +171,17 @@ export async function aplicarLeituraDoPortal({ softwareSlug = "lightburn", versa
   return { ok: true, leituraId: leitura.id, resumo };
 }
 
+/** A ultima leitura do portal para o cartao de Integracoes: quando, se foi completa e o resumo dela. */
+export async function ultimaLeituraDoPortal(softwareSlug = "lightburn") {
+  const leitura = await prisma.leituraDoPortal.findFirst({
+    where: { software: { slug: softwareSlug } },
+    orderBy: { lidaEm: "desc" },
+    select: { lidaEm: true, completa: true, licencas: true, novas: true, alteradas: true, sumiram: true },
+  });
+  if (!leitura) return null;
+  return { lidaEm: leitura.lidaEm.toISOString(), completa: leitura.completa, resumo: textoDoResumoDaLeitura(leitura) };
+}
+
 /** O que a extensao pergunta antes de ler (e o cartao de Integracoes mostra): a ultima leitura e quantas chaves o Rise tem. */
 export async function estadoDaLeitura(softwareSlug = "lightburn") {
   const software = await prisma.software.findUnique({ where: { slug: softwareSlug }, select: { id: true } });

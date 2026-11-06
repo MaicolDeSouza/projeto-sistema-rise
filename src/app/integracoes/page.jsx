@@ -5,6 +5,9 @@ import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import CartaoConector from "@/components/CartaoConector";
 import CartaoAliExpress from "@/components/integracoes/CartaoAliExpress";
+import CartaoLightBurn from "@/components/integracoes/CartaoLightBurn";
+import { estadoDaChave as estadoDaChaveLightBurn } from "@/lib/ferramentas/licencas/chave";
+import { ultimaLeituraDoPortal } from "@/lib/ferramentas/licencas/portal";
 import CartaoServidorVps from "@/components/integracoes/CartaoServidorVps";
 import { estadoDaChave } from "@/lib/compras/aliexpress/chave";
 import { fornecedorDoAliExpress } from "@/lib/compras/aliexpress/fornecedor";
@@ -54,6 +57,17 @@ export default async function IntegracoesPage({ searchParams }) {
     };
   } catch (excecao) {
     erroBanco = excecao;
+  }
+
+  // Cartao LightBurn (Licencas Softwares, 05/11/2026): estado da chave da extensao e a ultima leitura do portal.
+  let lightburn = null;
+  if (!erroBanco) {
+    try {
+      const [estado, ultimaLeitura] = await Promise.all([estadoDaChaveLightBurn(), ultimaLeituraDoPortal("lightburn")]);
+      lightburn = { estado: JSON.parse(JSON.stringify(estado)), ultimaLeitura };
+    } catch (excecao) {
+      erroBanco = excecao;
+    }
   }
 
   // Cartao da LI: as notificacoes de pedidos (fase 2). Sem URL publica (o PC) o botao fica desligado com o motivo.
@@ -160,6 +174,7 @@ export default async function IntegracoesPage({ searchParams }) {
             />
           ))}
         {aliexpress && <CartaoAliExpress {...aliexpress} podeEditar={podeEditar} />}
+        {lightburn && <CartaoLightBurn {...lightburn} podeEditar={podeEditar} />}
         {mostrarServidorVps && <CartaoServidorVps />}
       </div>
     </>

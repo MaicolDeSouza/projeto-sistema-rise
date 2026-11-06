@@ -17,6 +17,7 @@ import ContatosDoCliente from "./ContatosDoCliente";
 import EnderecoDoCliente from "./EnderecoDoCliente";
 import ListaDeValores from "./ListaDeValores";
 import EscolhaEntreOpcoes from "@/components/ui/EscolhaEntreOpcoes";
+import TabelaLicencasDoCliente from "@/components/ferramentas/licencas/TabelaLicencasDoCliente";
 
 const REGIMES = [
   { valor: "SIMPLES_NACIONAL", rotulo: "1 - Simples Nacional" },
@@ -127,7 +128,7 @@ function EscolhaDoNivel({ nivel, erro }) {
  * observacoes nao sao desenhados (o servidor nem os mandou), e a aba que ficaria vazia some. O Salvar os mantem como
  * estao no banco.
  */
-export default function FormularioCliente({ cliente, transportadoras, hoje, somenteLeitura = false, semPessoal = false, pedidos = null, veLucro = false }) {
+export default function FormularioCliente({ cliente, transportadoras, hoje, somenteLeitura = false, semPessoal = false, pedidos = null, veLucro = false, licencas = null }) {
   const router = useRouter();
   const inicial = cliente ?? { ativo: true };
   const [tipo, setTipo] = useState(inicial.tipoPessoa ?? "FISICA");
@@ -158,7 +159,12 @@ export default function FormularioCliente({ cliente, transportadoras, hoje, some
     ? ABAS.filter((item) => item.id !== "endereco" && !(item.id === "contato" && juridica))
     : ABAS;
   // A aba Pedidos so existe na edicao, para quem ve a tela de Pedidos (a pagina so manda `pedidos` nesse caso).
-  const abasVisiveis = pedidos ? [...abasDoTipo, { id: "pedidos", rotulo: `Pedidos (${pedidos.total})` }] : abasDoTipo;
+  // A aba Licencas (Licencas Softwares, 05/11/2026): so na edicao e para quem ve a tela de Licencas, depois de Pedidos.
+  const abasVisiveis = [
+    ...abasDoTipo,
+    ...(pedidos ? [{ id: "pedidos", rotulo: `Pedidos (${pedidos.total})` }] : []),
+    ...(licencas ? [{ id: "licencas", rotulo: `Licenças (${licencas.length})` }] : []),
+  ];
   const abaAtiva = abasVisiveis.some((item) => item.id === aba) ? aba : abasVisiveis[0].id;
 
   // So a pessoa do tipo escolhido enxerga os campos do outro tipo — e nunca os
@@ -432,6 +438,12 @@ export default function FormularioCliente({ cliente, transportadoras, hoje, some
               )}
             </>
           )}
+        </Painel>
+      )}
+
+      {licencas && (
+        <Painel id="licencas" aba={abaAtiva}>
+          {licencas.length === 0 ? <p className="text-sm text-suave">Nenhuma licença de software deste cliente.</p> : <TabelaLicencasDoCliente linhas={licencas} />}
         </Painel>
       )}
         </div>

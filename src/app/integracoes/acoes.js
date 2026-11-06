@@ -5,6 +5,7 @@ import { negarSemAcessos } from "@/lib/acessos/servidor";
 import { revalidatePath } from "next/cache";
 
 import { gerarChaveDaExtensao } from "@/lib/compras/aliexpress/chave";
+import { gerarChaveDaExtensao as gerarChaveDaExtensaoLightBurn } from "@/lib/ferramentas/licencas/chave";
 import { marcarFornecedorDoAliExpress } from "@/lib/compras/aliexpress/fornecedor";
 import { desconectar, registrarTeste } from "@/lib/integracoes/conexoes";
 import { obterConector } from "@/lib/integracoes/registro";
@@ -90,6 +91,18 @@ export async function gerarChaveAliExpressAcao() {
   const negado = await negarSemAcessos(["tela.integracoes", "editar"]);
   if (negado) return negado;
   const { chave } = await gerarChaveDaExtensao();
+  revalidatePath("/integracoes");
+  return { ok: true, chave };
+}
+
+/**
+ * Cartao LightBurn (Licencas Softwares, 05/11/2026): gera a chave da extensao "Rise LightBurn", igual a do AliExpress.
+ * A chave volta UMA vez, para a tela mostrar e copiar; o banco guarda so o hash.
+ */
+export async function gerarChaveLightBurnAcao() {
+  const negado = await negarSemAcessos(["tela.integracoes", "editar"]);
+  if (negado) return negado;
+  const { chave } = await gerarChaveDaExtensaoLightBurn();
   revalidatePath("/integracoes");
   return { ok: true, chave };
 }

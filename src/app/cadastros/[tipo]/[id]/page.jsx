@@ -12,6 +12,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import FormularioCliente from "@/components/cadastros/FormularioCliente";
 import { listarPedidosDeVenda } from "@/lib/pedidos/banco";
+import { licencasDoCliente } from "@/lib/ferramentas/licencas/banco";
 import { projetarLinhaDaLista } from "@/lib/pedidos/projecao";
 import FormularioParceiro from "@/components/cadastros/FormularioParceiro";
 import FormularioTransportadora from "@/components/cadastros/FormularioTransportadora";
@@ -159,6 +160,10 @@ export default async function EditarCadastroPage({ params }) {
         const pedidos = await listarPedidosDeVenda({ clienteId: id, porPagina: 50 });
         dadosDoCliente.pedidos = { ...pedidos, linhas: pedidos.linhas.map((linha) => projetarLinhaDaLista(linha, pode)) };
       }
+      // A aba Licencas (Licencas Softwares, 05/11/2026): as vagas de licenca do cliente, para quem ve a tela de Licencas.
+      if (dadosDoCliente && pode("tela.ferramentas.licencas", "ver")) {
+        dadosDoCliente.licencas = JSON.parse(JSON.stringify(await licencasDoCliente(id)));
+      }
     } else if (tipo === "transportadoras") {
       dadosDaTransportadora = await carregarTransportadora(id);
     } else {
@@ -222,6 +227,7 @@ export default async function EditarCadastroPage({ params }) {
           somenteLeitura={somenteLeitura}
           transportadoras={dadosDoCliente.transportadoras}
           pedidos={dadosDoCliente.pedidos ?? null}
+          licencas={dadosDoCliente.licencas ?? null}
           veLucro={pode("dado.custo", "ver")}
           hoje={new Date().toLocaleDateString("sv-SE")}
         />

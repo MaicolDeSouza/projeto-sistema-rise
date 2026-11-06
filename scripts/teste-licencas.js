@@ -315,6 +315,12 @@ try {
   conferir("chave: prefixo, confere, recusa", [chave.startsWith("rise_lb_"), (await K.conferirChaveDaExtensao(req(`Bearer ${chave}`))).ok, (await K.conferirChaveDaExtensao(req("Bearer rise_lb_errada"))).status, (await K.conferirChaveDaExtensao(req(null))).status], [true, true, 401, 401]);
   conferir("estado da leitura", typeof (await P.estadoDaLeitura()).licencasNoRise, "number");
 
+  console.log("\nAba do cliente e cartao");
+  conferir("licencas do cliente para a aba trazem a P1", (await B.licencasDoCliente(comDoc)).some((l) => l.software.slug === "zz-lic-chave" && l.identificador === "ZZ-LIC-P1"), true);
+  conferir("estado da chave LIGHTBURN e ultima leitura", [(await K.estadoDaChave()).configurada, (await B.listarLeituras(chaveId, 1)).length], [true, 1]);
+  const { ultimaLeituraDoPortal } = await import("../src/lib/ferramentas/licencas/portal.js");
+  conferir("ultima leitura para o cartao de Integracoes", Object.keys((await ultimaLeituraDoPortal("zz-lic-chave")) ?? {}), ["lidaEm", "completa", "resumo"]);
+
   console.log("\nImportacao: aplicar e idempotencia");
   const linhaZZ = (ordem, extra) => ({ ordem, cliente: null, nomeAnotado: null, data: "2026-11-01", canal: "MERCADO_LIVRE", nomeDoPc: `PC-ZZ-${ordem}`, equipamento: null, observacoes: null, situacao: "ATIVA", ...extra });
   const enderecoFoz = I.lerEnderecoDaPlanilha("Rua das Violetas 124 124, Foz do Iguaçu - CEP: 85853540, Paraná");
