@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Rise LightBurn",
+  "version": "1.0.0",
+  "description": "Lê as licenças e os PCs ativados no portal da LightBurn e envia ao Rise (4hobby). Só lê o portal.",
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": ["https://lightburn.customer.cryptlex.com/*", "https://rise.4hobby.com.br/*", "https://localhost:3000/*"],
+  "background": { "service_worker": "fundo.js" },
+  "action": { "default_popup": "popup.html", "default_title": "Enviar ao Rise" },
+  "content_scripts": [
+    {
+      "matches": ["https://lightburn.customer.cryptlex.com/*"],
+      "js": ["ponte.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://lightburn.customer.cryptlex.com/*"],
+      "js": ["leitura.js", "pagina.js"],
+      "world": "MAIN",
+      "run_at": "document_idle"
+    }
+  ]
+}
