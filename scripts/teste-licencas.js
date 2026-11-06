@@ -214,6 +214,27 @@ try {
   conferir("excluir programa com licencas recusado", (await B.excluirSoftware(chaveId)).erro, "Este programa tem 1 licença(s).");
   conferir("excluir licenca", [(await B.excluirLicenca(nova.id)).ok, await B.lerLicenca(nova.id)], [true, null]);
 
+  console.log("\nBanco: arquivo da licenca");
+  const chaveLicId = (await B.criarLicenca({ softwareId: chaveId, identificador: "ZZ-LIC-CHAVE-X" })).id;
+  const m1 = await B.criarLicenca({ softwareId: arquivoId, identificador: "ZZ-LIC-M1", arquivo: { nome: "Mach1Lic.dat", bytes: dat }, enviadoPor: "teste" });
+  let lic = await B.lerLicenca(m1.id);
+  conferir("arquivo v1 atual, 201 B, sha", [lic.arquivos.length, lic.arquivoAtual.versao, lic.arquivoAtual.tamanhoBytes, lic.arquivoAtual.sha256 === A.sha256Hex(dat)], [1, 1, 201, true]);
+  conferir("mesmo conteudo de novo: recusado", (await B.enviarArquivo(m1.id, { nome: "Mach1Lic.dat", bytes: dat })).erro, "Este arquivo já é a versão atual (mesmo conteúdo).");
+  const dat2 = Buffer.concat([dat, Buffer.from("2")]);
+  conferir("v2 pelo zip", (await B.enviarArquivo(m1.id, { nome: "x.zip", bytes: A.montarZipDoArquivo({ identificador: "ZZ-LIC-M1", nomeOriginal: "Mach1Lic.dat", bytes: dat2 }).bytes })).versao, 2);
+  lic = await B.lerLicenca(m1.id);
+  conferir("duas versoes, so a 2 atual, a 1 continua", [lic.arquivos.map((a) => [a.versao, a.atual]).sort((a, b) => a[0] - b[0]), lic.arquivoAtual.tamanhoBytes], [[[1, false], [2, true]], 202]);
+  conferir("duas versoes ao mesmo tempo: uma vira 3 e a outra 4", (await Promise.all([B.enviarArquivo(m1.id, { nome: "a.dat", bytes: Buffer.from("v3") }), B.enviarArquivo(m1.id, { nome: "a.dat", bytes: Buffer.from("v4") })])).map((r) => r.versao).sort(), [3, 4]);
+  conferir("depois da corrida, uma so versao atual", await prisma.arquivoDeLicenca.count({ where: { licencaId: m1.id, atual: true } }), 1);
+  conferir("baixar: atual e versao 1", [(await B.lerArquivoParaBaixar(m1.id)).bytes.length, (await B.lerArquivoParaBaixar(m1.id, 1)).bytes.equals(dat)], [2, true]);
+  await prisma.arquivoDeLicenca.updateMany({ where: { licencaId: m1.id, versao: 1 }, data: { sha256: "0".repeat(64) } });
+  conferir("soma que nao confere: recusa", (await B.lerArquivoParaBaixar(m1.id, 1)).erro, "Soma de verificação não confere: avise antes de entregar.");
+  conferir("versao que nao existe e licenca sem arquivo", [(await B.lerArquivoParaBaixar(m1.id, 9)).ok, (await B.lerArquivoParaBaixar(chaveLicId)).ok], [false, false]);
+  conferir("programa CHAVE nao recebe arquivo", (await B.enviarArquivo(chaveLicId, { nome: "a.dat", bytes: dat })).erro, "Este programa não usa arquivo de licença.");
+  conferir("excluir licenca com arquivos: o popup lista as versoes e a exclusao leva tudo", [(await B.oQueSaiComALicenca(m1.id)).arquivos.length, (await B.excluirLicenca(m1.id)).ok, await prisma.arquivoDeLicenca.count({ where: { licencaId: m1.id } })], [4, true, 0]);
+  const pdf = Buffer.from("%PDF-1.4 instrucoes de teste");
+  conferir("PDF de instrucoes: grava e le", [(await B.salvarSoftware(arquivoId, { instrucoes: { nome: "Instruções Mach3.pdf", bytes: pdf, tipo: "application/pdf" } })).ok, (await B.lerInstrucoes(arquivoId))?.nome, (await B.lerInstrucoes(arquivoId))?.bytes.equals(pdf), await B.lerInstrucoes(chaveId)], [true, "Instruções Mach3.pdf", true, null]);
+
   // Marcador: os blocos de banco seguintes entram acima desta linha.
 } finally {
   if (!manter) await devolverConexao();

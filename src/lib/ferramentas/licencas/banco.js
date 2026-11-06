@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { buscarClientesParaVincular } from "@/lib/pedidos/banco";
-import { lerArquivoEnviado } from "./arquivos.js";
+import { lerArquivoEnviado, sha256Hex } from "./arquivos.js";
 import {
   CANAIS_DA_LICENCA,
   casarLinhasComAtivacoes,
@@ -363,6 +363,66 @@ export async function excluirLicenca(id) {
   if (!resumo) return { ok: false, erro: "Licença não encontrada." };
   await prisma.$transaction([prisma.arquivoDeLicenca.deleteMany({ where: { licencaId: id } }), prisma.licenca.delete({ where: { id } })]);
   return { ok: true, resumo };
+}
+
+// ---------------------------------------------------------------------------
+// Arquivo da licenca (Mach3): versoes que nunca sao apagadas
+// ---------------------------------------------------------------------------
+
+/**
+ * Grava o arquivo como a versao seguinte e move a marca de "atual" para ela; as anteriores ficam. A versao e calculada
+ * dentro da transacao, e dois envios ao mesmo tempo esbarram no indice unico (licenca, versao): o que perdeu tenta UMA
+ * vez de novo e vira a seguinte.
+ */
+export async function enviarArquivo(licencaId, { nome, bytes, enviadoPor = null, observacao = null } = {}) {
+  const licenca = await prisma.licenca.findUnique({ where: { id: licencaId ?? "" }, select: { id: true, software: { select: { identificacao: true } } } });
+  if (!licenca) return { ok: false, erro: "Licença não encontrada." };
+  if (licenca.software.identificacao !== "ARQUIVO") return { ok: false, erro: "Este programa não usa arquivo de licença." };
+  const lido = lerArquivoEnviado({ nome, bytes });
+  if (!lido.ok) return lido;
+
+  const gravar = () =>
+    prisma.$transaction(async (tx) => {
+      const atual = await tx.arquivoDeLicenca.findFirst({ where: { licencaId, atual: true }, select: { sha256: true } });
+      if (atual?.sha256 === lido.sha256) return { ok: false, erro: "Este arquivo já é a versão atual (mesmo conteúdo)." };
+      const maior = await tx.arquivoDeLicenca.aggregate({ where: { licencaId }, _max: { versao: true } });
+      const versao = (maior._max.versao ?? 0) + 1;
+      await tx.arquivoDeLicenca.updateMany({ where: { licencaId, atual: true }, data: { atual: false } });
+      await tx.arquivoDeLicenca.create({
+        data: { licencaId, versao, nomeOriginal: lido.nomeOriginal, bytes: lido.bytes, sha256: lido.sha256, tamanhoBytes: lido.tamanhoBytes, mimeType: lido.mimeType, atual: true, enviadoPor, observacao: textoOuNulo(observacao) },
+      });
+      return { ok: true, versao };
+    });
+  try {
+    return await gravar();
+  } catch (erro) {
+    if (!ehRepetida(erro)) throw erro;
+    return gravar();
+  }
+}
+
+/**
+ * O arquivo para o Baixar: a versao atual, ou a pedida. A soma e recalculada sobre os bytes lidos: arquivo que nao
+ * confere com o sha256 gravado nunca e entregue (`status` 500 para a rota; 404 quando nao ha o que baixar).
+ */
+export async function lerArquivoParaBaixar(licencaId, versao = null) {
+  const licenca = await prisma.licenca.findUnique({ where: { id: licencaId ?? "" }, select: { identificador: true } });
+  if (!licenca) return { ok: false, status: 404, erro: "Licença não encontrada." };
+  const arquivo = await prisma.arquivoDeLicenca.findFirst({
+    where: { licencaId, ...(versao != null ? { versao: Number(versao) } : { atual: true }) },
+    select: { nomeOriginal: true, bytes: true, sha256: true },
+  });
+  if (!arquivo) return { ok: false, status: 404, erro: versao != null ? `A versão ${versao} não existe.` : "Esta licença não tem arquivo." };
+  const bytes = Buffer.from(arquivo.bytes);
+  if (sha256Hex(bytes) !== arquivo.sha256) return { ok: false, status: 500, erro: "Soma de verificação não confere: avise antes de entregar." };
+  return { ok: true, identificador: licenca.identificador, nomeOriginal: arquivo.nomeOriginal, bytes, sha256: arquivo.sha256 };
+}
+
+/** O PDF de instrucoes do programa (o que o dono manda ao cliente junto do arquivo). */
+export async function lerInstrucoes(softwareId) {
+  const programa = await prisma.software.findUnique({ where: { id: softwareId ?? "" }, select: { instrucoesNome: true, instrucoesBytes: true, instrucoesTipo: true } });
+  if (!programa?.instrucoesBytes) return null;
+  return { nome: programa.instrucoesNome || "instrucoes.pdf", bytes: Buffer.from(programa.instrucoesBytes), tipo: programa.instrucoesTipo || "application/pdf" };
 }
 
 // ---------------------------------------------------------------------------
