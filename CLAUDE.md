@@ -276,7 +276,7 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Canais de Venda | Mercado Livre: rascunho de anúncio simples e de composição/kit (salvar, pop-up pelo ícone na lista de Produtos e página própria, frases fixas), inteligência do ML (categoria, título, ficha, custos) e **Publicar pronto sob trava** (`ML_PUBLICACAO=false`; nenhum envio real ainda). Loja Integrada: editor por abas (Geral, SEO, Descrição, Fiscal, Envio, Prévia) com categorias ao vivo, ícone com selo e pop-up de diferenças na lista de Produtos, Cadastrar e Sincronizar **sob trava** (`LI_ESCRITA=false`). Shopee é só cartão "em breve" |
 | Cadastros | Clientes (física/jurídica, endereço Geral/Entrega com lupa de CEP, contatos), fornecedores, concorrentes, transportadoras e marcas, numa página de **cartões** (sem cascata no menu); a seção Produtos abre o mesmo formulário de Produtos. Grava só no banco local |
 | Mercados | Teste de fonte, importação de arquivo (HTML/PDF/XLSX) e coleta gravando **no Postgres**, com série de preço |
-| Ferramentas | Conversor de imagem para SVG (PNG/JPG/WebP em vetor colorido, motor VTracer) e cotação do dólar (PTAX do Banco Central, com gráfico). Não gravam nada |
+| Ferramentas | Conversor de imagem para SVG (PNG/JPG/WebP em vetor colorido, motor VTracer) e cotação do dólar (PTAX do Banco Central, com gráfico), que não gravam nada. **Licenças Softwares (06/11/2026, SEM deploy):** chaves do LightBurn e arquivos do Mach3 com os clientes de cada licença, vagas livres e último uso lidos do portal pela extensão "Rise LightBurn"; ver "Ferramentas: Licenças Softwares" |
 | Rise AI | **Mudança de rumo em 20/10/2026:** o chat interno saiu da tela e a equipe consulta o Rise pelo **Claude ou pelo ChatGPT**, pelo servidor MCP (`/mcp`, OAuth próprio, só leitura, nunca chama IA paga), pronto e **sem deploy**. Ficam a aba Conexões (o endereço e as conexões de cada pessoa), a Revisão do dia (com as dúvidas que o Claude e o ChatGPT anotam), o Consumo e as Configurações (Modelos, orçamento dos clientes e o prompt do cliente); a lib `src/lib/riseAi/` fica inteira como o motor do WhatsApp. A Entrega 1 está na VPS desde 13/10/2026; o chat da A1 nunca subiu e saiu. **Entrega C1 (avisos no Telegram) pronta em 23/10/2026, SEM deploy:** aba Canais com o bot, vínculo por código na tela do usuário e cinco avisos pelo worker. Ver "Servidor MCP (20/10/2026)", "Rise AI (Entrega 1)" e "Rise AI (Entrega C1, avisos no Telegram)" |
 | Configurações (Acessos) | Lançamento 1 pronto em 12/10/2026 e **no ar na VPS desde 13/10/2026**: usuários, funções com a matriz de permissões, exceções, quebra-vidro `RISE_AI_ADMINS` e segredo de borda; o Rise AI e Configurações conferem o acesso no servidor. Integrações virou cartão de Configurações. **Lançamento 2 pronto em 22/10/2026, SEM deploy:** o Rise inteiro confere o acesso (menu e Painel filtrados, telas em `ver` com o selo "Somente leitura", dados sensíveis cortados no servidor), "Ver como" e a aba Histórico. Ver "Acessos (lançamento 1)" e "Acessos (lançamento 2)" |
 | Relatórios | **Relatório semanal da coleta** em PDF (tela `/relatorios`, 20/10/2026, sem deploy): lista das rodadas, "Gerar agora" e baixar o PDF. Ver "Relatório semanal da coleta" |
@@ -357,6 +357,9 @@ npm run teste:compras             # 142 asserções do módulo Compras: regras (
 npm run teste:aliexpress          # 153 asserções do AliExpress no Compras: regras puras, esquema, chave da extensão, depósito Virtual (saída por balanço, Reenviar que acerta), casamento (anúncio+opção, fator), importação, chegada, rotas e a leitura para a tela, contra um Bling falso. Postgres local, SEM rede; só escreve ZZ-ALI-*, "ZZ Ali *" e pedidos 99…; `-- --manter` deixa os dados para conferir a tela
 npm run teste:pedidos             # 153 asserções dos Pedidos de venda: falsos (ML, LI, Bling), normalizadores, status, cliente automático, itens e custo congelado, lucro e devolução, peças, aplicarPedidoLido, a leitura com cursor, acessos e taxas da LI. Postgres local, SEM rede; só escreve ZZ-PED-*, "ZZ Ped *" e os documentos de teste, e devolve a linha "pedidos" de RotinaDoWorker e as taxas da LI; `-- --manter` deixa os pedidos para conferir a tela
 npm run teste:extensao-aliexpress # 15 asserções da leitura da extensão (extensao-aliexpress/leitura.js) com as respostas da página Meus pedidos medidas em 28/10/2026. Puro: sem banco, sem rede, sem Chrome
+npm run teste:licencas            # 108 asserções das Licenças Softwares: regras (vagas, casamento por nome do PC, situação, frescor, ordem), zip e upload do arquivo, banco (programas, licenças, linhas, versões do arquivo, download), leitura do portal (esquema, aplicação, incompleta, sumidos, chave da extensão) e a importação das planilhas (fixtures em scripts/fixtures/licencas/). Postgres local, SEM rede; só escreve ZZ-LIC-*, zz-lic-* e "ZZ LIC *" e devolve a Conexao LIGHTBURN; `-- --manter` deixa os dados para conferir a tela
+npm run teste:extensao-lightburn  # 13 asserções da leitura da extensão "Rise LightBurn" (extensao-lightburn/leitura.js) com as respostas da API do portal medidas em 05/11/2026 (fixtures anonimizadas em scripts/fixtures/lightburn/). Puro: sem banco, sem rede, sem Chrome
+node scripts/importar-licencas.js --lightburn=<xlsx> --mach3=<xlsx> --pasta=<pasta> --pdf=<pdf> --simular   # importação das planilhas antigas de licenças e da pasta do Mach3 (uma vez; idempotente); --confirmo grava
 npm run teste:saude               # 68 asserções da Saúde do Rise: regras (rotinas, worker, disco, backup, memória, banco, integrações, orçamento, varreduras, PC, healthchecks), o aviso do Telegram, a gravação em RotinaDoWorker e a coleta nos modos PC e VPS. Postgres local, SEM rede; só escreve zz-saude-*
 npm run teste:acessos             # 207 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição, as projeções do lançamento 2 (Painel, lista de Produtos, Cadastros, canais, Scraper, Indicadores), "Ver como", Histórico e o guarda estático de src/app (sem lista de exceções). Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
 npm run teste:proposta            # 319 asserções da proposta automática de produto (com as seções de categorias e SEO da loja): regras de preço/medidas/NCM, validação do plano, gravação por seção (fotos padronizadas em proposta/), aplicar ao formulário, Salvar marcando aplicadas, fotos para a reserva, Conferido com pergunta e o script de verdade (Postgres local, SEM rede; só escreve produtos ZZ-PROP-* e as pastas deles)
@@ -6324,6 +6327,54 @@ uma tela que a use.
   bissexto, meia-noite em São Paulo), período fora da lista recusado, PTAX e boletim com resposta boa, fora
   de ordem, repetida, com lixo e vazia, "agora", variação e as coordenadas do gráfico (um ponto só, série
   reta, série vazia, 250 dias, quadro minúsculo).
+
+## Ferramentas: Licenças Softwares (06/11/2026, SEM deploy)
+
+Pedido do dono (spec `docs/superpowers/specs/2026-11-05-licencas-softwares-design.md`, plano
+`docs/superpowers/plans/2026-11-05-licencas-softwares.md`): tirar das planilhas do Google o controle das licenças que a
+4hobby revende (LightBurn por chave, Mach3 por arquivo) e saber, na hora de vender, **qual chave tem vaga livre**. Tela
+`/ferramentas/licencas` (cartão em Ferramentas, recurso `tela.ferramentas.licencas`; baixar o arquivo pede
+`acao.ferramentas.licencas.arquivo`; excluir pede o nível `excluir`). Linha-guia: o operador vê primeiro as vagas livres e
+se a leitura do portal é recente; a ação principal é **Vincular cliente**.
+
+- **Onde mora:** migration `20261105_licencas_softwares` (Software, Licenca, LinhaDeLicenca, AtivacaoDeLicenca,
+  ArquivoDeLicenca, LeituraDoPortal; `Servico.LIGHTBURN`; semeia LightBurn e Mach3 com ids fixos `lightburn`/`mach3`);
+  regras puras em `src/lib/ferramentas/licencas/regras.js`, banco em `banco.js`, zip em `arquivos.js`, leitura do portal
+  em `portal.js` + `esquema.js` + `chave.js`, importação em `importacao.js`; tela em `src/components/ferramentas/licencas/`;
+  aba "Licenças (N)" no cadastro do Cliente; cartão "LightBurn" em Integrações (gera a chave da extensão).
+- **Vaga livre só pelo portal:** `permitidas − PCs ativos` lidos da Cryptlex. Licença nunca lida mostra "não lida",
+  nunca "3 livres" (vender vaga ocupada é o pior erro da tela). As "3 linhas" vazias são desenho: a linha só existe no
+  banco com cliente.
+- **Casamento linha ↔ PC pelo nome do PC** (sem caixa, sem `\t\r`). Dois PCs com o mesmo nome, ou duas linhas com o mesmo
+  nome de PC, viram **empate e ninguém casa** (o "!" diz "Nome de PC repetido"); PC sem linha aparece em "PCs sem
+  cliente" com "Atribuir à linha…".
+- **Arquivo do Mach3 em `Bytes` no banco, com versões que nunca são apagadas** (o dump vai ao R2, a pasta não). Upload
+  aceita o `.dat` solto ou um `.zip` com um único arquivo (zip escrito à mão, sem dependência); sha256 conferido no
+  upload e no download (soma que não confere: a rota recusa com 500 e o texto). Arquivo novo vira a versão seguinte e a
+  atual; na importação, um arquivo diferente entra como versão nova SEM virar a atual.
+- **Leitura incompleta não marca sumido:** a extensão manda `completa: false` quando uma página do portal falha; só a
+  leitura completa marca PC e chave sumidos, **inclusive a chave da planilha que o portal nunca trouxe** (é assim que o
+  dono vê as chaves mortas: a planilha tem 81, o portal 78). A leitura nunca toca linhas, renovação, observações nem arquivos; o
+  Core/Pro não existe no portal (medido) e fica o que o dono digitou ou a planilha trouxe.
+- **Extensão "Rise LightBurn"** (`extensao-lightburn/`, molde da do AliExpress): lê a API que a página do portal usa
+  (`api.cryptlex.com/v3/me/licenses` e `/v3/me/activations`, token `localStorage.CTX_AT`, que vale 1 hora e se renova
+  ao recarregar a página), **só GET**, e manda ao Rise pelas rotas `GET/POST /api/licencas/lightburn/{estado,importar}`,
+  autenticadas pela chave `rise_lb_…` (só o hash no banco) e liberadas no Caddyfile fora do Tinyauth, caminhos exatos.
+  Nunca manda e-mail/nome de quem está logado nem a localização dos PCs. Medição em `extensao-lightburn/MEDICAO.md`.
+  Leitura real conferida em 06/11/2026 rodando o código na aba do portal: 78 chaves, 102 PCs, 4 chamadas, 53 s.
+- **Depois de uma ação a tela chama `router.refresh()`** (padrão das telas do Rise): o `revalidatePath` sozinho não
+  redesenhou a lista no Next 16. O menu ⋮ das linhas abre em posição fixa (dentro da tabela com rolagem ele ficava
+  cortado). A coluna Chave mostra o começo da chave (o resto ao passar o mouse; o Copiar leva inteira).
+- **Importação (uma vez, idempotente):** `scripts/importar-licencas.js` lê as abas "Licencas em geral" e "Licencas
+  maquinas 4hobby" (nunca a "Link controle licencas", que guarda a senha do portal) e a "Página1" do Mach3, com as
+  mesclas preenchidas para baixo, mais a pasta de clientes do Mach3 e o PDF de instruções. Linhas idênticas entram todas;
+  documento inválido ou ausente vira `nomeAnotado` com o motivo na observação; arrastão do Excel (CPF que só muda no último
+  dígito, mesmo nome) usa o primeiro válido. **Rodada na cópia do PC em 06/11/2026:** 89 licenças (81 LightBurn, 8 Mach3),
+  131 linhas, 72 clientes criados, 8 arquivos (download conferido idêntico ao original), 46 linhas sem cliente (43 sem
+  CPF, 3 com CPF inválido). Arquivos em `dados/licencas-importacao/` (fora do git).
+- **Não medido:** a extensão instalada de verdade no Chrome do dono enviando ao Rise (o lado do Rise está testado e a
+  leitura do portal foi conferida à parte), e nada disso está na VPS (deploy e importação lá só com o "subir").
+- **Testes:** `npm run teste:licencas` (108) e `npm run teste:extensao-lightburn` (13).
 
 ## Rodar na VPS (migração de 08/10/2026)
 
