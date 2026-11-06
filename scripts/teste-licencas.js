@@ -142,6 +142,49 @@ conferir("zip pequeno que descompacta acima do teto: recusado", A.lerArquivoEnvi
 conferir("nome so de pontos ou vazio vira licenca.dat", [A.limparNomeDeArquivo(".."), A.limparNomeDeArquivo(""), A.limparNomeDeArquivo("C:\\pasta\\Mach1Lic.dat")], ["licenca.dat", "licenca.dat", "Mach1Lic.dat"]);
 
 // ---------------------------------------------------------------------------
+// Importacao: leitura da planilha (puro, pelas fixtures de scripts/fixtures/licencas/)
+// ---------------------------------------------------------------------------
+
+console.log("\nImportacao: leitura da planilha");
+const { readFileSync } = await import("node:fs");
+const I = await import("../src/lib/ferramentas/licencas/importacao.js");
+const fx = (n) => JSON.parse(readFileSync(new URL(`./fixtures/licencas/${n}.json`, import.meta.url), "utf8"));
+const FIX_GERAL_ENTRADAS = 12;
+const FIX_LB_LICENCAS = 9;
+const FIX_CHAVE_ARRASTAO = "AAAAAA-000000-000000-000000-000000-000002";
+const FIX_CHAVE_TRIPLA = "AAAAAA-000000-000000-000000-000000-000003";
+const FIX_CHAVE_ANTIGA = "AAAAAA-000000-000000-000000-000000-000004";
+const FIX_CHAVE_ENCERRADA = "AAAAAA-000000-000000-000000-000000-000005";
+const FIX_CHAVE_SETE = "AAAAAA-000000-000000-000000-000000-000007";
+const FIX_CHAVE_MAQUINA = "BBBBBB-000000-000000-000000-000000-000002";
+conferir("mescladas preenchidas para baixo", I.preencherMescladas([["K1", "a"], ["", "b"], ["K2", "c"]], ["A1:A2"]).map((l) => l[0]), ["K1", "K1", "K2"]);
+conferir("celula", [I.valorDaCelula("#"), I.valorDaCelula("  "), I.valorDaCelula("USUARIO-PC\t\r")], [null, null, "USUARIO-PC"]);
+conferir("datas", [I.lerDataDaPlanilha("29/10/2026").data, I.lerDataDaPlanilha("30/11/22").data, I.lerDataDaPlanilha("06/20"), I.lerDataDaPlanilha("#"), I.lerDataDaPlanilha("2023")], ["2026-10-29", "2022-11-30", { data: null, observacao: "Data na planilha: 06/20" }, { data: null, observacao: null }, { data: null, observacao: "Data na planilha: 2023" }]);
+conferir("documento: CPF, CNPJ, 10 digitos ganha zero, invalido, ausente", [I.lerDocumentoDaPlanilha("CPF 52998224725").documento, I.lerDocumentoDaPlanilha("CNPJ 11222333000181").documento, I.lerDocumentoDaPlanilha("CPF 1234567890").documento, I.lerDocumentoDaPlanilha("CPF 00000000000").motivo, I.lerDocumentoDaPlanilha("#").motivo], ["529.982.247-25", "11.222.333/0001-81", "012.345.678-90", "CPF inválido na planilha: CPF 00000000000", "sem CPF na planilha"]);
+conferir("documento com pontos no lugar do hifen", I.lerDocumentoDaPlanilha("CPF 529.982.247.25").documento, "529.982.247-25");
+conferir("endereco no molde e fora dele", [I.lerEnderecoDaPlanilha("Rua das Violetas 124 124, Foz do Iguaçu - CEP: 85853540, Paraná"), I.lerEnderecoDaPlanilha("Rua Cisplatina, 126 - Vargem Grande Paulista - São Paulo - CP: 06740556").cidade], [{ logradouro: "Rua das Violetas 124 124", cidade: "Foz do Iguaçu", uf: "PR", cep: "85853-540" }, null]);
+conferir("canal", [I.canalDaPlanilha("ML"), I.canalDaPlanilha("ML4H"), I.canalDaPlanilha("4H"), I.canalDaPlanilha("loja").canal, I.canalDaPlanilha("")], [{ canal: "MERCADO_LIVRE", observacao: null }, { canal: "MERCADO_LIVRE", observacao: "Canal na planilha: ML4H" }, { canal: "DIRETA", observacao: "Canal na planilha: 4H" }, "DIRETA", { canal: null, observacao: null }]);
+conferir("situacao", ["Nao usa mais", "Não usa mais", "nao usa +", "Em uso", "Ajustado", ""].map(I.situacaoDaPlanilha), ["ENCERRADA", "ENCERRADA", "ENCERRADA", "ATIVA", "ATIVA", "ATIVA"]);
+const geral = I.lerAbaGeral(I.preencherMescladas(fx("geral").linhas, fx("geral").mesclas));
+conferir("aba geral: N entradas, chave herdada, linha so com # ignorada", [geral.length, geral[1].chave === geral[0].chave, geral.some((e) => e.nome === null && e.data === null)], [FIX_GERAL_ENTRADAS, true, false]);
+const plano = I.montarPlano({ geral, maquinas: I.lerAbaMaquinas(fx("maquinas").linhas), mach3: I.lerAbaMach3(fx("mach3").linhas), arquivosMach3: [{ identificador: "Mach3 VD60", nomeOriginal: "Mach1Lic.dat", bytes: dat }, { identificador: "ALTAVE V53T", nomeOriginal: "Mach1Lic.dat", bytes: dat }] });
+const doPlano = (identificador) => plano.licencas.find((l) => l.identificador === identificador);
+conferir("plano: licencas por programa", [plano.licencas.filter((l) => l.software === "lightburn").length, plano.licencas.filter((l) => l.software === "mach3").length], [FIX_LB_LICENCAS, 2]);
+conferir("plano: arrastao usa o primeiro CPF nas tres linhas", new Set(doPlano(FIX_CHAVE_ARRASTAO).linhas.map((x) => x.cliente.documento)).size, 1);
+conferir("plano: linhas identicas entram todas; sem CPF vira nomeAnotado", [doPlano(FIX_CHAVE_TRIPLA).linhas.length, doPlano(FIX_CHAVE_ANTIGA).linhas[0]], [3, { ordem: 1, cliente: null, nomeAnotado: "Fulano Antigo", data: "2020-03-01", canal: "DIRETA", nomeDoPc: "DESKTOP-TESTE1", equipamento: "01Cuia /01plana", observacoes: "Canal na planilha: 4H; sem CPF na planilha", situacao: "ATIVA" }]);
+conferir("plano: aba das maquinas (renovada dia, loja, pedido bling)", doPlano(FIX_CHAVE_MAQUINA).renovadaEm, "2022-11-30");
+conferir("plano: pasta sem planilha vira nomeAnotado", doPlano("ALTAVE V53T").linhas[0].nomeAnotado, "ALTAVE");
+const k1 = doPlano("AAAAAA-000000-000000-000000-000000-000001");
+conferir("plano: tipo, renovacao mesclada, nome do PC limpo, observacao da coluna M, status puro fora da observacao", [k1.tipo, k1.renovadaEm, k1.linhas[1].nomeDoPc, k1.linhas[0].observacoes, k1.linhas[1].observacoes, k1.linhas[0].cliente.documento], ["Pro", "2026-12-01", "USUARIO-PC", "Licença do fulano expirou. Peguei essa.", null, "11.222.333/0001-81"]);
+conferir("plano: canal mesclado leva a observacao a todas as linhas; 'Ajustado' fica", doPlano(FIX_CHAVE_ARRASTAO).linhas.map((x) => x.observacoes), ["Canal na planilha: ML4H", "Canal na planilha: ML4H; Ajustado", "Canal na planilha: ML4H"]);
+const encerrada = doPlano(FIX_CHAVE_ENCERRADA).linhas[0];
+conferir("plano: 06/20 sem data, 10 digitos, endereco fora do molde, 'Nao usa mais' encerra", [encerrada.data, encerrada.cliente.documento, encerrada.cliente.endereco.cidade, encerrada.situacao, encerrada.observacoes], [null, "012.345.678-90", null, "ENCERRADA", "Data na planilha: 06/20; Canal na planilha: Loja"]);
+conferir("plano: CPF invalido vira nomeAnotado com o motivo; 'nao usa +' encerra", doPlano(FIX_CHAVE_SETE).linhas.map((x) => [x.nomeAnotado, x.cliente?.documento ?? null, x.situacao, x.observacoes]), [["Pessoa Sete", null, "ENCERRADA", "Data na planilha: 2023; Canal na planilha: Direta; CPF inválido na planilha: CPF 00000000000"], [null, "529.982.247-25", "ENCERRADA", "Canal na planilha: Direta"]]);
+conferir("plano: aba antiga sem documento e com a renovacao na Loja", [doPlano("BBBBBB-000000-000000-000000-000000-000001").linhas[0].observacoes, doPlano(FIX_CHAVE_MAQUINA).linhas[0].observacoes, doPlano(FIX_CHAVE_MAQUINA).linhas[0].equipamento, doPlano("BBBBBB-000000-000000-000000-000000-000003").linhas[0].canal], ["Data na planilha: 06/20; sem CPF na planilha", "Renovada dia 30/11/22", "Cuia", "DIRETA"]);
+conferir("plano: Mach3 com arquivo e linha da planilha; sem pasta vira aviso", [doPlano("Mach3 VD60").arquivo.nomeOriginal, doPlano("Mach3 VD60").linhas[0].cliente.documento, plano.avisos], ["Mach1Lic.dat", "529.982.247-25", ["Mach3: \"Mach3 SEMPASTA\" está na planilha e não tem pasta nem zip."]]);
+conferir("nome anotado da pasta", [I.nomeAnotadoDaPasta("ALTAVE V53T"), I.nomeAnotadoDaPasta("ASSOCIACAO SAO BENTO DE ENSINO/Mach3 2FHX"), I.nomeAnotadoDaPasta("Olessandro Teste Silva 2QRZ")], ["ALTAVE", "ASSOCIACAO SAO BENTO DE ENSINO", "Olessandro Teste Silva"]);
+
+// ---------------------------------------------------------------------------
 // Banco
 // ---------------------------------------------------------------------------
 
@@ -270,6 +313,43 @@ try {
   const req = (auth) => new Request("https://x/api", { headers: auth ? { authorization: auth } : {} });
   conferir("chave: prefixo, confere, recusa", [chave.startsWith("rise_lb_"), (await K.conferirChaveDaExtensao(req(`Bearer ${chave}`))).ok, (await K.conferirChaveDaExtensao(req("Bearer rise_lb_errada"))).status, (await K.conferirChaveDaExtensao(req(null))).status], [true, true, 401, 401]);
   conferir("estado da leitura", typeof (await P.estadoDaLeitura()).licencasNoRise, "number");
+
+  console.log("\nImportacao: aplicar e idempotencia");
+  const linhaZZ = (ordem, extra) => ({ ordem, cliente: null, nomeAnotado: null, data: "2026-11-01", canal: "MERCADO_LIVRE", nomeDoPc: `PC-ZZ-${ordem}`, equipamento: null, observacoes: null, situacao: "ATIVA", ...extra });
+  const enderecoFoz = I.lerEnderecoDaPlanilha("Rua das Violetas 124 124, Foz do Iguaçu - CEP: 85853540, Paraná");
+  const clienteCriado = { nome: "ZZ LIC Criado", documento: "012.345.678-90", telefone: "(46) 98201-0550", email: "zz-lic-criado@teste.com", endereco: enderecoFoz };
+  const montarPlanoZZ = (bytesM2 = Buffer.from("outro arquivo zz")) => ({
+    avisos: [],
+    licencas: [
+      {
+        software: "zz-lic-chave", identificador: "zz-lic-imp-1", tipo: "Pro", renovadaEm: "2026-10-15", observacoes: null, arquivo: null,
+        linhas: [
+          linhaZZ(1, { cliente: { nome: "ZZ LIC Outro Nome", documento: "529.982.247-25", telefone: "(11) 912345678", email: null, endereco: null } }),
+          linhaZZ(2, { cliente: clienteCriado }),
+          linhaZZ(3, { nomeAnotado: "ZZ LIC Sem CPF", observacoes: "Canal na planilha: 4H; sem CPF na planilha" }),
+        ],
+      },
+      { software: "zz-lic-arquivo", identificador: "ZZ-LIC-IMP-M1", tipo: null, renovadaEm: null, observacoes: null, arquivo: { nomeOriginal: "Mach1Lic.dat", bytes: dat }, linhas: [linhaZZ(1, { cliente: clienteCriado, canal: "DIRETA" })] },
+      { software: "zz-lic-arquivo", identificador: "ZZ-LIC-IMP-M2", tipo: null, renovadaEm: null, observacoes: null, arquivo: { nomeOriginal: "Mach1Lic.dat", bytes: bytesM2 }, linhas: [linhaZZ(1, { nomeAnotado: "ZZ LIC Pasta", observacoes: "sem CPF na planilha" })] },
+    ],
+  });
+  const planoZZ = montarPlanoZZ();
+  const ri1 = await B.aplicarPlanoDeImportacao(planoZZ);
+  conferir("aplicar: cria licencas, linhas, clientes; existente ligado sem mexer", [ri1.licencas.novas, ri1.linhas.novas, ri1.clientes.criados, ri1.clientes.ligados, ri1.semCliente.length, ri1.arquivos.novos], [3, 5, 1, 1, 2, 2]);
+  conferir("sem cliente com o motivo", ri1.semCliente, [{ identificador: "ZZ-LIC-IMP-1", nome: "ZZ LIC Sem CPF", motivo: "sem CPF na planilha" }, { identificador: "ZZ-LIC-IMP-M2", nome: "ZZ LIC Pasta", motivo: "sem CPF na planilha" }]);
+  conferir("cliente criado com endereco e telefone so digitos", await prisma.cliente.findUnique({ where: { documento: "012.345.678-90" }, select: { telefone: true, enderecos: { select: { tipo: true, uf: true, cep: true } } } }), { telefone: "46982010550", enderecos: [{ tipo: "GERAL", uf: "PR", cep: "85853-540" }] });
+  conferir("cliente existente: nome e telefone intactos", await prisma.cliente.findUnique({ where: { id: comDoc }, select: { nome: true, telefone: true } }), { nome: "ZZ LIC Com Documento", telefone: null });
+  const imp1 = await prisma.licenca.findFirst({ where: { identificador: "ZZ-LIC-IMP-1" }, select: { id: true, origem: true, tipo: true, renovadaEm: true } });
+  conferir("licenca da planilha: chave normalizada, origem, tipo e renovacao", [imp1.origem, imp1.tipo, imp1.renovadaEm.toISOString().slice(0, 10)], ["planilha", "Pro", "2026-10-15"]);
+  const ri2 = await B.aplicarPlanoDeImportacao(planoZZ);
+  conferir("idempotente: segunda vez nao cria nada", [ri2.licencas.novas, ri2.linhas.novas, ri2.clientes.criados, ri2.arquivos.novos], [0, 0, 0, 0]);
+  await B.editarLicenca(imp1.id, { tipo: "Core" });
+  const m2 = await prisma.licenca.findFirst({ where: { identificador: "ZZ-LIC-IMP-M2" }, select: { id: true } });
+  const ri3 = await B.aplicarPlanoDeImportacao(montarPlanoZZ(Buffer.from("arquivo novo da planilha")));
+  conferir("de novo com outro arquivo: tipo digitado fica, arquivo entra como versao nova sem tirar a atual", [(await B.lerLicenca(imp1.id)).tipo, ri3.arquivos.novos, (await B.lerLicenca(m2.id)).arquivos.map((a) => [a.versao, a.atual])], ["Core", 1, [[2, false], [1, true]]]);
+  const planoZZ2 = { avisos: [], licencas: [{ software: "zz-lic-chave", identificador: "ZZ-LIC-SIM", tipo: null, renovadaEm: null, observacoes: null, arquivo: null, linhas: [linhaZZ(1, { cliente: { nome: "ZZ LIC Simulado", documento: "529.982.247-25", telefone: null, email: null, endereco: null } })] }] };
+  conferir("simular nao grava", [(await B.aplicarPlanoDeImportacao(planoZZ2, { simular: true })).licencas.novas, await prisma.licenca.count({ where: { identificador: "ZZ-LIC-SIM" } })], [1, 0]);
+  conferir("programa que nao existe vira aviso", (await B.aplicarPlanoDeImportacao({ avisos: [], licencas: [{ ...planoZZ2.licencas[0], software: "zz-lic-nao-existe" }] }, { simular: true })).avisos, ['Programa "zz-lic-nao-existe" não existe no Rise: ZZ-LIC-SIM ficou de fora.']);
 
   // Marcador: os blocos de banco seguintes entram acima desta linha.
 } finally {

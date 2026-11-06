@@ -1,0 +1,20 @@
+{
+  "linhas": [
+    ["Key", "Tipo(Core ou Pro)", "Data", "Nome", "Dados", "Telefone", "Email", "Equipamento", "Nome do PC", "Canal de venda", "Renovação?", "Endereço"],
+    ["AAAAAA-000000-000000-000000-000000-000001", "Pro", "05/01/2026", "Empresa Teste Um", "CNPJ 11222333000181", "#", "#", "#", "", "ML", "01/12/2026", "#", "Licença do fulano expirou. Peguei essa."],
+    ["", "", "10/01/2026", "Beltrano Teste", "CPF 52998224725", "(46)98201-0550", "beltrano@teste.com.br", "Sculpfun S9", "USUARIO-PC\t\r", "", "", "Rua das Violetas 124 124, Foz do Iguaçu - CEP: 85853540, Paraná", "Em uso"],
+    ["AAAAAA-000000-000000-000000-000000-000002", "Core", "20/02/2025", "Ani Teste", "CPF 01234567890", "#", "#", "Ciclope", "PC-ANI-1", "ML4H", "#", "#", ""],
+    ["", "", "20/02/2025", "Ani Teste", "CPF 01234567891", "#", "#", "", "PC-ANI-2", "", "", "", "Ajustado"],
+    ["", "", "20/02/2025", "Ani Teste", "CPF 01234567892", "#", "#", "", "PC-ANI-3", "", "", "", ""],
+    ["AAAAAA-000000-000000-000000-000000-000003", "Core", "15/07/23", "Thiago Teste", "CPF 529.982.247-25", "(11) 912345678", "thiago@teste.com", "Cuia", "DESKTOP-TRIPLO", "ML", "#", "#", ""],
+    ["", "", "15/07/23", "", "", "", "", "", "DESKTOP-TRIPLO", "", "", "", ""],
+    ["", "", "15/07/23", "", "", "", "", "", "DESKTOP-TRIPLO", "", "", "", ""],
+    ["AAAAAA-000000-000000-000000-000000-000004", "Core", "01/03/2020", "Fulano Antigo", "#", "#", "#", "01Cuia /01plana", "DESKTOP-TESTE1", "4H", "#", "#", ""],
+    ["AAAAAA-000000-000000-000000-000000-000005", "Pro", "06/20", "Sicrano Encerrado", "CPF 1234567890", "#", "#", "#", "NOTE-SICRANO", "Loja", "#", "Rua Teste, 126 - Vargem Grande Paulista - São Paulo - CP: 06740556", "Nao usa mais"],
+    ["AAAAAA-000000-000000-000000-000000-000006", "#", "#", "#", "#", "#", "#", "#", "#", "#", "#", "#", ""],
+    [],
+    ["AAAAAA-000000-000000-000000-000000-000007", "Pro", "2023", "Pessoa Sete", "CPF 00000000000", "#", "#", "#", "PC-SETE", "Direta", "#", "#", "Não usa mais"],
+    ["", "", "03/04/2024", "Pessoa Sete B", "CPF 529.982.247.25", "#", "#", "#", "PC-SETE-B", "", "", "", "nao usa +"]
+  ],
+  "mesclas": ["A2:A3", "B2:B3", "J2:J3", "K2:K3", "A4:A6", "B4:B6", "H4:H6", "J4:J6", "K4:K6", "A7:A9", "B7:B9", "D7:D9", "E7:E9", "F7:F9", "G7:G9", "H7:H9", "J7:J9", "K7:K9", "L7:L9", "A14:A15", "B14:B15", "J14:J15"]
+}

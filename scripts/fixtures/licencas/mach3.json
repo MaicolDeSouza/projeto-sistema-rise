@@ -1,0 +1,8 @@
+{
+  "linhas": [
+    ["Key", "Software", "Data", "Nome", "Dados", "Telefone", "Email", "Canal de venda", "Endereço"],
+    ["Mach3 VD60", "Mach3", "01/02/2024", "Cliente Mach Teste", "CPF 52998224725", "(46)98201-0550", "mach@teste.com", "ML", "Rua das Violetas 124 124, Foz do Iguaçu - CEP: 85853540, Paraná"],
+    ["Mach3 SEMPASTA", "Mach3", "01/03/2024", "Outro Mach", "CNPJ 11222333000181", "#", "#", "4H", "#"]
+  ],
+  "mesclas": []
+}

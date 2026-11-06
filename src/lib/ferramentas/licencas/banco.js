@@ -1,10 +1,12 @@
 import { prisma } from "@/lib/db";
 import { buscarClientesParaVincular } from "@/lib/pedidos/banco";
+import { telefoneParaGravar } from "@/lib/telefone";
 import { lerArquivoEnviado, sha256Hex } from "./arquivos.js";
 import {
   CANAIS_DA_LICENCA,
   casarLinhasComAtivacoes,
   frescorDaLeitura,
+  lerDataIso,
   normalizarIdentificador,
   ordenarLicencas,
   situacaoDaLicenca,
@@ -550,4 +552,152 @@ export async function frescorDoPrograma(softwareId) {
 
 export function listarLeituras(softwareId, limite = 30) {
   return prisma.leituraDoPortal.findMany({ where: { softwareId }, orderBy: { lidaEm: "desc" }, take: limite });
+}
+
+// ---------------------------------------------------------------------------
+// Importacao das planilhas e da pasta (uma vez; o plano vem de importacao.js)
+// ---------------------------------------------------------------------------
+
+/** O motivo de a linha ficar sem cliente, tirado da observacao que o plano escreveu. */
+function motivoSemCliente(observacoes) {
+  return /(CPF|CNPJ) inválido na planilha: .*$|sem CPF na planilha/.exec(String(observacoes ?? ""))?.[0] ?? "sem cliente";
+}
+
+/** O cliente da linha: o existente pelo documento e ligado SEM mexer em nada (pode ter vindo dos Pedidos); senao criado. */
+async function clienteDaLinha(db, cliente, { simulado, criados, ligados, resumo }) {
+  const documento = cliente.documento;
+  if (criados.has(documento)) return criados.get(documento);
+  const existente = await db.cliente.findUnique({ where: { documento }, select: { id: true } });
+  if (existente) {
+    ligados.add(existente.id);
+    return existente.id;
+  }
+  resumo.clientes.criados++;
+  if (simulado) {
+    criados.set(documento, null);
+    return null;
+  }
+  const endereco = cliente.endereco;
+  const criado = await db.cliente.create({
+    data: {
+      nome: textoOuNulo(cliente.nome) ?? documento,
+      tipoPessoa: documento.replace(/\D/g, "").length === 14 ? "JURIDICA" : "FISICA",
+      documento,
+      telefone: telefoneParaGravar(cliente.telefone),
+      email: textoOuNulo(cliente.email)?.toLowerCase() ?? null,
+      ...(endereco ? { enderecos: { create: { tipo: "GERAL", logradouro: endereco.logradouro, cidade: endereco.cidade, uf: endereco.uf, cep: endereco.cep } } } : {}),
+    },
+    select: { id: true },
+  });
+  criados.set(documento, criado.id);
+  return criado.id;
+}
+
+/**
+ * Grava o plano da importacao (spec §6.5). Idempotente: licenca por (programa, chave), linha por (licenca, ordem),
+ * cliente por documento e arquivo por (licenca, sha256); rodar duas vezes nao cria nada. Da licenca que ja existe so
+ * preenche tipo, renovacao e observacoes vazios. Arquivo novo de uma licenca que ja tem arquivo entra como versao
+ * seguinte SEM virar a atual: a atual pode ser uma que o dono enviou depois da planilha. `simular` le tudo e nao grava.
+ */
+export async function aplicarPlanoDeImportacao(plano, { simular = false } = {}) {
+  const resumo = {
+    licencas: { novas: 0, existentes: 0 },
+    linhas: { novas: 0, existentes: 0 },
+    clientes: { criados: 0, ligados: 0 },
+    semCliente: [],
+    arquivos: { novos: 0, existentes: 0 },
+    avisos: [...(plano?.avisos ?? [])],
+  };
+  const programas = new Map();
+  const criados = new Map();
+  const ligados = new Set();
+
+  for (const item of plano?.licencas ?? []) {
+    if (!programas.has(item.software)) programas.set(item.software, await prisma.software.findUnique({ where: { slug: String(item.software ?? "") } }));
+    const software = programas.get(item.software);
+    const identificador = software ? normalizarIdentificador(item.identificador, software.identificacao) : String(item.identificador ?? "").trim();
+    if (!software) {
+      resumo.avisos.push(`Programa "${item.software}" não existe no Rise: ${identificador} ficou de fora.`);
+      continue;
+    }
+    if (!identificador) continue;
+
+    const aplicar = async (db, simulado) => {
+      const existente = await db.licenca.findFirst({
+        where: { softwareId: software.id, identificador: { equals: identificador, mode: "insensitive" } },
+        select: { id: true, tipo: true, renovadaEm: true, observacoes: true },
+      });
+      let licencaId = existente?.id ?? null;
+      const renovadaEm = lerDataIso(item.renovadaEm);
+      if (existente) {
+        resumo.licencas.existentes++;
+        const vazios = {};
+        if (!existente.tipo && textoOuNulo(item.tipo)) vazios.tipo = textoOuNulo(item.tipo);
+        if (!existente.renovadaEm && renovadaEm) vazios.renovadaEm = renovadaEm;
+        if (!existente.observacoes && textoOuNulo(item.observacoes)) vazios.observacoes = textoOuNulo(item.observacoes);
+        if (!simulado && Object.keys(vazios).length) await db.licenca.update({ where: { id: existente.id }, data: vazios });
+      } else {
+        resumo.licencas.novas++;
+        if (!simulado) {
+          const criada = await db.licenca.create({
+            data: { softwareId: software.id, identificador, tipo: textoOuNulo(item.tipo), renovadaEm, observacoes: textoOuNulo(item.observacoes), origem: "planilha" },
+            select: { id: true },
+          });
+          licencaId = criada.id;
+        }
+      }
+
+      if (item.arquivo?.bytes) {
+        if (software.identificacao !== "ARQUIVO") {
+          resumo.avisos.push(`${identificador}: o programa não usa arquivo; o arquivo ficou de fora.`);
+        } else {
+          const lido = lerArquivoEnviado({ nome: item.arquivo.nomeOriginal, bytes: item.arquivo.bytes });
+          if (!lido.ok) {
+            resumo.avisos.push(`${identificador}: ${lido.erro}`);
+          } else if (licencaId && (await db.arquivoDeLicenca.findFirst({ where: { licencaId, sha256: lido.sha256 }, select: { id: true } }))) {
+            resumo.arquivos.existentes++;
+          } else {
+            resumo.arquivos.novos++;
+            if (!simulado) {
+              const maior = await db.arquivoDeLicenca.aggregate({ where: { licencaId }, _max: { versao: true } });
+              const temAtual = await db.arquivoDeLicenca.findFirst({ where: { licencaId, atual: true }, select: { id: true } });
+              await db.arquivoDeLicenca.create({
+                data: { licencaId, versao: (maior._max.versao ?? 0) + 1, nomeOriginal: lido.nomeOriginal, bytes: lido.bytes, sha256: lido.sha256, tamanhoBytes: lido.tamanhoBytes, mimeType: lido.mimeType, atual: !temAtual, enviadoPor: "importação da planilha" },
+              });
+            }
+          }
+        }
+      }
+
+      for (const linha of item.linhas ?? []) {
+        if (licencaId && (await db.linhaDeLicenca.findFirst({ where: { licencaId, ordem: linha.ordem }, select: { id: true } }))) {
+          resumo.linhas.existentes++;
+          continue;
+        }
+        resumo.linhas.novas++;
+        const clienteId = linha.cliente?.documento ? await clienteDaLinha(db, linha.cliente, { simulado, criados, ligados, resumo }) : null;
+        if (!linha.cliente?.documento) resumo.semCliente.push({ identificador, nome: linha.nomeAnotado ?? null, motivo: motivoSemCliente(linha.observacoes) });
+        if (simulado) continue;
+        await db.linhaDeLicenca.create({
+          data: {
+            licencaId,
+            ordem: linha.ordem,
+            clienteId,
+            nomeAnotado: linha.cliente?.documento ? null : textoOuNulo(linha.nomeAnotado),
+            data: lerDataIso(linha.data),
+            canal: CANAIS.has(linha.canal) ? linha.canal : null,
+            nomeDoPc: textoOuNulo(linha.nomeDoPc),
+            equipamento: textoOuNulo(linha.equipamento),
+            observacoes: textoOuNulo(linha.observacoes),
+            situacao: linha.situacao === "ENCERRADA" ? "ENCERRADA" : "ATIVA",
+          },
+        });
+      }
+    };
+
+    if (simular) await aplicar(prisma, true);
+    else await prisma.$transaction((tx) => aplicar(tx, false), { timeout: 60000 });
+  }
+  resumo.clientes.ligados = ligados.size;
+  return resumo;
 }
