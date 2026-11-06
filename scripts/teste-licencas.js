@@ -151,7 +151,7 @@ const inicioDoTeste = new Date();
 /** Apaga so o que o teste cria. Arquivos antes das licencas e licencas antes dos programas: os dois sao Restrict. */
 async function limpar() {
   await prisma.logIntegracao.deleteMany({ where: { servico: "LIGHTBURN", criadoEm: { gte: inicioDoTeste } } });
-  await prisma.leituraDoPortal.deleteMany({ where: { OR: [{ software: { slug: { startsWith: "zz-lic-" } } }, { lidaEm: { gte: inicioDoTeste } }] } });
+  await prisma.leituraDoPortal.deleteMany({ where: { software: { slug: { startsWith: "zz-lic-" } } } });
   await prisma.arquivoDeLicenca.deleteMany({ where: { licenca: { identificador: { startsWith: "ZZ-LIC-" } } } });
   await prisma.licenca.deleteMany({ where: { identificador: { startsWith: "ZZ-LIC-" } } });
   await prisma.software.deleteMany({ where: { slug: { startsWith: "zz-lic-" } } });
@@ -234,6 +234,42 @@ try {
   conferir("excluir licenca com arquivos: o popup lista as versoes e a exclusao leva tudo", [(await B.oQueSaiComALicenca(m1.id)).arquivos.length, (await B.excluirLicenca(m1.id)).ok, await prisma.arquivoDeLicenca.count({ where: { licencaId: m1.id } })], [4, true, 0]);
   const pdf = Buffer.from("%PDF-1.4 instrucoes de teste");
   conferir("PDF de instrucoes: grava e le", [(await B.salvarSoftware(arquivoId, { instrucoes: { nome: "Instruções Mach3.pdf", bytes: pdf, tipo: "application/pdf" } })).ok, (await B.lerInstrucoes(arquivoId))?.nome, (await B.lerInstrucoes(arquivoId))?.bytes.equals(pdf), await B.lerInstrucoes(chaveId)], [true, "Instruções Mach3.pdf", true, null]);
+
+  console.log("\nLeitura do portal");
+  const P = await import("../src/lib/ferramentas/licencas/portal.js");
+  const E = await import("../src/lib/ferramentas/licencas/esquema.js");
+  const K = await import("../src/lib/ferramentas/licencas/chave.js");
+  const p1Id = (await B.criarLicenca({ softwareId: chaveId, identificador: "ZZ-LIC-P1", tipo: "Core", renovadaEm: R.lerDataIso("2026-10-01"), observacoes: "digitado" })).id;
+  await B.criarLinha(p1Id, { clienteId: comDoc, nomeDoPc: "desktop-zz" });
+  /** O corpo que a extensao manda: P1 (com DESKTOP-ZZ e PC-2) e P2 sem PC, no programa de teste. */
+  function payload(opcoes = {}) {
+    const pcs = [{ idNoPortal: "pc-1", hostname: "DESKTOP-ZZ", so: "windows 11.0", criadaEm: "2026-10-01T10:00:00.000Z", ultimaSincronizacaoEm: "2026-11-01T10:00:00.000Z", leaseExpiraEm: null, dados: {} }];
+    if (!opcoes.semPc2) pcs.push({ idNoPortal: "pc-2", hostname: "PC-2", so: "windows 10.0", criadaEm: "2026-10-02T10:00:00.000Z", ultimaSincronizacaoEm: "2026-10-20T10:00:00.000Z", leaseExpiraEm: null, dados: {} });
+    const licencas = [{ idNoPortal: "lic-p1", chave: opcoes.chaveP1 ?? "ZZ-LIC-P1", situacao: "ACTIVE", expiraEm: "2027-01-01T00:00:00.000Z", criadaEm: "2026-01-01T00:00:00.000Z", ativacoesUsadas: pcs.length, ativacoesPermitidas: 3, ...(opcoes.semTipo ? {} : { tipo: "Pro" }), dados: { type: "node-locked" }, ativacoes: pcs }];
+    if (!opcoes.semP2) licencas.push({ idNoPortal: "lic-p2", chave: "ZZ-LIC-P2", situacao: "ACTIVE", expiraEm: "2027-02-01T00:00:00.000Z", criadaEm: "2026-02-01T00:00:00.000Z", ativacoesUsadas: 0, ativacoesPermitidas: 3, dados: {}, ativacoes: [] });
+    return { softwareSlug: "zz-lic-chave", versao: "1.0.0", lidoEm: new Date().toISOString(), completa: opcoes.completa ?? true, licencas };
+  }
+  conferir("esquema: chave curta e hostname vazio recusados; chave desconhecida descartada", [E.lerCorpoDaLeitura({ ...payload(), licencas: [{ ...payload().licencas[0], chave: "AB" }] }).erro?.startsWith("licencas.0.chave"), E.lerCorpoDaLeitura({ ...payload(), licencas: [{ ...payload().licencas[0], ativacoes: [{ hostname: "" }] }] }).ok, "email" in (E.lerCorpoDaLeitura({ ...payload(), email: "x" }).dados ?? {})], [true, false, false]);
+  conferir("esquema: data do portal com microssegundos aceita", E.lerCorpoDaLeitura({ ...payload(), licencas: [{ ...payload().licencas[0], expiraEm: "2025-10-06T17:58:20.256388Z" }] }).ok, true);
+  const r1 = await P.aplicarLeituraDoPortal({ ...payload({ chaveP1: " zz-lic-p1 " }), registrar: false });
+  conferir("1a leitura: P1 casa com a existente (outra caixa), P2 nasce do portal", [r1.resumo.licencas, r1.resumo.novas, (await B.lerLicenca(p1Id)).origem, (await prisma.licenca.findFirst({ where: { identificador: "ZZ-LIC-P2" } }))?.origem], [2, 1, "manual", "portal"]);
+  let p1 = await B.lerLicenca(p1Id);
+  conferir("P1: portal gravado, tipo do portal venceu, digitado intacto, PC casou com a linha, 1 PC sem cliente, 1 livre", [p1.portalSituacao, p1.tipo, p1.observacoes, p1.renovadaEm?.toISOString().slice(0, 10), p1.linhas[0].ativacao?.hostname, p1.pcsSemCliente.map((a) => a.hostname), p1.vagas], ["ACTIVE", "Pro", "digitado", "2026-10-01", "DESKTOP-ZZ", ["PC-2"], { permitidas: 3, usadas: 2, livres: 1, lida: true }]);
+  const r2 = await P.aplicarLeituraDoPortal({ ...payload({ semPc2: true, completa: false }), registrar: false });
+  conferir("leitura incompleta: atualiza, nao marca sumido", [r2.resumo.sumiram, (await B.lerLicenca(p1Id)).vagas.usadas], [0, 2]);
+  const r3 = await P.aplicarLeituraDoPortal({ ...payload({ semPc2: true, semP2: true }), registrar: false });
+  p1 = await B.lerLicenca(p1Id);
+  conferir("leitura completa: PC-2 sumiu (nao conta, fica no banco), P2 sumiu do portal, 'alteradas' conta P1", [r3.resumo.sumiram, p1.vagas.usadas, await prisma.ativacaoDeLicenca.count({ where: { licencaId: p1Id } }), (await prisma.licenca.findFirst({ where: { identificador: "ZZ-LIC-P2" } })).portalSumiuEm !== null, r3.resumo.alteradas >= 1], [1, 1, 2, true, true]);
+  await P.aplicarLeituraDoPortal({ ...payload(), registrar: false });
+  conferir("reaparecer limpa sumiuEm e portalSumiuEm", [(await B.lerLicenca(p1Id)).vagas.usadas, (await prisma.licenca.findFirst({ where: { identificador: "ZZ-LIC-P2" } })).portalSumiuEm], [2, null]);
+  conferir("a leitura nunca toca linhas nem renovadaEm", [(await B.lerLicenca(p1Id)).linhas.length, (await B.lerLicenca(p1Id)).renovadaEm?.toISOString().slice(0, 10)], [1, "2026-10-01"]);
+  await P.aplicarLeituraDoPortal({ ...payload({ semTipo: true }), registrar: false });
+  conferir("tipo ausente no payload nao apaga o gravado", (await B.lerLicenca(p1Id)).tipo, "Pro");
+  conferir("a licenca sem portal (CHAVE-X) nao e marcada como sumida", (await prisma.licenca.findFirst({ where: { identificador: "ZZ-LIC-CHAVE-X" } })).portalSumiuEm, null);
+  const { chave } = await K.gerarChaveDaExtensao();
+  const req = (auth) => new Request("https://x/api", { headers: auth ? { authorization: auth } : {} });
+  conferir("chave: prefixo, confere, recusa", [chave.startsWith("rise_lb_"), (await K.conferirChaveDaExtensao(req(`Bearer ${chave}`))).ok, (await K.conferirChaveDaExtensao(req("Bearer rise_lb_errada"))).status, (await K.conferirChaveDaExtensao(req(null))).status], [true, true, 401, 401]);
+  conferir("estado da leitura", typeof (await P.estadoDaLeitura()).licencasNoRise, "number");
 
   // Marcador: os blocos de banco seguintes entram acima desta linha.
 } finally {

@@ -102,6 +102,16 @@ rise.4hobby.com.br {
 		reverse_proxy app:3000
 	}
 
+	# Extensao "Rise LightBurn" do Chrome (05/11/2026): autentica pela chave dela (src/lib/ferramentas/licencas/chave.js,
+	# conferida a cada pedido), sem o login do Tinyauth, como a do AliExpress. SO estes dois caminhos, exatos; nenhum
+	# deles apaga nada (so le o estado e importa a leitura do portal).
+	@extensaoLightBurn {
+		path /api/licencas/lightburn/estado /api/licencas/lightburn/importar
+	}
+	handle @extensaoLightBurn {
+		reverse_proxy app:3000
+	}
+
 	# Webhooks do ML, do Bling e da LI (Pedidos de venda, fase 2, 04/11/2026): os canais chegam sem o login do Tinyauth.
 	# A rota confere quem mandou (src/lib/pedidos/webhooks.js: conta e app do ML, assinatura do Bling, token da LI) e so
 	# grava na fila; o worker le o pedido com o proprio token.
