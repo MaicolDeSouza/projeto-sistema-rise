@@ -309,6 +309,7 @@ try {
   await P.aplicarLeituraDoPortal({ ...payload({ semTipo: true }), registrar: false });
   conferir("tipo ausente no payload nao apaga o gravado", (await B.lerLicenca(p1Id)).tipo, "Pro");
   conferir("a licenca sem portal (CHAVE-X) nao e marcada como sumida", (await prisma.licenca.findFirst({ where: { identificador: "ZZ-LIC-CHAVE-X" } })).portalSumiuEm, null);
+  conferir("tipos do programa (sugestoes da janela)", await B.tiposDoPrograma(chaveId), ["Pro"]);
   const { chave } = await K.gerarChaveDaExtensao();
   const req = (auth) => new Request("https://x/api", { headers: auth ? { authorization: auth } : {} });
   conferir("chave: prefixo, confere, recusa", [chave.startsWith("rise_lb_"), (await K.conferirChaveDaExtensao(req(`Bearer ${chave}`))).ok, (await K.conferirChaveDaExtensao(req("Bearer rise_lb_errada"))).status, (await K.conferirChaveDaExtensao(req(null))).status], [true, true, 401, 401]);

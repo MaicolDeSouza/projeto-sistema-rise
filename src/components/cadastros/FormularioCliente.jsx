@@ -16,6 +16,7 @@ import Campo, { CLASSE_CAMPO, bordaDoCampo } from "./Campo";
 import ContatosDoCliente from "./ContatosDoCliente";
 import EnderecoDoCliente from "./EnderecoDoCliente";
 import ListaDeValores from "./ListaDeValores";
+import EscolhaEntreOpcoes from "@/components/ui/EscolhaEntreOpcoes";
 
 const REGIMES = [
   { valor: "SIMPLES_NACIONAL", rotulo: "1 - Simples Nacional" },
@@ -66,32 +67,7 @@ const abaDoCampo = (chave) =>
  * funcionando.
  */
 function EscolhaDoTipo({ tipo, aoMudar }) {
-  return (
-    <div
-      role="radiogroup"
-      aria-label="Tipo da pessoa"
-      className="inline-flex overflow-hidden rounded border border-borda text-sm"
-    >
-      {TIPOS.map((opcao) => (
-        <label
-          key={opcao.valor}
-          className={`cursor-pointer px-3 py-1 font-medium has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-acento ${
-            tipo === opcao.valor ? "bg-acento text-white" : "bg-superficie text-suave hover:bg-fundo"
-          }`}
-        >
-          <input
-            type="radio"
-            name="tipoPessoa"
-            value={opcao.valor}
-            checked={tipo === opcao.valor}
-            onChange={() => aoMudar(opcao.valor)}
-            className="sr-only"
-          />
-          {opcao.rotulo}
-        </label>
-      ))}
-    </div>
-  );
+  return <EscolhaEntreOpcoes nome="tipoPessoa" rotulo="Tipo da pessoa" opcoes={TIPOS} valor={tipo} aoMudar={aoMudar} />;
 }
 
 /**

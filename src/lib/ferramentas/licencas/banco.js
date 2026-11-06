@@ -278,6 +278,12 @@ export async function listarLicencas({ softwareId, busca = "", soComVagaLivre = 
   return { total, pagina: atual, porPagina, linhas: ordenadas.slice((atual - 1) * porPagina, atual * porPagina) };
 }
 
+/** Os tipos ja usados no programa ("Core", "Pro"...), as sugestoes do campo Tipo. */
+export async function tiposDoPrograma(softwareId) {
+  const tipos = await prisma.licenca.findMany({ where: { softwareId, tipo: { not: null } }, distinct: ["tipo"], select: { tipo: true }, orderBy: { tipo: "asc" } });
+  return tipos.map((linha) => linha.tipo);
+}
+
 export async function lerLicenca(id) {
   if (!id) return null;
   const licenca = await prisma.licenca.findUnique({ where: { id }, include: { ...INCLUIR_NA_LICENCA, software: true } });
