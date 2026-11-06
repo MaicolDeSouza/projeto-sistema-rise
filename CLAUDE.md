@@ -3744,7 +3744,7 @@ publicou, os 1.007 antigos da conta ficam de fora):**
 ### Dados fiscais do ML e os outros anúncios do mesmo SKU (05/11/2026)
 
 - **Dados fiscais** (d3a38bd, NO AR em 05.11.2026.71): o Publicar ganhou a etapa "fiscal" antes de ativar
-  (`fiscalNoML.js`/`dadosFiscais.js`: NCM, origem, CSOSN 102 fixo do Simples, kit como `bundle`); recusa produto sem NCM ou
+  (`fiscalNoML.js`/`dadosFiscais.js`: NCM, origem, CSOSN 102 fixo do Simples, kit como um item); recusa produto sem NCM ou
   origem; aba Status com "Dados fiscais" e o botão. `scripts/ml-dados-fiscais.js` ajustou os 67 anúncios do Rise (todos
   faturam). Vazio no Rise não apaga CEST/EAN do ML. O ML liga o SKU fiscal pelo `seller_sku` sozinho.
 - **Kit na nota = UM item** (06/11/2026, pedido do dono): de 05 a 06/11 o kit ia como `type` "bundle", e o faturador do ML

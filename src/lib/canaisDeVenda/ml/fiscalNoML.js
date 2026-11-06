@@ -21,8 +21,8 @@ const CAMPOS_DO_PRODUTO = { id: true, sku: true, tituloBase: true, tipo: true, n
 const textoDe = (erro) => erro?.message ?? String(erro);
 
 /**
- * O plano fiscal de um anuncio do Rise a partir do rascunho: kit do ML (`composicao`) = bundle das pecas; produto com
- * composicao do cadastro = bundle das pecas dele; produto simples = single.
+ * O plano fiscal de um anuncio do Rise a partir do rascunho: kit do ML (`composicao`) e produto com composicao do cadastro =
+ * UM item com o titulo do kit (desde 06/11/2026; ver `corpoFiscalDoKit`); produto simples = single.
  */
 export async function planoFiscalDoRascunho(rascunho) {
   if (rascunho?.composicao) {
