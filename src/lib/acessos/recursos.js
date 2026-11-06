@@ -123,6 +123,10 @@ const LISTA = [
   tela("tela.ferramentas", "Ferramentas", "/ferramentas"),
   sub("tela.ferramentas.imagemParaSvg", "Ferramentas › Imagem para SVG", "tela.ferramentas"),
   sub("tela.ferramentas.cotacaoDolar", "Ferramentas › Cotação do dólar", "tela.ferramentas"),
+  // Licencas Softwares (spec 2026-11-05): com so `ver` tudo e visivel e nada e editavel; o arquivo da licenca (Mach3)
+  // e o produto em si, por isso baixar e uma acao a parte.
+  sub("tela.ferramentas.licencas", "Ferramentas › Licenças Softwares", "tela.ferramentas"),
+  acao("acao.ferramentas.licencas.arquivo", "Baixar o arquivo da licença", "tela.ferramentas.licencas", "Entrega o zip com o arquivo de licença (Mach3) e o PDF de instruções."),
 
   tela("tela.configuracoes", "Configurações", "/configuracoes"),
   sub("tela.configuracoes.usuarios", "Configurações › Usuários e funções", "tela.configuracoes", { delegavel: false }),

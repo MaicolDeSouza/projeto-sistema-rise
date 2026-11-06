@@ -59,6 +59,8 @@ enum Servico {
   /// Extensao "Rise AliExpress" do Chrome (spec 2026-10-28-aliexpress-em-compras-design.md): a Conexao guarda o HASH
   /// da chave da extensao; cada clique "Enviar ao Rise" e uma linha de LogIntegracao.
   ALIEXPRESS
+  /// Chave da extensao "Rise LightBurn" (so o hash), como ALIEXPRESS.
+  LIGHTBURN
 }
 
 enum TipoPessoa {
@@ -1308,6 +1310,8 @@ model Cliente {
 
   enderecos ClienteEndereco[]
   contatos  ClienteContato[]
+  /// Vagas de licenca de software entregues a este cliente (Ferramentas > Licencas Softwares).
+  linhasDeLicenca LinhaDeLicenca[]
 
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
@@ -1635,6 +1639,194 @@ model RotinaDoWorker {
   /// Livre por rotina (a memoria do worker mora aqui, na linha "memoria").
   dados         Json?
   atualizadoEm  DateTime  @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Licencas Softwares (spec 2026-11-05-licencas-softwares-design.md): as chaves
+// do LightBurn e os arquivos do Mach3, os clientes de cada licenca e o que a
+// extensao "Rise LightBurn" le do portal. So a leitura do portal escreve nas
+// ativacoes. O arquivo do Mach3 fica em Bytes no banco, com versoes que nunca
+// sao apagadas: o dump diario vai ao R2 e a pasta de arquivos nao, e perder o
+// arquivo e o anti-goal numero um.
+// ---------------------------------------------------------------------------
+
+/// Como a licenca de um programa se identifica: uma chave de texto (LightBurn) ou um arquivo (Mach3).
+enum IdentificacaoDaLicenca {
+  CHAVE
+  ARQUIVO
+}
+
+enum SituacaoDaLinhaDeLicenca {
+  ATIVA
+  ENCERRADA
+}
+
+/// Canal da venda da licenca. DIRETA cobre WhatsApp, balcao e o "4H" das planilhas antigas.
+enum CanalDaLicenca {
+  MERCADO_LIVRE
+  LOJA_INTEGRADA
+  SHOPEE
+  DIRETA
+}
+
+/// Um programa vendido (LightBurn, Mach3...). E cadastro: programa novo nao exige codigo.
+model Software {
+  id                   String  @id @default(cuid())
+  nome                 String  @unique
+  /// Para a URL e a aba (?programa=lightburn).
+  slug                 String  @unique
+  identificacao        IdentificacaoDaLicenca
+  temPortal            Boolean @default(false)
+  /// Quantos PCs cada licenca permite (LightBurn: 3). Nulo = sem limite (Mach3).
+  ativacoesPermitidas  Int?
+  /// Quantas linhas de cliente a tela mostra de saida, mesmo vazias (LightBurn: 3; Mach3: 1).
+  linhasIniciais       Int     @default(1)
+  linkPortal           String?
+  linkSite             String?
+  /// PDF de instrucoes que o dono manda ao cliente (Mach3). No banco pelo mesmo motivo do arquivo de licenca.
+  instrucoesNome       String?
+  instrucoesBytes      Bytes?
+  instrucoesTipo       String?
+  ordem                Int     @default(0)
+  ativo                Boolean @default(true)
+  licencas             Licenca[]
+  leituras             LeituraDoPortal[]
+  criadoEm             DateTime @default(now())
+  atualizadoEm         DateTime @updatedAt
+}
+
+model Licenca {
+  id            String   @id @default(cuid())
+  softwareId    String
+  software      Software @relation(fields: [softwareId], references: [id], onDelete: Restrict)
+  /// A chave (LightBurn) ou o nome licenciado (Mach3: "Mach3 VD60"). Unica por programa.
+  identificador String
+  /// "Core", "Pro"... Texto livre com sugestoes; o portal preenche quando informa (§6.3).
+  tipo          String?
+  compradaEm    DateTime? @db.Date
+  /// Ultima renovacao comprada no site (coluna "Renovacao?" da planilha).
+  renovadaEm    DateTime? @db.Date
+  observacoes   String?
+  /// "planilha" | "portal" | "manual": de onde a licenca entrou no Rise.
+  origem        String
+  /// Fora da lista normal (chave perdida, devolvida). Nunca apaga.
+  arquivada     Boolean  @default(false)
+
+  // O que a ultima leitura do portal trouxe (so programas com portal). Nulo = nunca lida.
+  portalId                  String?
+  portalSituacao            String?
+  portalExpiraEm            DateTime?
+  portalCriadaEm            DateTime?
+  portalAtivacoesUsadas     Int?
+  portalAtivacoesPermitidas Int?
+  /// As demais colunas do portal, como vieram (as 13 colunas da tabela), para nao perder o que ainda nao tem campo.
+  portalDados               Json?
+  portalLidoEm              DateTime?
+  /// A chave estava no Rise e a ultima leitura completa do portal nao a trouxe.
+  portalSumiuEm             DateTime?
+
+  linhas    LinhaDeLicenca[]
+  ativacoes AtivacaoDeLicenca[]
+  arquivos  ArquivoDeLicenca[]
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@unique([softwareId, identificador])
+  @@index([softwareId, arquivada])
+}
+
+/// Uma vaga entregue a um cliente. So existe no banco quando tem conteudo: as "3 linhas" vazias sao desenho da tela.
+model LinhaDeLicenca {
+  id        String  @id @default(cuid())
+  licencaId String
+  licenca   Licenca @relation(fields: [licencaId], references: [id], onDelete: Cascade)
+  ordem     Int
+
+  /// SetNull: apagar o cliente nao apaga a vaga; a linha fica com o nome anotado.
+  clienteId String?
+  cliente   Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  /// So para linhas importadas sem CPF/CNPJ (aviso "sem cliente"). Linha nova exige cliente.
+  nomeAnotado String?
+
+  data            DateTime? @db.Date
+  canal           CanalDaLicenca?
+  pedidoDeVendaId String?
+  pedidoDeVenda   PedidoDeVenda? @relation(fields: [pedidoDeVendaId], references: [id], onDelete: SetNull)
+  /// Casa com `AtivacaoDeLicenca.hostname` (sem caixa, sem espacos nas pontas).
+  nomeDoPc        String?
+  equipamento     String?
+  observacoes     String?
+
+  situacao    SituacaoDaLinhaDeLicenca @default(ATIVA)
+  encerradaEm DateTime?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([licencaId])
+  @@index([clienteId])
+  @@index([pedidoDeVendaId])
+}
+
+/// Um PC ativado, como o portal o mostra. So a leitura do portal escreve aqui.
+model AtivacaoDeLicenca {
+  id        String  @id @default(cuid())
+  licencaId String
+  licenca   Licenca @relation(fields: [licencaId], references: [id], onDelete: Cascade)
+  /// O id da ativacao no portal; na falta, o hostname. E o que torna a reimportacao idempotente.
+  chave     String
+  hostname  String
+  so        String?
+  criadaEm              DateTime?
+  ultimaSincronizacaoEm DateTime?
+  leaseExpiraEm         DateTime?
+  dados                 Json?
+  /// Ultima leitura que a trouxe; `sumiuEm` quando uma leitura completa nao a trouxe mais (PC desativado no portal).
+  vistaEm  DateTime
+  sumiuEm  DateTime?
+
+  @@unique([licencaId, chave])
+  @@index([licencaId, sumiuEm])
+}
+
+/// O arquivo da licenca (Mach3), com versoes. Restrict: a licenca so sai depois que os arquivos dela sairem pelo popup.
+model ArquivoDeLicenca {
+  id           String  @id @default(cuid())
+  licencaId    String
+  licenca      Licenca @relation(fields: [licencaId], references: [id], onDelete: Restrict)
+  versao       Int
+  nomeOriginal String
+  bytes        Bytes
+  sha256       String
+  tamanhoBytes Int
+  mimeType     String?
+  /// A versao que o Baixar entrega. Enviar um arquivo novo cria a versao seguinte e move a marca; nada e apagado.
+  atual        Boolean @default(true)
+  enviadoEm    DateTime @default(now())
+  enviadoPor   String?
+  observacao   String?
+
+  @@unique([licencaId, versao])
+}
+
+/// Cada "Enviar ao Rise" da extensao.
+model LeituraDoPortal {
+  id         String   @id @default(cuid())
+  softwareId String
+  software   Software @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+  lidaEm     DateTime @default(now())
+  licencas   Int
+  ativacoes  Int
+  novas      Int
+  alteradas  Int
+  sumiram    Int
+  /// Falso quando a extensao avisou que nao conseguiu ler tudo (pagina que falhou): nada e marcado como sumido.
+  completa   Boolean  @default(true)
+  erro       String?
+  versaoDaExtensao String?
+
+  @@index([softwareId, lidaEm])
 }
 
 /// Auditoria de toda chamada a API externa. E o que torna possivel depurar
@@ -2465,6 +2657,8 @@ model PedidoDeVenda {
   historico Json
 
   itens ItemDoPedidoDeVenda[]
+  /// Vagas de licenca de software vendidas neste pedido (Ferramentas > Licencas Softwares).
+  linhasDeLicenca LinhaDeLicenca[]
 
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt

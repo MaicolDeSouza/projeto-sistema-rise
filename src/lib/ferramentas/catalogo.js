@@ -1,4 +1,4 @@
-import { Shapes, TrendingUp } from "lucide-react";
+import { KeyRound, Shapes, TrendingUp } from "lucide-react";
 
 /**
  * Fonte unica das ferramentas. A pagina `/ferramentas` desenha um cartao por
@@ -32,5 +32,13 @@ export const FERRAMENTAS = [
     icone: TrendingUp,
     resumo: "O dólar de agora e o oficial do Banco Central (PTAX), com gráfico dos últimos dias, meses ou do último ano.",
     detalhe: "Banco Central (PTAX) · sem gravar nada",
+  },
+  {
+    href: "/ferramentas/licencas",
+    recurso: "tela.ferramentas.licencas",
+    rotulo: "Licenças Softwares",
+    icone: KeyRound,
+    resumo: "As chaves do LightBurn e os arquivos do Mach3, com os clientes de cada licença, as vagas livres e o último uso lido do portal.",
+    detalhe: "LightBurn · Mach3 · extensão do Chrome",
   },
 ];
