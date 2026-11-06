@@ -63,6 +63,85 @@ conferir("datas", [R.lerDataIso("2026-11-05")?.toISOString(), R.lerDataIso(""), 
 conferir("resumo da leitura", R.textoDoResumoDaLeitura({ licencas: 78, novas: 2, alteradas: 5, sumiram: 1, pcsSemCliente: 3 }), "78 chaves lidas · 2 novas · 5 alteradas · 1 PC sumiu · 3 PCs sem cliente (abra o Rise)");
 
 // ---------------------------------------------------------------------------
+// Arquivos: zip e upload (puro)
+// ---------------------------------------------------------------------------
+
+const zlib = await import("node:zlib");
+/**
+ * Um zip montado aqui, sem o codigo testado: local header + diretorio central + fim, com `deflateRawSync` quando a
+ * entrada pede (metodo 8) e o CRC do proprio Node (`zlib.crc32`).
+ */
+function montarZipDeTeste(entradas) {
+  const locais = [];
+  const centrais = [];
+  let deslocamento = 0;
+  for (const entrada of entradas) {
+    const nome = Buffer.from(entrada.nome, "utf8");
+    const dados = entrada.deflate ? zlib.deflateRawSync(entrada.bytes) : entrada.bytes;
+    const crc = zlib.crc32(entrada.bytes);
+    const metodo = entrada.deflate ? 8 : 0;
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(metodo, 8);
+    local.writeUInt16LE(0x21, 12);
+    local.writeUInt32LE(crc, 14);
+    local.writeUInt32LE(dados.length, 18);
+    local.writeUInt32LE(entrada.bytes.length, 22);
+    local.writeUInt16LE(nome.length, 26);
+    const central = Buffer.alloc(46);
+    central.writeUInt32LE(0x02014b50, 0);
+    central.writeUInt16LE(20, 4);
+    central.writeUInt16LE(20, 6);
+    central.writeUInt16LE(metodo, 10);
+    central.writeUInt16LE(0x21, 14);
+    central.writeUInt32LE(crc, 16);
+    central.writeUInt32LE(dados.length, 20);
+    central.writeUInt32LE(entrada.bytes.length, 24);
+    central.writeUInt16LE(nome.length, 28);
+    central.writeUInt32LE(deslocamento, 42);
+    locais.push(local, nome, dados);
+    centrais.push(central, nome);
+    deslocamento += local.length + nome.length + dados.length;
+  }
+  const diretorio = Buffer.concat(centrais);
+  const fim = Buffer.alloc(22);
+  fim.writeUInt32LE(0x06054b50, 0);
+  fim.writeUInt16LE(entradas.length, 8);
+  fim.writeUInt16LE(entradas.length, 10);
+  fim.writeUInt32LE(diretorio.length, 12);
+  fim.writeUInt32LE(deslocamento, 16);
+  return Buffer.concat([...locais, diretorio, fim]);
+}
+/** Troca um byte do CRC do primeiro local header (offset 14). */
+function corromperCrc(bytes) {
+  const copia = Buffer.from(bytes);
+  copia[14] ^= 0xff;
+  return copia;
+}
+
+console.log("\nArquivos: zip e upload");
+const A = await import("../src/lib/ferramentas/licencas/arquivos.js");
+const dat = Buffer.from("MACH3-LICENCA-DE-TESTE-".repeat(9)).subarray(0, 201);
+conferir("sha256 e crc32 conhecidos", [A.sha256Hex(Buffer.from("abc")), A.crc32(Buffer.from("123456789"))], ["ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", 0xcbf43926]);
+const solto = A.lerArquivoEnviado({ nome: "../x/Mach1Lic.dat", bytes: dat });
+conferir("dat solto: nome limpo, 201 bytes, sha", [solto.ok, solto.nomeOriginal, solto.tamanhoBytes, solto.sha256 === A.sha256Hex(dat)], [true, "Mach1Lic.dat", 201, true]);
+const zip = A.montarZipDoArquivo({ identificador: "Mach3 VD60", nomeOriginal: "Mach1Lic.dat", bytes: dat });
+conferir("zip: nome e assinatura", [zip.nome, zip.bytes.subarray(0, 4).toString("hex")], ["Mach3 VD60.zip", "504b0304"]);
+const dentro = A.lerZipDeUmArquivo(zip.bytes);
+conferir("zip: le o que montou, com a pasta no caminho", [dentro.ok, dentro.nome, dentro.bytes.equals(dat)], [true, "Mach3 VD60/Mach1Lic.dat", true]);
+const peloZip = A.lerArquivoEnviado({ nome: "Mach3 VD60.zip", bytes: zip.bytes });
+conferir("upload de zip: fica o arquivo de dentro, so o nome base", [peloZip.ok, peloZip.nomeOriginal, peloZip.tamanhoBytes, peloZip.bytes.equals(dat)], [true, "Mach1Lic.dat", 201, true]);
+// zip com entrada de pasta + um arquivo deflate: monta com o zlib de verdade (deflateRawSync) para cobrir o metodo 8.
+const zipComPasta = montarZipDeTeste([{ nome: "Mach3 VD60/", bytes: Buffer.alloc(0) }, { nome: "Mach3 VD60/Mach1Lic.dat", bytes: dat, deflate: true }]);
+conferir("zip com pasta e deflate: aceito", A.lerArquivoEnviado({ nome: "a.zip", bytes: zipComPasta }).nomeOriginal, "Mach1Lic.dat");
+conferir("zip com dois arquivos: recusado", A.lerArquivoEnviado({ nome: "a.zip", bytes: montarZipDeTeste([{ nome: "a", bytes: dat }, { nome: "b", bytes: dat }]) }).erro, "O zip precisa ter um único arquivo dentro.");
+conferir("zip corrompido (crc errado): recusado", A.lerArquivoEnviado({ nome: "a.zip", bytes: corromperCrc(zip.bytes) }).erro, "Zip corrompido.");
+conferir("vazio e acima do teto", [A.lerArquivoEnviado({ nome: "a.dat", bytes: Buffer.alloc(0) }).erro, A.lerArquivoEnviado({ nome: "a.dat", bytes: Buffer.alloc(A.TETO_BYTES_ARQUIVO + 1) }).erro], ["Arquivo vazio.", "Arquivo acima de 1 MB."]);
+conferir("zip pequeno que descompacta acima do teto: recusado", A.lerArquivoEnviado({ nome: "a.zip", bytes: montarZipDeTeste([{ nome: "a", bytes: Buffer.alloc(A.TETO_BYTES_ARQUIVO + 1), deflate: true }]) }).erro, "Arquivo acima de 1 MB.");
+conferir("nome so de pontos ou vazio vira licenca.dat", [A.limparNomeDeArquivo(".."), A.limparNomeDeArquivo(""), A.limparNomeDeArquivo("C:\\pasta\\Mach1Lic.dat")], ["licenca.dat", "licenca.dat", "Mach1Lic.dat"]);
+
+// ---------------------------------------------------------------------------
 // Banco
 // ---------------------------------------------------------------------------
 
