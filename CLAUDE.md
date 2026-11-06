@@ -3751,7 +3751,9 @@ publicou, os 1.007 antigos da conta ficam de fora):**
   listou as PEÇAS na nota (900808_10: "10 UN 900908 a R$ 3,50"; 192002_10: "20 UN 192002"). Agora `corpoFiscalDoKit` manda
   `single` com o título do anúncio, NCM/origem/CEST da peça de maior valor (`pecaPrincipalDoKit`), custo e peso somados, sem
   EAN; só a peça principal precisa de NCM. O PUT troca o bundle gravado por single. As notas já emitidas ficam (o total é o
-  mesmo). Os kits já gravados mudam ao rodar `scripts/ml-dados-fiscais.js --confirmo` na VPS depois do deploy.
+  mesmo). Kit de N da mesma peça ganha "NX " no título (o título do kit no Rise é o nome do produto base; o ML põe o "10x" só
+  no anúncio), e no kit o título conta na comparação (`plano.kit` → `fiscalIgual(..., { comTitulo })`). Aplicado na VPS em
+  06/11/2026 (deploys 06.11.2026.73 e .74): os 14 kits do Rise regravados como "10X NOME..." e os antigos do mesmo SKU juntos.
 - **Anúncios antigos com o mesmo SKU** (fora do Rise): `scripts/ml-igualar-antigos.js` (33800e3) iguala preço e vínculo
   fiscal ao anúncio do Rise; rodado em 05/11/2026 (48 antigos, 45 preços). Simula sem `--confirmo`.
 - **Popup depois do Publicar** (pedido do dono no mesmo dia): com a publicação feita, a `JanelaPublicarML` lê os outros
