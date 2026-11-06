@@ -5196,6 +5196,12 @@ na VPS pela entrada do `docker compose exec -T app node --input-type=module -` (
   (sem `--confirmo` só lista) chama `marcarReferencias` por produto: nunca padrão, custo não muda, nada vai ao Bling/LI/ML.
 - Teste puro: `node scripts/teste-vincular-fornecedores.js`. **Armadilha vista na tela:** `display:grid` vence o atributo
   `hidden`; a página precisa de `[hidden]{display:none!important}` para o filtro esconder a linha.
+- **Aplicado na VPS em 06/11/2026** (o dono: "Salvei, pode gravar"): o arquivo trouxe 375 produtos e 477 vínculos (329 que o
+  dono revisou e 148 só do código do Bling pré-marcado, que ele não tocou; a página salva o pré-marcado mesmo sem clique).
+  Gravou **476 novos** (Fortek 358, Nightech 118), 1 já existia, 0 recusados, nenhum padrão. 40 entraram sem preço (item sem
+  pronta entrega: só a chegar, em montagem ou fora da lista); `atualizarCustosDosVinculos` (`banco.js`) põe o preço na
+  varredura que o trouxer. Os ids das linhas novas estão em `/app/dados/vincular-fornecedores/gravados-2026-11-06T11-14-35-000Z.json`
+  na VPS: desfazer é apagar esses `ProdutoFornecedor`.
 
 ## AliExpress no Compras (28/10/2026)
 
