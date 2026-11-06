@@ -39,7 +39,7 @@ export async function planoFiscalDoRascunho(rascunho) {
   return planoFiscalDoProduto({ id: rascunho?.produtoId });
 }
 
-/** O plano fiscal de um produto do Rise, pelo id ou pelo SKU. Produto com composicao vira bundle das pecas dele. */
+/** O plano fiscal de um produto do Rise, pelo id ou pelo SKU. Produto com composicao vira um item so, pelas pecas dele. */
 export async function planoFiscalDoProduto({ id = null, sku = null }) {
   const where = id ? { id } : sku ? { sku } : null;
   const produto = where

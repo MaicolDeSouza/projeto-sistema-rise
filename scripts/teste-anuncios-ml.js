@@ -1801,10 +1801,15 @@ try {
       const pecaA = { sku: "PA", tituloBase: "Peça A", ncm: "85340000", origem: 0, custo: 10 };
       const pecaB = { sku: "PB", tituloBase: "Peça B", ncm: "85340000", origem: 2, custo: 10 };
       const planoKit = planoFiscal({ sku: "KIT1", titulo: "Kit", pecas: [{ produto: pecaA, quantidade: 1 }, { produto: pecaB, quantidade: 1 }] });
-      conferir("fiscal: plano do kit manda as pecas antes do bundle", [planoKit.ok, planoKit.corpos.map((c) => [c.sku, c.type])], [true, [["PA", "single"], ["PB", "single"], ["KIT1", "bundle"]]]);
-      conferir("fiscal: bundle com as partes", planoKit.corpos[2].bundle, [{ sku: "PA", quantity: 1, percentage_share: 50 }, { sku: "PB", quantity: 1, percentage_share: 50 }]);
-      conferir("fiscal: peca sem NCM barra o kit", planoFiscal({ sku: "KIT1", pecas: [{ produto: { ...pecaA, ncm: null }, quantidade: 1 }] }).ok, false);
-      conferir("fiscal: kit dentro de kit recusa", planoFiscal({ sku: "KIT1", pecas: [{ produto: { ...pecaA, tipo: "COMPOSICAO" }, quantidade: 1 }] }).problemas.some((p) => /kit dentro de kit/.test(p)), true);
+      // Kit = UM item na nota (pedido do dono em 06/11/2026: a nota do bundle listava as pecas a preco unitario).
+      conferir("fiscal: kit vai como um item so, com o titulo do anuncio", [planoKit.ok, planoKit.corpos.map((c) => [c.sku, c.type, c.title])], [true, [["KIT1", "single", "Kit"]]]);
+      conferir("fiscal: kit sem bundle e sem as pecas", "bundle" in planoKit.corpos[0], false);
+      const kitDeDez = planoFiscal({ sku: "PB_10", titulo: "10x Peça B", pecas: [{ produto: { ...pecaB, pesoKg: 0.002, cest: "0106400" }, quantidade: 10 }] }).corpos[0];
+      conferir("fiscal: kit de 10 soma custo e peso, NCM e origem da peca", [kitDeDez.cost, kitDeDez.tax_information], [100, { ncm: "85340000", origin_type: "reseller", origin_detail: "2", csosn: "102", cest: "0106400", net_weight: 0.02, gross_weight: 0.02 }]);
+      const pecaCara = { sku: "PC", ncm: "84733049", origem: 1, custo: 50 };
+      conferir("fiscal: kit misto usa a peca de maior valor", planoFiscal({ sku: "KIT2", titulo: "Kit", pecas: [{ produto: pecaA, quantidade: 2 }, { produto: pecaCara, quantidade: 1 }] }).corpos[0].tax_information.ncm, "84733049");
+      conferir("fiscal: peca principal sem NCM barra o kit", planoFiscal({ sku: "KIT1", pecas: [{ produto: { ...pecaA, ncm: null }, quantidade: 1 }] }).ok, false);
+      conferir("fiscal: peca secundaria sem NCM nao barra", planoFiscal({ sku: "KIT2", pecas: [{ produto: { ...pecaA, ncm: null }, quantidade: 1 }, { produto: pecaCara, quantidade: 1 }] }).ok, true);
       conferir("fiscal: sem SKU recusa", planoFiscal({ sku: "", produto: pecaA }).ok, false);
       conferir("fiscal: igual ignora titulo e unidade", fiscalIgual({ ...corpo, title: "outro", measurement_unit: "UNID" }, corpo), true);
       conferir("fiscal: NCM diferente nao e igual", fiscalIgual({ ...corpo, tax_information: { ...corpo.tax_information, ncm: "85340000" } }, corpo), false);
@@ -1856,12 +1861,17 @@ try {
       const mlKit = criarMLFalso({ meusItens: { "ZZ-ML-KP": [{ id: "MLB888", status: "active" }] } });
       mlKit.exigirEscrita("ZZ-ML-KP");
       const kit = await garantirFiscalNoML(mlKit, await planoFiscalDoSku("ZZ-ML-KP"), { itemId: "MLB888" });
-      conferir("kit: pecas, bundle e vinculo", [kit.ok, mlKit.escritas.map((e) => `${e.metodo} ${e.caminho}`), mlKit.fiscais.get("ZZ-ML-KP")?.bundle], [true, ["POST /items/fiscal_information", "POST /items/fiscal_information", "POST /items/fiscal_information", "POST /items/fiscal_information/items"], [{ sku: "ZZ-ML-K1", quantity: 2, percentage_share: 67 }, { sku: "ZZ-ML-K2", quantity: 1, percentage_share: 33 }]]);
+      conferir("kit: um SKU so (sem as pecas) e o vinculo", [kit.ok, mlKit.escritas.map((e) => `${e.metodo} ${e.caminho}`), mlKit.fiscais.get("ZZ-ML-KP")?.type, mlKit.fiscais.has("ZZ-ML-K1")], [true, ["POST /items/fiscal_information", "POST /items/fiscal_information/items"], "single", false]);
+      // O kit gravado como bundle (05/11/2026) volta a um item so com o PUT.
+      const mlBundle = criarMLFalso({ meusItens: { "ZZ-ML-KP": [{ id: "MLB889", status: "active" }] }, fiscais: { "ZZ-ML-KP": { sku: "ZZ-ML-KP", type: "bundle", bundle: [{ sku: "ZZ-ML-K1", quantity: 2, percentage_share: 100 }] } } });
+      mlBundle.exigirEscrita("ZZ-ML-KP");
+      const trocado = await garantirFiscalNoML(mlBundle, await planoFiscalDoSku("ZZ-ML-KP"), { itemId: "MLB889" });
+      conferir("kit: bundle antigo vira um item", [trocado.ok, trocado.feitos[0], mlBundle.fiscais.get("ZZ-ML-KP")?.type], [true, "Dados fiscais do SKU ZZ-ML-KP corrigidos.", "single"]);
       conferir("kit: o ML confirma que pode faturar", kit.podeFaturar, true);
 
       // Kit do ML (anuncio de composicao com codigo proprio): o plano vem do anuncio gravado.
       const idKitML = await c.anuncioDeKit("ZZ-ML-KITN", 2);
-      conferir("kit do ML: plano pelo codigo do kit", (await planoFiscalDoSku("ZZ-ML-KITN")).corpos.map((corpoDoKit) => corpoDoKit.sku), ["ZZ-ML-K1", "ZZ-ML-K2", "ZZ-ML-KITN"]);
+      conferir("kit do ML: plano pelo codigo do kit", (await planoFiscalDoSku("ZZ-ML-KITN")).corpos.map((corpoDoKit) => [corpoDoKit.sku, corpoDoKit.type]), [["ZZ-ML-KITN", "single"]]);
       conferir("kit do ML: rascunho nao publicado nao envia", (await enviarDadosFiscaisDoAnuncio(idKitML, { ml: mlKit })).ok, false);
       conferir("sku desconhecido", (await planoFiscalDoSku("NAO-EXISTE-ZZ")).ok, false);
 

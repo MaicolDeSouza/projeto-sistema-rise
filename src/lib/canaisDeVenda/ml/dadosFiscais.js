@@ -107,19 +107,39 @@ export function partilhaDoKit(pecas) {
   return partes;
 }
 
+/** A peca que responde pelo kit na nota: a de maior parte no valor (`partilhaDoKit`); no empate, a primeira. */
+export function pecaPrincipalDoKit(pecas) {
+  const partes = partilhaDoKit(pecas);
+  return pecas[partes.indexOf(Math.max(...partes))];
+}
+
 /**
- * O corpo do SKU de um kit (`type` "bundle"): as pecas com o SKU, a quantidade e a parte de cada uma. O ML exige que o SKU
- * de cada peca ja tenha os dados fiscais dele (erro 10086 "Sku not found"), por isso o envio garante as pecas antes.
- * O kit do ML com "Kit de N" do mesmo produto vira um bundle de uma peca so, com quantidade N e 100%.
+ * O corpo do SKU de um kit: UM item na nota, com o titulo do anuncio (pedido do dono em 06/11/2026, ao ver a nota do
+ * 900808_10 sair "10 UN 900908 a R$ 3,50" e a do 192002_10 "20 UN 192002": "na NF esta valor unitario ao inves de mostrar
+ * kit como no anuncio"; escolheu "kit como 1 item", tambem para kit de pecas diferentes). De 05 a 06/11/2026 o kit ia como
+ * `type` "bundle", e o faturador do ML lista as PECAS do bundle na nota. Agora e `single`: NCM, origem e CEST da peca
+ * principal (a de maior valor), custo e peso somados das pecas, sem EAN (o kit nao tem GTIN).
  */
 export function corpoFiscalDoKit({ sku, titulo, pecas }) {
-  const partes = partilhaDoKit(pecas);
+  const principal = pecaPrincipalDoKit(pecas).produto;
+  const soma = (campo) => pecas.reduce((total, peca) => total + (numero(peca.produto[campo]) ?? 0) * Number(peca.quantidade), 0);
+  const custo = soma("custo");
+  const peso = soma("pesoKg");
   return {
     sku: String(sku).trim(),
     title: String(titulo ?? "").trim().slice(0, 120),
-    type: "bundle",
+    type: "single",
+    measurement_unit: "UN",
+    ...(custo > 0 ? { cost: Math.round(custo * 100) / 100 } : {}),
     register_type: "final",
-    bundle: pecas.map((peca, indice) => ({ sku: String(peca.produto.sku).trim(), quantity: Number(peca.quantidade), percentage_share: partes[indice] })),
+    tax_information: {
+      ncm: digitos(principal.ncm),
+      origin_type: tipoDeOrigemML(principal),
+      origin_detail: String(Number(principal.origem)),
+      csosn: CSOSN_DA_LOJA,
+      ...(digitos(principal.cest) ? { cest: digitos(principal.cest) } : {}),
+      ...(peso > 0 ? { net_weight: Math.round(peso * 1000) / 1000, gross_weight: Math.round(peso * 1000) / 1000 } : {}),
+    },
   };
 }
 
@@ -139,23 +159,10 @@ export function planoFiscal(alvo) {
   }
   const pecas = alvo.pecas.filter((peca) => peca?.produto && Number(peca.quantidade) > 0);
   if (pecas.length === 0) return { ok: false, sku, corpos: [], problemas: [`O kit ${sku} está sem peças.`] };
-  const problemas = [];
-  const vistos = new Set();
-  for (const peca of pecas) {
-    if (peca.produto.tipo === "COMPOSICAO") problemas.push(`A peça ${peca.produto.sku} do kit ${sku} também é kit: o Mercado Livre não aceita kit dentro de kit.`);
-    if (vistos.has(peca.produto.sku)) problemas.push(`A peça ${peca.produto.sku} aparece duas vezes no kit ${sku}.`);
-    vistos.add(peca.produto.sku);
-    problemas.push(...problemasFiscais(peca.produto));
-  }
-  // O bundle se apontaria a si mesmo.
-  if (vistos.has(sku)) problemas.push(`O kit ${sku} tem o próprio código entre as peças.`);
-  if (problemas.length) return { ok: false, sku, corpos: [], problemas: [...new Set(problemas)] };
-  return {
-    ok: true,
-    sku,
-    corpos: [...pecas.map((peca) => corpoFiscalSimples(peca.produto)), corpoFiscalDoKit({ sku, titulo: alvo.titulo, pecas })],
-    problemas: [],
-  };
+  // O kit vai como UM item (06/11/2026): so a peca principal empresta NCM e origem, entao so ela precisa deles.
+  const problemas = problemasFiscais(pecaPrincipalDoKit(pecas).produto);
+  if (problemas.length) return { ok: false, sku, corpos: [], problemas };
+  return { ok: true, sku, corpos: [corpoFiscalDoKit({ sku, titulo: alvo.titulo, pecas })], problemas: [] };
 }
 
 /**

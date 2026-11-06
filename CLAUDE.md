@@ -3747,6 +3747,11 @@ publicou, os 1.007 antigos da conta ficam de fora):**
   (`fiscalNoML.js`/`dadosFiscais.js`: NCM, origem, CSOSN 102 fixo do Simples, kit como `bundle`); recusa produto sem NCM ou
   origem; aba Status com "Dados fiscais" e o botão. `scripts/ml-dados-fiscais.js` ajustou os 67 anúncios do Rise (todos
   faturam). Vazio no Rise não apaga CEST/EAN do ML. O ML liga o SKU fiscal pelo `seller_sku` sozinho.
+- **Kit na nota = UM item** (06/11/2026, pedido do dono): de 05 a 06/11 o kit ia como `type` "bundle", e o faturador do ML
+  listou as PEÇAS na nota (900808_10: "10 UN 900908 a R$ 3,50"; 192002_10: "20 UN 192002"). Agora `corpoFiscalDoKit` manda
+  `single` com o título do anúncio, NCM/origem/CEST da peça de maior valor (`pecaPrincipalDoKit`), custo e peso somados, sem
+  EAN; só a peça principal precisa de NCM. O PUT troca o bundle gravado por single. As notas já emitidas ficam (o total é o
+  mesmo). Os kits já gravados mudam ao rodar `scripts/ml-dados-fiscais.js --confirmo` na VPS depois do deploy.
 - **Anúncios antigos com o mesmo SKU** (fora do Rise): `scripts/ml-igualar-antigos.js` (33800e3) iguala preço e vínculo
   fiscal ao anúncio do Rise; rodado em 05/11/2026 (48 antigos, 45 preços). Simula sem `--confirmo`.
 - **Popup depois do Publicar** (pedido do dono no mesmo dia): com a publicação feita, a `JanelaPublicarML` lê os outros
