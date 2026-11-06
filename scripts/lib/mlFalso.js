@@ -446,7 +446,8 @@ export function criarMLFalso(opcoes = {}) {
     }
     const partes = rota.match(/^\/items\/([^/]+)$/);
     if (!partes) throw new Error(`ML falso: PUT ${rota} nao suportado`);
-    const item = itens.get(partes[1]);
+    // Tambem os anuncios antigos do vendedor (`meusItens`): o "igualar preco" dos outros anuncios do SKU (05/11/2026).
+    const item = itens.get(partes[1]) ?? Object.values(estado.meusItens).flat().find((antigo) => antigo.id === partes[1]);
     if (!item) return naoAchou(`Item ${partes[1]} not found`);
     Object.assign(item, corpo ?? {});
     return resposta(200, structuredClone(item));

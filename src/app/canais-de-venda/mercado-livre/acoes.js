@@ -12,6 +12,7 @@ import { enviarMudancasML } from "@/lib/canaisDeVenda/ml/atualizar";
 import { conferirExclusaoML, excluirAnuncioML } from "@/lib/canaisDeVenda/ml/excluir";
 import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
 import { enviarDadosFiscaisDoAnuncio, situacaoFiscalDoAnuncio } from "@/lib/canaisDeVenda/ml/fiscalNoML";
+import { igualarPrecoDosOutros, outrosAnunciosDoAnuncio } from "@/lib/canaisDeVenda/ml/outrosAnuncios";
 import {
   buscarCatalogos,
   catalogosDosMeusAnuncios,
@@ -396,6 +397,26 @@ export async function publicarAnuncioMLAcao(anuncioId, { recriar = false } = {})
     revalidatePath("/produtos");
     return resultado;
   });
+}
+
+/**
+ * Os outros anuncios da conta com o mesmo SKU (fora do Rise), lidos logo depois do Publicar para o popup "Outros anuncios
+ * deste produto" (pedido do dono em 05/11/2026). So le o ML.
+ */
+export async function outrosAnunciosMLAcao(anuncioId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"]);
+  if (negado) return negado;
+  if (!ehId(anuncioId)) return PEDIDO_INVALIDO;
+  return protegendo(() => outrosAnunciosDoAnuncio(anuncioId, { ml: clienteML() }));
+}
+
+/** Iguala ao preco do anuncio do Rise os outros anuncios marcados no popup. A permissao do Publicar: escreve no ML. */
+export async function igualarPrecoDosOutrosMLAcao(anuncioId, itemIds) {
+  const negado = await negarSemAcessos(["acao.mercadoLivre.publicar", "executar"]);
+  if (negado) return negado;
+  const ids = Array.isArray(itemIds) ? itemIds : [];
+  if (!ehId(anuncioId) || ids.length === 0 || ids.length > 50 || !ids.every((item) => /^MLB\d{6,15}$/.test(String(item)))) return PEDIDO_INVALIDO;
+  return protegendo(() => igualarPrecoDosOutros(anuncioId, ids, { ml: clienteML() }));
 }
 
 /** "Validar no ML": sobe as fotos que faltam e roda o validador do ML, sem criar o anuncio. */

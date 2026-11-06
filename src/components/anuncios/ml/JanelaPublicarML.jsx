@@ -4,7 +4,8 @@ import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useEffect, useEffectEvent, useRef, useState, useTransition } from "react";
 import { CheckCircle2, ExternalLink, Loader, X, XCircle } from "lucide-react";
 
-import { prepararPublicacaoMLAcao, publicarAnuncioMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
+import { igualarPrecoDosOutrosMLAcao, outrosAnunciosMLAcao, prepararPublicacaoMLAcao, publicarAnuncioMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
+import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
 import { ROTULO_DA_ETAPA } from "@/lib/canaisDeVenda/ml/etapas";
 import { ROTULO_DO_TIPO_ML } from "@/lib/canaisDeVenda/ml/rotulos";
 
@@ -25,6 +26,7 @@ const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL
 export default function JanelaPublicarML({ anuncioId, rotuloDoBotao, aoFechar }) {
   const [preparo, setPreparo] = useState(null);
   const [resultado, setResultado] = useState(null);
+  const [outros, setOutros] = useState(null);
   const [lendo, iniciarLeitura] = useTransition();
   const [publicando, iniciarPublicacao] = useTransition();
 
@@ -41,12 +43,13 @@ export default function JanelaPublicarML({ anuncioId, rotuloDoBotao, aoFechar })
   }, [anuncioId]);
 
   useEffect(() => {
+    if (outros) return undefined; // o popup dos outros anuncios cuida do proprio Esc
     function aoTeclar(evento) {
       if (evento.key === "Escape" && !publicando) aoFechar(Boolean(resultado));
     }
     document.addEventListener("keydown", aoTeclar);
     return () => document.removeEventListener("keydown", aoTeclar);
-  }, [publicando, resultado, aoFechar]);
+  }, [publicando, resultado, outros, aoFechar]);
 
   function publicar({ recriar = false } = {}) {
     iniciarPublicacao(async () => {
@@ -56,9 +59,21 @@ export default function JanelaPublicarML({ anuncioId, rotuloDoBotao, aoFechar })
       } catch {
         feito = { ok: false, erro: "Não foi possível falar com o servidor. Abra o anúncio de novo e confira a situação antes de tentar outra vez." };
       }
-      // Deu certo: fecha sozinha (o editor rele o anuncio). So a falha fica na tela.
-      if (feito?.ok) aoFechar(true);
-      else setResultado(feito);
+      if (!feito?.ok) {
+        setResultado(feito);
+        return;
+      }
+      // Deu certo: procura outros anuncios do mesmo codigo (pedido do dono em 05/11/2026). Com algum de preco diferente, a
+      // janela vira o popup de escolha; sem nenhum, fecha sozinha (o editor rele o anuncio), como antes.
+      let lidos;
+      try {
+        lidos = await outrosAnunciosMLAcao(anuncioId);
+      } catch {
+        lidos = { ok: false, erro: "Não foi possível falar com o servidor." };
+      }
+      const diferentes = lidos?.ok ? lidos.outros.filter((outro) => !outro.igual) : [];
+      if (lidos?.ok && diferentes.length === 0) aoFechar(true);
+      else setOutros(lidos?.ok ? { preco: lidos.preco, lista: diferentes } : { erro: lidos?.erro ?? "Não foi possível ler os outros anúncios." });
     });
   }
 
@@ -71,6 +86,9 @@ export default function JanelaPublicarML({ anuncioId, rotuloDoBotao, aoFechar })
     comecou.current = true;
     publicarSozinho();
   }, [prontoParaComecar]);
+
+  // Depois de todos os hooks: o popup dos outros anuncios substitui a janela do Publicar.
+  if (outros) return <OutrosAnunciosDoProduto anuncioId={anuncioId} outros={outros} aoFechar={() => aoFechar(true)} />;
 
   const resumo = preparo?.resumo;
   const incerta = Boolean(preparo?.incerta) || Boolean(resultado?.incerta);
@@ -170,6 +188,143 @@ export default function JanelaPublicarML({ anuncioId, rotuloDoBotao, aoFechar })
           {preparo?.ok && !resultado && !incerta && (
             <button type="button" onClick={() => publicar()} disabled={publicando} className="rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
               {rotuloDoBotao === "Publicar" ? "Publicar no Mercado Livre" : rotuloDoBotao}
+            </button>
+          )}
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+/**
+ * Popup "Outros anuncios deste produto" (pedido do dono em 05/11/2026): depois do Publicar, os anuncios antigos da conta com
+ * o mesmo codigo e preco diferente, cada um com a caixa marcada; "Igualar preço" leva aos marcados o preco do anuncio novo
+ * e "Manter preços" fecha sem mexer. Premium, catalogo e vendas aparecem porque mudam a decisao (a comissao e a disputa do
+ * catalogo). Leitura que falhou nao trava nada: a publicacao ja deu certo, e o aviso diz que a conferencia nao foi feita.
+ */
+function OutrosAnunciosDoProduto({ anuncioId, outros, aoFechar }) {
+  const lista = outros.lista ?? [];
+  const [marcados, setMarcados] = useState(() => new Set(lista.map((outro) => outro.id)));
+  const [feito, setFeito] = useState(null);
+  const [gravando, iniciarGravacao] = useTransition();
+
+  useEffect(() => {
+    function aoTeclar(evento) {
+      if (evento.key === "Escape" && !gravando && !feito?.ok) aoFechar();
+    }
+    document.addEventListener("keydown", aoTeclar);
+    return () => document.removeEventListener("keydown", aoTeclar);
+  }, [gravando, feito, aoFechar]);
+
+  function alternar(id) {
+    setMarcados((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(id)) novo.delete(id);
+      else novo.add(id);
+      return novo;
+    });
+  }
+
+  function igualar() {
+    iniciarGravacao(async () => {
+      let resposta;
+      try {
+        resposta = await igualarPrecoDosOutrosMLAcao(anuncioId, [...marcados]);
+      } catch {
+        resposta = { ok: false, erro: "Não foi possível falar com o servidor.", feitos: [], falhas: [] };
+      }
+      setFeito(resposta);
+    });
+  }
+
+  if (feito?.ok) {
+    return (
+      <ConclusaoDoEnvio
+        titulo="Preços igualados"
+        mensagem={`${feito.feitos.length} anúncio(s) passaram para ${moeda.format(feito.preco)}.`}
+        linhas={feito.feitos.map((item) => `${item.id}: ${moeda.format(item.de)} → ${moeda.format(feito.preco)}`)}
+        aoFechar={aoFechar}
+      />
+    );
+  }
+
+  const falhas = feito?.falhas ?? [];
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4 text-left font-normal normal-case" {...propsDoFundo(() => { if (!gravando) aoFechar(); })}>
+      <section role="dialog" aria-modal="true" aria-labelledby="ml-outros-titulo" className="flex max-h-full w-full max-w-2xl flex-col rounded-lg border border-borda bg-superficie shadow-2xl">
+        <header className="flex items-start justify-between gap-3 border-b border-borda px-5 py-3">
+          <div>
+            <p id="ml-outros-titulo" className="text-sm font-semibold">Outros anúncios deste produto</p>
+            {outros.preco > 0 && (
+              <p className="mt-0.5 text-xs text-suave">
+                O anúncio novo saiu a <span className="font-medium tabular-nums text-texto">{moeda.format(outros.preco)}</span>. Marque os que devem ficar com o mesmo preço.
+              </p>
+            )}
+          </div>
+          <button type="button" onClick={aoFechar} disabled={gravando} aria-label="Fechar" className="rounded p-1 text-suave hover:bg-fundo disabled:opacity-40">
+            <X size={16} />
+          </button>
+        </header>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3 text-sm">
+          {outros.erro ? (
+            <p role="alert" className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+              O anúncio foi publicado, mas não consegui conferir se há outros anúncios deste código: {outros.erro}
+            </p>
+          ) : (
+            <ul className="divide-y divide-borda">
+              {lista.map((outro) => {
+                const falha = falhas.find((item) => item.id === outro.id);
+                return (
+                  <li key={outro.id} className="py-2">
+                    <label className="flex cursor-pointer items-center gap-3">
+                      <input type="checkbox" checked={marcados.has(outro.id)} onChange={() => alternar(outro.id)} disabled={gravando} className="size-4 accent-emerald-600" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate">{outro.titulo}</span>
+                        <span className="flex flex-wrap items-center gap-x-2 text-xs text-suave">
+                          {outro.link ? (
+                            <a href={outro.link} target="_blank" rel="noreferrer" onClick={(evento) => evento.stopPropagation()} className="inline-flex items-center gap-1 font-mono text-acento hover:underline">
+                              {outro.id} <ExternalLink size={11} />
+                            </a>
+                          ) : (
+                            <span className="font-mono">{outro.id}</span>
+                          )}
+                          {outro.status === "paused" && <span>Pausado</span>}
+                          {outro.catalogo && <span>Catálogo</span>}
+                          {outro.premium && <span className="text-amber-700" title="Premium: a comissão é maior, o mesmo preço deixa menos lucro">Premium</span>}
+                          {outro.vendidos > 0 && <span className="tabular-nums">{outro.vendidos} vendido(s)</span>}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-right tabular-nums">
+                        <span className="block">{moeda.format(outro.preco)}</span>
+                        {marcados.has(outro.id) && outros.preco > 0 && <span className="block text-xs text-emerald-700">→ {moeda.format(outros.preco)}</span>}
+                      </span>
+                    </label>
+                    {falha && <p role="alert" className="mt-1 pl-7 text-xs text-red-700">{falha.erro}</p>}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {feito && !feito.ok && feito.erro && (
+            <p role="alert" className="mt-2 rounded border border-red-200 bg-red-50 px-3 py-2 text-red-800">{feito.erro}</p>
+          )}
+        </div>
+
+        <footer className="flex flex-wrap justify-end gap-2 border-t border-borda px-5 py-3">
+          <button type="button" onClick={aoFechar} disabled={gravando} className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo disabled:opacity-50">
+            {outros.erro ? "Fechar" : "Manter preços"}
+          </button>
+          {!outros.erro && (
+            <button
+              type="button"
+              onClick={igualar}
+              disabled={gravando || marcados.size === 0}
+              title={marcados.size === 0 ? "Marque ao menos um anúncio" : undefined}
+              className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+            >
+              {gravando && <Loader size={14} className="animate-spin" />}
+              Igualar preço{marcados.size > 0 ? ` (${marcados.size})` : ""}
             </button>
           )}
         </footer>

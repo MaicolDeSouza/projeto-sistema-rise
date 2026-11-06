@@ -3738,6 +3738,23 @@ publicou, os 1.007 antigos da conta ficam de fora):**
   foi oferecida e o dono não respondeu: não foi feita.
 - **Na VPS (25/10/2026):** 6 anúncios publicados na LI e 6 no ML pelo Rise.
 
+### Dados fiscais do ML e os outros anúncios do mesmo SKU (05/11/2026)
+
+- **Dados fiscais** (d3a38bd, NO AR em 05.11.2026.71): o Publicar ganhou a etapa "fiscal" antes de ativar
+  (`fiscalNoML.js`/`dadosFiscais.js`: NCM, origem, CSOSN 102 fixo do Simples, kit como `bundle`); recusa produto sem NCM ou
+  origem; aba Status com "Dados fiscais" e o botão. `scripts/ml-dados-fiscais.js` ajustou os 67 anúncios do Rise (todos
+  faturam). Vazio no Rise não apaga CEST/EAN do ML. O ML liga o SKU fiscal pelo `seller_sku` sozinho.
+- **Anúncios antigos com o mesmo SKU** (fora do Rise): `scripts/ml-igualar-antigos.js` (33800e3) iguala preço e vínculo
+  fiscal ao anúncio do Rise; rodado em 05/11/2026 (48 antigos, 45 preços). Simula sem `--confirmo`.
+- **Popup depois do Publicar** (pedido do dono no mesmo dia): com a publicação feita, a `JanelaPublicarML` lê os outros
+  anúncios da conta com o mesmo `seller_sku` (`outrosAnuncios.js`; tira o próprio, os do Rise e os encerrados/inativos) e,
+  havendo algum de preço diferente, vira "Outros anúncios deste produto": uma linha por anúncio (título, MLB com link,
+  Pausado/Catálogo/Premium/vendas, preço atual → novo), todos marcados, **Manter preços** e **Igualar preço (N)**. Só o
+  preço muda (variações recebem o preço em cada uma); o servidor relê e recusa id que não seja outro anúncio do SKU.
+  Sucesso no `ConclusaoDoEnvio`; falha por anúncio em vermelho na linha. Sem outro anúncio, a janela fecha como antes.
+  Não vale para o "Enviar mudanças" nem para preço mudado no editor depois de publicado. **Nunca visto na tela** (o PC não
+  publica): o primeiro Publicar real de produto que já tem anúncio antigo é o teste.
+
 ### Editor do ML em cartões, aba Status, prazo e garantia (26/10/2026, SEM deploy)
 
 Pedidos do dono (com print anotado e "usar UI/UX"):

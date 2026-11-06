@@ -1871,6 +1871,37 @@ try {
       const recusado = await garantirFiscalNoML(mlRecusa, await planoFiscalDoProduto({ id: c.s1.id }), { itemId: "MLB1" });
       conferir("recusa: volta o erro do ML", [recusado.ok, /recusou os dados fiscais do SKU ZZ-ML-S1/.test(recusado.erro ?? "")], [false, true]);
 
+      // Outros anuncios do mesmo SKU depois do Publicar (pedido do dono em 05/11/2026): o popup lista os antigos e iguala o
+      // preco dos escolhidos ao do anuncio do Rise.
+      const { outrosAnunciosDoAnuncio, igualarPrecoDosOutros } = await import("../src/lib/canaisDeVenda/ml/outrosAnuncios.js");
+      const mlOutros = criarMLFalso({
+        meusItens: {
+          "ZZ-ML-S1": [
+            { id: itemId, status: "active", price: 50, title: "O do Rise" },
+            { id: "MLB901", status: "active", price: 40, title: "Antigo premium", listing_type_id: "gold_pro", sold_quantity: 3, catalog_listing: true },
+            { id: "MLB902", status: "closed", price: 10, title: "Encerrado" },
+            { id: "MLB903", status: "paused", price: 50, title: "Ja igual" },
+            { id: "MLB904", status: "active", price: 30, title: "Com variacoes", variations: [{ id: 11, price: 30 }, { id: 12, price: 30 }] },
+          ],
+        },
+      });
+      const outros = await outrosAnunciosDoAnuncio(id, { ml: mlOutros });
+      conferir(
+        "outros: tira o proprio e o encerrado, diferentes primeiro",
+        [outros.ok, outros.sku, outros.preco, outros.outros.map((o) => [o.id, o.preco, o.igual, o.premium, o.catalogo, o.vendidos])],
+        [true, "ZZ-ML-S1", 50, [["MLB901", 40, false, true, true, 3], ["MLB904", 30, false, false, false, 0], ["MLB903", 50, true, false, false, 0]]],
+      );
+      conferir("outros: ler nao escreve", mlOutros.escritas.length, 0);
+      const igualado = await igualarPrecoDosOutros(id, ["MLB901", "MLB904", "MLB903", "MLB902", "MLB999"], { ml: mlOutros });
+      conferir(
+        "igualar: so os escolhidos de preco diferente; estranho e encerrado recusados",
+        [igualado.ok, igualado.feitos, igualado.falhas.map((f) => f.id), mlOutros.escritas.map((e) => [e.caminho, e.corpo])],
+        [false, [{ id: "MLB901", de: 40 }, { id: "MLB904", de: 30 }], ["MLB902", "MLB999"], [["/items/MLB901", { price: 50 }], ["/items/MLB904", { variations: [{ id: 11, price: 50 }, { id: 12, price: 50 }] }]]],
+      );
+      conferir("igualar: relido, todos iguais", (await outrosAnunciosDoAnuncio(id, { ml: mlOutros })).outros.every((o) => o.igual), true);
+      const semOutros = await outrosAnunciosDoAnuncio(id, { ml: criarMLFalso({ meusItens: { "ZZ-ML-S1": [{ id: itemId, status: "active", price: 50 }] } }) });
+      conferir("outros: sem outro anuncio, lista vazia", [semOutros.ok, semOutros.outros], [true, []]);
+
       await prisma.produtoComponente.deleteMany({ where: { kitId: c.kitDoRise.id } });
     }
 
