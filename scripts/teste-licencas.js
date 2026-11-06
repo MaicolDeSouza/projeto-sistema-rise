@@ -309,7 +309,9 @@ try {
   conferir("a leitura nunca toca linhas nem renovadaEm", [(await B.lerLicenca(p1Id)).linhas.length, (await B.lerLicenca(p1Id)).renovadaEm?.toISOString().slice(0, 10)], [1, "2026-10-01"]);
   await P.aplicarLeituraDoPortal({ ...payload({ semTipo: true }), registrar: false });
   conferir("tipo ausente no payload nao apaga o gravado", (await B.lerLicenca(p1Id)).tipo, "Pro");
-  conferir("a licenca sem portal (CHAVE-X) nao e marcada como sumida", (await prisma.licenca.findFirst({ where: { identificador: "ZZ-LIC-CHAVE-X" } })).portalSumiuEm, null);
+  // Spec §6.5: a licenca da planilha (ou digitada) que a leitura completa do portal nao trouxe e uma chave morta, e e
+  // assim que o dono a ve.
+  conferir("licenca que o portal nunca trouxe (CHAVE-X) sumiu do portal na leitura completa",[(await prisma.licenca.findFirst({ where: { identificador: "ZZ-LIC-CHAVE-X" } })).portalSumiuEm !== null, (await B.lerLicenca((await prisma.licenca.findFirst({ where: { identificador: "ZZ-LIC-CHAVE-X" } })).id)).situacao.texto], [true, "Sumiu do portal"]);
   conferir("tipos do programa (sugestoes da janela)", await B.tiposDoPrograma(chaveId), ["Pro"]);
   const { chave } = await K.gerarChaveDaExtensao();
   const req = (auth) => new Request("https://x/api", { headers: auth ? { authorization: auth } : {} });

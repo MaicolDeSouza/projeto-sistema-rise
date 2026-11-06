@@ -124,11 +124,12 @@ export async function aplicarLeituraDoPortal({ softwareSlug = "lightburn", versa
     resumo.sumiram += aplicada.sumiram;
   }
 
-  // Chave que o portal ja mostrou (tem portalId) e que a leitura completa nao trouxe: sumiu do portal. A que reaparece
-  // volta a nulo no proprio upsert acima.
+  // Chave do programa que a leitura completa nao trouxe: sumiu do portal. Vale tambem para a que veio da planilha ou foi
+  // digitada e o portal nunca mostrou (spec §6.5: "e assim que o dono ve as chaves mortas"). A que reaparece volta a nulo
+  // no proprio upsert acima.
   if (completa) {
     await prisma.licenca.updateMany({
-      where: { softwareId: software.id, portalId: { not: null }, portalSumiuEm: null, id: { notIn: tocadas } },
+      where: { softwareId: software.id, portalSumiuEm: null, id: { notIn: tocadas } },
       data: { portalSumiuEm: lidaEm },
     });
   }
