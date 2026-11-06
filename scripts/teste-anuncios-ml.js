@@ -1806,6 +1806,12 @@ try {
       conferir("fiscal: kit sem bundle e sem as pecas", "bundle" in planoKit.corpos[0], false);
       const kitDeDez = planoFiscal({ sku: "PB_10", titulo: "10x Peça B", pecas: [{ produto: { ...pecaB, pesoKg: 0.002, cest: "0106400" }, quantidade: 10 }] }).corpos[0];
       conferir("fiscal: kit de 10 soma custo e peso, NCM e origem da peca", [kitDeDez.cost, kitDeDez.tax_information], [100, { ncm: "85340000", origin_type: "reseller", origin_detail: "2", csosn: "102", cest: "0106400", net_weight: 0.02, gross_weight: 0.02 }]);
+      // O titulo do kit no Rise e o nome do produto base (o ML poe o "10x" no anuncio); a nota precisa dele.
+      const tituloDoKit = (titulo, quantidade) => planoFiscal({ sku: "PB_N", titulo, pecas: [{ produto: pecaB, quantidade }] }).corpos[0].title;
+      conferir("fiscal: kit de N da mesma peca ganha o NX no titulo", [tituloDoKit("PEÇA B", 10), tituloDoKit("10x Peça B", 10), tituloDoKit("PEÇA B", 1)], ["10X PEÇA B", "10x Peça B", "PEÇA B"]);
+      conferir("fiscal: plano de kit marcado", planoFiscal({ sku: "PB_N", titulo: "B", pecas: [{ produto: pecaB, quantidade: 2 }] }).kit, true);
+      const kitNoML = { ...kitDeDez, title: "PEÇA B" };
+      conferir("fiscal: kit compara o titulo; produto simples nao", [fiscalIgual(kitNoML, kitDeDez, { comTitulo: true }), fiscalIgual(kitNoML, kitDeDez)], [false, true]);
       const pecaCara = { sku: "PC", ncm: "84733049", origem: 1, custo: 50 };
       conferir("fiscal: kit misto usa a peca de maior valor", planoFiscal({ sku: "KIT2", titulo: "Kit", pecas: [{ produto: pecaA, quantidade: 2 }, { produto: pecaCara, quantidade: 1 }] }).corpos[0].tax_information.ncm, "84733049");
       conferir("fiscal: peca principal sem NCM barra o kit", planoFiscal({ sku: "KIT1", pecas: [{ produto: { ...pecaA, ncm: null }, quantidade: 1 }] }).ok, false);

@@ -125,9 +125,14 @@ export function corpoFiscalDoKit({ sku, titulo, pecas }) {
   const soma = (campo) => pecas.reduce((total, peca) => total + (numero(peca.produto[campo]) ?? 0) * Number(peca.quantidade), 0);
   const custo = soma("custo");
   const peso = soma("pesoKg");
+  // O titulo do kit no Rise e o nome do produto base (o ML poe o "10x" no anuncio sozinho): sem o prefixo, a nota diria
+  // "SENSOR ... 1 UN R$ 54,30" e pareceria uma peca so. Kit de N da mesma peca ganha o "NX " que o anuncio mostra.
+  const base = String(titulo ?? "").trim();
+  const quantidade = Number(pecas[0].quantidade);
+  const title = pecas.length === 1 && quantidade > 1 && !/^\d+\s*x\b/i.test(base) ? `${quantidade}X ${base}` : base;
   return {
     sku: String(sku).trim(),
-    title: String(titulo ?? "").trim().slice(0, 120),
+    title: title.slice(0, 120),
     type: "single",
     measurement_unit: "UN",
     ...(custo > 0 ? { cost: Math.round(custo * 100) / 100 } : {}),
@@ -162,7 +167,8 @@ export function planoFiscal(alvo) {
   // O kit vai como UM item (06/11/2026): so a peca principal empresta NCM e origem, entao so ela precisa deles.
   const problemas = problemasFiscais(pecaPrincipalDoKit(pecas).produto);
   if (problemas.length) return { ok: false, sku, corpos: [], problemas };
-  return { ok: true, sku, corpos: [corpoFiscalDoKit({ sku, titulo: alvo.titulo, pecas })], problemas: [] };
+  // `kit` diz ao envio que o titulo conta na comparacao (e o que a nota mostra no lugar das pecas).
+  return { ok: true, sku, kit: true, corpos: [corpoFiscalDoKit({ sku, titulo: alvo.titulo, pecas })], problemas: [] };
 }
 
 /**
@@ -184,8 +190,10 @@ export function mesclarComML(noML, corpo) {
  * Se o que o ML guarda ja diz o mesmo que o Rise mandaria. Compara so o que muda a nota (NCM, CEST, CSOSN, origem, EAN, o
  * tipo e as pecas do kit): titulo, custo, unidade e peso diferentes nao reescrevem o SKU (o 940502 veio do ML com "UNID").
  */
-export function fiscalIgual(noML, corpo) {
+export function fiscalIgual(noML, corpo, { comTitulo = false } = {}) {
   if (!noML || noML.type !== corpo.type) return false;
+  // No kit o titulo e o que a nota mostra ("10X SENSOR ..."), entao conta; no produto simples nao (06/11/2026).
+  if (comTitulo && String(noML.title ?? "").trim() !== String(corpo.title ?? "").trim()) return false;
   if (corpo.type === "bundle") {
     const chave = (lista) => JSON.stringify((lista ?? []).map((p) => [String(p.sku), Number(p.quantity), Number(p.percentage_share)]).sort());
     return chave(noML.bundle) === chave(corpo.bundle);

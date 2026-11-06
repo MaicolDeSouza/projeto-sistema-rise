@@ -83,11 +83,11 @@ async function lerSku(ml, sku) {
 }
 
 /** Cria ou corrige um SKU. Devolve `{ ok, acao: "criado"|"corrigido"|"igual", erro? }`. `simular`: so le. */
-async function garantirSku(ml, corpoDoRise, simular) {
+async function garantirSku(ml, corpoDoRise, simular, { comTitulo = false } = {}) {
   const lido = await lerSku(ml, corpoDoRise.sku);
   if (!lido.ok) return lido;
   const corpo = mesclarComML(lido.dados, corpoDoRise);
-  if (lido.existe && fiscalIgual(lido.dados, corpo)) return { ok: true, acao: "igual" };
+  if (lido.existe && fiscalIgual(lido.dados, corpo, { comTitulo })) return { ok: true, acao: "igual" };
   if (simular) return { ok: true, acao: lido.existe ? "corrigido" : "criado" };
   if (!lido.existe) {
     const resposta = await ml.post("/items/fiscal_information", corpo);
@@ -108,7 +108,7 @@ export async function garantirFiscalNoML(ml, plano, { itemId, simular = false })
   if (!plano?.ok) return { ok: false, feitos, podeFaturar: null, erro: (plano?.problemas ?? ["Sem dados fiscais."]).join(" ") };
   try {
     for (const corpo of plano.corpos) {
-      const passo = await garantirSku(ml, corpo, simular);
+      const passo = await garantirSku(ml, corpo, simular, { comTitulo: Boolean(plano.kit) });
       if (!passo.ok) return { ok: false, feitos, podeFaturar: null, erro: passo.erro };
       if (passo.acao === "criado") feitos.push(`Dados fiscais do SKU ${corpo.sku} cadastrados.`);
       if (passo.acao === "corrigido") feitos.push(`Dados fiscais do SKU ${corpo.sku} corrigidos.`);
