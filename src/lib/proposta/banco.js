@@ -12,6 +12,7 @@ import { listarCategoriasDaLI, textoDoErroLI } from "@/lib/canaisDeVenda/li/leit
 import { tituloSeoPadrao } from "@/lib/canaisDeVenda/li/seo";
 import { aplicarCorrecoes } from "@/lib/ia/correcoes";
 import { lerCorrecoesAtivas, somarUsos } from "@/lib/ia/correcoesBanco";
+import { listarPromptsDaDescricao } from "@/lib/ia/promptsDescricao";
 import { normalizarDescricao } from "@/lib/ia/revisaoDescricao";
 
 import { decisoesDosCampos, SECOES_APLICAVEIS } from "./aplicar";
@@ -86,6 +87,16 @@ async function gravarArquivo(sku, nome, bytes, criados) {
 }
 
 /**
+ * O nome do prompt da descricao como a biblioteca o guarda, achado como `lerParaProposta` acha (pelo id, ou pelo nome sem
+ * caixa): o escopo das Correcoes da descricao e o nome exato. Prompt que nao existe fica como veio (so as de todas valem).
+ */
+async function nomeDoPromptPedido(pedido) {
+  const alvo = pedido.toLocaleLowerCase("pt-BR");
+  const achado = (await listarPromptsDaDescricao()).find((prompt) => prompt.id === pedido || prompt.nome.toLocaleLowerCase("pt-BR") === alvo);
+  return achado?.nome ?? pedido;
+}
+
+/**
  * @param {string} sku
  * @param {{ secao: string, conteudo: any }} plano
  * @param {{ bytes?: Map<string, Buffer> }} [opcoes] bytes das fotos e PDFs novos, pelo id da candidata ou do documento
@@ -125,7 +136,8 @@ export async function gravarProposta(sku, plano, { bytes = new Map(), testarLink
   if (validado.secao === "descricao") {
     // Depois das regras fixas, as Correcoes da descricao do dono (spec 2026-11-07): as de todas as descricoes e as do prompt
     // que a conversa diz ter usado. A instrucao ja foi na leitura; aqui o Rise garante o texto gravado.
-    const promptNome = typeof plano.conteudo?.prompt === "string" && plano.conteudo.prompt.trim() ? plano.conteudo.prompt.trim() : null;
+    const pedido = typeof plano.conteudo?.prompt === "string" ? plano.conteudo.prompt.trim() : "";
+    const promptNome = pedido ? await nomeDoPromptPedido(pedido) : null;
     const { texto, aplicadas } = aplicarCorrecoes(normalizarDescricao(plano.conteudo.texto), await lerCorrecoesAtivas({ promptNome }));
     plano = { ...plano, conteudo: { ...plano.conteudo, texto } };
     await somarUsos(aplicadas);

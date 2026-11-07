@@ -1060,6 +1060,9 @@ try {
     conferir("correcoes, leitura: devolve as correcoes do escopo e a instrucao", lido.correcoes.itens.some((c) => c.errado === "Zzfunciona") && lido.correcoes.itens.some((c) => c.errado === "5 Q") && lido.correcoes.instrucao.includes("Escreva \"5Q\", nunca \"5 Q\""));
     conferir("correcoes, leitura sem prompt: so as globais", !(await lerParaProposta("ZZ-CORR-2")).correcoes.itens.some((c) => c.errado === "Zzfunciona"));
     conferir("correcoes, roteiro v17 com o passo das correcoes", VERSAO_DO_ROTEIRO === "17" && ROTEIRO.includes("Correções da descrição") && ROTEIRO.includes("correcoes"));
+    // A gravacao acha o prompt como a leitura acha (sem caixa, ou pelo id): senao a TROCA do prompt nao valeria no texto.
+    const comOutraCaixa = await gravarProposta("ZZ-CORR-2", { secao: "descricao", conteudo: { texto: "T\n\nZzfunciona.", prompt: "padrão do sistema", divergencias: [] } });
+    conferir("correcoes, proposta: o prompt escrito com outra caixa acha as TROCAs dele", comOutraCaixa.ok === true && (await lerProposta("ZZ-CORR-2")).secoes.descricao.texto === "T\n\nZzopera.");
   }
 } finally {
   await limpar();
