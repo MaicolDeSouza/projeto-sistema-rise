@@ -77,9 +77,19 @@ export function somaDosAdicionais(adicionais, custoDe = () => null) {
   return { total: centavos(total), semCusto };
 }
 
-/** O custo do vinculo: o preco do fornecedor mais a soma. Sem preco do fornecedor, sem custo (null). */
-export function custoTotal(precoFornecedor, soma) {
+/** O fator do vinculo (1 do fornecedor = `fator` unidades no Rise): inteiro de 1 a 1.000.000; o resto vale 1. */
+export function fatorValido(fator) {
+  const lido = Math.trunc(numero(fator) ?? 1);
+  return lido >= 1 && lido <= 1_000_000 ? lido : 1;
+}
+
+/**
+ * O custo do vinculo POR UNIDADE DO RISE: o preco do fornecedor dividido pelo fator (a caixa de 5000 resistores por
+ * R$ 61,10 da Fortek, pedido do dono em 06/11/2026) mais a soma dos adicionais, em 4 casas (R$ 0,0122; com 2 casas
+ * virava R$ 0,01, 18% a menos). Sem preco do fornecedor, sem custo (null).
+ */
+export function custoTotal(precoFornecedor, soma, fator = 1) {
   const base = numero(precoFornecedor);
   if (base === null || precoFornecedor === "" || precoFornecedor === null || precoFornecedor === undefined) return null;
-  return centavos(base + (numero(soma) ?? 0));
+  return Math.round((base / fatorValido(fator) + (numero(soma) ?? 0)) * 10000) / 10000;
 }

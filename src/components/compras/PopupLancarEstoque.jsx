@@ -29,7 +29,9 @@ export default function PopupLancarEstoque({ item, aoFechar, aoConcluir }) {
   }, [aoFechar, ocupado]);
 
   const valida = validarQuantidadeDeLancamento(quantidade, falta);
-  const depois = (item.estoqueAtual ?? 0) + (valida.ok ? valida.quantidade : 0);
+  // Fator (06/11/2026): lanca-se em caixas do fornecedor; no estoque entram caixas x fator.
+  const fator = item.fator > 1 ? item.fator : 1;
+  const depois = (item.estoqueAtual ?? 0) + (valida.ok ? valida.quantidade * fator : 0);
 
   function lancar() {
     setErro(null);
@@ -44,14 +46,14 @@ export default function PopupLancarEstoque({ item, aoFechar, aoConcluir }) {
         setDepositos({ lista: resposta.bling.precisaDeposito, resposta });
         return;
       }
-      aoConcluir(resposta, Number(quantidade));
+      aoConcluir(resposta, Number(quantidade) * fator);
     });
   }
 
   function enviarNoDeposito(deposito) {
     iniciar(async () => {
       const bling = await reenviarAoBlingAcao(item.produtoId, deposito.id);
-      aoConcluir({ ...depositos.resposta, bling }, Number(quantidade));
+      aoConcluir({ ...depositos.resposta, bling }, Number(quantidade) * fator);
     });
   }
 
@@ -111,6 +113,9 @@ export default function PopupLancarEstoque({ item, aoFechar, aoConcluir }) {
                 aria-invalid={!valida.ok}
                 className="w-32 rounded-md border border-borda px-3 py-2 text-right text-lg font-semibold tabular-nums focus:border-acento focus:outline-none focus:ring-2 focus:ring-acento/20 aria-[invalid=true]:border-rose-500"
               />
+              {fator > 1 && valida.ok && (
+                <span className="ml-2 text-sm text-suave">cx = {(valida.quantidade * fator).toLocaleString("pt-BR")} un.</span>
+              )}
               {!valida.ok && quantidade !== "" && <span className="mt-1 block text-xs text-rose-600">{valida.erro}</span>}
             </label>
             <p className="flex items-center gap-2 text-sm">

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 
 import { fornecedorDoAliExpress } from "./fornecedor";
 import { totaisDoPedido } from "@/lib/compras/regras";
+import { fatorValido } from "@/lib/custoAdicionalRegras";
 
 import { anuncioDoLink, codigoDoVinculo, custoPorPeca, decidirCasamento, precoMedioPonderado, precoNoRise, quantidadeNoRise } from "./regras";
 import { entradaNoVirtual, saidaDoVirtual } from "./virtual";
@@ -359,7 +360,7 @@ export async function atualizarCustoDosVinculos(tx, pedidoId) {
 
   for (const item of itens) {
     if (!item.vinculoId || custos[item.id] === undefined) continue;
-    const vinculo = await tx.produtoFornecedor.findUnique({ where: { id: item.vinculoId }, select: { id: true, fornecedorId: true, adicionaisValor: true } });
+    const vinculo = await tx.produtoFornecedor.findUnique({ where: { id: item.vinculoId }, select: { id: true, fornecedorId: true, adicionaisValor: true, fator: true } });
     if (!vinculo || vinculo.fornecedorId !== pedido.fornecedorId) continue;
     const maisNovo = await tx.itemDoPedidoDeCompra.count({
       where: { vinculoId: vinculo.id, pedido: { origem: "ALIEXPRESS", status: { not: "CANCELADO" }, aliexpress: { dataDoPedido: { gt: pedido.aliexpress.dataDoPedido } } } },
@@ -368,7 +369,12 @@ export async function atualizarCustoDosVinculos(tx, pedidoId) {
     const custo = custos[item.id];
     await tx.produtoFornecedor.update({
       where: { id: vinculo.id },
-      data: { precoFornecedor: custo, precoCusto: Math.round((custo + (Number(vinculo.adicionaisValor) || 0)) * 100) / 100 },
+      // Desde 06/11/2026 o preco do fornecedor e o da EMBALAGEM (custo por peca x fator) e o custo do vinculo e por peca,
+      // em 4 casas: a mesma regra de todo fornecedor (`custoTotal`).
+      data: {
+        precoFornecedor: Math.round(custo * fatorValido(vinculo.fator) * 10000) / 10000,
+        precoCusto: Math.round((custo + (Number(vinculo.adicionaisValor) || 0)) * 10000) / 10000,
+      },
     });
   }
 }

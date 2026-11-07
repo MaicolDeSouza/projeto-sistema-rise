@@ -18,6 +18,7 @@ const {
   lerDesconto,
   totaisDoPedido,
   aCaminho,
+  caixasPara,
   entraNaListaDeMinimo,
   quantidadeSugerida,
   estadoDoCarrinho,
@@ -92,6 +93,16 @@ conferir(
   ]),
   35,
 );
+conferir(
+  "a caminho multiplica as caixas pelo fator do item",
+  aCaminho([
+    { status: "ENVIADO", quantidade: 2, quantidadeLancada: 0, fator: 5000 },
+    { status: "PARCIAL", quantidade: 3, quantidadeLancada: 1, fator: 100 },
+    { status: "ENVIADO", quantidade: 4, quantidadeLancada: 0 },
+  ]),
+  10204,
+);
+conferir("caixas para cobrir: para cima, ao menos 1", [caixasPara(7000, 5000), caixasPara(5000, 5000), caixasPara(1, 5000), caixasPara(40, 1), caixasPara(0, 10)], [2, 1, 1, 40, 1]);
 conferir("entra: abaixo do minimo", entraNaListaDeMinimo({ conferido: true, ativo: true, tipo: "SIMPLES", estoque: 2, estoqueMinimo: 5 }, 0), true);
 conferir("sai: a caminho cobre", entraNaListaDeMinimo({ conferido: true, ativo: true, tipo: "SIMPLES", estoque: 2, estoqueMinimo: 5 }, 3), false);
 conferir("kit fora", entraNaListaDeMinimo({ conferido: true, ativo: true, tipo: "COMPOSICAO", estoque: 0, estoqueMinimo: 5 }, 0), false);
@@ -492,6 +503,27 @@ try {
     const outroRascunho = await banco.adicionarAoPedido({ produtoId: produto.id, vinculoId: (await vincular(produto, await criarFornecedor("ZZ Compra Rascunho 2"))).id, quantidade: 2 });
     const itemRascunho = await prisma.itemDoPedidoDeCompra.findFirst({ where: { pedidoId: outroRascunho.pedidoId } });
     conferir("rascunho nao lanca", (await lancamento.lancarEstoqueDoItem(itemRascunho.id, 1, { cliente: falso })).ok, false);
+
+    // FATOR (pedido do dono em 06/11/2026): a Fortek vende em caixa de 5000. O item e em caixas, com o preco da caixa;
+    // a caminho, lancamento e desfazer em unidades do Rise (caixas x fator).
+    const caixa = await criarProduto("ZZ-COMPRA-L2", { estoque: 0, blingSaldo: 0, estoqueMinimo: 100, estoqueMaximo: 7000 });
+    const fornCaixa = await criarFornecedor("ZZ Compra Caixa");
+    const vCaixa = await vincular(caixa, fornCaixa, { fator: 5000, precoFornecedor: 61.1, precoCusto: 0.0122 });
+    const popup = await banco.fornecedoresParaCompra(caixa.id);
+    conferir("fator: popup sugere caixas (7000 un. / 5000 = 2 cx) com o preco da caixa", [popup.linhas[0].fator, popup.linhas[0].sugerida, popup.linhas[0].precoUnitario], [5000, 2, 61.1]);
+    const pedidoCaixa = await banco.adicionarAoPedido({ produtoId: caixa.id, vinculoId: vCaixa.id, quantidade: 2 });
+    await banco.mudarStatus(pedidoCaixa.pedidoId, "ENVIADO");
+    const itemCaixa = await prisma.itemDoPedidoDeCompra.findFirst({ where: { pedidoId: pedidoCaixa.pedidoId } });
+    conferir("fator: item em caixas guarda o fator", [itemCaixa.quantidade, itemCaixa.fator, Number(itemCaixa.precoUnitario)], [2, 5000, 61.1]);
+    conferir("fator: a caminho em unidades", (await banco.aCaminhoDosProdutos([caixa.id])).get(caixa.id), 10000);
+    const falsoCaixa = criarBlingFalso({ produtos: [noBling("ZZ-COMPRA-L2", 15000000902)], saldos: { "ZZ-COMPRA-L2": 0 }, codigosLiberados: ["ZZ-COMPRA-L2"] });
+    resultado = await lancamento.lancarEstoqueDoItem(itemCaixa.id, 1, { cliente: falsoCaixa });
+    const estoqueCaixa = async () => (await prisma.produto.findUnique({ where: { id: caixa.id } })).estoque;
+    conferir("fator: lancar 1 cx entra 5000 un. (Rise e Bling)", [resultado.ok, await estoqueCaixa(), falsoCaixa.saldo("ZZ-COMPRA-L2")], [true, 5000, 5000]);
+    conferir("fator: falta 1 cx = 5000 a caminho", (await banco.aCaminhoDosProdutos([caixa.id])).get(caixa.id), 5000);
+    conferir("fator: lancar 2 cx quando falta 1 recusa", (await lancamento.lancarEstoqueDoItem(itemCaixa.id, 2, { cliente: falsoCaixa })).ok, false);
+    resultado = await lancamento.desfazerUltimoLancamento(itemCaixa.id, { cliente: falsoCaixa });
+    conferir("fator: desfazer tira 5000", [resultado.ok, await estoqueCaixa()], [true, 0]);
   }
 
   {

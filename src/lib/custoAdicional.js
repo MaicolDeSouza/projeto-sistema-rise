@@ -14,6 +14,7 @@ const PROFUNDIDADE = 5;
 
 const SELECAO_DO_VINCULO = {
   id: true, produtoId: true, padrao: true, precoCusto: true, precoFornecedor: true, adicionais: true, adicionaisValor: true,
+  fator: true,
 };
 
 const comoNumero = (valor) => (valor === null || valor === undefined ? null : Number(valor));
@@ -50,7 +51,7 @@ export async function recalcularVinculos(vinculos, cliente = prisma) {
     const soma = adicionais.length > 0 ? somaDosAdicionais(adicionais, (id) => custos.get(id)?.custo ?? null).total : null;
     // Linha anterior aos adicionais sem `precoFornecedor`: o custo gravado e o preco do fornecedor.
     const base = comoNumero(vinculo.precoFornecedor ?? vinculo.precoCusto);
-    const novo = custoTotal(base, soma ?? 0);
+    const novo = custoTotal(base, soma ?? 0, vinculo.fator);
     const atual = comoNumero(vinculo.precoCusto);
     if (novo === atual && soma === comoNumero(vinculo.adicionaisValor) && base === comoNumero(vinculo.precoFornecedor)) continue;
     await cliente.produtoFornecedor.update({ where: { id: vinculo.id }, data: { precoCusto: novo, adicionaisValor: soma, precoFornecedor: base } });

@@ -622,6 +622,8 @@ try {
     (id) => (id === "c" ? 3.2 : null)), { total: 7.4, semCusto: ["d"] });
   conferir("adicional: sem preco do fornecedor nao ha custo", custoTotal(null, 5), null);
   conferir("adicional: total em centavos", custoTotal("20.10", 0.2), 20.3);
+  // Fator (06/11/2026): caixa de 5000 resistores por R$ 61,10 = R$ 0,0122 a peca (4 casas; com 2 virava 0,01).
+  conferir("fator: preco da caixa / fator, 4 casas", [custoTotal("61.10", 0, 5000), custoTotal(61.1, 0.5, 5000), custoTotal(10, 0, "x"), custoTotal(10, 0, 0)], [0.0122, 0.5122, 10, 10]);
 
   const fonteAdic = await prisma.fonteColeta.create({
     data: { nome: "ZZ Fonte Adicional", dominio: "teste-adicional.local", tipo: "FORNECEDOR", ativa: false },

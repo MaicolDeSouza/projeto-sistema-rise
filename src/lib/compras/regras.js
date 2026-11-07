@@ -90,9 +90,31 @@ export function faltaLancar({ quantidade, quantidadeLancada }) {
   return Math.max(0, (Number(quantidade) || 0) - (Number(quantidadeLancada) || 0));
 }
 
-/** O estoque a caminho de UM produto: o que falta lancar dos itens de pedidos enviados ou parciais. */
+/** O fator do item (1 caixa do fornecedor = `fator` unidades no Rise, 06/11/2026); ausente ou invalido = 1. */
+export function fatorDoItem(item) {
+  const fator = Number(item?.fator);
+  return Number.isInteger(fator) && fator >= 1 ? fator : 1;
+}
+
+/** Unidades do Rise de uma quantidade do item (caixas x fator). */
+export function unidadesNoRise(quantidade, item) {
+  return (Number(quantidade) || 0) * fatorDoItem(item);
+}
+
+/**
+ * Caixas para cobrir `unidades` do Rise: arredonda para CIMA (precisa de 7.000 resistores e a caixa tem 5.000 = 2
+ * caixas; pedido do dono em 06/11/2026: o pedido de compra respeita o multiplo do fornecedor). Ao menos 1.
+ */
+export function caixasPara(unidades, fator) {
+  const porCaixa = fatorDoItem({ fator });
+  return Math.max(1, Math.ceil((Number(unidades) || 0) / porCaixa));
+}
+
+/** O estoque a caminho de UM produto, em unidades do Rise: o que falta lancar (caixas x fator) dos pedidos enviados. */
 export function aCaminho(itens = []) {
-  return itens.filter((item) => STATUS_A_CAMINHO.includes(item.status)).reduce((soma, item) => soma + faltaLancar(item), 0);
+  return itens
+    .filter((item) => STATUS_A_CAMINHO.includes(item.status))
+    .reduce((soma, item) => soma + faltaLancar(item) * fatorDoItem(item), 0);
 }
 
 /**

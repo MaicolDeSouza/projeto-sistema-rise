@@ -6,7 +6,9 @@ import {
   STATUS_ABERTOS,
   STATUS_A_CAMINHO,
   aCaminho,
+  caixasPara,
   entraNaListaDeMinimo,
+  fatorDoItem,
   estadoDoCarrinho,
   faltaLancar,
   numeroDoPedido,
@@ -34,7 +36,7 @@ export async function aCaminhoDosProdutos(ids) {
   if (ids.length === 0) return resultado;
   const itens = await prisma.itemDoPedidoDeCompra.findMany({
     where: { produtoId: { in: ids }, pedido: { status: { in: STATUS_A_CAMINHO } } },
-    select: { produtoId: true, quantidade: true, quantidadeLancada: true, pedido: { select: { status: true } } },
+    select: { produtoId: true, quantidade: true, quantidadeLancada: true, fator: true, pedido: { select: { status: true } } },
   });
   for (const id of ids) {
     resultado.set(id, aCaminho(itens.filter((item) => item.produtoId === id).map((item) => ({ ...item, status: item.pedido.status }))));
@@ -167,10 +169,11 @@ export async function fornecedoresParaCompra(produtoId) {
   const linhas = produto.fornecedores.map((vinculo) => {
     const coletado = coletados[vinculo.id] ?? null;
     const preco = precoInicialDoItem({
-      precoFornecedor: numero(vinculo.precoFornecedor ?? vinculo.precoCusto),
+      precoFornecedor: precoDaCaixa(vinculo),
       coletado: coletado ? { precoNormal: coletado.precoNormal, impostos: coletado.impostos } : null,
     });
     const rascunho = rascunhos.find((item) => item.pedido.fornecedorId === vinculo.fornecedorId)?.pedido ?? null;
+    const fator = fatorDoItem(vinculo);
     return {
       vinculoId: vinculo.id,
       fornecedorId: vinculo.fornecedorId,
@@ -180,6 +183,9 @@ export async function fornecedoresParaCompra(produtoId) {
       link: vinculo.link,
       padrao: vinculo.padrao,
       ...preco,
+      // Fator (06/11/2026): o preco e o da caixa e a quantidade sugerida ja vem em caixas (o maximo / fator, para cima).
+      fator,
+      sugerida: caixasPara(quantidadeSugerida({ estoqueMinimo: produto.estoqueMinimo, estoqueMaximo: produto.estoqueMaximo }), fator),
       coletadoId: coletado?.coletadoId ?? null,
       estoqueFornecedor: coletado
         ? { quantidade: coletado.quantidade, estoqueStatus: coletado.estoqueStatus, ativo: coletado.ativo }
@@ -233,12 +239,22 @@ function quantidadeValida(valor) {
   return Number.isInteger(quantidade) && quantidade >= 1 && quantidade <= QUANTIDADE_MAXIMA ? quantidade : null;
 }
 
+/**
+ * O preco da CAIXA do fornecedor (o item do pedido e em caixas desde 06/11/2026). Linha antiga sem `precoFornecedor`:
+ * o custo gravado e por unidade do Rise, entao vezes o fator.
+ */
+function precoDaCaixa(vinculo) {
+  if (vinculo.precoFornecedor !== null && vinculo.precoFornecedor !== undefined) return numero(vinculo.precoFornecedor);
+  const custo = numero(vinculo.precoCusto);
+  return custo === null ? null : Math.round(custo * fatorDoItem(vinculo) * 10000) / 10000;
+}
+
 /** O preco e o IPI com que um item nasce a partir de um vinculo (a coleta do fornecedor, quando houver). */
 async function precoDoVinculo(vinculo, nomeDoFornecedor) {
   const coleta = await estoqueDosFornecedores([{ id: vinculo.id, nome: nomeDoFornecedor, codigo: vinculo.codigo, link: vinculo.link, descricao: vinculo.descricao }]);
   const coletado = coleta.ok ? coleta.itens[vinculo.id] : null;
   return precoInicialDoItem({
-    precoFornecedor: numero(vinculo.precoFornecedor ?? vinculo.precoCusto),
+    precoFornecedor: precoDaCaixa(vinculo),
     coletado: coletado ? { precoNormal: coletado.precoNormal, impostos: coletado.impostos } : null,
   });
 }
@@ -280,6 +296,7 @@ export async function adicionarAoPedido({ produtoId, vinculoId, quantidade }) {
           codigoNoFornecedor: vinculo.codigo,
           link: vinculo.link,
           quantidade: qtde,
+          fator: fatorDoItem(vinculo),
           precoUnitario: preco.precoUnitario,
           ipiPercentual: preco.ipiPercentual,
           prazoDias: vinculo.fornecedor.prazoEntregaDias,
@@ -360,6 +377,7 @@ export async function colocarItensNoRascunho(fornecedorId, itens) {
             codigoNoFornecedor: vinculo?.codigo ?? null,
             link: vinculo?.link ?? null,
             quantidade: Number(item.quantidade),
+            fator: fatorDoItem(vinculo),
             precoUnitario: padrao.precoUnitario,
             ipiPercentual: padrao.ipiPercentual,
             ...informado,
@@ -393,6 +411,7 @@ function pedidoParaTela(pedido) {
     codigoNoFornecedor: item.codigoNoFornecedor,
     link: item.link,
     quantidade: item.quantidade,
+    fator: item.fator ?? 1,
     precoUnitario: numero(item.precoUnitario),
     ipiPercentual: numero(item.ipiPercentual) ?? 0,
     prazoDias: item.prazoDias,
@@ -714,6 +733,7 @@ export async function adicionarItem(pedidoId, produtoId) {
         codigoNoFornecedor: vinculo?.codigo ?? null,
         link: vinculo?.link ?? null,
         quantidade: 1,
+        fator: fatorDoItem(vinculo),
         precoUnitario: preco.precoUnitario,
         ipiPercentual: preco.ipiPercentual,
         prazoDias: pedido.fornecedor.prazoEntregaDias,

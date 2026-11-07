@@ -1501,6 +1501,27 @@ janela larga (`JanelaDoFornecedor` em `Fornecedores.jsx`, moldura `Janela` das L
 dólar); com o fornecedor escolhido, só a lista dele. Escolher preenche descrição, código, preço e link e mantém Obs e
 adicionais. O Enter não salva (a janela usa `<div>`: no React ela continua dentro do `<form>` do produto).
 
+**Fator do fornecedor (embalagem)** (06/11/2026, pedido do dono: "a fortek vende resistor em lote de 5000, mas eu vendo
+avulso"; Opções escolhidas: pedido em caixas e custo com 4 casas). O campo `ProdutoFornecedor.fator` já existia para o
+AliExpress (28/10) e agora vale para todo fornecedor, com o campo **Fator** na janela do fornecedor (bolha "i", mostra o
+"R$ x / un."). Migration `20261106b_fator_do_fornecedor`.
+- **Custo:** `precoFornecedor` é o preço da UNIDADE DO FORNECEDOR (a caixa) e `precoCusto` = `precoFornecedor / fator` +
+  adicionais, por unidade do Rise, em **4 casas** (`custoTotal(preco, soma, fator)` em `custoAdicionalRegras.js`; o SQL da
+  varredura em `coleta/banco.js` usa `ROUND(custo / v.fator + adicionais, 4)`). `precoCusto`, `precoFornecedor`,
+  `Produto.custo` e `ItemDoPedidoDeVenda.custoUnitarioCongelado` passaram a `DECIMAL(12,4)`: R$ 61,10 / 5000 = R$ 0,0122
+  (com 2 casas virava R$ 0,01). A tela mostra custo abaixo de R$ 1 com até 4 casas (`custoNaTela`) e "R$ 61,10 / cx 5.000"
+  embaixo. **O Bling continua recebendo 2 casas** (`custoOuNull`, nunca medido com 4).
+- **AliExpress:** o `precoFornecedor` dos vínculos com fator era o preço POR PEÇA; a migration multiplicou pelo fator (na
+  VPS, 3 vínculos: 120740 ×5, 192002 ×50, 900907 ×200) e `atualizarCustoDosVinculos` grava custo × fator. O item do pedido do
+  AliExpress continua em unidades do Rise (`ItemDoPedidoDeCompra.fator` = 1; as linhas convertem).
+- **Compras:** o item é em CAIXAS, com o preço da caixa, e guarda o fator do vínculo (`ItemDoPedidoDeCompra.fator`). O popup
+  do mínimo sugere `caixasPara(máximo, fator)` (para cima) e mostra "cx com N un."; a linha do pedido mostra "cx = N un.";
+  o lançamento é em caixas e entra caixas × fator no Rise e no Bling (`unidadesNoRise`), o desfazer tira o mesmo; o "a
+  caminho" (`aCaminho`, a lista do mínimo, o MCP) é em unidades. O PDF não mudou (caixas × preço da caixa = o que o fornecedor
+  fatura). O MCP devolve `fator` nos fornecedores e nos itens, e `montarPedidoDeCompra` recebe quantidade em caixas.
+- **Testes:** `teste:coleta` (custo ÷ fator) e `teste:compras` (a caminho × fator, caixas para cima, popup, item, lançar e
+  desfazer 1 cx = 5000).
+
 **Regras por fornecedor** — `src/lib/coleta/fornecedores.js`, dado e não código:
 
 - **Fortek — `sufixoDeCarga`.** `02-268-A` é o mesmo item que `02-268`; o sufixo é a carga.

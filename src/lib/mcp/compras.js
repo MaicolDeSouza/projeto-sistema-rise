@@ -12,7 +12,7 @@ import {
 } from "@/lib/compras/banco";
 import { conferirPedido } from "@/lib/compras/esquema";
 import { semPrecos } from "@/lib/compras/projecao";
-import { faltaLancar, numeroDoPedido, quantidadeSugerida } from "@/lib/compras/regras";
+import { faltaLancar, numeroDoPedido, quantidadeSugerida, unidadesNoRise } from "@/lib/compras/regras";
 import { formatarCnpj } from "@/lib/documentos";
 import { RESTRITO } from "@/lib/riseAi/busca";
 import { ErroDeFerramenta } from "@/lib/riseAi/ferramentas/erro";
@@ -178,7 +178,9 @@ function pedidoParaConversa(pedido, veCusto) {
       nome: item.nome,
       nomeNoFornecedor: item.nomeNoFornecedor,
       codigoNoFornecedor: item.codigoNoFornecedor,
+      // Quantidade e preco na unidade do FORNECEDOR (a caixa); `fator` = unidades do Rise por caixa (06/11/2026).
       quantidade: item.quantidade,
+      fator: item.fator ?? 1,
       precoUnitario: veCusto ? item.precoUnitario : RESTRITO,
       ipiPercentual: veCusto ? item.ipiPercentual : RESTRITO,
       prazoDias: item.prazoDias,
@@ -220,7 +222,7 @@ export async function produtosAbaixoDoMinimo({ termos, limite = 50 }, { pode }) 
     ? await prisma.produtoFornecedor.findMany({
         where: { produtoId: { in: linhas.map((linha) => linha.id) } },
         orderBy: [{ padrao: "desc" }, { criadoEm: "asc" }],
-        select: { produtoId: true, codigo: true, padrao: true, precoCusto: true, fornecedor: { select: { nome: true } } },
+        select: { produtoId: true, codigo: true, padrao: true, precoCusto: true, fator: true, fornecedor: { select: { nome: true } } },
       })
     : [];
   return {
@@ -241,7 +243,9 @@ export async function produtosAbaixoDoMinimo({ termos, limite = 50 }, { pode }) 
           nome: vinculo.fornecedor.nome,
           codigo: vinculo.codigo,
           padrao: vinculo.padrao,
+          // Custo por unidade do Rise; `fator` = unidades por caixa do fornecedor (o pedido pede caixas, 06/11/2026).
           custo: veCusto ? numero(vinculo.precoCusto) : RESTRITO,
+          fator: vinculo.fator ?? 1,
         })),
     })),
   };
@@ -303,7 +307,8 @@ export async function comprasACaminhoDoProduto({ produto, limite = 10 }, { pode 
     const doItem = ali?.pacotes.filter((pacote) => pacote.itens.includes(lido.sku)) ?? [];
     const pacotes = doItem.length ? doItem : ali?.pacotes ?? [];
     const entrada = porProduto.get(item.produtoId) ?? { sku: lido.sku, nome: lido.nome, aCaminho: 0, pedidos: [] };
-    entrada.aCaminho += faltaLancar(lido);
+    // Em unidades do Rise: as caixas que faltam x o fator do item (06/11/2026).
+    entrada.aCaminho += unidadesNoRise(faltaLancar(lido), lido);
     entrada.pedidos.push({
       codigo: pedido.codigo,
       fornecedor: pedido.fornecedor.nome,
@@ -449,8 +454,8 @@ export const FERRAMENTAS_DE_COMPRAS_ESCRITA = [
           z.object({
             sku: z.string().trim().min(1).max(60).optional().describe("SKU do produto no Rise (preferido)"),
             codigoNoFornecedor: z.string().trim().min(1).max(120).optional().describe("Código do produto no fornecedor, quando não souber o SKU"),
-            quantidade: z.number().int().min(1).max(9_999_999),
-            precoUnitario: z.number().min(0).max(9_999_999).optional().describe("Preço unitário SEM IPI, em reais"),
+            quantidade: z.number().int().min(1).max(9_999_999).describe("Na unidade do FORNECEDOR: com fator 5000 (caixa de 5000), 2 = duas caixas = 10.000 unidades no Rise"),
+            precoUnitario: z.number().min(0).max(9_999_999).optional().describe("Preço da unidade do fornecedor (a caixa, quando há fator) SEM IPI, em reais"),
             ipiPercentual: z.number().min(0).max(100).optional().describe("IPI em %"),
           }),
         )

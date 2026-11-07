@@ -56,6 +56,16 @@ export const FornecedorDoProdutoSchema = z.object({
   // conta (`recalcularVinculos`). Os dois ficam `undefined` quando a tela nao os manda (o Salvar le a diferenca).
   precoFornecedor: decimal().optional(),
   adicionais: z.array(z.unknown()).max(50).optional(),
+  // Fator (pedido do dono em 06/11/2026): 1 do fornecedor = `fator` unidades do Rise (caixa de 5000 resistores). Ausente
+  // (tela antiga, linha do rascunho do Bling) = o banco nao muda.
+  fator: z.preprocess(
+    (valor) => (valor === "" || valor === null ? undefined : valor),
+    z.coerce.number({ message: "Informe o fator em número inteiro." })
+      .int("Informe o fator em número inteiro.")
+      .min(1, "O fator é no mínimo 1.")
+      .max(1_000_000, "O fator é no máximo 1.000.000.")
+      .optional(),
+  ),
   link: opcional(
     z.string().trim().refine(ehUrlSegura, "Informe um endereço http ou https."),
   ),

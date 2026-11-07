@@ -3,7 +3,7 @@ import { clienteBling } from "@/lib/blingSync/cliente";
 import { virtualNaChegada } from "@/lib/compras/aliexpress/casamento";
 import { enviarAjustesDeEstoque } from "@/lib/blingSync/envio";
 import { prisma } from "@/lib/db";
-import { faltaLancar, numeroDoPedido, statusDepoisDeLancar, validarQuantidadeDeLancamento } from "@/lib/compras/regras";
+import { faltaLancar, numeroDoPedido, statusDepoisDeLancar, unidadesNoRise, validarQuantidadeDeLancamento } from "@/lib/compras/regras";
 
 /**
  * Lancar no estoque o que chegou de um item do pedido de compra, e desfazer (spec §7.5). Nenhum caminho novo de escrita
@@ -18,7 +18,7 @@ import { faltaLancar, numeroDoPedido, statusDepoisDeLancar, validarQuantidadeDeL
 
 async function travarItem(tx, itemId) {
   const [linha] = await tx.$queryRaw`
-    SELECT i."produtoId", i."quantidade", i."quantidadeLancada", i."pedidoId", p."status"::text AS "status", p."numero"
+    SELECT i."produtoId", i."quantidade", i."quantidadeLancada", i."fator", i."pedidoId", p."status"::text AS "status", p."numero"
     FROM "ItemDoPedidoDeCompra" i JOIN "PedidoDeCompra" p ON p."id" = i."pedidoId"
     WHERE i."id" = ${String(itemId ?? "")}
     FOR UPDATE OF i, p`;
@@ -62,9 +62,11 @@ export async function lancarEstoqueDoItem(itemId, quantidade, { cliente = client
         return { ok: false, erro: falta === 0 ? `Já lançado ${item.quantidadeLancada} de ${item.quantidade}.` : valida.erro };
       }
 
+      // O lancamento e em CAIXAS do fornecedor (como o item); no estoque entram caixas x fator (06/11/2026: 1 caixa de
+      // resistores da Fortek = 5000 unidades).
       const ajuste = await ajustarEstoqueNaTransacao(tx, item.produtoId, {
         tipo: "ENTRADA",
-        quantidade: valida.quantidade,
+        quantidade: unidadesNoRise(valida.quantidade, item),
         motivo: "Compra de fornecedor",
         observacao: numeroDoPedido(item.numero),
       });
@@ -75,7 +77,7 @@ export async function lancarEstoqueDoItem(itemId, quantidade, { cliente = client
         select: { id: true },
       });
       const status = await acertarItemEPedido(tx, String(itemId), item.pedidoId, item.status);
-      return { ok: true, lancamentoId: lancamento.id, saldoNovo: ajuste.saldoNovo, status, produtoId: item.produtoId, quantidade: valida.quantidade };
+      return { ok: true, lancamentoId: lancamento.id, saldoNovo: ajuste.saldoNovo, status, produtoId: item.produtoId, quantidade: unidadesNoRise(valida.quantidade, item) };
     });
   } catch (erro) {
     return { ok: false, erro: `Não foi possível lançar: ${erro.message}` };
@@ -106,7 +108,7 @@ export async function desfazerUltimoLancamento(itemId, { cliente = clienteBling(
 
       const ajuste = await ajustarEstoqueNaTransacao(tx, item.produtoId, {
         tipo: "SAIDA",
-        quantidade: ultimo.quantidade,
+        quantidade: unidadesNoRise(ultimo.quantidade, item),
         motivo: "Outro",
         observacao: `Desfazer lançamento ${numeroDoPedido(item.numero)}`,
       });
@@ -120,7 +122,7 @@ export async function desfazerUltimoLancamento(itemId, { cliente = clienteBling(
 
       await tx.lancamentoDoItemDeCompra.update({ where: { id: ultimo.id }, data: { desfeitoEm: new Date() } });
       const status = await acertarItemEPedido(tx, String(itemId), item.pedidoId, item.status);
-      return { ok: true, lancamentoId: ultimo.id, saldoNovo: ajuste.saldoNovo, status, produtoId: item.produtoId, quantidade: ultimo.quantidade };
+      return { ok: true, lancamentoId: ultimo.id, saldoNovo: ajuste.saldoNovo, status, produtoId: item.produtoId, quantidade: unidadesNoRise(ultimo.quantidade, item) };
     });
   } catch (erro) {
     return { ok: false, erro: `Não foi possível desfazer: ${erro.message}` };

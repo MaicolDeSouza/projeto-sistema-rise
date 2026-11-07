@@ -136,6 +136,12 @@ export default function BlocoItens({
                       aria-label={`Quantidade de ${item.sku}`}
                       className={`${campo} min-w-16 text-right`}
                     />
+                    {/* Fator (06/11/2026): a quantidade e em caixas do fornecedor; no estoque entram caixas x fator. */}
+                    {item.fator > 1 && (
+                      <span className="mt-0.5 block whitespace-nowrap text-right text-[11px] text-suave" title={`1 cx = ${item.fator.toLocaleString("pt-BR")} un. no estoque`}>
+                        cx = {((doTexto(item.quantidade) ?? 0) * item.fator).toLocaleString("pt-BR")} un.
+                      </span>
+                    )}
                   </td>
                   {veCusto && (
                     <td className="px-3 py-2">

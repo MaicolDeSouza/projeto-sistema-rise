@@ -360,7 +360,7 @@ export async function atualizarCustosDosVinculos(tx, fonteId) {
   // cabo que a Fortek nao manda junto): `adicionaisValor` guarda a soma de agora, entao o total sai aqui mesmo, em SQL.
   const linhas = await tx.$queryRaw`
     UPDATE "ProdutoFornecedor" v
-       SET "precoFornecedor" = alvo.custo, "precoCusto" = alvo.custo + COALESCE(v."adicionaisValor", 0),
+       SET "precoFornecedor" = alvo.custo, "precoCusto" = ROUND(alvo.custo / v.fator + COALESCE(v."adicionaisValor", 0), 4),
            "atualizadoEm" = (NOW() AT TIME ZONE 'UTC')
       FROM (
         SELECT DISTINCT ON (v2.id) v2.id,
@@ -374,7 +374,7 @@ export async function atualizarCustosDosVinculos(tx, fonteId) {
            AND COALESCE(p."precoComImpostos", p."precoNormal", p."precoPromocional") IS NOT NULL
          ORDER BY v2.id, p."vistoEm" DESC
       ) alvo
-     WHERE v.id = alvo.id AND v."precoCusto" IS DISTINCT FROM alvo.custo + COALESCE(v."adicionaisValor", 0)
+     WHERE v.id = alvo.id AND v."precoCusto" IS DISTINCT FROM ROUND(alvo.custo / v.fator + COALESCE(v."adicionaisValor", 0), 4)
     RETURNING v."produtoId"`;
   return linhas.map((linha) => linha.produtoId);
 }
@@ -392,7 +392,7 @@ export async function atualizarCustosDoProduto(produtoId, cliente = prisma) {
   // O preco do fornecedor vem da varredura; o total soma os adicionais (24/10/2026, ver `atualizarCustosDosVinculos`).
   return cliente.$executeRaw`
     UPDATE "ProdutoFornecedor" v
-       SET "precoFornecedor" = alvo.custo, "precoCusto" = alvo.custo + COALESCE(v."adicionaisValor", 0),
+       SET "precoFornecedor" = alvo.custo, "precoCusto" = ROUND(alvo.custo / v.fator + COALESCE(v."adicionaisValor", 0), 4),
            "atualizadoEm" = (NOW() AT TIME ZONE 'UTC')
       FROM (
         SELECT DISTINCT ON (v2.id) v2.id,
@@ -406,7 +406,7 @@ export async function atualizarCustosDoProduto(produtoId, cliente = prisma) {
            AND COALESCE(p."precoComImpostos", p."precoNormal", p."precoPromocional") IS NOT NULL
          ORDER BY v2.id, p."vistoEm" DESC
       ) alvo
-     WHERE v.id = alvo.id AND (v."precoFornecedor" IS DISTINCT FROM alvo.custo OR v."precoCusto" IS DISTINCT FROM alvo.custo + COALESCE(v."adicionaisValor", 0))`;
+     WHERE v.id = alvo.id AND (v."precoFornecedor" IS DISTINCT FROM alvo.custo OR v."precoCusto" IS DISTINCT FROM ROUND(alvo.custo / v.fator + COALESCE(v."adicionaisValor", 0), 4))`;
 }
 
 /**

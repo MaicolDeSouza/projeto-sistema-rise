@@ -172,7 +172,9 @@ export async function carregarProdutoParaFormulario(id) {
       codigo: vinculo.codigo,
       precoFornecedor,
       adicionais,
-      precoCusto: custoTotal(precoFornecedor, soma),
+      // Fator (06/11/2026): o preco do fornecedor e o da caixa; o custo e por unidade do Rise.
+      fator: vinculo.fator ?? 1,
+      precoCusto: custoTotal(precoFornecedor, soma, vinculo.fator),
       link: vinculo.link,
       padrao: vinculo.padrao,
     };

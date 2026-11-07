@@ -25,14 +25,16 @@ export function custoCongeladoDoProduto(produto) {
       if (custo === null) return { custo: null, origem: null };
       soma += custo * Number(peca?.quantidade ?? 0);
     }
-    return pecas.length > 0 ? { custo: Math.round(soma * 100) / 100, origem: "kit" } : { custo: null, origem: null };
+    // 4 casas, como o custo do vinculo desde 06/11/2026 (10 resistores de R$ 0,0122 = R$ 0,122, e nao R$ 0,12).
+    return pecas.length > 0 ? { custo: Math.round(soma * 10000) / 10000, origem: "kit" } : { custo: null, origem: null };
   }
   if (produto.pecasProprias) {
     const custo = numero(produto.custo);
     return custo === null ? { custo: null, origem: null } : { custo, origem: "pecas" };
   }
   const padrao = (produto.fornecedores ?? []).find((f) => f?.padrao && numero(f.precoFornecedor) !== null);
-  if (padrao) return { custo: numero(padrao.precoFornecedor), origem: "fornecedorPadrao" };
+  // Fator (06/11/2026): o preco do fornecedor e o da caixa (5000 resistores); o custo e o de uma unidade, em 4 casas.
+  if (padrao) return { custo: Math.round((numero(padrao.precoFornecedor) / (Number(padrao.fator) || 1)) * 10000) / 10000, origem: "fornecedorPadrao" };
   const rascunho = numero(produto.fornecedorRascunho?.precoCusto);
   if (rascunho !== null) return { custo: rascunho, origem: "rascunhoBling" };
   const cadastro = numero(produto.custo);
@@ -41,7 +43,7 @@ export function custoCongeladoDoProduto(produto) {
 }
 
 const INCLUIR_PRODUTO = {
-  fornecedores: { select: { padrao: true, precoFornecedor: true } },
+  fornecedores: { select: { padrao: true, precoFornecedor: true, fator: true } },
   componentes: {
     select: {
       quantidade: true,
@@ -51,7 +53,7 @@ const INCLUIR_PRODUTO = {
           tipo: true,
           pecasProprias: true,
           fornecedorRascunho: true,
-          fornecedores: { select: { padrao: true, precoFornecedor: true } },
+          fornecedores: { select: { padrao: true, precoFornecedor: true, fator: true } },
         },
       },
     },

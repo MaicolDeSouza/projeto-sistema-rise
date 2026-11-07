@@ -60,7 +60,8 @@ export default function PopupFornecedores({ produto, aoFechar }) {
     return () => document.removeEventListener("keydown", aoTeclar);
   }, [aoFechar]);
 
-  const quantidadeDe = (linha) => quantidades[linha.vinculoId] ?? String(dados?.produto.sugerida ?? "");
+  // Fator (06/11/2026): a sugestao de cada linha ja vem em caixas do fornecedor (o maximo / fator, para cima).
+  const quantidadeDe = (linha) => quantidades[linha.vinculoId] ?? String(linha.sugerida ?? dados?.produto.sugerida ?? "");
 
   function adicionar(linha) {
     const quantidade = Number(quantidadeDe(linha));
@@ -153,6 +154,7 @@ export default function PopupFornecedores({ produto, aoFechar }) {
                         <td className="px-3 py-2 font-mono text-xs">{linha.codigo || "—"}</td>
                         <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
                           {linha.precoUnitario === null ? "—" : moeda.format(linha.precoUnitario)}
+                          {linha.fator > 1 && <span className="block text-[11px] text-suave">cx com {linha.fator.toLocaleString("pt-BR")} un.</span>}
                           {linha.ipiPercentual > 0 && <span className="block text-[11px] text-suave">+ IPI {linha.ipiPercentual}%</span>}
                         </td>
                         <td className={`whitespace-nowrap px-3 py-2 text-xs ${estoque.cor}`}>{estoque.texto}</td>
@@ -173,6 +175,11 @@ export default function PopupFornecedores({ produto, aoFechar }) {
                               onChange={(evento) => setQuantidades((antes) => ({ ...antes, [linha.vinculoId]: soDigitos(evento.target.value) }))}
                               className="w-16 rounded-md border border-borda px-2 py-1 text-right tabular-nums focus:border-acento focus:outline-none focus:ring-2 focus:ring-acento/20"
                             />
+                          )}
+                          {!linha.noRascunho && linha.fator > 1 && (
+                            <span className="mt-0.5 block whitespace-nowrap text-[11px] text-suave">
+                              cx = {((Number(qtde) || 0) * linha.fator).toLocaleString("pt-BR")} un.
+                            </span>
                           )}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-right">

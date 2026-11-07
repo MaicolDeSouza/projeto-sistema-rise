@@ -155,7 +155,8 @@ model Produto {
   tituloBase    String
   descricaoBase String?
 
-  custo      Decimal? @db.Decimal(12, 2)
+  /// 4 casas desde 06/11/2026 (peca de centavos que vem em caixa de milhares; ver ProdutoFornecedor.fator).
+  custo      Decimal? @db.Decimal(12, 4)
   precoVenda Decimal? @db.Decimal(12, 2)
   estoque    Int      @default(0)
 
@@ -1484,9 +1485,12 @@ model ProdutoFornecedor {
   codigo          String?
   /// O custo TOTAL do vinculo, o que o resto do Rise le (margem, proposta, Bling, indicadores, foto mensal): o preco do
   /// fornecedor mais os adicionais (24/10/2026). Sem adicionais, e o preco do fornecedor.
-  precoCusto      Decimal? @db.Decimal(12, 2)
-  /// O que o FORNECEDOR cobra (a lista, a varredura com impostos ou o digitado). A varredura escreve aqui e refaz o total.
-  precoFornecedor Decimal? @db.Decimal(12, 2)
+  /// Desde 06/11/2026: POR UNIDADE DO RISE = precoFornecedor / fator + adicionais, em 4 casas (o resistor da Fortek em
+  /// caixa de 5000 por R$ 61,10 custa R$ 0,0122 a peca; com 2 casas virava R$ 0,01).
+  precoCusto      Decimal? @db.Decimal(12, 4)
+  /// O que o FORNECEDOR cobra pela unidade DELE (a caixa de 5000; a lista, a varredura com impostos ou o digitado). A
+  /// varredura escreve aqui e refaz o total.
+  precoFornecedor Decimal? @db.Decimal(12, 4)
   /// Adicionais somados ao custo (pedido do dono em 24/10/2026: "meu fornecedor vende arduino sem cabo, mas eu vendo
   /// apenas com cabo"): `[{ descricao, valor }]` (valor fixo) ou `[{ produtoId, quantidade }]` (o custo de hoje de um
   /// produto do Rise, que acompanha o custo dele). Regras em src/lib/custoAdicionalRegras.js.
@@ -1498,7 +1502,9 @@ model ProdutoFornecedor {
   /// De qual fornecedor sai o custo do produto. Exatamente um por produto.
   padrao          Boolean  @default(false)
   /// Embalagem do fornecedor: 1 comprado = `fator` unidades no Rise ("kit de 100 pcs" vendido como 1 item; pedido do
-  /// dono em 28/10/2026). A compra entra com quantidade x fator e preco / fator.
+  /// dono em 28/10/2026). A compra entra com quantidade x fator e preco / fator. Desde 06/11/2026 vale para todo
+  /// fornecedor (a Fortek vende resistor em caixa de 5000): o custo do vinculo e `precoFornecedor / fator`, e o pedido
+  /// de compra pede caixas (o item guarda o fator; o lancamento entra caixas x fator no estoque).
   fator           Int      @default(1)
 
   criadoEm     DateTime @default(now())
@@ -2338,8 +2344,13 @@ model ItemDoPedidoDeCompra {
   codigoNoFornecedor String?
   link               String?
 
+  /// Na unidade DO FORNECEDOR (caixas), desde 06/11/2026: o pedido pede o que ele vende. No estoque entram
+  /// quantidade x `fator`.
   quantidade    Int
-  /// 4 casas: fornecedor cobra R$ 0,0385 a peca.
+  /// O fator do vinculo quando o item nasceu (1 caixa = `fator` unidades no Rise). Pedido do AliExpress fica com 1 (as
+  /// linhas dele ja convertem para unidades do Rise).
+  fator         Int      @default(1)
+  /// 4 casas: fornecedor cobra R$ 0,0385 a peca. Preco da unidade do fornecedor (a caixa).
   precoUnitario Decimal? @db.Decimal(12, 4)
   ipiPercentual Decimal  @default(0) @db.Decimal(5, 2)
   prazoDias     Int?
@@ -2701,7 +2712,7 @@ model ItemDoPedidoDeVenda {
 
   /// O custo do produto no dia da leitura e de onde veio ("fornecedorPadrao" | "rascunhoBling" | "cadastro" | "pecas" |
   /// "kit"). Congelado: o lucro estimado nao muda quando o custo do cadastro muda.
-  custoUnitarioCongelado Decimal? @db.Decimal(12, 2)
+  custoUnitarioCongelado Decimal? @db.Decimal(12, 4)
   custoOrigem            String?
   /// Produto.conferido no dia da leitura (relido a cada atualizacao do pedido).
   conferido              Boolean  @default(false)

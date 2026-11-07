@@ -49,9 +49,21 @@ const VAZIO = {
   observacao: "",
   codigo: "",
   precoFornecedor: "",
+  // Fator (pedido do dono em 06/11/2026): 1 do fornecedor = `fator` unidades do Rise (a caixa de 5000 resistores).
+  fator: "1",
   adicionais: [],
   link: "",
 };
+
+/** Custo por unidade: abaixo de R$ 1 com ate 4 casas (R$ 0,0122 a peca do resistor), senao 2. */
+function custoNaTela(valor) {
+  if (valor === null || valor === undefined) return "—";
+  const numero = Number(valor);
+  if (Math.abs(numero) >= 1 || numero === 0) return moeda.format(numero);
+  return numero.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 4 });
+}
+
+const fatorDaLinha = (vinculo) => (Number(vinculo?.fator) > 1 ? Number(vinculo.fator) : 1);
 
 /** A soma dos adicionais na tela: o produto do Rise conta com o custo lido na busca (o Salvar le de novo). */
 function somaNaTela(adicionais) {
@@ -113,6 +125,10 @@ function validarRascunho(dados) {
   }
   if (dados.link && !ehUrlSegura(dados.link)) {
     erros.link = "Informe um endereço http ou https.";
+  }
+  const fator = String(dados.fator ?? "1").trim();
+  if (fator !== "" && (!/^\d+$/.test(fator) || Number(fator) < 1 || Number(fator) > 1_000_000)) {
+    erros.fator = "Número inteiro de 1 a 1.000.000.";
   }
   // O servidor recusa a linha inteira acima disso (FornecedorSchema): melhor dizer aqui, no campo.
   if ((dados.observacao ?? "").trim().length > 500) erros.observacao = "Até 500 caracteres.";
@@ -327,6 +343,7 @@ export default function Fornecedores({
       codigo: vinculo.codigo ?? "",
       // Linha sem adicional (ou vinda do rascunho do Bling, sem o campo): o custo gravado e o preco do fornecedor.
       precoFornecedor: vinculo.precoFornecedor ?? vinculo.precoCusto ?? "",
+      fator: String(fatorDaLinha(vinculo)),
       adicionais: vinculo.adicionais ?? [],
       link: vinculo.link ?? "",
     };
@@ -344,6 +361,7 @@ export default function Fornecedores({
       observacao: "",
       codigo: item.codigo && item.codigo !== "N/A" ? item.codigo : "",
       precoFornecedor: item.preco != null ? String(item.preco) : "",
+      fator: "1",
       adicionais: [],
       link: item.url ?? "",
     };
@@ -356,14 +374,16 @@ export default function Fornecedores({
   function paraVinculo(dados) {
     const base = (dados.precoFornecedor ?? "") === "" ? null : Number(dados.precoFornecedor);
     const adicionais = adicionaisParaLista(dados.adicionais, produtoId);
+    const fator = fatorDaLinha({ fator: dados.fator });
     return {
       nome: dados.nome.trim(),
       descricao: dados.descricao.trim() || null,
       observacao: (dados.observacao ?? "").trim() || null,
       codigo: dados.codigo.trim() || null,
       precoFornecedor: base,
+      fator,
       adicionais,
-      precoCusto: custoTotal(base, somaNaTela(adicionais).total),
+      precoCusto: custoTotal(base, somaNaTela(adicionais).total, fator),
       link: dados.link.trim() || null,
     };
   }
@@ -379,6 +399,8 @@ export default function Fornecedores({
       nome: manterFornecedor && atual.nome.trim() ? atual.nome : item.fonte ?? "",
       observacao: atual.observacao ?? "",
       adicionais: atual.adicionais ?? [],
+      // O fator e da embalagem que o operador ja informou: escolher outro item da lista nao o apaga.
+      fator: atual.fator ?? "1",
     }));
   }
 
@@ -595,7 +617,7 @@ export default function Fornecedores({
                   </td>
                   <td className="px-3 py-2 tabular-nums">
                     <div className="flex items-center gap-1.5">
-                      <span>{vinculo.precoCusto === null ? "—" : moeda.format(vinculo.precoCusto)}</span>
+                      <span>{custoNaTela(vinculo.precoCusto)}</span>
                       <CustoDaVarredura
                         id={vinculo.id}
                         dado={estoques[vinculo.id]}
@@ -603,6 +625,12 @@ export default function Fornecedores({
                         aoAlternar={setPopoverAberto}
                       />
                     </div>
+                    {/* Fator (06/11/2026): o custo e por unidade; embaixo, o preco da caixa do fornecedor. */}
+                    {fatorDaLinha(vinculo) > 1 && vinculo.precoFornecedor != null && (
+                      <div className="whitespace-nowrap text-[11px] text-suave" title={`O fornecedor vende em caixa com ${fatorDaLinha(vinculo).toLocaleString("pt-BR")} unidades`}>
+                        {moeda.format(vinculo.precoFornecedor)} / cx {fatorDaLinha(vinculo).toLocaleString("pt-BR")}
+                      </div>
+                    )}
                     <ResumoDosAdicionais vinculo={vinculo} />
                   </td>
                   <td className="px-3 py-2 tabular-nums">
@@ -756,9 +784,10 @@ function ResumoDosAdicionais({ vinculo }) {
   const adicionais = vinculo.adicionais ?? [];
   if (adicionais.length === 0) return null;
   const { total, semCusto } = somaNaTela(adicionais);
+  const fator = fatorDaLinha(vinculo);
   return (
     <div className="whitespace-nowrap text-[11px] text-suave" title={adicionais.map(textoDoAdicional).join("\n")}>
-      {vinculo.precoFornecedor === null || vinculo.precoFornecedor === undefined ? "—" : moeda.format(vinculo.precoFornecedor)}
+      {vinculo.precoFornecedor === null || vinculo.precoFornecedor === undefined ? "—" : custoNaTela(Number(vinculo.precoFornecedor) / fator)}
       {" + "}
       {moeda.format(total)}
       {semCusto.length > 0 && <span className="ml-1 text-amber-700">(sem custo)</span>}
@@ -767,10 +796,10 @@ function ResumoDosAdicionais({ vinculo }) {
 }
 
 /** Na linha em edicao: o botao que abre a janela do custo adicional, com a soma e o total quando ha adicionais. */
-function BotaoAdicionais({ adicionais, precoFornecedor, aoMudar, produtoId }) {
+function BotaoAdicionais({ adicionais, precoFornecedor, fator = 1, aoMudar, produtoId }) {
   const [aberta, setAberta] = useState(false);
   const { total } = somaNaTela(adicionais);
-  const custo = custoTotal(precoFornecedor === "" ? null : precoFornecedor, total);
+  const custo = custoTotal(precoFornecedor === "" ? null : precoFornecedor, total, fator);
   return (
     <>
       <button
@@ -782,12 +811,13 @@ function BotaoAdicionais({ adicionais, precoFornecedor, aoMudar, produtoId }) {
         <Plus size={12} />
         {adicionais.length === 0
           ? "Custo adicional"
-          : `${moeda.format(total)} adicional · ${custo === null ? "—" : moeda.format(custo)}`}
+          : `${moeda.format(total)} adicional · ${custoNaTela(custo)}`}
       </button>
       {aberta && (
         <JanelaAdicionais
           inicial={adicionais}
           precoFornecedor={precoFornecedor}
+          fator={fator}
           produtoId={produtoId}
           aoConfirmar={(lista) => {
             aoMudar(lista);
@@ -806,7 +836,7 @@ function BotaoAdicionais({ adicionais, precoFornecedor, aoMudar, produtoId }) {
  * x o custo de hoje dele, que muda sozinho quando o custo do produto muda). OK devolve a lista para a linha do
  * fornecedor; so grava no Salvar do produto. Cancelar, Esc e clique fora descartam.
  */
-function JanelaAdicionais({ inicial, precoFornecedor, produtoId, aoConfirmar, aoFechar }) {
+function JanelaAdicionais({ inicial, precoFornecedor, fator = 1, produtoId, aoConfirmar, aoFechar }) {
   const [lista, setLista] = useState(() => (inicial ?? []).map((item, posicao) => ({ ...item, chave: `a${posicao}` })));
   const [codigo, setCodigo] = useState("");
   const [erro, setErro] = useState(null);
@@ -815,7 +845,7 @@ function JanelaAdicionais({ inicial, precoFornecedor, produtoId, aoConfirmar, ao
   const cheia = lista.length >= MAXIMO_ADICIONAIS;
   const { total, semCusto } = somaNaTela(lista);
   const base = precoFornecedor === "" || precoFornecedor === null || precoFornecedor === undefined ? null : precoFornecedor;
-  const custo = custoTotal(base, total);
+  const custo = custoTotal(base, total, fator);
 
   const novaChave = () => `n${proximaChave.current++}`;
   const mudar = (chave, campo, valor) => setLista((atual) => atual.map((item) => (item.chave === chave ? { ...item, [campo]: valor } : item)));
@@ -1063,15 +1093,29 @@ function JanelaDoFornecedor({
           aoEscolher={aoEscolher}
         />
 
-        <div className="grid gap-4 sm:grid-cols-[16rem_minmax(0,1fr)]">
+        <div className="grid gap-4 sm:grid-cols-[16rem_8rem_minmax(0,1fr)]">
           <Campo nome="fornecedor-precoFornecedor" rotulo="Preço do fornecedor" erro={erros.precoFornecedor || erros.precoCusto}>
-            <input type="number" step="0.01" min="0" inputMode="decimal" {...campo("precoFornecedor")} />
+            <input type="number" step="0.0001" min="0" inputMode="decimal" {...campo("precoFornecedor")} />
             <BotaoAdicionais
               adicionais={rascunho.adicionais ?? []}
               precoFornecedor={rascunho.precoFornecedor}
+              fator={fatorDaLinha({ fator: rascunho.fator })}
               aoMudar={(lista) => setRascunho((atual) => ({ ...atual, adicionais: lista }))}
               produtoId={produtoId}
             />
+          </Campo>
+          <Campo
+            nome="fornecedor-fator"
+            rotulo="Fator"
+            erro={erros.fator}
+            ajuda="Quantas unidades vêm em 1 do fornecedor (ex.: caixa com 5000 resistores = 5000). O custo do produto é o preço ÷ o fator, e o pedido de compra pede caixas inteiras."
+          >
+            <input type="text" inputMode="numeric" autoComplete="off" {...campo("fator")} />
+            {fatorDaLinha({ fator: rascunho.fator }) > 1 && rascunho.precoFornecedor !== "" && !Number.isNaN(Number(rascunho.precoFornecedor)) && (
+              <span className="mt-1 block whitespace-nowrap text-[11px] text-suave">
+                {custoNaTela(Number(rascunho.precoFornecedor) / fatorDaLinha({ fator: rascunho.fator }))} / un.
+              </span>
+            )}
           </Campo>
           <Campo nome="fornecedor-link" rotulo="Link" erro={erros.link}>
             <input placeholder="https://..." autoComplete="off" {...campo("link")} />
