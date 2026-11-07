@@ -1079,7 +1079,7 @@ function JanelaDoFornecedor({
             <div className="flex items-center gap-1.5 [&>input]:min-w-0">
               <input autoComplete="off" {...campo("codigo")} />
               <div className="mt-1">
-                <BuscaColetadoPorCodigo codigo={rascunho.codigo} tipo="FORNECEDOR" aoEscolher={aoEscolher} />
+                <BuscaColetadoPorCodigo codigo={rascunho.codigo} tipo="FORNECEDOR" fornecedor={rascunho.nome ?? ""} aoEscolher={aoEscolher} />
               </div>
             </div>
           </Campo>

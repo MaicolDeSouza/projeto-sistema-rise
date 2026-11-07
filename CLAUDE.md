@@ -1500,6 +1500,10 @@ janela larga (`JanelaDoFornecedor` em `Fornecedores.jsx`, moldura `Janela` das L
 (`buscarItemColetadoPorNome`, 350 ms, todas as palavras no `buscaTexto`, 20 resultados com foto e preço, US$ quando a lista é em
 dólar); com o fornecedor escolhido, só a lista dele. Escolher preenche descrição, código, preço e link e mantém Obs e
 adicionais. O Enter não salva (a janela usa `<div>`: no React ela continua dentro do `<form>` do produto).
+A **lupa do código relê o banco e aplica sozinha** (07/11/2026, pedido do dono: o preço da Fortek estava velho e a lupa só abria
+uma lista sem preço): com um item só daquele código na lista do fornecedor escolhido, troca descrição, preço e link na hora
+e mostra "Atualizado da lista de Fortek: R$ 8,06" (check verde, 4 s); com mais de um, abre a lista, agora com o preço
+(`fornecedor` em `BuscaColetadoPorCodigo`; a aba Concorrentes não passa o fornecedor e continua só com a lista).
 
 **Fator do fornecedor (embalagem)** (06/11/2026, pedido do dono: "a fortek vende resistor em lote de 5000, mas eu vendo
 avulso"; Opções escolhidas: pedido em caixas e custo com 4 casas). O campo `ProdutoFornecedor.fator` já existia para o
