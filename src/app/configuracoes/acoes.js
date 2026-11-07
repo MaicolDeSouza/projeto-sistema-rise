@@ -6,6 +6,7 @@ import { carregarUsuario, excluirFuncao, historicoDoUsuario, salvarFuncao, salva
 import { definirSenha, removerLogin } from "@/lib/acessos/loginTinyauth";
 import { executarComAcesso } from "@/lib/acessos/servidor";
 import { salvarDadosDaEmpresa } from "@/lib/compras/empresa";
+import { TETO_DO_LOGO, apagarLogoDaEmpresa, logoEmDataUri, salvarLogoDaEmpresa } from "@/lib/compras/logoDaEmpresa";
 import { ErroDeUso } from "@/lib/riseAi/erros";
 import { ambienteDoRise } from "@/lib/sessao";
 import { lerSegredo } from "@/lib/integracoes/conexoes";
@@ -178,6 +179,30 @@ export async function desvincularTelegramAcao(usuarioId) {
     await desvincular(String(usuarioId), { quem: acesso.login ?? "pc" });
     atualizarTelas();
     return {};
+  });
+}
+
+/**
+ * O logo inteiro da empresa (pedido do dono em 07/11/2026): vai no PDF do pedido de compra. So o Administrador. Devolve a
+ * previa (data URI) para a tela trocar a imagem sem recarregar.
+ */
+export async function enviarLogoDaEmpresaAcao(formData) {
+  return executarComAcesso("tela.configuracoes.usuarios", "editar", async () => {
+    const arquivo = formData?.get("logo");
+    if (!arquivo || typeof arquivo.arrayBuffer !== "function") return { ok: false, erro: "Escolha uma imagem." };
+    if (arquivo.size > TETO_DO_LOGO) return { ok: false, erro: "Imagem acima de 5 MB." };
+    const resultado = await salvarLogoDaEmpresa(Buffer.from(await arquivo.arrayBuffer()));
+    if (!resultado.ok) return resultado;
+    revalidatePath("/configuracoes/empresa");
+    return { ...resultado, previa: await logoEmDataUri() };
+  });
+}
+
+export async function tirarLogoDaEmpresaAcao() {
+  return executarComAcesso("tela.configuracoes.usuarios", "editar", async () => {
+    const resultado = await apagarLogoDaEmpresa();
+    revalidatePath("/configuracoes/empresa");
+    return resultado;
   });
 }
 

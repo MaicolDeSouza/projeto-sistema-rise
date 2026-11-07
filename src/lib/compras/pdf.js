@@ -23,6 +23,7 @@ const MARGEM = 40;
 const RESPIRO = 5;
 const FOTO = 26;
 const LOGO = 46;
+const LOGO_LARGURA = 170;
 
 const TEXTOS = {
   pt: {
@@ -142,21 +143,28 @@ export function pdfDoPedido(pedido, empresa, extras = {}) {
     const largura = doc.page.width - MARGEM * 2;
     const fundo = () => doc.page.height - MARGEM;
 
-    // Cabecalho: o logo a esquerda, o pedido a direita.
+    // Cabecalho: o logo a esquerda, o pedido a direita. O logo inteiro (engrenagem + "4HOBBY", 07/11/2026) e largo: cabe
+    // em LOGO de altura e ate LOGO_LARGURA de largura, na proporcao dele; a engrenagem sozinha continua quadrada.
     const topo = doc.y;
+    let larguraDoLogo = LOGO;
+    let alturaDoLogo = LOGO;
     if (extras.logo) {
       try {
-        doc.image(extras.logo, MARGEM, topo, { fit: [LOGO, LOGO] });
+        const imagem = doc.openImage(extras.logo);
+        const escala = Math.min(LOGO_LARGURA / imagem.width, LOGO / imagem.height);
+        larguraDoLogo = imagem.width * escala;
+        alturaDoLogo = imagem.height * escala;
+        doc.image(imagem, MARGEM, topo, { width: larguraDoLogo, height: alturaDoLogo });
       } catch {
         // Logo ilegivel nao derruba o PDF.
       }
     }
-    doc.font("Helvetica-Bold").fontSize(16).fillColor(TEXTO).text(`${t.titulo} ${pedido.codigo}`, MARGEM + LOGO + 12, topo + 4, { width: largura - LOGO - 12, align: "right" });
+    doc.font("Helvetica-Bold").fontSize(16).fillColor(TEXTO).text(`${t.titulo} ${pedido.codigo}`, MARGEM + larguraDoLogo + 12, topo + 4, { width: largura - larguraDoLogo - 12, align: "right" });
     doc.font("Helvetica").fontSize(9).fillColor(CINZA).text(
       pedido.enviadoEm ? `${t.enviado} ${f.data(pedido.enviadoEm)}` : `${t.rascunho} ${f.data(pedido.criadoEm)}`,
-      { width: largura - LOGO - 12, align: "right" },
+      { width: largura - larguraDoLogo - 12, align: "right" },
     );
-    doc.y = Math.max(topo + LOGO, doc.y) + 16;
+    doc.y = Math.max(topo + alturaDoLogo, doc.y) + 16;
 
     // Fornecedor: so o nome e o A/C (o contato dele).
     const fornecedor = pedido.fornecedor ?? {};

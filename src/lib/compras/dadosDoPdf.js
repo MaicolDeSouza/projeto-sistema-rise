@@ -3,6 +3,7 @@ import path from "node:path";
 import sharp from "sharp";
 
 import { prisma } from "@/lib/db";
+import { lerLogoDaEmpresa } from "@/lib/compras/logoDaEmpresa";
 import { estoqueDosFornecedores } from "@/lib/estoqueDoFornecedor";
 import { bytesDe } from "@/lib/imagensImportadas";
 
@@ -19,8 +20,13 @@ const PARALELO = 6;
 
 let logoEmCache = null;
 
-/** O logo (engrenagem com o "4") em PNG, lido uma vez do mesmo SVG da tela. */
+/**
+ * O logo do PDF: o INTEIRO enviado em Dados da empresa (07/11/2026, `logoDaEmpresa.js`, lido a cada PDF para a troca
+ * valer na hora) e, sem ele, a engrenagem com o "4" em PNG, lida uma vez do mesmo SVG da tela.
+ */
 export async function logoDaEmpresa() {
+  const enviado = await lerLogoDaEmpresa();
+  if (enviado) return enviado;
   if (logoEmCache) return logoEmCache;
   try {
     logoEmCache = await sharp(path.join(process.cwd(), "public", "marcas", "4hobby.svg"), { density: 300 })

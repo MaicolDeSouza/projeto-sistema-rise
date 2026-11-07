@@ -5219,6 +5219,10 @@ plano `docs/superpowers/plans/2026-10-26-modulo-compras.md` (12 tarefas, inline)
   estoque já saiu ("Já saíram unidades...").
 - **Proposta:** arquivo conferido pelos BYTES (PDF, JPEG, PNG, 20 MB), num lote temporário até o Salvar (`dados/compras/<pedidoId>/proposta/`).
 - **PDF:** só o que interessa ao fornecedor (código e nome DELE, nunca o SKU do Rise), gerado na hora pelo pdfkit; rota exige ver pedidos E custo.
+  **Logo inteiro (07/11/2026, pedido do dono):** enviado em Configurações → Dados da empresa (cartão Logo, envia na hora;
+  `lib/compras/logoDaEmpresa.js`), gravado em `dados/empresa/logo.png` (PNG, margem branca cortada com `trim`, até 1600 px;
+  sem coluna no banco). O PDF usa ele (lido a cada PDF) e, sem ele, a engrenagem do `public/marcas/4hobby.svg`; o logo largo
+  cabe em 46 pt de altura e até 170 pt de largura, na proporção.
   **Refeito em 06/11/2026 (pedido do dono, "isso será enviado ao fornecedor"):** cabeçalho só com o **logo** da 4hobby
   (`public/marcas/4hobby.svg` em PNG pelo sharp; os dados da empresa saíram); do fornecedor, só o **nome e o "A/C:" com o
   contato**; tabela com **separador entre todas as colunas** e o mesmo respiro (5 pt) em cada lado; coluna **Foto** à esquerda
