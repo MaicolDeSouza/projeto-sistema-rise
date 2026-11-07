@@ -232,6 +232,68 @@ export async function buscarItemColetadoPorCodigo(codigoBruto, tipo) {
   }
 }
 
+/**
+ * Produtos de FORNECEDOR pelo nome, enquanto o operador digita a descricao na janela do fornecedor (pedido do dono em
+ * 06/11/2026: "procurar produto por nome para adicionar a lista de fornecedores", resultado durante a escrita). Todas
+ * as palavras sao exigidas, em qualquer ordem, contra o `buscaTexto` (nome, marca, codigo e EAN ja normalizados, com
+ * indice de trigramas). Com o fornecedor escolhido, so a fonte dele (a de mesmo nome ou a ligada ao cadastro); sem
+ * fonte para ele, todos os fornecedores. O preco devolvido e o mesmo da busca por codigo.
+ */
+export async function buscarItemColetadoPorNome(textoBruto, fornecedorBruto) {
+  const negado =
+    (await negarSemAcesso("tela.produtos.cadastro", "editar")) ??
+    (await negarSemAcesso("dado.custo", "ver"));
+  if (negado) return negado;
+  const palavras = normalizar(String(textoBruto ?? "").slice(0, 200)).split(/\s+/).filter(Boolean).slice(0, 8);
+  if (palavras.join("").length < 3) return { ok: true, itens: [], daFonte: null };
+  const fornecedor = String(fornecedorBruto ?? "").trim().slice(0, 200);
+  try {
+    let fontes = [];
+    if (fornecedor) {
+      const cadastro = await prisma.fornecedor.findFirst({
+        where: { nome: { equals: fornecedor, mode: "insensitive" } },
+        select: { fonteId: true },
+      });
+      fontes = await prisma.fonteColeta.findMany({
+        where: {
+          tipo: "FORNECEDOR",
+          OR: [{ nome: { equals: fornecedor, mode: "insensitive" } }, ...(cadastro?.fonteId ? [{ id: cadastro.fonteId }] : [])],
+        },
+        select: { id: true, nome: true },
+      });
+    }
+    const itens = await prisma.produtoColetado.findMany({
+      where: {
+        AND: palavras.map((palavra) => ({ buscaTexto: { contains: palavra } })),
+        fonte: fontes.length ? { id: { in: fontes.map((fonte) => fonte.id) } } : { tipo: "FORNECEDOR" },
+      },
+      select: {
+        id: true, nome: true, codigo: true, url: true, miniatura: true, ausenteDesde: true,
+        precoNormal: true, precoPromocional: true, precoComImpostos: true, precoOriginal: true,
+        fonte: { select: { nome: true } },
+      },
+      // O que ainda esta na lista do fornecedor vem antes do que saiu dela.
+      orderBy: [{ ausenteDesde: { sort: "desc", nulls: "first" } }, { vistoEm: "desc" }],
+      take: 20,
+    });
+    const numero = (valor) => (valor == null ? null : Number(valor));
+    return {
+      ok: true,
+      daFonte: fontes.length ? fontes.map((fonte) => fonte.nome).join(", ") : null,
+      itens: itens.map((item) => ({
+        id: item.id, fonte: item.fonte.nome, nome: item.nome, codigo: item.codigo, url: item.url,
+        temFoto: Boolean(item.miniatura),
+        foraDaLista: item.ausenteDesde !== null,
+        preco: numero(item.precoComImpostos) ?? numero(item.precoNormal) ?? numero(item.precoPromocional),
+        // Lista em dolar (NexMind): o valor de origem, para a janela mostrar "US$ 3,96" embaixo dos reais.
+        precoOriginal: item.precoOriginal ?? null,
+      })),
+    };
+  } catch (erro) {
+    return { ok: false, erro: erro.message };
+  }
+}
+
 /** Documentos publicados pelas referencias escolhidas na lupa. */
 export async function documentosDasReferencias(ids, produtoId = null) {
   const negado = await negarSemReferencias();

@@ -1479,6 +1479,18 @@ Fornecedor, com dois campos novos (migration `20261104c_moeda_do_fornecedor`): *
 - **Tela:** coluna Valor do Scraper com "US$ 3,96" pequeno embaixo dos reais (a conta no `title`); cadastro do fornecedor com
   os dois campos ao lado do pedido mínimo. Conferido de ponta a ponta no PC com uma fonte ZZ-TESTE-NEXMIND (apagada): 654
   gravados, PTAX 5,4778, 2ª varredura "0 atualizados".
+- **Foto, estoque e preço na aba Fornecedores do Produto sem código** (06/11/2026, pedido do dono ao ver a NexMind sem foto):
+  `estoqueDosFornecedores` casava o vínculo só pelo link ou pelo código; vínculo sem os dois (NexMind) casa agora pela
+  **descrição no fornecedor = nome do produto na lista**, e a fonte do fornecedor é a de mesmo nome **ou** a ligada ao
+  cadastro (`Fornecedor.fonteId`), também para o código. Vale para Compras (mesma função). Conferido no PC só com a Fortek (o
+  PC não tem a NexMind; a leitura na VPS não foi feita).
+
+**Janela do fornecedor no cadastro de Produto** (06/11/2026, pedido do dono): o lápis e o "Adicionar fornecedor" abrem uma
+janela larga (`JanelaDoFornecedor` em `Fornecedores.jsx`, moldura `Janela` das Licenças, "Sair sem salvar?", portal no
+`<body>`) no lugar da linha de campos na tabela. A **Descrição no fornecedor busca por nome enquanto se digita**
+(`buscarItemColetadoPorNome`, 350 ms, todas as palavras no `buscaTexto`, 20 resultados com foto e preço, US$ quando a lista é em
+dólar); com o fornecedor escolhido, só a lista dele. Escolher preenche descrição, código, preço e link e mantém Obs e
+adicionais. O Enter não salva (a janela usa `<div>`: no React ela continua dentro do `<form>` do produto).
 
 **Regras por fornecedor** — `src/lib/coleta/fornecedores.js`, dado e não código:
 

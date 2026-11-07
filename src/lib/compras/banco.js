@@ -154,7 +154,7 @@ export async function fornecedoresParaCompra(produtoId) {
   if (!produto) return null;
 
   const vinculos = produto.fornecedores.map((vinculo) => ({
-    id: vinculo.id, nome: vinculo.fornecedor.nome, codigo: vinculo.codigo, link: vinculo.link,
+    id: vinculo.id, nome: vinculo.fornecedor.nome, codigo: vinculo.codigo, link: vinculo.link, descricao: vinculo.descricao,
   }));
   const coleta = vinculos.length ? await estoqueDosFornecedores(vinculos) : { ok: true, itens: {} };
   const coletados = coleta.ok ? coleta.itens : {};
@@ -235,7 +235,7 @@ function quantidadeValida(valor) {
 
 /** O preco e o IPI com que um item nasce a partir de um vinculo (a coleta do fornecedor, quando houver). */
 async function precoDoVinculo(vinculo, nomeDoFornecedor) {
-  const coleta = await estoqueDosFornecedores([{ id: vinculo.id, nome: nomeDoFornecedor, codigo: vinculo.codigo, link: vinculo.link }]);
+  const coleta = await estoqueDosFornecedores([{ id: vinculo.id, nome: nomeDoFornecedor, codigo: vinculo.codigo, link: vinculo.link, descricao: vinculo.descricao }]);
   const coletado = coleta.ok ? coleta.itens[vinculo.id] : null;
   return precoInicialDoItem({
     precoFornecedor: numero(vinculo.precoFornecedor ?? vinculo.precoCusto),

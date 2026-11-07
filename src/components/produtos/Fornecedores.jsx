@@ -1,18 +1,22 @@
 "use client";
 
-import { useEffect, useImperativeHandle, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useImperativeHandle, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import {
   CheckSquare,
   Clock,
   ExternalLink,
+  Loader,
   Pencil,
   Plus,
+  Search,
   Square,
   Trash2,
   X,
 } from "lucide-react";
 
 import {
+  buscarItemColetadoPorNome,
   definirFornecedorPadrao,
   consultarEstoqueFornecedores,
   custoParaAdicional,
@@ -28,6 +32,9 @@ import CadastroRapidoFornecedor from "./CadastroRapidoFornecedor";
 import BuscaColetadoPorCodigo from "./BuscaColetadoPorCodigo";
 import FotoComLupa from "@/components/ui/FotoComLupa";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
+import { contaDoPrecoOriginal, precoOriginalEmTexto } from "@/lib/coleta/moeda";
+import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
+import Janela from "@/components/ferramentas/licencas/Janela";
 
 const moeda = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -268,6 +275,8 @@ export default function Fornecedores({
   const [pendente, iniciarTransicao] = useTransition();
   const [editando, setEditando] = useState(null); // id do vinculo, ou "novo"
   const [rascunho, setRascunho] = useState(VAZIO);
+  // O que a janela tinha ao abrir: diferente do rascunho = "Sair sem salvar?" antes de fechar.
+  const [inicial, setInicial] = useState(VAZIO);
   const [erros, setErros] = useState({});
   const [catalogoAtual, setCatalogoAtual] = useState(catalogo);
   const [estoques, setEstoques] = useState({});
@@ -305,12 +314,13 @@ export default function Fornecedores({
 
   function abrirNovo() {
     setRascunho(VAZIO);
+    setInicial(VAZIO);
     setErros({});
     setEditando("novo");
   }
 
   function abrirEdicao(vinculo) {
-    setRascunho({
+    const dados = {
       nome: vinculo.nome,
       descricao: vinculo.descricao ?? "",
       observacao: vinculo.observacao ?? "",
@@ -319,7 +329,9 @@ export default function Fornecedores({
       precoFornecedor: vinculo.precoFornecedor ?? vinculo.precoCusto ?? "",
       adicionais: vinculo.adicionais ?? [],
       link: vinculo.link ?? "",
-    });
+    };
+    setRascunho(dados);
+    setInicial(dados);
     setErros({});
     setEditando(vinculo.id);
   }
@@ -356,9 +368,18 @@ export default function Fornecedores({
     };
   }
 
-  /** O codigo escolhido na busca troca os dados do fornecedor, mas nao os adicionais ja montados. */
-  function escolherCodigo(item) {
-    setRascunho((atual) => ({ ...dadosDaSugestao(item), adicionais: atual.adicionais ?? [] }));
+  /**
+   * O produto escolhido na busca (codigo ou nome) troca os dados do fornecedor, mas nao os adicionais nem a Obs ja
+   * escritos. Na busca por nome restrita a lista do fornecedor escolhido, o nome do fornecedor fica: o da fonte pode ser
+   * outro texto (a fonte ligada ao cadastro), e troca-lo abriria o cadastro rapido sem motivo.
+   */
+  function escolherCodigo(item, { manterFornecedor = false } = {}) {
+    setRascunho((atual) => ({
+      ...dadosDaSugestao(item),
+      nome: manterFornecedor && atual.nome.trim() ? atual.nome : item.fonte ?? "",
+      observacao: atual.observacao ?? "",
+      adicionais: atual.adicionais ?? [],
+    }));
   }
 
   function salvarDados(dadosDoVinculo, cadastradoAgora = false) {
@@ -423,6 +444,7 @@ export default function Fornecedores({
     if (!catalogoAtual.some((cadastro) => cadastro.nome.toLocaleLowerCase("pt-BR") === dados.nome.trim().toLocaleLowerCase("pt-BR"))) {
       setRascunho(dados);
       setErros({ nome: recadoSemCadastro });
+      setInicial(VAZIO);
       setEditando("novo");
       setPopupNome(dados.nome.trim());
       return;
@@ -433,6 +455,7 @@ export default function Fornecedores({
       if (Object.keys(erros).length > 0) {
         setRascunho(dados);
         setErros(erros);
+        setInicial(VAZIO);
         setEditando("novo");
         return;
       }
@@ -452,6 +475,7 @@ export default function Fornecedores({
         // preenchida, com o erro a vista, para o operador ajustar e confirmar.
         setRascunho(dados);
         setErros(resultado.erros ?? {});
+        setInicial(VAZIO);
         setEditando("novo");
         if (resultado.erro) aoFalhar?.(resultado.erro);
       }
@@ -492,15 +516,6 @@ export default function Fornecedores({
     });
   }
 
-  const campo = (chave) => ({
-    value: rascunho[chave],
-    onChange: (evento) =>
-      setRascunho((atual) => ({ ...atual, [chave]: evento.target.value })),
-    className: `w-full rounded border px-2 py-1.5 text-sm focus:outline-none ${
-      erros[chave] ? "border-red-400" : "border-borda focus:border-acento"
-    }`,
-  });
-
   return (
     <div>
       {/* `md:overflow-visible`: o popover de "Custo ultima varredura" abre para
@@ -528,7 +543,7 @@ export default function Fornecedores({
           </thead>
 
           <tbody className="divide-y divide-borda">
-            {vinculos.length === 0 && editando !== "novo" && (
+            {vinculos.length === 0 && (
               <tr>
                 <td colSpan={10} className="px-3 py-6 text-center text-suave">
                   Nenhum fornecedor cadastrado para este produto.
@@ -536,22 +551,7 @@ export default function Fornecedores({
               </tr>
             )}
 
-            {[...vinculos].sort(porCustoAscendente).map((vinculo, indice) =>
-              editando === vinculo.id ? (
-                <LinhaEdicao
-                  key={vinculo.id}
-                  campo={campo}
-                  catalogo={catalogoAtual}
-                  aoEscolherCodigo={escolherCodigo}
-                  adicionais={rascunho.adicionais ?? []}
-                  aoMudarAdicionais={(lista) => setRascunho((atual) => ({ ...atual, adicionais: lista }))}
-                  produtoId={produtoId}
-                  erros={erros}
-                  pendente={pendente}
-                  aoSalvar={salvar}
-                  aoCancelar={() => setEditando(null)}
-                />
-              ) : (
+            {[...vinculos].sort(porCustoAscendente).map((vinculo, indice) => (
                 <tr key={vinculo.id} className="divide-x divide-borda">
                   {/* Miniatura do produto no fornecedor (pedido do dono em 23/10/2026), no padrao FotoComLupa. */}
                   <td className="px-2 py-1.5">
@@ -692,39 +692,42 @@ export default function Fornecedores({
                 </tr>
               ),
             )}
-
-            {editando === "novo" && (
-              <LinhaEdicao
-                campo={campo}
-                catalogo={catalogoAtual}
-                aoEscolherCodigo={escolherCodigo}
-                adicionais={rascunho.adicionais ?? []}
-                aoMudarAdicionais={(lista) => setRascunho((atual) => ({ ...atual, adicionais: lista }))}
-                produtoId={produtoId}
-                erros={erros}
-                pendente={pendente}
-                aoSalvar={salvar}
-                aoCancelar={() => setEditando(null)}
-              />
-            )}
           </tbody>
         </table>
       </div>
 
-      {editando === null && (
-        <button
-          type="button"
-          onClick={abrirNovo}
-          className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700 hover:underline"
-        >
-          <Plus size={15} />
-          Adicionar fornecedor
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={abrirNovo}
+        className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700 hover:underline"
+      >
+        <Plus size={15} />
+        Adicionar fornecedor
+      </button>
 
       <p className="mt-2 text-[11px] text-suave">
         O custo do produto vem do fornecedor marcado como padrão.
       </p>
+
+      {/* Antes do cadastro rapido no DOM: o cadastro abre POR CIMA da janela quando o fornecedor digitado nao existe. */}
+      {editando !== null && (
+        <JanelaDoFornecedor
+          novo={editando === "novo"}
+          rascunho={rascunho}
+          inicial={inicial}
+          setRascunho={setRascunho}
+          catalogo={catalogoAtual}
+          erros={erros}
+          pendente={pendente}
+          aoSalvar={salvar}
+          aoCancelar={() => {
+            setEditando(null);
+            setErros({});
+          }}
+          aoEscolher={escolherCodigo}
+          produtoId={produtoId}
+        />
+      )}
 
       {popupNome !== null && podeCadastrar && (
         <CadastroRapidoFornecedor
@@ -980,141 +983,225 @@ function JanelaAdicionais({ inicial, precoFornecedor, produtoId, aoConfirmar, ao
 }
 
 /**
- * A Obs da linha em edicao ABRE UMA JANELA (pedido do dono em 24/10/2026: "fica dificil de saber o que esta escrevendo";
- * a primeira tentativa, a celula larga com duas linhas, estourou a largura da tabela e ele pediu "um pop para o campo
- * OBS"). Na linha fica um campo do tamanho de antes, com o texto cortado; o clique abre a caixa grande, e "OK" devolve o
- * texto para a linha (que so grava no Salvar do produto, como o resto). Cancelar, Esc e clique fora descartam.
+ * A janela de ADICIONAR e EDITAR fornecedor (pedido do dono em 06/11/2026: "abrir um pop quando clicado para editar. o
+ * popup deve mostrar todos os campos bem amplos para facil visualizacao e edicao, mas seguir o padrao do rise"). Era uma
+ * linha de campos dentro da tabela, estreita demais para ler a descricao e a Obs. Moldura padrao (`Janela`): titulo, X,
+ * Esc, fundo que so fecha com clique que comeca e termina nele, e "Sair sem salvar?" quando algo mudou.
+ *
+ * Nesta tela o operador precisa ver primeiro QUAL produto do fornecedor e o dele, e a acao principal e Salvar. Por isso a
+ * Descricao busca na lista do fornecedor enquanto se digita (pedido do mesmo dia: "procurar produto por nome ... ja
+ * mostrando o resultado durante minha escrita"); escolher um resultado preenche descricao, codigo, preco e link, como a
+ * lupa do codigo ja fazia.
  */
-function CampoObs({ propriedades }) {
-  const [aberto, setAberto] = useState(false);
-  const [texto, setTexto] = useState("");
-  const valor = propriedades.value ?? "";
+function JanelaDoFornecedor({
+  novo, rascunho, inicial, setRascunho, catalogo, erros, pendente, aoSalvar, aoCancelar, aoEscolher, produtoId,
+}) {
+  const alterado = JSON.stringify(rascunho) !== JSON.stringify(inicial);
+  const idDatalist = useId();
+  const campo = (chave) => ({
+    id: `fornecedor-${chave}`,
+    value: rascunho[chave] ?? "",
+    onChange: (evento) => setRascunho((atual) => ({ ...atual, [chave]: evento.target.value })),
+    className: `${CLASSE_CAMPO} ${bordaDoCampo(erros[chave])}`,
+  });
 
-  function abrir() {
-    setTexto(valor);
-    setAberto(true);
-  }
-  function confirmar() {
-    propriedades.onChange({ target: { value: texto } });
-    setAberto(false);
-  }
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={abrir}
-        title={valor || "Escrever a observação"}
-        className={`${propriedades.className} block truncate text-left ${valor ? "" : "text-suave"}`}
-      >
-        {valor || "Obs"}
-      </button>
-      {aberto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" {...propsDoFundo(() => setAberto(false))}>
-          <div role="dialog" aria-modal="true" aria-label="Obs do fornecedor" className="w-full max-w-lg rounded-lg bg-superficie p-4 shadow-xl">
-            <h3 className="text-sm font-semibold">Obs do fornecedor</h3>
-            <textarea
-              autoFocus
-              rows={6}
-              maxLength={500}
-              value={texto}
-              onChange={(evento) => setTexto(evento.target.value)}
-              onKeyDown={(evento) => {
-                if (evento.key === "Escape") {
-                  evento.stopPropagation();
-                  setAberto(false);
-                }
-                if (evento.key === "Enter" && (evento.ctrlKey || evento.metaKey)) confirmar();
-              }}
-              placeholder="Ex.: vende sem cabo; o cabo entra como adicional no custo."
-              className="mt-2 w-full resize-y rounded border border-borda px-3 py-2 text-sm leading-relaxed focus:border-acento focus:outline-none"
-            />
-            <div className="mt-2 flex items-center justify-between">
-              <span className="text-[11px] text-suave tabular-nums">{texto.length}/500</span>
-              <div className="flex items-center gap-2">
-                <button type="button" onClick={() => setAberto(false)} className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo">
-                  Cancelar
-                </button>
-                <button type="button" onClick={confirmar} className="rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90">
-                  OK
-                </button>
+  // Portal no <body>: a aba mora dentro do <form> do produto, e o Enter num campo da janela enviaria o cadastro inteiro.
+  return createPortal(
+    <Janela
+      titulo={novo ? "Adicionar fornecedor" : "Editar fornecedor"}
+      subtitulo={novo ? null : inicial.descricao || inicial.nome}
+      alterado={alterado}
+      aoFechar={aoCancelar}
+      largura="max-w-4xl"
+      rodape={(pedirFechar) => (
+        <>
+          {erros.geral && <p className="text-xs text-red-700">{erros.geral}</p>}
+          <div className="ml-auto flex items-center gap-2">
+            <button type="button" onClick={pedirFechar} className="rounded-md border border-borda px-3 py-2 text-sm hover:bg-fundo">
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={aoSalvar}
+              disabled={pendente}
+              className="rounded-md bg-acento px-4 py-2 text-sm font-semibold text-white transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.97] disabled:opacity-50"
+            >
+              {pendente ? "Salvando..." : "Salvar"}
+            </button>
+          </div>
+        </>
+      )}
+    >
+      {/* <div>, nao <form>: na arvore do React a janela continua dentro do <form> do produto (o portal so muda o DOM),
+          e o React acusa form dentro de form. O Enter nao salva: com ele, escolher um nome na lista do Fornecedor
+          gravaria antes da hora. */}
+      <div className="grid gap-4">
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_16rem]">
+          <Campo nome="fornecedor-nome" rotulo="Fornecedor" erro={erros.nome} ajuda="Escolha um fornecedor de Cadastros. Nome novo abre o cadastro rápido antes de gravar.">
+            <input list={idDatalist} autoFocus={novo} autoComplete="off" {...campo("nome")} />
+            <datalist id={idDatalist}>
+              {catalogo.map((f) => (
+                <option key={f.id} value={f.nome} />
+              ))}
+            </datalist>
+          </Campo>
+          <Campo nome="fornecedor-codigo" rotulo="Código no fornecedor" erro={erros.codigo}>
+            <div className="flex items-center gap-1.5 [&>input]:min-w-0">
+              <input autoComplete="off" {...campo("codigo")} />
+              <div className="mt-1">
+                <BuscaColetadoPorCodigo codigo={rascunho.codigo} tipo="FORNECEDOR" aoEscolher={aoEscolher} />
               </div>
             </div>
-          </div>
+          </Campo>
         </div>
-      )}
-    </>
+
+        <BuscaPorNome
+          propriedades={campo("descricao")}
+          erro={erros.descricao}
+          fornecedor={rascunho.nome}
+          autoFocus={!novo}
+          aoEscolher={aoEscolher}
+        />
+
+        <div className="grid gap-4 sm:grid-cols-[16rem_minmax(0,1fr)]">
+          <Campo nome="fornecedor-precoFornecedor" rotulo="Preço do fornecedor" erro={erros.precoFornecedor || erros.precoCusto}>
+            <input type="number" step="0.01" min="0" inputMode="decimal" {...campo("precoFornecedor")} />
+            <BotaoAdicionais
+              adicionais={rascunho.adicionais ?? []}
+              precoFornecedor={rascunho.precoFornecedor}
+              aoMudar={(lista) => setRascunho((atual) => ({ ...atual, adicionais: lista }))}
+              produtoId={produtoId}
+            />
+          </Campo>
+          <Campo nome="fornecedor-link" rotulo="Link" erro={erros.link}>
+            <input placeholder="https://..." autoComplete="off" {...campo("link")} />
+          </Campo>
+        </div>
+
+        <Campo nome="fornecedor-observacao" rotulo="Obs" erro={erros.observacao}>
+          <textarea
+            rows={3}
+            maxLength={500}
+            placeholder="Ex.: vende sem cabo; o cabo entra como custo adicional."
+            {...campo("observacao")}
+            className={`${CLASSE_CAMPO} ${bordaDoCampo(erros.observacao)} resize-y font-normal leading-relaxed`}
+          />
+        </Campo>
+      </div>
+    </Janela>,
+    document.body,
   );
 }
 
-function LinhaEdicao({ campo, catalogo, erros, pendente, aoSalvar, aoCancelar, aoEscolherCodigo, adicionais, aoMudarAdicionais, produtoId }) {
+/**
+ * Descricao no fornecedor com a busca por nome embaixo: a cada pausa na digitacao (350 ms, 3 letras ou mais) procura na
+ * lista do fornecedor escolhido (ou de todos, sem fornecedor). So busca depois de o operador digitar: ao abrir a edicao a
+ * descricao ja vem preenchida e a lista de resultados seria ruido. Escolher um resultado fecha a lista.
+ */
+function BuscaPorNome({ propriedades, erro, fornecedor, autoFocus, aoEscolher }) {
+  const [digitou, setDigitou] = useState(false);
+  const [resposta, setResposta] = useState(null);
+  const [buscando, setBuscando] = useState(false);
+  const texto = propriedades.value;
+  const curto = texto.trim().length < 3;
+
+  useEffect(() => {
+    if (!digitou || curto) return undefined;
+    let cancelado = false;
+    const relogio = setTimeout(async () => {
+      setBuscando(true);
+      try {
+        const achado = await buscarItemColetadoPorNome(texto, fornecedor);
+        if (!cancelado) setResposta(achado);
+      } catch {
+        if (!cancelado) setResposta({ ok: false, erro: "Falha ao buscar pelo nome." });
+      } finally {
+        if (!cancelado) setBuscando(false);
+      }
+    }, 350);
+    return () => {
+      cancelado = true;
+      clearTimeout(relogio);
+    };
+  }, [texto, fornecedor, digitou, curto]);
+
+  const aberta = digitou && !curto && (resposta || buscando);
+
   return (
-    <tr className="divide-x divide-borda bg-fundo/40">
-      <td />
-      <td className="px-3 py-2">
-        {/* O nome novo abre o cadastro rapido antes de gravar o vinculo. */}
-        <input list="catalogo-fornecedores" {...campo("nome")} />
-        <datalist id="catalogo-fornecedores">
-          {catalogo.map((f) => (
-            <option key={f.id} value={f.nome} />
-          ))}
-        </datalist>
-        {erros.nome && (
-          <p className="mt-1 text-[11px] text-red-700">{erros.nome}</p>
-        )}
-      </td>
-      <td className="px-3 py-2">
-        <input {...campo("descricao")} />
-      </td>
-      <td className="px-3 py-2">
-        <CampoObs propriedades={campo("observacao")} />
-        {erros.observacao && <p className="mt-1 text-[11px] text-red-700">{erros.observacao}</p>}
-      </td>
-      <td className="px-3 py-2">
-        <div className="flex items-center gap-1 [&>input]:min-w-0">
-          <input {...campo("codigo")} />
-          <BuscaColetadoPorCodigo codigo={campo("codigo").value} tipo="FORNECEDOR" aoEscolher={aoEscolherCodigo} />
-        </div>
-      </td>
-      <td className="px-3 py-2">
-        <input type="number" step="0.01" min="0" aria-label="Preço do fornecedor" {...campo("precoFornecedor")} />
-        <BotaoAdicionais
-          adicionais={adicionais}
-          precoFornecedor={campo("precoFornecedor").value}
-          aoMudar={aoMudarAdicionais}
-          produtoId={produtoId}
+    <Campo nome="fornecedor-descricao" rotulo="Descrição no fornecedor" erro={erro} ajuda="Digite parte do nome: a lista do fornecedor aparece embaixo enquanto você escreve, e escolher um produto preenche código, preço e link.">
+      <div className="relative">
+        <Search size={16} className="pointer-events-none absolute top-1/2 left-2.5 mt-0.5 -translate-y-1/2 text-suave" aria-hidden="true" />
+        <input
+          {...propriedades}
+          autoFocus={autoFocus}
+          autoComplete="off"
+          placeholder="Nome do produto no fornecedor"
+          onChange={(evento) => {
+            setDigitou(true);
+            propriedades.onChange(evento);
+          }}
+          onKeyDown={(evento) => {
+            if (evento.key === "Escape" && aberta) {
+              evento.stopPropagation();
+              setDigitou(false);
+            }
+          }}
+          className={`${propriedades.className} pl-8`}
         />
-        {(erros.precoFornecedor || erros.precoCusto) && (
-          <p className="mt-1 text-[11px] text-red-700">{erros.precoFornecedor || erros.precoCusto}</p>
-        )}
-      </td>
-      <td className="px-3 py-2 text-xs text-suave">—</td>
-      <td className="px-3 py-2" colSpan={2}>
-        <input placeholder="https://..." {...campo("link")} />
-        {erros.link && (
-          <p className="mt-1 text-[11px] text-red-700">{erros.link}</p>
-        )}
-      </td>
-      <td className="px-2 py-2">
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={aoSalvar}
-            disabled={pendente}
-            className="rounded bg-acento px-2 py-1 text-xs font-medium text-white disabled:opacity-50"
-          >
-            Salvar
-          </button>
-          <button
-            type="button"
-            onClick={aoCancelar}
-            aria-label="Cancelar"
-            className="rounded p-1 text-suave hover:text-texto"
-          >
-            <X size={14} />
-          </button>
+        {buscando && <Loader size={14} className="absolute top-1/2 right-2.5 mt-0.5 -translate-y-1/2 animate-spin text-suave" aria-hidden="true" />}
+      </div>
+      {aberta && (
+        <div className="mt-1.5 rounded border border-borda">
+          <p className="border-b border-borda bg-fundo px-3 py-1.5 text-[11px] text-suave">
+            {resposta?.ok
+              ? `${resposta.itens.length === 20 ? "20 primeiros" : resposta.itens.length} ${resposta.itens.length === 1 ? "produto" : "produtos"} ${resposta.daFonte ? `na lista de ${resposta.daFonte}` : "em todos os fornecedores"}`
+              : "Buscando..."}
+          </p>
+          {resposta && !resposta.ok && <p className="px-3 py-2 text-xs text-red-700">{resposta.erro}</p>}
+          {resposta?.ok && resposta.itens.length === 0 && (
+            <p className="px-3 py-2 text-xs text-suave">Nenhum produto com essas palavras.</p>
+          )}
+          {resposta?.ok && resposta.itens.length > 0 && (
+            <ul className="max-h-72 divide-y divide-borda overflow-y-auto">
+              {resposta.itens.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      aoEscolher(item, { manterFornecedor: Boolean(resposta.daFonte) });
+                      setDigitou(false);
+                    }}
+                    className="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-fundo"
+                  >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded border border-borda bg-white">
+                      {item.temFoto && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={`/api/mercados/miniatura/${item.id}`} alt="" loading="lazy" className="h-full w-full object-contain" />
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="line-clamp-2 text-sm text-texto">{item.nome || "Produto sem nome"}</span>
+                      <span className="block truncate text-[11px] text-suave">
+                        {item.fonte}
+                        {item.codigo && item.codigo !== "N/A" ? ` · ${item.codigo}` : ""}
+                        {item.foraDaLista && <span className="ml-1.5 text-amber-700">· saiu da lista</span>}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-right tabular-nums">
+                      <span className="block text-sm font-medium">{item.preco == null ? "—" : moeda.format(item.preco)}</span>
+                      {precoOriginalEmTexto(item.precoOriginal) && (
+                        <span className="block text-[11px] text-suave" title={contaDoPrecoOriginal(item.precoOriginal) ?? undefined}>
+                          {precoOriginalEmTexto(item.precoOriginal)}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-      </td>
-    </tr>
+      )}
+    </Campo>
   );
 }
