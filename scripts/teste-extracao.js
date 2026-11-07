@@ -2124,6 +2124,44 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
   conferir("normalizarDescricao compacta a unidade das linhas tecnicas (o 5 V da proposta e do Salvar)",
     normalizarDescricao("PLACA\nParágrafo.\n\nEspecificações técnicas:\n- Tensão: 5 V;\n\nGarantia:\n- 90 dias;"),
     "PLACA\n\nParágrafo.\n\nEspecificações técnicas:\n- Tensão: 5V;\n\nGarantia:\n- 90 dias;");
+
+  // Correcoes da descricao (spec 2026-11-07): as regras puras. Bloco proprio para os nomes nao colidirem com o resto do arquivo.
+  {
+    const { aplicarCorrecoes, avisoDoTeto, blocoDeCorrecoes, candidatosDoDiff, instrucoesComCorrecoes, validarCorrecao } = await import("../src/lib/ia/correcoes.js");
+    const troca = (errado, certo, id = errado) => ({ id, tipo: "TROCA", errado, certo });
+
+    conferir("correcoes, validar: TROCA com espacos sobrando", validarCorrecao({ tipo: "TROCA", errado: " 5 V ", certo: "5V" }), { ok: true, dados: { tipo: "TROCA", errado: "5 V", certo: "5V", explicacao: null, promptNome: null } });
+    conferir("correcoes, validar: TROCA exige errado diferente de certo, e errado presente", [Boolean(validarCorrecao({ tipo: "TROCA", errado: "5V", certo: "5V" }).erros?.errado), Boolean(validarCorrecao({ tipo: "TROCA", certo: "5V" }).erros?.errado)], [true, true]);
+    conferir("correcoes, validar: REGRA sem certo, tipo desconhecido, quebra de linha e 121 caracteres", [Boolean(validarCorrecao({ tipo: "REGRA", certo: " " }).erros?.certo), Boolean(validarCorrecao({ tipo: "X", certo: "a" }).erros?.tipo), Boolean(validarCorrecao({ tipo: "TROCA", errado: "a\nb", certo: "c" }).erros?.errado), Boolean(validarCorrecao({ tipo: "TROCA", errado: "a".repeat(121), certo: "b" }).erros?.errado)], [true, true, true, true]);
+    conferir("correcoes, validar: REGRA com escopo", validarCorrecao({ tipo: "REGRA", errado: "ignorado", certo: "Garantia sempre em meses", promptNome: " Arduino " }).dados, { tipo: "REGRA", errado: null, certo: "Garantia sempre em meses", explicacao: null, promptNome: "Arduino" });
+
+    conferir("correcoes, aplicar: numero solto e curinga; nao casa colado (5 Vdc)", aplicarCorrecoes("Tensão: 5 V; Alimentação: 3,3 V ou 12 V; Saída: 5 Vdc", [troca("5 V", "5V")]), { texto: "Tensão: 5V; Alimentação: 3,3V ou 12V; Saída: 5 Vdc", aplicadas: [{ id: "5 V", vezes: 3 }] });
+    conferir("correcoes, aplicar: numero colado a letra e literal", aplicarCorrecoes("ESP32 e ESP8266", [troca("ESP32", "ESP32-S3")]).texto, "ESP32-S3 e ESP8266");
+    conferir("correcoes, aplicar: onde ja esta como certo nao troca de novo", aplicarCorrecoes("ESP32-S3 pronto", [troca("ESP32", "ESP32-S3")]), { texto: "ESP32-S3 pronto", aplicadas: [] });
+    conferir("correcoes, aplicar: numeros diferentes nos dois lados = literal", aplicarCorrecoes("90 dias de garantia; 30 dias", [troca("90 dias", "3 meses")]).texto, "3 meses de garantia; 30 dias");
+    conferir("correcoes, aplicar: caixa da primeira letra e do todo; plural nao casa", aplicarCorrecoes("A voltagem e as voltagens. VOLTAGEM. Voltagem alta.", [troca("voltagem", "tensão")]).texto, "A tensão e as voltagens. TENSÃO. Tensão alta.");
+    conferir("correcoes, aplicar: a mais longa primeiro e cada trecho uma vez", aplicarCorrecoes("5 V DC e 5 V", [troca("5 V", "5V"), troca("5 V DC", "5VDC")]).texto, "5VDC e 5V");
+    conferir("correcoes, aplicar: caracteres de regex sao literais", aplicarCorrecoes("3.3V (DC) +5V", [troca("3.3V (DC)", "3,3V DC"), troca("+5V", "5V")]).texto, "3,3V DC 5V");
+    conferir("correcoes, aplicar: texto vazio, REGRA e CRLF", [aplicarCorrecoes("", [troca("5 V", "5V")]), aplicarCorrecoes("5 V", [{ id: "r", tipo: "REGRA", errado: null, certo: "x" }]).texto, aplicarCorrecoes("linha 5 V\r\nlinha 12 V", [troca("5 V", "5V")]).texto], [{ texto: "", aplicadas: [] }, "5 V", "linha 5V\r\nlinha 12V"]);
+    const lista = [troca("ESP32", "ESP32-S3"), troca("5 V", "5V")];
+    const umaVez = aplicarCorrecoes("ESP32 a 5 V", lista).texto;
+    conferir("correcoes, aplicar: aplicar duas vezes = uma vez", [umaVez, aplicarCorrecoes(umaVez, lista).texto], ["ESP32-S3 a 5V", "ESP32-S3 a 5V"]);
+    conferir("correcoes, aplicar: o errado no meio do certo tambem nao repete", aplicarCorrecoes("Placa Arduino e Arduino Uno", [troca("Arduino", "Placa Arduino")]).texto, "Placa Arduino e Placa Arduino Uno");
+    conferir("correcoes, aplicar: uma letra maiuscula sozinha e primeira letra, nao texto todo em maiusculas", aplicarCorrecoes("É Ótimo", [troca("é", "está")]).texto, "Está Ótimo");
+
+    conferir("correcoes, bloco: vazio", blocoDeCorrecoes([]), { texto: "", foraDoTeto: 0 });
+    const duas = [{ tipo: "TROCA", errado: "5 V", certo: "5V", explicacao: "unidade colada", criadoEm: new Date(1) }, { tipo: "REGRA", errado: null, certo: "Garantia sempre em meses", explicacao: null, criadoEm: new Date(2) }];
+    conferir("correcoes, bloco: uma linha por correcao, a mais recente primeiro", blocoDeCorrecoes(duas).texto, "Correções do dono (valem sempre, mesmo que o prompt diga outra coisa):\n- Garantia sempre em meses\n- Escreva \"5V\", nunca \"5 V\" (unidade colada)");
+    conferir("correcoes, bloco: passou do teto, as antigas ficam de fora", blocoDeCorrecoes(duas, { teto: 100 }), { texto: "Correções do dono (valem sempre, mesmo que o prompt diga outra coisa):\n- Garantia sempre em meses", foraDoTeto: 1 });
+    conferir("correcoes, instrucoes com e sem correcoes", [instrucoesComCorrecoes("PROMPT", []), instrucoesComCorrecoes("PROMPT", duas).startsWith("PROMPT\n\nCorreções do dono")], ["PROMPT", true]);
+    conferir("correcoes, aviso do teto", [avisoDoTeto(duas), avisoDoTeto(duas.concat(duas), { teto: 100 })], [null, "3 correções fora da instrução por tamanho; consolide ou desligue."]);
+
+    conferir("correcoes, diff: o menor trecho, esticado ate a fronteira", candidatosDoDiff("Tensão de operação: 5 V", "Tensão de operação: 5V"), [{ antes: "5 V", depois: "5V", contexto: "Tensão de operação: 5 V" }]);
+    conferir("correcoes, diff: palavra trocada", candidatosDoDiff("A\n\n- Voltagem: 5 V;\n- Corrente: 2 A;", "A\n\n- Tensão: 5 V;\n- Corrente: 2 A;"), [{ antes: "Voltagem", depois: "Tensão", contexto: "- Voltagem: 5 V;" }]);
+    conferir("correcoes, diff: linha acrescentada, linha reescrita e texto igual nao geram candidato", [candidatosDoDiff("A\nB", "A\nB\nC"), candidatosDoDiff("Parágrafo " + "x".repeat(70), "Outro " + "y".repeat(70)), candidatosDoDiff("igual", "igual")], [[], [], []]);
+    conferir("correcoes, diff: duas trocas na linha viram um par; CRLF; repetido sai", [candidatosDoDiff("5 V e 3,3 V", "5V e 3,3V")[0].antes, candidatosDoDiff("a\r\n5 V", "a\n5V"), candidatosDoDiff("x 5 V\ny 5 V", "x 5V\ny 5V").length], ["5 V e 3,3 V", [{ antes: "5 V", depois: "5V", contexto: "5 V" }], 1]);
+  }
+
   conferir("sem mudanca real, ou com o titulo de antes ou de depois vazio: o texto nao muda",
     [acompanharTituloNaDescricao(daPlaca, "Placa Pro Micro 5V", "  placa  pro micro 5v "), acompanharTituloNaDescricao(daPlaca, "", "X"), acompanharTituloNaDescricao(daPlaca, "Placa Pro Micro 5V", "   ")],
     [daPlaca, daPlaca, daPlaca]);
