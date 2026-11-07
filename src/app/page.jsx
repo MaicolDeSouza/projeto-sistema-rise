@@ -1,4 +1,5 @@
 import Link from "next/link";
+import GradeDeCartoes from "@/components/ui/GradeDeCartoes";
 import { CircleAlert, CircleCheck, Lock, Megaphone, Package } from "lucide-react";
 
 import { blocos, blocosDoMenu } from "@/lib/blocos";
@@ -114,7 +115,7 @@ export default async function PainelPage() {
             Blocos do sistema
           </h2>
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <GradeDeCartoes pagina="painel" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {outrosBlocos.map((bloco) => {
               const Icone = bloco.icone;
               return (
@@ -136,7 +137,7 @@ export default async function PainelPage() {
                 </Link>
               );
             })}
-          </div>
+          </GradeDeCartoes>
         </>
       )}
     </>

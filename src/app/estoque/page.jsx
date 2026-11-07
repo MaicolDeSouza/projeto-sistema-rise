@@ -1,4 +1,5 @@
 import { Factory } from "lucide-react";
+import GradeDeCartoes from "@/components/ui/GradeDeCartoes";
 
 import CartaoDeAtalho from "@/components/ui/CartaoDeAtalho";
 import PageHeader from "@/components/ui/PageHeader";
@@ -37,7 +38,7 @@ export default async function EstoquePage() {
   return (
     <>
       <PageHeader titulo="Estoque" descricao="Ordens de produção dos produtos com lista personalizada." />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <GradeDeCartoes pagina="estoque" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {veOrdens && (
           <CartaoDeAtalho
             href="/estoque/producao"
@@ -47,7 +48,7 @@ export default async function EstoquePage() {
             detalhe={await detalheDasOrdens()}
           />
         )}
-      </div>
+      </GradeDeCartoes>
     </>
   );
 }

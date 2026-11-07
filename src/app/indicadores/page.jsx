@@ -1,4 +1,5 @@
 import { Boxes } from "lucide-react";
+import GradeDeCartoes from "@/components/ui/GradeDeCartoes";
 import CartaoDeAtalho from "@/components/ui/CartaoDeAtalho";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
@@ -12,7 +13,7 @@ export default async function IndicadoresPage() {
   return (
     <>
       <PageHeader titulo="Indicadores" descricao="Acompanhe os números da sua loja." />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <GradeDeCartoes pagina="indicadores" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {pode("tela.indicadores.estoque", "ver") && (
         <CartaoDeAtalho
           href="/indicadores/estoque"
@@ -22,7 +23,7 @@ export default async function IndicadoresPage() {
           detalhe="Calculados a partir dos produtos cadastrados"
         />
         )}
-      </div>
+      </GradeDeCartoes>
     </>
   );
 }

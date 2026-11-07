@@ -1,4 +1,5 @@
 import CartaoDeAtalho from "@/components/ui/CartaoDeAtalho";
+import GradeDeCartoes from "@/components/ui/GradeDeCartoes";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { CANAIS_DE_VENDA } from "@/lib/canaisDeVenda/catalogo";
@@ -19,7 +20,7 @@ export default async function CanaisDeVendaPage() {
     <>
       <PageHeader titulo="Canais de Venda" descricao="Crie e gerencie anúncios por canal. Escolha um para abrir." />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <GradeDeCartoes pagina="canais-de-venda" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {canais.map((canal) => (
           <CartaoDeAtalho
             key={canal.href}
@@ -31,7 +32,7 @@ export default async function CanaisDeVendaPage() {
             emBreve={canal.emBreve}
           />
         ))}
-      </div>
+      </GradeDeCartoes>
     </>
   );
 }

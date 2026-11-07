@@ -1,4 +1,5 @@
 import CartaoDeAtalho from "@/components/ui/CartaoDeAtalho";
+import GradeDeCartoes from "@/components/ui/GradeDeCartoes";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { SECOES_DE_CADASTROS } from "@/lib/secoesDeCadastros";
@@ -23,7 +24,7 @@ export default async function CadastrosPage() {
     <>
       <PageHeader titulo="Cadastros" descricao="Escolha o que cadastrar." />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <GradeDeCartoes pagina="cadastros" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {secoes.map((secao) => (
           <CartaoDeAtalho
             key={secao.href}
@@ -34,7 +35,7 @@ export default async function CadastrosPage() {
             detalhe={secao.detalhe}
           />
         ))}
-      </div>
+      </GradeDeCartoes>
     </>
   );
 }

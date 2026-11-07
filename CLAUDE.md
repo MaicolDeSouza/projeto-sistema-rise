@@ -162,6 +162,14 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
   Shopee fora até ter integração. Rise/Bling/LI/ML filtram no banco; "C" e "!" leem os ícones do acervo filtrado
   (`iconesDosProdutos` em `lib/iconesDaListaDeProdutos.js`, a MESMA conta que desenha a linha; ~1 s nos 1.320 do PC).
   Regras em `lib/filtroDeCanais.js`, testadas no `teste:navegacao`.
+- **Cartões das páginas de bloco trocam de lugar** (pedido do dono em 07/11/2026, Opção 1: salvo POR USUÁRIO): segurar o cartão
+  0,4 s (mouse ou dedo) pega ele (cresce com borda azul), passar por cima de outro troca os dois, soltar grava; o clique depois
+  de um arrastar não abre o cartão; "Ordem padrão" embaixo volta a do Rise. `GradeDeCartoes` (servidor, lê a ordem) +
+  `GradeArrastavel` (cliente, eventos de ponteiro; o arrastar nativo do HTML não existe no celular e arrastaria o link), tabela
+  `OrdemDosCartoes` (chave = login, "pc" no PC sem login; migration `20261107c`), ação `salvarOrdemDosCartoesAcao`
+  (`src/app/acoes-cartoes.js`). Já usam: Painel (Blocos do sistema), Cadastros, Canais de Venda, Compras, Configurações,
+  Estoque, Ferramentas e Indicadores. **Página nova de cartões usa `<GradeDeCartoes pagina="..." className="grid ...">`** e
+  põe a página em `PAGINAS_COM_CARTOES` e no mapa de recursos da ação. Cartão novo entra no fim da ordem salva.
 - **Lista longa:** paginada, 100 por página, filtro por parâmetro repetido (`?fonte=A&fonte=B`), e
   nenhuma marcada quer dizer todas (Mercados).
 - **Lista de produtos (Produtos e Scraper), padrão desde 23/10/2026 (pedido do dono):**

@@ -1,4 +1,5 @@
 import CartaoDeAtalho from "@/components/ui/CartaoDeAtalho";
+import GradeDeCartoes from "@/components/ui/GradeDeCartoes";
 import PageHeader from "@/components/ui/PageHeader";
 import { FERRAMENTAS } from "@/lib/ferramentas/catalogo";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
@@ -20,7 +21,7 @@ export default async function FerramentasPage() {
     <>
       <PageHeader titulo="Ferramentas" descricao="Utilitários do dia a dia. Escolha uma para abrir." />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <GradeDeCartoes pagina="ferramentas" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {ferramentas.map((ferramenta) => (
           <CartaoDeAtalho
             key={ferramenta.href}
@@ -31,7 +32,7 @@ export default async function FerramentasPage() {
             detalhe={ferramenta.detalhe}
           />
         ))}
-      </div>
+      </GradeDeCartoes>
     </>
   );
 }

@@ -2441,6 +2441,19 @@ model DadosDaEmpresa {
   atualizadoEm      DateTime @updatedAt
 }
 
+/// A ordem dos cartoes de uma pagina de bloco, POR PESSOA (pedido do dono em 07/11/2026: segurar o cartao e arrastar,
+/// "como um icone de app de celular", e ficar salvo; Opcao 1, por usuario). `chave` e o login (no PC sem login, "pc"),
+/// sem chave estrangeira: o login vem do Tinyauth e vale antes de o usuario existir no Rise. `ordem` sao os ids dos
+/// cartoes (o href); cartao novo que nao esta na lista entra no fim, e o que saiu e ignorado.
+model OrdemDosCartoes {
+  chave        String
+  pagina       String
+  ordem        String[]
+  atualizadoEm DateTime @updatedAt
+
+  @@id([chave, pagina])
+}
+
 /// Uma peca propria: produto do Rise (componenteId) OU item manual (descricao + custoManual), nunca os dois.
 model PecaPropriaDoProduto {
   id               String   @id @default(cuid())

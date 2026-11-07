@@ -1,4 +1,5 @@
 import CartaoDeAtalho from "@/components/ui/CartaoDeAtalho";
+import GradeDeCartoes from "@/components/ui/GradeDeCartoes";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { CARTOES_DE_CONFIGURACOES } from "@/lib/configuracoes/catalogo";
@@ -44,7 +45,7 @@ export default async function ConfiguracoesPage() {
     <>
       <PageHeader titulo="Configurações" descricao="Usuários, integrações, o Rise AI e a saúde do sistema." />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <GradeDeCartoes pagina="configuracoes" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {cartoes.map((cartao, indice) => (
           <CartaoDeAtalho
             key={cartao.href}
@@ -55,7 +56,7 @@ export default async function ConfiguracoesPage() {
             detalhe={detalhes[indice]}
           />
         ))}
-      </div>
+      </GradeDeCartoes>
     </>
   );
 }
