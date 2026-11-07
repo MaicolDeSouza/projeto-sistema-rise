@@ -5183,6 +5183,16 @@ plano `docs/superpowers/plans/2026-10-26-modulo-compras.md` (12 tarefas, inline)
   estoque já saiu ("Já saíram unidades...").
 - **Proposta:** arquivo conferido pelos BYTES (PDF, JPEG, PNG, 20 MB), num lote temporário até o Salvar (`dados/compras/<pedidoId>/proposta/`).
 - **PDF:** só o que interessa ao fornecedor (código e nome DELE, nunca o SKU do Rise), gerado na hora pelo pdfkit; rota exige ver pedidos E custo.
+  **Refeito em 06/11/2026 (pedido do dono, "isso será enviado ao fornecedor"):** cabeçalho só com o **logo** da 4hobby
+  (`public/marcas/4hobby.svg` em PNG pelo sharp; os dados da empresa saíram); do fornecedor, só o **nome e o "A/C:" com o
+  contato**; tabela com **separador entre todas as colunas** e o mesmo respiro (5 pt) em cada lado; coluna **Foto** à esquerda
+  do Código (a miniatura da lista do fornecedor, achada como na aba Fornecedores do produto: link, código ou descrição;
+  `dadosDoPdf.js`, JPEG de 96 px, foto que não baixa fica em branco). **Duas observações** (migration
+  `20261106_obs_para_fornecedor`, Opção "dois campos" do dono): "Para o fornecedor" (`observacoesFornecedor`, a única que vai
+  no PDF) e "Internas" (`observacoes`, nunca mais impressa). **Fornecedor estrangeiro** (`moedaLista` ≠ BRL, NexMind): PDF em
+  **inglês**, em **US$ sem o fator** (`dolarSemFator`: o preço em reais do item ÷ cotação × fator da linha da lista; preço
+  não mexido devolve o dólar da lista; sem a lista, cotação do dia e o fator do cadastro), **sem IPI nem impostos** (só do
+  estrangeiro, escolha do dono); frete, desconto em R$ e entrada voltam pela cotação, sem fator. Testado no `teste:compras`.
 - **Visto no navegador do PC:** lista do mínimo, popup e carrinho, novo pedido, busca de item, salvar com desconto, recusa de envio sem
   preço, enviar, lançar 4 de 10 (o Bling do PC recusou pela trava: aviso âmbar) e desfazer, proposta (anexada por script: o navegador
   embutido não envia arquivo), Dados da empresa e o PDF renderizado. **Não visto:** o envio real ao Bling (só contra o Bling falso), o

@@ -55,6 +55,7 @@ export const EsquemaDoPedido = z.object({
   rastreio: textoOpcional(80).optional(),
   propostaNumero: textoOpcional(60).optional(),
   observacoes: textoOpcional(4000).optional(),
+  observacoesFornecedor: textoOpcional(4000).optional(),
 });
 
 /**

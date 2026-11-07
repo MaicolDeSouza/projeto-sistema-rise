@@ -1,6 +1,7 @@
 import { recusarRota, sessaoDeAcessos } from "@/lib/acessos/servidor";
 import { lerPedido } from "@/lib/compras/banco";
 import { lerDadosDaEmpresa } from "@/lib/compras/empresa";
+import { dadosDoPdf } from "@/lib/compras/dadosDoPdf";
 import { pdfDoPedido } from "@/lib/compras/pdf";
 
 /** "pc-0005-fortek-comercio" -> so letras, numeros e hifen: o nome do fornecedor e dado de terceiro. */
@@ -24,7 +25,9 @@ export async function GET(_requisicao, { params }) {
   const pedido = await lerPedido(id);
   if (!pedido) return new Response("Não encontrado", { status: 404 });
 
-  const bytes = await pdfDoPedido(pedido, await lerDadosDaEmpresa());
+  // Logo, foto de cada item na lista do fornecedor e, no estrangeiro, o dolar sem o fator (pedido do dono em 06/11/2026).
+  const [empresa, extras] = await Promise.all([lerDadosDaEmpresa(), dadosDoPdf(pedido)]);
+  const bytes = await pdfDoPedido(pedido, empresa, extras);
   const nome = `${pedido.codigo}-${paraNomeDeArquivo(pedido.fornecedor.nome) || "fornecedor"}.pdf`;
   return new Response(bytes, {
     headers: {

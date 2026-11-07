@@ -51,6 +51,7 @@ export function formularioDoPedido(pedido) {
     rastreio: pedido.rastreio ?? "",
     propostaNumero: pedido.propostaNumero ?? "",
     observacoes: pedido.observacoes ?? "",
+    observacoesFornecedor: pedido.observacoesFornecedor ?? "",
     // O arquivo da proposta so muda no Salvar: o enviado espera no lote; o excluido so e riscado.
     propostaTemporaria: null,
     removerProposta: false,

@@ -170,7 +170,7 @@ conferir(
     icmsSt: 0, descontoTipo: "PERCENTUAL", descontoValor: 5, frete: 20,
     formaPagamento: "BOLETO", parcelas: 3, entrada: 30,
     transportadora: null, transportadoraNome: "Transportes X", fretePorConta: "FOB",
-    propostaNumero: "4512", observacoes: "Entregar em horário comercial.",
+    propostaNumero: "4512", observacoes: "Conta interna: portal x 0,88.", observacoesFornecedor: "Entregar em horário comercial.",
   };
   const empresaDoPdf = { razaoSocial: "Maicol de Souza", nomeFantasia: "4Hobby", cnpj: "30.010.376/0001-48", endereco: "Estrada Municipal Domingos Forner", numero: "2135", bairro: "Galópolis", cidade: "Caxias do Sul", uf: "RS", cep: "95090-970", telefone: "5432841632" };
   const bytes = await pdfDoPedido(pedidoDoPdf, empresaDoPdf);
@@ -179,7 +179,12 @@ conferir(
   const { text, total } = await leitor.getText();
   await leitor.destroy?.();
   conferir("mais de uma pagina", (total ?? 0) >= 2, true);
-  conferir("numero, CNPJ da 4hobby e codigo no fornecedor", [text.includes("PC-0007"), text.includes("30.010.376/0001-48"), text.includes("FORN-59")], [true, true, true]);
+  conferir("numero e codigo no fornecedor", [text.includes("PC-0007"), text.includes("FORN-59")], [true, true]);
+  // 06/11/2026: so o logo da 4hobby; do fornecedor, o nome e o A/C (o contato), sem CNPJ, telefone e e-mail.
+  conferir("sem os dados da 4hobby", [text.includes("30.010.376/0001-48"), text.includes("Galópolis"), text.includes("Maicol")], [false, false, false]);
+  conferir("fornecedor: nome e A/C", [text.includes("Fornecedor Teste"), text.includes("A/C: Fulano"), text.includes("17.142.314/0001-21"), text.includes("vendas@exemplo")], [true, true, false, false]);
+  conferir("obs para o fornecedor sim, interna nao", [text.includes("Entregar em horário comercial."), text.includes("Conta interna")], [true, false]);
+  conferir("coluna de IPI no fornecedor nacional", text.includes("IPI %"), true);
   conferir("sem nome no fornecedor usa o nome do Rise", text.includes("Produto do Rise 0"), true);
   conferir("nunca o SKU do Rise", text.includes("ZZ-COMPRA-SKU"), false);
   conferir("entrada paga no pagamento", text.includes("Entrada paga: R$"), true);
@@ -187,6 +192,24 @@ conferir(
   // O campo Frete (transportadora, CIF/FOB) saiu do PDF (pedido do dono em 26/10/2026); o valor do frete fica nos totais.
   conferir("sem o campo Frete no PDF", [/\(FOB\)|\(CIF\)/.test(text), text.includes("Transportes X")], [false, false]);
   conferir("valor do frete continua nos totais", text.includes("R$ 20,00"), true);
+
+  // Fornecedor estrangeiro: ingles, dolar sem o fator, sem IPI (pedido do dono em 06/11/2026).
+  const { dolarSemFator } = await import("../src/lib/compras/dadosDoPdf.js");
+  conferir("dolar sem fator volta ao valor da lista", dolarSemFator(13.07, { cotacao: 5.4778, fator: 2.2, valorDaLista: 1.08 }), 1.08);
+  conferir("dolar sem fator de preco mexido", dolarSemFator(22, { cotacao: 5.5, fator: 2 }), 2);
+  conferir("dolar sem cotacao", dolarSemFator(10, { cotacao: null, fator: 2 }), null);
+  const estrangeiro = await pdfDoPedido(
+    { ...pedidoDoPdf, itens: itensDoPdf.slice(0, 3), descontoTipo: null, descontoValor: 0, frete: 55, entrada: 0 },
+    empresaDoPdf,
+    { estrangeiro: true, moeda: "USD", cotacao: 5.5, dolar: { i0: 2.95, i1: 0.5, i2: 1 }, fotos: {} },
+  );
+  const leitorEn = new PDFParse({ data: new Uint8Array(estrangeiro) });
+  const { text: textoEn } = await leitorEn.getText();
+  await leitorEn.destroy?.();
+  conferir("estrangeiro em ingles", [textoEn.includes("Purchase Order PC-0007"), textoEn.includes("Attn: Fulano"), textoEn.includes("Unit price")], [true, true, true]);
+  conferir("estrangeiro em dolar, sem IPI", [textoEn.includes("$2.95"), textoEn.includes("$29.50"), textoEn.includes("R$"), textoEn.includes("IPI")], [true, true, false, false]);
+  // 3 itens x 10: 29,50 + 5,00 + 10,00 = 44,50; frete R$ 55 / 5,5 = $10,00 (sem fator).
+  conferir("estrangeiro: frete pela cotacao e total", [textoEn.includes("$10.00"), textoEn.includes("$54.50")], [true, true]);
 }
 
 // ---------------------------------------------------------------------------

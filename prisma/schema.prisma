@@ -2305,7 +2305,10 @@ model PedidoDeCompra {
   canceladoEm  DateTime?
   criadoEm     DateTime  @default(now())
   atualizadoEm DateTime  @updatedAt
+  /// Anotacao INTERNA: nunca vai ao PDF (decisao do dono em 06/11/2026; ate ali era impressa e levava a conta do preco).
 
+  /// O que o fornecedor precisa ler: o unico texto livre que vai no PDF do pedido.
+  observacoesFornecedor String?
   /// De onde veio: feito no Rise ou importado do AliExpress (pela extensao). O do AliExpress nasce ENVIADO.
   origem  OrigemDoPedidoDeCompra @default(RISE)
   /// O "Imposto" que o AliExpress cobra no pedido (importacao); soma nos totais ao lado de IPI e ICMS ST.

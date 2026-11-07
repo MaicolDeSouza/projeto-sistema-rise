@@ -451,6 +451,7 @@ function pedidoParaTela(pedido) {
             entregueEm: pedido.aliexpress.entregueEm ?? entregaPeloRastreio(pedido.aliexpress.pacotes),
             canceladoNoAliExpressEm: pedido.aliexpress.canceladoNoAliExpressEm,
             faltaLancar: ["ENVIADO", "PARCIAL"].includes(pedido.status) ? itens.reduce((soma, item) => soma + faltaLancar(item), 0) : 0,
+    observacoesFornecedor: pedido.observacoesFornecedor,
             virtualErros: pedido.aliexpress.linhas.filter((linha) => linha.virtualErro).length,
           }),
         ]
@@ -569,7 +570,8 @@ const FOTO_PRINCIPAL = { where: { tipo: "IMAGEM", papel: "FOTO" }, orderBy: { or
 
 const INCLUIR_NO_PEDIDO = {
   fornecedor: {
-    select: { id: true, nome: true, cnpj: true, contato: true, telefone: true, email: true, prazoEntregaDias: true, condicoesPagamento: true },
+    // moeda e fator: o PDF do fornecedor estrangeiro sai em ingles e em dolar, sem o fator (pedido do dono em 06/11/2026).
+    select: { id: true, nome: true, cnpj: true, contato: true, telefone: true, email: true, prazoEntregaDias: true, condicoesPagamento: true, moedaLista: true, fatorImportacao: true },
   },
   transportadora: { select: { id: true, nome: true, nomeFantasia: true, urlRastreamento: true } },
   itens: {
@@ -832,6 +834,7 @@ export async function salvarPedido(id, entrada) {
       if (dados.itens) {
         const atuais = await tx.itemDoPedidoDeCompra.findMany({ where: { pedidoId: id }, select: { id: true } });
         const recebidos = new Map(dados.itens.map((item, indice) => [item.id, { ...item, ordem: indice }]));
+      definir("observacoesFornecedor", dados.observacoesFornecedor);
         for (const atual of atuais) {
           const item = recebidos.get(atual.id);
           if (!item) {

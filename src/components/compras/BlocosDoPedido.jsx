@@ -3,16 +3,20 @@
 import { ExternalLink } from "lucide-react";
 
 import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
+import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { lerDesconto } from "@/lib/compras/regras";
 import { moeda, soDecimal, soDigitos } from "./formato";
 
 const entrada =
   "w-full rounded-md border border-borda bg-superficie px-2.5 py-2 text-sm tabular-nums focus:border-acento focus:outline-none focus:ring-2 focus:ring-acento/20 disabled:bg-fundo disabled:text-suave aria-[invalid=true]:border-rose-500";
 
-function Campo({ rotulo, erro, children, className = "" }) {
+function Campo({ rotulo, erro, ajuda = null, children, className = "" }) {
   return (
     <label className={`block ${className}`}>
-      <span className="mb-1 block text-xs font-medium text-suave">{rotulo}</span>
+      <span className="mb-1 flex items-center gap-1 text-xs font-medium text-suave">
+        {rotulo}
+        {ajuda && <BolhaDeAjuda texto={ajuda} variante="inline" />}
+      </span>
       {children}
       {erro && <span className="mt-1 block text-xs text-rose-600">{erro}</span>}
     </label>
@@ -278,17 +282,34 @@ export function BlocoProposta({ formulario, editar, aoMudar, children = null }) 
   );
 }
 
+/**
+ * Duas observacoes (pedido do dono em 06/11/2026: "no campo de OBS nao trazer nenhuma informacao da loja, mostre apenas
+ * informacoes que sejam relevante ao fornecedor"): a do fornecedor vai no PDF; a interna (a conta do preco, o pedido do
+ * portal) fica so no Rise.
+ */
 export function BlocoObservacoes({ formulario, editar, aoMudar }) {
   return (
-    <SecaoDoAnuncio titulo="Observações" ajuda="Vão no PDF para o fornecedor.">
-      <textarea
-        value={formulario.observacoes}
-        disabled={!editar}
-        rows={4}
-        onChange={(evento) => aoMudar("observacoes", evento.target.value.slice(0, 4000))}
-        aria-label="Observações"
-        className={`${entrada} resize-y`}
-      />
+    <SecaoDoAnuncio titulo="Observações">
+      <div className="grid gap-3 md:grid-cols-2">
+        <Campo rotulo="Para o fornecedor" ajuda="Vai no PDF do pedido. Só o que o fornecedor precisa ler.">
+          <textarea
+            value={formulario.observacoesFornecedor}
+            disabled={!editar}
+            rows={4}
+            onChange={(evento) => aoMudar("observacoesFornecedor", evento.target.value.slice(0, 4000))}
+            className={`${entrada} resize-y`}
+          />
+        </Campo>
+        <Campo rotulo="Internas" ajuda="Ficam só no Rise; não vão no PDF.">
+          <textarea
+            value={formulario.observacoes}
+            disabled={!editar}
+            rows={4}
+            onChange={(evento) => aoMudar("observacoes", evento.target.value.slice(0, 4000))}
+            className={`${entrada} resize-y`}
+          />
+        </Campo>
+      </div>
     </SecaoDoAnuncio>
   );
 }
