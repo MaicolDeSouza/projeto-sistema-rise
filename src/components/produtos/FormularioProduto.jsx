@@ -68,6 +68,9 @@ import JanelaProduzir from "@/components/producao/JanelaProduzir";
 import EditorDescricao from "./EditorDescricao";
 import Fornecedores from "./Fornecedores";
 import JanelaDescricao from "./JanelaDescricao";
+import JanelaOQueMudou from "./JanelaOQueMudou";
+import { candidatosDoDiff } from "@/lib/ia/correcoes";
+import { lerPreferenciaDaDescricao } from "@/lib/preferenciaDaDescricao";
 import PainelDeImagens from "./PainelDeImagens";
 import BannerDeRascunho from "./BannerDeRascunho";
 import PropostaNoTopo, { DocumentosDaProposta, OlhoDaProposta } from "./QuadroDaProposta";
@@ -102,6 +105,7 @@ import {
   pecaDeOrigemDoKit,
   removerArquivoTemporario,
   salvarProduto,
+  promptsDaDescricao,
 } from "@/app/produtos/acoes";
 
 /// O que o formulario faz quando NAO recebe `acessos` (a tela de hoje, sem restricao). O calculo de verdade e
@@ -2154,6 +2158,15 @@ export default function FormularioProduto({
   });
   const [versao, setVersao] = useState(0);
 
+  // CORRECOES DA DESCRICAO (spec 2026-11-07): o texto que a IA, a proposta ou a busca escreveu na descricao (ou o que o
+  // cadastro trouxe ao abrir). No Salvar, o que o dono mudou a mao em relacao a ele vira os pares do popup "O que mudou
+  // na descricao". Estado, e nao ref: o rascunho guarda junto, e ler ref durante a renderizacao nao vale.
+  const [descricaoDaMaquina, setDescricaoDaMaquina] = useState(() => String(preenchido?.descricaoBase ?? produto?.descricaoBase ?? ""));
+  const [oQueMudou, setOQueMudou] = useState(null);
+  // O segundo envio (depois do popup) passa direto; o campo escondido leva as TROCAs marcadas.
+  const confirmado = useRef(false);
+  const campoCorrecoes = useRef(null);
+
   // Como o formulario NASCEU (Unidade "UN", Situacao ativa, o resto vazio). E a
   // base de "Buscar por codigo": clonar outro produto recomeca daqui, em vez de
   // somar ao que a busca anterior deixou. Lido da tela e nao escrito a mao, para
@@ -2610,6 +2623,8 @@ export default function FormularioProduto({
     if (!campo || campo.disabled) return;
     const texto = acompanharTituloNaDescricao(campo.value, nomeDeAntes, nome);
     if (texto !== campo.value) escreverNoCampo(campo, texto);
+    // O texto da maquina acompanha igual: a troca do Nome nao e uma correcao do dono.
+    setDescricaoDaMaquina((anterior) => acompanharTituloNaDescricao(anterior, nomeDeAntes, nome));
   }
 
   const idsMarcados = [...marcados.keys()];
@@ -2684,6 +2699,7 @@ export default function FormularioProduto({
       temporarios,
       documentosExcluidos,
       gastoDaEdicao,
+      descricaoDaMaquina,
     },
   });
 
@@ -2711,6 +2727,8 @@ export default function FormularioProduto({
     }
     setDocumentosExcluidos(guardado.documentosExcluidos);
     setGastoDaEdicao(guardado.gastoDaEdicao);
+    // Rascunho de antes das Correcoes da descricao nao tem o texto da maquina: vale o que estava no campo.
+    setDescricaoDaMaquina(guardado.descricaoDaMaquina ?? String(guardado.campos.descricaoBase ?? ""));
     marcarAlterado();
     rascunho.aplicado();
   }
@@ -3330,6 +3348,13 @@ export default function FormularioProduto({
     if (trazidos.tituloBase !== undefined && typeof mesclado.descricaoBase === "string") {
       mesclado.descricaoBase = acompanharTituloNaDescricao(mesclado.descricaoBase, atual.tituloBase || mesclado.tituloBase, mesclado.tituloBase);
     }
+    // A descricao que chega por aqui (IA, proposta, busca por codigo, recomecar) e o novo texto da maquina; so o Nome
+    // trocado leva o texto da maquina junto, como leva o do campo.
+    if (recomecar || trazidos.descricaoBase !== undefined || daOrigem.descricaoBase !== undefined) {
+      setDescricaoDaMaquina(String(mesclado.descricaoBase ?? ""));
+    } else if (trazidos.tituloBase !== undefined) {
+      setDescricaoDaMaquina((anterior) => acompanharTituloNaDescricao(anterior, atual.tituloBase || mesclado.tituloBase, mesclado.tituloBase));
+    }
     // O que outro caminho trouxe (IA, busca por codigo) ja nao e o valor da proposta: a marca sai.
     if (daProposta) setEditadosDaProposta((anteriores) => new Set([...anteriores, ...Object.keys(trazidos), ...Object.keys(daOrigem)]));
     setPreenchido(mesclado);
@@ -3442,6 +3467,42 @@ export default function FormularioProduto({
     setEditadosDaProposta((anteriores) => new Set([...anteriores, nome]));
   }
 
+  /**
+   * O Salvar passa por aqui antes da action (Correcoes da descricao, spec 2026-11-07): se o dono mudou a mao trechos do
+   * texto que a maquina escreveu, abre o popup "O que mudou na descricao" e segura o envio. O `preventDefault` do onSubmit
+   * cancela a action do React; o popup reenvia com `requestSubmit`, e o segundo envio passa direto.
+   */
+  function aoEnviar(evento) {
+    if (confirmado.current) {
+      confirmado.current = false;
+      return;
+    }
+    if (campoCorrecoes.current) campoCorrecoes.current.value = "[]";
+    const campo = formulario.current?.elements.namedItem("descricaoBase");
+    if (somenteLeitura || !campo || campo.disabled) return;
+    const candidatos = candidatosDoDiff(descricaoDaMaquina, campo.value);
+    if (candidatos.length === 0) return;
+    evento.preventDefault();
+    setOQueMudou({ candidatos, prompt: null });
+    // O prompt da ultima escolha na janela "Criar descricao" (ou o padrao), para o "So o prompt X". Sem a lista (sem acesso
+    // a IA, falha), o popup oferece so "Todas as descricoes".
+    const { promptId } = lerPreferenciaDaDescricao();
+    promptsDaDescricao()
+      .then((resposta) => {
+        const lista = resposta?.ok && Array.isArray(resposta.prompts) ? resposta.prompts : [];
+        const escolhido = lista.find((item) => item.id === promptId) ?? lista.find((item) => item.padrao) ?? lista[0];
+        if (escolhido?.nome) setOQueMudou((atual) => (atual ? { ...atual, prompt: { nome: escolhido.nome } } : atual));
+      })
+      .catch(() => {});
+  }
+
+  function enviarComCorrecoes(marcadas) {
+    if (campoCorrecoes.current) campoCorrecoes.current.value = JSON.stringify(marcadas);
+    confirmado.current = true;
+    setOQueMudou(null);
+    formulario.current?.requestSubmit();
+  }
+
   return (
     <PropostaNosCampos.Provider
       value={daProposta ? { valores: camposComAProposta, editados: editadosDaProposta, listas: daProposta.nasListas } : null}
@@ -3449,6 +3510,7 @@ export default function FormularioProduto({
     <form
       ref={formulario}
       action={acao}
+      onSubmit={aoEnviar}
       onChange={(evento) => {
         marcarAlterado();
         marcarEditadoDaProposta(evento);
@@ -3552,6 +3614,8 @@ export default function FormularioProduto({
       {/* Gasto com IA desta edicao (descricao e titulo): o Salvar soma ao total do produto (pedido do dono em 12/10/2026). */}
       <input type="hidden" name="gastoIA" value={gastoDaEdicao ? JSON.stringify(gastoDaEdicao) : ""} />
       <input type="hidden" name="propostaAplicada" value={JSON.stringify(propostaAplicada)} />
+      {/* As TROCAs marcadas no popup "O que mudou na descricao" (o servidor as grava depois de salvar o produto). */}
+      <input type="hidden" name="correcoesDaDescricao" ref={campoCorrecoes} defaultValue="[]" />
       {/* Os campos que a proposta preencheu ao abrir: o Salvar compara com o gravado e sabe o que o dono mudou. */}
       <input type="hidden" name="propostaPreenchidos" value={JSON.stringify(Object.keys(daProposta?.preencher ?? {}))} />
 
@@ -3607,6 +3671,16 @@ export default function FormularioProduto({
           )}
         </div>
       </div>
+
+      {oQueMudou && (
+        <JanelaOQueMudou
+          candidatos={oQueMudou.candidatos}
+          prompt={oQueMudou.prompt}
+          aoSalvar={enviarComCorrecoes}
+          aoSalvarSemRegra={() => enviarComCorrecoes([])}
+          aoVoltar={() => setOQueMudou(null)}
+        />
+      )}
 
       {/* "Sair sem salvar?" (pedido do dono em 14/10/2026): o mesmo pop-up dos editores de anuncio. O foco cai em
           "Continuar editando", o botao seguro; "Sair sem salvar" e o vermelho. */}

@@ -92,6 +92,9 @@ export function montarRascunho({ campos, estado, baseEm = null, agora = Date.now
     temporarios: lista(estado.temporarios),
     documentosExcluidos: lista(estado.documentosExcluidos),
     gastoDaEdicao: objeto(estado.gastoDaEdicao),
+    // O texto que a IA, a proposta ou a busca escreveu na descricao (Correcoes da descricao, spec 2026-11-07): sem ele o
+    // popup "O que mudou na descricao" do Salvar compararia com o texto ja corrigido a mao e nao acharia nada.
+    descricaoDaMaquina: typeof estado.descricaoDaMaquina === "string" ? estado.descricaoDaMaquina : null,
   };
 }
 
@@ -147,6 +150,7 @@ export function lerRascunho(texto, { agora = Date.now(), baseEmAtual = null } = 
     temporarios: arquivosExpiraram ? [] : lista(bruto.temporarios),
     documentosExcluidos: lista(bruto.documentosExcluidos),
     gastoDaEdicao: objeto(bruto.gastoDaEdicao),
+    descricaoDaMaquina: typeof bruto.descricaoDaMaquina === "string" ? bruto.descricaoDaMaquina : null,
     arquivosExpiraram,
     produtoMudou: Boolean(baseEmAtual && bruto.baseEm && baseEmAtual !== bruto.baseEm),
   };

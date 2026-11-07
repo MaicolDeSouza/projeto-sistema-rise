@@ -3239,6 +3239,10 @@ console.log("\n— Rascunho do cadastro e preferencia da descricao —");
   conferir("rascunho recente: sem aviso de produto mudado nem de arquivo expirado", [lido.produtoMudou, lido.arquivosExpiraram], [false, false]);
   conferir("rascunho: produto salvo de novo depois dele avisa", lerRascunho(JSON.stringify(montado), { agora, baseEmAtual: "2026-10-13T14:00:00.000Z" }).produtoMudou, true);
   conferir("rascunho: cadastro novo (sem baseEm) nunca acusa produto mudado", lerRascunho(JSON.stringify({ ...montado, baseEm: null }), { agora, baseEmAtual: null }).produtoMudou, false);
+  // Correcoes da descricao (spec 2026-11-07): o texto que a IA ou a proposta escreveu volta junto, para o diff do Salvar.
+  const comMaquina = montarRascunho({ campos: { descricaoBase: "5V" }, estado: { ...estado, descricaoDaMaquina: "5 V" }, baseEm: null, agora: antes(1000) });
+  conferir("rascunho leva e devolve a descricao da maquina (o diff do Salvar sobrevive ao recarregar)", lerRascunho(JSON.stringify(comMaquina), { agora })?.descricaoDaMaquina, "5 V");
+  conferir("rascunho sem a descricao da maquina: null", lerRascunho(JSON.stringify(montarRascunho({ campos: { sku: "1" }, estado, baseEm: null, agora: antes(1000) })), { agora })?.descricaoDaMaquina, null);
 
   // Mais de 20 h: o texto volta, as fotos e os documentos enviados nao (o lote temporario some com 24 h).
   const velho = lerRascunho(JSON.stringify({ ...montado, salvoEm: new Date(antes(VALIDADE_DOS_ARQUIVOS_MS + 60_000)).toISOString() }), { agora });
