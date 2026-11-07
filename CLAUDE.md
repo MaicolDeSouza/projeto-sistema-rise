@@ -61,6 +61,9 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
   "- Nome: valor" das Especificações técnicas começando com maiúscula (`maiusculaNoValor`, também dentro de
   `formatarLinhaTecnica`, para a chave da loja de origem casar com a linha). Vale na IA (`montarDescricao`), no editor
   (`organizarDescricao`), na proposta (`gravarProposta`, seção descricao) e no Salvar do produto (esquema `descricaoBase`).
+  Desde 07/11/2026 a `normalizarDescricao` passa cada linha técnica pela `formatarLinhaTecnica` inteira (`formatarLinhasTecnicas`:
+  unidade colada e "tensão" no lugar de "voltagem"), então a proposta e o texto digitado também gravam "5V"; a prosa não muda
+  ("consome 2 A partir de"). Depois dessas regras fixas valem as **Correções da descrição** do dono (seção própria, abaixo).
   **O título da descrição e o 1º item incluso acompanham o Nome** (`acompanharTituloNaDescricao`): desde 03/11/2026 o título
   (1ª linha em maiúsculas) acompanha sempre, e o item quando é o Nome de antes ou o título antigo da descrição (sem acento,
   "*SKU" ou "(Cód. …)" na comparação); a proposta que aplica Nome e descrição juntos também passa por aqui.
@@ -325,7 +328,7 @@ tem a segunda trava no mesmo molde desde 08/10/2026: `ML_PUBLICACAO_CODIGOS` (li
 ```bash
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
-npm run teste:extracao            # 775 asserções da extração, do EAN interno, da conciliação, das medidas, das opções de parágrafo da descrição, do Nome que a descrição acompanha, da ordem da aba Concorrentes e da lista do "$" e do cabeçalho de download de arquivo, SEM rede
+npm run teste:extracao            # 862 asserções da extração, do EAN interno, da conciliação, das medidas, das opções de parágrafo da descrição, do Nome que a descrição acompanha, das regras puras das Correções da descrição, da ordem da aba Concorrentes e da lista do "$" e do cabeçalho de download de arquivo, SEM rede
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
 npm run teste:versao              # 26 asserções da versão no pé do menu (VPS: DD.MM.AAAA.NN, a data do deploy em São Paulo e o número do deploy, mostrada como "DD.MM.AAAA (build NN) - commit"; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
@@ -358,7 +361,7 @@ npm run teste:fundo               # 9 asserções da regra do fundo das janelas 
 npm run teste:composicao          # 136 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças (com o que falta a cada produto), a descrição só com referências cadastradas e os ajustes de 10/10/2026 (código sugerido, localização da peça, peça de origem, documentos e descrições das peças, o "!" do kit e o "Anexar a este produto") (Postgres, SEM rede; só escreve produtos ZZ-KIT-* e a pasta dados/produtos/ZZ-KIT-C3, que apaga)
 npm run teste:bling-sync          # 754 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos e de fotos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 npm run teste:rise-ai             # 616 asserções do Rise AI (Entrega 1 e A1; o chat da tela e a leitura do fluxo SSE saíram em 20/10/2026): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo e a coluna Outros, configuração e as quatro abas, orçamento e reserva, cotação do dia, Parar, texto seguro, perfil cliente, pesquisa na internet, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
-npm run teste:mcp                 # 231 asserções do servidor MCP (com o buscarNoMercado, os filtros do catálogo, anúncios, histórico de preço e os cadastros): sondagem do SDK, OAuth puro e no banco (só hash, rotação, revogação por família), portão 401/403/503, rotas do protocolo, tela Autorizar, as ferramentas com o pode() do login, o registro de cada chamada, anotarDuvida, a rota /mcp, o Caddyfile, a aba Conexões e a Revisão do dia. Postgres local, SEM rede e SEM IA; só escreve zz-mcp-*, ZZ-MCP * e ZZ-MCP-*
+npm run teste:mcp                 # 251 asserções do servidor MCP (com o buscarNoMercado, os filtros do catálogo, anúncios, histórico de preço, os cadastros e as Correções da descrição): sondagem do SDK, OAuth puro e no banco (só hash, rotação, revogação por família), portão 401/403/503, rotas do protocolo, tela Autorizar, as ferramentas com o pode() do login, o registro de cada chamada, anotarDuvida, a rota /mcp, o Caddyfile, a aba Conexões e a Revisão do dia. Postgres local, SEM rede e SEM IA; só escreve zz-mcp-*, ZZ-MCP * e ZZ-MCP-*
 npm run teste:telegram            # 96 asserções da Entrega C1 (avisos no Telegram): banco, texto dos avisos (4 linhas, neutralizado, mascarado), cliente da API do bot e o token mascarado no log, vínculo por código, a configuração e a aba Canais, e a rotina do worker (linha de base, zerou/voltou/zerou, orçamento 80/100%, varredura que falhou, resumo das 20h, bloqueado, 3 tentativas). Telegram FALSO (SEM rede); Postgres local, só escreve zz-tg-* e ZZ-TG-* e devolve a Conexao TELEGRAM, a configuração e a linha de base do dono
 npm run teste:producao            # 89 asserções das peças próprias e da ordem de produção: regras (custo, cor do estoque, validação, arredondamento), custo pelas peças e o recálculo, trava da entrada manual, preparo do Salvar, clone, rascunho, a ordem (cria, baixa com falta, baixa, clique duplo, conclui com perda, cancela devolvendo, kit recalculado) contra o Bling falso. Postgres local, SEM rede; só escreve ZZ-PROD-*
 npm run teste:compras             # 142 asserções do módulo Compras: regras (totais, desconto % ou R$, a caminho, carrinho, situação), lista do mínimo e rascunho automático (com concorrência), pedido (salvar, itens, situação, preço que não se apaga), lançamento contra o Bling falso (clique duplo, Bling que recusa, desfazer com estoque vendido), proposta pelos bytes, dados da empresa, o PDF e as ferramentas de Compras do MCP. Postgres local, SEM rede; só escreve ZZ-COMPRA-* e "ZZ Compra *"
@@ -370,7 +373,7 @@ npm run teste:extensao-lightburn  # 13 asserções da leitura da extensão "Rise
 node scripts/importar-licencas.js --lightburn=<xlsx> --mach3=<xlsx> --pasta=<pasta> --pdf=<pdf> --simular   # importação das planilhas antigas de licenças e da pasta do Mach3 (uma vez; idempotente); --confirmo grava
 npm run teste:saude               # 68 asserções da Saúde do Rise: regras (rotinas, worker, disco, backup, memória, banco, integrações, orçamento, varreduras, PC, healthchecks), o aviso do Telegram, a gravação em RotinaDoWorker e a coleta nos modos PC e VPS. Postgres local, SEM rede; só escreve zz-saude-*
 npm run teste:acessos             # 207 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição, as projeções do lançamento 2 (Painel, lista de Produtos, Cadastros, canais, Scraper, Indicadores), "Ver como", Histórico e o guarda estático de src/app (sem lista de exceções). Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
-npm run teste:proposta            # 319 asserções da proposta automática de produto (com as seções de categorias e SEO da loja): regras de preço/medidas/NCM, validação do plano, gravação por seção (fotos padronizadas em proposta/), aplicar ao formulário, Salvar marcando aplicadas, fotos para a reserva, Conferido com pergunta e o script de verdade (Postgres local, SEM rede; só escreve produtos ZZ-PROP-* e as pastas deles)
+npm run teste:proposta            # 338 asserções da proposta automática de produto (com as seções de categorias e SEO da loja e as Correções da descrição no banco): regras de preço/medidas/NCM, validação do plano, gravação por seção (fotos padronizadas em proposta/), aplicar ao formulário, Salvar marcando aplicadas, fotos para a reserva, Conferido com pergunta e o script de verdade (Postgres local, SEM rede; só escreve produtos ZZ-PROP-* e as pastas deles)
 npm run acessos:admin -- <login>  # torna um login Administrador do Rise (cria ou reativa e liga à função). Na VPS, por SSH, dentro do contêiner do app
 npm run ia:pc                     # NO PC: abre o túnel SSH reverso do LM Studio (127.0.0.1:1234) até a VPS e o religa sozinho se cair; o estado vai para `dados/ia-pc.estado.json` (cartão "Servidor VPS"). Ctrl+C encerra. Ver "Rise AI (Entrega 1)"
 npm run medir:lmstudio -- --modelo=<id>   # mede o modelo carregado no LM Studio com um prompt do tamanho do Rise AI: tempo até o primeiro token, tokens/s e o efeito do cache do prefixo (2 rodadas). Só fala com o LM Studio
@@ -6829,7 +6832,7 @@ a Bling, Mercado Livre ou Loja Integrada.
   `docs/superpowers/roteiros/instrucao-projeto-claude-ai-proposta.md`.
 - **Roteiro único da proposta (21/10/2026, pedido do dono: "posso mudar de LLM e deve funcionar igual")** (plano
   `docs/superpowers/plans/2026-10-21-roteiro-unico-da-proposta.md`): as regras moram SÓ em `src/lib/proposta/roteiro.js`
-  (`ROTEIRO` + `VERSAO_DO_ROTEIRO`, hoje "11"), entregues pela ferramenta `roteiroDaProposta` do MCP; cada seção gravada
+  (`ROTEIRO` + `VERSAO_DO_ROTEIRO`, hoje "17"), entregues pela ferramenta `roteiroDaProposta` do MCP; cada seção gravada
   carimba `PropostaDeProduto.versaoDoRoteiro`. A instrução do Projeto (claude.ai, ChatGPT) é um bloco fixo de 3 linhas que
   só manda ler o roteiro; o `docs/superpowers/roteiros/proposta-de-produto.md` ficou só com a reserva por SSH. **Mudar
   regra = editar `roteiro.js`, subir a versão e fazer deploy.** O que é conta ou checagem é do Rise, ao gravar: o PREÇO (de 5 em 5 centavos, arredondado para cima, desde 22/10/2026: `precoParaMargem` em `regras.js`)
@@ -6842,6 +6845,53 @@ a Bling, Mercado Livre ou Loja Integrada.
 - **Conferido em 14/10/2026:** `ler 100103` e `clonar 100103 100103-teste` na VPS (24 campos, 5 fotos, 3 documentos, 2
   fornecedores, 13 concorrentes; original intacto, cópia com todos os arquivos no disco). **A cópia `100103-teste` fica
   na VPS até o dono apagar** (menu do produto).
+
+## Correções da descrição (07/11/2026)
+
+Pedido do dono: "Seria possivel criar um RAG no rise para descrição e eu alimentar esse RAG com os detalhes que tem que
+ajustar e assim melhorar a descriçao cada vez mais? ex: a IA escreve tensao=5 V, eu corrijo dizendo tensao=5V" (Opção 1: lista
+estruturada, sem vetores; Opção 3: alimentar pelo chat e pelo Salvar). Desenho
+`docs/superpowers/specs/2026-11-07-correcoes-da-descricao-design.md`, plano `docs/superpowers/plans/2026-11-07-correcoes-da-descricao.md`.
+**SEM deploy** (migration `20261107_correcoes_da_descricao`, aditiva).
+
+- **Tabela `CorrecaoDaDescricao`**: TROCA (errado → certo: o Rise troca no texto) ou REGRA (instrução que vai para a IA e para o
+  Claude). `promptNome` null = todas as descrições; senão o NOME exato de um prompt (texto, sem chave estrangeira: o prompt
+  renomeado ou apagado deixa a correção valendo só para o nome antigo, e a tela mostra "(não existe)"). `origem` CHAT, CADASTRO
+  ou TELA, `produtoSku`, `usos` (quantas vezes a TROCA trocou texto), `criadoPor`. Repetida (o mesmo errado sem caixa, ou a mesma
+  regra, no mesmo escopo, ligada ou não) é recusada dizendo qual. Desligar não apaga.
+- **O casamento** (`src/lib/ia/correcoes.js`, puro): fronteira de palavra só nas pontas que são letra ou número ("voltagem" não
+  casa em "voltagens"; "+5V" casa em qualquer lugar); número solto vira curinga quando os dois lados têm os mesmos números ("5 V →
+  5V" vale para "3,3 V" e "12 V"; "90 dias → 3 meses" e "3.3V → 3,3V" ficam literais); a caixa segue o texto (Voltagem → Tensão,
+  VOLTAGEM → TENSÃO; uma letra maiúscula sozinha é primeira letra); a mais longa primeiro e cada trecho uma vez; caractere de regex
+  é literal. **Onde o texto já está como o certo, não troca**: o Salvar reaplica a lista a cada gravação, e "ESP32 → ESP32-S3" ou
+  "Arduino → Placa Arduino" acumulariam.
+- **Onde vale**, sempre depois das regras fixas e uma vez só: na IA do Rise (`montarDescricaoComUsos` no texto final; o bloco
+  "Correções do dono" depois do prompt por `instrucoesComCorrecoes`; as chaves das lojas de origem passam por `chaveDaLinha`, senão
+  a linha corrigida perdia a loja; escopo = o prompt escolhido na janela); na proposta do Claude (`gravarProposta`, seção descricao,
+  escopo = `conteudo.prompt`; `lerParaProposta` devolve `correcoes: { itens, instrucao }`; roteiro v17); no Salvar do produto (SÓ as
+  de todas as descrições: o Salvar não sabe que prompt escreveu o texto). A lista é lida com cache de 60 s por processo
+  (`src/lib/ia/correcoesBanco.js`; a escrita deste processo limpa o cache). Falha ao ler não derruba a geração nem o Salvar.
+- **Teto da instrução: 6.000 caracteres.** Passando, as mais antigas ficam de fora, e a tela avisa em âmbar ("N correções fora da
+  instrução por tamanho; consolide ou desligue"), somando todas as ligadas.
+- **Chat (MCP)**: `gravarCorrecaoDaDescricao` (só o que o dono DITOU; devolve um ensaio do que a TROCA mudaria em até 3 descrições
+  recentes), `listarCorrecoesDaDescricao` e `desligarCorrecaoDaDescricao`, com o acesso de editar (ou ver) o cadastro de
+  Produtos; sem o lembrete de anotar; contam como "proposta" na Revisão do dia; uma linha nova nas `INSTRUCOES` do servidor.
+- **Popup "O que mudou na descrição"** (`JanelaOQueMudou.jsx`, por portal no `<body>`): o formulário guarda o texto que a máquina
+  escreveu (`descricaoDaMaquina`: o que abriu, ou o que a IA, a proposta ou a busca trouxe; acompanha a troca do Nome; vai no
+  rascunho). No Salvar, `candidatosDoDiff` compara com o campo: só linha mudada no lugar (mesmo número de linhas), o menor trecho
+  esticado até a fronteira da palavra, até 60 caracteres por lado, `\r\n` normalizado. Com pares, o `onSubmit` segura o envio (o
+  `preventDefault` cancela a action do React 19) e abre o popup: caixas desmarcadas, "Vale para" (todas ou o prompt da última
+  escolha da janela, ou o padrão), "Por quê"; Salvar reenvia por `requestSubmit` com o campo escondido `correcoesDaDescricao`; Esc e
+  o fundo voltam ao cadastro sem salvar. O servidor cria as marcadas DEPOIS de gravar o produto (repetida ou falha vai só ao log).
+- **Tela**: Configurações › Correções da descrição (`/configuracoes/correcoes-da-descricao`, acesso `tela.produtos.cadastro`: ver
+  lê, editar muda): lista, busca, Nova correção, liga/desliga, lápis, lixeira com pergunta; atalho (ícone) na barra da janela
+  "Criar descrição".
+- **Testes**: `teste:extracao` (regras puras, montar, rascunho), `teste:proposta` (banco, cache, ensaio, Salvar, popup do cadastro,
+  proposta e leitura; só `zz-corr-teste` e `ZZ-CORR-*`), `teste:mcp` (as três ferramentas), `teste:acessos` (o cartão). Conferido
+  na tela num servidor de uma cópia de trabalho (o da porta 3000 era de outra conversa e não via a tabela nova): o popup, o Esc,
+  a correção criada pelo Salvar, o Salvar sem mudança, a TROCA no parágrafo e a página inteira.
+- **Não medido**: o efeito do bloco na qualidade do texto da IA (nenhuma geração real foi feita) e o Claude seguindo a regra nova
+  do roteiro numa proposta de verdade.
 
 ## Proposta automática de anúncio: Loja Integrada e Mercado Livre (23/10/2026)
 

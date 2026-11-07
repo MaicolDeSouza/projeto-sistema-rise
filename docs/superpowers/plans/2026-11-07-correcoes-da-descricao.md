@@ -50,7 +50,7 @@
 
 ---
 
-### Tarefa 1: Passo zero — `normalizarDescricao` compacta as unidades das linhas técnicas
+### Task 1: Passo zero — `normalizarDescricao` compacta as unidades das linhas técnicas
 
 **Files:**
 - Modify: `src/lib/ia/revisaoDescricao.js:39-68`
@@ -94,7 +94,7 @@ git commit -m "Descricao: normalizarDescricao compacta as unidades das linhas te
 
 ---
 
-### Tarefa 2: Regras puras (`src/lib/ia/correcoes.js`)
+### Task 2: Regras puras (`src/lib/ia/correcoes.js`)
 
 **Files:**
 - Create: `src/lib/ia/correcoes.js`
@@ -175,7 +175,7 @@ git commit -m "Correcoes da descricao: regras puras (validar, aplicar, bloco da 
 
 ---
 
-### Tarefa 3: Tabela `CorrecaoDaDescricao` e o acesso ao banco
+### Task 3: Tabela `CorrecaoDaDescricao` e o acesso ao banco
 
 **Files:**
 - Modify: `prisma/schema.prisma` (depois do `model PromptDescricao`, ~linha 533)
@@ -293,7 +293,7 @@ Conferir com `git show --stat HEAD` que só esses arquivos entraram e `git diff 
 
 ---
 
-### Tarefa 4: Proposta (MCP) aplica as TROCAs e devolve as correções; roteiro v17
+### Task 4: Proposta (MCP) aplica as TROCAs e devolve as correções; roteiro v17
 
 **Files:**
 - Modify: `src/lib/proposta/banco.js:14,124-127` (import + bloco `validado.secao === "descricao"`)
@@ -347,7 +347,7 @@ git commit -m "Proposta de produto aplica as Correcoes da descricao e as devolve
 
 ---
 
-### Tarefa 5: IA do Rise — bloco na instrução e TROCAs no texto
+### Task 5: IA do Rise — bloco na instrução e TROCAs no texto
 
 **Files:**
 - Modify: `src/lib/ia/anuncio.js` (`montarDescricao` 670-726, `gerarDescricao` 727-876, as três montagens de chave `formatarLinhaTecnica(\`- ${semPontuacaoFinal(...)}: ...;\`)`)
@@ -393,7 +393,7 @@ git commit -m "IA do Rise: Correcoes da descricao na instrucao e no texto final,
 
 ---
 
-### Tarefa 6: Ferramentas do MCP
+### Task 6: Ferramentas do MCP
 
 **Files:**
 - Create: `src/lib/mcp/correcoes.js`
@@ -452,7 +452,7 @@ git commit -m "MCP: gravar, listar e desligar Correcoes da descricao pelo chat"
 
 ---
 
-### Tarefa 7: Salvar do produto aplica as TROCAs e cria as marcadas
+### Task 7: Salvar do produto aplica as TROCAs e cria as marcadas
 
 **Files:**
 - Modify: `src/app/produtos/acoes.js` (imports ~linha 42; logo depois de `const dados = resultado.data;` ~linha 820; depois do bloco `marcarSecoesAplicadas` ~linha 1108)
@@ -496,7 +496,7 @@ git commit -m "Salvar do produto aplica as Correcoes da descricao e cria as marc
 
 ---
 
-### Tarefa 8: Popup "O que mudou na descrição" e a descrição "da máquina" no formulário
+### Task 8: Popup "O que mudou na descrição" e a descrição "da máquina" no formulário
 
 **Files:**
 - Create: `src/components/produtos/JanelaOQueMudou.jsx`
@@ -566,7 +566,7 @@ git commit -m "Cadastro de produto: popup O que mudou na descricao, que vira Cor
 
 ---
 
-### Tarefa 9: Página de gestão em Configurações, cartão e atalho na janela da descrição
+### Task 9: Página de gestão em Configurações, cartão e atalho na janela da descrição
 
 **Files:**
 - Create: `src/app/configuracoes/correcoes-da-descricao/page.jsx`
@@ -608,7 +608,7 @@ git commit -m "Configuracoes: pagina Correcoes da descricao, cartao e atalho na 
 
 ---
 
-### Tarefa 10: CLAUDE.md, testes completos e push
+### Task 10: CLAUDE.md, testes completos e push
 
 **Files:**
 - Modify: `CLAUDE.md` (bullet "Texto da descrição" em "Padrões do projeto"; contagens de `teste:extracao` (linha ~320), `teste:proposta` (~365) e `teste:mcp` (~353); a frase da versão do roteiro (~linha 6800, diz "11"); seção nova)
