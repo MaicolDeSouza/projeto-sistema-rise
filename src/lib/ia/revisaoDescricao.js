@@ -62,9 +62,26 @@ export function espacoAposTitulo(texto) {
   return [linhas[0], "", ...linhas.slice(1)].join(original.includes("\r\n") ? "\r\n" : "\n");
 }
 
-/** As duas regras do texto da loja que valem em todo caminho (IA, editor, proposta e o Salvar do produto). */
+/**
+ * As linhas "- Nome: valor" das Especificacoes tecnicas pela `formatarLinhaTecnica` inteira (unidade colada, "tensao" no
+ * lugar de "voltagem", maiuscula no valor). Passo zero das Correcoes da descricao (spec 2026-11-07): ate aqui so a IA do
+ * Rise colava a unidade, e a proposta do Claude e o texto digitado no cadastro gravavam "5 V". So as linhas tecnicas: na
+ * prosa "consome 2 A partir de" a regra das unidades leria o "A" como ampere.
+ */
+export function formatarLinhasTecnicas(texto) {
+  const original = String(texto ?? "");
+  const { inicio, fim } = limitesEspecificacoes(original);
+  if (inicio < 0) return original;
+  const linhas = original.split("\n");
+  for (let indice = inicio; indice < fim; indice++) {
+    if (/^\s*[-–]/.test(linhas[indice])) linhas[indice] = formatarLinhaTecnica(linhas[indice]);
+  }
+  return linhas.join("\n");
+}
+
+/** As regras do texto da loja que valem em todo caminho (IA, editor, proposta e o Salvar do produto). */
 export function normalizarDescricao(texto) {
-  return maiusculasNosItensInclusos(maiusculaNasEspecificacoes(espacoAposTitulo(texto)));
+  return maiusculasNosItensInclusos(formatarLinhasTecnicas(espacoAposTitulo(texto)));
 }
 
 /**

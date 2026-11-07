@@ -2116,6 +2116,14 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
   conferir("normalizar faz as duas coisas",
     normalizarDescricao("PLACA\nParágrafo.\n\nEspecificações técnicas:\n- Cor: preto;\n\nGarantia:\n- 90 dias;"),
     "PLACA\n\nParágrafo.\n\nEspecificações técnicas:\n- Cor: Preto;\n\nGarantia:\n- 90 dias;");
+  // Passo zero das Correcoes da descricao (spec 2026-11-07): a proposta e o Salvar tambem colam a unidade nas linhas tecnicas.
+  const { formatarLinhasTecnicas } = await import("../src/lib/ia/revisaoDescricao.js");
+  conferir("linhas tecnicas: unidade colada, terminologia e maiuscula; prosa e itens inclusos ficam",
+    formatarLinhasTecnicas("PLACA\n\nFunciona a 5 V e consome 2 A partir de 3 V.\n\nEspecificações técnicas:\n- Voltagem: 5 V;\n- Corrente: 20 mA;\n\nItens inclusos: (Cod:1)\n- 01 PLACA 5 V;"),
+    "PLACA\n\nFunciona a 5 V e consome 2 A partir de 3 V.\n\nEspecificações técnicas:\n- Tensão: 5V;\n- Corrente: 20mA;\n\nItens inclusos: (Cod:1)\n- 01 PLACA 5 V;");
+  conferir("normalizarDescricao compacta a unidade das linhas tecnicas (o 5 V da proposta e do Salvar)",
+    normalizarDescricao("PLACA\nParágrafo.\n\nEspecificações técnicas:\n- Tensão: 5 V;\n\nGarantia:\n- 90 dias;"),
+    "PLACA\n\nParágrafo.\n\nEspecificações técnicas:\n- Tensão: 5V;\n\nGarantia:\n- 90 dias;");
   conferir("sem mudanca real, ou com o titulo de antes ou de depois vazio: o texto nao muda",
     [acompanharTituloNaDescricao(daPlaca, "Placa Pro Micro 5V", "  placa  pro micro 5v "), acompanharTituloNaDescricao(daPlaca, "", "X"), acompanharTituloNaDescricao(daPlaca, "Placa Pro Micro 5V", "   ")],
     [daPlaca, daPlaca, daPlaca]);
