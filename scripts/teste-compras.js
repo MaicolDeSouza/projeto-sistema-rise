@@ -166,6 +166,7 @@ conferir(
     nome: `Produto do Rise ${indice}`,
     nomeNoFornecedor: indice === 0 ? null : `Peça no fornecedor ${indice}`,
     codigoNoFornecedor: `FORN-${indice}`,
+    observacao: indice === 3 ? "Enviar a versão com o cabo de 20 cm." : null,
     quantidade: 10,
     precoUnitario: 1.5,
     ipiPercentual: indice % 2 ? 10 : 0,
@@ -196,6 +197,9 @@ conferir(
   conferir("fornecedor: nome e A/C", [text.includes("Fornecedor Teste"), text.includes("A/C: Fulano"), text.includes("17.142.314/0001-21"), text.includes("vendas@exemplo")], [true, true, false, false]);
   conferir("obs para o fornecedor sim, interna nao", [text.includes("Entregar em horário comercial."), text.includes("Conta interna")], [true, false]);
   conferir("coluna de IPI no fornecedor nacional", text.includes("IPI %"), true);
+  // "+Obs." do item (07/11/2026): logo depois da linha do item 4, antes da do item 5.
+  const posObs = text.indexOf("Obs.: Enviar a versão com o cabo de 20 cm.");
+  conferir("obs do item no PDF, depois do item e antes do seguinte", [posObs > text.indexOf("FORN-3"), posObs < text.indexOf("FORN-4")], [true, true]);
   conferir("sem nome no fornecedor usa o nome do Rise", text.includes("Produto do Rise 0"), true);
   conferir("nunca o SKU do Rise", text.includes("ZZ-COMPRA-SKU"), false);
   conferir("entrada paga no pagamento", text.includes("Entrada paga: R$"), true);
@@ -368,6 +372,12 @@ try {
     pedido = await banco.lerPedido(criado.pedidoId);
     conferir("totais com desconto e frete", pedido.totais.total, 105.5);
     conferir("pix forca 1 parcela", [pedido.formaPagamento, pedido.parcelas, pedido.fretePorConta], ["PIX", 1, "FOB"]);
+    await banco.salvarPedido(criado.pedidoId, { itens: itens.map((item, indice) => (indice === 0 ? { ...item, observacao: "  Conferir a pinagem.  " } : item)) });
+    conferir("obs do item gravada e aparada", (await banco.lerPedido(criado.pedidoId)).itens.map((item) => item.observacao), ["Conferir a pinagem.", null]);
+    await banco.salvarPedido(criado.pedidoId, { itens });
+    conferir("salvar sem o campo mantem a obs", (await banco.lerPedido(criado.pedidoId)).itens[0].observacao, "Conferir a pinagem.");
+    await banco.salvarPedido(criado.pedidoId, { itens: itens.map((item, indice) => (indice === 0 ? { ...item, observacao: null } : item)) });
+    conferir("remover a obs", (await banco.lerPedido(criado.pedidoId)).itens[0].observacao, null);
 
     // Quem nao ve custo manda o item SEM os campos de preco: o banco tem de manter os gravados.
     await banco.salvarPedido(criado.pedidoId, { itens: itens.map(({ precoUnitario, ipiPercentual, ...item }) => (void precoUnitario, void ipiPercentual, item)) });

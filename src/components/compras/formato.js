@@ -70,6 +70,7 @@ export function entradaDoFormulario(formulario) {
       prazoDias: item.prazoDias,
       nomeNoFornecedor: item.nomeNoFornecedor,
       codigoNoFornecedor: item.codigoNoFornecedor,
+      observacao: item.observacao ?? null,
     })),
   };
 }

@@ -2375,6 +2375,9 @@ model ItemDoPedidoDeCompra {
   nomeNoFornecedor   String?
   codigoNoFornecedor String?
   link               String?
+  /// Observacao do item PARA O FORNECEDOR (pedido do dono em 07/11/2026, botao "+Obs."): vai no PDF logo abaixo da linha
+  /// do item, ligada a ele.
+  observacao         String?
 
   /// Na unidade DO FORNECEDOR (caixas), desde 06/11/2026: o pedido pede o que ele vende. No estoque entram
   /// quantidade x `fator`.

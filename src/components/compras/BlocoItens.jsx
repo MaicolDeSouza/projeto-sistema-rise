@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ExternalLink, Plus, Repeat, Trash2 } from "lucide-react";
+import { createPortal } from "react-dom";
+import { ExternalLink, Pencil, Plus, Repeat, Trash2 } from "lucide-react";
 
 import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
+import Janela from "@/components/ferramentas/licencas/Janela";
 import FotoComLupa from "@/components/ui/FotoComLupa";
 import { totalDoItem } from "@/lib/compras/regras";
 import { CelulaDeFator, CelulaDeRastreio, LinhasPendentesAliExpress } from "./AliExpressDoPedido";
@@ -49,6 +51,8 @@ export default function BlocoItens({
   // continuam editaveis uma a uma. Comeca com o prazo comum quando todos sao iguais.
   const prazoComum = itens.length > 0 && itens.every((item) => item.prazoDias === itens[0].prazoDias) ? itens[0].prazoDias : "";
   const [prazoDeTodos, setPrazoDeTodos] = useState(null);
+  // Indice do item com a janela "Observação" aberta (null = fechada).
+  const [obsAberta, setObsAberta] = useState(null);
   const valorDeTodos = prazoDeTodos ?? prazoComum ?? "";
   const mostrarLinhaDeTodos = itens.length > 1 && (editarPrazo || chegadaDeTodos);
   const colunasAntesDoPrazo = 5 + (mostrarOpcao ? 1 : 0) + (aliexpress ? 1 : 0) + (veCusto ? 3 : 0);
@@ -102,7 +106,8 @@ export default function BlocoItens({
                 <th className="w-14 px-3 py-2 font-medium">Foto</th>
                 {/* Rotulos pedidos pelo dono em 29/10/2026 (print): "Produto" e "Nome no fornecedor" viraram estes. */}
                 <th className="min-w-40 px-3 py-2 font-medium">Descrição Rise</th>
-                <th className="min-w-32 px-3 py-2 font-medium">Descrição fornecedor</th>
+                {/* min-w-60: o campo divide a celula com o "+Obs." e a observacao fica embaixo (07/11/2026). */}
+                <th className="min-w-60 px-3 py-2 font-medium">Descrição fornecedor</th>
                 <th className="w-24 px-3 py-2 font-medium">Código fornecedor</th>
                 {mostrarOpcao && <th className="px-3 py-2 font-medium">Opção</th>}
                 {aliexpress && <th className="w-20 px-3 py-2 text-right font-medium">Fator</th>}
@@ -142,14 +147,40 @@ export default function BlocoItens({
                     </p>
                   </td>
                   <td className="px-3 py-2">
-                    <input
-                      value={item.nomeNoFornecedor ?? ""}
-                      disabled={!editar}
-                      onChange={(evento) => aoMudar(indice, "nomeNoFornecedor", evento.target.value)}
-                      aria-label={`Descrição fornecedor de ${item.sku}`}
-                      placeholder="—"
-                      className={`${campo} truncate`}
-                    />
+                    <div className="flex items-center gap-1">
+                      <input
+                        value={item.nomeNoFornecedor ?? ""}
+                        disabled={!editar}
+                        onChange={(evento) => aoMudar(indice, "nomeNoFornecedor", evento.target.value)}
+                        aria-label={`Descrição fornecedor de ${item.sku}`}
+                        placeholder="—"
+                        className={`${campo} min-w-0 truncate`}
+                      />
+                      {/* "+Obs." (pedido do dono em 07/11/2026): observacao do item para o fornecedor, impressa no PDF. */}
+                      {editar && !item.observacao && (
+                        <button
+                          type="button"
+                          onClick={() => setObsAberta(indice)}
+                          title="Adicionar observação deste item para o fornecedor (vai no PDF)"
+                          className="shrink-0 whitespace-nowrap rounded px-1.5 py-1 text-xs font-semibold text-acento hover:bg-acento/5"
+                        >
+                          +Obs.
+                        </button>
+                      )}
+                    </div>
+                    {item.observacao && (
+                      <button
+                        type="button"
+                        disabled={!editar}
+                        onClick={() => setObsAberta(indice)}
+                        title={editar ? "Editar observação" : undefined}
+                        className="mt-1 flex w-full items-start gap-1 rounded bg-amber-50 px-2 py-1 text-left text-xs text-amber-900 enabled:hover:bg-amber-100 disabled:cursor-default"
+                      >
+                        <span className="font-semibold">Obs.:</span>
+                        <span className="whitespace-pre-line text-pretty">{item.observacao}</span>
+                        {editar && <Pencil size={11} className="ml-auto mt-0.5 shrink-0 text-amber-700" />}
+                      </button>
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     <input
@@ -278,6 +309,68 @@ export default function BlocoItens({
             <Plus size={16} /> Adicionar outro item
           </button>
         ))}
+
+      {obsAberta !== null && itens[obsAberta] && (
+        <JanelaObsDoItem
+          item={itens[obsAberta]}
+          aoSalvar={(texto) => {
+            aoMudar(obsAberta, "observacao", texto);
+            setObsAberta(null);
+          }}
+          aoFechar={() => setObsAberta(null)}
+        />
+      )}
     </SecaoDoAnuncio>
+  );
+}
+
+/**
+ * A janela do "+Obs.": o texto vale no formulario ao clicar Aplicar e vai ao banco no Salvar do pedido, como os outros
+ * campos do item. No `<body>` (portal): a tabela rola na horizontal e corta o que e `fixed` em alguns navegadores.
+ */
+function JanelaObsDoItem({ item, aoSalvar, aoFechar }) {
+  const original = item.observacao ?? "";
+  const [texto, setTexto] = useState(original);
+  const alterado = texto.trim() !== original.trim();
+  return createPortal(
+    <Janela
+      titulo="Observação do item"
+      subtitulo={`${item.sku} · ${item.nomeNoFornecedor || item.nome}`}
+      alterado={alterado}
+      aoFechar={aoFechar}
+      rodape={(pedirFechar) => (
+        <>
+          {original && (
+            <button type="button" onClick={() => aoSalvar(null)} className="rounded-md px-3 py-1.5 text-sm font-semibold text-rose-600 hover:bg-rose-50">
+              Remover
+            </button>
+          )}
+          <button type="button" onClick={pedirFechar} className="ml-auto rounded-md px-3 py-1.5 text-sm font-semibold text-suave hover:bg-fundo">
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={() => aoSalvar(texto.trim() || null)}
+            disabled={!alterado}
+            className="rounded-md bg-acento px-3 py-1.5 text-sm font-semibold text-white hover:bg-acento/90 disabled:opacity-50"
+          >
+            Aplicar
+          </button>
+        </>
+      )}
+    >
+      <textarea
+        autoFocus
+        value={texto}
+        maxLength={1000}
+        rows={5}
+        onChange={(evento) => setTexto(evento.target.value)}
+        aria-label="Observação para o fornecedor"
+        placeholder="Ex.: enviar a versão com o cabo; conferir a pinagem antes de embalar."
+        className="w-full rounded-md border border-borda bg-superficie px-3 py-2 text-sm focus:border-acento focus:outline-none focus:ring-2 focus:ring-acento/20"
+      />
+      <p className="mt-1 text-right text-xs tabular-nums text-suave">{texto.length}/1000</p>
+    </Janela>,
+    document.body,
   );
 }

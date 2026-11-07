@@ -178,6 +178,7 @@ function pedidoParaConversa(pedido, veCusto) {
       nome: item.nome,
       nomeNoFornecedor: item.nomeNoFornecedor,
       codigoNoFornecedor: item.codigoNoFornecedor,
+      observacao: item.observacao ?? null,
       // Quantidade e preco na unidade do FORNECEDOR (a caixa); `fator` = unidades do Rise por caixa (06/11/2026).
       quantidade: item.quantidade,
       fator: item.fator ?? 1,

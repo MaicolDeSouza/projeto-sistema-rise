@@ -409,6 +409,7 @@ function pedidoParaTela(pedido) {
     foto: item.produto.arquivos?.[0] ? urlDe(item.produto.sku, "IMAGEM", item.produto.arquivos[0].arquivo) : null,
     nomeNoFornecedor: item.nomeNoFornecedor,
     codigoNoFornecedor: item.codigoNoFornecedor,
+    observacao: item.observacao ?? null,
     link: item.link,
     quantidade: item.quantidade,
     fator: item.fator ?? 1,
@@ -871,6 +872,7 @@ export async function salvarPedido(id, entrada) {
               ordem: item.ordem,
               ...(item.nomeNoFornecedor !== undefined ? { nomeNoFornecedor: item.nomeNoFornecedor } : {}),
               ...(item.codigoNoFornecedor !== undefined ? { codigoNoFornecedor: item.codigoNoFornecedor } : {}),
+              ...(item.observacao !== undefined ? { observacao: item.observacao } : {}),
             });
           }
           await tx.itemDoPedidoDeCompra.update({ where: { id: atual.id }, data });

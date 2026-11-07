@@ -19,6 +19,7 @@ const TEXTO = "#111827";
 const CINZA = "#6b7280";
 const LINHA = "#d1d5db";
 const FUNDO_DO_CABECALHO = "#f3f4f6";
+const FUNDO_DA_OBS = "#fffbeb";
 const MARGEM = 40;
 const RESPIRO = 5;
 const FOTO = 26;
@@ -44,6 +45,7 @@ const TEXTOS = {
     pagamento: "Pagamento",
     proposta: "Proposta nº",
     obs: "Observações",
+    obsDoItem: "Obs.:",
     formas: { PIX: "Pix", BOLETO: "Boleto", CARTAO: "Cartão" },
     parcelado: (forma, parcelas) => `${forma} em ${parcelas}x`,
     entrada: "Entrada paga:",
@@ -66,6 +68,7 @@ const TEXTOS = {
     pagamento: "Payment",
     proposta: "Proposal no.",
     obs: "Notes",
+    obsDoItem: "Note:",
     formas: { PIX: "Pix", BOLETO: "Bank slip", CARTAO: "Credit card" },
     parcelado: (forma, parcelas) => `${forma} in ${parcelas} installments`,
     entrada: "Down payment:",
@@ -175,14 +178,19 @@ export function pdfDoPedido(pedido, empresa, extras = {}) {
 
     // Tabela de itens, com separador entre as colunas.
     const colunas = colunasDaTabela(largura, t, !estrangeiro);
-    const separadores = (y, altura) => {
+    // Com observacao, o "#" e a Foto ocupam as duas alturas (linha + faixa da Obs.); as demais colunas param na linha.
+    const COLUNAS_INTEIRAS = 2;
+    const inicioDaObs = MARGEM + colunas.slice(0, COLUNAS_INTEIRAS).reduce((soma, coluna) => soma + coluna.largura, 0);
+    const larguraDaObs = MARGEM + largura - inicioDaObs - RESPIRO * 2;
+    const separadores = (y, altura, alturaDaObs = 0) => {
       let x = MARGEM;
       doc.lineWidth(0.5).strokeColor(LINHA);
-      doc.rect(MARGEM, y, largura, altura).stroke();
-      for (const coluna of colunas.slice(0, -1)) {
+      doc.rect(MARGEM, y, largura, altura + alturaDaObs).stroke();
+      colunas.slice(0, -1).forEach((coluna, posicao) => {
         x += coluna.largura;
-        doc.moveTo(x, y).lineTo(x, y + altura).stroke();
-      }
+        doc.moveTo(x, y).lineTo(x, y + altura + (posicao < COLUNAS_INTEIRAS ? alturaDaObs : 0)).stroke();
+      });
+      if (alturaDaObs) doc.moveTo(inicioDaObs, y + altura).lineTo(MARGEM + largura, y + altura).stroke();
     };
     const cabecalho = () => {
       const y = doc.y;
@@ -216,35 +224,49 @@ export function pdfDoPedido(pedido, empresa, extras = {}) {
       doc.font("Helvetica").fontSize(8.5);
       const alturaDoTexto = Math.max(...colunas.map((coluna) => doc.heightOfString(celulas[coluna.chave] || " ", { width: coluna.largura - RESPIRO * 2 })));
       const altura = Math.max(alturaDoTexto + RESPIRO * 2, FOTO + 8);
-      if (doc.y + altura > fundo()) {
+      // A observacao do item ("+Obs.", 07/11/2026): faixa logo abaixo da linha, do Codigo ao Total, com "#" e Foto
+      // compartilhados, para ficar claro de que item ela e.
+      const obs = item.observacao?.trim() || null;
+      doc.font("Helvetica-Oblique").fontSize(8.5);
+      const alturaDaObs = obs ? doc.heightOfString(`${t.obsDoItem} ${obs}`, { width: larguraDaObs }) + RESPIRO * 2 : 0;
+      if (doc.y + altura + alturaDaObs > fundo()) {
         doc.addPage();
         cabecalho();
       }
       const y = doc.y;
+      const alturaDoBloco = altura + alturaDaObs;
+      if (obs) doc.rect(inicioDaObs, y + altura, MARGEM + largura - inicioDaObs, alturaDaObs).fill(FUNDO_DA_OBS);
       let x = MARGEM;
-      doc.fillColor(TEXTO);
-      for (const coluna of colunas) {
+      doc.font("Helvetica").fontSize(8.5).fillColor(TEXTO);
+      colunas.forEach((coluna, posicao) => {
+        // "#" e Foto centrados no bloco inteiro; o resto, na altura da linha.
+        const alturaDaCelula = posicao < COLUNAS_INTEIRAS ? alturaDoBloco : altura;
         if (coluna.chave === "foto") {
           const foto = fotos[item.id];
           if (foto) {
             try {
-              doc.image(foto, x + RESPIRO, y + (altura - FOTO) / 2, { fit: [FOTO, FOTO], align: "center", valign: "center" });
+              doc.image(foto, x + RESPIRO, y + (alturaDaCelula - FOTO) / 2, { fit: [FOTO, FOTO], align: "center", valign: "center" });
             } catch {
               // Foto ilegivel: a celula fica em branco.
             }
           }
         } else {
           // Texto centrado na altura da linha (a foto deixa a linha mais alta que o texto).
-          const alturaDaCelula = doc.heightOfString(celulas[coluna.chave] || " ", { width: coluna.largura - RESPIRO * 2 });
-          doc.text(celulas[coluna.chave], x + RESPIRO, y + (altura - alturaDaCelula) / 2, {
+          const alturaDoConteudo = doc.heightOfString(celulas[coluna.chave] || " ", { width: coluna.largura - RESPIRO * 2 });
+          doc.text(celulas[coluna.chave], x + RESPIRO, y + (alturaDaCelula - alturaDoConteudo) / 2, {
             width: coluna.largura - RESPIRO * 2,
             align: coluna.alinhar ?? "left",
           });
         }
         x += coluna.largura;
+      });
+      if (obs) {
+        doc.font("Helvetica-BoldOblique").fontSize(8.5).fillColor(TEXTO)
+          .text(`${t.obsDoItem} `, inicioDaObs + RESPIRO, y + altura + RESPIRO, { width: larguraDaObs, continued: true })
+          .font("Helvetica-Oblique").text(obs);
       }
-      separadores(y, altura);
-      doc.y = y + altura;
+      separadores(y, altura, alturaDaObs);
+      doc.y = y + alturaDoBloco;
     });
 
     // Totais, alinhados a direita. No estrangeiro, em dolar e sem imposto.

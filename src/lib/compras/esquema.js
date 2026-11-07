@@ -39,6 +39,7 @@ const EsquemaDoItem = z.object({
   prazoDias: numero("Prazo em dias inteiros.", { maximo: 3650, inteiro: true }).optional(),
   nomeNoFornecedor: textoOpcional(300).optional(),
   codigoNoFornecedor: textoOpcional(120).optional(),
+  observacao: textoOpcional(1000).optional(),
 });
 
 export const EsquemaDoPedido = z.object({
