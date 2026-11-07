@@ -12,6 +12,7 @@ import { rotuloDoIconeML } from "@/lib/canaisDeVenda/ml/icone";
 import Copiar from "@/components/ui/Copiar";
 import FotoComLupa from "@/components/ui/FotoComLupa";
 import ConferidoProduto from "./ConferidoProduto";
+import DicaRapida from "@/components/ui/DicaRapida";
 import { CelulaEditavel, PopupEstoque, PopupLocalizacao, PopupPecasDoKit, PopupPreco } from "./EdicaoRapida";
 import IconeBling from "./IconeBling";
 import JanelaBling from "./JanelaBling";
@@ -57,6 +58,39 @@ function Miniatura({ url, alt }) {
   );
 }
 
+/**
+ * A dica do estoque (ao passar o mouse, rapida): os estoques nos canais (25/10/2026) e o ESTOQUE VIRTUAL, o que esta a
+ * caminho nos pedidos de compra enviados, com a previsao de entrega logo abaixo (pedido do dono em 07/11/2026:
+ * "Previsao de entrega: Em 10 dias"). Com mais de um pedido, uma linha por pedido. Nada a mostrar = sem dica.
+ */
+function dicaDoEstoque(estoquesNosCanais, virtual) {
+  if (!estoquesNosCanais && !virtual) return null;
+  const sozinho = virtual?.pedidos?.length === 1 ? virtual.pedidos[0] : null;
+  const previsao = (pedido) => (pedido.previsao ? `${pedido.previsao}${pedido.data ? ` (${pedido.data})` : ""}` : "sem prazo no pedido");
+  return (
+    <>
+      {virtual && (
+        <>
+          <span className="block font-semibold">Estoque virtual: {virtual.quantidade.toLocaleString("pt-BR")} un. a caminho</span>
+          {sozinho ? (
+            <span className={`block ${sozinho.dias !== null && sozinho.dias < 0 ? "text-amber-300" : ""}`}>
+              Previsão de entrega: {previsao(sozinho)}
+              <span className="text-slate-400"> · {sozinho.codigo}</span>
+            </span>
+          ) : (
+            virtual.pedidos.map((pedido, indice) => (
+              <span key={`${pedido.codigo}-${indice}`} className={`block ${pedido.dias !== null && pedido.dias < 0 ? "text-amber-300" : ""}`}>
+                {pedido.codigo} · {pedido.quantidade.toLocaleString("pt-BR")} un. · {previsao(pedido)}
+              </span>
+            ))
+          )}
+        </>
+      )}
+      {estoquesNosCanais && <span className={`block text-slate-300 ${virtual ? "mt-1 border-t border-white/15 pt-1" : ""}`}>{estoquesNosCanais}</span>}
+    </>
+  );
+}
+
 export default function LinhaProduto({
   produto,
   // Abre a confirmacao de exclusao deste produto (o popup mora na tabela).
@@ -68,6 +102,8 @@ export default function LinhaProduto({
   iconeLI = { cor: "cinza", divergente: false, conferido: false },
   // "Bling 5 · Rise 5 · ML 3 · LI 5" (25/10/2026): a dica da coluna Estoque; nulo sem numero dos canais.
   estoquesNosCanais = null,
+  // Estoque virtual (07/11/2026): o que esta a caminho nos pedidos de compra e a previsao de cada um.
+  estoqueVirtual = null,
   // Busca ampla (09/10/2026): "achado na descrição" quando a palavra nao estava no nome nem no codigo.
   achado = null,
   // Produto recem-criado: fundo verde claro que some sozinho (pedido do dono em 10/10/2026). So CSS, sem estado.
@@ -208,11 +244,11 @@ export default function LinhaProduto({
       </td>
 
       <td
-        title={estoquesNosCanais ?? undefined}
         className={`px-3 py-2.5 tabular-nums ${
           produto.estoque === 0 ? "font-medium text-red-700" : ""
         }`}
       >
+        <DicaRapida conteudo={dicaDoEstoque(estoquesNosCanais, estoqueVirtual)}>
         {/* Kit: o estoque e calculado pelas pecas (o menor de estoque da peca / quantidade), e um
             ajuste direto seria desfeito no proximo recalculo; a celula so mostra o numero. */}
         {produto.tipo === "COMPOSICAO" ? (
@@ -227,6 +263,7 @@ export default function LinhaProduto({
         ) : (
           produto.estoque
         )}
+        </DicaRapida>
       </td>
 
       {/* O Mercado Livre e o Bling refletem o estado real e sao botoes (o ML abre o anuncio em

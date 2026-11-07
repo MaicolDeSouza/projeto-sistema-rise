@@ -282,7 +282,7 @@ export default function TabelaProdutos({
               </tr>
             </thead>
             <tbody className="divide-y divide-borda">
-              {linhas.map(({ produto, iconeML, iconeBling, iconeLI, achado, estoquesNosCanais }) => (
+              {linhas.map(({ produto, iconeML, iconeBling, iconeLI, achado, estoquesNosCanais, estoqueVirtual }) => (
                 <LinhaProduto
                   key={produto.id}
                   produto={produto}
@@ -294,6 +294,7 @@ export default function TabelaProdutos({
                   iconeBling={iconeBling}
                   iconeLI={iconeLI}
                   estoquesNosCanais={estoquesNosCanais}
+                  estoqueVirtual={estoqueVirtual}
                 />
               ))}
             </tbody>

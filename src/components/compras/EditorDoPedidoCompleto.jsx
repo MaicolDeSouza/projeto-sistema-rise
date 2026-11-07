@@ -2,16 +2,18 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { PackagePlus } from "lucide-react";
 
 import { desfazerLancamentoAcao, mudarStatusAcao, reenviarAoBlingAcao } from "@/app/compras/acoes";
 import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
-import { todosLancados } from "@/lib/compras/regras";
+import { faltaLancar, todosLancados } from "@/lib/compras/regras";
 import ArquivoDaProposta from "./ArquivoDaProposta";
 import CelulaDeLancamento from "./CelulaDeLancamento";
 import LinkDoPdf from "./LinkDoPdf";
 import EditorPedido from "./EditorPedido";
 import Pergunta from "./Pergunta";
 import PopupLancarEstoque from "./PopupLancarEstoque";
+import PopupLancarTodos from "./PopupLancarTodos";
 
 /**
  * O editor com as pecas das tarefas seguintes ligadas: a coluna "Chegada" (lancar estoque e desfazer), o arquivo da
@@ -20,6 +22,7 @@ import PopupLancarEstoque from "./PopupLancarEstoque";
 export default function EditorDoPedidoCompleto({ pedidoInicial, transportadoras, podeEditar, podeLancar, podeCasar = false }) {
   const router = useRouter();
   const [lancando, setLancando] = useState(null);
+  const [lancandoTodos, setLancandoTodos] = useState(null);
   const [desfazendo, setDesfazendo] = useState(null);
   const [conclusao, setConclusao] = useState(null);
   const [avisos, setAvisos] = useState({});
@@ -58,8 +61,37 @@ export default function EditorDoPedidoCompleto({ pedidoInicial, transportadoras,
         }
       />
     ),
+    // "Lançar estoque" de todos os itens de uma vez (pedido do dono em 07/11/2026), em cima da coluna Chegada. Some quando
+    // nada falta lancar ou o pedido nao esta a caminho (regra 4: botao sem acao nao aparece).
+    chegadaDeTodos: ({ pedido, aplicar, alterado }) => {
+      const comFalta = pedido.itens.filter((item) => faltaLancar(item) > 0).length;
+      if (!lancavel || !["ENVIADO", "PARCIAL"].includes(pedido.status) || comFalta === 0) return null;
+      return (
+        <button
+          type="button"
+          onClick={() => setLancandoTodos({ itens: pedido.itens, aplicar })}
+          disabled={alterado}
+          title={alterado ? "Salve as alterações antes de lançar" : `Lançar o que falta dos ${comFalta} itens de uma vez`}
+          className="inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-acento px-2 py-1.5 text-xs font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-acento/90 active:scale-[0.97] disabled:opacity-50"
+        >
+          <PackagePlus size={13} /> Lançar todos ({comFalta})
+        </button>
+      );
+    },
     janelas: ({ pedido, aplicar }) => (
       <>
+        {lancandoTodos && (
+          <PopupLancarTodos
+            itens={lancandoTodos.itens}
+            aoFechar={() => setLancandoTodos(null)}
+            aoTerminar={({ pedido: novo, avisos: novosAvisos }) => {
+              if (novo) lancandoTodos.aplicar(novo);
+              setAvisos((antes) => ({ ...antes, ...novosAvisos }));
+              router.refresh();
+              if (novo && novo.status === "PARCIAL" && todosLancados(novo.itens)) setPerguntarFinalizar(true);
+            }}
+          />
+        )}
         {lancando && (
           <PopupLancarEstoque
             item={lancando.item}
@@ -96,7 +128,7 @@ export default function EditorDoPedidoCompleto({ pedidoInicial, transportadoras,
             Bling.
           </Pergunta>
         )}
-        {perguntarFinalizar && !conclusao && (
+        {perguntarFinalizar && !conclusao && !lancandoTodos && (
           <FinalizarAgora pedido={pedido} aplicar={aplicar} aoFechar={() => setPerguntarFinalizar(false)} />
         )}
         {conclusao && (

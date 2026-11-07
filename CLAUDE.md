@@ -5179,6 +5179,17 @@ healthchecks.io. **Pronto e testado no PC, SEM DEPLOY** (leva a migration `20261
 
 ## Compras (26/10/2026)
 
+**Prazo de todos e "Lançar todos" (07/11/2026, pedido do dono):** linha "Todos os itens" em cima das colunas Prazo e Chegada
+(`BlocoItens`, só com 2+ itens): o campo de dias vale na hora para todas as linhas (continuam editáveis uma a uma; salvar
+depois), e **Lançar todos (N)** abre `PopupLancarTodos`, que lança o que falta de cada item pelo MESMO `lancarEstoqueAcao`, um
+depois do outro; o depósito que o Bling pedir é perguntado uma vez e vale para os seguintes; item que falha não para os outros
+e a linha diz o motivo (com "Reenviar" na célula Chegada). Conferido no PC com dados ZZ (o Bling recusou pela trava do PC).
+**Estoque virtual na lista de Produtos:** ao passar o mouse no estoque, `DicaRapida` (150 ms, `src/components/ui/`) mostra
+"Estoque virtual: N un. a caminho" (o que falta lançar dos pedidos ENVIADOS/PARCIAIS, caixas × fator) e "Previsão de
+entrega: Em 10 dias (17/11) · PC-0002" (envio + prazo; "Amanhã", "Hoje", "Atrasada N dias"; um pedido por linha quando há
+vários), com os estoques nos canais embaixo (`estoqueVirtualDosProdutos` em `lib/compras/estoqueVirtual.js`; só com o
+estoque exato).
+
 Pedido do dono (ditado em partes, com prints do pedido de compra do Bling). Spec `docs/superpowers/specs/2026-10-26-modulo-compras-design.md`,
 plano `docs/superpowers/plans/2026-10-26-modulo-compras.md` (12 tarefas, inline). **Pronto e testado no PC, SEM DEPLOY** (leva a migration
 `20261026_compras`, só aditiva, que semeia os Dados da empresa).

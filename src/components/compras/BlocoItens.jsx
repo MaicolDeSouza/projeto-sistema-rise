@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ExternalLink, Plus, Repeat, Trash2 } from "lucide-react";
 
 import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
@@ -30,6 +31,8 @@ export default function BlocoItens({
   buscando,
   setBuscando,
   colunaDeChegada = null,
+  // "Lancar estoque" de todos os itens de uma vez (pedido do dono em 07/11/2026), em cima da coluna Chegada.
+  chegadaDeTodos = null,
   // Pedido do AliExpress (spec 2026-10-28): linhas sem produto no topo, colunas Opcao e Rastreio, "Trocar produto".
   aliexpress = null,
   podeCasar = false,
@@ -41,6 +44,14 @@ export default function BlocoItens({
   const mostrarOpcao = Boolean(aliexpress) && itens.some((item) => aliexpress.opcaoPorItem[item.id]);
   // Com um pacote so, o rastreio fica no bloco Frete; a coluna so diz algo quando ha mais de um (qual item foi em qual).
   const mostrarRastreio = Boolean(aliexpress) && (aliexpress.pacotes?.length ?? 0) > 1 && itens.some((item) => aliexpress.rastreioPorItem[item.id]?.length);
+  // Prazo de TODOS os itens (pedido do dono em 07/11/2026: "um campo que eu possa colocar a data de entrega e aplicar para
+  // todos"): o campo em cima da coluna Prazo, em dias como ela; cada digito vale na hora para todas as linhas, que
+  // continuam editaveis uma a uma. Comeca com o prazo comum quando todos sao iguais.
+  const prazoComum = itens.length > 0 && itens.every((item) => item.prazoDias === itens[0].prazoDias) ? itens[0].prazoDias : "";
+  const [prazoDeTodos, setPrazoDeTodos] = useState(null);
+  const valorDeTodos = prazoDeTodos ?? prazoComum ?? "";
+  const mostrarLinhaDeTodos = itens.length > 1 && (editarPrazo || chegadaDeTodos);
+  const colunasAntesDoPrazo = 5 + (mostrarOpcao ? 1 : 0) + (aliexpress ? 1 : 0) + (veCusto ? 3 : 0);
 
   return (
     <SecaoDoAnuncio
@@ -56,6 +67,37 @@ export default function BlocoItens({
         <div className="-mx-4 -mt-4 overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="border-b border-borda text-left text-xs text-suave">
+              {mostrarLinhaDeTodos && (
+                <tr className="border-b border-borda bg-fundo/60">
+                  <th colSpan={colunasAntesDoPrazo} className="px-3 py-1.5 text-right font-medium">
+                    Todos os itens
+                  </th>
+                  <th className="px-3 py-1.5 font-normal">
+                    {editarPrazo && (
+                      <div className="flex items-center gap-1">
+                        <input
+                          inputMode="numeric"
+                          value={valorDeTodos}
+                          placeholder="—"
+                          onChange={(evento) => {
+                            const valor = soDigitos(evento.target.value, 4);
+                            setPrazoDeTodos(valor);
+                            itens.forEach((_, indice) => aoMudar(indice, "prazoDias", valor));
+                          }}
+                          aria-label="Prazo de entrega de todos os itens, em dias"
+                          title="Prazo de entrega para todos os itens"
+                          className={`${campo} min-w-12 text-right`}
+                        />
+                        <span className="text-xs text-suave">d</span>
+                      </div>
+                    )}
+                  </th>
+                  <th className="px-2 py-1.5" />
+                  {mostrarRastreio && <th className="px-3 py-1.5" />}
+                  {colunaDeChegada && <th className="px-3 py-1.5 font-normal">{chegadaDeTodos}</th>}
+                  {editar && <th className="px-2 py-1.5" />}
+                </tr>
+              )}
               <tr>
                 <th className="w-14 px-3 py-2 font-medium">Foto</th>
                 {/* Rotulos pedidos pelo dono em 29/10/2026 (print): "Produto" e "Nome no fornecedor" viraram estes. */}

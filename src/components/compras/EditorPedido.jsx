@@ -298,6 +298,7 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
           aoAtualizar={aplicar}
           aoTrocarProduto={trocarProduto}
           colunaDeChegada={extras.colunaDeChegada && pedido.status !== "RASCUNHO" ? (item) => extras.colunaDeChegada(item, { pedido, aplicar, alterado }) : null}
+          chegadaDeTodos={extras.chegadaDeTodos && pedido.status !== "RASCUNHO" ? extras.chegadaDeTodos({ pedido, aplicar, alterado }) : null}
         />
 
         {veCusto && <BlocoTotais formulario={formulario} totais={totais} editar={rascunho} erros={erros} aoMudar={mudar} />}

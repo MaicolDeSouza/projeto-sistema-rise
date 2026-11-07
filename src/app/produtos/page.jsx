@@ -6,6 +6,7 @@ import { idsDaBuscaDeProdutos, ondeAchouNoProduto, palavrasDaBusca, textoDoSelo 
 import { CANAIS, separarCanais } from "@/lib/canais";
 import { urlDe } from "@/lib/arquivos";
 import { textoDosEstoquesNosCanais } from "@/lib/canaisDeVenda/estoquesNosCanais";
+import { estoqueVirtualDosProdutos } from "@/lib/compras/estoqueVirtual";
 import { localizacaoDoKit } from "@/lib/composicao";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { acessosDaListaDeProdutos, ordemPermitida, projetarProdutoDaLista } from "@/lib/acessos/projecoes";
@@ -197,6 +198,17 @@ export default async function ProdutosPage({ searchParams }) {
     console.error("[produtos] propostas prontas", excecao);
   }
 
+  // Estoque virtual (pedido do dono em 07/11/2026): o que esta a caminho nos pedidos de compra enviados e a previsao de
+  // entrega, na dica do estoque. So para quem ve o estoque exato; falha aqui nao derruba a lista.
+  let estoqueVirtual = new Map();
+  if (acessos.estoqueExato) {
+    try {
+      estoqueVirtual = await estoqueVirtualDosProdutos((produtos ?? []).map((produto) => produto.id));
+    } catch (excecao) {
+      console.error("[produtos] estoque virtual", excecao);
+    }
+  }
+
   // Decimal do Prisma nao atravessa a fronteira servidor/cliente: converta aqui.
   const linhas = (produtos ?? []).map((produto) => ({
     produto: projetarProdutoDaLista({
@@ -237,6 +249,7 @@ export default async function ProdutosPage({ searchParams }) {
     ...separarCanais(produto.anuncios),
     // "Bling 5 · Rise 5 · ML 3 · LI 5" na dica da coluna Estoque (25/10/2026): so para quem ve o estoque exato.
     estoquesNosCanais: acessos.estoqueExato ? textoDosEstoquesNosCanais(produto) : null,
+    estoqueVirtual: estoqueVirtual.get(produto.id) ?? null,
     // O icone do ML mostra o anuncio (publicado e ativo, ou pendente), nao so o idExterno; cor e selo do Bling e da LI
     // (assinaturas com node:crypto, so servidor).
     iconeML: icones.get(produto.id).iconeML,
