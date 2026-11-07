@@ -315,6 +315,9 @@ const { prisma } = await import("../src/lib/db.js");
 }
 
 async function limpar() {
+  // Correcoes da descricao (spec 2026-11-07): so as linhas e os produtos deste teste; o banco do PC pode ter correcoes de verdade.
+  await prisma.correcaoDaDescricao.deleteMany({ where: { criadoPor: "zz-corr-teste" } });
+  await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-CORR-" } } });
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-PROP-" } } });
   // O fornecedor e Restrict (sai depois dos produtos); os produtos coletados saem junto com a fonte (Cascade).
   await prisma.fornecedor.deleteMany({ where: { nome: { startsWith: "ZZ-PROP " } } });
@@ -997,6 +1000,47 @@ try {
       aprovado = erro.message;
     }
     conferir("folha: produto Conferido recusa", /já aprovado/.test(aprovado));
+  }
+
+  // Correcoes da descricao (spec 2026-11-07): a tabela, o cache de 60 s, o ensaio, o Salvar e o popup do cadastro.
+  {
+    const banco = await import("../src/lib/ia/correcoesBanco.js");
+    const QUEM = { quem: "zz-corr-teste", origem: "CHAT" };
+    const minhas = (lista) => lista.filter((c) => c.criadoPor === "zz-corr-teste");
+    await prisma.produto.create({ data: { sku: "ZZ-CORR-1", tituloBase: "ZZ Corr 1", descricaoBase: "T\n\nFunciona a 5 V.\n\nEspecificações técnicas:\n- Tensão: 5 V;" } });
+
+    const criada = await banco.criarCorrecao({ tipo: "TROCA", errado: "5 V", certo: "5V", explicacao: "unidade colada" }, QUEM);
+    conferir("correcoes, banco: cria ativa, origem CHAT, usos 0", criada.ok && criada.correcao.ativa && criada.correcao.origem === "CHAT" && criada.correcao.usos === 0 && criada.correcao.criadoPor === "zz-corr-teste");
+    const repetida = await banco.criarCorrecao({ tipo: "TROCA", errado: "5 v", certo: "5V" }, QUEM);
+    conferir("correcoes, banco: repetida sem caixa e recusada apontando a existente", !repetida.ok && repetida.existente?.id === criada.correcao.id && /Já existe/.test(repetida.erro));
+    conferir("correcoes, banco: invalida volta erros por campo", (await banco.criarCorrecao({ tipo: "TROCA", certo: "x" }, QUEM)).erros?.errado !== undefined);
+    const doPrompt = await banco.criarCorrecao({ tipo: "REGRA", certo: "Garantia em meses", promptNome: "ZZ Prompt Que Nao Existe" }, QUEM);
+    const contagens = [minhas(await banco.lerCorrecoesAtivas()).length, minhas(await banco.lerCorrecoesAtivas({ promptNome: "ZZ Prompt Que Nao Existe" })).length, minhas(await banco.lerCorrecoesAtivas({ promptNome: "Outro" })).length];
+    conferir("correcoes, ativas: so as globais sem prompt; com o prompt, as duas; outro prompt, so a global", JSON.stringify(contagens) === "[1,2,1]");
+    await prisma.correcaoDaDescricao.update({ where: { id: doPrompt.correcao.id }, data: { ativa: false } });
+    const aindaNoCache = (await banco.lerCorrecoesAtivas({ promptNome: "ZZ Prompt Que Nao Existe" })).some((c) => c.id === doPrompt.correcao.id);
+    banco.limparCacheDeCorrecoes();
+    const depoisDeLimpar = (await banco.lerCorrecoesAtivas({ promptNome: "ZZ Prompt Que Nao Existe" })).some((c) => c.id === doPrompt.correcao.id);
+    conferir("correcoes, cache: a leitura dentro dos 60 s nao ve o que mudou por fora; limpar ve", aindaNoCache === true && depoisDeLimpar === false);
+    const buscadas = minhas(await banco.listarCorrecoes({ busca: "COLADA" })).map((c) => c.id);
+    const doEscopo = minhas(await banco.listarCorrecoes({ promptNome: "ZZ Prompt Que Nao Existe", ativas: false })).map((c) => c.promptNome);
+    conferir("correcoes, listar: busca sem caixa e escopo do prompt (com o nome que nao existe mais)", JSON.stringify([buscadas, doEscopo]) === JSON.stringify([[criada.correcao.id], ["ZZ Prompt Que Nao Existe"]]));
+    const ensaio = await banco.ensaioDaCorrecao(criada.correcao);
+    const usosDepoisDoEnsaio = (await prisma.correcaoDaDescricao.findUnique({ where: { id: criada.correcao.id } })).usos;
+    conferir("correcoes, ensaio: a primeira linha que muda, em ate 3 produtos, sem somar usos", ensaio.some((e) => e.sku === "ZZ-CORR-1" && e.antes === "Funciona a 5 V." && e.depois === "Funciona a 5V.") && ensaio.length <= 3 && usosDepoisDoEnsaio === 0);
+    const salvar = await banco.corrigirDescricaoDoSalvar("Tensão: 5 V e 12 V");
+    conferir("correcoes, salvar: aplica as globais e soma os usos", salvar.texto === "Tensão: 5V e 12V" && (await prisma.correcaoDaDescricao.findUnique({ where: { id: criada.correcao.id } })).usos === 2);
+    const nulo = await banco.corrigirDescricaoDoSalvar(null);
+    conferir("correcoes, salvar: texto nulo volta como veio", nulo.texto === null && nulo.aplicadas.length === 0);
+    const doCadastro = await banco.criarCorrecoesDoCadastro([{ errado: "voltagem", certo: "tensão" }, { errado: "5 V", certo: "5V" }], { quem: "zz-corr-teste", produtoSku: "ZZ-CORR-1" });
+    conferir("correcoes, cadastro: cria a nova (origem CADASTRO, com o sku) e recusa a repetida sem falhar", doCadastro.criadas.length === 1 && doCadastro.criadas[0].origem === "CADASTRO" && doCadastro.criadas[0].produtoSku === "ZZ-CORR-1" && doCadastro.recusadas.length === 1 && doCadastro.recusadas[0].errado === "5 V");
+    const desligada = await banco.alternarCorrecao(criada.correcao.id, false);
+    conferir("correcoes, alternar: desligada sai das ativas", desligada.ok && !desligada.correcao.ativa && !(await banco.lerCorrecoesAtivas()).some((c) => c.id === criada.correcao.id));
+    const editada = await banco.editarCorrecao(criada.correcao.id, { tipo: "TROCA", errado: "5 V", certo: "5 Volts" });
+    const editadaRepetida = await banco.editarCorrecao(criada.correcao.id, { tipo: "TROCA", errado: "voltagem", certo: "x" });
+    conferir("correcoes, editar: muda o certo; repetida com outra existente e recusada", editada.ok && editada.correcao.certo === "5 Volts" && !editadaRepetida.ok && /Já existe/.test(editadaRepetida.erro ?? ""));
+    conferir("correcoes, alternar e editar: id que nao existe da erro, sem lancar", !(await banco.alternarCorrecao("nao-existe", true)).ok && !(await banco.editarCorrecao("nao-existe", { tipo: "TROCA", errado: "a", certo: "b" })).ok);
+    conferir("correcoes, excluir", (await banco.excluirCorrecao(criada.correcao.id)).ok && (await prisma.correcaoDaDescricao.findUnique({ where: { id: criada.correcao.id } })) === null);
   }
 } finally {
   await limpar();

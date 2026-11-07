@@ -532,6 +532,38 @@ model PromptDescricao {
   atualizadoEm DateTime @updatedAt
 }
 
+enum TipoDeCorrecao {
+  TROCA
+  REGRA
+}
+
+enum OrigemDaCorrecao {
+  CHAT
+  CADASTRO
+  TELA
+}
+
+/// Correcoes da descricao (spec 2026-11-07): o que o dono ensina uma vez e o Rise aplica em toda descricao (TROCA) ou poe
+/// na instrucao da IA e do Claude (REGRA). promptNome null = todas as descricoes (texto, sem chave estrangeira: o prompt
+/// renomeado ou apagado deixa a correcao como esta, e ela so vale para aquele nome). usos = quantas vezes a TROCA trocou.
+model CorrecaoDaDescricao {
+  id           String           @id @default(cuid())
+  tipo         TipoDeCorrecao
+  errado       String?
+  certo        String
+  explicacao   String?
+  promptNome   String?
+  ativa        Boolean          @default(true)
+  origem       OrigemDaCorrecao
+  produtoSku   String?
+  usos         Int              @default(0)
+  criadoPor    String
+  criadoEm     DateTime         @default(now())
+  atualizadoEm DateTime         @updatedAt
+
+  @@index([ativa, promptNome])
+}
+
 // ---------------------------------------------------------------------------
 // Anuncios
 // ---------------------------------------------------------------------------
