@@ -5325,7 +5325,10 @@ para **qualquer fornecedor, com lista em R$ ou US$**. O que existe:
   plano embutido por `scripts/analise-fornecedor-embutir.js`. Sem `--confirmo` só conferem. Primeiro uso: os 38 da NexMind
   (258207 a 258244, criados e cadastrados no Bling em 07/11/2026, venda = custo × 2).
 - **Testes:** `npm run teste:analise-fornecedor` (67, com `scripts/fixtures/analise-fornecedor/`) e o `teste:mcp`.
-- **Não verificado:** a página aberta num navegador de verdade fora do claude.ai (só o DOM falso) e a ferramenta pelo ChatGPT.
+- **NO AR na VPS desde 07.11.2026.76** (commit `588682c`, 07/11/2026): a ferramenta foi conferida dentro do contêiner do app
+  (roteiro v1 com os 7 passos, modelo de 53 KB com os 3 marcadores, recusa sem `tela.compras.pedidos`). **Não verificado:** a
+  página aberta num navegador de verdade fora do claude.ai (só o DOM falso) e a ferramenta chamada pelo ChatGPT (a lista de
+  ferramentas do conector é lida ao conectar: uma conversa já aberta não vê a nova).
 
 ## AliExpress no Compras (28/10/2026)
 
