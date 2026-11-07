@@ -105,10 +105,19 @@ export default function JanelaOQueMudou({ candidatos, prompt, aoSalvar, aoSalvar
             />
           </label>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={aoSalvarSemRegra} className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo">
+            <button
+              type="button"
+              onClick={aoSalvarSemRegra}
+              className="rounded border border-borda px-3 py-1.5 text-sm transition-colors duration-150 hover:bg-fundo focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none"
+            >
               Salvar sem regra
             </button>
-            <button type="button" autoFocus onClick={salvar} className="rounded bg-acento px-4 py-1.5 text-sm font-medium text-white hover:opacity-90">
+            <button
+              type="button"
+              autoFocus
+              onClick={salvar}
+              className="rounded bg-acento px-4 py-1.5 text-sm font-medium text-white transition-opacity duration-150 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-acento focus-visible:ring-offset-2 focus-visible:outline-none"
+            >
               Salvar
             </button>
           </div>

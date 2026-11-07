@@ -21,7 +21,8 @@ import { MAXIMO_EXPLICACAO, MAXIMO_TEXTO } from "@/lib/ia/correcoes";
 
 const BOTAO_PRINCIPAL =
   "inline-flex items-center gap-1.5 rounded-md bg-acento px-3 py-2 text-sm font-medium text-white transition-opacity duration-150 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-acento focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-50";
-const BOTAO_ICONE = "rounded p-1.5 text-suave transition-colors hover:bg-fundo hover:text-texto disabled:opacity-40";
+const BOTAO_ICONE =
+  "rounded p-2 text-suave transition-colors duration-150 hover:bg-fundo hover:text-texto focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none disabled:opacity-40";
 const CABECALHO = "px-3 py-2 font-medium";
 const CELULA = "px-3 py-2.5 align-top";
 const ORIGENS = { CHAT: "Chat", CADASTRO: "Cadastro", TELA: "Tela" };
@@ -146,9 +147,10 @@ export default function CorrecoesDaDescricao({ correcoes, prompts, busca, aviso,
                         aria-label={correcao.ativa ? "Desligar a correção" : "Ligar a correção"}
                         disabled={!podeEditar || ocupado}
                         onClick={() => alternar(correcao)}
-                        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors disabled:cursor-default ${correcao.ativa ? "bg-emerald-600" : "bg-slate-300"}`}
+                        // A area de clique passa do desenho (20x36): o `after` a leva a ~36x52 sem mudar a linha.
+                        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-150 after:absolute after:-inset-2 after:content-[''] focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none disabled:cursor-default ${correcao.ativa ? "bg-emerald-600" : "bg-slate-300"}`}
                       >
-                        <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${correcao.ativa ? "translate-x-4" : "translate-x-0.5"}`} />
+                        <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform duration-150 ${correcao.ativa ? "translate-x-4" : "translate-x-0.5"}`} />
                       </button>
                     </td>
                     {podeEditar && (
