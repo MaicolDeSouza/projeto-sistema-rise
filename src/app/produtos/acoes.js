@@ -4,7 +4,7 @@ import { nomeDoCanal, situacaoNoCanal } from "@/lib/canaisDeVenda/anuncioNoCanal
 import { clienteLojaIntegrada } from "@/lib/integracoes/lojaIntegrada/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { negarSemAcesso, podeAgora } from "@/lib/acessos/servidor";
+import { negarSemAcesso, podeAgora, sessaoDeAcessos } from "@/lib/acessos/servidor";
 import { FornecedorDoProdutoSchema } from "@/lib/validacao";
 
 import { Prisma } from "@/generated/prisma/client";
@@ -39,6 +39,7 @@ import {
   MAXIMO_PROMPT_DESCRICAO,
   MAXIMO_REFERENCIAS,
 } from "@/lib/ia/anuncio";
+import { corrigirDescricaoDoSalvar, criarCorrecoesDoCadastro } from "@/lib/ia/correcoesBanco";
 import { normalizarDescricao } from "@/lib/ia/revisaoDescricao";
 import { gastoDoFormulario, novoGasto, resumoDoGasto, somarResumos } from "@/lib/ia/gasto";
 import { fotosDaPropostaDepoisDoSalvar, marcarSecoesAplicadas, registrarDecisoesDoSalvar } from "@/lib/proposta/banco";
@@ -820,6 +821,12 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
 
   const dados = resultado.data;
 
+  // As Correcoes da descricao (TROCAs de todas as descricoes) valem tambem no texto digitado ou colado no cadastro
+  // (spec 2026-11-07). As de um prompt so valem na geracao e na proposta: o Salvar nao sabe que prompt escreveu o texto.
+  if (typeof dados.descricaoBase === "string" && dados.descricaoBase) {
+    dados.descricaoBase = (await corrigirDescricaoDoSalvar(dados.descricaoBase)).texto;
+  }
+
   // EAN da faixa interna (prefixo 2) com digito verificador errado e recusado: esse codigo e nosso, gerado pelo botao, e
   // errado so pode ser digitacao. Os codigos de fabricante nao sao conferidos aqui: ha codigos reais gravados que nao vale
   // arriscar barrar (pedido do dono em 23/10/2026).
@@ -1107,6 +1114,18 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
       if (Array.isArray(aplicadas) && aplicadas.length > 0) await marcarSecoesAplicadas(id, aplicadas.map(String));
     } catch (erro) {
       console.error("Falha ao marcar as secoes aplicadas da proposta:", erro.message);
+    }
+    // As TROCAs que o dono marcou no popup "O que mudou na descricao" viram Correcoes da descricao, com o produto GRAVADO.
+    // Repetida ou falha so vai para o log: o produto ja esta salvo e o Salvar nao volta atras por causa delas.
+    try {
+      const marcadas = JSON.parse(String(formData.get("correcoesDaDescricao") || "[]"));
+      if (Array.isArray(marcadas) && marcadas.length > 0) {
+        const quem = (await sessaoDeAcessos()).login ?? "pc";
+        const { recusadas } = await criarCorrecoesDoCadastro(marcadas, { quem, produtoSku: dados.sku });
+        for (const item of recusadas) console.error("Correcao da descricao recusada no Salvar:", item.erro);
+      }
+    } catch (erro) {
+      console.error("Falha ao criar as correcoes da descricao:", erro.message);
     }
     // Proposta, campo a campo e fotos (pedido do dono em 23/10/2026): o que o dono editou nao volta ao valor da
     // proposta na abertura seguinte, e a janela "Fotos da proposta" passa a mostrar a escolha e a ordem que ele salvou.
