@@ -10,6 +10,8 @@ import { semAncestraisRedundantes } from "@/lib/canaisDeVenda/li/categorias";
 import { clienteLI } from "@/lib/canaisDeVenda/li/cliente";
 import { listarCategoriasDaLI, textoDoErroLI } from "@/lib/canaisDeVenda/li/leitura";
 import { tituloSeoPadrao } from "@/lib/canaisDeVenda/li/seo";
+import { aplicarCorrecoes } from "@/lib/ia/correcoes";
+import { lerCorrecoesAtivas, somarUsos } from "@/lib/ia/correcoesBanco";
 import { normalizarDescricao } from "@/lib/ia/revisaoDescricao";
 
 import { decisoesDosCampos, SECOES_APLICAVEIS } from "./aplicar";
@@ -121,7 +123,12 @@ export async function gravarProposta(sku, plano, { bytes = new Map(), testarLink
   // A descricao da conversa segue as regras do texto da loja, como a da IA do Rise (pedidos do dono em 03/11/2026): linha em
   // branco depois do titulo e o valor de cada especificacao com maiuscula.
   if (validado.secao === "descricao") {
-    plano = { ...plano, conteudo: { ...plano.conteudo, texto: normalizarDescricao(plano.conteudo.texto) } };
+    // Depois das regras fixas, as Correcoes da descricao do dono (spec 2026-11-07): as de todas as descricoes e as do prompt
+    // que a conversa diz ter usado. A instrucao ja foi na leitura; aqui o Rise garante o texto gravado.
+    const promptNome = typeof plano.conteudo?.prompt === "string" && plano.conteudo.prompt.trim() ? plano.conteudo.prompt.trim() : null;
+    const { texto, aplicadas } = aplicarCorrecoes(normalizarDescricao(plano.conteudo.texto), await lerCorrecoesAtivas({ promptNome }));
+    plano = { ...plano, conteudo: { ...plano.conteudo, texto } };
+    await somarUsos(aplicadas);
   }
 
   // O EAN da proposta e SEMPRE o interno do Rise (dono, 23/10/2026: "sempre gerar EAN, independente se tem ou nao"): a

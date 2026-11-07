@@ -3,6 +3,8 @@ import { clienteLI } from "@/lib/canaisDeVenda/li/cliente";
 import { listarCategoriasDaLI, textoDoErroLI } from "@/lib/canaisDeVenda/li/leitura";
 import { seoDosConcorrentes } from "@/lib/canaisDeVenda/li/seoConcorrentes";
 import { prisma } from "@/lib/db";
+import { blocoDeCorrecoes } from "@/lib/ia/correcoes";
+import { lerCorrecoesAtivas } from "@/lib/ia/correcoesBanco";
 import { listarPromptsDaDescricao } from "@/lib/ia/promptsDescricao";
 import { ErroDeFerramenta } from "@/lib/riseAi/ferramentas/erro";
 
@@ -93,7 +95,20 @@ function promptPedido(prompts, pedido) {
   const alvo = pedido.trim().toLocaleLowerCase("pt-BR");
   const achado = prompts.find((prompt) => prompt.id === pedido.trim() || prompt.nome.toLocaleLowerCase("pt-BR") === alvo);
   if (!achado) throw new ErroDeFerramenta(`O prompt "${pedido}" não existe. Existem: ${prompts.map((prompt) => prompt.nome).join("; ")}.`);
-  return achado.texto;
+  return achado;
+}
+
+/**
+ * As Correcoes da descricao que valem para a proposta (spec 2026-11-07): as de todas as descricoes e as do prompt pedido,
+ * pelo NOME exato que ele tem na biblioteca (a conversa pode ter pedido pelo id ou com outra caixa). A instrucao e o
+ * mesmo bloco que a IA do Rise recebe depois do prompt.
+ */
+async function correcoesDaProposta(promptNome) {
+  const itens = await lerCorrecoesAtivas({ promptNome });
+  return {
+    itens: itens.map(({ id, tipo, errado, certo, explicacao, promptNome: escopo }) => ({ id, tipo, errado, certo, explicacao, promptNome: escopo })),
+    instrucao: blocoDeCorrecoes(itens).texto,
+  };
 }
 
 /**
@@ -149,6 +164,7 @@ export async function lerParaProposta(sku, { prompt = null } = {}) {
     proximoCodigoLivre(),
     lojaIntegradaParaProposta(produto),
   ]);
+  const escolhido = prompt ? promptPedido(prompts, prompt) : null;
   const porId = new Map(linhas.map((linha) => [linha.id, linha]));
   const concorrentes = vinculos.flatMap((vinculo) => {
     if (vinculo.produtoColetadoId) return porId.has(vinculo.produtoColetadoId) ? [paraOferta(porId.get(vinculo.produtoColetadoId))] : [];
@@ -180,7 +196,8 @@ export async function lerParaProposta(sku, { prompt = null } = {}) {
     proximoCodigo,
     lojaIntegrada,
     prompts: prompts.map((item) => ({ nome: item.nome, padrao: item.padrao })),
-    promptTexto: prompt ? promptPedido(prompts, prompt) : null,
+    promptTexto: escolhido?.texto ?? null,
+    correcoes: await correcoesDaProposta(escolhido?.nome ?? null),
     proposta: proposta ? { secoes: Object.keys(proposta.secoes ?? {}), naoAplicadas: proposta.naoAplicadas } : null,
   };
 }

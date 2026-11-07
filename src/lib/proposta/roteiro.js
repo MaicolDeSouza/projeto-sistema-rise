@@ -14,7 +14,9 @@
 // datasheet e internet e, por ultimo, calculo registrado na origem; o relatorio diz o que foi calculado.
 // "16" em 03/11/2026: o modelo e SEMPRE proposto (pedido do dono: "sempre preencher o campo de modelo"); sem codigo do
 // fabricante, um modelo descritivo curto no padrao dos que o dono conferiu.
-export const VERSAO_DO_ROTEIRO = "16";
+// "17" em 07/11/2026: as Correcoes da descricao (spec 2026-11-07): lerParaProposta devolve em "correcoes" o que o dono
+// ensinou ("escreva 5V, nunca 5 V"), e a descricao ja nasce seguindo; o Rise aplica as TROCAs no texto gravado de todo jeito.
+export const VERSAO_DO_ROTEIRO = "17";
 
 export const ROTEIRO = `ROTEIRO DA PROPOSTA DE PRODUTO (Rise / 4hobby), versão ${VERSAO_DO_ROTEIRO}
 
@@ -66,6 +68,9 @@ REGRAS QUE VALEM SEMPRE
   de fora, mesmo com fonte (ex.: Espaçamento dos Pinos, Regulador de Tensão).
 - Divergência entre lojas: decida e registre (campo, opções com as lojas, a escolhida e o porquê).
 - Texto de propaganda não entra nas especificações.
+- Aplique as Correções da descrição que lerParaProposta devolve em "correcoes" (TROCA: escreva sempre o "certo", nunca
+  o "errado"; REGRA: siga a instrução); elas valem mesmo que o prompt diga outra coisa. O Rise aplica as TROCAs no texto
+  gravado de qualquer jeito; a instrução é para o texto já nascer certo. Em "prompt" grave o nome do prompt que usou.
 conteudo: { "texto", "prompt", "divergencias": [{ "campo", "opcoes": [{ "valor", "lojas": [] }], "escolhida", "motivo" }],
   "pesquisadas": [{ "linha", "fonte" }], "interrogacoes": [] }
 

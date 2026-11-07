@@ -1041,6 +1041,23 @@ try {
     conferir("correcoes, editar: muda o certo; repetida com outra existente e recusada", editada.ok && editada.correcao.certo === "5 Volts" && !editadaRepetida.ok && /Já existe/.test(editadaRepetida.erro ?? ""));
     conferir("correcoes, alternar e editar: id que nao existe da erro, sem lancar", !(await banco.alternarCorrecao("nao-existe", true)).ok && !(await banco.editarCorrecao("nao-existe", { tipo: "TROCA", errado: "a", certo: "b" })).ok);
     conferir("correcoes, excluir", (await banco.excluirCorrecao(criada.correcao.id)).ok && (await prisma.correcaoDaDescricao.findUnique({ where: { id: criada.correcao.id } })) === null);
+
+    // A proposta do Claude (Tarefa 4): o texto gravado passa pelas TROCAs do escopo e a leitura devolve a lista e a instrucao.
+    const { gravarProposta, lerProposta } = await import("../src/lib/proposta/banco.js");
+    const { lerParaProposta } = await import("../src/lib/proposta/leitura.js");
+    const { ROTEIRO, VERSAO_DO_ROTEIRO } = await import("../src/lib/proposta/roteiro.js");
+    const global5V = await banco.criarCorrecao({ tipo: "TROCA", errado: "5 V", certo: "5V" }, QUEM);
+    await banco.criarCorrecao({ tipo: "TROCA", errado: "Funciona", certo: "Opera", promptNome: "Padrão do sistema" }, QUEM);
+    await prisma.produto.create({ data: { sku: "ZZ-CORR-2", tituloBase: "ZZ Corr 2" } });
+    const gravada = await gravarProposta("ZZ-CORR-2", { secao: "descricao", conteudo: { texto: "T\n\nFunciona com 5 V.\n\nEspecificações técnicas:\n- Tensão: 5 V;", prompt: "Padrão do sistema", divergencias: [] } });
+    const secao = (await lerProposta("ZZ-CORR-2")).secoes.descricao;
+    conferir("correcoes, proposta: a descricao gravada passa pelas TROCAs do escopo global e do prompt", gravada.ok === true && secao.texto === "T\n\nOpera com 5V.\n\nEspecificações técnicas:\n- Tensão: 5V;");
+    // A linha tecnica ja chega com "5V" pelo passo zero; a TROCA so trocou o "5 V" do paragrafo.
+    conferir("correcoes, proposta: usos somados", (await prisma.correcaoDaDescricao.findUnique({ where: { id: global5V.correcao.id } })).usos === 1);
+    const lido = await lerParaProposta("ZZ-CORR-2", { prompt: "Padrão do sistema" });
+    conferir("correcoes, leitura: devolve as correcoes do escopo e a instrucao", lido.correcoes.itens.some((c) => c.errado === "Funciona") && lido.correcoes.itens.some((c) => c.errado === "5 V") && lido.correcoes.instrucao.includes("Escreva \"5V\", nunca \"5 V\""));
+    conferir("correcoes, leitura sem prompt: so as globais", !(await lerParaProposta("ZZ-CORR-2")).correcoes.itens.some((c) => c.errado === "Funciona"));
+    conferir("correcoes, roteiro v17 com o passo das correcoes", VERSAO_DO_ROTEIRO === "17" && ROTEIRO.includes("Correções da descrição") && ROTEIRO.includes("correcoes"));
   }
 } finally {
   await limpar();
