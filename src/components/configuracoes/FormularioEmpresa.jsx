@@ -10,7 +10,8 @@ import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import Card from "@/components/ui/Card";
 import { formatarTelefone } from "@/lib/telefone";
 
-const CAMPOS = ["razaoSocial", "nomeFantasia", "cnpj", "inscricaoEstadual", "endereco", "numero", "complemento", "bairro", "cidade", "uf", "cep", "telefone", "email"];
+const CAMPOS = ["razaoSocial", "nomeFantasia", "cnpj", "inscricaoEstadual", "inscricaoMunicipal", "endereco", "numero", "complemento", "bairro", "cidade", "uf", "cep", "telefone", "celular", "email"];
+const TELEFONES = ["telefone", "celular"];
 
 /**
  * Dados da empresa: o que vai no cabecalho do pedido de compra. Linha-guia: o dono confere os dados da Receita e salva.
@@ -104,7 +105,7 @@ function CartaoDoLogo({ inicial, podeEditar }) {
 
 export default function FormularioEmpresa({ inicial, logoInicial = null, podeEditar }) {
   const [valores, setValores] = useState(() =>
-    Object.fromEntries(CAMPOS.map((campo) => [campo, campo === "telefone" ? formatarTelefone(inicial?.telefone ?? "") : inicial?.[campo] ?? ""])),
+    Object.fromEntries(CAMPOS.map((campo) => [campo, TELEFONES.includes(campo) ? formatarTelefone(inicial?.[campo] ?? "") : inicial?.[campo] ?? ""])),
   );
   const [erros, setErros] = useState({});
   const [aviso, setAviso] = useState(null);
@@ -161,6 +162,7 @@ export default function FormularioEmpresa({ inicial, logoInicial = null, podeEdi
             {campo("nomeFantasia", "Nome fantasia")}
             {campo("cnpj", "CNPJ", { inputMode: "numeric" })}
             {campo("inscricaoEstadual", "Inscrição estadual")}
+            {campo("inscricaoMunicipal", "Inscrição municipal")}
           </div>
         </Card>
         <Card>
@@ -186,8 +188,9 @@ export default function FormularioEmpresa({ inicial, logoInicial = null, podeEdi
         </Card>
         <Card>
           <h2 className="mb-4 font-semibold">Contato</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
             {campo("telefone", "Telefone", { inputMode: "tel", onBlur: () => setValores((antes) => ({ ...antes, telefone: formatarTelefone(antes.telefone) })) })}
+            {campo("celular", "Celular / WhatsApp", { inputMode: "tel", onBlur: () => setValores((antes) => ({ ...antes, celular: formatarTelefone(antes.celular) })) })}
             {campo("email", "E-mail", { type: "email" })}
           </div>
         </Card>

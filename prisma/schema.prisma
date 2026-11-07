@@ -2424,6 +2424,8 @@ model DadosDaEmpresa {
   nomeFantasia      String?
   cnpj              String
   inscricaoEstadual String?
+  /// Pedido do dono em 07/11/2026 (semeada com 169824 pela migration 20261107b).
+  inscricaoMunicipal String?
   endereco          String
   numero            String?
   complemento       String?
@@ -2433,6 +2435,8 @@ model DadosDaEmpresa {
   cep               String
   /// So digitos, com DDD (padrao do telefone do Rise).
   telefone          String?
+  /// Celular / WhatsApp (07/11/2026), so digitos com DDD como o telefone.
+  celular           String?
   email             String?
   atualizadoEm      DateTime @updatedAt
 }

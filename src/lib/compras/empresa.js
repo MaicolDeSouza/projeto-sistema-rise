@@ -8,9 +8,10 @@ import { telefoneParaGravar, telefoneValido } from "@/lib/telefone";
  */
 
 const ID = "empresa";
-const CAMPOS = ["razaoSocial", "nomeFantasia", "cnpj", "inscricaoEstadual", "endereco", "numero", "complemento", "bairro", "cidade", "uf", "cep", "telefone", "email"];
+// Inscricao municipal e celular/WhatsApp: pedido do dono em 07/11/2026.
+const CAMPOS = ["razaoSocial", "nomeFantasia", "cnpj", "inscricaoEstadual", "inscricaoMunicipal", "endereco", "numero", "complemento", "bairro", "cidade", "uf", "cep", "telefone", "celular", "email"];
 const OBRIGATORIOS = { razaoSocial: "Informe a razão social.", cnpj: "Informe o CNPJ.", endereco: "Informe o endereço.", cidade: "Informe a cidade.", uf: "Informe a UF.", cep: "Informe o CEP." };
-const LIMITES = { razaoSocial: 150, nomeFantasia: 150, inscricaoEstadual: 30, endereco: 200, numero: 20, complemento: 100, bairro: 100, cidade: 100, email: 150 };
+const LIMITES = { razaoSocial: 150, nomeFantasia: 150, inscricaoEstadual: 30, inscricaoMunicipal: 30, endereco: 200, numero: 20, complemento: 100, bairro: 100, cidade: 100, email: 150 };
 
 export async function lerDadosDaEmpresa() {
   return prisma.dadosDaEmpresa.findUnique({ where: { id: ID } });
@@ -42,6 +43,10 @@ export async function salvarDadosDaEmpresa(entrada) {
   if (dados.telefone) {
     if (telefoneValido(dados.telefone)) dados.telefone = telefoneParaGravar(dados.telefone);
     else erros.telefone = `Telefone inválido: ${dados.telefone}.`;
+  }
+  if (dados.celular) {
+    if (telefoneValido(dados.celular)) dados.celular = telefoneParaGravar(dados.celular);
+    else erros.celular = `Celular inválido: ${dados.celular}.`;
   }
   if (dados.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dados.email)) erros.email = "E-mail inválido.";
 
