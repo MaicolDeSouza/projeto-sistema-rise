@@ -4,6 +4,7 @@ import { FERRAMENTAS, executarFerramenta } from "@/lib/riseAi/ferramentas";
 import { FERRAMENTA_ANOTAR } from "./anotacoes.js";
 import { FERRAMENTAS_DE_CADASTRO } from "./cadastros.js";
 import { FERRAMENTAS_DE_COMPRAS_ESCRITA, FERRAMENTAS_DE_COMPRAS_LEITURA } from "./compras.js";
+import { FERRAMENTAS_DE_CORRECOES } from "./correcoes.js";
 import { FERRAMENTAS_DO_CATALOGO } from "./catalogo.js";
 import { horasDeBrasilia } from "./horario.js";
 import { FERRAMENTA_MERCADO } from "./mercado.js";
@@ -33,6 +34,7 @@ export const INSTRUCOES = [
   "Nunca invente produto, preço, estoque ou especificação: se a ferramenta não trouxer, diga que não achou no Rise.",
   "Para montar a proposta de cadastro de um produto, chame primeiro roteiroDaProposta e siga o roteiro (lerParaProposta, baixarCandidatas, folhaDeContato e gravarSecao, nessa ordem, e confira com lerProposta); a proposta nunca altera o produto (o dono aplica e confere na tela) e não precisa de anotarDuvida.",
   "Para escolher os fornecedores e concorrentes de um produto (antes da proposta), chame roteiroDaProposta com canal \"referencias\" e siga o roteiro; marcarReferencias deixa os escolhidos marcados para o dono conferir na lupa.",
+  "Correções da descrição: quando o dono corrigir um detalhe do texto (\"escreva 5V, não 5 V\") e pedir para guardar, grave com gravarCorrecaoDaDescricao; nunca grave uma por conta própria. lerParaProposta devolve em \"correcoes\" as que valem para a proposta.",
   "Para a proposta de ANÚNCIO de um produto (Loja Integrada ou Mercado Livre), chame primeiro situacaoDoProduto, diga à pessoa o próximo passo e então roteiroDaProposta com canal \"li\" ou \"ml\", e siga o roteiro; a proposta só preenche o rascunho do anúncio no Rise (o dono revisa e envia).",
   "Compras: produtosAbaixoDoMinimo, listarPedidosDeCompra e lerPedidoDeCompra leem; montarPedidoDeCompra cria ou completa o RASCUNHO do fornecedor com os dados que a pessoa passar (mostre o pedido devolvido); mudarSituacaoDoPedidoDeCompra (enviar, cancelar, finalizar) só quando a pessoa pedir com todas as letras. Lançar estoque recebido é só na tela do Rise.",
   "Vendas: relatorioDeVendas (totais, canais, dias, mais vendidos e lucro de um período), listarPedidosDeVenda e lerPedidoDeVenda leem os pedidos do Mercado Livre, da Loja Integrada e do Bling (desde 01/11/2026). Datas como AAAA-MM-DD; sem período, os últimos 30 dias. Do cliente só vêm o nome e a cidade.",
@@ -52,7 +54,8 @@ const SO_LEITURA_DO_MCP = [FERRAMENTA_MERCADO, ...FERRAMENTAS_DO_CATALOGO, ...FE
 // A proposta de anuncio (spec 2026-10-23) entra junto com a de produto: mesmo registro, sem o lembrete.
 // A marcacao das referencias (25/10/2026) vai junto: etapa de antes da proposta, sem o lembrete.
 // O pedido de compra montado pela conversa (26/10/2026) tambem: cada uma traz as proprias anotacoes de escrita.
-const PROPOSTAS = [...FERRAMENTAS_DA_PROPOSTA, ...FERRAMENTAS_DA_PROPOSTA_DE_ANUNCIO, ...FERRAMENTAS_DE_REFERENCIAS, ...FERRAMENTAS_DE_COMPRAS_ESCRITA];
+// As Correcoes da descricao (07/11/2026) tambem: o dono dita, nao e duvida de atendimento.
+const PROPOSTAS = [...FERRAMENTAS_DA_PROPOSTA, ...FERRAMENTAS_DA_PROPOSTA_DE_ANUNCIO, ...FERRAMENTAS_DE_REFERENCIAS, ...FERRAMENTAS_DE_COMPRAS_ESCRITA, ...FERRAMENTAS_DE_CORRECOES];
 const SO_DO_MCP = [...SO_LEITURA_DO_MCP, FERRAMENTA_ANOTAR, ...PROPOSTAS];
 // A proposta de produto (spec 2026-10-21) nao e pergunta de atendimento: sem o lembrete de anotar, como a propria anotacao.
 const SEM_LEMBRETE = new Set([FERRAMENTA_ANOTAR.nome, ...PROPOSTAS.map((ferramenta) => ferramenta.nome)]);

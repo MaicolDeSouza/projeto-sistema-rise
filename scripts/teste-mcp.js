@@ -49,6 +49,8 @@ const REFERENCIAS = ["marcarReferencias"];
 const PROPOSTA_DE_ANUNCIO = ["situacaoDoProduto", "lerParaPropostaML", "lerCategoriaML", "gravarPropostaML"];
 // As que gravam pedido de compra (26/10/2026): escrita pedida pelo dono, sem o lembrete.
 const COMPRAS_ESCRITA = ["montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra"];
+// As Correcoes da descricao (07/11/2026): ditadas pelo dono, sem o lembrete.
+const CORRECOES = ["gravarCorrecaoDaDescricao", "listarCorrecoesDaDescricao", "desligarCorrecaoDaDescricao"];
 
 async function lerRespostaMcp(resposta) {
   const texto = await resposta.text();
@@ -88,6 +90,7 @@ function pedidoMcp(metodo, parametros = {}, { era = "moderna", id = 1, cabecalho
 /** Apaga tudo o que os testes criam. Tokens e codigos saem junto com o cliente (Cascade). */
 async function limpar() {
   await prisma.chamadaMcp.deleteMany({ where: { login: { startsWith: "zz-mcp-" } } });
+  await prisma.correcaoDaDescricao.deleteMany({ where: { criadoPor: { startsWith: "zz-mcp-" } } });
   await prisma.clienteMcp.deleteMany({ where: { nome: { startsWith: "ZZ-MCP" } } });
   await prisma.conversaIA.deleteMany({ where: { usuario: { startsWith: "zz-mcp-" } } });
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-MCP-" } } });
@@ -754,8 +757,8 @@ try {
         descoberta?.instructions === INSTRUCOES && INSTRUCOES.includes("anotarDuvida"),
       ],
       [
-        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "comprasACaminhoDoProduto", "consultarEstoque", "consultarPreco", "consultarProduto", "filtrarProdutos", "folhaDeContato", "gravarPropostaML", "gravarSecao", "historicoDePreco", "lerCategoriaML", "lerParaProposta", "lerParaPropostaML", "lerPedidoDeCompra", "lerPedidoDeVenda", "lerProposta", "listarClientes", "listarConcorrentes", "listarFornecedores", "listarMarcas", "listarPedidosDeCompra", "listarPedidosDeVenda", "listarTransportadoras", "marcarReferencias", "montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra", "produtosAbaixoDoMinimo", "relatorioDeVendas", "roteiroDaProposta", "situacaoDoProduto"],
-        30,
+        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "comprasACaminhoDoProduto", "consultarEstoque", "consultarPreco", "consultarProduto", "desligarCorrecaoDaDescricao", "filtrarProdutos", "folhaDeContato", "gravarCorrecaoDaDescricao", "gravarPropostaML", "gravarSecao", "historicoDePreco", "lerCategoriaML", "lerParaProposta", "lerParaPropostaML", "lerPedidoDeCompra", "lerPedidoDeVenda", "lerProposta", "listarClientes", "listarConcorrentes", "listarCorrecoesDaDescricao", "listarFornecedores", "listarMarcas", "listarPedidosDeCompra", "listarPedidosDeVenda", "listarTransportadoras", "marcarReferencias", "montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra", "produtosAbaixoDoMinimo", "relatorioDeVendas", "roteiroDaProposta", "situacaoDoProduto"],
+        31,
         true,
       ],
     );
@@ -1187,7 +1190,30 @@ try {
       [2, true, 1],
     );
     const lista = (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/list", {}, { id: id++ }), quem)))?.result?.tools ?? [];
-    conferir("a descricao de toda ferramenta de consulta lembra de anotar", lista.filter((ferramenta) => ferramenta.name !== "anotarDuvida" && !PROPOSTA.includes(ferramenta.name) && !PROPOSTA_DE_ANUNCIO.includes(ferramenta.name) && !REFERENCIAS.includes(ferramenta.name) && !COMPRAS_ESCRITA.includes(ferramenta.name) && !ferramenta.description.includes("anotarDuvida")).map((ferramenta) => ferramenta.name), []);
+    conferir("a descricao de toda ferramenta de consulta lembra de anotar", lista.filter((ferramenta) => ferramenta.name !== "anotarDuvida" && !PROPOSTA.includes(ferramenta.name) && !PROPOSTA_DE_ANUNCIO.includes(ferramenta.name) && !REFERENCIAS.includes(ferramenta.name) && !COMPRAS_ESCRITA.includes(ferramenta.name) && !CORRECOES.includes(ferramenta.name) && !ferramenta.description.includes("anotarDuvida")).map((ferramenta) => ferramenta.name), []);
+
+    // --- as Correcoes da descricao (07/11/2026): gravadas pelo chat com o login da conexao, sem o lembrete ---
+    await prisma.correcaoDaDescricao.deleteMany({ where: { criadoPor: "zz-mcp-lembrete" } });
+    const gravou = await chamar("gravarCorrecaoDaDescricao", { tipo: "TROCA", errado: "5 V", certo: "5V", explicacao: "dono: unidade colada" });
+    const corpo = JSON.parse(gravou?.content?.[0]?.text ?? "{}");
+    conferir("correcoes: grava pelo chat, origem CHAT e o login da conexao, sem o lembrete", [gravou?.content?.length, corpo.correcao?.origem, corpo.correcao?.criadoPor, Array.isArray(corpo.ensaio)], [1, "CHAT", "zz-mcp-lembrete", true]);
+    const repetida = await chamar("gravarCorrecaoDaDescricao", { tipo: "TROCA", errado: "5 v", certo: "5V" });
+    conferir("correcoes: repetida volta como erro da ferramenta", [repetida?.isError, /Já existe/.test(repetida?.content?.[0]?.text ?? "")], [true, true]);
+    const listou = JSON.parse((await chamar("listarCorrecoesDaDescricao", {}))?.content?.[0]?.text ?? "{}");
+    conferir("correcoes: a lista traz a gravada", listou.correcoes?.some((c) => c.id === corpo.correcao?.id), true);
+    const desligou = JSON.parse((await chamar("desligarCorrecaoDaDescricao", { id: corpo.correcao?.id }))?.content?.[0]?.text ?? "{}");
+    conferir("correcoes: desligar nao apaga", [desligou.correcao?.ativa, (await prisma.correcaoDaDescricao.findUnique({ where: { id: corpo.correcao?.id ?? "" } })) !== null], [false, true]);
+    conferir("correcoes: desligar o que nao existe e erro da ferramenta", (await chamar("desligarCorrecaoDaDescricao", { id: "nao-existe" }))?.isError, true);
+    const semPoder = { ...quem, pode: (recurso) => recurso !== "tela.produtos.cadastro" };
+    const negada = (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/call", { name: "gravarCorrecaoDaDescricao", arguments: { tipo: "REGRA", certo: "x" } }, { id: id++ }), semPoder)))?.result;
+    conferir("correcoes: sem editar o cadastro de Produtos, recusa", negada?.isError, true);
+    conferir(
+      "correcoes: resumo da chamada",
+      [resumoDaChamada("gravarCorrecaoDaDescricao", { tipo: "TROCA", errado: "5 V", certo: "5V" }), resumoDaChamada("gravarCorrecaoDaDescricao", { tipo: "REGRA", certo: "Garantia em meses" }), resumoDaChamada("listarCorrecoesDaDescricao", {})],
+      ["correção da descrição: 5 V → 5V", "correção da descrição: Garantia em meses", "correções da descrição: lista"],
+    );
+    conferir("correcoes: as tres ferramentas estao na lista", CORRECOES.every((nome) => lista.some((ferramenta) => ferramenta.name === nome)), true);
+    await prisma.correcaoDaDescricao.deleteMany({ where: { criadoPor: "zz-mcp-lembrete" } });
 
     // --- as consultas do dia ---
     const { inicio } = limitesDoDia(hojeEmSaoPaulo());
