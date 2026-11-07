@@ -1,12 +1,13 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Filter, Package } from "lucide-react";
+import { Package } from "lucide-react";
 
 import CabecalhoOrdenavel, { parametrosDaOrdenacao } from "@/components/ui/CabecalhoOrdenavel";
 import FotoComLupa from "@/components/ui/FotoComLupa";
 
 import { abreviarPagamento, abrirNoCanal, dataCompleta, diaEHora, linkNoBling, linkNoCanal, moedaComSinal, moeda } from "./formato";
+import FiltroDaColuna from "./FiltroDaColuna";
 import IconeDoCanalDoPedido from "./IconeDoCanalDoPedido";
 import { COR_DO_STATUS, COR_DO_STATUS_DO_ENVIO, TEXTO_DO_STATUS, TEXTO_DO_STATUS_DO_ENVIO } from "./textos";
 
@@ -61,31 +62,6 @@ function CelulaDoLucro({ linha }) {
 // O numero do pedido e o "Bling N" abrem o pedido no sistema de origem, em outra aba (pedido do dono em 04/11/2026).
 const linkExterno = "rounded hover:text-acento hover:underline focus-visible:outline-2 focus-visible:outline-acento";
 
-/**
- * O cabecalho que filtra (Status e Envio, pedido do dono em 04/11/2026): cada clique passa para a proxima opcao que
- * existe na coluna e, depois da ultima, volta a "todos". A opcao escolhida aparece no proprio cabecalho.
- */
-function CabecalhoQueFiltra({ rotulo, opcoes, atual, textos, aoMudar }) {
-  const indice = atual ? opcoes.indexOf(atual) : -1;
-  const proxima = indice + 1 < opcoes.length ? opcoes[indice + 1] : null;
-  const dica = opcoes.length === 0 ? "Nada para filtrar" : proxima ? `Clique para mostrar só: ${textos[proxima] ?? proxima}` : "Clique para mostrar todos";
-  return (
-    <th className="w-px whitespace-nowrap px-2 py-2.5 font-medium">
-      <button
-        type="button"
-        onClick={() => aoMudar(proxima)}
-        disabled={opcoes.length === 0}
-        title={dica}
-        aria-label={`${rotulo}: ${atual ? (textos[atual] ?? atual) : "todos"}. ${dica}`}
-        className={`inline-flex items-center gap-1 uppercase hover:text-texto disabled:cursor-default ${atual ? "font-semibold text-acento" : ""}`}
-      >
-        {atual ? <span className="normal-case tracking-normal">{textos[atual] ?? atual}</span> : rotulo}
-        <Filter size={12} aria-hidden="true" className={atual ? "text-acento" : "text-suave"} />
-      </button>
-    </th>
-  );
-}
-
 /** Os ultimos 6 digitos do pedido (o numero inteiro fica na dica); numero curto aparece inteiro. */
 const abreviarPedido = (numero) => {
   const texto = String(numero ?? "");
@@ -93,14 +69,15 @@ const abreviarPedido = (numero) => {
 };
 
 /**
- * A lista de Pedidos de venda, na ordem do dono (04/11/2026): Foto, Qtd. ("2x"), Descrição, Código, Local, Total, Lucro,
- * Status e Envio (cabecalhos que filtram), Data, Pedido (abreviado; abre o pedido no canal, e o "Bling N" no Bling) e
- * Canal. Linha-guia: o operador ve primeiro os pedidos que pedem acao (fundo ambar); a linha abre o pedido no Rise. Um
+ * A lista de Vendas, na ordem do dono (04/11/2026): Foto, Qtd. ("2x"), Descrição, Código, Local, Total, Lucro, Status,
+ * Data, Pedido (abreviado; abre o pedido no canal, e o "Bling N" no Bling) e Canal. Desde 07/11/2026 (pedido do dono) a
+ * coluna Status junta o status do pedido (em cima) e o do envio (embaixo, com o servico), e Codigo, Local e Status filtram
+ * por um menu de marcar (`FiltroDaColuna`). Linha-guia: o operador ve primeiro os pedidos que pedem acao (fundo ambar); a linha abre o pedido no Rise. Um
  * pedido com varios itens mostra o 1o e "e mais N". Ordenam: data, total, lucro e pedido (no banco, antes de paginar).
  *
  * `ordenavel={false}` deixa os cabecalhos parados e sem filtro (a aba Pedidos do cadastro do cliente).
  */
-export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro, ordenavel = true, opcoes = null, statusAtual = null, envioAtual = null }) {
+export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro, ordenavel = true, opcoes = null, filtros = null }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -110,10 +87,13 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
     router.push(texto ? `${pathname}?${texto}` : pathname);
   }
 
-  function filtrar(parametro, valor) {
+  // `mudancas`: { parametro: [valores] } (parametro repetido na URL; lista vazia tira o filtro).
+  function filtrar(mudancas) {
     const params = new URLSearchParams(searchParams);
-    params.delete(parametro);
-    if (valor) params.set(parametro, valor);
+    for (const [parametro, valores] of Object.entries(mudancas)) {
+      params.delete(parametro);
+      for (const valor of valores) params.append(parametro, valor);
+    }
     params.delete("pagina");
     const texto = params.toString();
     router.push(texto ? `${pathname}?${texto}` : pathname);
@@ -126,27 +106,34 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
       <th className={`px-2 py-2.5 font-medium ${className}`}>{rotulo}</th>
     );
   const fixo = (rotulo, className = "") => <th className={`px-2 py-2.5 font-medium ${className}`}>{rotulo}</th>;
+  const filtravel = ordenavel && opcoes && filtros;
+  const comoOpcoes = (valores, textos = null, cores = null) => valores.map((valor) => ({ valor, texto: textos?.[valor] ?? valor, cor: cores?.[valor] }));
+  // A opcao marcada que saiu da lista (outro filtro a escondeu) continua no menu, para poder desmarcar.
+  const comAtuais = (valores, atuais) => [...valores, ...atuais.filter((valor) => !valores.includes(valor))];
 
   return (
     <div className="overflow-x-auto rounded-lg border border-borda bg-superficie">
       {/* Larguras FIXAS (pedido do dono em 04/11/2026: ao filtrar, as colunas mudavam de lugar e a leitura se perdia). So a
           Descricao ocupa o que sobra; o que nao cabe numa coluna e cortado com reticencias (`truncate`) e abre ao passar
           o mouse. */}
-      <table className="w-full table-fixed text-sm">
+      {/* Largura minima: as colunas fixas somam ~56rem, e numa tela estreita a Descricao sumia (ficava com 0). Abaixo disso a
+          tabela rola de lado e a Descricao guarda ~10rem. */}
+      <table className="w-full min-w-[66rem] table-fixed text-sm">
         <colgroup>
           <col style={{ width: "3.25rem" }} />
           <col style={{ width: "2.75rem" }} />
           <col />
+          {/* Codigo e Local com folga para o rotulo e o funil do filtro (07/11/2026). */}
+          <col style={{ width: "6.25rem" }} />
+          <col style={{ width: "4.5rem" }} />
+          {/* Total com 8rem: cabe ate "R$ 1.234,56 c/ frete" (05/11/2026); o que passar corta e abre ao passar o mouse. */}
+          <col style={{ width: "8rem" }} />
+          {veLucro && <col style={{ width: "5.75rem" }} />}
+          {/* Status = pedido + envio numa coluna so (07/11/2026; eram 7.75 + 8.25rem; agora 10.25). */}
+          <col style={{ width: "10.25rem" }} />
+          {/* Data inteira ("07/11 06:41"); com 6rem cortava a hora. */}
+          <col style={{ width: "6.5rem" }} />
           <col style={{ width: "5.75rem" }} />
-          <col style={{ width: "3.5rem" }} />
-          {/* Total com 8.25rem (era 6.25): o "R$ 940,47 c/ frete" da 2a linha passava da coluna (05/11/2026); assim cabe ate
-              "R$ 1.234,56 c/ frete", e o que passar disso corta e abre ao passar o mouse. */}
-          <col style={{ width: "8.25rem" }} />
-          {veLucro && <col style={{ width: "5.5rem" }} />}
-          <col style={{ width: "7.75rem" }} />
-          <col style={{ width: "8.25rem" }} />
-          <col style={{ width: "6rem" }} />
-          <col style={{ width: "5.5rem" }} />
           <col style={{ width: "3.25rem" }} />
         </colgroup>
         <thead className="border-b border-borda bg-fundo text-left text-xs tracking-wide text-suave uppercase">
@@ -155,19 +142,40 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
             {fixo(<span className="sr-only">Foto</span>, "w-px")}
             {fixo("Qtd.", "w-px whitespace-nowrap text-right")}
             {fixo("Descrição")}
-            {fixo("Código", "w-px whitespace-nowrap")}
-            {fixo(<span title="Localização no estoque">Local</span>, "w-px whitespace-nowrap")}
+            {filtravel ? (
+              <FiltroDaColuna
+                rotulo="Código"
+                className="whitespace-nowrap"
+                grupos={[{ parametro: "codigo", opcoes: comoOpcoes(comAtuais(opcoes.codigos ?? [], filtros.codigos)), atuais: filtros.codigos }]}
+                aoMudar={filtrar}
+              />
+            ) : (
+              fixo("Código", "w-px whitespace-nowrap")
+            )}
+            {filtravel ? (
+              <FiltroDaColuna
+                rotulo="Local"
+                className="whitespace-nowrap"
+                grupos={[{ parametro: "local", opcoes: comoOpcoes(comAtuais(opcoes.locais ?? [], filtros.locais)), atuais: filtros.locais }]}
+                aoMudar={filtrar}
+              />
+            ) : (
+              fixo(<span title="Localização no estoque">Local</span>, "w-px whitespace-nowrap")
+            )}
             {cabecalho("total", "Total", "w-px whitespace-nowrap text-right [&_button]:justify-end")}
             {veLucro && cabecalho("lucro", "Lucro", "w-px whitespace-nowrap text-right [&_button]:justify-end")}
-            {ordenavel && opcoes ? (
-              <CabecalhoQueFiltra rotulo="Status" opcoes={opcoes.status} atual={statusAtual} textos={TEXTO_DO_STATUS} aoMudar={(valor) => filtrar("status", valor)} />
+            {filtravel ? (
+              <FiltroDaColuna
+                rotulo="Status"
+                className="whitespace-nowrap"
+                grupos={[
+                  { parametro: "status", titulo: "Pedido", opcoes: comoOpcoes(comAtuais(opcoes.status, filtros.status), TEXTO_DO_STATUS, COR_DO_STATUS), atuais: filtros.status },
+                  { parametro: "envio", titulo: "Envio", opcoes: comoOpcoes(comAtuais(opcoes.envio, filtros.envio), TEXTO_DO_STATUS_DO_ENVIO, COR_DO_STATUS_DO_ENVIO), atuais: filtros.envio },
+                ]}
+                aoMudar={filtrar}
+              />
             ) : (
               fixo("Status", "w-px whitespace-nowrap")
-            )}
-            {ordenavel && opcoes ? (
-              <CabecalhoQueFiltra rotulo="Envio" opcoes={opcoes.envio} atual={envioAtual} textos={TEXTO_DO_STATUS_DO_ENVIO} aoMudar={(valor) => filtrar("envio", valor)} />
-            ) : (
-              fixo("Envio", "w-px whitespace-nowrap")
             )}
             {cabecalho("data", "Data", "w-px whitespace-nowrap")}
             {cabecalho("numero", "Pedido", "w-px whitespace-nowrap")}
@@ -224,19 +232,21 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
                     <CelulaDoLucro linha={linha} />
                   </td>
                 )}
-                <td className="truncate px-2 py-2" title={tituloDoStatus}>
-                  <span className="inline-flex items-center gap-1.5">
+                {/* Status: o do pedido em cima e o do envio embaixo, com o servico (pedido do dono em 07/11/2026: "a coluna
+                    status e envio deve se unir ... status de pagamento e depois status de envio"). Cada linha tem a
+                    propria dica; o servico longo corta e abre ao passar o mouse. */}
+                <td className="max-w-0 px-2 py-2">
+                  <span className="flex min-w-0 items-center gap-1.5" title={tituloDoStatus}>
                     <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${COR_DO_STATUS[linha.status] ?? "bg-zinc-300"}`} />
-                    {TEXTO_DO_STATUS[linha.status] ?? linha.status}
+                    <span className="truncate">{TEXTO_DO_STATUS[linha.status] ?? linha.status}</span>
                   </span>
-                </td>
-                <td className="truncate px-2 py-2" title={tituloDoEnvio}>
-                  <span className="inline-flex items-center gap-1.5">
+                  <span className="flex min-w-0 items-center gap-1.5 text-xs text-suave" title={tituloDoEnvio}>
                     <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${COR_DO_STATUS_DO_ENVIO[linha.statusDoEnvio] ?? "bg-zinc-300"}`} />
-                    {TEXTO_DO_STATUS_DO_ENVIO[linha.statusDoEnvio] ?? linha.statusDoEnvio}
+                    <span className="truncate">
+                      <span className="text-texto">{TEXTO_DO_STATUS_DO_ENVIO[linha.statusDoEnvio] ?? linha.statusDoEnvio}</span>
+                      {envioDetalhe && ` · ${envioDetalhe}`}
+                    </span>
                   </span>
-                  {/* O servico pode ser longo ("Normal ao endereço"): corta, e o texto inteiro abre ao passar o mouse. */}
-                  {envioDetalhe && <span className="block truncate pl-3.5 text-xs text-suave">{envioDetalhe}</span>}
                 </td>
                 <td className="truncate px-2 py-2 tabular-nums text-suave" title={dataCompleta(linha.dataDaVenda)}>
                   {diaEHora(linha.dataDaVenda)}

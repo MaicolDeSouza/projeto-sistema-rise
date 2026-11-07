@@ -15,16 +15,27 @@ import { listarPedidosDeVenda, opcoesDasColunas, resumoDaLista } from "@/lib/ped
 import { projetarLinhaDaLista } from "@/lib/pedidos/projecao";
 import { porPaginaDaUrl } from "@/lib/porPagina";
 
-export const metadata = { title: "Pedidos de venda | Sistema Rise" };
+export const metadata = { title: "Vendas | Sistema Rise" };
 export const dynamic = "force-dynamic";
 
 const CANAIS = ["BLING", "LOJA_INTEGRADA", "MERCADO_LIVRE"];
 const ORDENACOES = ["canal", "numero", "data", "cliente", "total", "status", "lucro"];
-const DIAS_PADRAO = 30;
 
 const lista = (valor) => [valor ?? []].flat().map(String);
 const umDe = (valor) => String((Array.isArray(valor) ? valor[0] : valor) ?? "").trim();
 const ehDia = (texto) => /^\d{4}-\d{2}-\d{2}$/.test(texto);
+
+/**
+ * O mesmo dia do mes anterior ("2026-11-07" -> "2026-10-07"; 31/03 -> 28 ou 29/02): o inicio do periodo padrao de 1
+ * mes (pedido do dono em 07/11/2026: "Por padrao de marcar inicio e fim em periodo de 1 mes").
+ */
+function umMesAntes(dia) {
+  const [ano, mes, d] = dia.split("-").map(Number);
+  const anoAntes = mes === 1 ? ano - 1 : ano;
+  const mesAntes = mes === 1 ? 12 : mes - 1;
+  const ultimoDia = new Date(Date.UTC(anoAntes, mesAntes, 0)).getUTCDate();
+  return `${anoAntes}-${String(mesAntes).padStart(2, "0")}-${String(Math.min(d, ultimoDia)).padStart(2, "0")}`;
+}
 
 /**
  * Pedidos de venda (spec 5.10): os pedidos do ML, da LI e do Bling que o worker le a cada 5 minutos. Nesta tela o
@@ -36,12 +47,16 @@ export default async function PedidosDeVendaPage({ searchParams }) {
   const params = await searchParams;
 
   const busca = umDe(params?.q);
-  const hoje = new Date();
-  const desde = ehDia(umDe(params?.desde)) ? umDe(params.desde) : diaIso(new Date(hoje.getTime() - DIAS_PADRAO * 24 * 60 * 60 * 1000));
-  const ate = ehDia(umDe(params?.ate)) ? umDe(params.ate) : "";
+  // Periodo padrao: de hoje a 1 mes atras, as DUAS pontas preenchidas no calendario (o "ate" ficava em branco).
+  const hoje = diaIso(new Date());
+  const desde = ehDia(umDe(params?.desde)) ? umDe(params.desde) : umMesAntes(hoje);
+  const ate = ehDia(umDe(params?.ate)) ? umDe(params.ate) : hoje;
   const canais = lista(params?.canal).filter((canal) => CANAIS.includes(canal));
   const status = lista(params?.status).filter((valor) => STATUS.includes(valor));
   const envio = lista(params?.envio).filter((valor) => valor in TEXTO_DO_STATUS_DO_ENVIO);
+  // Filtros das colunas Codigo e Local (parametro repetido, como o canal).
+  const codigos = lista(params?.codigo).map((v) => v.trim().slice(0, 100)).filter(Boolean).slice(0, 50);
+  const locais = lista(params?.local).map((v) => v.trim().slice(0, 100)).filter(Boolean).slice(0, 50);
   const soComAviso = umDe(params?.aviso) === "1";
   const ordenar = ORDENACOES.includes(umDe(params?.ordenar)) ? umDe(params.ordenar) : "";
   const direcao = umDe(params?.direcao) === "asc" ? "asc" : "desc";
@@ -59,10 +74,12 @@ export default async function PedidosDeVendaPage({ searchParams }) {
       busca,
       // O dia inteiro de Sao Paulo nas duas pontas (o Brasil nao tem horario de verao: -03:00 o ano todo).
       desde: new Date(`${desde}T00:00:00.000-03:00`),
-      ate: ate ? new Date(`${ate}T23:59:59.999-03:00`) : undefined,
+      ate: new Date(`${ate}T23:59:59.999-03:00`),
       canais,
       status,
       envio,
+      codigos,
+      locais,
       soComAviso,
       ordenar: ordenar || undefined,
       direcao,
@@ -85,11 +102,11 @@ export default async function PedidosDeVendaPage({ searchParams }) {
   const pagina = Math.min(paginaPedida, totalPaginas);
   // Sem `dado.custo`, o lucro nao vai nem no conteudo da pagina (a coluna some, e o numero tambem).
   const linhas = (resultado?.linhas ?? []).map((linha) => projetarLinhaDaLista(linha, acesso.pode));
-  const filtrando = Boolean(busca || canais.length || status.length || envio.length || soComAviso || umDe(params?.desde) || ate);
+  const filtrando = Boolean(busca || canais.length || status.length || envio.length || codigos.length || locais.length || soComAviso || umDe(params?.desde) || umDe(params?.ate));
 
   return (
     <>
-      <PageHeader titulo="Pedidos de venda" descricao={total === 1 ? "1 pedido no período." : `${total} pedidos no período.`} />
+      <PageHeader titulo="Vendas" descricao={total === 1 ? "1 pedido no período." : `${total} pedidos no período.`} />
 
       {erro && <AvisoBanco erro={erro} />}
 
@@ -97,6 +114,7 @@ export default async function PedidosDeVendaPage({ searchParams }) {
         busca={busca}
         desde={desde}
         ate={ate}
+        hoje={hoje}
         canais={canais}
         status={status}
         soComAviso={soComAviso}
@@ -124,7 +142,7 @@ export default async function PedidosDeVendaPage({ searchParams }) {
       ) : (
         linhas.length > 0 && (
           <>
-            <TabelaPedidosDeVenda linhas={linhas} ordenar={ordenar} direcao={direcao} veLucro={veLucro} opcoes={opcoes} statusAtual={status.length === 1 ? status[0] : null} envioAtual={envio.length === 1 ? envio[0] : null} />
+            <TabelaPedidosDeVenda linhas={linhas} ordenar={ordenar} direcao={direcao} veLucro={veLucro} opcoes={opcoes} filtros={{ status, envio, codigos, locais }} />
             {totalPaginas > 1 && (
               <div className="mt-4">
                 <Paginacao

@@ -121,7 +121,7 @@ export const blocos = [
   },
   {
     href: "/pedidos",
-    rotulo: "Pedidos",
+    rotulo: "Vendas",
     icone: ShoppingCart,
     resumo: "Vendas de todos os canais em um só lugar",
     // Pedidos de venda (04/11/2026): a lista dos pedidos do ML, da LI e do Bling.

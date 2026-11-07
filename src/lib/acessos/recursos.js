@@ -106,7 +106,7 @@ const LISTA = [
   capacidade("riseAi.configuracoes.atendimento", "Rise AI › Configurações › Atendimento", "riseAi.configuracoes", "O prompt das respostas ao cliente."),
   naoDelegavel("riseAi.configuracoes.promptCliente", "Rise AI › Configurações › Atendimento › Prompt das respostas ao cliente", "riseAi.configuracoes.atendimento"),
 
-  tela("tela.pedidos", "Pedidos", "/pedidos"),
+  tela("tela.pedidos", "Vendas", "/pedidos"),
   // Pedidos de venda (spec 2026-11-04): o que o operador faz num pedido lido do ML, da LI ou do Bling.
   acao("acao.pedidos.marcarSeparacao", "Marcar pedido em separação", "tela.pedidos"),
   acao("acao.pedidos.editarCustoDoFrete", "Digitar o custo real do frete (Bling)", "tela.pedidos"),

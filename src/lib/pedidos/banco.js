@@ -280,7 +280,7 @@ const ORDENACOES = {
   lucro: (d) => ({ lucroReal: d }),
 };
 
-function filtroDaLista({ busca, desde, ate, canais, status, envio, soComAviso, clienteId }) {
+function filtroDaLista({ busca, desde, ate, canais, status, envio, codigos, locais, soComAviso, clienteId }) {
   const where = {};
   // A aba Pedidos do cadastro do cliente lista so os dele.
   if (clienteId) where.clienteId = clienteId;
@@ -290,14 +290,30 @@ function filtroDaLista({ busca, desde, ate, canais, status, envio, soComAviso, c
   if (Array.isArray(status) && status.length > 0) where.status = { in: status };
   else if (typeof status === "string" && status) where.status = status;
   if (Array.isArray(envio) && envio.length > 0) where.statusDoEnvio = { in: envio };
+  // Filtro das colunas Codigo e Local (pedido do dono em 07/11/2026): vale QUALQUER item do pedido, nao so o 1o que a
+  // linha mostra. O codigo e o SKU do produto do Rise ou, sem produto, o codigo que veio do canal.
+  if (Array.isArray(codigos) && codigos.length > 0) {
+    e.push({ itens: { some: { OR: [{ produto: { sku: { in: codigos } } }, { produtoId: null, codigoNaOrigem: { in: codigos } }] } } });
+  }
+  if (Array.isArray(locais) && locais.length > 0) e.push({ itens: { some: { produto: { localizacao: { in: locais } } } } });
   if (soComAviso) where.avisos = { isEmpty: false };
   const texto = String(busca ?? "").trim();
   if (texto) {
     const contem = { contains: texto, mode: "insensitive" };
+    // A busca acha tambem pelo nome do produto do Rise e pelo codigo ou nome das PECAS dele (pedido do dono em
+    // 07/11/2026): as do kit (composicao) e as pecas proprias (ordem de producao), cadastradas ou digitadas.
+    const peloProduto = {
+      OR: [
+        { sku: contem },
+        { tituloBase: contem },
+        { componentes: { some: { componente: { OR: [{ sku: contem }, { tituloBase: contem }] } } } },
+        { pecasDoProduto: { some: { OR: [{ codigoManual: contem }, { descricao: contem }, { componente: { OR: [{ sku: contem }, { tituloBase: contem }] } }] } } },
+      ],
+    };
     const ou = [
       { numero: contem },
       { nomeDoComprador: contem },
-      { itens: { some: { OR: [{ codigoNaOrigem: contem }, { titulo: contem }, { produto: { sku: contem } }] } } },
+      { itens: { some: { OR: [{ codigoNaOrigem: contem }, { titulo: contem }, { produto: peloProduto }] } } },
     ];
     const digitos = texto.replace(/\D/g, "");
     if (digitos.length >= 3) ou.push({ documentoDoComprador: { contains: digitos.replace(/(\d{3})(?=\d)/g, "$1") } }, { documentoDoComprador: { contains: digitos } });
@@ -308,8 +324,8 @@ function filtroDaLista({ busca, desde, ate, canais, status, envio, soComAviso, c
 }
 
 /** A lista de pedidos: `{ linhas, total }`, com o cliente, o primeiro item (com foto) e quantos itens ha. */
-export async function listarPedidosDeVenda({ busca, desde, ate, canais, status, envio, soComAviso = false, clienteId, ordenar, direcao, pagina = 1, porPagina = 25 } = {}) {
-  const where = filtroDaLista({ busca, desde, ate, canais, status, envio, soComAviso, clienteId });
+export async function listarPedidosDeVenda({ busca, desde, ate, canais, status, envio, codigos, locais, soComAviso = false, clienteId, ordenar, direcao, pagina = 1, porPagina = 25 } = {}) {
+  const where = filtroDaLista({ busca, desde, ate, canais, status, envio, codigos, locais, soComAviso, clienteId });
   const sentido = direcao === "asc" ? "asc" : "desc";
   const orderBy = ORDENACOES[ordenar] ? [ORDENACOES[ordenar](sentido), { dataDaVenda: "desc" }] : [{ dataDaVenda: "desc" }];
   const take = Math.max(1, Number(porPagina) || 25);
@@ -380,13 +396,28 @@ const ORDEM_DO_ENVIO = ["SEM_ENVIO", "A_POSTAR", "POSTADO", "EM_TRANSITO", "ENTR
  * proxima): os valores que EXISTEM na lista com os outros filtros, sem o da propria coluna, na ordem da tabela.
  */
 export async function opcoesDasColunas(filtro = {}) {
-  const [porStatus, porEnvio] = await Promise.all([
+  const [porStatus, porEnvio, itensPorCodigo, itensPorLocal] = await Promise.all([
     prisma.pedidoDeVenda.groupBy({ by: ["status"], where: filtroDaLista({ ...filtro, status: undefined }) }),
     prisma.pedidoDeVenda.groupBy({ by: ["statusDoEnvio"], where: filtroDaLista({ ...filtro, envio: undefined }) }),
+    // Codigo e Local (07/11/2026): os valores dos itens dos pedidos da lista, sem o filtro da propria coluna.
+    prisma.itemDoPedidoDeVenda.findMany({
+      where: { pedido: filtroDaLista({ ...filtro, codigos: undefined }) },
+      select: { codigoNaOrigem: true, produto: { select: { sku: true } } },
+    }),
+    prisma.itemDoPedidoDeVenda.findMany({
+      where: { pedido: filtroDaLista({ ...filtro, locais: undefined }), produto: { localizacao: { not: null } } },
+      select: { produto: { select: { localizacao: true } } },
+    }),
   ]);
   const status = new Set(porStatus.map((g) => g.status));
   const envio = new Set(porEnvio.map((g) => g.statusDoEnvio));
-  return { status: ORDEM_DO_STATUS.filter((v) => status.has(v)), envio: ORDEM_DO_ENVIO.filter((v) => envio.has(v)) };
+  const ordenados = (valores) => [...new Set(valores.filter((v) => typeof v === "string" && v.trim()))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
+  return {
+    status: ORDEM_DO_STATUS.filter((v) => status.has(v)),
+    envio: ORDEM_DO_ENVIO.filter((v) => envio.has(v)),
+    codigos: ordenados(itensPorCodigo.map((i) => i.produto?.sku ?? i.codigoNaOrigem)),
+    locais: ordenados(itensPorLocal.map((i) => i.produto?.localizacao)),
+  };
 }
 
 /**

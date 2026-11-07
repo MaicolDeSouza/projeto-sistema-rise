@@ -337,6 +337,23 @@ try {
     conferir("previsao pela producao quando nao ha compra", (await calcularPecas(prisma, pedidoComP3)).pecas.find((p) => p.sku === "ZZ-PED-P3").previsao, "em produção, ordem OP-" + String(op.numero).padStart(4, "0"));
     await prisma.pedidoDeVenda.update({ where: { id: pedidoAntigo.id }, data: { status: "CANCELADO" } });
     conferir("pedido cancelado libera a reserva", (await calcularPecas(prisma, pedidoNovo)).pecas[0].falta, 0);
+
+    // Busca pelo nome do produto e pelo codigo/nome das PECAS, e os filtros das colunas Codigo e Local (pedido do dono em
+    // 07/11/2026). O titulo do item ("x") nao tem nada disso: so acha pelo produto do Rise.
+    const q1 = await prisma.produto.create({ data: { sku: "ZZ-PED-Q1", tituloBase: "ZZ Ped Peca Unica" } });
+    const kq = await prisma.produto.create({ data: { sku: "ZZ-PED-KQ", tituloBase: "ZZ Ped Kit Quadrado", tipo: "COMPOSICAO", localizacao: "ZZ-L1", componentes: { create: [{ componenteId: q1.id, quantidade: 3 }] } } });
+    const pm = await prisma.produto.create({ data: { sku: "ZZ-PED-PM", tituloBase: "ZZ Ped Montado", pecasProprias: true, pecasDoProduto: { create: [{ codigoManual: "ZZ-PED-MANUAL", descricao: "ZZ Ped parafuso avulso", quantidade: 1 }] } } });
+    const comKit = await novoPedido("ZZ-PED-23", "13:00", [{ produtoId: kq.id, quantidade: 1 }]);
+    const comPecaManual = await novoPedido("ZZ-PED-24", "14:00", [{ produtoId: pm.id, quantidade: 1 }]);
+    const ids = async (filtro) => (await listarPedidosDeVenda(filtro)).linhas.map((l) => l.id);
+    conferir("busca pelo codigo da peca do kit", await ids({ busca: "ZZ-PED-Q1" }), [comKit.id]);
+    conferir("busca pelo nome da peca do kit", await ids({ busca: "peca unica" }), [comKit.id]);
+    conferir("busca pelo nome do produto do Rise", await ids({ busca: "kit quadrado" }), [comKit.id]);
+    conferir("busca pelo codigo e pelo nome da peca propria digitada", [await ids({ busca: "ZZ-PED-MANUAL" }), await ids({ busca: "parafuso avulso" })], [[comPecaManual.id], [comPecaManual.id]]);
+    conferir("filtro da coluna Codigo", await ids({ busca: "ZZ-PED-2", codigos: ["ZZ-PED-KQ"] }), [comKit.id]);
+    conferir("filtro da coluna Local", await ids({ busca: "ZZ-PED-2", locais: ["ZZ-L1"] }), [comKit.id]);
+    const opcoesDosItens = await opcoesDasColunas({ busca: "ZZ-PED-2" });
+    conferir("opcoes de Codigo e Local saem dos itens da lista", [opcoesDosItens.codigos.includes("ZZ-PED-KQ"), opcoesDosItens.codigos.includes("ZZ-PED-PM"), opcoesDosItens.locais], [true, true, ["ZZ-L1"]]);
   }
 
   console.log("\nAplicar");

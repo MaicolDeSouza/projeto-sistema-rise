@@ -12,12 +12,18 @@ import { STATUS, TEXTO_DO_STATUS } from "./textos";
 const CANAIS_DO_FILTRO = CANAIS.filter((canal) => ["BLING", "LOJA_INTEGRADA", "MERCADO_LIVRE", "SHOPEE"].includes(canal.id));
 const LIGAVEIS = new Set(["BLING", "LOJA_INTEGRADA", "MERCADO_LIVRE"]);
 
+/** "2026-11-07" menos N dias, em dia de calendario (sem fuso: a conta e so de datas). */
+function diasAntes(dia, n) {
+  const [ano, mes, d] = dia.split("-").map(Number);
+  return new Date(Date.UTC(ano, mes - 1, d - n)).toISOString().slice(0, 10);
+}
+
 /**
  * Os filtros da lista de Pedidos de venda, todos na URL (sobrevivem a recarga e vao num link): busca (`q`), periodo
- * (`desde`/`ate`, padrao 30 dias, decidido pela pagina), canais e status (parametro repetido; nenhum = todos) e "Só com
+ * (`desde`/`ate`, padrao 1 mes, decidido pela pagina; atalhos Hoje e 7 dias), canais e status (parametro repetido; nenhum = todos) e "Só com
  * !" (`aviso=1`). Cada mudanca volta a pagina 1. `navegacao` e a paginacao do topo, posta no canto direito da 1a linha.
  */
-export default function FiltrosDePedidos({ busca, desde, ate, canais, status, soComAviso, navegacao = null }) {
+export default function FiltrosDePedidos({ busca, desde, ate, hoje, canais, status, soComAviso, navegacao = null }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -48,6 +54,24 @@ export default function FiltrosDePedidos({ busca, desde, ate, canais, status, so
     });
   }
 
+  // Atalhos do periodo (pedido do dono em 07/11/2026: "botao clicavel para filtrar por vendas dos ultimos 7 dias e vendas
+  // do dia"). O ativo fica marcado; clicar nele de novo volta ao periodo padrao de 1 mes.
+  const atalhos = [
+    { id: "hoje", rotulo: "Hoje", desde: hoje, dica: "Só as vendas de hoje" },
+    { id: "7dias", rotulo: "7 dias", desde: diasAntes(hoje, 6), dica: "As vendas dos últimos 7 dias, com hoje" },
+  ];
+  function usarAtalho(atalho, ativo) {
+    ir((params) => {
+      if (ativo) {
+        params.delete("desde");
+        params.delete("ate");
+      } else {
+        params.set("desde", atalho.desde);
+        params.set("ate", hoje);
+      }
+    });
+  }
+
   const chip = (ativo) =>
     `rounded-full border px-3 py-1 text-xs font-medium transition-colors ${ativo ? "border-acento bg-acento/10 text-acento" : "border-borda text-suave hover:text-texto"}`;
   const campoData = "rounded-md border border-borda bg-superficie px-2 py-1.5 text-sm tabular-nums outline-none focus:border-acento";
@@ -55,12 +79,29 @@ export default function FiltrosDePedidos({ busca, desde, ate, canais, status, so
   return (
     <div className="mb-3 space-y-2.5">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <CampoBusca valorInicial={busca} rotulo="Buscar por número, cliente, CPF/CNPJ ou código" className="w-full max-w-xs" />
+        <CampoBusca valorInicial={busca} rotulo="Buscar por número, cliente, CPF/CNPJ, produto ou código (também das peças)" className="w-full max-w-xs" />
 
         <div className="flex items-center gap-1.5 text-sm" role="group" aria-label="Período da venda">
           <input type="date" aria-label="Vendido desde" value={desde} max={ate || undefined} onChange={(e) => mudarData("desde", e.target.value)} className={campoData} />
           <span className="text-suave">a</span>
           <input type="date" aria-label="Vendido até" value={ate} min={desde || undefined} onChange={(e) => mudarData("ate", e.target.value)} className={campoData} />
+          <div className="ml-1 flex items-center gap-1">
+            {atalhos.map((atalho) => {
+              const ativo = desde === atalho.desde && ate === hoje;
+              return (
+                <button
+                  key={atalho.id}
+                  type="button"
+                  onClick={() => usarAtalho(atalho, ativo)}
+                  aria-pressed={ativo}
+                  title={ativo ? "Clique para voltar ao período de 1 mês" : atalho.dica}
+                  className={chip(ativo)}
+                >
+                  {atalho.rotulo}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="flex items-center gap-1" role="group" aria-label="Filtrar pelo canal">

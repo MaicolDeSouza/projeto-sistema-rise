@@ -5372,6 +5372,15 @@ Pedido do dono: "vincular o AliExpress via API para pegar minhas compras". A API
 ## Pedidos de venda (04/11/2026, fase 1, NO AR na VPS desde 04.11.2026.60)
 
 Spec `docs/superpowers/specs/2026-11-04-modulo-pedidos-de-venda-design.md`, plano `docs/superpowers/plans/2026-11-04-modulo-pedidos-de-venda.md`.
+
+**Tela "Vendas" (07/11/2026, pedido do dono):** o bloco e a lista se chamam **Vendas** (menu, título, acesso; a rota segue
+`/pedidos` e o recurso `tela.pedidos`). Período padrão de **1 mês com as duas pontas preenchidas** (`umMesAntes`; o "até" ficava em
+branco) e os atalhos **Hoje** e **7 dias** ao lado do calendário (o ativo marcado; clicar de novo volta ao mês). A coluna
+**Status junta o do pedido (em cima) e o do envio** (embaixo, com o serviço). **Código, Local e Status filtram por um menu de
+marcar** (`FiltroDaColuna`, portal no `<body>`, `?codigo=`/`?local=`/`?status=`/`?envio=` repetidos; valem para QUALQUER item do
+pedido; as opções saem dos itens da lista em `opcoesDasColunas`). A busca acha também pelo **nome do produto do Rise** e pelo
+**código ou nome das peças** (do kit e as peças próprias, inclusive as digitadas). Tabela com largura mínima de 66rem (a 1366 px
+cabe sem rolar; mais estreito rola de lado em vez de sumir com a Descrição). Testes no `teste:pedidos`.
 Tabelas `PedidoDeVenda` (único por origem + `idExterno`) e `ItemDoPedidoDeVenda`; `Cliente.nivel`; `ConfigCanal.taxas`. Código em
 `src/lib/pedidos/` (um normalizador por origem para o formato comum de `normalizado.js`, depois `banco.js` grava tudo numa
 transação Serializable), telas em `src/app/pedidos/` e `src/components/pedidos/`.
