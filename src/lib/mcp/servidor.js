@@ -1,6 +1,7 @@
 import { McpServer, createMcpHandler } from "@modelcontextprotocol/server";
 
 import { FERRAMENTAS, executarFerramenta } from "@/lib/riseAi/ferramentas";
+import { FERRAMENTAS_DA_ANALISE_DE_FORNECEDOR } from "./analiseFornecedor.js";
 import { FERRAMENTA_ANOTAR } from "./anotacoes.js";
 import { FERRAMENTAS_DE_CADASTRO } from "./cadastros.js";
 import { FERRAMENTAS_DE_COMPRAS_ESCRITA, FERRAMENTAS_DE_COMPRAS_LEITURA } from "./compras.js";
@@ -37,6 +38,7 @@ export const INSTRUCOES = [
   "Correções da descrição: quando o dono corrigir um detalhe do texto (\"escreva 5V, não 5 V\") e pedir para guardar, grave com gravarCorrecaoDaDescricao; nunca grave uma por conta própria. lerParaProposta devolve em \"correcoes\" as que valem para a proposta.",
   "Para a proposta de ANÚNCIO de um produto (Loja Integrada ou Mercado Livre), chame primeiro situacaoDoProduto, diga à pessoa o próximo passo e então roteiroDaProposta com canal \"li\" ou \"ml\", e siga o roteiro; a proposta só preenche o rascunho do anúncio no Rise (o dono revisa e envia).",
   "Compras: produtosAbaixoDoMinimo, listarPedidosDeCompra e lerPedidoDeCompra leem; montarPedidoDeCompra cria ou completa o RASCUNHO do fornecedor com os dados que a pessoa passar (mostre o pedido devolvido); mudarSituacaoDoPedidoDeCompra (enviar, cancelar, finalizar) só quando a pessoa pedir com todas as letras. Lançar estoque recebido é só na tela do Rise.",
+  "Análise de lista de fornecedor (comparar os preços de um fornecedor, em R$ ou US$, com os concorrentes e os outros fornecedores, e montar a página padrão): chame primeiro roteiroDaAnaliseDeFornecedor e siga o roteiro; com parte \"modelo\" ela traz o HTML da página.",
   "Vendas: relatorioDeVendas (totais, canais, dias, mais vendidos e lucro de um período), listarPedidosDeVenda e lerPedidoDeVenda leem os pedidos do Mercado Livre, da Loja Integrada e do Bling (desde 01/11/2026). Datas como AAAA-MM-DD; sem período, os últimos 30 dias. Do cliente só vêm o nome e a cidade.",
   "OBRIGATÓRIO: ao terminar CADA resposta em que você consultou o Rise, chame a ferramenta anotarDuvida com a pergunta original da pessoa, a sua resposta final e, se ela enviou arquivo, o texto extraído dele em anexos. A pessoa não vê essa anotação; ela serve para a loja revisar e melhorar as respostas.",
 ].join("\n");
@@ -55,7 +57,8 @@ const SO_LEITURA_DO_MCP = [FERRAMENTA_MERCADO, ...FERRAMENTAS_DO_CATALOGO, ...FE
 // A marcacao das referencias (25/10/2026) vai junto: etapa de antes da proposta, sem o lembrete.
 // O pedido de compra montado pela conversa (26/10/2026) tambem: cada uma traz as proprias anotacoes de escrita.
 // As Correcoes da descricao (07/11/2026) tambem: o dono dita, nao e duvida de atendimento.
-const PROPOSTAS = [...FERRAMENTAS_DA_PROPOSTA, ...FERRAMENTAS_DA_PROPOSTA_DE_ANUNCIO, ...FERRAMENTAS_DE_REFERENCIAS, ...FERRAMENTAS_DE_COMPRAS_ESCRITA, ...FERRAMENTAS_DE_CORRECOES];
+// O roteiro da analise de lista de fornecedor (07/11/2026) tambem: e trabalho do dono, como o roteiro da proposta.
+const PROPOSTAS = [...FERRAMENTAS_DA_PROPOSTA, ...FERRAMENTAS_DA_PROPOSTA_DE_ANUNCIO, ...FERRAMENTAS_DE_REFERENCIAS, ...FERRAMENTAS_DE_COMPRAS_ESCRITA, ...FERRAMENTAS_DE_CORRECOES, ...FERRAMENTAS_DA_ANALISE_DE_FORNECEDOR];
 const SO_DO_MCP = [...SO_LEITURA_DO_MCP, FERRAMENTA_ANOTAR, ...PROPOSTAS];
 // A proposta de produto (spec 2026-10-21) nao e pergunta de atendimento: sem o lembrete de anotar, como a propria anotacao.
 const SEM_LEMBRETE = new Set([FERRAMENTA_ANOTAR.nome, ...PROPOSTAS.map((ferramenta) => ferramenta.nome)]);

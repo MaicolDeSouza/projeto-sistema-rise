@@ -15,8 +15,8 @@ import { limitesDoDia } from "@/lib/riseAi/revisao";
 const FUSO = "America/Sao_Paulo";
 const ANOTAR = "anotarDuvida";
 // A proposta de cadastro nao e duvida de atendimento: aparece na lista, mas nao espera anotacao (spec 2026-10-21).
-// As Correcoes da descricao (07/11/2026) tambem: o dono dita, nao e duvida.
-const DA_PROPOSTA = new Set(["roteiroDaProposta", "lerParaProposta", "lerProposta", "baixarCandidatas", "folhaDeContato", "gravarSecao", "situacaoDoProduto", "lerParaPropostaML", "lerCategoriaML", "gravarPropostaML", "gravarCorrecaoDaDescricao", "listarCorrecoesDaDescricao", "desligarCorrecaoDaDescricao"]);
+// As Correcoes da descricao (07/11/2026) tambem: o dono dita, nao e duvida. E o roteiro da analise de fornecedor (07/11/2026).
+const DA_PROPOSTA = new Set(["roteiroDaAnaliseDeFornecedor", "roteiroDaProposta", "lerParaProposta", "lerProposta", "baixarCandidatas", "folhaDeContato", "gravarSecao", "situacaoDoProduto", "lerParaPropostaML", "lerCategoriaML", "gravarPropostaML", "gravarCorrecaoDaDescricao", "listarCorrecoesDaDescricao", "desligarCorrecaoDaDescricao"]);
 const JANELA_MS = 30 * 60 * 1000;
 const hora = (data) => new Intl.DateTimeFormat("pt-BR", { timeZone: FUSO, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(data);
 
@@ -51,6 +51,7 @@ const RESUMOS = {
   gravarCorrecaoDaDescricao: (a) => `correção da descrição: ${a.tipo === "REGRA" ? a.certo : `${a.errado} → ${a.certo}`}`,
   listarCorrecoesDaDescricao: () => "correções da descrição: lista",
   desligarCorrecaoDaDescricao: (a) => `correção da descrição ${a.id}: desligou`,
+  roteiroDaAnaliseDeFornecedor: (a) => (a?.parte === "modelo" ? "análise de fornecedor: leu o modelo da página" : "análise de fornecedor: leu o roteiro"),
 };
 const ROTULOS_CORTADOS = { buscarProdutos: "buscou", buscarNoMercado: "mercado", buscarConhecimento: "conhecimento" };
 

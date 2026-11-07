@@ -361,7 +361,7 @@ npm run teste:fundo               # 9 asserções da regra do fundo das janelas 
 npm run teste:composicao          # 136 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças (com o que falta a cada produto), a descrição só com referências cadastradas e os ajustes de 10/10/2026 (código sugerido, localização da peça, peça de origem, documentos e descrições das peças, o "!" do kit e o "Anexar a este produto") (Postgres, SEM rede; só escreve produtos ZZ-KIT-* e a pasta dados/produtos/ZZ-KIT-C3, que apaga)
 npm run teste:bling-sync          # 754 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos e de fotos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 npm run teste:rise-ai             # 616 asserções do Rise AI (Entrega 1 e A1; o chat da tela e a leitura do fluxo SSE saíram em 20/10/2026): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo e a coluna Outros, configuração e as quatro abas, orçamento e reserva, cotação do dia, Parar, texto seguro, perfil cliente, pesquisa na internet, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
-npm run teste:mcp                 # 251 asserções do servidor MCP (com o buscarNoMercado, os filtros do catálogo, anúncios, histórico de preço, os cadastros e as Correções da descrição): sondagem do SDK, OAuth puro e no banco (só hash, rotação, revogação por família), portão 401/403/503, rotas do protocolo, tela Autorizar, as ferramentas com o pode() do login, o registro de cada chamada, anotarDuvida, a rota /mcp, o Caddyfile, a aba Conexões e a Revisão do dia. Postgres local, SEM rede e SEM IA; só escreve zz-mcp-*, ZZ-MCP * e ZZ-MCP-*
+npm run teste:mcp                 # 255 asserções do servidor MCP (com o buscarNoMercado, os filtros do catálogo, anúncios, histórico de preço, os cadastros, as Correções da descrição e o roteiro da análise de fornecedor): sondagem do SDK, OAuth puro e no banco (só hash, rotação, revogação por família), portão 401/403/503, rotas do protocolo, tela Autorizar, as ferramentas com o pode() do login, o registro de cada chamada, anotarDuvida, a rota /mcp, o Caddyfile, a aba Conexões e a Revisão do dia. Postgres local, SEM rede e SEM IA; só escreve zz-mcp-*, ZZ-MCP * e ZZ-MCP-*
 npm run teste:telegram            # 96 asserções da Entrega C1 (avisos no Telegram): banco, texto dos avisos (4 linhas, neutralizado, mascarado), cliente da API do bot e o token mascarado no log, vínculo por código, a configuração e a aba Canais, e a rotina do worker (linha de base, zerou/voltou/zerou, orçamento 80/100%, varredura que falhou, resumo das 20h, bloqueado, 3 tentativas). Telegram FALSO (SEM rede); Postgres local, só escreve zz-tg-* e ZZ-TG-* e devolve a Conexao TELEGRAM, a configuração e a linha de base do dono
 npm run teste:producao            # 89 asserções das peças próprias e da ordem de produção: regras (custo, cor do estoque, validação, arredondamento), custo pelas peças e o recálculo, trava da entrada manual, preparo do Salvar, clone, rascunho, a ordem (cria, baixa com falta, baixa, clique duplo, conclui com perda, cancela devolvendo, kit recalculado) contra o Bling falso. Postgres local, SEM rede; só escreve ZZ-PROD-*
 npm run teste:compras             # 142 asserções do módulo Compras: regras (totais, desconto % ou R$, a caminho, carrinho, situação), lista do mínimo e rascunho automático (com concorrência), pedido (salvar, itens, situação, preço que não se apaga), lançamento contra o Bling falso (clique duplo, Bling que recusa, desfazer com estoque vendido), proposta pelos bytes, dados da empresa, o PDF e as ferramentas de Compras do MCP. Postgres local, SEM rede; só escreve ZZ-COMPRA-* e "ZZ Compra *"
@@ -370,6 +370,7 @@ npm run teste:pedidos             # 153 asserções dos Pedidos de venda: falsos
 npm run teste:extensao-aliexpress # 15 asserções da leitura da extensão (extensao-aliexpress/leitura.js) com as respostas da página Meus pedidos medidas em 28/10/2026. Puro: sem banco, sem rede, sem Chrome
 npm run teste:licencas            # 109 asserções das Licenças Softwares: regras (vagas, casamento por nome do PC, situação, frescor, ordem), zip e upload do arquivo, banco (programas, licenças, linhas, versões do arquivo, download), leitura do portal (esquema, aplicação, incompleta, sumidos, chave da extensão) e a importação das planilhas (fixtures em scripts/fixtures/licencas/). Postgres local, SEM rede; só escreve ZZ-LIC-*, zz-lic-* e "ZZ LIC *" e devolve a Conexao LIGHTBURN; `-- --manter` deixa os dados para conferir a tela
 npm run teste:extensao-lightburn  # 13 asserções da leitura da extensão "Rise LightBurn" (extensao-lightburn/leitura.js) com as respostas da API do portal medidas em 05/11/2026 (fixtures anonimizadas em scripts/fixtures/lightburn/). Puro: sem banco, sem rede, sem Chrome
+npm run teste:analise-fornecedor  # 67 asserções do modelo padrão da análise de lista de fornecedor (src/lib/analiseFornecedor/): formato dos dados, montagem e a página com DOM falso em US$ dentro do claude.ai, em R$ fora dele (Copiar escolhas) e em R$ com fator. Puro: sem banco, sem rede, sem navegador
 node scripts/importar-licencas.js --lightburn=<xlsx> --mach3=<xlsx> --pasta=<pasta> --pdf=<pdf> --simular   # importação das planilhas antigas de licenças e da pasta do Mach3 (uma vez; idempotente); --confirmo grava
 npm run teste:saude               # 68 asserções da Saúde do Rise: regras (rotinas, worker, disco, backup, memória, banco, integrações, orçamento, varreduras, PC, healthchecks), o aviso do Telegram, a gravação em RotinaDoWorker e a coleta nos modos PC e VPS. Postgres local, SEM rede; só escreve zz-saude-*
 npm run teste:acessos             # 207 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição, as projeções do lançamento 2 (Painel, lista de Produtos, Cadastros, canais, Scraper, Indicadores), "Ver como", Histórico e o guarda estático de src/app (sem lista de exceções). Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
@@ -5291,6 +5292,40 @@ na VPS pela entrada do `docker compose exec -T app node --input-type=module -` (
   pronta entrega: só a chegar, em montagem ou fora da lista); `atualizarCustosDosVinculos` (`banco.js`) põe o preço na
   varredura que o trouxer. Os ids das linhas novas estão em `/app/dados/vincular-fornecedores/gravados-2026-11-06T11-14-35-000Z.json`
   na VPS: desfazer é apagar esses `ProdutoFornecedor`.
+
+## Análise de lista de fornecedor: roteiro e modelo padrão (07/11/2026)
+
+Pedido do dono, depois da análise da NexMind: "padronizar essas etapas e padronizar o formato do arquivo gerado ... isso deve
+ficar descrito no rise pois posso usar outra LLM para fazer essa mesma analise"; **sem tela nova no Rise** (decisão dele) e
+para **qualquer fornecedor, com lista em R$ ou US$**. O que existe:
+
+- **Roteiro e formato:** `src/lib/analiseFornecedor/roteiro.js` (`ROTEIRO_ANALISE` com os 7 passos e o NUNCA, `ESQUEMA_ANALISE`
+  com o formato dos dados versão 1, `VERSAO_ROTEIRO_ANALISE`). Mudou o roteiro: suba a versão.
+- **Ferramenta do MCP `roteiroDaAnaliseDeFornecedor`** (`src/lib/mcp/analiseFornecedor.js`, só leitura, acesso
+  `tela.compras.pedidos` ver, no grupo sem o lembrete de anotar, como o `roteiroDaProposta`): devolve o roteiro e o formato;
+  com `parte: "modelo"`, o HTML do modelo. As instruções do servidor mandam chamá-la primeiro. É assim que o ChatGPT (ou outro
+  assistente conectado ao Rise) segue o mesmo padrão.
+- **Modelo da página:** `src/lib/analiseFornecedor/modelo.html` (nasceu da página "NexMind × concorrentes"): um cartão por item
+  (foto com lupa | item da lista | Rise | concorrentes | fornecedores | ganho | compra), faixas pelo MENOR concorrente (ótimo
+  ≥100%, bom ≥60%, apertado ≥30%, não compensa <30%, sem concorrente), filtros (busca, Rise, fornecedor, ordem). Custo em R$ =
+  preço da lista × câmbio (só US$) × fator; preço no pedido com 4 casas. Nome, apelido, moeda, câmbio, fator e pedido vêm dos
+  dados; o rascunho do navegador é por fornecedor (`analise-fornecedor:<slug>:escolhas`).
+  - **No claude.ai** (artefato com as capacidades `mcp` — Rise: lerPedidoDeCompra, consultarProduto, montarPedidoDeCompra — e
+    `db`): os botões gravam no rascunho do fornecedor e na lista "criar" (`criar/n<item>`), como na página da NexMind.
+  - **Fora dele** (HTML no chat de outra LLM): a página só mostra; os botões ficam desligados com o motivo, e **"Copiar
+    escolhas"** gera o texto (PEDIDO DE COMPRA: código; quantidade; preço / CRIAR NO RISE: item; nome; quantidade; preço) para
+    colar na conversa. Sem área de transferência, o texto abre numa janela para copiar à mão.
+- **Montagem:** `src/lib/analiseFornecedor/montar.js` (`problemasDosDados`, `montarPagina`, `lerModeloDaAnalise`) e
+  `scripts/analise-fornecedor-montar.js --dados= --fotos= --saida=` (fotos a 300 px pelo sharp). Conferido com os 528 itens
+  reais da NexMind (5,9 MB, 521 fotos).
+- **Criar produtos e Bling (só com a permissão do dono; o MCP não cria produto):** `scripts/analise-fornecedor-criar-produtos.mjs`
+  (código 25xxxx, nome em português, SIMPLES/UN, foto da lista pelo `anexarImagens`, fornecedor padrão com o custo da lista;
+  item achado na lista gravada pelo código do fornecedor ou, sem código, pelo nome) e `scripts/analise-fornecedor-cadastrar-bling.mjs`
+  (preço de venda aprovado + `cadastrarNoBling`; `--somente=` para fazer um primeiro), os dois NA VPS pela entrada padrão, com o
+  plano embutido por `scripts/analise-fornecedor-embutir.js`. Sem `--confirmo` só conferem. Primeiro uso: os 38 da NexMind
+  (258207 a 258244, criados e cadastrados no Bling em 07/11/2026, venda = custo × 2).
+- **Testes:** `npm run teste:analise-fornecedor` (67, com `scripts/fixtures/analise-fornecedor/`) e o `teste:mcp`.
+- **Não verificado:** a página aberta num navegador de verdade fora do claude.ai (só o DOM falso) e a ferramenta pelo ChatGPT.
 
 ## AliExpress no Compras (28/10/2026)
 

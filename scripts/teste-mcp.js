@@ -51,6 +51,8 @@ const PROPOSTA_DE_ANUNCIO = ["situacaoDoProduto", "lerParaPropostaML", "lerCateg
 const COMPRAS_ESCRITA = ["montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra"];
 // As Correcoes da descricao (07/11/2026): ditadas pelo dono, sem o lembrete.
 const CORRECOES = ["gravarCorrecaoDaDescricao", "listarCorrecoesDaDescricao", "desligarCorrecaoDaDescricao"];
+// O roteiro da analise de lista de fornecedor (07/11/2026): trabalho do dono, como o roteiro da proposta, sem o lembrete.
+const ANALISE_FORNECEDOR = ["roteiroDaAnaliseDeFornecedor"];
 
 async function lerRespostaMcp(resposta) {
   const texto = await resposta.text();
@@ -757,8 +759,8 @@ try {
         descoberta?.instructions === INSTRUCOES && INSTRUCOES.includes("anotarDuvida"),
       ],
       [
-        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "comprasACaminhoDoProduto", "consultarEstoque", "consultarPreco", "consultarProduto", "desligarCorrecaoDaDescricao", "filtrarProdutos", "folhaDeContato", "gravarCorrecaoDaDescricao", "gravarPropostaML", "gravarSecao", "historicoDePreco", "lerCategoriaML", "lerParaProposta", "lerParaPropostaML", "lerPedidoDeCompra", "lerPedidoDeVenda", "lerProposta", "listarClientes", "listarConcorrentes", "listarCorrecoesDaDescricao", "listarFornecedores", "listarMarcas", "listarPedidosDeCompra", "listarPedidosDeVenda", "listarTransportadoras", "marcarReferencias", "montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra", "produtosAbaixoDoMinimo", "relatorioDeVendas", "roteiroDaProposta", "situacaoDoProduto"],
-        31,
+        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "comprasACaminhoDoProduto", "consultarEstoque", "consultarPreco", "consultarProduto", "desligarCorrecaoDaDescricao", "filtrarProdutos", "folhaDeContato", "gravarCorrecaoDaDescricao", "gravarPropostaML", "gravarSecao", "historicoDePreco", "lerCategoriaML", "lerParaProposta", "lerParaPropostaML", "lerPedidoDeCompra", "lerPedidoDeVenda", "lerProposta", "listarClientes", "listarConcorrentes", "listarCorrecoesDaDescricao", "listarFornecedores", "listarMarcas", "listarPedidosDeCompra", "listarPedidosDeVenda", "listarTransportadoras", "marcarReferencias", "montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra", "produtosAbaixoDoMinimo", "relatorioDeVendas", "roteiroDaAnaliseDeFornecedor", "roteiroDaProposta", "situacaoDoProduto"],
+        32,
         true,
       ],
     );
@@ -1190,7 +1192,7 @@ try {
       [2, true, 1],
     );
     const lista = (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/list", {}, { id: id++ }), quem)))?.result?.tools ?? [];
-    conferir("a descricao de toda ferramenta de consulta lembra de anotar", lista.filter((ferramenta) => ferramenta.name !== "anotarDuvida" && !PROPOSTA.includes(ferramenta.name) && !PROPOSTA_DE_ANUNCIO.includes(ferramenta.name) && !REFERENCIAS.includes(ferramenta.name) && !COMPRAS_ESCRITA.includes(ferramenta.name) && !CORRECOES.includes(ferramenta.name) && !ferramenta.description.includes("anotarDuvida")).map((ferramenta) => ferramenta.name), []);
+    conferir("a descricao de toda ferramenta de consulta lembra de anotar", lista.filter((ferramenta) => ferramenta.name !== "anotarDuvida" && !PROPOSTA.includes(ferramenta.name) && !PROPOSTA_DE_ANUNCIO.includes(ferramenta.name) && !REFERENCIAS.includes(ferramenta.name) && !COMPRAS_ESCRITA.includes(ferramenta.name) && !CORRECOES.includes(ferramenta.name) && !ANALISE_FORNECEDOR.includes(ferramenta.name) && !ferramenta.description.includes("anotarDuvida")).map((ferramenta) => ferramenta.name), []);
 
     // --- as Correcoes da descricao (07/11/2026): gravadas pelo chat com o login da conexao, sem o lembrete ---
     await prisma.correcaoDaDescricao.deleteMany({ where: { criadoPor: "zz-mcp-lembrete" } });
@@ -1395,6 +1397,21 @@ try {
     );
     const roteiroSemAcesso = await chamar("roteiroDaProposta", {}, quem((recurso) => recurso !== "acao.produtos.proporCadastro"));
     conferir("roteiroDaProposta sem o recurso: recusa", roteiroSemAcesso?.isError, true);
+
+    // Analise de lista de fornecedor (07/11/2026): roteiro, formato dos dados e modelo da pagina, para qualquer LLM.
+    const { VERSAO_ROTEIRO_ANALISE } = await import("../src/lib/analiseFornecedor/roteiro.js");
+    const analise = await chamar("roteiroDaAnaliseDeFornecedor", {});
+    const corpoDaAnalise = JSON.parse(textoDe(analise) || "{}");
+    conferir(
+      "roteiroDaAnaliseDeFornecedor: versao, roteiro com os passos e o formato dos dados, sem lembrete",
+      [analise?.isError ?? false, corpoDaAnalise.versao, ["PASSO 1", "PASSO 7", "montarPedidoDeCompra", "Copiar escolhas"].every((termo) => (corpoDaAnalise.roteiro ?? "").includes(termo)), (corpoDaAnalise.esquema ?? "").includes('"moeda"'), analise?.content?.length],
+      [false, VERSAO_ROTEIRO_ANALISE, true, true, 1],
+    );
+    const modeloDaAnalise = JSON.parse(textoDe(await chamar("roteiroDaAnaliseDeFornecedor", { parte: "modelo" })) || "{}");
+    conferir("roteiroDaAnaliseDeFornecedor parte modelo: o HTML com os marcadores", [modeloDaAnalise.marcadores?.every((marcador) => (modeloDaAnalise.modelo ?? "").includes(marcador)), (modeloDaAnalise.modelo ?? "").includes("Copiar escolhas")], [true, true]);
+    const analiseSemAcesso = await chamar("roteiroDaAnaliseDeFornecedor", {}, quem((recurso) => recurso !== "tela.compras.pedidos"));
+    conferir("roteiroDaAnaliseDeFornecedor sem acesso aos pedidos de compra: recusa", analiseSemAcesso?.isError, true);
+    conferir("as instrucoes do servidor citam a analise de fornecedor", instrucoesDoServidor.includes("roteiroDaAnaliseDeFornecedor"), true);
     const versaoGravada = (await prisma.propostaDeProduto.findFirst({ where: { produto: { sku: "ZZ-MCP-PROP" } }, select: { versaoDoRoteiro: true } }))?.versaoDoRoteiro;
     conferir("a proposta gravada leva a versao do roteiro em vigor", versaoGravada, VERSAO_DO_ROTEIRO);
   }

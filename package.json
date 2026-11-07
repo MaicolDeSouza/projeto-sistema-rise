@@ -66,6 +66,7 @@
     "teste:extensao-aliexpress": "node scripts/teste-extensao-aliexpress.js",
     "teste:licencas": "node scripts/teste-licencas.js",
     "teste:extensao-lightburn": "node scripts/teste-extensao-lightburn.js",
+    "teste:analise-fornecedor": "node scripts/teste-analise-fornecedor.js",
     "aliexpress:recalcular": "node scripts/aliexpress-recalcular.js"
   },
   "dependencies": {

@@ -1,0 +1,15 @@
+{
+  "fornecedor": "ZZ Fornecedor Real",
+  "moeda": "BRL",
+  "cambio": null,
+  "fator": 1,
+  "pedido": null,
+  "coletaEm": "2026-11-07T03:00:00Z",
+  "itens": [
+    { "n": 10, "nome": "Produto X", "codigo": "X-10", "preco": 10,
+      "rise": { "sku": "900100", "nome": "PRODUTO X", "custo": 11, "venda": 25, "estoque": 3, "fornecedor": null, "dono": true },
+      "ofertas": [["Loja A", "Produto X", 25, null, "disp"]], "forn": [] },
+    { "n": 11, "nome": "Produto Y", "preco": 4, "rise": null, "ofertas": [["Loja B", "Produto Y", 6, null, "disp"]], "forn": [] },
+    { "n": 12, "nome": "Produto Z", "preco": 2.5, "rise": null, "ofertas": [], "forn": [] }
+  ]
+}

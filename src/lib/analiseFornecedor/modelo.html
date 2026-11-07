@@ -1,0 +1,926 @@
+<title>Fornecedor × concorrentes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* MODELO PADRAO da analise de lista de fornecedor (pedido do dono em 07/11/2026: "padronizar o formato e a funcionalidade
+   do arquivo", para qualquer fornecedor, lista em R$ ou US$, e por qualquer LLM). Nasceu da pagina "NexMind x
+   concorrentes". No topo o pedido aberto do fornecedor e os filtros; um cartao por item da lista (fora do pedido), com o
+   custo em reais, o produto do Rise (codigo editavel), concorrentes, fornecedores, ganho sobre o menor concorrente e a
+   quantidade. Os dados entram no lugar de DADOS/FOTOS (roteiro em src/lib/analiseFornecedor/roteiro.js; montagem em
+   montar.js). No claude.ai, com as capacidades mcp e db, os botoes gravam no pedido e na lista "criar"; fora dele
+   (HTML no chat de outra LLM) a pagina so mostra e o "Copiar escolhas" leva as escolhas para a conversa. */
+:root {
+  --bg: #f3f4f7; --surface: #ffffff; --surface-2: #f8f9fb; --ink: #1a2130; --muted: #5b6474; --line: #dfe3ea;
+  --accent: #2446c4; --accent-soft: #e7ecfb; --accent-ink: #ffffff;
+  --ok: #11734a; --ok-soft: #def2e8; --good: #22707f; --good-soft: #dceef2; --warn: #9a5b00; --warn-soft: #f9ecd4;
+  --bad: #ad2a22; --bad-soft: #f8e1df; --none: #687080; --none-soft: #eceef2; --foto: #ffffff;
+  --font-ui: "Archivo", "Segoe UI", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12151c; --surface: #1a1f29; --surface-2: #202633; --ink: #e6e9ef; --muted: #9aa3b2; --line: #2d3442;
+    --accent: #7d97ff; --accent-soft: #232c4a; --accent-ink: #0e1220;
+    --ok: #5fd39c; --ok-soft: #173326; --good: #6cc7d6; --good-soft: #15303a; --warn: #f0b354; --warn-soft: #3a2c12;
+    --bad: #ff8a80; --bad-soft: #3d1c1a; --none: #a3abb9; --none-soft: #262c38; --foto: #f4f5f7; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12151c; --surface: #1a1f29; --surface-2: #202633; --ink: #e6e9ef; --muted: #9aa3b2; --line: #2d3442;
+  --accent: #7d97ff; --accent-soft: #232c4a; --accent-ink: #0e1220;
+  --ok: #5fd39c; --ok-soft: #173326; --good: #6cc7d6; --good-soft: #15303a; --warn: #f0b354; --warn-soft: #3a2c12;
+  --bad: #ff8a80; --bad-soft: #3d1c1a; --none: #a3abb9; --none-soft: #262c38; --foto: #f4f5f7; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 14px; line-height: 1.45; margin: 0; }
+.envelope { max-width: 1400px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 48px; display: grid; gap: 14px; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+.meta { color: var(--muted); font-size: 13px; margin-top: 4px; max-width: 760px; }
+.meta b { color: var(--ink); font-weight: 600; }
+.cabeca { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end; justify-content: space-between; }
+
+.pedido { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; display: grid; gap: 2px; min-width: 0; max-width: 420px; }
+.pedido .rot { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+.pedido .rot i { width: 8px; height: 8px; border-radius: 50%; background: var(--none); display: inline-block; }
+.pedido.ok .rot i { background: var(--ok); }
+.pedido.aviso .rot i { background: var(--warn); }
+.pedido.erro .rot i { background: var(--bad); }
+.pedido .linha1 { font-size: 15px; font-weight: 600; }
+.pedido .linha2 { font-size: 12.5px; color: var(--muted); }
+
+.resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.faixa { font: inherit; text-align: left; color: inherit; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 10px 12px; display: grid; gap: 2px; align-content: start; cursor: pointer; }
+.faixa:hover { border-color: var(--muted); }
+.faixa[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: var(--accent-soft); }
+.faixa .rot { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+.faixa .rot i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+.faixa .qt { font-size: 22px; font-weight: 600; }
+.faixa .desc { font-size: 12px; color: var(--muted); }
+
+.filtros { position: sticky; top: 0; z-index: 2; background: var(--bg); padding-block: 8px; display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; border-bottom: 1px solid var(--line); }
+.filtros input[type="search"], .filtros select { font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); min-width: 0; }
+.filtros input[type="search"] { flex: 1 1 240px; }
+.filtros select { flex: 0 1 auto; }
+.filtros .contagem { font-size: 12.5px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+
+.lista { display: grid; gap: 10px; }
+.vazio { padding: 24px; text-align: center; color: var(--muted); background: var(--surface); border: 1px dashed var(--line); border-radius: 10px; }
+.cartao { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 12px 14px; align-items: start;
+  grid-template-columns: 88px minmax(0, 1.3fr) minmax(0, 1.15fr) minmax(0, 0.95fr) minmax(0, 0.95fr) 104px 184px;
+  grid-template-areas: "foto nex rise merc forn ganho compra" "ofertas ofertas ofertas ofertas ofertas ofertas ofertas"; }
+.foto { grid-area: foto; width: 88px; height: 88px; border-radius: 8px; background: var(--foto); border: 1px solid var(--line); object-fit: contain; display: block; }
+.semFoto { display: grid; place-items: center; font-size: 11px; color: var(--none); background: var(--none-soft); }
+/* Foto: aumenta 3x com o mouse em cima (so onde ha mouse) e abre grande no clique. */
+.fotoBtn { grid-area: foto; position: relative; width: 88px; height: 88px; padding: 0; border: 0; background: none; border-radius: 8px; cursor: zoom-in; }
+.fotoBtn .foto { width: 100%; height: 100%; position: relative; transform-origin: top left; transition: transform 160ms ease-out, box-shadow 160ms ease-out; }
+.fotoBtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) {
+  .fotoBtn:hover .foto { transform: scale(3); z-index: 5; box-shadow: 0 12px 32px rgba(10, 14, 24, 0.28); }
+}
+@media (prefers-reduced-motion: reduce) { .fotoBtn .foto { transition: none; } }
+.luz { position: fixed; inset: 0; z-index: 20; background: rgba(10, 12, 18, 0.78); display: grid; place-items: center; padding: 16px; }
+.luz[hidden] { display: none; }
+.luz figure { margin: 0; background: var(--surface); color: var(--ink); border-radius: 12px; padding: 14px; display: grid; gap: 10px; max-width: min(92vw, 520px); }
+.luz img { width: min(84vw, 440px); height: auto; max-height: 70vh; object-fit: contain; background: #ffffff; border-radius: 8px; display: block; }
+.luz figcaption { font-size: 13px; line-height: 1.35; }
+.luz .btn { justify-self: end; }
+.luz textarea { width: min(84vw, 560px); height: 50vh; font-family: var(--font-num); font-size: 12.5px; line-height: 1.4; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); color: var(--ink); resize: vertical; }
+.erroGeral { padding: 16px; margin: 16px; border-radius: 8px; background: var(--bad-soft); color: var(--bad); font-weight: 600; }
+.c-nex { grid-area: nex; } .c-rise { grid-area: rise; } .c-merc { grid-area: merc; } .c-forn { grid-area: forn; } .c-ganho { grid-area: ganho; } .c-compra { grid-area: compra; } .ofertas { grid-area: ofertas; }
+.rot2 { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 4px; }
+.nome { font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.sub { font-size: 12.5px; color: var(--muted); }
+.custo { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.custo .rs { font-size: 18px; font-weight: 600; }
+.nota { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+.campo { display: flex; gap: 6px; }
+.campo input { font: inherit; font-family: var(--font-num); font-size: 13px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); color: var(--ink); width: 100%; min-width: 0; }
+.campo input:focus-visible, button:focus-visible, .ofertas a:focus-visible, .produto a:focus-visible, .filtros input:focus-visible, .filtros select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.btn { font: inherit; font-size: 13px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 6px; padding: 6px 10px; cursor: pointer; white-space: nowrap; }
+.btn:hover:not(:disabled) { border-color: var(--muted); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn.principal { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; width: 100%; }
+.produto { margin-top: 8px; display: grid; gap: 2px; }
+.produto a { color: var(--accent); text-decoration: none; }
+.produto a:hover { text-decoration: underline; }
+.semRise { margin-top: 8px; font-size: 12.5px; color: var(--muted); background: var(--none-soft); border-radius: 6px; padding: 6px 8px; }
+
+.grande { font-size: 18px; font-weight: 600; }
+.ver { font: inherit; font-size: 12.5px; background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; margin-top: 4px; }
+.ver:hover { text-decoration: underline; }
+.pct { display: inline-block; font-family: var(--font-num); font-size: 18px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
+.f-otimo { background: var(--ok-soft); color: var(--ok); }
+.f-bom { background: var(--good-soft); color: var(--good); }
+.f-apertado { background: var(--warn-soft); color: var(--warn); }
+.f-nao { background: var(--bad-soft); color: var(--bad); }
+.f-sem { background: var(--none-soft); color: var(--none); }
+.econ { font-size: 12px; margin-top: 4px; }
+.econ.mais { color: var(--ok); }
+.econ.menos { color: var(--bad); }
+.aviso { font-size: 11.5px; color: var(--warn); margin-top: 4px; }
+
+.compra { display: grid; gap: 6px; }
+.compra .campo input { text-align: right; }
+.preco { font-size: 12px; color: var(--muted); }
+.motivo { font-size: 12px; line-height: 1.35; color: var(--warn); }
+.motivo:empty { display: none; }
+.msg { font-size: 12.5px; line-height: 1.35; border-radius: 6px; padding: 6px 8px; }
+.msg.ok { background: var(--ok-soft); color: var(--ok); }
+.msg.erro { background: var(--bad-soft); color: var(--bad); }
+.msg.aviso { background: var(--warn-soft); color: var(--warn); }
+.noPedido { font-size: 12.5px; color: var(--ok); font-weight: 600; }
+
+.ofertas { border-top: 1px dashed var(--line); padding-top: 8px; overflow-x: auto; display: grid; gap: 10px; }
+.ofertas table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+.ofertas caption { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; padding-bottom: 4px; }
+.ofertas td, .ofertas th { padding: 4px 8px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+.ofertas th { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+.ofertas td.p, .ofertas th.p { text-align: right; white-space: nowrap; }
+.ofertas a { color: var(--accent); }
+.ofertas .est { white-space: nowrap; }
+.ofertas .est.sem { color: var(--bad); }
+.ofertas .est.disp { color: var(--ok); }
+
+@media (max-width: 1240px) {
+  .cartao { grid-template-columns: 88px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "foto nex rise compra" "foto merc forn ganho" "ofertas ofertas ofertas ofertas"; }
+}
+@media (max-width: 720px) {
+  .cartao { grid-template-columns: 64px minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "foto nex nex" "rise rise rise" "merc merc forn" "ganho compra compra" "ofertas ofertas ofertas"; }
+  .foto, .fotoBtn { width: 64px; height: 64px; }
+  .filtros .contagem { margin-left: 0; }
+}
+@media (max-width: 420px) {
+  .cartao { grid-template-columns: 64px minmax(0, 1fr);
+    grid-template-areas: "foto nex" "rise rise" "merc merc" "forn forn" "ganho ganho" "compra compra" "ofertas ofertas"; }
+}
+</style>
+
+<div class="envelope">
+  <header class="cabeca">
+    <div>
+      <h1 id="titulo">Fornecedor × concorrentes</h1>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="pedido" id="pedido" aria-live="polite">
+      <div class="rot"><i></i><span id="pedidoRot">Pedido de compra</span></div>
+      <div class="linha1 num" id="pedidoLinha1">—</div>
+      <div class="linha2" id="pedidoLinha2">Conectando ao Rise…</div>
+      <div class="linha2" id="pedidoLinha3"></div>
+    </div>
+  </header>
+  <section class="resumo" id="resumo" aria-label="Itens por faixa de ganho (clique para filtrar)"></section>
+  <div class="filtros" role="search">
+    <input type="search" id="fBusca" placeholder="Buscar por nome, item da lista ou código do Rise" aria-label="Buscar" autocomplete="off" spellcheck="false">
+    <select id="fRise" aria-label="Produto no Rise">
+      <option value="todos">Rise: todos</option>
+      <option value="com">Com produto no Rise</option>
+      <option value="sem">Sem produto no Rise</option>
+      <option value="pedido">Já no pedido</option>
+      <option value="criar">Na lista para criar</option>
+    </select>
+    <select id="fForn" aria-label="Fornecedores">
+      <option value="todos">Fornecedor: todos</option>
+      <option value="listaBarata" id="optListaBarata">Lista mais barata que o fornecedor</option>
+      <option value="outroBarato" id="optOutroBarato">Fornecedor mais barato que a lista</option>
+      <option value="semForn">Sem fornecedor que venda</option>
+    </select>
+    <select id="fOrdem" aria-label="Ordem">
+      <option value="ganho">Maior ganho primeiro</option>
+      <option value="ganhoMenor">Menor ganho primeiro</option>
+      <option value="lista">Ordem da lista</option>
+      <option value="lojas">Mais lojas primeiro</option>
+      <option value="custo">Maior custo primeiro</option>
+    </select>
+    <span class="contagem num" id="contagem" aria-live="polite"></span>
+    <button type="button" class="btn" id="bCopiar" disabled title="Digite a quantidade nos itens que quer comprar.">Copiar escolhas</button>
+  </div>
+  <main class="lista" id="lista"></main>
+</div>
+<div class="luz" id="luz" hidden role="dialog" aria-modal="true" aria-label="Foto do item">
+  <figure>
+    <img id="luzImg" alt="">
+    <figcaption id="luzLegenda"></figcaption>
+    <button type="button" class="btn" id="luzFechar">Fechar</button>
+  </figure>
+</div>
+<div class="luz" id="copia" hidden role="dialog" aria-modal="true" aria-label="Escolhas para colar na conversa">
+  <figure>
+    <figcaption>Copie o texto abaixo e cole na conversa: quem estiver analisando grava o pedido e a lista para criar.</figcaption>
+    <textarea id="copiaTexto" readonly aria-label="Escolhas"></textarea>
+    <button type="button" class="btn" id="copiaFechar">Fechar</button>
+  </figure>
+</div>
+
+<script>
+// Os dados da analise (formato em src/lib/analiseFornecedor/roteiro.js, versao 1). FOTOS e opcional: { "n<numero do
+// item>": "data:image/jpeg;base64,..." }; sem ele vale o `foto` (endereco) de cada item.
+const DADOS = /*__DADOS__*/null;
+const FOTOS = /*__FOTOS__*/null ?? {};
+const RISE = "Rise";
+const SITE = "https://rise.4hobby.com.br";
+const LOJA = "4hobby";
+const FORNECEDOR = DADOS.fornecedor;
+const NOME_CURTO = DADOS.apelido || DADOS.fornecedor;
+// Lista em dolar: o custo em reais e o preco x cambio x fator. Em reais: preco x fator (fator 1 = o preco da lista).
+const EM_DOLAR = DADOS.moeda === "USD";
+const CAMBIO = EM_DOLAR ? Number(DADOS.cambio) : 1;
+const FATOR = Number(DADOS.fator) > 0 ? Number(DADOS.fator) : 1;
+const brl = (v, casas = 2) => v == null ? "—" : "R$ " + Number(v).toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
+const naMoedaDaLista = (v) => (EM_DOLAR ? "US$ " : "R$ ") + Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const custoDaLista = (x) => Math.round(x.preco * CAMBIO * FATOR * 100) / 100;
+// O pedido aceita 4 casas: o item de poucos centavos em centenas de pecas nao perde no arredondamento.
+const precoDoPedido = (x) => Math.round(x.preco * CAMBIO * FATOR * 10000) / 10000;
+const fotoDe = (x) => FOTOS["n" + x.n] ?? x.foto ?? null;
+const dataCurta = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" }); };
+const COLETA = dataCurta(DADOS.coletaEm);
+const FAIXAS = [
+  { id: "otimo", rot: "Ótimo", desc: "100% ou mais", cor: "var(--ok)" },
+  { id: "bom", rot: "Bom", desc: "60 a 99%", cor: "var(--good)" },
+  { id: "apertado", rot: "Apertado", desc: "30 a 59%", cor: "var(--warn)" },
+  { id: "nao", rot: "Não compensa", desc: "menos de 30%", cor: "var(--bad)" },
+  { id: "sem", rot: "Sem concorrente", desc: "nenhuma loja coletada vende", cor: "var(--none)" },
+];
+const faixaDe = (g) => g == null ? "sem" : g >= 100 ? "otimo" : g >= 60 ? "bom" : g >= 30 ? "apertado" : "nao";
+function mediana(lista) {
+  const v = lista.slice().sort((a, b) => a - b);
+  if (!v.length) return null;
+  const m = Math.floor(v.length / 2);
+  return v.length % 2 ? v[m] : Math.round(((v[m - 1] + v[m]) / 2) * 100) / 100;
+}
+const markup = (venda, custo) => venda == null || !custo ? null : Math.round(((venda - custo) / custo) * 100);
+const semAcento = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const urlDoProduto = (p) => p?.id ? `${SITE}/produtos/${p.id}` : p?.url ?? null;
+
+// Estado de cada item. Ofertas: [loja, nome, preco normal, url, "disp"|"sem"|null]. Fornecedores: [fonte, nome,
+// codigo, preco com impostos, quantidade, url]. O ganho e sobre o MENOR concorrente (regra do dono); a mediana e info.
+const itens = DADOS.itens.map((x) => {
+  const custo = custoDaLista(x);
+  const ofertas = x.ofertas.slice().sort((a, b) => a[2] - b[2]);
+  const forn = x.forn.slice().sort((a, b) => a[3] - b[3]);
+  const precos = ofertas.map((o) => o[2]);
+  const min = precos[0];
+  const med = mediana(precos);
+  const f0 = forn[0] ?? null;
+  return {
+    ...x, ofertas, forn, custo, min: min ?? null, med, lojaMin: ofertas[0]?.[0] ?? null,
+    ganho: markup(min, custo), ganhoMed: markup(med, custo),
+    emEstoque: ofertas.filter((o) => o[4] === "disp").length,
+    fornMin: f0,
+    // > 0: a lista sai mais barata que o fornecedor mais barato; < 0: mais cara.
+    vsForn: f0 && f0[3] > 0 ? Math.round(((f0[3] - custo) / f0[3]) * 100) : null,
+    sku: x.rise?.sku ?? "",
+    produto: x.rise?.nome ? { ...x.rise, url: urlDoProduto(x.rise), deHoje: false } : null,
+    origem: x.rise ? (x.rise.dono ? "dono" : "analise") : null,
+    conferindo: false, erroSku: null, qtd: "", enviando: false, msg: null, aberto: false,
+    chave: semAcento(`${x.n} ${x.codigo ?? ""} ${x.nome} ${x.rise?.sku ?? ""} ${x.rise?.nome ?? ""}`),
+  };
+});
+
+const porN = new Map(itens.map((x) => [x.n, x]));
+
+// Rascunho dos codigos e quantidades digitados e dos filtros: conveniencia deste navegador, um por fornecedor; a verdade
+// e o pedido no Rise.
+const SLUG = semAcento(FORNECEDOR).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const CHAVE = `analise-fornecedor:${SLUG}:escolhas`;
+const CHAVE_FILTROS = `analise-fornecedor:${SLUG}:filtros`;
+try {
+  const salvo = JSON.parse(localStorage.getItem(CHAVE) || "{}");
+  for (const x of itens) {
+    const s = salvo[x.n];
+    if (!s) continue;
+    if (typeof s.sku === "string" && s.sku !== x.sku) { x.sku = s.sku; x.produto = null; x.origem = null; }
+    if (s.qtd) x.qtd = s.qtd;
+  }
+} catch {}
+function guardar() {
+  try {
+    const mexidos = itens.filter((x) => x.qtd || x.sku !== (x.rise?.sku ?? ""));
+    localStorage.setItem(CHAVE, JSON.stringify(Object.fromEntries(mexidos.map((x) => [x.n, { sku: x.sku, qtd: x.qtd }]))));
+  } catch {}
+  atualizarCopiar();
+}
+const filtro = { q: "", faixa: null, rise: "todos", forn: "todos", ordem: "ganho" };
+try { Object.assign(filtro, JSON.parse(localStorage.getItem(CHAVE_FILTROS) || "{}")); } catch {}
+function guardarFiltros() { try { localStorage.setItem(CHAVE_FILTROS, JSON.stringify(filtro)); } catch {} }
+
+const pedido = { codigo: DADOS.pedido ?? null, situacao: null, total: null, nItens: null, porSku: new Map(), estado: "conectando", texto: "Conectando ao Rise…" };
+let mcp = null;
+
+function el(tag, attrs = {}, filhos = []) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v == null || v === false) continue;
+    if (k === "class") e.className = v; else if (k === "text") e.textContent = v; else if (k.startsWith("on")) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v === true ? "" : v);
+  }
+  for (const f of [].concat(filhos)) if (f != null && f !== false) e.append(f);
+  return e;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Erros da conexao: cada codigo tem a sua saida (reconectar, permitir, conferir o pedido), nunca um aviso generico.
+const INCERTOS = ["server_unavailable", "upstream_error", "cancelled", "rate_limited"];
+function textoDoErro(e, escrita) {
+  const codigo = e?.code ?? "upstream_error";
+  switch (codigo) {
+    case "needs_reauth": return { tipo: "erro", texto: "O login do Rise expirou. Reconecte o Rise no claude.ai, em Configurações › Conectores, e tente de novo." };
+    case "server_not_connected": return { tipo: "erro", texto: "O conector Rise não está ligado na sua conta. Adicione em Configurações › Conectores do claude.ai." };
+    case "selection_required": return { tipo: "erro", texto: "Há mais de um conector Rise na sua conta. Escolha qual usar no aviso do claude.ai e tente de novo." };
+    case "approval_required": return { tipo: "aviso", texto: "O claude.ai precisa da sua permissão para usar o Rise nesta página. Clique de novo e escolha Permitir." };
+    case "not_in_manifest": return { tipo: "erro", texto: "O Rise está bloqueado nesta página. Libere nas permissões da página e tente de novo." };
+    case "blocked_by_policy": return { tipo: "erro", texto: "A sua organização bloqueou esta ferramenta do Rise." };
+    case "tool_error": return { tipo: "erro", texto: e.message || "O Rise recusou." };
+    case "not_granted": case "capability_disabled": case "capability_removed":
+      return { tipo: "erro", texto: "Esta visualização não tem acesso ao Rise: use Copiar escolhas e cole na conversa." };
+    default:
+      if (INCERTOS.includes(codigo)) {
+        return escrita
+          ? { tipo: "aviso", texto: "O Rise não respondeu a tempo e não dá para saber se gravou. Li o pedido de novo: confira a quantidade acima antes de clicar outra vez." }
+          : { tipo: "aviso", texto: "O Rise não respondeu agora. Tente de novo em instantes." };
+      }
+      return { tipo: "erro", texto: e?.message || "Falhou." };
+  }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Pedido aberto do fornecedor (o rascunho dele; sem codigo nos dados, o primeiro item gravado abre um)
+function aplicarPedido(p) {
+  if (!p || typeof p !== "object") return;
+  pedido.codigo = p.codigo ?? pedido.codigo;
+  pedido.situacao = p.situacao ?? null;
+  pedido.total = p.totais?.total ?? null;
+  pedido.nItens = Array.isArray(p.itens) ? p.itens.length : null;
+  pedido.porSku = new Map((p.itens ?? []).map((i) => [String(i.sku), i.quantidade]));
+  pedido.estado = p.situacao === "RASCUNHO" ? "ok" : "aviso";
+  pedido.texto = p.situacao === "RASCUNHO"
+    ? `Rascunho · ${pedido.nItens} itens · ${brl(pedido.total)}`
+    : `${p.situacaoTexto ?? p.situacao}: o próximo item abre um rascunho novo de ${NOME_CURTO}`;
+}
+async function lerPedido() {
+  if (!mcp) return;
+  if (!pedido.codigo) {
+    pedido.estado = "aviso";
+    pedido.texto = `Sem rascunho aberto: o primeiro item gravado abre um de ${NOME_CURTO}`;
+    desenharPedido();
+    return;
+  }
+  try {
+    const r = await mcp.callTool(RISE, "lerPedidoDeCompra", { pedido: pedido.codigo }, { cache: false });
+    aplicarPedido(r.payload?.pedido ?? r.payload);
+  } catch (e) {
+    pedido.estado = "erro";
+    pedido.texto = textoDoErro(e, false).texto;
+  }
+  desenharPedido();
+  redesenharVisiveis();
+}
+function desenharPedido() {
+  document.getElementById("pedido").className = "pedido " + (pedido.estado === "conectando" ? "" : pedido.estado);
+  document.getElementById("pedidoLinha1").textContent = pedido.codigo ?? "—";
+  document.getElementById("pedidoLinha2").textContent = pedido.texto;
+  let l3 = "";
+  if (db && listaCriar.estado !== "ok") l3 = listaCriar.texto;
+  else if (db && !criar.size) l3 = "Lista para criar no Rise: vazia";
+  else if (db) {
+    let total = 0;
+    for (const [n, v] of criar) { const it = porN.get(n); if (it) total += v.qtd * precoDoPedido(it); }
+    l3 = `Lista para criar no Rise: ${criar.size} ${criar.size === 1 ? "item" : "itens"} · ${brl(total)}`;
+  }
+  document.getElementById("pedidoLinha3").textContent = l3;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Lista "criar" (banco da pagina, so no claude.ai): itens sem produto no Rise que o dono quer comprar. Quem faz a analise
+// le a lista, cadastra os produtos no Rise e poe no pedido SO com a permissao dele. Um documento por item:
+// criar/n<numero da lista> = { n, nome, preco, moeda, fornecedor, qtd, precoUnitario, em }.
+let db = null;
+const criar = new Map();
+const listaCriar = { estado: "carregando", texto: "Carregando a lista para criar…" };
+function textoDoErroDb(e) {
+  switch (e?.code) {
+    case "quota_exceeded": return "A lista da página encheu. Peça na conversa para esvaziar o que já foi criado.";
+    case "invalid_argument": case "transform_error": return "A lista recusou este item: " + (e.message || "dado inválido") + ".";
+    case "resource_exhausted": return "Muitas gravações seguidas. Espere alguns segundos e tente de novo.";
+    case "revoked": case "not_granted": case "capability_disabled": case "capability_removed":
+      return "Esta tela não tem acesso à lista: use Copiar escolhas e cole na conversa.";
+    default: return "A lista não respondeu agora. Tente de novo em instantes.";
+  }
+}
+// "unavailable" e passageiro: tenta mais uma vez depois de um intervalo curto.
+async function comUmaTentativaAMais(f) {
+  try { return await f(); } catch (e) {
+    if (e?.code !== "unavailable") throw e;
+    await new Promise((r) => setTimeout(r, 400 + Math.random() * 600));
+    return await f();
+  }
+}
+function ouvirLista() {
+  // Assina uma vez ao abrir; se nada chegar em 10 s, avisa (e a lista nao fica girando para sempre).
+  const espera = setTimeout(() => {
+    if (listaCriar.estado !== "carregando") return;
+    listaCriar.estado = "erro";
+    listaCriar.texto = "A lista para criar não carregou. Abra a página de novo para ver o que já está nela.";
+    desenharPedido();
+    redesenharVisiveis();
+  }, 10000);
+  db.collection("criar").onSnapshot((snap) => {
+    clearTimeout(espera);
+    criar.clear();
+    for (const d of snap.docs) {
+      const v = d.data() ?? {};
+      const n = Number(v.n);
+      if (porN.has(n) && Number(v.qtd) > 0) criar.set(n, { qtd: Number(v.qtd) });
+    }
+    listaCriar.estado = "ok";
+    listaCriar.texto = "";
+    desenharPedido();
+    redesenharVisiveis();
+  }, (e) => {
+    clearTimeout(espera);
+    listaCriar.estado = "erro";
+    listaCriar.texto = e?.code === "revoked" ? "A lista para criar ficou indisponível nesta tela." : "A lista para criar parou de atualizar. Abra a página de novo.";
+    desenharPedido();
+    redesenharVisiveis();
+  });
+}
+async function porNaLista(x) {
+  const qtd = parseInt(x.qtd, 10);
+  if (!db || listaCriar.estado !== "ok" || !(qtd > 0) || x.enviando) return;
+  x.enviando = true;
+  x.msg = null;
+  trocar(x);
+  try {
+    await comUmaTentativaAMais(() => db.doc("criar/n" + x.n).set({
+      n: x.n, nome: x.nome, preco: x.preco, moeda: EM_DOLAR ? "USD" : "BRL", fornecedor: FORNECEDOR, qtd,
+      precoUnitario: precoDoPedido(x), em: new Date().toISOString(),
+    }));
+    criar.set(x.n, { qtd });
+    x.msg = { tipo: "ok", texto: `Na lista para criar: ${qtd} un. O produto só é cadastrado no Rise e posto no pedido depois que você permitir.` };
+  } catch (e) {
+    x.msg = { tipo: "erro", texto: textoDoErroDb(e) };
+  }
+  x.enviando = false;
+  desenharPedido();
+  trocar(x);
+}
+async function tirarDaLista(x) {
+  if (!db || x.enviando) return;
+  x.enviando = true;
+  x.msg = null;
+  trocar(x);
+  try {
+    await comUmaTentativaAMais(() => db.doc("criar/n" + x.n).delete());
+    criar.delete(x.n);
+    x.msg = { tipo: "ok", texto: "Saiu da lista para criar." };
+  } catch (e) {
+    x.msg = { tipo: "erro", texto: textoDoErroDb(e) };
+  }
+  x.enviando = false;
+  desenharPedido();
+  trocar(x);
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Codigo do Rise: confere o produto e traz custo, preco e estoque de hoje.
+async function conferirSku(x) {
+  const sku = x.sku.trim();
+  x.erroSku = null;
+  x.msg = null;
+  if (!sku) { x.produto = null; x.origem = null; guardar(); trocar(x); return; }
+  if (!mcp) { x.erroSku = "Sem conexão com o Rise nesta tela: o código é conferido quando as escolhas forem coladas na conversa."; trocar(x); return; }
+  x.conferindo = true;
+  trocar(x);
+  try {
+    const r = await mcp.callTool(RISE, "consultarProduto", { sku });
+    const p = r.payload;
+    if (!p || typeof p !== "object" || !p.sku) throw { code: "tool_error", message: `O código ${sku} não está no Rise.` };
+    const forn = p.fornecedores ?? [];
+    const padrao = forn.find((f) => f.padrao) ?? forn[0];
+    x.produto = {
+      sku: p.sku, nome: p.nome, custo: typeof p.custo === "number" ? p.custo : null, venda: p.preco, estoque: p.estoque,
+      fornecedor: padrao ? `${padrao.nome} ${brl(padrao.custo)}` : null,
+      url: p.urlRise ? SITE + p.urlRise : null, deHoje: true,
+    };
+    x.sku = p.sku;
+    x.origem = "conferido";
+  } catch (e) {
+    x.produto = null;
+    x.erroSku = e?.code === "tool_error" ? (e.message || `O código ${sku} não está no Rise.`) : textoDoErro(e, false).texto;
+  }
+  x.conferindo = false;
+  guardar();
+  trocar(x);
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Adicionar ao pedido: o Rise poe o item no rascunho aberto do fornecedor (produto que ja estava troca a quantidade).
+async function adicionar(x) {
+  const qtd = parseInt(x.qtd, 10);
+  if (!(qtd > 0) || !mcp || x.enviando || x.conferindo) return;
+  // So o codigo digitado (ou trocado): confere no Rise primeiro; se o codigo nao existir, o erro aparece e nada grava.
+  if (!x.produto || String(x.produto.sku) !== x.sku.trim()) {
+    if (!x.sku.trim()) return;
+    await conferirSku(x);
+    if (!x.produto) return;
+  }
+  x.enviando = true;
+  x.msg = null;
+  trocar(x);
+  try {
+    const r = await mcp.callTool(RISE, "montarPedidoDeCompra", {
+      fornecedor: FORNECEDOR,
+      itens: [{ sku: x.produto.sku, quantidade: qtd, precoUnitario: precoDoPedido(x), ipiPercentual: 0 }],
+    });
+    const p = r.payload ?? {};
+    aplicarPedido(p.pedido);
+    const avisos = Array.isArray(p.avisos) ? p.avisos.join(" ") : "";
+    x.msg = { tipo: "ok", texto: `Gravado no ${pedido.codigo}: ${qtd} un. a ${brl(precoDoPedido(x), 4)}.` + (avisos ? " " + avisos : "") };
+    // Ja foi para o pedido com o codigo: sai da lista para criar, se estava nela.
+    if (db && criar.has(x.n)) {
+      try { await comUmaTentativaAMais(() => db.doc("criar/n" + x.n).delete()); criar.delete(x.n); } catch {}
+    }
+  } catch (e) {
+    x.msg = textoDoErro(e, true);
+    if (INCERTOS.includes(e?.code ?? "upstream_error")) await lerPedido();
+  }
+  x.enviando = false;
+  desenharPedido();
+  redesenharVisiveis();
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+function textoVsForn(v, fonte) {
+  if (v == null) return null;
+  if (v > 0) return { cls: "mais", texto: `${NOME_CURTO} ${v}% mais barato que ${fonte}` };
+  if (v < 0) return { cls: "menos", texto: `${NOME_CURTO} ${-v}% mais caro que ${fonte}` };
+  return { cls: "", texto: `${NOME_CURTO} no mesmo preço de ${fonte}` };
+}
+
+function cartao(x) {
+  const box = el("article", { class: "cartao", "data-n": String(x.n), "aria-label": x.nome });
+  const foto = fotoDe(x);
+  if (foto) {
+    const bFoto = el("button", { type: "button", class: "fotoBtn", "aria-label": `Abrir a foto do item ${x.n}`, title: "Clique para abrir a foto" }, [
+      el("img", { class: "foto", src: foto, alt: "", loading: "lazy", decoding: "async" }),
+    ]);
+    bFoto.addEventListener("click", () => abrirFoto(x, bFoto));
+    box.append(bFoto);
+  } else box.append(el("div", { class: "foto semFoto", text: "sem foto" }));
+
+  // Item da lista do fornecedor: custo em reais em destaque; embaixo o preco como a lista escreve (US$, ou R$ com fator)
+  const precoOriginal = EM_DOLAR || FATOR !== 1 ? naMoedaDaLista(x.preco) : null;
+  box.append(el("div", { class: "c-nex" }, [
+    el("div", { class: "rot2", text: `${NOME_CURTO} · item ${x.n} da lista${x.codigo ? ` · cód. ${x.codigo}` : ""}` }),
+    el("div", { class: "nome", text: x.nome }),
+    el("div", { class: "custo" }, [
+      el("span", { class: "rs num", text: brl(x.custo) }),
+      precoOriginal ? el("span", { class: "sub num", text: precoOriginal }) : null,
+    ]),
+    x.nota ? el("div", { class: "nota", text: x.nota }) : null,
+  ]));
+
+  // Rise
+  const iSku = el("input", { id: "sku-" + x.n, type: "text", autocomplete: "off", spellcheck: "false", placeholder: "Ex.: 190204", value: x.sku, "aria-label": "Código no Rise" });
+  iSku.addEventListener("input", () => {
+    x.sku = iSku.value;
+    // Codigo trocado sem conferir: o produto de antes deixa de valer (senao gravaria o codigo antigo); o Adicionar
+    // confere o codigo novo no Rise antes de gravar.
+    if (x.produto && String(x.produto.sku) !== x.sku.trim()) x.produto = null;
+    atualizarCompra();
+    guardar();
+  });
+  iSku.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); conferirSku(x); } });
+  const bSku = el("button", { type: "button", class: "btn", text: x.conferindo ? "Conferindo…" : "Conferir", disabled: x.conferindo, onclick: () => conferirSku(x) });
+  const cRise = el("div", { class: "c-rise" }, [el("div", { class: "rot2", text: "Código no Rise" }), el("div", { class: "campo" }, [iSku, bSku])]);
+  if (x.erroSku) cRise.append(el("div", { class: "msg erro", style: "margin-top:8px", text: x.erroSku }));
+  else if (x.produto) {
+    const pr = x.produto;
+    const econ = pr.custo ? Math.round(((pr.custo - x.custo) / pr.custo) * 100) : null;
+    const ganho4h = markup(pr.venda, x.custo);
+    cRise.append(el("div", { class: "produto" }, [
+      pr.url ? el("a", { href: pr.url, target: "_blank", rel: "noopener", class: "nome", text: `${pr.sku} · ${pr.nome}` }) : el("div", { class: "nome", text: `${pr.sku} · ${pr.nome}` }),
+      el("div", { class: "sub num", text: `custo ${brl(pr.custo)} · venda ${brl(pr.venda)} · estoque ${pr.estoque ?? "—"}` + (pr.deHoje ? "" : ` (Rise em ${COLETA})`) }),
+      pr.fornecedor ? el("div", { class: "sub", text: `fornecedor: ${pr.fornecedor}` }) : null,
+      econ != null ? el("div", { class: "econ " + (econ > 0 ? "mais" : "menos"), text: econ > 0 ? `${NOME_CURTO} ${econ}% mais barato que o custo do Rise` : econ < 0 ? `${NOME_CURTO} ${-econ}% mais caro que o custo do Rise` : `${NOME_CURTO} no mesmo custo do Rise` }) : null,
+      ganho4h != null ? el("div", { class: "sub", text: `no preço da ${LOJA}: ${ganho4h}% de ganho` }) : null,
+      x.origem === "analise" ? el("div", { class: "aviso", text: "código sugerido pela análise: confira se é o mesmo produto" }) : null,
+    ]));
+  } else cRise.append(el("div", { class: "semRise", text: "Sem produto no Rise. Se já tiver, digite o código e clique Conferir." }));
+  box.append(cRise);
+
+  // Concorrentes
+  const temOfertas = x.ofertas.length > 0;
+  const textoVer = x.aberto ? "Esconder" : temOfertas ? `Ver ofertas${x.forn.length ? " e fornecedores" : ""}` : "Ver fornecedores";
+  const bVer = temOfertas || x.forn.length
+    ? el("button", { type: "button", class: "ver", "aria-expanded": x.aberto ? "true" : "false", text: textoVer, onclick: () => { x.aberto = !x.aberto; trocar(x); } })
+    : null;
+  box.append(el("div", { class: "c-merc" }, temOfertas ? [
+    el("div", { class: "rot2", text: "Concorrentes" }),
+    el("div", { class: "grande num", text: brl(x.min) }),
+    el("div", { class: "sub", text: `menor de ${x.ofertas.length} ${x.ofertas.length === 1 ? "loja" : "lojas"}: ${x.lojaMin}` }),
+    x.ofertas.length > 1 ? el("div", { class: "sub num", text: `mediana ${brl(x.med)}` }) : null,
+    el("div", { class: "sub", text: `${x.emEstoque} com estoque` }),
+    bVer,
+  ] : [
+    el("div", { class: "rot2", text: "Concorrentes" }),
+    el("div", { class: "sub", text: "Nenhuma loja coletada vende este item." }),
+    bVer,
+  ]));
+
+  // Fornecedores
+  const cF = el("div", { class: "c-forn" }, [el("div", { class: "rot2", text: "Fornecedores" })]);
+  if (x.fornMin) {
+    const f = x.fornMin;
+    const vs = textoVsForn(x.vsForn, f[0]);
+    cF.append(
+      el("div", { class: "grande num", text: brl(f[3]) }),
+      el("div", { class: "sub", text: `${f[0]}${f[4] != null ? ` · estoque ${f[4]}` : ""}` }),
+      vs ? el("div", { class: "econ " + vs.cls, text: vs.texto }) : null,
+      x.forn.length > 1 ? el("div", { class: "sub", text: `+${x.forn.length - 1} ${x.forn.length === 2 ? "outro" : "outros"}` }) : null,
+    );
+  } else cF.append(el("div", { class: "sub", text: "Nenhum fornecedor coletado vende." }));
+  box.append(cF);
+
+  // Ganho sobre o menor concorrente
+  const f = faixaDe(x.ganho);
+  box.append(el("div", { class: "c-ganho" }, [
+    el("div", { class: "rot2", text: "Ganho" }),
+    el("span", { class: "pct f-" + f, text: x.ganho == null ? "—" : x.ganho + "%" }),
+    el("div", { class: "sub", text: temOfertas ? "no menor" : "sem concorrente" }),
+    x.ofertas.length > 1 ? el("div", { class: "sub num", text: `mediana ${x.ganhoMed}%` }) : null,
+    temOfertas && x.ofertas.length < 3 ? el("div", { class: "aviso", text: "poucas lojas: conferir" }) : null,
+  ]));
+
+  // Pedido
+  const naPedida = x.produto ? pedido.porSku.get(String(x.produto.sku)) : null;
+  const naLista = criar.get(x.n) ?? null;
+  const iQtd = el("input", { id: "qtd-" + x.n, type: "number", min: "1", step: "1", inputmode: "numeric", placeholder: "Quantidade", value: x.qtd, "aria-label": "Quantidade" });
+  // Um botao, dois caminhos. Com codigo do Rise: grava no pedido (so com o codigo digitado, confere no Rise e grava no
+  // mesmo clique). Sem codigo: poe o item na lista "criar" da pagina; eu cadastro no Rise e ponho no pedido so depois
+  // que o dono permitir (pedido dele em 07/11: "pode deixar eu adicionar, apos os itens que nao tem codigo, vc deve criar.
+  // apenas apos eu permitir").
+  const semCodigo = () => !x.produto && !x.sku.trim();
+  const qtdOk = () => parseInt(x.qtd, 10) > 0;
+  const textoBotao = () => x.enviando ? "Gravando…" : x.conferindo ? "Conferindo…"
+    : semCodigo() ? (naLista ? "Trocar quantidade da lista" : "Pôr na lista para criar")
+    : !x.produto ? "Conferir e adicionar" : naPedida ? "Trocar quantidade" : "Adicionar ao pedido";
+  const acao = () => (semCodigo() ? porNaLista(x) : adicionar(x));
+  const bAdd = el("button", { type: "button", class: "btn principal", text: textoBotao(), onclick: acao });
+  const podeEnviar = () => {
+    if (x.enviando || x.conferindo || !qtdOk()) return false;
+    return semCodigo() ? Boolean(db && listaCriar.estado === "ok") : Boolean(mcp);
+  };
+  // Por que o botao esta desligado (ou para onde ele manda), escrito embaixo dele.
+  const motivoDe = () => x.enviando || x.conferindo ? ""
+    : semCodigo()
+      ? (!db ? "Sem a lista da página nesta tela: digite a quantidade e use Copiar escolhas."
+        : listaCriar.estado !== "ok" ? listaCriar.texto
+        : !qtdOk() ? "Sem produto no Rise: digite a quantidade e ponha na lista; o produto só é criado e posto no pedido depois da sua permissão."
+        : "Vai para a lista de itens para criar no Rise, só com a sua permissão.")
+    : !mcp ? "Sem conexão com o Rise nesta tela: digite a quantidade e use Copiar escolhas."
+    : !qtdOk() ? "Digite a quantidade." : "";
+  const mot = el("div", { class: "motivo", text: motivoDe() });
+  function atualizarCompra() { bAdd.disabled = !podeEnviar(); bAdd.textContent = textoBotao(); mot.textContent = motivoDe(); bAdd.title = motivoDe(); }
+  atualizarCompra();
+  iQtd.addEventListener("input", () => { x.qtd = iQtd.value; atualizarCompra(); guardar(); });
+  iQtd.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && podeEnviar()) { ev.preventDefault(); acao(); } });
+  const cC = el("div", { class: "c-compra compra" }, [
+    el("div", { class: "rot2", text: "Pedido de compra" }),
+    naPedida ? el("div", { class: "noPedido num", text: `No ${pedido.codigo}: ${naPedida} un.` }) : null,
+    naLista ? el("div", { class: "naLista num", text: `Na lista para criar: ${naLista.qtd} un.` }) : null,
+    el("div", { class: "campo" }, [iQtd]),
+    bAdd,
+    naLista ? el("button", { type: "button", class: "ver", text: "Tirar da lista", disabled: x.enviando || !db, onclick: () => tirarDaLista(x) }) : null,
+    mot,
+    el("div", { class: "preco num", text: `preço no pedido ${brl(precoDoPedido(x), 4)}` }),
+  ]);
+  // O pedido tem uma linha por produto do Rise: dois itens da lista no mesmo codigo trocam a quantidade um do outro.
+  const mesmoProduto = x.produto ? itens.filter((y) => y !== x && y.produto && String(y.produto.sku) === String(x.produto.sku)).map((y) => y.n) : [];
+  if (mesmoProduto.length) cC.append(el("div", { class: "aviso", text: `Mesmo produto do Rise ${mesmoProduto.length === 1 ? "do item" : "dos itens"} ${mesmoProduto.join(", ")}: gravar aqui troca a quantidade de lá.` }));
+  if (x.msg) cC.append(el("div", { class: "msg " + x.msg.tipo, role: "status", text: x.msg.texto }));
+  box.append(cC);
+
+  if (x.aberto) {
+    const tabelas = [];
+    if (temOfertas) tabelas.push(el("table", {}, [
+      el("caption", { text: "Concorrentes · preço normal" }),
+      el("thead", {}, [el("tr", {}, [el("th", { text: "Loja" }), el("th", { text: "Produto" }), el("th", { class: "p", text: "Preço" }), el("th", { class: "p", text: "Ganho" }), el("th", { text: "Estoque" })])]),
+      el("tbody", {}, x.ofertas.map(([loja, nome, preco, url, est]) => el("tr", {}, [
+        el("td", { text: loja }),
+        el("td", {}, [url ? el("a", { href: url, target: "_blank", rel: "noopener", text: nome }) : nome]),
+        el("td", { class: "p num", text: brl(preco) }),
+        el("td", { class: "p num", text: markup(preco, x.custo) + "%" }),
+        el("td", { class: "est " + (est ?? ""), text: est === "disp" ? "com estoque" : est === "sem" ? "sem estoque" : "—" }),
+      ]))),
+    ]));
+    if (x.forn.length) tabelas.push(el("table", {}, [
+      el("caption", { text: "Fornecedores · preço com impostos" }),
+      el("thead", {}, [el("tr", {}, [el("th", { text: "Fornecedor" }), el("th", { text: "Produto" }), el("th", { text: "Código" }), el("th", { class: "p", text: "Preço" }), el("th", { class: "p", text: "Estoque" })])]),
+      el("tbody", {}, x.forn.map(([fonte, nome, codigo, preco, qtd, url]) => el("tr", {}, [
+        el("td", { text: fonte }),
+        el("td", {}, [url ? el("a", { href: url, target: "_blank", rel: "noopener", text: nome }) : nome]),
+        el("td", { class: "num", text: codigo ?? "—" }),
+        el("td", { class: "p num", text: brl(preco) }),
+        el("td", { class: "p num", text: qtd != null ? String(qtd) : "—" }),
+      ]))),
+    ]));
+    box.append(el("div", { class: "ofertas" }, tabelas));
+  }
+  return box;
+}
+
+// Foto grande: abre no clique; fecha no Fechar, no Esc ou clicando fora. O foco volta para a foto que abriu.
+const luz = document.getElementById("luz");
+let fotoQueAbriu = null;
+function abrirFoto(x, botao) {
+  document.getElementById("luzImg").setAttribute("src", fotoDe(x));
+  document.getElementById("luzImg").setAttribute("alt", x.nome);
+  document.getElementById("luzLegenda").textContent = `Item ${x.n} da lista · ${x.nome}`;
+  luz.hidden = false;
+  fotoQueAbriu = botao;
+  document.getElementById("luzFechar").focus();
+}
+function fecharFoto() {
+  if (luz.hidden) return;
+  luz.hidden = true;
+  fotoQueAbriu?.focus();
+  fotoQueAbriu = null;
+}
+luz.addEventListener("click", (ev) => { if (ev.target === luz) fecharFoto(); });
+document.getElementById("luzFechar").addEventListener("click", fecharFoto);
+document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") fecharFoto(); });
+
+function trocar(x) {
+  const velho = document.querySelector(`.cartao[data-n="${x.n}"]`);
+  if (!velho) return;
+  const foco = document.activeElement?.id;
+  velho.replaceWith(cartao(x));
+  // O cartao e redesenhado inteiro: devolve o cursor ao campo em que a pessoa estava.
+  if (foco && (foco === "sku-" + x.n || foco === "qtd-" + x.n)) document.getElementById(foco)?.focus();
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Filtros e ordem
+function passa(x, semFaixa = false) {
+  if (!semFaixa && filtro.faixa && faixaDe(x.ganho) !== filtro.faixa) return false;
+  if (filtro.q) {
+    const termos = semAcento(filtro.q).split(/\s+/).filter(Boolean);
+    const chave = x.chave + " " + semAcento(x.sku);
+    if (!termos.every((t) => chave.includes(t))) return false;
+  }
+  if (filtro.rise === "com" && !x.produto) return false;
+  if (filtro.rise === "sem" && x.produto) return false;
+  if (filtro.rise === "pedido" && !(x.produto && pedido.porSku.has(String(x.produto.sku)))) return false;
+  if (filtro.rise === "criar" && !criar.has(x.n)) return false;
+  if (filtro.forn === "listaBarata" && !(x.vsForn > 0)) return false;
+  if (filtro.forn === "outroBarato" && !(x.vsForn != null && x.vsForn < 0)) return false;
+  if (filtro.forn === "semForn" && x.forn.length) return false;
+  return true;
+}
+// Sem concorrente (ganho null) vai sempre para o fim, nas duas ordens de ganho.
+const gDesc = (x) => x.ganho ?? -Infinity;
+const gAsc = (x) => x.ganho ?? Infinity;
+const ORDENS = {
+  ganho: (a, b) => (gDesc(b) - gDesc(a)) || a.n - b.n,
+  ganhoMenor: (a, b) => (gAsc(a) - gAsc(b)) || a.n - b.n,
+  lista: (a, b) => a.n - b.n,
+  lojas: (a, b) => b.ofertas.length - a.ofertas.length || (gDesc(b) - gDesc(a)) || a.n - b.n,
+  custo: (a, b) => b.custo - a.custo || a.n - b.n,
+};
+function desenharResumo() {
+  const base = itens.filter((x) => passa(x, true));
+  document.getElementById("resumo").replaceChildren(...FAIXAS.map((f) => {
+    const qt = base.filter((x) => faixaDe(x.ganho) === f.id).length;
+    return el("button", { type: "button", class: "faixa", "aria-pressed": filtro.faixa === f.id ? "true" : "false", onclick: () => { filtro.faixa = filtro.faixa === f.id ? null : f.id; guardarFiltros(); desenharTudo(); } }, [
+      el("div", { class: "rot" }, [el("i", { style: `background:${f.cor}` }), f.rot]),
+      el("div", { class: "qt num", text: String(qt) }),
+      el("div", { class: "desc", text: f.desc }),
+    ]);
+  }));
+}
+function desenharLista() {
+  const visiveis = itens.filter((x) => passa(x)).sort(ORDENS[filtro.ordem] ?? ORDENS.ganho);
+  const lista = document.getElementById("lista");
+  if (visiveis.length) lista.replaceChildren(...visiveis.map(cartao));
+  else lista.replaceChildren(el("div", { class: "vazio", text: "Nenhum item com esses filtros." }));
+  document.getElementById("contagem").textContent = `${visiveis.length} de ${itens.length} itens`;
+}
+function desenharTudo() { desenharResumo(); desenharLista(); }
+function redesenharVisiveis() { for (const x of itens) trocar(x); }
+
+const fBusca = document.getElementById("fBusca");
+const fRise = document.getElementById("fRise");
+const fForn = document.getElementById("fForn");
+const fOrdem = document.getElementById("fOrdem");
+fBusca.value = filtro.q;
+fRise.value = filtro.rise;
+fForn.value = filtro.forn;
+fOrdem.value = filtro.ordem;
+let esperaBusca = null;
+fBusca.addEventListener("input", () => {
+  clearTimeout(esperaBusca);
+  esperaBusca = setTimeout(() => { filtro.q = fBusca.value; guardarFiltros(); desenharTudo(); }, 180);
+});
+for (const [sel, campo] of [[fRise, "rise"], [fForn, "forn"], [fOrdem, "ordem"]]) {
+  sel.addEventListener("change", () => { filtro[campo] = sel.value; guardarFiltros(); desenharTudo(); });
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Copiar escolhas: o texto que vai para a conversa (qualquer LLM conectada ao Rise grava o pedido com ele). Itens com
+// quantidade: com codigo do Rise vao para o pedido; sem codigo, para a lista de criar (so com a permissao do dono).
+const quantidadeDe = (x) => parseInt(x.qtd, 10) || criar.get(x.n)?.qtd || 0;
+function escolhidos() { return itens.filter((x) => quantidadeDe(x) > 0); }
+function textoDasEscolhas() {
+  const lista = escolhidos();
+  if (!lista.length) return null;
+  const comCodigo = lista.filter((x) => x.sku.trim());
+  const semCodigo = lista.filter((x) => !x.sku.trim());
+  const linhas = [`Escolhas da análise da lista de ${FORNECEDOR} (fornecedor no Rise: ${FORNECEDOR})`];
+  if (comCodigo.length) {
+    linhas.push("", `PEDIDO DE COMPRA (${pedido.codigo ?? "rascunho novo"}) · código do Rise; quantidade; preço unitário em R$ sem IPI`);
+    for (const x of comCodigo) linhas.push(`${x.sku.trim()}; ${quantidadeDe(x)}; ${precoDoPedido(x).toFixed(4)}`);
+  }
+  if (semCodigo.length) {
+    linhas.push("", "CRIAR NO RISE (só com a permissão do dono) · item da lista; nome na lista; quantidade; preço unitário em R$");
+    for (const x of semCodigo) linhas.push(`#${x.n}; ${x.nome}; ${quantidadeDe(x)}; ${precoDoPedido(x).toFixed(4)}`);
+  }
+  const total = lista.reduce((s, x) => s + quantidadeDe(x) * precoDoPedido(x), 0);
+  linhas.push("", `${lista.length} ${lista.length === 1 ? "item" : "itens"} · ${brl(total)}`);
+  return linhas.join("\n");
+}
+const bCopiar = document.getElementById("bCopiar");
+const copia = document.getElementById("copia");
+function atualizarCopiar() {
+  const n = escolhidos().length;
+  bCopiar.disabled = n === 0;
+  bCopiar.textContent = n ? `Copiar escolhas (${n})` : "Copiar escolhas";
+  bCopiar.title = n ? "Copia os itens com quantidade para colar na conversa." : "Digite a quantidade nos itens que quer comprar.";
+}
+function mostrarTexto(texto) {
+  const area = document.getElementById("copiaTexto");
+  area.value = texto;
+  copia.hidden = false;
+  area.focus();
+  area.select?.();
+}
+function fecharCopia() { if (copia.hidden) return; copia.hidden = true; bCopiar.focus(); }
+bCopiar.addEventListener("click", async () => {
+  const texto = textoDasEscolhas();
+  if (!texto) return;
+  // Sem acesso a area de transferencia (permissao, visualizacao embutida), o texto abre selecionado para copiar a mao.
+  try {
+    if (!navigator?.clipboard?.writeText) throw new Error("sem clipboard");
+    await navigator.clipboard.writeText(texto);
+    bCopiar.textContent = "Copiado: cole na conversa";
+    setTimeout(atualizarCopiar, 2500);
+  } catch {
+    mostrarTexto(texto);
+  }
+});
+document.getElementById("copiaFechar").addEventListener("click", fecharCopia);
+copia.addEventListener("click", (ev) => { if (ev.target === copia) fecharCopia(); });
+document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") fecharCopia(); });
+
+const formula = EM_DOLAR
+  ? [" · custo = US$ × câmbio ", el("b", { class: "num", text: CAMBIO.toLocaleString("pt-BR", { minimumFractionDigits: 4 }) }), DADOS.cambioData ? ` (${DADOS.cambioData})` : "", " × fator ", el("b", { class: "num", text: FATOR.toLocaleString("pt-BR") })]
+  : FATOR !== 1 ? [" · custo = preço da lista × fator ", el("b", { class: "num", text: FATOR.toLocaleString("pt-BR") })]
+  : [" · custo = preço da lista"];
+document.getElementById("meta").append(
+  el("b", { class: "num", text: String(itens.length) }), " itens da lista fora do pedido (",
+  el("b", { class: "num", text: String(itens.filter((x) => x.ofertas.length).length) }), " com concorrente, ",
+  el("b", { class: "num", text: String(itens.filter((x) => !x.ofertas.length).length) }), " sem)",
+  ...formula,
+  ` · ganho = (menor concorrente − custo) ÷ custo · preços coletados até ${COLETA}`,
+);
+document.title = `${NOME_CURTO} × concorrentes`;
+document.getElementById("titulo").textContent = `${NOME_CURTO} × concorrentes`;
+document.getElementById("pedidoRot").textContent = `Pedido de compra · ${NOME_CURTO}`;
+document.getElementById("optListaBarata").textContent = `${NOME_CURTO} mais barato que o fornecedor`;
+document.getElementById("optOutroBarato").textContent = `Fornecedor mais barato que ${NOME_CURTO}`;
+desenharPedido();
+desenharTudo();
+atualizarCopiar();
+
+async function usar(nome) {
+  try { return window.claude?.use ? await window.claude.use(nome) : null; } catch { return null; }
+}
+(async () => {
+  [mcp, db] = await Promise.all([usar("mcp"), usar("db")]);
+  if (db) ouvirLista();
+  else { listaCriar.estado = "sem"; listaCriar.texto = ""; }
+  if (!mcp) {
+    pedido.estado = "erro";
+    pedido.texto = "Sem conexão com o Rise nesta visualização: use Copiar escolhas e cole na conversa.";
+    desenharPedido();
+    redesenharVisiveis();
+    return;
+  }
+  // So o pedido e lido ao abrir. Os codigos ja preenchidos vem do Rise de hoje cedo e sao conferidos de novo no clique
+  // (conferir os 100+ ao abrir seria uma chamada por item a cada visita).
+  await lerPedido();
+})();
+</script>
