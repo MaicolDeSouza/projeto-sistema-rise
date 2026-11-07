@@ -321,10 +321,14 @@ export async function gravarColeta({
   };
 }
 
-/** Os produtos com vinculo a esta fonte (pelo codigo) que estao em dia com o Bling agora. */
+/** Os produtos com vinculo a esta fonte (pelo codigo, ou pelo nome na lista sem codigo) que estao em dia com o Bling agora. */
 async function produtosEmDiaDaFonte(fonteId) {
   const vinculos = await prisma.produtoFornecedor.findMany({
-    where: { fornecedor: { fonteId }, codigo: { not: null }, produto: { blingSincronizadoEm: { not: null } } },
+    where: {
+      fornecedor: { fonteId },
+      OR: [{ codigo: { not: null } }, { descricao: { not: null } }],
+      produto: { blingSincronizadoEm: { not: null } },
+    },
     select: { produtoId: true },
   });
   if (vinculos.length === 0) return new Set();
@@ -340,7 +344,13 @@ async function produtosEmDiaDaFonte(fonteId) {
  * numero fixo, gravado quando o fornecedor entrava no produto). Ao fechar a coleta de uma fonte, todo vinculo
  * produto-fornecedor cujo Fornecedor esta ligado a esta fonte e cujo CODIGO existe na lista dela passa a ter o custo da
  * varredura, COM os impostos (o que se paga: com impostos, senao o normal, senao o promocional; a mesma ordem de
- * `custoDoFornecedor`). Vinculo sem codigo, de fornecedor sem fonte ou com codigo fora da lista continua como esta.
+ * `custoDoFornecedor`). Vinculo de fornecedor sem fonte ou com codigo fora da lista continua como esta.
+ *
+ * LISTA SEM CODIGO (NexMind, 06/11/2026, pedido do dono: "Sim, fazer" o custo seguir a lista pelo nome): o vinculo sem
+ * codigo (vazio ou "N/A") casa com o item SEM codigo ("N/A") da mesma fonte cujo NOME e igual a descricao do vinculo
+ * (a descricao e gravada com o nome da lista; repetido na lista ganha " (2)"). Nunca casar "N/A" com "N/A" pelo codigo:
+ * todo vinculo pegaria o preco do ultimo item visto. Item com codigo nao casa pelo nome, e nome que mudou na lista nova
+ * deixa o vinculo com o custo que estava.
  * So escreve o que mudou. Roda dentro da transacao da gravacao.
  *
  * @returns {Promise<string[]>} o produto de cada vinculo atualizado
@@ -357,9 +367,10 @@ export async function atualizarCustosDosVinculos(tx, fonteId) {
                COALESCE(p."precoComImpostos", p."precoNormal", p."precoPromocional") AS custo
           FROM "ProdutoFornecedor" v2
           JOIN "Fornecedor" f ON f.id = v2."fornecedorId"
-          JOIN "ProdutoColetado" p ON p."fonteId" = f."fonteId" AND lower(p.codigo) = lower(v2.codigo)
+          JOIN "ProdutoColetado" p ON p."fonteId" = f."fonteId" AND (
+                 (upper(COALESCE(v2.codigo, '')) NOT IN ('', 'N/A') AND lower(p.codigo) = lower(v2.codigo))
+              OR (upper(COALESCE(v2.codigo, '')) IN ('', 'N/A') AND p.codigo = 'N/A' AND p.nome = v2.descricao))
          WHERE f."fonteId" = ${fonteId}
-           AND v2.codigo IS NOT NULL AND v2.codigo <> ''
            AND COALESCE(p."precoComImpostos", p."precoNormal", p."precoPromocional") IS NOT NULL
          ORDER BY v2.id, p."vistoEm" DESC
       ) alvo
@@ -372,7 +383,8 @@ export async function atualizarCustosDosVinculos(tx, fonteId) {
  * O MESMO acerto de custo, para UM produto, chamado em todo Salvar do cadastro (23/10/2026). O dono salvou o 100103 com a
  * pagina aberta desde antes da correcao, e o formulario regravou os custos SEM imposto (18,90 no lugar de 19,28). Agora,
  * depois de gravar os fornecedores, o custo de cada vinculo cujo codigo esta na lista do fornecedor volta a ser o da
- * ultima varredura, com impostos. Vinculo sem codigo ou de fornecedor sem fonte fica com o que foi digitado.
+ * ultima varredura, com impostos. Vinculo de fornecedor sem fonte, ou sem codigo e sem item de mesmo nome na lista sem codigo
+ * (a regra de `atualizarCustosDosVinculos`), fica com o que foi digitado.
  *
  * @returns {Promise<number>} vinculos acertados
  */
@@ -387,9 +399,10 @@ export async function atualizarCustosDoProduto(produtoId, cliente = prisma) {
                COALESCE(p."precoComImpostos", p."precoNormal", p."precoPromocional") AS custo
           FROM "ProdutoFornecedor" v2
           JOIN "Fornecedor" f ON f.id = v2."fornecedorId"
-          JOIN "ProdutoColetado" p ON p."fonteId" = f."fonteId" AND lower(p.codigo) = lower(v2.codigo)
+          JOIN "ProdutoColetado" p ON p."fonteId" = f."fonteId" AND (
+                 (upper(COALESCE(v2.codigo, '')) NOT IN ('', 'N/A') AND lower(p.codigo) = lower(v2.codigo))
+              OR (upper(COALESCE(v2.codigo, '')) IN ('', 'N/A') AND p.codigo = 'N/A' AND p.nome = v2.descricao))
          WHERE v2."produtoId" = ${produtoId}
-           AND v2.codigo IS NOT NULL AND v2.codigo <> ''
            AND COALESCE(p."precoComImpostos", p."precoNormal", p."precoPromocional") IS NOT NULL
          ORDER BY v2.id, p."vistoEm" DESC
       ) alvo

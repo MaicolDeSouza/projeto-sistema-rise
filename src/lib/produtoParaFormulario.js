@@ -120,22 +120,31 @@ export async function carregarProdutoParaFormulario(id) {
   // O CUSTO JA ABRE COM IMPOSTO (pedido do dono em 23/10/2026: "independente de salvar ou nao"): para o vinculo cujo
   // codigo esta na lista do fornecedor, a tela mostra o custo da ultima varredura com impostos, e nao o numero gravado
   // (que podia ser antigo, sem IPI). O Salvar grava o mesmo (atualizarCustosDoProduto). So leitura aqui.
+  // Lista SEM codigo (NexMind, 06/11/2026): o vinculo sem codigo casa pelo nome com o item "N/A" da lista, a mesma regra
+  // de `atualizarCustosDosVinculos` (coleta/banco.js). "N/A" nunca casa com "N/A" pelo codigo.
   const custoDaVarredura = new Map();
-  const comFonte = registro.fornecedores.filter((vinculo) => vinculo.fornecedor.fonteId && vinculo.codigo);
+  const semCodigo = (codigo) => !codigo || codigo.trim().toUpperCase() === "N/A";
+  const comFonte = registro.fornecedores.filter(
+    (vinculo) => vinculo.fornecedor.fonteId && (!semCodigo(vinculo.codigo) || vinculo.descricao),
+  );
   if (comFonte.length > 0) {
     const coletados = await prisma.produtoColetado.findMany({
       where: {
-        OR: comFonte.map((vinculo) => ({
-          fonteId: vinculo.fornecedor.fonteId,
-          codigo: { equals: vinculo.codigo, mode: "insensitive" },
-        })),
+        OR: comFonte.map((vinculo) =>
+          semCodigo(vinculo.codigo)
+            ? { fonteId: vinculo.fornecedor.fonteId, codigo: "N/A", nome: vinculo.descricao }
+            : { fonteId: vinculo.fornecedor.fonteId, codigo: { equals: vinculo.codigo, mode: "insensitive" } },
+        ),
       },
-      select: { fonteId: true, codigo: true, precoComImpostos: true, precoNormal: true, precoPromocional: true },
+      select: { fonteId: true, codigo: true, nome: true, precoComImpostos: true, precoNormal: true, precoPromocional: true },
       orderBy: { vistoEm: "desc" },
     });
     for (const vinculo of comFonte) {
-      const achado = coletados.find(
-        (item) => item.fonteId === vinculo.fornecedor.fonteId && item.codigo?.toLowerCase() === vinculo.codigo.toLowerCase(),
+      const achado = coletados.find((item) =>
+        item.fonteId === vinculo.fornecedor.fonteId &&
+        (semCodigo(vinculo.codigo)
+          ? item.codigo === "N/A" && item.nome === vinculo.descricao
+          : item.codigo?.toLowerCase() === vinculo.codigo.toLowerCase()),
       );
       const custo = achado?.precoComImpostos ?? achado?.precoNormal ?? achado?.precoPromocional ?? null;
       if (custo !== null) custoDaVarredura.set(vinculo.id, Number(custo));

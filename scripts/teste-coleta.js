@@ -47,6 +47,7 @@ const DOMINIOS = [
   "teste-pelafonte.local",
   "teste-custo.local",
   "teste-adicional.local",
+  "teste-semcodigo.local",
 ];
 
 function produto({ code, name, normal, promotional = null, status = "AVAILABLE", quantity = null, url = null }) {
@@ -540,6 +541,64 @@ try {
 } finally {
   await prisma.produto.deleteMany({ where: { sku: { in: ["ZZ-CUSTO-1", "ZZ-CUSTO-2"] } } });
   await prisma.fornecedor.deleteMany({ where: { nome: "ZZ Fornecedor Custo" } });
+}
+
+// ---------------------------------------------------------------------------
+// LISTA SEM CODIGO (NexMind, 06/11/2026, pedido do dono: o custo dos vinculos segue a lista pelo nome). Vinculo sem
+// codigo casa com o item SEM codigo ("N/A") da mesma fonte de NOME IGUAL; item com codigo e nome diferente nao contam.
+await prisma.produto.deleteMany({ where: { sku: { in: ["ZZ-NOME-1", "ZZ-NOME-2", "ZZ-NOME-3"] } } });
+await prisma.fornecedor.deleteMany({ where: { nome: "ZZ Fornecedor Sem Codigo" } });
+try {
+  const fonteNome = await prisma.fonteColeta.create({
+    data: { nome: "ZZ Fonte Sem Codigo", dominio: "teste-semcodigo.local", tipo: "FORNECEDOR", ativa: false },
+  });
+  const fornNome = await prisma.fornecedor.create({
+    data: { nome: "ZZ Fornecedor Sem Codigo", fonteId: fonteNome.id, cnpj: "11.444.777/0001-61" },
+  });
+  const vincular = async (sku, descricao) => {
+    const prod = await prisma.produto.create({ data: { sku, tituloBase: `Produto ${sku}` } });
+    const vinculo = await prisma.produtoFornecedor.create({
+      data: { produtoId: prod.id, fornecedorId: fornNome.id, descricao, codigo: null, precoFornecedor: 1, precoCusto: 1, padrao: false },
+    });
+    return { prod, vinculo };
+  };
+  const igual = await vincular("ZZ-NOME-1", "Peca sem codigo (2)");
+  const outroNome = await vincular("ZZ-NOME-2", "Peca que nao esta na lista");
+  const doItemComCodigo = await vincular("ZZ-NOME-3", "Peca com codigo");
+
+  const comFator = (base, comImpostos) => ({ ...base, prices: { ...base.prices, comImpostos } });
+  const lista = [
+    comFator(produto({ code: "N/A", name: "Peca sem codigo", normal: 5 }), 11),
+    comFator(produto({ code: "N/A", name: "Peca sem codigo (2)", normal: 6 }), 13.2),
+    comFator(produto({ code: "ZZ-X9", name: "Peca com codigo", normal: 8 }), 17.6),
+  ];
+  const gravacaoNome = await gravarColeta({ fonte: fonteNome, produtos: lista, origem: "arquivo" });
+  const custoDe = async ({ vinculo }) => {
+    const linha = await prisma.produtoFornecedor.findUnique({ where: { id: vinculo.id } });
+    return [Number(linha.precoFornecedor), Number(linha.precoCusto)];
+  };
+  conferir("sem codigo: o vinculo segue o item de MESMO nome (o (2), nao o primeiro)", await custoDe(igual), [13.2, 13.2]);
+  conferir("sem codigo: nome que nao esta na lista nao muda", await custoDe(outroNome), [1, 1]);
+  conferir("sem codigo: item COM codigo nao casa pelo nome", await custoDe(doItemComCodigo), [1, 1]);
+  conferir("sem codigo: a gravacao conta so o vinculo atualizado", gravacaoNome.custosAtualizados, 1);
+
+  // O Salvar do produto refaz o mesmo acerto (atualizarCustosDoProduto).
+  const { atualizarCustosDoProduto } = await import("@/lib/coleta/banco.js");
+  await prisma.produtoFornecedor.update({ where: { id: igual.vinculo.id }, data: { precoFornecedor: 2, precoCusto: 2 } });
+  conferir("sem codigo: o Salvar do produto acerta o custo pelo nome", await atualizarCustosDoProduto(igual.prod.id), 1);
+  conferir("sem codigo: depois do Salvar", await custoDe(igual), [13.2, 13.2]);
+
+  // A aba Fornecedores ja abre com o custo da lista (produtoParaFormulario), mesmo com o gravado velho.
+  await prisma.produtoFornecedor.update({ where: { id: igual.vinculo.id }, data: { precoFornecedor: 3, precoCusto: 3 } });
+  const { carregarProdutoParaFormulario } = await import("@/lib/produtoParaFormulario.js");
+  const naTela = await carregarProdutoParaFormulario(igual.prod.id);
+  const linhaNaTela = naTela.fornecedores.find((item) => item.id === igual.vinculo.id);
+  conferir("sem codigo: a aba Fornecedores abre com o custo da lista", [linhaNaTela?.precoFornecedor, linhaNaTela?.precoCusto], [13.2, 13.2]);
+  const outroNaTela = (await carregarProdutoParaFormulario(outroNome.prod.id)).fornecedores[0];
+  conferir("sem codigo: nome fora da lista abre com o gravado", outroNaTela?.precoFornecedor, 1);
+} finally {
+  await prisma.produto.deleteMany({ where: { sku: { in: ["ZZ-NOME-1", "ZZ-NOME-2", "ZZ-NOME-3"] } } });
+  await prisma.fornecedor.deleteMany({ where: { nome: "ZZ Fornecedor Sem Codigo" } });
 }
 
 // ---------------------------------------------------------------------------

@@ -329,7 +329,7 @@ npm run copia:atualizar -- --banco=sistema_rise_ensaio --dump=<arquivo>   # o me
 npm run teste:fonte -- <url>      # avalia um concorrente pela linha de comando
 npm run teste:fonte -- --tipo=FORNECEDOR <url>   # preco deixa de ser exigido
 COLETA_TIMEOUT_MS=90000 npm run teste:fonte -- <url>   # site lento
-npm run teste:coleta              # 99 asserções da gravação no banco, da busca ampla (inclusive pelo nome da fonte), do custo que segue a varredura e do custo adicional do fornecedor (usa o Postgres, SEM rede)
+npm run teste:coleta              # 107 asserções da gravação no banco, da busca ampla (inclusive pelo nome da fonte), do custo que segue a varredura (também pelo nome, na lista sem código) e do custo adicional do fornecedor (usa o Postgres, SEM rede)
 npm run teste:cadastros           # 89 asserções: CPF/CNPJ/CEP/telefone, CNPJ obrigatório do fornecedor, a ligação fonte -> cadastro e as indicações dos vínculos salvos (Postgres, SEM rede)
 npm run coletar -- <url>          # colhe uma fonte CADASTRADA e grava no banco
 npm run worker                    # supervisor + worker: varre o que "Atualizar dados" enfileira
@@ -1479,6 +1479,15 @@ Fornecedor, com dois campos novos (migration `20261104c_moeda_do_fornecedor`): *
 - **Tela:** coluna Valor do Scraper com "US$ 3,96" pequeno embaixo dos reais (a conta no `title`); cadastro do fornecedor com
   os dois campos ao lado do pedido mínimo. Conferido de ponta a ponta no PC com uma fonte ZZ-TESTE-NEXMIND (apagada): 654
   gravados, PTAX 5,4778, 2ª varredura "0 atualizados".
+- **Vínculo sem código segue a lista PELO NOME** (06/11/2026, pedido do dono: "Sim, fazer" o custo dos vínculos da NexMind
+  seguir a lista). O custo que segue a varredura casava só pelo código, e a lista da NexMind não tem código: todo item é
+  "N/A", e gravar o vínculo com "N/A" faria todos pegarem o preço do último item visto (por isso a tela de Fornecedores já
+  grava N/A como código vazio). Agora o vínculo com código vazio ou "N/A" casa com o item **"N/A" da mesma fonte cujo nome é
+  igual à descrição do vínculo** (exato; repetido na lista tem " (2)"), em `atualizarCustosDosVinculos` (fechar a coleta),
+  `atualizarCustosDoProduto` (Salvar) e `produtoParaFormulario` (a aba abre com o custo da lista). "N/A" nunca casa com
+  "N/A" pelo código; item com código não casa pelo nome; nome que muda numa lista nova deixa o custo como estava. Medido na
+  VPS: só os 169 vínculos da NexMind (gravados em 06/11 com a descrição = nome da lista) casam, e nenhum vínculo tem código
+  "N/A". Teste no `teste:coleta` ("sem codigo: ...").
 - **Foto, estoque e preço na aba Fornecedores do Produto sem código** (06/11/2026, pedido do dono ao ver a NexMind sem foto):
   `estoqueDosFornecedores` casava o vínculo só pelo link ou pelo código; vínculo sem os dois (NexMind) casa agora pela
   **descrição no fornecedor = nome do produto na lista**, e a fonte do fornecedor é a de mesmo nome **ou** a ligada ao
