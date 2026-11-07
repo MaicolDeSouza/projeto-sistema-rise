@@ -1,4 +1,4 @@
-import { Building2, Cable, HeartPulse, Sparkles, UsersRound } from "lucide-react";
+import { Building2, Cable, HeartPulse, Sparkles, SpellCheck, UsersRound } from "lucide-react";
 
 /**
  * Os cartoes da pagina Configuracoes (spec de Acessos, §5.2), no desenho de Ferramentas: o cartao inteiro e o link.
@@ -30,6 +30,14 @@ export const CARTOES_DE_CONFIGURACOES = [
     rotulo: "Rise AI",
     icone: Sparkles,
     resumo: "Modelos, chaves, limites e o texto do assistente.",
+  },
+  {
+    // Correcoes da descricao (spec 2026-11-07): quem ve o cadastro de Produtos ve a lista; quem edita muda.
+    href: "/configuracoes/correcoes-da-descricao",
+    recurso: "tela.produtos.cadastro",
+    rotulo: "Correções da descrição",
+    icone: SpellCheck,
+    resumo: "O que o Rise corrige em toda descrição e o que a IA aprende com o dono.",
   },
   {
     // Os dados da 4hobby do cabecalho do pedido de compra (modulo Compras, 26/10/2026). So o Administrador.

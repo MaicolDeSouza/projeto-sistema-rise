@@ -9,7 +9,7 @@ import {
   useState,
   useTransition,
 } from "react";
-import { ArrowRight, Check, Copy, ExternalLink, Loader, Pencil, Plus, Sparkles, Trash2, WandSparkles, X } from "lucide-react";
+import { ArrowRight, Check, Copy, ExternalLink, Loader, Pencil, Plus, Sparkles, SpellCheck, Trash2, WandSparkles, X } from "lucide-react";
 
 import {
   buscarDescricoesParaProduto,
@@ -990,7 +990,20 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
         className="flex h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded-lg border border-borda bg-superficie shadow-2xl"
       >
         <div className="flex items-center justify-between border-b border-borda p-3">
-          <span className="text-sm font-semibold">Criar descrição</span>
+          <span className="flex items-center gap-1.5 text-sm font-semibold">
+            Criar descrição
+            {/* As Correcoes da descricao (spec 2026-11-07) entram na instrucao desta geracao: o atalho abre a lista. */}
+            <a
+              href="/configuracoes/correcoes-da-descricao"
+              target="_blank"
+              rel="noreferrer"
+              title="Correções da descrição"
+              aria-label="Abrir as Correções da descrição em outra aba"
+              className="rounded p-1 text-suave hover:bg-fundo hover:text-texto"
+            >
+              <SpellCheck size={14} />
+            </a>
+          </span>
           <button
             type="button"
             onClick={pedirFechamento}

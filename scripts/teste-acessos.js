@@ -410,10 +410,11 @@ try {
   {
     const { CARTOES_DE_CONFIGURACOES } = await import("../src/lib/configuracoes/catalogo.js");
     const { detalheDeUsuarios, detalheDeIntegracoes, detalheDoRiseAi } = await import("../src/lib/configuracoes/detalhes.js");
-    conferir("os cinco cartoes, cada um com o seu recurso (Dados da empresa e Saude so para o Administrador)", CARTOES_DE_CONFIGURACOES.map((cartao) => [cartao.href, cartao.recurso]), [
+    conferir("os seis cartoes, cada um com o seu recurso (Dados da empresa e Saude so para o Administrador; Correcoes da descricao para quem ve o cadastro de Produtos)", CARTOES_DE_CONFIGURACOES.map((cartao) => [cartao.href, cartao.recurso]), [
       ["/configuracoes/usuarios", "tela.configuracoes.usuarios"],
       ["/integracoes", "tela.integracoes"],
       ["/rise-ai/configuracoes", "riseAi.configuracoes"],
+      ["/configuracoes/correcoes-da-descricao", "tela.produtos.cadastro"],
       ["/configuracoes/empresa", "tela.configuracoes.usuarios"],
       ["/configuracoes/saude", "tela.configuracoes.usuarios"],
     ]);
