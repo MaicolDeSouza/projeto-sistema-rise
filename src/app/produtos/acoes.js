@@ -368,7 +368,7 @@ export async function buscarDescricoesParaProduto(idsReferencias = []) {
  * `produto` leva o Nome e o Codigo do formulario: titulo e "Itens inclusos (Cod:)".
  * `modelo` e o id escolhido na janela (Opus 5.5 ou GPT 6.1 Sol): conferido aqui contra a lista, nunca aceito como veio.
  */
-export async function criarDescricaoIA(ids, produto, instrucoes, modelo) {
+export async function criarDescricaoIA(ids, produto, instrucoes, modelo, promptNome = null) {
   const negado = await negarSemIA((ids ?? []).length > 0);
   if (negado) return negado;
   const gasto = novoGasto();
@@ -385,7 +385,9 @@ export async function criarDescricaoIA(ids, produto, instrucoes, modelo) {
       if (!conferido.ok) return conferido;
       prompt = conferido.texto;
     }
-    return { ok: true, ...(await gerarDescricao(ids, { ...produto, modeloIA }, prompt, gasto)), gasto: resumoDoGasto(gasto) };
+    // `promptNome`: o prompt escolhido na janela, para as Correcoes da descricao dele valerem junto com as de todas.
+    const escopo = typeof promptNome === "string" && promptNome.trim() ? promptNome.trim().slice(0, 120) : null;
+    return { ok: true, ...(await gerarDescricao(ids, { ...produto, modeloIA, promptNome: escopo }, prompt, gasto)), gasto: resumoDoGasto(gasto) };
   } catch (erro) {
     return { ok: false, erro: erro.message, gasto: resumoDoGasto(gasto) };
   }

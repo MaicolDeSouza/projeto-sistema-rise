@@ -13,6 +13,8 @@ import { PADRAO_TITULO } from "./padraoTitulo";
 import { integrarDecisoes } from "./decisoes";
 import { idDaCaracteristica, identificarDivergencias, lojasDaCaracteristica, lojasQueTrazem, origemSemLoja } from "./divergencias";
 import { compactarUnidades, formatarLinhaTecnica, maiusculaNoValor, normalizarTerminologiaEletrica } from "./revisaoDescricao";
+import { aplicarCorrecoes, instrucoesComCorrecoes } from "./correcoes";
+import { lerCorrecoesAtivas, somarUsos } from "./correcoesBanco";
 import { criarFetchDaOpenAI } from "./gptComoAnthropic";
 import { ehModeloGpt } from "./modelosDaDescricao";
 
@@ -667,7 +669,7 @@ const ESPEC_DE_MEDIDA = /^(peso|dimens|tamanho|medidas|altura|largura|compriment
  *   "- Dimensões(CxLxA): 68x53x10mm;" e "- Peso: 55g;". Sao escritas pelo
  *   codigo para `medidasDaDescricao` conseguir le-las de volta nos campos.
  */
-export function montarDescricao({
+function textoMontado({
   titulo,
   sku,
   paragrafos,
@@ -715,6 +717,18 @@ export function montarDescricao({
 }
 
 /**
+ * O texto montado com as Correcoes da descricao do dono (spec 2026-11-07), aplicadas UMA vez no texto final, depois das
+ * regras fixas (`textoPuro`, `maiusculaNoValor`). Devolve tambem quantas vezes cada TROCA trocou, para os usos.
+ */
+export function montarDescricaoComUsos({ correcoes = [], ...partes }) {
+  return aplicarCorrecoes(textoMontado(partes), correcoes);
+}
+
+export function montarDescricao(partes) {
+  return montarDescricaoComUsos(partes).texto;
+}
+
+/**
  * Descricao no modelo da loja a partir das referencias marcadas.
  *
  * @param {string[]} ids
@@ -726,10 +740,29 @@ export function montarDescricao({
  */
 export async function gerarDescricao(
   ids,
-  { titulo = "", sku = "", medidas = {}, marca = "", modelo = "", descricao = "", pecas = [], modeloIA = MODELO } = {},
+  {
+    titulo = "", sku = "", medidas = {}, marca = "", modelo = "", descricao = "", pecas = [], modeloIA = MODELO,
+    promptNome = null, correcoes = null,
+  } = {},
   instrucoes = PROMPT_DESCRICAO_PADRAO,
   gasto = null,
 ) {
+  // As Correcoes da descricao do dono (spec 2026-11-07): as de todas as descricoes e as do prompt escolhido na janela.
+  // Vao na instrucao (o texto ja nasce certo) e nas TROCAs do texto final. `correcoes` e a lista pronta (testes); sem a
+  // tabela (banco antigo), a geracao segue sem elas.
+  let listaDeCorrecoes = correcoes;
+  if (!listaDeCorrecoes) {
+    try {
+      listaDeCorrecoes = await lerCorrecoesAtivas({ promptNome });
+    } catch (erro) {
+      console.error("Falha ao ler as correcoes da descricao:", erro.message);
+      listaDeCorrecoes = [];
+    }
+  }
+  // A chave que liga a linha do texto a loja de origem passa pelas mesmas regras do texto, senao a linha corrigida
+  // ("- Tensao: 5V;") nao acharia a loja.
+  const chaveDaLinha = (nome, valor) =>
+    aplicarCorrecoes(formatarLinhaTecnica(`- ${semPontuacaoFinal(nome)}: ${semPontuacaoFinal(valor)};`), listaDeCorrecoes).texto;
   // Kit (pedido do dono em 10/10/2026): as pecas entram como referencia, e os Itens inclusos saem delas.
   const doKit = await lerPecasParaDescricao(pecas);
   const temLojas = (ids ?? []).length > 0;
@@ -777,7 +810,7 @@ export async function gerarDescricao(
       tarefa: "descricao",
       modelo: modeloIA,
       quantidade,
-      sistema: blocosDoSistema(SISTEMA, instrucoes),
+      sistema: blocosDoSistema(SISTEMA, instrucoesComCorrecoes(instrucoes, listaDeCorrecoes)),
       pedido: blocosDoPedido(
         pedido,
         longos.length > 0
@@ -815,7 +848,7 @@ export async function gerarDescricao(
     for (const campo of ["comprimentoCm", "larguraCm", "alturaCm"]) medidasFinais[campo] = null;
   }
   if (idsDivergentes.has("peso")) medidasFinais.pesoKg = null;
-  const textoFinal = montarDescricao({
+  const { texto: textoFinal, aplicadas } = montarDescricaoComUsos({
     titulo,
     sku,
     paragrafos,
@@ -823,7 +856,10 @@ export async function gerarDescricao(
     itensInclusos:
       doKit.itens.length > 0 ? doKit.itens : Array.isArray(conteudo.itensInclusos) ? conteudo.itensInclusos : [],
     medidas: medidasFinais,
+    correcoes: listaDeCorrecoes,
   });
+  // Sem esperar: os usos sao so informacao da tela de gestao (somarUsos nunca lanca).
+  void somarUsos(aplicadas);
   // A loja de cada linha comum (nome da loja no fim da linha): chave = a linha como aparece no texto. As do kit
   // (pecas) nao entram: so loja de verdade. Sem loja confirmada pelo texto, a linha fica fora do mapa. Item da IA que
   // virou quadro ou linha resolvida nao conta aqui (a linha dele e outra); as lojas da resolvida vem das opcoes.
@@ -833,11 +869,11 @@ export async function gerarDescricao(
       if (!item?.nome || !item?.valor || integrado.substituidas.has(idDaCaracteristica(item.nome))) continue;
       const lojas = lojasDaCaracteristica(item, linhas);
       if (lojas.length > 0) {
-        fontesDasLinhas[formatarLinhaTecnica(`- ${semPontuacaoFinal(item.nome)}: ${semPontuacaoFinal(item.valor)};`)] = lojas;
+        fontesDasLinhas[chaveDaLinha(item.nome, item.valor)] = lojas;
       }
     }
     for (const { campo, valor, lojas } of integrado.resolvidas) {
-      if (lojas.length > 0) fontesDasLinhas[formatarLinhaTecnica(`- ${semPontuacaoFinal(campo)}: ${semPontuacaoFinal(valor)};`)] = lojas;
+      if (lojas.length > 0) fontesDasLinhas[chaveDaLinha(campo, valor)] = lojas;
     }
   }
   // De onde vem a linha que NENHUMA loja confirma (pedido do dono em 13/10/2026: "se veio pela IA, deve mostrar de onde
@@ -847,7 +883,7 @@ export async function gerarDescricao(
   const origensDasLinhas = {};
   for (const item of integrado.caracteristicas) {
     if (!item?.nome || !item?.valor) continue;
-    const chave = formatarLinhaTecnica(`- ${semPontuacaoFinal(item.nome)}: ${semPontuacaoFinal(item.valor)};`);
+    const chave = chaveDaLinha(item.nome, item.valor);
     if (fontesDasLinhas[chave]) continue;
     // A IA nao apontou a referencia certa (ou apontou e o texto nao confirma): procura o valor no texto de TODAS. O ADC do
     // 100101 estava na ficha da Curto Circuito ("10-Bits") e a linha ficava sem fonte.

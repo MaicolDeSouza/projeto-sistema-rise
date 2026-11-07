@@ -493,7 +493,9 @@ export default function JanelaDescricao({ ref, ids, lendoReferencias = false, de
     iniciarGeracao(async () => {
       try {
         // O prompt da caixa; sem ele (ainda lendo, ou a leitura falhou) o servidor usa o salvo.
-        const resultado = await criarDescricaoIA(idsParaGerar, { ...atual, pecas: pecasParaGerar }, prompt ?? undefined, modeloIA);
+        // O nome do prompt escolhido: as Correcoes da descricao feitas so para ele valem nesta geracao.
+        const nomeDoPrompt = prompts?.find((item) => item.id === promptId)?.nome ?? null;
+        const resultado = await criarDescricaoIA(idsParaGerar, { ...atual, pecas: pecasParaGerar }, prompt ?? undefined, modeloIA, nomeDoPrompt);
         // O gasto conta mesmo se a geracao foi trocada por outra no meio: a chamada foi cobrada.
         if (resultado.gasto) aoGastar?.(resultado.gasto);
         if (geracao !== geracaoAtual.current) return;

@@ -2159,6 +2159,12 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
     conferir("correcoes, diff: o menor trecho, esticado ate a fronteira", candidatosDoDiff("Tensão de operação: 5 V", "Tensão de operação: 5V"), [{ antes: "5 V", depois: "5V", contexto: "Tensão de operação: 5 V" }]);
     conferir("correcoes, diff: palavra trocada", candidatosDoDiff("A\n\n- Voltagem: 5 V;\n- Corrente: 2 A;", "A\n\n- Tensão: 5 V;\n- Corrente: 2 A;"), [{ antes: "Voltagem", depois: "Tensão", contexto: "- Voltagem: 5 V;" }]);
     conferir("correcoes, diff: linha acrescentada, linha reescrita e texto igual nao geram candidato", [candidatosDoDiff("A\nB", "A\nB\nC"), candidatosDoDiff("Parágrafo " + "x".repeat(70), "Outro " + "y".repeat(70)), candidatosDoDiff("igual", "igual")], [[], [], []]);
+    // A IA do Rise (Tarefa 5): a TROCA do dono vale no texto final montado, depois da regra fixa, e conta os usos.
+    const { montarDescricao, montarDescricaoComUsos } = await import("../src/lib/ia/anuncio.js");
+    const comCorrecoes = montarDescricaoComUsos({ titulo: "Placa", sku: "1", paragrafos: ["Funciona com voltagem de 5 V."], caracteristicas: [{ nome: "Tensão", valor: "5 V" }], itensInclusos: ["01 placa"].map((descricao) => ({ descricao })), medidas: {}, correcoes: [troca("Funciona", "Opera")] });
+    conferir("correcoes, montar: a regra fixa (5V, tensao) e a TROCA do dono no texto final, com os usos", [comCorrecoes.texto.includes("Opera com tensão de 5V."), comCorrecoes.texto.includes("- Tensão: 5V;"), comCorrecoes.aplicadas], [true, true, [{ id: "Funciona", vezes: 1 }]]);
+    conferir("correcoes, montar: sem correcoes, o texto de sempre", montarDescricao({ titulo: "Placa", sku: "1", paragrafos: ["Funciona."], caracteristicas: [], itensInclusos: [], medidas: {} }).startsWith("PLACA\n\nFunciona."), true);
+
     conferir("correcoes, diff: duas trocas na linha viram um par; CRLF; repetido sai", [candidatosDoDiff("5 V e 3,3 V", "5V e 3,3V")[0].antes, candidatosDoDiff("a\r\n5 V", "a\n5V"), candidatosDoDiff("x 5 V\ny 5 V", "x 5V\ny 5V").length], ["5 V e 3,3 V", [{ antes: "5 V", depois: "5V", contexto: "5 V" }], 1]);
   }
 
