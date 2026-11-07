@@ -1194,10 +1194,11 @@ try {
 
     // --- as Correcoes da descricao (07/11/2026): gravadas pelo chat com o login da conexao, sem o lembrete ---
     await prisma.correcaoDaDescricao.deleteMany({ where: { criadoPor: "zz-mcp-lembrete" } });
-    const gravou = await chamar("gravarCorrecaoDaDescricao", { tipo: "TROCA", errado: "5 V", certo: "5V", explicacao: "dono: unidade colada" });
+    // "5 Q": nenhuma correcao de verdade casa (o banco do PC recebe as da VPS pela copia; um "5 V" real faria esta ser repetida).
+    const gravou = await chamar("gravarCorrecaoDaDescricao", { tipo: "TROCA", errado: "5 Q", certo: "5Q", explicacao: "dono: unidade colada" });
     const corpo = JSON.parse(gravou?.content?.[0]?.text ?? "{}");
     conferir("correcoes: grava pelo chat, origem CHAT e o login da conexao, sem o lembrete", [gravou?.content?.length, corpo.correcao?.origem, corpo.correcao?.criadoPor, Array.isArray(corpo.ensaio)], [1, "CHAT", "zz-mcp-lembrete", true]);
-    const repetida = await chamar("gravarCorrecaoDaDescricao", { tipo: "TROCA", errado: "5 v", certo: "5V" });
+    const repetida = await chamar("gravarCorrecaoDaDescricao", { tipo: "TROCA", errado: "5 q", certo: "5Q" });
     conferir("correcoes: repetida volta como erro da ferramenta", [repetida?.isError, /Já existe/.test(repetida?.content?.[0]?.text ?? "")], [true, true]);
     const listou = JSON.parse((await chamar("listarCorrecoesDaDescricao", {}))?.content?.[0]?.text ?? "{}");
     conferir("correcoes: a lista traz a gravada", listou.correcoes?.some((c) => c.id === corpo.correcao?.id), true);
