@@ -46,8 +46,8 @@ export default function EditorDoPedidoCompleto({ pedidoInicial, transportadoras,
     // "Link público" ao lado do Baixar PDF (pedido do dono em 07/11/2026, o lugar marcado no print).
     linkDoPdf: (props) => (
       <span className="inline-flex items-center gap-4">
-        <LinkPublico pedido={props.pedido} alterado={props.alterado} />
         <LinkDoPdf {...props} />
+        <LinkPublico pedido={props.pedido} alterado={props.alterado} />
       </span>
     ),
     colunaDeChegada: (item, { pedido, aplicar, alterado }) => (

@@ -221,18 +221,8 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
         />
       </div>
 
-      <div className="mb-5 flex flex-wrap items-center justify-end gap-2 rounded-lg border border-borda bg-superficie px-4 py-2.5">
-          {alterado && <span className="mr-auto text-sm font-medium text-amber-700">Alterações não salvas</span>}
-          {!alterado && salvo && <span className="mr-auto text-sm text-emerald-700">Pedido salvo.</span>}
-          <span className="mx-1 text-sm">
-            {extras.linkDoPdf ? (
-              extras.linkDoPdf({ pedido, alterado, salvar })
-            ) : (
-              <span className="inline-flex cursor-not-allowed items-center gap-1.5 text-suave">
-                <FileDown size={16} /> Baixar PDF
-              </span>
-            )}
-          </span>
+      {/* Ordem pedida pelo dono em 07/11/2026: Salvar a esquerda, depois Cancelar, PDF e Link; a acao da situacao no fim. */}
+      <div className="mb-5 flex flex-wrap items-center gap-2 rounded-lg border border-borda bg-superficie px-4 py-2.5">
           {!fechado && (
             <button
               type="button"
@@ -247,6 +237,15 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
           <button type="button" onClick={voltarALista} className="rounded border border-borda px-4 py-2 text-sm hover:bg-fundo">
             {fechado ? "Voltar" : "Cancelar"}
           </button>
+          <span className="mx-2 text-sm">
+            {extras.linkDoPdf ? (
+              extras.linkDoPdf({ pedido, alterado, salvar })
+            ) : (
+              <span className="inline-flex cursor-not-allowed items-center gap-1.5 text-suave">
+                <FileDown size={16} /> Baixar PDF
+              </span>
+            )}
+          </span>
           {podeCancelar && (
           <div className="relative">
             <button type="button" onClick={() => setMenu((aberto) => !aberto)} aria-label="Mais ações" aria-expanded={menu} className="rounded-md p-2 text-suave hover:bg-superficie hover:text-texto">
@@ -268,7 +267,9 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
             )}
           </div>
           )}
-          {acaoDaSituacao && <div className="ml-2 border-l border-borda pl-4">{acaoDaSituacao}</div>}
+          {alterado && <span className="text-sm font-medium text-amber-700">Alterações não salvas</span>}
+          {!alterado && salvo && <span className="text-sm text-emerald-700">Pedido salvo.</span>}
+          {acaoDaSituacao && <div className="ml-auto">{acaoDaSituacao}</div>}
       </div>
 
       {pedido.aliexpress && <AvisosAliExpress avisos={pedido.avisos} aliexpress={pedido.aliexpress} podeCasar={casavel} aoAtualizar={aplicar} />}
