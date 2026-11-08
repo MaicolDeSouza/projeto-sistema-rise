@@ -130,8 +130,10 @@ services:
     environment:
       - RISE_SEGREDO_DE_BORDA=${RISE_SEGREDO_DE_BORDA:-}
     ports:
-      - "80:80"
-      - "443:443"
+      # So no IP publico, e nao em 0.0.0.0: o Tailscale Serve do MEMO escuta na 443 da tailscale0 desta mesma VPS e, depois
+      # de um reboot, sobe antes do Docker e impedia o Caddy de publicar a 443 em todas as interfaces (08/11/2026).
+      - "179.199.150.221:80:80"
+      - "179.199.150.221:443:443"
     volumes:
       # A PASTA, e nao o arquivo: montado como arquivo unico, o conteiner segue vendo o inode antigo depois de um
       # `git checkout` do deploy e ignora a mudanca. O deploy-vps.sh recarrega o Caddy (`caddy reload`) no fim.
