@@ -379,6 +379,32 @@ try {
     await banco.salvarPedido(criado.pedidoId, { itens: itens.map((item, indice) => (indice === 0 ? { ...item, observacao: null } : item)) });
     conferir("remover a obs", (await banco.lerPedido(criado.pedidoId)).itens[0].observacao, null);
 
+    // Link publico (07/11/2026): chave de 43, criada uma vez e nunca trocada; a pagina le o pedido salvo, sem script.
+    {
+      const { linkPublicoDoPedido, pedidoPelaChavePublica } = await import("../src/lib/compras/linkPublico.js");
+      const { htmlDoPedido } = await import("../src/lib/compras/paginaPublica.js");
+      const primeiro = await linkPublicoDoPedido(criado.pedidoId);
+      const chave = primeiro.url?.split("/p/compra/")[1];
+      conferir("link publico com chave de 43", [primeiro.ok, /^[A-Za-z0-9_-]{43}$/.test(chave ?? "")], [true, true]);
+      conferir("o link nunca muda", (await linkPublicoDoPedido(criado.pedidoId)).url, primeiro.url);
+      conferir("pedido inexistente nao ganha link", (await linkPublicoDoPedido("nao-existe")).ok, false);
+      conferir("a chave abre o pedido", (await pedidoPelaChavePublica(chave))?.id, criado.pedidoId);
+      conferir("chave errada ou fora do formato nao abre", [await pedidoPelaChavePublica(`${chave.slice(0, 42)}${chave[42] === "A" ? "B" : "A"}`), await pedidoPelaChavePublica("../../x"), await pedidoPelaChavePublica(null)], [null, null, null]);
+      await banco.salvarPedido(criado.pedidoId, { itens: itens.map((item, indice) => (indice === 0 ? { ...item, observacao: "Cabo <b>curto</b>" } : item)), observacoesFornecedor: "Entregar na portaria." });
+      const lido = await pedidoPelaChavePublica(chave);
+      const html = htmlDoPedido(lido);
+      conferir(
+        "a pagina mostra o pedido salvo, com a obs do item escapada",
+        [html.includes(lido.codigo), html.includes("Cabo &lt;b&gt;curto&lt;/b&gt;"), html.includes("Entregar na portaria."), html.includes("R$")],
+        [true, true, true, true],
+      );
+      conferir("a pagina sem script, sem SKU e sem obs interna", [/<script/i.test(html), html.includes(lido.itens[0].sku), html.includes("Conta interna")], [false, false, false]);
+      const { readFileSync } = await import("node:fs");
+      const caddy = readFileSync(new URL("../deploy/caddy/Caddyfile", import.meta.url), "utf8");
+      conferir("Caddy: so /p/compra/<43> fica sem login, so GET e HEAD", caddy.includes("path_regexp ^/p/compra/[A-Za-z0-9_-]{43}$") && /@pedidoPublico \{\s*method GET HEAD/.test(caddy), true);
+      await banco.salvarPedido(criado.pedidoId, { itens, observacoesFornecedor: "" });
+    }
+
     // Quem nao ve custo manda o item SEM os campos de preco: o banco tem de manter os gravados.
     await banco.salvarPedido(criado.pedidoId, { itens: itens.map(({ precoUnitario, ipiPercentual, ...item }) => (void precoUnitario, void ipiPercentual, item)) });
     conferir("salvar sem os campos de preco nao apaga o preco", (await banco.lerPedido(criado.pedidoId)).itens[0].precoUnitario, 10);

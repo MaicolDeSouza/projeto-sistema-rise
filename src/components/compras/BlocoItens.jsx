@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { ExternalLink, Pencil, Plus, Repeat, Trash2 } from "lucide-react";
+import { ExternalLink, Pencil, Plus, Repeat, Search, Trash2 } from "lucide-react";
 
 import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
 import Janela from "@/components/ferramentas/licencas/Janela";
@@ -11,6 +11,8 @@ import { totalDoItem } from "@/lib/compras/regras";
 import { CelulaDeFator, CelulaDeRastreio, LinhasPendentesAliExpress } from "./AliExpressDoPedido";
 import BuscaDeItem from "./BuscaDeItem";
 import { doTexto, moeda, soDecimal, soDigitos } from "./formato";
+
+const semAcento = (texto) => String(texto ?? "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 
 const campo =
   "w-full rounded-md border border-borda bg-superficie px-2 py-1.5 text-sm tabular-nums focus:border-acento focus:outline-none focus:ring-2 focus:ring-acento/20 disabled:border-transparent disabled:bg-transparent disabled:px-0 aria-[invalid=true]:border-rose-500";
@@ -53,14 +55,39 @@ export default function BlocoItens({
   const [prazoDeTodos, setPrazoDeTodos] = useState(null);
   // Indice do item com a janela "Observação" aberta (null = fechada).
   const [obsAberta, setObsAberta] = useState(null);
+  // Busca dentro do pedido (pedido do dono em 07/11/2026, pedido de 141 itens): so esconde linhas; os indices continuam
+  // os do formulario. Todas as palavras, sem acento, no nome, SKU, descricao e codigo do fornecedor e na observacao.
+  const [busca, setBusca] = useState("");
+  const palavras = semAcento(busca).split(/\s+/).filter(Boolean);
+  const aparece = (item) => {
+    if (!palavras.length) return true;
+    const texto = semAcento([item.nome, item.sku, item.nomeNoFornecedor, item.codigoNoFornecedor, item.observacao].filter(Boolean).join(" "));
+    return palavras.every((palavra) => texto.includes(palavra));
+  };
+  const achados = palavras.length ? itens.filter(aparece).length : itens.length;
   const valorDeTodos = prazoDeTodos ?? prazoComum ?? "";
   const mostrarLinhaDeTodos = itens.length > 1 && (editarPrazo || chegadaDeTodos);
   const colunasAntesDoPrazo = 5 + (mostrarOpcao ? 1 : 0) + (aliexpress ? 1 : 0) + (veCusto ? 3 : 0);
 
   return (
     <SecaoDoAnuncio
-      titulo={`Itens do pedido (${itens.length})`}
+      titulo={palavras.length ? `Itens do pedido (${achados} de ${itens.length})` : `Itens do pedido (${itens.length})`}
       ajuda="Descrição e código do fornecedor vêm do vínculo do produto; são eles que vão no PDF. Depois de enviado, só o prazo muda."
+      acao={
+        itens.length > 1 && (
+          <label className="relative block w-64 max-w-full">
+            <Search size={14} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-suave" />
+            <input
+              type="search"
+              value={busca}
+              onChange={(evento) => setBusca(evento.target.value)}
+              placeholder="Buscar no pedido"
+              aria-label="Buscar item no pedido"
+              className="w-full rounded-md border border-borda bg-superficie py-1 pl-7 pr-2 text-sm focus:border-acento focus:outline-none focus:ring-2 focus:ring-acento/20"
+            />
+          </label>
+        )
+      }
     >
       <LinhasPendentesAliExpress aliexpress={aliexpress} pedidoId={pedidoId} fornecedor={fornecedor} podeCasar={podeCasar} aoAtualizar={aoAtualizar} />
       {itens.length === 0 ? (
@@ -123,8 +150,13 @@ export default function BlocoItens({
               </tr>
             </thead>
             <tbody className="divide-y divide-borda">
+              {palavras.length > 0 && achados === 0 && (
+                <tr>
+                  <td colSpan={99} className="px-3 py-4 text-center text-sm text-suave">Nenhum item com “{busca}”.</td>
+                </tr>
+              )}
               {itens.map((item, indice) => (
-                <tr key={item.id} className="align-top">
+                <tr key={item.id} className={`align-top ${aparece(item) ? "" : "hidden"}`}>
                   <td className="px-3 py-2">
                     {item.foto ? <FotoComLupa src={item.foto} alt={item.nome} className="h-10 w-10" /> : <span className="block h-10 w-10 rounded border border-dashed border-borda" />}
                   </td>

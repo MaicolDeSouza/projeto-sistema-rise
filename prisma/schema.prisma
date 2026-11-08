@@ -2337,16 +2337,19 @@ model PedidoDeCompra {
   propostaArquivo      String?
   propostaNomeOriginal String?
 
+  /// Anotacao INTERNA: nunca vai ao PDF (decisao do dono em 06/11/2026; ate ali era impressa e levava a conta do preco).
   observacoes  String?
+  /// O que o fornecedor precisa ler: o unico texto livre que vai no PDF do pedido.
+  observacoesFornecedor String?
+  /// Chave do LINK PUBLICO do pedido (/p/compra/<chave>, 07/11/2026): 43 caracteres aleatorios, criada no primeiro
+  /// "Link publico" e nunca trocada (decisao do dono). Quem tem a chave le o pedido como no PDF, sem login.
+  linkPublico String? @unique
   enviadoEm    DateTime?
   finalizadoEm DateTime?
   canceladoEm  DateTime?
   criadoEm     DateTime  @default(now())
   atualizadoEm DateTime  @updatedAt
-  /// Anotacao INTERNA: nunca vai ao PDF (decisao do dono em 06/11/2026; ate ali era impressa e levava a conta do preco).
 
-  /// O que o fornecedor precisa ler: o unico texto livre que vai no PDF do pedido.
-  observacoesFornecedor String?
   /// De onde veio: feito no Rise ou importado do AliExpress (pela extensao). O do AliExpress nasce ENVIADO.
   origem  OrigemDoPedidoDeCompra @default(RISE)
   /// O "Imposto" que o AliExpress cobra no pedido (importacao); soma nos totais ao lado de IPI e ICMS ST.

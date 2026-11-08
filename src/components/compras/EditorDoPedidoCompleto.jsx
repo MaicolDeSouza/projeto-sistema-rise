@@ -10,6 +10,7 @@ import { faltaLancar, todosLancados } from "@/lib/compras/regras";
 import ArquivoDaProposta from "./ArquivoDaProposta";
 import CelulaDeLancamento from "./CelulaDeLancamento";
 import LinkDoPdf from "./LinkDoPdf";
+import LinkPublico from "./LinkPublico";
 import EditorPedido from "./EditorPedido";
 import Pergunta from "./Pergunta";
 import PopupLancarEstoque from "./PopupLancarEstoque";
@@ -42,7 +43,13 @@ export default function EditorDoPedidoCompleto({ pedidoInicial, transportadoras,
 
   const extras = {
     arquivoDaProposta: (props) => <ArquivoDaProposta {...props} />,
-    linkDoPdf: (props) => <LinkDoPdf {...props} />,
+    // "Link público" ao lado do Baixar PDF (pedido do dono em 07/11/2026, o lugar marcado no print).
+    linkDoPdf: (props) => (
+      <span className="inline-flex items-center gap-4">
+        <LinkPublico pedido={props.pedido} alterado={props.alterado} />
+        <LinkDoPdf {...props} />
+      </span>
+    ),
     colunaDeChegada: (item, { pedido, aplicar, alterado }) => (
       <CelulaDeLancamento
         item={item}

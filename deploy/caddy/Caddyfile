@@ -112,6 +112,17 @@ rise.4hobby.com.br {
 		reverse_proxy app:3000
 	}
 
+	# Link publico do pedido de compra (07/11/2026): o fornecedor le o pedido sem login. Quem autoriza e a chave aleatoria
+	# de 43 caracteres no caminho (src/lib/compras/linkPublico.js); so GET e HEAD, e so esse formato EXATO: qualquer
+	# outro caminho debaixo de /p cai no ramo com login. A pagina nao usa /_next (HTML inteiro, sem script).
+	@pedidoPublico {
+		method GET HEAD
+		path_regexp ^/p/compra/[A-Za-z0-9_-]{43}$
+	}
+	handle @pedidoPublico {
+		reverse_proxy app:3000
+	}
+
 	# Webhooks do ML, do Bling e da LI (Pedidos de venda, fase 2, 04/11/2026): os canais chegam sem o login do Tinyauth.
 	# A rota confere quem mandou (src/lib/pedidos/webhooks.js: conta e app do ML, assinatura do Bling, token da LI) e so
 	# grava na fila; o worker le o pedido com o proprio token.

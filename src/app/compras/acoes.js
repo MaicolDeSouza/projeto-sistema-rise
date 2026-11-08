@@ -18,6 +18,7 @@ import {
   mudarStatus,
   salvarPedido,
 } from "@/lib/compras/banco";
+import { linkPublicoDoPedido } from "@/lib/compras/linkPublico";
 import { semPrecos, semPrecosNaEntrada } from "@/lib/compras/projecao";
 import { prisma } from "@/lib/db";
 
@@ -46,6 +47,16 @@ export async function salvarPedidoAcao(id, entrada) {
   if (!resultado.ok) return resultado;
   revalidar();
   return { ok: true, pedido: await pedidoParaQuemVe(id) };
+}
+
+/**
+ * "Link público" (07/11/2026): o endereco que o fornecedor abre sem login, criado no primeiro clique. Mesma exigencia do
+ * PDF (ver os pedidos E o custo), porque a pagina mostra os precos de compra.
+ */
+export async function linkPublicoAcao(pedidoId) {
+  const negado = await negarSemAcessos(["tela.compras.pedidos", "ver"], ["dado.custo", "ver"]);
+  if (negado) return negado;
+  return linkPublicoDoPedido(String(pedidoId ?? ""));
 }
 
 /** "+ Adicionar outro item": grava na hora e devolve o item pronto para a tela (as outras linhas nao mudam). */
