@@ -1,12 +1,14 @@
 "use client";
 
 import { MarcaDaPropostaNoCampo, SugestaoDaProposta } from "@/components/anuncios/PropostaDoAnuncio";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { ExternalLink, Search } from "lucide-react";
+import { useEffect, useEffectEvent, useRef, useState, useTransition } from "react";
+import { Calculator, ExternalLink, Search } from "lucide-react";
 
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
 import { custoDaComposicao } from "@/lib/canaisDeVenda/composicao";
+import { precoPelaFaixaMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { custosDoAnuncio, custosValem, freteQueConta, precoPorMargem } from "@/lib/canaisDeVenda/ml/custos";
+import { lucroPorUnidade } from "@/lib/canaisDeVenda/ml/faixas";
 import { calcularMarkup, corDoMarkup, lucroLiquido } from "@/lib/margem";
 import CalculadoraDeMargem, { taxasUsaveis } from "./CalculadoraDeMargem";
 import SecaoDoAnuncio from "./SecaoDoAnuncio";
@@ -212,7 +214,17 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
                 })()}
               </dd>
               <dt className="text-suave">Preço no ML (UN)</dt>
-              <dd className="font-medium">{preco > 0 ? MOEDA.format(preco / unidadesDoKit) : "—"}</dd>
+              <dd className="font-medium">
+                {preco > 0 ? MOEDA.format(preco / unidadesDoKit) : "—"}
+                {/* O lucro por unidade NO ML (pedido do dono em 08/11/2026: "no kit nao esta mostrando o lucro por item"): o lucro do
+                    anuncio com as taxas lidas, dividido pelas unidades, como a linha da loja. Sem as taxas lidas, nada. */}
+                {(() => {
+                  const porUnidade = acessos.custos && conta ? lucroPorUnidade(conta.lucro, unidadesDoKit) : null;
+                  return porUnidade === null ? null : (
+                    <span className={`ml-1 font-normal ${porUnidade < 0 ? "text-red-600" : "text-suave"}`}>(Lucro = {MOEDA.format(porUnidade)})</span>
+                  );
+                })()}
+              </dd>
             </dl>
           )}
           {/* Anuncio simples (pedido do dono em 28/10/2026, "assim como e mostrado no kit"): o preco de venda do produto, o do
@@ -233,6 +245,20 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
               </dd>
             </dl>
           )}
+          {acessos.custos && (
+            <BotaoPrecoPeloLucroDaLoja
+              rascunho={rascunho}
+              custo={custo}
+              temPrecoDaLoja={emKit ? somaAvulsa !== null : Number(contexto.produtos?.[rascunho.produtoId]?.precoVenda) > 0}
+              aplicar={(resposta) => {
+                if (alvo !== null) setContexto((atual) => ({ ...atual, markupAlvo: null }));
+                setContexto((atual) => ({ ...atual, custosML: resposta.custosML ?? atual.custosML }));
+                const mudancas = { preco: resposta.preco };
+                if (resposta.freteGratis && !rascunho.envio?.freteGratis) mudancas.envio = { ...rascunho.envio, freteGratis: true };
+                alterar(mudancas);
+              }}
+            />
+          )}
         </Campo>
 
         {acessos.custos && <CustosDoML rascunho={rascunho} contexto={contexto} setContexto={setContexto} custo={custo} conta={conta} />}
@@ -252,6 +278,64 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
           <ExternalLink size={13} />
         </a>
       )}
+    </div>
+  );
+}
+
+const NOME_CURTO_DA_VARIANTE = { classico_sem_frete: "Clássico sem frete", classico_frete_gratis: "Clássico com frete grátis", premium_sem_frete: "Premium sem frete", premium_frete_gratis: "Premium com frete grátis" };
+
+/**
+ * "Preco pelo lucro da loja" (definicoes do dono em 08/11/2026): o preco da variante deste anuncio que deixa no ML o mesmo
+ * lucro em R$ que o produto deixa na loja, com as taxas reais e as faixas (72-79 sobe para R$ 79 com frete gratis). O valor
+ * entra no campo e continua editavel. Desligado, com o motivo no `title`, enquanto faltar custo, preco da loja ou categoria.
+ */
+function BotaoPrecoPeloLucroDaLoja({ rascunho, custo, temPrecoDaLoja, aplicar }) {
+  const [ocupado, iniciar] = useTransition();
+  const [resultado, setResultado] = useState(null);
+  const semCategoria = !String(rascunho.categoriaId ?? "").trim();
+  const motivo = !(custo.valor > 0)
+    ? "Sem custo do produto."
+    : !temPrecoDaLoja
+      ? "Sem preço de venda do produto."
+      : semCategoria
+        ? "Sem categoria: escolha a categoria na aba Geral."
+        : null;
+
+  function calcular() {
+    iniciar(async () => {
+      let resposta;
+      try {
+        resposta = await precoPelaFaixaMLAcao(rascunho);
+      } catch {
+        resposta = { ok: false, erro: "Não foi possível consultar o Mercado Livre." };
+      }
+      if (!resposta?.ok) {
+        setResultado({ erro: resposta?.erro ?? "Não foi possível calcular o preço." });
+        return;
+      }
+      aplicar(resposta);
+      setResultado({
+        texto: resposta.piso
+          ? `Faixa R$ 72–79: sobe para R$ 79 com frete grátis (lucro da loja ${MOEDA.format(resposta.lucro)}).`
+          : `Lucro da loja ${MOEDA.format(resposta.lucro)} mantido como ${NOME_CURTO_DA_VARIANTE[resposta.variante] ?? resposta.variante}.`,
+      });
+    });
+  }
+
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        onClick={calcular}
+        disabled={Boolean(motivo) || ocupado}
+        title={motivo ?? "Calcula o preço que deixa no ML o mesmo lucro em R$ da loja, respeitando as faixas"}
+        className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-1.5 text-sm text-acento transition-[background-color,transform] duration-150 ease-out hover:bg-fundo active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+      >
+        <Calculator size={14} />
+        {ocupado ? "Calculando…" : "Preço pelo lucro da loja"}
+      </button>
+      {resultado?.erro && <p className="mt-1 text-[11px] text-red-600">{resultado.erro}</p>}
+      {resultado?.texto && <p className="mt-1 text-[11px] text-suave">{resultado.texto}</p>}
     </div>
   );
 }
