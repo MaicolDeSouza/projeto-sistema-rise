@@ -4,6 +4,7 @@ import { completarFichaPelaDescricao, problemasDosAtributos } from "@/lib/canais
 import { contextoDosProdutos, carregarAnuncioML, novoRascunhoML, salvarRascunhoML } from "@/lib/canaisDeVenda/ml/banco";
 import { catalogosDosMeusAnuncios, lerPrimeiroDoCatalogo, sugerirCatalogos } from "@/lib/canaisDeVenda/ml/catalogo";
 import { eanDoKit } from "@/lib/canaisDeVenda/ml/eanDoKit";
+import { rascunhoDaVariante } from "@/lib/canaisDeVenda/ml/faixas";
 import { sugerirCategoria } from "@/lib/canaisDeVenda/ml/inteligencia";
 import { lerCategoriaCompleta } from "@/lib/canaisDeVenda/ml/leitura";
 import { tituloDoKit } from "@/lib/canaisDeVenda/ml/rascunho";
@@ -249,7 +250,10 @@ export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, quan
 
   const preco = await precoDaPropostaML(cliente, { ...primeira.rascunho, tipoAnuncio: CLASSICO }, { custo: custoDoAnuncio(produto, kit), precoNaLoja: precoNaLojaDoAnuncio(produto, kit), precos: precosDoRanking });
   avisos.push(...preco.avisos);
-  const segunda = preco.valor === null ? { rascunho: primeira.rascunho, campos: [], sugestoes: {}, valores: {} } : aplicarProposta(primeira.rascunho, { preco: preco.valor }, opcoes);
+  // A variante que o preco pede (definicoes do dono em 08/11/2026): sem frete abaixo de R$ 72, com frete gratis de 72 em diante
+  // (72-78,99 sobe para R$ 79). O tipo continua Classico; o frete gratis do rascunho acompanha a variante.
+  const comVariante = preco.variante ? rascunhoDaVariante(primeira.rascunho, preco.variante) : primeira.rascunho;
+  const segunda = preco.valor === null ? { rascunho: comVariante, campos: [], sugestoes: {}, valores: {} } : aplicarProposta(comVariante, { preco: preco.valor }, opcoes);
 
   // O kit no ML confere a ficha como o editor confere (o GTIN e o EAN interno do kit, nao o da peca).
   const doAnuncio = segunda.rascunho.composicao;
@@ -272,7 +276,7 @@ export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, quan
       avisos,
       catalogosSugeridos: aceitos,
       links,
-      preco: { valor: preco.valor, lucro: preco.lucro, lucroNaLoja: preco.lucroNaLoja, precoNaLoja: preco.precoNaLoja, markup: preco.markup, posicao: preco.posicao, total: preco.total, teto: preco.teto },
+      preco: { valor: preco.valor, variante: preco.variante, freteGratis: preco.freteGratis, lucro: preco.lucro, lucroNaLoja: preco.lucroNaLoja, precoNaLoja: preco.precoNaLoja, markup: preco.markup, posicao: preco.posicao, total: preco.total, teto: preco.teto },
     },
   });
   await gravarProposta(salvo.id, proposta);

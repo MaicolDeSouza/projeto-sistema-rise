@@ -1,4 +1,5 @@
-import { custosDoAnuncio, freteQueConta } from "@/lib/canaisDeVenda/ml/custos";
+import { custosDoAnuncio, freteQueConta, LIMITE_DO_FRETE_GRATIS } from "@/lib/canaisDeVenda/ml/custos";
+import { LIMITE_DA_SEGUNDA_VARIANTE } from "@/lib/canaisDeVenda/ml/faixas";
 import { lerCustosDoAnuncio, precoPorMargemNoML } from "@/lib/canaisDeVenda/ml/leitura";
 import { montarRanking } from "@/lib/canaisDeVenda/ml/ranking";
 import { lucroLiquido } from "@/lib/margem";
@@ -49,7 +50,7 @@ export async function precoDaPropostaML(cliente, rascunho, { custo, precoNaLoja,
   const avisos = [];
   const teto = tetoDoRanking(precos);
   const naLoja = Number(precoNaLoja) > 0 ? dinheiro(precoNaLoja) : null;
-  const vazio = { valor: null, lucro: null, lucroNaLoja: null, precoNaLoja: naLoja, markup: null, posicao: null, total: (precos ?? []).length, teto, avisos };
+  const vazio = { valor: null, lucro: null, lucroNaLoja: null, precoNaLoja: naLoja, markup: null, posicao: null, total: (precos ?? []).length, teto, avisos, variante: null, freteGratis: false };
   if (!(Number(custo) > 0)) {
     avisos.push("Sem o custo do produto (fornecedor padrão ou rascunho do Bling): o preço não foi calculado.");
     return vazio;
@@ -89,7 +90,19 @@ export async function precoDaPropostaML(cliente, rascunho, { custo, precoNaLoja,
     }
   }
 
+  // A variante pelo preco (definicoes do dono em 08/11/2026, "pode sempre criar as propostas com as variantes"): abaixo de
+  // R$ 72 o Classico sem frete; de 72 a 78,99 o preco sobe para R$ 79 com frete gratis (piso: ali a tarifa fixa cai e o frete
+  // gratis ja e obrigatorio); de 79 em diante o frete gratis e obrigatorio e ja esta na conta.
+  let variante = valor >= LIMITE_DO_FRETE_GRATIS ? "classico_frete_gratis" : "classico_sem_frete";
+  if (variante === "classico_sem_frete" && valor >= LIMITE_DA_SEGUNDA_VARIANTE) {
+    const semFrete = valor;
+    valor = LIMITE_DO_FRETE_GRATIS;
+    conta = await contaEm(valor);
+    variante = "classico_frete_gratis";
+    avisos.push(`O preço sem frete (${reais(semFrete)}) cai entre R$ 72 e R$ 79: sobe para ${reais(valor)} com frete grátis${conta?.lucro != null ? ` (lucro de ${reais(conta.lucro)} no ML)` : ""}.`);
+  }
+
   const ranking = montarRanking({ preco: valor, catalogos: (precos ?? []).map((preco) => ({ primeiro: { preco } })) });
   if (teto !== null && ranking.posicao > 5) avisos.push(`Com o lucro da loja (${reais(lucroNaLoja)}) o anúncio fica em ${ranking.posicao}º de ${ranking.total} (fora dos 5 primeiros).`);
-  return { valor, lucro: conta?.lucro ?? null, lucroNaLoja, precoNaLoja: naLoja, markup: conta?.markup ?? null, posicao: ranking.posicao, total: ranking.total, teto, avisos };
+  return { valor, lucro: conta?.lucro ?? null, lucroNaLoja, precoNaLoja: naLoja, markup: conta?.markup ?? null, posicao: ranking.posicao, total: ranking.total, teto, avisos, variante, freteGratis: variante === "classico_frete_gratis" };
 }

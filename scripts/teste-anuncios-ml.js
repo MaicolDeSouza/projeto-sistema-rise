@@ -3043,7 +3043,17 @@ try {
     const sozinho = await precoDaPropostaML(ml, rascunho, { custo: 20, precoNaLoja: 35, precos: [] });
     conferir("sem concorrente: o mesmo preço, sem aviso", [sozinho.valor, sozinho.teto, sozinho.avisos], [48.5, null, []]);
 
-    conferir("todo preço de 5 em 5 centavos", [top5, caro, acima, virada, sozinho].every((resultado) => multiplo5(resultado.valor)), true);
+    // As variantes (definicao do dono em 08/11/2026): o preco sem frete abaixo de R$ 72 fica Classico sem frete; de 72 a 78,99 sobe
+    // para R$ 79 com frete gratis (piso); de 79 em diante e com frete gratis. A proposta devolve a variante que o preco pede.
+    conferir("variante: abaixo de R$ 72 e o Classico sem frete", [top5.variante, top5.freteGratis], ["classico_sem_frete", false]);
+    const abaixo72 = await precoDaPropostaML(ml, rascunho, { custo: 30, precoNaLoja: 55, precos: [] });
+    conferir("variante: R$ 71,45 continua sem frete", [abaixo72.valor, abaixo72.variante, abaixo72.freteGratis], [71.45, "classico_sem_frete", false]);
+    const piso = await precoDaPropostaML(ml, rascunho, { custo: 30, precoNaLoja: 58, precos: [] });
+    conferir("variante: preco sem frete entre 72 e 79 sobe para R$ 79 com frete gratis (piso) e avisa", [piso.valor, piso.variante, piso.freteGratis, piso.avisos.some((aviso) => /79/.test(aviso))], [79, "classico_frete_gratis", true, true]);
+    conferir("variante: de 79 em diante e com frete gratis", [acima.variante, acima.freteGratis, virada.variante], ["classico_frete_gratis", true, "classico_frete_gratis"]);
+    conferir("variante: sem preco, nenhuma", [semCusto.variante, semCusto.freteGratis], [null, false]);
+
+    conferir("todo preço de 5 em 5 centavos", [top5, caro, acima, virada, sozinho, abaixo72, piso].every((resultado) => multiplo5(resultado.valor)), true);
   }
 
   // -------------------------------------------------------------------------
@@ -3137,6 +3147,13 @@ try {
       // CH340 compatível") e ignorado e avisado (regra do dono de 24/10/2026).
       ["RASCUNHO", "gold_special", "MLB99779", "PLACA UNO R3 CH340 ZZ", "ARDUINO", 65.35, 65.35],
     );
+    // A variante (pedido do dono em 08/11/2026: "pode sempre criar as propostas com as variantes"): R$ 65,35 e o Classico sem frete.
+    conferir("variante: abaixo de R$ 72 o rascunho fica sem frete gratis", [gravada.preco.variante, anuncio.dados.envio.freteGratis], ["classico_sem_frete", false]);
+    // Loja a R$ 58 (custo 20): sem frete daria (6,85 + 58 x 0,94) / 0,81 = 75,77, entre 72 e 79: sobe para R$ 79 com frete gratis.
+    await criarPronto("ZZ-ML-PA9", { precoVenda: 58 });
+    const comPiso = await gravarPropostaML(ml(), "ZZ-ML-PA9", { categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] });
+    const anuncioComPiso = await prisma.anuncio.findUnique({ where: { id: comPiso.anuncioId } });
+    conferir("variante: entre 72 e 79 o rascunho sobe para R$ 79 com frete gratis e avisa", [comPiso.preco.valor, comPiso.preco.variante, anuncioComPiso.dados.preco, anuncioComPiso.dados.envio.freteGratis, anuncioComPiso.dados.tipoAnuncio, comPiso.avisos.some((aviso) => /R\$ 79/.test(aviso.replace(/ /g, " ")))], [79, "classico_frete_gratis", 79, true, "gold_special", true]);
     conferir("titulo: o da LLM é ignorado e avisado, sem marca de proposta no campo", [gravada.titulo, gravada.avisos.some((a) => /título enviado foi ignorado/.test(a)), gravada.campos.includes("titulo")], ["PLACA UNO R3 CH340 ZZ", true, false]);
     conferir("GTIN e o motivo mandados pela LLM ficam fora", [anuncio.atributos.GTIN ?? null, anuncio.atributos.EMPTY_GTIN_REASON ?? null], [null, null]);
     conferir("catálogos: só os de 5 ou mais anúncios, o de 4 avisado", [gravada.catalogosSugeridos.map((c) => c.catalogoId), gravada.avisos.some((a) => /MLBP4/.test(a) && /menos de 5/.test(a))], [["MLBP9", "MLBP6"], true]);
