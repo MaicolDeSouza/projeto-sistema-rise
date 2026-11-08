@@ -4016,5 +4016,40 @@ console.log("\n— Adafruit e SparkFun: estoque, ficha, fotos, categoria, faixas
   ], [5000, 5000, null, null]);
 }
 
+console.log("\n— Shopify: produto pelo ProductJson da pagina (Teknimas, 08/11/2026) —");
+{
+  const { produtoJsonDaPaginaShopify } = await import("../src/lib/coleta/shopify.js");
+  const produtoJson = (variantes) => JSON.stringify({
+    id: 1, title: "Temporizador Cíclico Percentual - TP72", handle: "tp72", vendor: "TEKNIMAS", type: "Industrializados",
+    description: "<p>TP72 O Controlador cíclico TP72 é um dispositivo destinado ao acionamento temporizado de cargas. Descrição do funcionamento: uma vez energizado comuta a carga. Especificações Técnicas: Modelo: TP 72; Escala: 0% a 100%.</p>",
+    price: 27599, available: true, variants: variantes,
+    images: ["//teknimas.com.br/cdn/shop/files/CopiadeIMAGENSSHOPIFY_f3f9.png?v=1", "//teknimas.com.br/cdn/shop/files/CopiadeIMAGENSSHOPIFY_1_4ece.png?v=1"],
+  });
+  const paginaShopify = (variantes) => `<html><head><title>TP72</title>
+<meta property="og:description" content="TP72 O Controlador cíclico TP72 é um dispositivo destinado ao acionamento temporizado de cargas."/>
+<meta property="og:image" content="https://teknimas.com.br/cdn/shop/files/CopiadeIMAGENSSHOPIFY_f3f9.png?crop=center&height=1200&v=1&width=1200"/>
+<meta property="product:price:amount" content="275.99"/></head><body>
+<div itemscope itemtype="https://schema.org/Product"><h1 itemprop="name">Temporizador Cíclico Percentual - TP72</h1>
+<p class="product-block product__text">Referência: TKA0243</p>
+<img src="//teknimas.com.br/cdn/shop/files/logos-teknimas-branca.webp?v=2&width=600">
+<link itemprop="availability" href="http://schema.org/InStock"></div>
+<script type="application/json" id="ProductJson-template--1__main">${produtoJson(variantes)}</script></body></html>`;
+
+  const lido = produtoJsonDaPaginaShopify(paginaShopify([{ id: 1, sku: "TKA0243", price: 27599, available: true }]));
+  conferir("Shopify: sku, fotos com https, descricao HTML, categoria e marca do ProductJson", [lido.codigo, lido.imagens, lido.descricaoHtml?.startsWith("<p>TP72"), lido.categoria, lido.marca], [
+    "TKA0243", ["https://teknimas.com.br/cdn/shop/files/CopiadeIMAGENSSHOPIFY_f3f9.png?v=1", "https://teknimas.com.br/cdn/shop/files/CopiadeIMAGENSSHOPIFY_1_4ece.png?v=1"], true, "Industrializados", "TEKNIMAS",
+  ]);
+  conferir("Shopify: variantes com sku diferente nao dao codigo", produtoJsonDaPaginaShopify(paginaShopify([{ sku: "A-1" }, { sku: "A-2" }]))?.codigo, null);
+  conferir("Shopify: pagina sem ProductJson devolve null", produtoJsonDaPaginaShopify("<html><body>sem nada</body></html>"), null);
+
+  const tp72 = normalizarPagina({ html: paginaShopify([{ id: 1, sku: "TKA0243", price: 27599, available: true }]), url: "https://teknimas.com.br/products/tp72" }).produtos[0];
+  conferir("Shopify na pagina: codigo = sku do ProductJson (a 'Referência' da loja), nao N/A", [tp72.code, tp72.origens.code], ["TKA0243", "sku do produto na pagina (Shopify)"]);
+  conferir("Shopify na pagina: as fotos sao as do ProductJson, sem o logo da loja nem o recorte do og:image", tp72.images, [
+    "https://teknimas.com.br/cdn/shop/files/CopiadeIMAGENSSHOPIFY_f3f9.png?v=1", "https://teknimas.com.br/cdn/shop/files/CopiadeIMAGENSSHOPIFY_1_4ece.png?v=1",
+  ]);
+  conferir("Shopify na pagina: a descricao e a do dropdown inteiro, nao o og:description", [tp72.description.includes("Especificações Técnicas: Modelo: TP 72"), tp72.description.length > 150], [true, true]);
+  conferir("Shopify na pagina: categoria = type do produto, como ultimo recurso", [tp72.category, tp72.origens.category], ["Industrializados", "tipo do produto na pagina (Shopify)"]);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);

@@ -11,6 +11,7 @@ import { caminhoDeCategoria, caminhoDoJsonLd, categoriaDoNav } from "./categoria
 import { ehAdafruit, faixasDaAdafruit, fichaDaAdafruit, fotosDaAdafruit } from "./adafruit";
 import { disponibilidadeDaSparkFun, documentosDaSparkFun, ehSparkFun, fichaDaSparkFun } from "./sparkfun";
 import { descricaoDaWaveshare, documentosDaWaveshare, ehWaveshare, faixasDaWaveshare, fichaDaWaveshare } from "./waveshare";
+import { produtoJsonDaPaginaShopify } from "./shopify";
 import { categoriaDaRoboCore, descricaoDaRoboCore, estoqueDaRoboCore, precosDaRoboCore } from "./robocore";
 import { impostosDaFicha, precoComImpostos, semImpostos } from "./impostos";
 import { doMicrodata, escopoDoProduto } from "./microdata";
@@ -2197,6 +2198,8 @@ export function normalizarPagina({
   const faixasDeQuantidade = adafruit ? faixasDaAdafruit(html) : waveshare ? faixasDaWaveshare(html) : [];
   // SPARKFUN (08/11/2026): estoque so no HTML, ficha na aba "Features & Specs" e documentos na aba "Documentation".
   const sparkfun = ehSparkFun(url);
+  // SHOPIFY (Teknimas, 08/11/2026): o produto inteiro mora num <script id="ProductJson-...">; ver shopify.js.
+  const shopifyPagina = produtoJsonDaPaginaShopify(html);
 
   // Listagem da plataforma ASP.NET: a home da Eletrus virava "produto" com o
   // primeiro card da vitrine, sem codigo e com a URL da home.
@@ -2381,6 +2384,8 @@ export function normalizarPagina({
     [aspnet?.codigo, "painel da pagina (Cod:)"],
     [skuEhIdInterno ? comoTexto(tray?.reference) : null, "dataLayer da Tray (REF da loja)"],
     [micro?.skuFonte, "itemprop=sku"],
+    // O sku do ProductJson da pagina Shopify e a "Referência" que a loja mostra (Teknimas: TKA0243); sem ele era N/A.
+    [shopifyPagina?.codigo, "sku do produto na pagina (Shopify)"],
     [estruturado?.skuFonte, estruturado?.fonte ?? "?"],
     [comoTexto(bruto?.productID), "json-ld productID"],
     [comoTexto(tray?.reference), "dataLayer da Tray"],
@@ -2470,7 +2475,11 @@ export function normalizarPagina({
   // ADAFRUIT: a pasta do CDN e so o tamanho, entao a galeria generica trazia os relacionados em miniatura; valem as
   // fotos com o sku no nome do arquivo, no maior tamanho. Sem sku numerico (nunca visto), fica o caminho generico.
   const daAdafruit = adafruit ? fotosDaAdafruit(html, code) : [];
-  const images = daAdafruit.length
+  // SHOPIFY: as fotos do ProductJson sao a galeria inteira e na ordem (Teknimas, 08/11/2026: 4 de 4). A generica lia so a
+  // principal (og:image recortada em 1200x1200) e punha junto dois logos da loja, que moram na mesma pasta /cdn/shop/files/.
+  const images = shopifyPagina?.imagens?.length
+    ? shopifyPagina.imagens
+    : daAdafruit.length
     ? daAdafruit
     : vtexPagina?.imagens?.length
     ? semRepetir([...(doCatalogo?.imagens ?? []), ...vtexPagina.imagens])
@@ -2520,6 +2529,8 @@ export function normalizarPagina({
     daAba ? null : comoTexto(meta["og:description"]),
     descricaoDoBloco(html),
     daAba,
+    // SHOPIFY: o HTML completo do dropdown "Descricao" (Teknimas, 08/11/2026); o og:description trazia 320 caracteres.
+    shopifyPagina?.descricaoHtml ? textoDoBlocoDeDescricao(shopifyPagina.descricaoHtml) : null,
   ]);
 
   // --- especificacoes -------------------------------------------------------
@@ -2622,6 +2633,8 @@ export function normalizarPagina({
     [doDataLayer(html, code), "dataLayer de analytics"],
     // Ultimo recurso: o <nav> de breadcrumb sem Microdata nem JSON-LD (Adafruit, 08/11/2026).
     [categoriaDoNav(html, name), "breadcrumb da pagina (nav)"],
+    // Shopify sem breadcrumb (Teknimas): o `type` do produto ("Industrializados") e a unica categoria que a pagina declara.
+    [shopifyPagina?.categoria, "tipo do produto na pagina (Shopify)"],
   );
 
   if (prices.normal !== null) {

@@ -328,7 +328,7 @@ tem a segunda trava no mesmo molde desde 08/10/2026: `ML_PUBLICACAO_CODIGOS` (li
 ```bash
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
-npm run teste:extracao            # 902 asserções da extração, do site em moeda estrangeira (com Adafruit, SparkFun, Waveshare e o ritmo próprio dela), do EAN interno, da conciliação, das medidas, das opções de parágrafo da descrição, do Nome que a descrição acompanha, das regras puras das Correções da descrição, da ordem da aba Concorrentes e da lista do "$" e do cabeçalho de download de arquivo, SEM rede
+npm run teste:extracao            # 909 asserções da extração, do site em moeda estrangeira (com Adafruit, SparkFun, Waveshare e o ritmo próprio dela), da página Shopify pelo ProductJson (Teknimas), do EAN interno, da conciliação, das medidas, das opções de parágrafo da descrição, do Nome que a descrição acompanha, das regras puras das Correções da descrição, da ordem da aba Concorrentes e da lista do "$" e do cabeçalho de download de arquivo, SEM rede
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
 npm run teste:versao              # 26 asserções da versão no pé do menu (VPS: DD.MM.AAAA.NN, a data do deploy em São Paulo e o número do deploy, mostrada como "DD.MM.AAAA (build NN) - commit"; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
@@ -1565,6 +1565,17 @@ respondem ao robô, publicam `priceCurrency: "USD"` no JSON-LD e no OpenGraph, e
   `waveshare_view_table` ("1~9" usa o preço da página), na moeda do site. **Fica sem:** categoria (o breadcrumb só mostra o SKU) e
   descrição boa SÓ NO INÍCIO: depois o dono pediu a descrição completa e o Wiki — `descricaoDaWaveshare` lê a aba `tab-description` inteira (títulos em linha, listas com "- ", sem imagem, teto de 20 mil caracteres; vence o JSON-LD) e `documentosDaWaveshare` põe cada link `waveshare.com/wiki/<página>` da seção Downloads como documento "Wiki: <página>". O preço é o que a página
   exibe (STM32-QFP144: US$ 110,99, enquanto a tabela de faixas dele mostra US$ 108,99 para 1 unidade: não conciliado).
+- **Página Shopify lida pelo `ProductJson` (Teknimas, teknimas.com.br, 08/11/2026; `src/lib/coleta/shopify.js`):** o dono viu o
+  produto sem código ("está em referência no site"), sem as fotos e com a descrição cortada ("está no dropdown descrição"). A página
+  não tem JSON-LD nem `itemprop="sku"`, mas o tema embute o produto inteiro num `<script type="application/json"
+  id="ProductJson-...">` (o mesmo objeto do `/products/{handle}.js`). `produtoJsonDaPaginaShopify` tira dali o **código**
+  (`variants[].sku`, só quando todos os variantes dizem o mesmo; a "Referência: TKA0243" da tela), as **fotos** (`images[]`, a galeria
+  inteira e na ordem; a genérica trazia só o og:image recortado em 1200x1200 mais dois logos da loja da mesma pasta `/cdn/shop/files/`),
+  a **descrição** completa do dropdown (`description` em HTML; o og:description tinha 320 dos 1.825 caracteres) e a **categoria** como
+  último recurso (`type`, "Industrializados"). Vale para toda loja Shopify com o `ProductJson` na página. A ficha fica vazia nela: a
+  loja escreve "Especificações Técnicas: Marca: ...; Modelo: TP 72; ..." num parágrafo só, sem lista. **Cloudflare:** o site barra o
+  IP da casa (403 com o desafio em toda URL, inclusive robots.txt e sitemap), mas responde normal à VPS: o diagnóstico foi feito com a
+  página baixada pela VPS; nenhuma tentativa de contornar o desafio. Produtos já gravados só mudam na próxima varredura.
 
 **Janela do fornecedor no cadastro de Produto** (06/11/2026, pedido do dono): o lápis e o "Adicionar fornecedor" abrem uma
 janela larga (`JanelaDoFornecedor` em `Fornecedores.jsx`, moldura `Janela` das Licenças, "Sair sem salvar?", portal no
