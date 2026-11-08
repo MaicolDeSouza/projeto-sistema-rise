@@ -321,9 +321,10 @@ export function criarMLFalso(opcoes = {}) {
 
   // Toda escrita passa aqui: sem exigirEscrita antes, LANCA (a publicacao tem que conferir as travas
   // antes de escrever); depois, a primeira falha programada que casar responde no lugar da rota.
-  function antesDeEscrever(metodo, rota, corpo) {
+  function antesDeEscrever(metodo, rota, corpo, headers = null) {
     if (!escritaLiberada) throw new Error(`ML falso: ${metodo} ${rota} sem exigirEscrita(codigo) antes.`);
-    escritas.push({ metodo, caminho: rota, corpo: structuredClone(corpo ?? null) });
+    // `headers` so entra no registro quando veio: os testes antigos comparam a escrita inteira.
+    escritas.push({ metodo, caminho: rota, corpo: structuredClone(corpo ?? null), ...(headers ? { headers: structuredClone(headers) } : {}) });
     // `exato: true` casa so o caminho inteiro: "/items" por prefixo pegaria tambem "/items/validate".
     const casa = (item) => (item.exato ? rota === item.caminho : rota.startsWith(item.caminho));
     const falha = falhas.find((item) => !item.usada && item.metodo === metodo && casa(item));
@@ -337,6 +338,7 @@ export function criarMLFalso(opcoes = {}) {
   const fiscais = new Map(Object.entries(structuredClone(opcoes.fiscais ?? {})));
   const ligacoes = new Map(Object.entries(opcoes.ligacoesFiscais ?? {}));
   const existeItem = (id) => itens.has(id) || Object.values(estado.meusItens).flat().some((item) => item.id === id);
+  const acharItem = (id) => itens.get(id) ?? Object.values(estado.meusItens).flat().find((item) => item.id === id) ?? null;
 
   function rotasFiscaisGet(rota) {
     let partes = rota.match(/^\/items\/fiscal_information\/([^/]+)$/);
@@ -370,10 +372,39 @@ export function criarMLFalso(opcoes = {}) {
     return null;
   }
 
-  async function post(caminho, corpo) {
+  async function post(caminho, corpo, { headers } = {}) {
     const { rota } = separar(caminho);
-    const falhou = antesDeEscrever("POST", rota, corpo);
+    const falhou = antesDeEscrever("POST", rota, corpo, headers);
     if (falhou) return falhou;
+
+    // ---- Precos de atacado (08/11/2026), nos formatos medidos na conta ----
+    // A recomendacao so calcula: 0,82/2,62/5,5/9,86/12,27 para 2/3/5/10/20 (o 100101 a R$ 45,90); outra quantidade, 0.
+    if (rota === "/prices-per-quantity/v1/recommendations") {
+      if (!existeItem(corpo?.item_id)) return naoAchou(`Item ${corpo?.item_id} not found`);
+      const tabela = { 2: 0.82, 3: 2.62, 5: 5.5, 10: 9.86, 20: 12.27 };
+      return resposta(200, {
+        item_id: corpo.item_id,
+        recommendations: (corpo?.range_item_quantities ?? []).map((quantity) => ({ quantity, discount_percentage: tabela[quantity] ?? 0 })),
+      });
+    }
+    // Grava as faixas: exige o `X-Version` igual ao do item (409 se velho) e recusa % abaixo do recomendado (400).
+    const pxq = rota.match(/^\/items\/([^/]+)\/prices\/price-per-quantity$/);
+    if (pxq) {
+      const item = acharItem(pxq[1]);
+      if (!item) return naoAchou(`Item ${pxq[1]} not found`);
+      const versao = headers?.["X-Version"] ?? headers?.["x-version"];
+      if (String(versao ?? "") !== String(item.version ?? "1")) {
+        return resposta(409, { message: "Item version conflict", error: "conflict", status: 409, cause: [] });
+      }
+      const tabela = { 2: 0.82, 3: 2.62, 5: 5.5, 10: 9.86, 20: 12.27 };
+      const faixas = corpo?.price_per_quantity ?? [];
+      const abaixo = faixas.find((f) => Number(f.percentage) < (tabela[Number(f.conditions?.min_purchase_unit)] ?? 0));
+      if (abaixo) return resposta(400, { message: "Amount above recommended", error: "bad_request", status: 400, cause: [] });
+      item.price_per_quantity = faixas.map((f, indice) => ({ id: `pxq${indice + 1}`, ...structuredClone(f) }));
+      // Cada gravacao sobe a versao, como no ML (o envio seguinte precisa reler).
+      item.version = String(Number(item.version ?? "1") + 1);
+      return resposta(200, { id: item.id, price_per_quantity: structuredClone(item.price_per_quantity) });
+    }
 
     if (rota === "/items/fiscal_information") {
       if (fiscais.has(corpo?.sku)) return resposta(400, { message: `Sku ${corpo.sku} already exists`, error_code: "10085" });
@@ -411,6 +442,8 @@ export function criarMLFalso(opcoes = {}) {
         pictures: structuredClone(corpo?.pictures ?? []),
         permalink: `https://produto.mercadolivre.com.br/${id.replace("MLB", "MLB-")}-anuncio-_JM`,
         descricao: null,
+        // A versao do item (header x-version de GET /items/{id}/prices no ML real), que o atacado exige no X-Version.
+        version: "1",
       };
       itens.set(id, item);
       return resposta(201, structuredClone(item));
@@ -589,6 +622,23 @@ export function criarMLFalso(opcoes = {}) {
 
     const fiscal = rotasFiscaisGet(rota);
     if (fiscal) return fiscal;
+
+    // Precos do item (08/11/2026): a versao vai no header `x-version` (nunca no corpo, como no ML real) e as faixas de
+    // atacado so vem com `show-all-prices: true`.
+    const precos = rota.match(/^\/items\/([^/]+)\/prices$/);
+    if (precos) {
+      const item = acharItem(decodeURIComponent(precos[1]));
+      if (!item) return naoAchou(`Item ${precos[1]} not found`);
+      const todas = String(headers?.["show-all-prices"] ?? "") === "true";
+      return {
+        ...resposta(200, {
+          id: item.id,
+          prices: [{ id: "standard", type: "standard", amount: item.price ?? null, currency_id: "BRL" }],
+          ...(todas ? { price_per_quantity: structuredClone(item.price_per_quantity ?? []) } : {}),
+        }),
+        headers: { "x-version": String(item.version ?? "1") },
+      };
+    }
 
     if (rota === "/products/search") return buscarCatalogos(pedido.params);
     let catalogo = rota.match(/^\/products\/([^/]+)\/items$/);

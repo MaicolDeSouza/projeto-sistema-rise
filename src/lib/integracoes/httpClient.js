@@ -125,6 +125,9 @@ export async function requisitar({
   corpo,
   timeoutMs = 20000,
   tentativas = 3,
+  // Devolve tambem os headers da resposta (minusculos), so para quem pede: o ML poe a versao do item no `x-version`
+  // de GET /items/{id}/prices (08/11/2026). Quem nao pede recebe o mesmo objeto de sempre.
+  comHeaders = false,
 }) {
   const alvo = new URL(url);
   // Multipart (envio de foto ao ML): o corpo vai cru e SEM Content-Type, porque e o fetch
@@ -200,7 +203,13 @@ export async function requisitar({
         continue;
       }
 
-      return { ok: resposta.ok, status: resposta.status, duracaoMs, dados };
+      return {
+        ok: resposta.ok,
+        status: resposta.status,
+        duracaoMs,
+        dados,
+        ...(comHeaders ? { headers: Object.fromEntries(resposta.headers.entries()) } : {}),
+      };
     } catch (erro) {
       clearTimeout(relogio);
       ultimoErro = erro;

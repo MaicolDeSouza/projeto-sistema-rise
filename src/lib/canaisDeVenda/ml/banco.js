@@ -124,7 +124,7 @@ export async function novoRascunhoML(produtoId, { composicao = null } = {}) {
 }
 
 // Anuncio sem `dados` (gravado por fora do editor) abre com o que falta em branco, e nao quebra a tela.
-function rascunhoDoAnuncio(anuncio) {
+export function rascunhoDoAnuncio(anuncio) {
   const dados = anuncio.dados ?? {};
   return {
     produtoId: anuncio.produtoId,
@@ -148,6 +148,8 @@ function rascunhoDoAnuncio(anuncio) {
     // `logistica` e da fase 2: o anuncio gravado antes dela abre com o padrao da conta.
     envio: { pesoKg: null, alturaCm: null, larguraCm: null, comprimentoCm: null, modo: "me2", logistica: "xd_drop_off", freteGratis: false, retirada: false, ...dados.envio },
     composicao: dados.composicao ?? null,
+    // Anuncio gravado antes do campo (08/11/2026) abre com o atacado DESLIGADO (regra 3 da spec): ligar e decisao do dono.
+    atacado: dados.atacado ?? { ligado: false, faixas: [] },
   };
 }
 

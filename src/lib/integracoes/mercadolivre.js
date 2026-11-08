@@ -116,7 +116,7 @@ export async function obterAccessToken() {
 
 // `headers` extras entram por cima do Authorization: o endpoint de envios exige `X-Api-Version: 2`
 // (Pedidos de venda, 04/11/2026), e a assinatura comum nao tinha como mandar.
-async function chamar(metodo, caminho, { params, corpo, tentativas, headers } = {}) {
+async function chamar(metodo, caminho, { params, corpo, tentativas, headers, comHeaders } = {}) {
   if (metodo !== "GET") exigirTravaLiberada(SERVICO);
 
   const token = await obterAccessToken();
@@ -137,14 +137,18 @@ async function chamar(metodo, caminho, { params, corpo, tentativas, headers } = 
     headers: { Authorization: `Bearer ${token}`, ...(headers ?? {}) },
     corpo,
     ...(tentativas ? { tentativas } : {}),
+    ...(comHeaders ? { comHeaders: true } : {}),
   });
 }
 
-export const mlGet = (caminho, params, { headers } = {}) => chamar("GET", caminho, { params, headers });
+// `comHeaders: true` devolve tambem os headers da resposta: a versao do item para o atacado (`X-Version`) so vem no
+// header `x-version` de GET /items/{id}/prices (medido em 08/11/2026), nunca no corpo.
+export const mlGet = (caminho, params, { headers, comHeaders } = {}) => chamar("GET", caminho, { params, headers, comHeaders });
 
 // Escrita: UMA tentativa so. Uma resposta perdida nao quer dizer que o ML nao recebeu, e repetir
 // a criacao de um anuncio criaria dois iguais no ar. Todas passam pela trava ML_PUBLICACAO em `chamar`.
-export const mlPost = (caminho, corpo) => chamar("POST", caminho, { corpo, tentativas: 1 });
+// `headers`: o atacado manda `X-Version` (08/11/2026).
+export const mlPost = (caminho, corpo, opcoes) => chamar("POST", caminho, { corpo, tentativas: 1, headers: opcoes?.headers });
 export const mlPut = (caminho, corpo) => chamar("PUT", caminho, { corpo, tentativas: 1 });
 
 /**

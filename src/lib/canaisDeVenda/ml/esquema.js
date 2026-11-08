@@ -89,4 +89,12 @@ export const RascunhoMLSchema = z.object({
       blingProdutoId: z.string().nullable(),
     })
     .nullable(),
+  // Precos de atacado (08/11/2026). Opcional: o editor aberto antes do campo manda o rascunho sem ele, e
+  // `rascunhoDoAnuncio` sempre preenche ao ler. Ate 5 faixas, quantidade de 1 a 100, % de 0 a 100 ou vazio (recomendacao).
+  atacado: z
+    .object({
+      ligado: z.boolean(),
+      faixas: z.array(z.object({ quantidade: z.number().int().min(1).max(100), percentual: z.number().min(0).max(100).nullable() })).max(5),
+    })
+    .optional(),
 });

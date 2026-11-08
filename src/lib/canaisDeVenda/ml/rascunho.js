@@ -20,6 +20,7 @@ import {
   unidadesDaComposicao,
 } from "../composicao";
 import { pesoEMedidasDoKit } from "../../composicao";
+import { ATACADO_PADRAO } from "./atacado";
 import { fichaDaDescricao } from "./atributos";
 
 const texto = (valor) => String(valor ?? "").trim();
@@ -302,6 +303,8 @@ export function rascunhoInicial({ principal, produtosPorId, composicao }) {
       retirada: false,
     },
     composicao: null,
+    // Precos de atacado ligados por padrao (definicao 8 do dono, 08/11/2026); o % vem da recomendacao do ML no envio.
+    atacado: ATACADO_PADRAO(),
   };
   if (!composicao) return rascunho;
 

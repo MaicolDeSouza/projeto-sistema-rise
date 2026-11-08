@@ -239,7 +239,7 @@ try {
     conferir("simples: family_name e a marca quando nao ha modelo", simples.familyName, "GENERICA");
     conferir("simples: produto e descricao inteira do produto", [simples.produtoId, simples.descricao], ["a", a.descricaoBase]);
     conferir("simples: os campos do rascunho", Object.keys(simples).sort(),
-      ["atributos", "categoriaId", "categoriaNome", "composicao", "condicao", "descricao", "envio", "estoque", "familyName", "imagens", "prazoDisponibilidadeDias", "preco", "produtoId", "tipoAnuncio", "titulo"]);
+      ["atacado", "atributos", "categoriaId", "categoriaNome", "composicao", "condicao", "descricao", "envio", "estoque", "familyName", "imagens", "prazoDisponibilidadeDias", "preco", "produtoId", "tipoAnuncio", "titulo"]);
     conferir("simples: envio pelo Mercado Envios 2, com as medidas do produto", simples.envio,
       { pesoKg: 0.001, alturaCm: 1, larguraCm: 1, comprimentoCm: 2, modo: "me2", logistica: "xd_drop_off", freteGratis: false, retirada: false });
     conferir("simples: sem composicao", simples.composicao, null);
@@ -748,7 +748,7 @@ try {
         const gravado = await anuncioDe(completo.id);
         conferir("cada campo mora na sua coluna", [gravado.titulo, gravado.descricao, gravado.categoriaExternaId, gravado.produtoId, ordenado(gravado.atributos)],
           [novo.rascunho.titulo, novo.rascunho.descricao, "MLB1234", p1.id, ordenado(novo.rascunho.atributos)]);
-        conferir("o resto do rascunho vai para dados", Object.keys(gravado.dados).sort(), ["categoriaNome", "composicao", "condicao", "descricaoEditada", "envio", "estoque", "familyName", "fotosReordenadas", "fotosVistasEm", "imagens", "prazoDisponibilidadeDias", "preco", "tipoAnuncio"]);
+        conferir("o resto do rascunho vai para dados", Object.keys(gravado.dados).sort(), ["atacado", "categoriaNome", "composicao", "condicao", "descricaoEditada", "envio", "estoque", "familyName", "fotosReordenadas", "fotosVistasEm", "imagens", "prazoDisponibilidadeDias", "preco", "tipoAnuncio"]);
         // O estoque do anuncio e sempre o do produto no Rise (pedido do dono em 22/10/2026): o que a tela manda nao vale.
         conferir("numero escrito como texto vira numero; o estoque e o do produto, nao o da tela", [gravado.dados.preco, gravado.dados.estoque], [12.5, 9]);
         await prisma.produto.update({ where: { id: p1.id }, data: { estoque: 4 } });
@@ -3873,6 +3873,101 @@ try {
     conferir("envio sem vendas e sem family_name: PUT com title", [porTitle.ok, semFamily.escritas.filter((e) => e.metodo === "PUT").map((e) => e.corpo)], [true, [{ title: "PLACA NOVA SEM FAMILY" }]]);
     const soRegistra = await enviarMudancasML(semVendas.anuncioId, { ml, bling, moverBling: true });
     conferir("envio sem vendas com Mover: o registro antigo sai e a Rise_ML registra", [soRegistra.ok, soRegistra.bling?.de, soRegistra.bling?.criado, soRegistra.bling?.apagado, registrosDe(bling, "MLBANTIGO2"), lojaDe(bling, "MLBANTIGO1")], [true, "ML_4h", false, true, [LOJA_ML_NO_BLING], [LOJA_ML_NO_BLING]]);
+  }
+
+  {
+    console.log("\nPreços de atacado (regras)");
+    const { ATACADO_PADRAO, FAIXAS_PADRAO, corpoDoAtacado, enviarAtacadoML, faixasComRecomendacao, faixasLidas, impressaoDoAtacado, lerVersaoDoItem } =
+      await import("../src/lib/canaisDeVenda/ml/atacado.js");
+    const { mlPost } = await import("../src/lib/integracoes/mercadolivre.js");
+    const { criarMLFalso } = await import("./lib/mlFalso.js");
+    const { RascunhoMLSchema: Esquema } = await import("../src/lib/canaisDeVenda/ml/esquema.js");
+    const { rascunhoDoAnuncio } = await import("../src/lib/canaisDeVenda/ml/banco.js");
+
+    conferir("padrao: 4 faixas ligadas, sem %", ATACADO_PADRAO(), { ligado: true, faixas: [2, 5, 10, 20].map((quantidade) => ({ quantidade, percentual: null })) });
+    conferir("padrao: faixas 2/5/10/20", FAIXAS_PADRAO, [2, 5, 10, 20]);
+    const rec = [
+      { quantity: 2, discount_percentage: 0.82 },
+      { quantity: 10, discount_percentage: 9.86 },
+    ];
+    conferir(
+      "recomendacao: sem % vira o recomendado; acima fica o do dono; abaixo sobe",
+      faixasComRecomendacao([{ quantidade: 2, percentual: null }, { quantidade: 10, percentual: 12 }, { quantidade: 5, percentual: 1 }], [...rec, { quantity: 5, discount_percentage: 5.5 }]),
+      [{ quantidade: 2, percentual: 0.82 }, { quantidade: 10, percentual: 12 }, { quantidade: 5, percentual: 5.5 }],
+    );
+    conferir("recomendacao: faixa sem recomendacao fica com o que tinha", faixasComRecomendacao([{ quantidade: 7, percentual: 3 }, { quantidade: 8, percentual: null }], rec), [{ quantidade: 7, percentual: 3 }, { quantidade: 8, percentual: 0 }]);
+    conferir(
+      "corpo: ordenado por quantidade, so % > 0, no formato do ML",
+      corpoDoAtacado([{ quantidade: 10, percentual: 9.86 }, { quantidade: 2, percentual: 0 }, { quantidade: 5, percentual: 5.5 }]),
+      {
+        price_per_quantity: [
+          { type: "discount_percentage", percentage: 5.5, conditions: { context_restrictions: ["channel_marketplace", "user_type_business"], min_purchase_unit: 5, eligible: true } },
+          { type: "discount_percentage", percentage: 9.86, conditions: { context_restrictions: ["channel_marketplace", "user_type_business"], min_purchase_unit: 10, eligible: true } },
+        ],
+      },
+    );
+    conferir("corpo: desligado manda a lista vazia", corpoDoAtacado([], { ligado: false }), { price_per_quantity: [] });
+    conferir("corpo: desligado ignora as faixas", corpoDoAtacado([{ quantidade: 2, percentual: 5 }], { ligado: false }), { price_per_quantity: [] });
+    conferir(
+      "lidas: do price_per_quantity do ML",
+      faixasLidas({ price_per_quantity: [{ id: "p2", type: "discount_percentage", percentage: 9.86, conditions: { min_purchase_unit: 10 } }, { id: "p1", type: "discount_percentage", percentage: 0.82, conditions: { min_purchase_unit: 2 } }] }),
+      [{ quantidade: 2, percentual: 0.82, id: "p1" }, { quantidade: 10, percentual: 9.86, id: "p2" }],
+    );
+    conferir("lidas: sem o campo", faixasLidas({ prices: [] }), []);
+    conferir("impressao: ligado e as faixas em ordem", impressaoDoAtacado({ ligado: true, faixas: [{ quantidade: 10, percentual: 9.86 }, { quantidade: 2, percentual: 0.82 }] }), { ligado: true, faixas: [[2, 0.82], [10, 9.86]] });
+    conferir("impressao: desligado", impressaoDoAtacado({ ligado: false, faixas: [{ quantidade: 2, percentual: 5 }] }), { ligado: false, faixas: [] });
+    conferir("impressao: sem nada", impressaoDoAtacado(null), { ligado: false, faixas: [] });
+    conferir("mlPost aceita headers", mlPost.length, 3);
+
+    // Esquema e rascunho: o campo e opcional (editor aberto antes), e o anuncio gravado antes abre desligado (regra 3).
+    conferir("esquema: atacado valido", Esquema.shape.atacado.safeParse({ ligado: true, faixas: [{ quantidade: 2, percentual: null }, { quantidade: 5, percentual: 5.5 }] }).success, true);
+    conferir("esquema: quantidade 0 e % 101 recusados", [Esquema.shape.atacado.safeParse({ ligado: true, faixas: [{ quantidade: 0, percentual: null }] }).success, Esquema.shape.atacado.safeParse({ ligado: true, faixas: [{ quantidade: 2, percentual: 101 }] }).success], [false, false]);
+    conferir("esquema: 6 faixas recusadas", Esquema.shape.atacado.safeParse({ ligado: true, faixas: [1, 2, 3, 4, 5, 6].map((quantidade) => ({ quantidade, percentual: null })) }).success, false);
+    conferir("esquema: ausente passa", Esquema.shape.atacado.safeParse(undefined).success, true);
+    conferir("banco: anuncio gravado antes abre desligado", rascunhoDoAnuncio({ produtoId: "x", dados: {} }).atacado, { ligado: false, faixas: [] });
+    conferir("banco: o gravado volta igual", rascunhoDoAnuncio({ produtoId: "x", dados: { atacado: { ligado: true, faixas: [{ quantidade: 2, percentual: 1 }] } } }).atacado, { ligado: true, faixas: [{ quantidade: 2, percentual: 1 }] });
+    const rascunhoNovo = await novoRascunhoML((await prisma.produto.create({ data: { sku: "ZZ-ML-AT", tituloBase: "ZZ AT", descricaoBase: "d", conferido: true, precoVenda: 45.9 } })).id);
+    conferir("rascunho novo: atacado ligado com as 4 faixas", rascunhoNovo.rascunho?.atacado ?? rascunhoNovo.atacado, ATACADO_PADRAO());
+
+    // O envio contra o ML falso: recomendacao, versao no header, gravacao e leitura de volta.
+    const ml = criarMLFalso();
+    ml.exigirEscrita("ZZ-ML-AT");
+    const criado = await ml.post("/items", { family_name: "ZZ AT", price: 45.9, category_id: "MLB99779", status: "paused" });
+    const itemId = criado.dados.id;
+    conferir("versao: lida do header x-version de GET /items/{id}/prices", await lerVersaoDoItem(ml, itemId), "1");
+    const enviado = await enviarAtacadoML(ml, { itemId, preco: 45.9, atacado: ATACADO_PADRAO() });
+    conferir("envio: 4 faixas com o % recomendado", [enviado.ok, enviado.faixas.map((f) => [f.quantidade, f.percentual])], [true, [[2, 0.82], [5, 5.5], [10, 9.86], [20, 12.27]]]);
+    const gravacao = ml.escritas.find((e) => e.caminho === `/items/${itemId}/prices/price-per-quantity`);
+    conferir("envio: POST com X-Version e o corpo do ML", [gravacao?.headers?.["X-Version"], gravacao?.corpo?.price_per_quantity?.map((p) => [p.conditions.min_purchase_unit, p.percentage])], ["1", [[2, 0.82], [5, 5.5], [10, 9.86], [20, 12.27]]]);
+    conferir("envio: a recomendacao foi pedida com o preco e as quantidades", ml.escritas.find((e) => e.caminho === "/prices-per-quantity/v1/recommendations")?.corpo, { item_id: itemId, range_item_quantities: [2, 5, 10, 20], price: { standard_amount: 45.9, currency: "BRL" } });
+    const lidas = faixasLidas((await ml.get(`/items/${itemId}/prices`, null, { headers: { "show-all-prices": "true" } })).dados);
+    conferir("envio: o ML falso devolve as faixas gravadas", lidas.map((f) => [f.quantidade, f.percentual]), [[2, 0.82], [5, 5.5], [10, 9.86], [20, 12.27]]);
+    conferir("envio: o % do dono acima do recomendado fica", (await enviarAtacadoML(ml, { itemId, preco: 45.9, atacado: { ligado: true, faixas: [{ quantidade: 10, percentual: 15 }] } })).faixas.map((f) => [f.quantidade, f.percentual]), [[10, 15]]);
+    // Cada gravacao sobe a versao no falso (como no ML): o envio seguinte le a nova antes de mandar.
+    conferir("envio: a versao sobe a cada gravacao e o envio le a atual", [await lerVersaoDoItem(ml, itemId), ml.escritas.filter((e) => e.caminho === `/items/${itemId}/prices/price-per-quantity`).map((e) => e.headers?.["X-Version"])], ["3", ["1", "2"]]);
+    // Versao trocada no meio (outro envio mexeu no item entre a leitura e o POST): 409 na 1a, rele e grava na 2a.
+    const conflito = criarMLFalso({ falhas: [{ metodo: "POST", caminho: "/items/MLB", status: 409, dados: { message: "Item version conflict", status: 409 } }] });
+    conflito.exigirEscrita("ZZ-ML-AT");
+    const emConflito = (await conflito.post("/items", { family_name: "ZZ AT", price: 45.9, category_id: "MLB99779" })).dados.id;
+    const comVersaoVelha = await enviarAtacadoML(conflito, { itemId: emConflito, preco: 45.9, atacado: { ligado: true, faixas: [{ quantidade: 2, percentual: null }] } });
+    const tentativas = conflito.escritas.filter((e) => e.caminho === `/items/${emConflito}/prices/price-per-quantity`).map((e) => e.headers?.["X-Version"]);
+    conferir("envio com versao velha: 409 na 1a, rele e grava na 2a", [comVersaoVelha.ok, comVersaoVelha.faixas.map((f) => [f.quantidade, f.percentual]), tentativas], [true, [[2, 0.82]], ["1", "1"]]);
+    const doisConflitos = criarMLFalso({ falhas: [409, 409].map((status) => ({ metodo: "POST", caminho: "/items/MLB", status, dados: { message: "Item version conflict", status } })) });
+    doisConflitos.exigirEscrita("ZZ-ML-AT");
+    const teimoso = (await doisConflitos.post("/items", { family_name: "ZZ AT", price: 45.9, category_id: "MLB99779" })).dados.id;
+    const desistiu = await enviarAtacadoML(doisConflitos, { itemId: teimoso, preco: 45.9, atacado: ATACADO_PADRAO() });
+    conferir("envio com dois 409: desiste na 2a com erro", [desistiu.ok, /version conflict/.test(desistiu.erro ?? ""), doisConflitos.escritas.filter((e) => e.caminho.endsWith("/price-per-quantity")).length], [false, true, 2]);
+    conferir("envio desligado: manda [] e devolve nenhuma faixa", (await enviarAtacadoML(ml, { itemId, preco: 45.9, atacado: { ligado: false, faixas: [] } })), { ok: true, faixas: [], erro: null });
+    const recusa = criarMLFalso({ falhas: [{ metodo: "POST", caminho: "/prices-per-quantity/v1/recommendations", exato: true, status: 500 }] });
+    recusa.exigirEscrita("ZZ-ML-AT");
+    const outro = (await recusa.post("/items", { family_name: "ZZ AT", price: 45.9, category_id: "MLB99779" })).dados.id;
+    const semRec = await enviarAtacadoML(recusa, { itemId: outro, preco: 45.9, atacado: ATACADO_PADRAO() });
+    conferir("recomendacao que falha: erro, nada gravado", [semRec.ok, typeof semRec.erro, recusa.escritas.some((e) => e.caminho.endsWith("/price-per-quantity"))], [false, "string", false]);
+    const queda = criarMLFalso({ falhas: [{ metodo: "POST", caminho: "/items/MLB", lancar: true }] });
+    queda.exigirEscrita("ZZ-ML-AT");
+    const terceiro = (await queda.post("/items", { family_name: "ZZ AT", price: 45.9, category_id: "MLB99779" })).dados.id;
+    const caiu = await enviarAtacadoML(queda, { itemId: terceiro, preco: 45.9, atacado: ATACADO_PADRAO() });
+    conferir("queda de rede no POST: erro, sem lancar", [caiu.ok, /falha programada|fetch failed/.test(caiu.erro ?? "")], [false, true]);
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.
