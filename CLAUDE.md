@@ -3935,6 +3935,14 @@ ao ar e nenhuma escrita real foi feita no ML ou no Bling.**
   nunca seriam iguais). Parte **`atacado`** em `PARTES_DO_ANUNCIO` (a última: a recomendação depende do preço), botão
   "Recomendação do ML" no anúncio já publicado, validação "As faixas de atacado precisam de quantidades diferentes e desconto
   crescente." (só % que cai e quantidade repetida). `mlPost(caminho, corpo, { headers })` e `mlGet(..., { comHeaders })`.
+- **Pedidos do dono na noite de 08/11/2026:** (1) a proposta do ML (`gravarPropostaML`, `precoDaPropostaML`) sai sempre com a
+  variante pela faixa: preço sem frete abaixo de R$ 72 = Clássico sem frete; de 72 a 78,99 sobe para R$ 79 com frete grátis
+  (aviso com o lucro a 79); de 79 em diante, frete grátis; o rascunho grava o frete grátis da variante (`rascunhoDaVariante`).
+  (2) Os anúncios do código que a conta do ML já tem FORA do Rise aparecem no popup do produto em âmbar ("Na conta do Mercado
+  Livre, fora do Rise", com Reaproveitar), lidos a cada carga da lista (`anunciosDoSkuMLAcao`, só GET), contam nas variantes
+  (`variantesDoProduto({ naConta })`, o "Faltam" não pede o que já está no ar) e seguram o popup na lista mesmo com um anúncio
+  só no Rise; a proposta avisa no topo com MLB, tipo, frete, preço, vendas e estado e devolve `anunciosNaConta`. Visto na tela
+  do PC no 100101 (3 anúncios da conta listados). Premium continua sem regra de entrada.
 - **Medido só em leitura na VPS (08/11/2026):** a versão do item NÃO vem no corpo, vem no header `x-version` de
   `GET /items/{id}/prices`; a recomendação responde 200 também em item pausado; o validador não acusou segundo anúncio do mesmo
   vendedor no mesmo catálogo (inconclusivo: o 1º Publicar real da 2ª variante é o teste).
