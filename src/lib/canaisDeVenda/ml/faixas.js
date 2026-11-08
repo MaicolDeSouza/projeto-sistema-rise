@@ -6,9 +6,9 @@
  *
  * Uma "variante" e o par tipo de anuncio + frete gratis. A base de tudo e o LUCRO DA LOJA em R$:
  * cada variante recebe o preco que deixa no ML esse mesmo lucro, e as faixas dizem quantas
- * variantes o produto tem: abaixo de R$ 72 (sem frete) duas, Classico sem frete e Classico com
- * frete gratis; de R$ 72 para cima so uma, com frete gratis (entre 72 e 78,99 ela sobe para o
- * piso de R$ 79, onde o frete gratis e obrigatorio e a tarifa fixa cai: o 2o anuncio nao compensa).
+ * variante o produto tem: abaixo de R$ 72 so o Classico sem frete (o com frete gratis saiu em 08/11/2026,
+ * noite); de R$ 72 para cima so o Classico com frete gratis (entre 72 e 78,99 ele sobe para o piso de
+ * R$ 79, onde o frete gratis e obrigatorio e a tarifa fixa cai).
  * Premium nunca entra sozinho.
  */
 
@@ -17,7 +17,7 @@ import { custosDoAnuncio, LIMITE_DO_FRETE_GRATIS } from "./custos";
 
 const dinheiro = (valor) => Math.round((Number(valor) + Number.EPSILON) * 100) / 100;
 
-/** A partir deste preco sem frete o produto deixa de ter a variante sem frete gratis. */
+/** A partir deste preco sem frete o produto passa a ter so a variante com frete gratis (abaixo dele, so a sem frete). */
 export const LIMITE_DA_SEGUNDA_VARIANTE = 72;
 
 export const VARIANTES = ["classico_sem_frete", "classico_frete_gratis", "premium_sem_frete", "premium_frete_gratis"];
@@ -38,7 +38,8 @@ const tipoDaVariante = (variante) => (String(variante).startsWith("premium") ? T
 export function variantesEsperadas(precoSemFrete) {
   const preco = Number(precoSemFrete);
   if (!(preco > 0)) return [];
-  return preco < LIMITE_DA_SEGUNDA_VARIANTE ? ["classico_sem_frete", "classico_frete_gratis"] : ["classico_frete_gratis"];
+  // Abaixo de R$ 72 so o Classico sem frete (o dono tirou o com frete gratis em 08/11/2026, noite); de 72 em diante, so o com frete gratis.
+  return preco < LIMITE_DA_SEGUNDA_VARIANTE ? ["classico_sem_frete"] : ["classico_frete_gratis"];
 }
 
 /** A variante de um rascunho: tipo de anuncio + frete gratis (ligado ou obrigatorio pelo preco). */

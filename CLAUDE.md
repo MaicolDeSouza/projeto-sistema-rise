@@ -3917,8 +3917,9 @@ ao ar e nenhuma escrita real foi feita no ML ou no Bling.**
   mesmo lucro em R$ que o produto deixa na loja, com as taxas reais. Botão **"Preço pelo lucro da loja"** na aba Preço
   (`precoPelaFaixaMLAcao`; o valor entra no campo e continua editável). Kit: lucro da loja × quantidade; a linha "Preço no ML
   (UN)" mostra o lucro por unidade. O "!" `precoDaLoja` só acende quando o dono muda o preço da loja (nada vai ao ML sozinho).
-- **Faixas e variantes** (`VARIANTES`): abaixo de R$ 72, duas variantes (Clássico sem frete e Clássico com frete grátis); de
-  R$ 72 a 78,99, UM anúncio Clássico com frete grátis a R$ 79; de R$ 79 em diante, um. O popup de anúncios do produto mostra a
+- **Faixas e variantes** (`VARIANTES`; **redefinido pelo dono em 08/11/2026 à noite**): abaixo de R$ 72 só o Clássico SEM frete
+  (o com frete grátis saiu); de R$ 72 a 78,99, UM anúncio Clássico com frete grátis a R$ 79; de R$ 79 em diante, um. Premium
+  nunca é criado sozinho. O popup de anúncios do produto mostra a
   linha **"Faltam"** e **Criar** a variante que falta (`variantes.js`: `clonarVarianteML`). Só produto NOVO entra na regra.
 - **Reaproveitar** (`reaproveitar.js`, `JanelaReaproveitarML.jsx`): "Criar novo" num produto sem anúncio no Rise lista antes os
   anúncios que a conta já tem com o mesmo `seller_sku` (ordenável; janela `max-w-5xl` nessa fase); **Reaproveitar** traz o

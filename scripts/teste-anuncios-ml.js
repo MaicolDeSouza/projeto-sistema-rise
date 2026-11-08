@@ -3643,8 +3643,9 @@ try {
     const lucroDe = (preco, custo, fg) => custosDoAnuncio({ preco, custo, ...taxas(preco), frete: frete(preco, fg) }).lucro;
     const terminaEm9 = (preco) => Math.round(preco * 100) % 10 === 9;
 
-    conferir("abaixo de 72: duas variantes", variantesEsperadas(71.99), ["classico_sem_frete", "classico_frete_gratis"]);
-    conferir("de 72 em diante: so a com frete gratis", [variantesEsperadas(72), variantesEsperadas(79)], [["classico_frete_gratis"], ["classico_frete_gratis"]]);
+    // Definicao do dono em 08/11/2026 (noite): abaixo de R$ 72 so o Classico sem frete; o com frete gratis saiu.
+    conferir("abaixo de 72: so o sem frete", [variantesEsperadas(71.99), variantesEsperadas(18.9)], [["classico_sem_frete"], ["classico_sem_frete"]]);
+    conferir("de 72 em diante: so a com frete gratis", [variantesEsperadas(72), variantesEsperadas(78.99), variantesEsperadas(79)], [["classico_frete_gratis"], ["classico_frete_gratis"], ["classico_frete_gratis"]]);
     conferir("sem preco: nenhuma", [variantesEsperadas(null), variantesEsperadas(0)], [[], []]);
     conferir("nome das variantes", NOME_DA_VARIANTE.classico_frete_gratis, "Clássico com frete grátis");
     conferir("variante do rascunho: classico sem frete", varianteDoRascunho({ tipoAnuncio: "gold_special", envio: { freteGratis: false }, preco: 45.9 }), "classico_sem_frete");
@@ -3777,13 +3778,13 @@ try {
     const { clonarVarianteML } = await import("../src/lib/canaisDeVenda/ml/variantes.js");
     const { criarMLFalso } = await import("./lib/mlFalso.js");
     const linha = (extra) => ({ codigo: "A", sku: "A", tipoAnuncio: "gold_special", freteGratis: false, preco: 45.99, status: "PUBLICADO", situacaoCanal: "ATIVA", ...extra });
-    conferir("abaixo de 72 com so o sem frete: falta o com frete gratis", variantesDoProduto({ precoVenda: 45.9, anuncios: [linha()] }), { esperadas: ["classico_sem_frete", "classico_frete_gratis"], existentes: ["classico_sem_frete"], faltam: ["classico_frete_gratis"] });
-    conferir("com os dois: nada falta", variantesDoProduto({ precoVenda: 45.9, anuncios: [linha(), linha({ freteGratis: true, preco: 53.49 })] }).faltam, []);
+    conferir("abaixo de 72 com o sem frete: nada falta", variantesDoProduto({ precoVenda: 45.9, anuncios: [linha()] }), { esperadas: ["classico_sem_frete"], existentes: ["classico_sem_frete"], faltam: [] });
+    conferir("abaixo de 72, um anuncio com frete gratis que ja existe nao e cobrado nem apagado", variantesDoProduto({ precoVenda: 45.9, anuncios: [linha(), linha({ freteGratis: true, preco: 53.49 })] }), { esperadas: ["classico_sem_frete"], existentes: ["classico_sem_frete", "classico_frete_gratis"], faltam: [] });
     conferir("a partir de 79: so o com frete gratis, e o preco >= 79 conta como ele", variantesDoProduto({ precoVenda: 89.9, anuncios: [linha({ preco: 89.99 })] }), { esperadas: ["classico_frete_gratis"], existentes: ["classico_frete_gratis"], faltam: [] });
-    conferir("kit na lista e anuncio encerrado nao contam", variantesDoProduto({ precoVenda: 45.9, anuncios: [linha({ codigo: "A_10" }), linha({ freteGratis: true, situacaoCanal: "ENCERRADA" })] }), { esperadas: ["classico_sem_frete", "classico_frete_gratis"], existentes: [], faltam: ["classico_sem_frete", "classico_frete_gratis"] });
+    conferir("kit na lista e anuncio encerrado nao contam", variantesDoProduto({ precoVenda: 45.9, anuncios: [linha({ codigo: "A_10" }), linha({ freteGratis: true, situacaoCanal: "ENCERRADA" })] }), { esperadas: ["classico_sem_frete"], existentes: [], faltam: ["classico_sem_frete"] });
     conferir("rascunho conta como existente (vai virar anuncio)", variantesDoProduto({ precoVenda: 45.9, anuncios: [linha({ status: "RASCUNHO", situacaoCanal: null })] }).existentes, ["classico_sem_frete"]);
     conferir("sem preco de venda: nada esperado", variantesDoProduto({ precoVenda: null, anuncios: [linha()] }), { esperadas: [], existentes: ["classico_sem_frete"], faltam: [] });
-    conferir("premium existente nao cobre o classico", variantesDoProduto({ precoVenda: 45.9, anuncios: [linha({ tipoAnuncio: "gold_pro" })] }).faltam, ["classico_sem_frete", "classico_frete_gratis"]);
+    conferir("premium existente nao cobre o classico", variantesDoProduto({ precoVenda: 45.9, anuncios: [linha({ tipoAnuncio: "gold_pro" })] }).faltam, ["classico_sem_frete"]);
 
     // A linha do anuncio traz o frete gratis e o SKU do produto base (o kit tem outro codigo).
     const produto = await prisma.produto.create({ data: { sku: "ZZ-ML-VA", tituloBase: "ZZ VA", descricaoBase: "Descricao", conferido: true, blingId: "1", pesoKg: 0.05, alturaCm: 2, larguraCm: 6, comprimentoCm: 7, estoque: 10, precoVenda: 45.9, custo: 20 } });
@@ -3792,7 +3793,8 @@ try {
     if (!salvo.ok) throw new Error(`cenario: ${salvo.erro}`);
     const linhas = await anunciosMLDoProduto(produto.id);
     conferir("linha do anuncio: freteGratis e sku", [linhas[0].freteGratis, linhas[0].sku, linhas[0].codigo], [false, "ZZ-ML-VA", "ZZ-ML-VA"]);
-    conferir("variantes pelas linhas de verdade: falta o com frete gratis", variantesDoProduto({ precoVenda: 45.9, anuncios: linhas }).faltam, ["classico_frete_gratis"]);
+    conferir("variantes pelas linhas de verdade: abaixo de 72 nada falta", variantesDoProduto({ precoVenda: 45.9, anuncios: linhas }).faltam, []);
+    conferir("produto de R$ 89,90 so com o sem frete (preco do anuncio < 79): falta o com frete gratis", variantesDoProduto({ precoVenda: 89.9, anuncios: linhas }).faltam, ["classico_frete_gratis"]);
 
     // Criar a variante: um clone (nada gravado) com o frete gratis ligado e o preco pelo lucro da loja; sem categoria, o preco
     // fica o do clone e o aviso diz.
