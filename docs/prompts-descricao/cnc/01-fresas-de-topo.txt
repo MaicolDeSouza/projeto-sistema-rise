@@ -1,0 +1,107 @@
+Escreva a descrição de uma fresa de topo para router CNC em português brasileiro, no JSON exigido pelo Rise: paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm e decisoes. Não acrescente outros campos. Vale para fresas de topo de haste cilíndrica que cortam pela lateral e pela ponta: espiral (helicoidal) de 1, 2, 3 ou 4 cortes, cortes retos paralelos, downcut, up e down (compressão) e as de topo para alumínio. Fresas V-bit, V carving e cônicas de gravação, ponta esférica (ballnose), raiadas para placa de circuito, de desbaste de superfície, meia cana, de perfil com rolamento, brocas, pinças e kits com várias fresas não entram neste prompt.
+
+Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use informações confirmadas no cadastro ou nas referências. Não complete especificações por suposição.
+
+PARÁGRAFOS
+
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 250 caracteres, o segundo até 400.
+
+Primeiro parágrafo, UMA frase: “A Fresa de Topo <tipo de corte> <número de cortes> <diâmetro de corte>x<comprimento de corte>mm com haste de <diâmetro da haste> é uma ferramenta de corte para router CNC, indicada para <2 ou 3 usos com os materiais confirmados: recortar chapas de acrílico, abrir canais em MDF, usinar PVC e PEAD>, que oferece <o diferencial: um corte só para o cavaco sair sem derreter o plástico; cobertura DLC; corte down para a face de cima sem rebarba>.” Só o que estiver confirmado.
+
+Segundo parágrafo: o porquê de ela ser boa, em 2 ou 3 frases. Diga como ela é usada (presa pela haste na pinça do spindle, corta pela lateral e pela ponta) e, a cada recurso confirmado, o que ele permite: o número de cortes (1 corte deixa um canal largo para o cavaco sair e aquece menos o material, por isso é o indicado para plásticos que derretem; 2 ou mais cortes deixam acabamento melhor em madeira e MDF), o sentido do corte (up puxa o cavaco para cima e limpa o canal; down empurra para baixo e deixa a face de cima sem rebarba; up e down faz as duas faces limpas), o comprimento de corte (a profundidade máxima que a fresa alcança) e a haste (a pinça que ela pede). Feche com um uso típico.
+
+Fale com o comprador: “possui”, não “tem”; “você” quando couber. Ao voltar a falar do produto, use “a fresa”, nunca “ela” no início da frase. Varie a ordem dos fatos entre as opções. Tom: explica e ensina, sem vender. Sem elogios vazios (“altíssima precisão”, “acabamento perfeito”, “a melhor do mercado”, “longa vida útil”), sem repetir o título inteiro e sem enumerar especificações.
+
+PADRONIZAÇÃO DOS NOMES
+
+Use exatamente os nomes dos campos definidos neste prompt. As lojas usam nomes variados; converta-os assim:
+
+Fabricante: substitui Marca. Quem fabrica a fresa, como está na marca do cadastro do produto ou gravado na fresa, na caixa ou no catálogo do fabricante: “FSI”, “Vsharp”. Fresa genérica, sem fabricante declarado (as lojas escrevem OEM, IMP, Genérica): OEM. Nunca o nome da loja. Marca que só aparece no anúncio de um marketplace, sem estar na fresa, na caixa ou no cadastro, não basta: OEM, e registre a marca do anúncio em decisoes.
+
+Modelo: o código do fabricante, como “SP1F-D2.0-L12”; substitui Código, Referência e Part Number. Sem código de fabricante confirmado, omita o campo.
+
+Material: substitui Composição e Material da fresa: “metal duro (carboneto de tungstênio)” ou “aço rápido (HSS)”. “Aço de tungstênio”, “tungsten steel”, “carbide”, “carboneto”, “MD” e “metal duro” são o mesmo metal duro. Aço rápido e metal duro são materiais diferentes: nunca troque um pelo outro.
+
+Número de Cortes: substitui Cortes, Entradas, Lâminas, Arestas, Fios, Flutes e Flauta: “1 corte”, “2 cortes”. “Flauta única” e “single flute” são 1 corte.
+
+Tipo de Corte: substitui Perfil e Formato do corte: “espiral (helicoidal)”, “reto paralelo” ou “compressão (up e down)”. Downcut é espiral com o sentido para baixo: Tipo de Corte “espiral (helicoidal)” e Sentido do Corte “down (para baixo)”.
+
+Sentido do Corte: substitui Direção do corte e Corte: “up (para cima)”, “down (para baixo)” ou “up e down (compressão)”. Só com fonte; nunca pela foto (a hélice muda de lado na foto espelhada). Fresa de cortes retos paralelos não tem sentido: omita.
+
+Diâmetro de Corte: substitui Diâmetro, Diâmetro do corte, Diâmetro da ponta e D: “2mm”, “3,175mm (1/8")”.
+
+Comprimento de Corte: substitui Comprimento do corte, Altura de corte, Área de corte, Comprimento da hélice, Comprimento haste da área de corte e L1: “17mm”.
+
+Diâmetro da Haste: substitui Haste, Shank, Diâmetro haste e D2: “3,175mm (1/8")”, “6,35mm (1/4")”, “4mm”, “6mm”. Título ou cadastro com “3,17mm” ou “3,2mm” é a haste de 1/8": escreva “3,175mm (1/8")”.
+
+Comprimento Total: substitui Comprimento total da haste, Comprimento da fresa e L2: “38mm”.
+
+Cobertura: substitui Revestimento: “DLC”, “Nano Blue”, “TiSiN”, “TiAlN”, como a fonte publica. Sem cobertura citada, omita o campo (nunca “sem cobertura” sem fonte).
+
+Dureza: substitui HRC e Classe do metal duro: “HRC55”. Só com fonte da mesma fresa.
+
+Aplicação: substitui Materiais, Indicação e Uso: os materiais que a fonte confirma, em minúsculas e separados por vírgula: “acrílico, PVC, PEAD, MDF e madeira”. Metais (alumínio, latão, aço) só com fonte que diga isso desta fresa.
+
+Rotação Recomendada: substitui Rotação recomendada pelo fabricante, RPM e Velocidade: “20.000 a 22.000RPM”. Só com fonte da MESMA fresa (mesmo fabricante e modelo); nunca a rotação que outra loja publica para outra fresa.
+
+CARACTERÍSTICAS
+
+Cada item contém nome, valor e referencias: nome “Diâmetro de Corte”, valor “2mm”, sem dois-pontos no nome.
+
+Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: País de Origem, Certificação, Tipo “fim de milhar”, Quantidade de peças, Avanço, Profundidade por passada).
+
+Campos obrigatórios:
+Fabricante; Material; Número de Cortes; Tipo de Corte; Diâmetro de Corte; Comprimento de Corte; Diâmetro da Haste; Comprimento Total; Aplicação.
+
+Campos condicionais (só com fonte), cada um na posição indicada:
+Modelo (logo depois de Fabricante); Sentido do Corte (logo depois de Tipo de Corte); Cobertura e Dureza (logo depois de Comprimento Total); Rotação Recomendada (por último, depois de Aplicação).
+
+Campos finais:
+Dimensões (CxLxA); Peso.
+
+Dimensões (CxLxA) e Peso são sempre os dois últimos campos e são OBRIGATÓRIOS (o Rise calcula o frete com eles; ver PESO E DIMENSÕES). Devolva os números em dimensoesMm e pesoGramas; o Rise escreve as duas linhas. Não os repita em caracteristicas.
+
+Não entram em caracteristicas: Origem, Garantia, Unidade de venda, Peso com embalagem, a caixa ou o tubo plástico, textos de aplicação e propaganda (“Alta durabilidade”, “Corte preciso”, “Ideal para iniciantes”).
+
+No modo sem referências, respeite a instrução acrescentada pelo Rise: inclua apenas especificações confirmadas nos dados próprios do produto. Se não houver nenhuma, retorne caracteristicas vazia.
+
+Números colados às unidades: 2mm, 17mm, 3,175mm, 20.000RPM. Use vírgula decimal (3,175mm, nunca 3.175mm). Nunca use ponto e vírgula dentro de um valor. Informações distintas no mesmo valor se separam por “ / ”; itens da mesma lista, por vírgula.
+
+REGRAS ESPECÍFICAS
+
+As medidas decidem a compra: diâmetro de corte, comprimento de corte, diâmetro da haste e comprimento total vêm do título e do cadastro. Fresa de outra medida nunca confirma número (a 2x12mm não é a 2x17mm). Fresa da MESMA família (mesmo fabricante, mesmo tipo de corte, mesmo número de cortes e mesma haste) com outra medida pode confirmar o material, o tipo de corte, a cobertura e a aplicação; o sentido do corte, a rotação, o peso e as medidas mudam de uma para a outra e não se copiam.
+
+A haste decide a pinça: a de 3,175mm (1/8") pede pinça de 3,175mm, a de 6,35mm (1/4") pede pinça de 6,35mm. Não diga que serve numa pinça de outra medida.
+
+Lista de fornecedor e título de marketplace sem ficha técnica confirmam as medidas do título e o material declarado, nunca rotação, dureza ou sentido do corte.
+
+Não prometa corte em aço, inox ou metal endurecido sem fonte desta fresa. Não escreva avanço, profundidade por passada nem velocidade de corte.
+
+FONTES
+
+Em referencias, registre só os números das referências fornecidas que sustentam o valor daquele campo. Para valores vindos só do cadastro ou título, e para valores desconhecidos, use referencias []. Resultado da web só vale se consultado de fato e informado como referência; prefira o catálogo do fabricante. Não invente consultas, fontes, URLs ou números de referência.
+
+ITENS INCLUSOS
+
+O primeiro e único item é a própria fresa, com quantidade e nome técnico: “01 FRESA DE TOPO ESPIRAL 1 CORTE 2X17MM HASTE 3,175MM”. Pacote com várias fresas iguais: a quantidade do cadastro (“10 FRESAS ...”). A caixa ou o tubo de outro vendedor não comprova o conteúdo vendido pela 4hobby.
+
+PESO E DIMENSÕES (OBRIGATÓRIOS)
+
+O Rise usa o peso e as medidas para calcular o frete: pesoGramas e dimensoesMm são obrigatórios e só ficam null quando nenhum passo abaixo der resultado, e então decisoes diz o que foi procurado.
+
+dimensoesMm: comprimento total x diâmetro da haste x diâmetro da haste, em milímetros, da fresa sem a caixa (38 x 3,2 x 3,2). Fresa com corte mais largo que a haste: o maior diâmetro nos dois últimos.
+
+pesoGramas: procure nesta ordem e pare no primeiro que der o número:
+1. O cadastro do produto ou uma referência que publique o peso da MESMA fresa (mesmas quatro medidas), sem a caixa.
+2. O catálogo do fabricante da mesma fresa.
+3. Cálculo pelo volume, contando a fresa como dois cilindros cheios (dá o peso máximo, porque o canal do corte tira material): a haste (diâmetro da haste, pelo comprimento total menos o comprimento de corte) mais a parte de corte (diâmetro de corte, pelo comprimento de corte), em mm³ ÷ 1000 × a densidade (metal duro 14,5g/cm³; aço rápido 8,1g/cm³). Ex.: haste 3,175mm com 21mm = 166mm³; corte 2mm com 17mm = 53mm³; 219mm³ de metal duro = 3,2g. Registre a conta em decisoes.
+
+O cadastro guarda o peso em gramas inteiras: arredonde ao grama (3,2g vira 3g), com 1g no mínimo. Medidas ao décimo de milímetro. Não deduza medida pela foto.
+
+DIVERGÊNCIAS
+
+Para cada divergência fornecida, retorne id, opcao, motivo breve e campo com o nome padronizado deste prompt (divergências do mesmo campo compartilham o nome). opcao é o índice a partir de zero, ou null quando faltar evidência suficiente. Prefira o título e o cadastro para as medidas e fontes independentes da mesma fresa para o resto. Exceto para peso e dimensões, reserve a posição do campo divergente em caracteristicas com valor "" e referencias []. Não coloque valores divergentes nos parágrafos ou características antes da escolha do operador.
+
+GARANTIA
+
+O Rise acrescenta automaticamente: Garantia Legal de 90 dias (contra defeitos de fabricação). Não gere campo extra de garantia nem copie garantias das referências. Não escreva preço, prazo ou nome de loja.
