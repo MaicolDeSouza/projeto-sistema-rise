@@ -1962,6 +1962,11 @@ Arquivos de origem em `C:/Users/pesso/Downloads/`.
     passou a quebrar linha também em `<br style="...">`; e na ficha sem título um nome de UMA letra vale se for maiúscula
     ("D: 42 mm"). O cone sai com a descrição real em 6 linhas e as 6 características. Produtos já gravados só mudam na
     próxima varredura.
+    **Ardurobotica (Nuvemshop, 08/11/2026):** o tema dela não tem classe `description` no produto, e a PRIMEIRA da
+    página era a newsletter do rodapé (`js-footer-news-description`): a descrição saía vazia e sobrava o og:description
+    (134 caracteres), sem "Principais características" (o buzzer ficou sem ficha). `descricaoDoBloco` ancora primeiro no
+    `data-store="product-description-<id>"` (o mesmo de `escopoDoProductInfo`), tirando o rótulo "Descrição" do tema.
+    Vale para toda Nuvemshop; produtos já gravados só mudam na próxima varredura (reiniciar o worker).
   - **Itens 7 a 10 (mesmo dia):** (7) **Características por coluna** na prévia e no detalhe do Scraper: a primeira
     metade na esquerda, o resto na direita (`sm:grid-flow-col` com `--linhas` = metade arredondada para cima). (8) **Ficha
     sem título** (`fichaSemTitulo`): nome até 5 palavras e valor até 80 caracteres também sem marcador (eram 3 e 40: o

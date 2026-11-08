@@ -2828,6 +2828,27 @@ console.log("\n— Catalogo em arquivo JavaScript (R&AC, 10/10/2026) —");
   conferir("catalogo-js: outro dominio nao usa", catalogoJsDoEndereco("https://www.eletrogate.com/"), null);
 }
 
+console.log("\n— Nuvemshop (Ardurobotica, 08/11/2026): descricao pelo data-store, nao pela classe do rodape —");
+{
+  const { normalizarPagina } = await import("../src/lib/coleta/normalizar.js");
+  const html = `<html><head><meta property="og:type" content="nuvemshop:product" /><meta property="og:description" content="Módulo Buzzer Passivo 5V para Arduino. Ideal para alarmes, automação, robótica, IoT e projetos eletrônicos." />
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"Módulo Buzzer Passivo 5V","sku":"","description":"Módulo Buzzer Passivo 5V para Arduino.","offers":{"@type":"Offer","priceCurrency":"BRL","price":"6.99","availability":"https://schema.org/InStock"}}</script>
+<script>LS.variants = [{"id":1,"sku":"","price_number":6.99,"stock":64,"available":true}];</script>
+</head><body class="template-product"><img src="https://acdn.mitiendanube.com/stores/1/products/buzzer-1-abc-1024-1024.webp">
+<div class="js-footer-news-description mt-4">Receba novidades por e-mail</div>
+<div class="w-md-60 mt-4 mb-2" data-store="product-description-46074288"><div class="js-nubesdk-slot"></div><div class="font-weight-bold mb-3">Descri&ccedil;&atilde;o</div><div class="user-content mb-4">
+<p>O <strong>M&oacute;dulo Buzzer Passivo 5V</strong> permite controle total do som.</p>
+<h3>Principais caracter&iacute;sticas:</h3><ul><li><p>Buzzer <strong>passivo</strong> (controle de frequ&ecirc;ncia via software)</p></li><li><p>Alimenta&ccedil;&atilde;o: <strong>5V</strong></p></li></ul>
+<h3>Itens inclusos:</h3><ul><li><p>01 M&oacute;dulo Buzzer Passivo 5V</p></li></ul></div></div>
+<footer><div class="js-footer-news-description">Newsletter</div></footer></body></html>`;
+  const lido = normalizarPagina({ html, url: "https://ardurobotica.com.br/produtos/modulo-buzzer-passivo-5v/", fonte: { tipo: "CONCORRENTE" } });
+  const p = lido.produtos[0];
+  conferir("Ardurobotica: a descricao e a do bloco do produto, nao a newsletter nem o resumo", p.description.startsWith("O Módulo Buzzer Passivo 5V permite controle total do som."), true);
+  conferir("Ardurobotica: o rotulo 'Descricao' do tema nao entra", /^Descri/.test(p.description), false);
+  conferir("Ardurobotica: a lista 'Principais caracteristicas' chega", p.description.includes("Principais características:\n- Buzzer passivo"), true);
+  conferir("Ardurobotica: a ficha sai da descricao", p.specifications.some((e) => e.nome === "Alimentação" && e.valor === "5V"), true);
+}
+
 console.log("\n— Orcamento em PDF da R&AC + catalogo do site (10/10/2026) —");
 {
   const { orcamentoDoPdf, juntarListas } = await import("../src/lib/coleta/arquivos.js");

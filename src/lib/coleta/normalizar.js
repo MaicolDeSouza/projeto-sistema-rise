@@ -1632,6 +1632,22 @@ function aVistaDaTray(tray) {
  * apareceria em dois lugares e nenhum deles clicavel.
  */
 function descricaoDoBloco(html) {
+  // NUVEMSHOP, tema sem classe "description" no produto (Ardurobotica, 08/11/2026): a descricao mora em
+  // `<div data-store="product-description-<id>">` com um `user-content` dentro, e a PRIMEIRA classe com
+  // "description" da pagina e a do rodape (`js-footer-news-description`, a newsletter): a descricao saia vazia e
+  // sobrava o resumo do og:description, sem a lista "Principais caracteristicas". O data-store e o mesmo ancora de
+  // `escopoDoProductInfo`.
+  const daNuvemshop = /mitiendanube\.com/i.test(html)
+    ? /data-store=["']product-description-[^"']*["'][^>]*>/i.exec(html)
+    : null;
+  if (daNuvemshop) {
+    const interno = conteudoDoDiv(html, daNuvemshop.index + daNuvemshop[0].length)
+      // O rotulo "Descricao" do tema vem num <div> proprio antes do texto; nao e texto do produto.
+      .replace(/<div\b[^>]*>\s*Descri(?:&ccedil;&atilde;|çã)o\s*<\/div>/i, "");
+    const texto = textoDoBlocoDeDescricao(interno);
+    if (texto) return texto;
+  }
+
   const abertura =
     /<div[^>]*class=["'][^"']*\bdescription\b[^"']*["'][^>]*>/i.exec(html);
   if (!abertura) return null;
