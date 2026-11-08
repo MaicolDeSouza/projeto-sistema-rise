@@ -3937,8 +3937,13 @@ ao ar e nenhuma escrita real foi feita no ML ou no Bling.**
 - **Medido só em leitura na VPS (08/11/2026):** a versão do item NÃO vem no corpo, vem no header `x-version` de
   `GET /items/{id}/prices`; a recomendação responde 200 também em item pausado; o validador não acusou segundo anúncio do mesmo
   vendedor no mesmo catálogo (inconclusivo: o 1º Publicar real da 2ª variante é o teste).
-- **NÃO visto / nunca medido:** o `POST` das faixas de atacado (nenhuma escrita real); o formato exato de `price_per_quantity`
-  na leitura; o Reaproveitar e o Mover do Bling com dado real; o botão "Recomendação do ML"; o Salvar do anúncio PRESO não leva o
+- **Correção de 08/11/2026 (o dono viu as 4 faixas com desconto 0 no 120920):** a RECOMENDAÇÃO real vem em
+  `recommendations[].discount.percentage` (e não num campo plano) e a LEITURA de volta traz as faixas dentro de `prices[]` (entrada
+  com `min_purchase_unit` e `user_type_business`, `amount` já com o desconto, sem `price_per_quantity`); o código e o ML falso
+  tinham um formato inventado, então todo desconto virava 0, o envio mandava lista vazia e dava "ok". Agora `lerRecomendacaoDeAtacado`
+  e `faixasLidas` leem o formato real, o ML falso o imita, e o envio FALHA em voz alta quando nenhuma faixa tem desconto ou quando a
+  leitura não mostra as faixas. Anúncio que já gravou 0%: use "Recomendação do ML", salve e sincronize.
+- **NÃO visto / nunca medido:** o `POST` das faixas de atacado (nenhuma escrita real; o corpo segue o exemplo oficial); o Reaproveitar e o Mover do Bling com dado real; o botão "Recomendação do ML"; o Salvar do anúncio PRESO não leva o
   atacado; anúncio antigo que já tinha atacado no ML (ex.: 220204) abre desligado e o 1º Enviar com ele ligado sobrescreve as faixas.
 - Conferido na tela do PC (ZZ-TESTE-BLING, nada salvo): lista Reaproveitar, cartão de atacado (ligado, % digitado calcula o preço,
   % que cai mostra a mensagem, desligado deixa só o título).

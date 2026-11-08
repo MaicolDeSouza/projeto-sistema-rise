@@ -384,7 +384,15 @@ export function criarMLFalso(opcoes = {}) {
       const tabela = { 2: 0.82, 3: 2.62, 5: 5.5, 10: 9.86, 20: 12.27 };
       return resposta(200, {
         item_id: corpo.item_id,
-        recommendations: (corpo?.range_item_quantities ?? []).map((quantity) => ({ quantity, discount_percentage: tabela[quantity] ?? 0 })),
+        // O formato real (medido em 08/11/2026 no 100101): o % vem em `discount.percentage`, junto de `amount`, `profit` e `shipping`.
+        recommendations: opcoes.recomendacaoVazia
+          ? []
+          : (corpo?.range_item_quantities ?? []).map((quantity) => {
+              const percentage = tabela[quantity] ?? 0;
+              const preco = Number(corpo?.price?.standard_amount ?? 0);
+              const amount = Math.round(preco * (1 - percentage / 100) * 100) / 100;
+              return { is_incoherent_quantity: false, quantity, amount, discount: { amount: Math.round((preco - amount) * 100) / 100, percentage } };
+            }),
       });
     }
     // Grava as faixas: exige o `X-Version` igual ao do item (409 se velho) e recusa % abaixo do recomendado (400).
@@ -635,10 +643,23 @@ export function criarMLFalso(opcoes = {}) {
       if (!item) return naoAchou(`Item ${precos[1]} not found`);
       const todas = String(headers?.["show-all-prices"] ?? "") === "true";
       return {
+        // O formato real (doc oficial e medicao de 08/11/2026): o preco padrao e cada faixa de atacado sao entradas de `prices[]`;
+        // a faixa tem `conditions.min_purchase_unit` e o `amount` ja com o desconto. Nao existe `price_per_quantity` na leitura.
         ...resposta(200, {
           id: item.id,
-          prices: [{ id: "standard", type: "standard", amount: item.price ?? null, currency_id: "BRL" }],
-          ...(todas ? { price_per_quantity: structuredClone(item.price_per_quantity ?? []) } : {}),
+          prices: [
+            { id: "1", type: "standard", amount: item.price ?? null, regular_amount: null, currency_id: "BRL", conditions: { context_restrictions: [], start_time: null, end_time: null } },
+            ...(todas && !opcoes.esconderAtacado
+              ? (item.price_per_quantity ?? []).map((faixa) => ({
+                  id: faixa.id,
+                  type: "standard",
+                  amount: Math.round(Number(item.price) * (1 - Number(faixa.percentage) / 100) * 100) / 100,
+                  regular_amount: null,
+                  currency_id: "BRL",
+                  conditions: { context_restrictions: faixa.conditions?.context_restrictions ?? [], start_time: null, end_time: null, min_purchase_unit: faixa.conditions?.min_purchase_unit },
+                }))
+              : []),
+          ],
         }),
         headers: { "x-version": String(item.version ?? "1") },
       };

@@ -50,12 +50,27 @@ export function corpoDoAtacado(faixas, { ligado = true } = {}) {
   };
 }
 
-/** As faixas que o ML tem hoje (`GET /items/{id}/prices` com show-all-prices), por quantidade crescente. */
+/**
+ * As faixas que o ML tem hoje (`GET /items/{id}/prices` com show-all-prices), por quantidade crescente.
+ *
+ * O formato REAL (doc oficial e medicao de 08/11/2026): o preco padrao e cada faixa sao entradas de `prices[]`; a faixa de
+ * atacado e a que tem `conditions.min_purchase_unit` e `user_type_business` nas restricoes, com o `amount` JA com o desconto.
+ * O % sai da conta contra o preco padrao (a entrada sem restricao de contexto nem quantidade minima). A leitura nao traz o %.
+ * Um `price_per_quantity[]` solto (que a leitura real nao tem) ainda e aceito.
+ */
 export function faixasLidas(prices) {
-  return (prices?.price_per_quantity ?? [])
-    .map((p) => ({ quantidade: Number(p?.conditions?.min_purchase_unit), percentual: numero(p?.percentage) ?? 0, id: p?.id ?? null }))
-    .filter((f) => Number.isInteger(f.quantidade))
-    .sort((a, b) => a.quantidade - b.quantidade);
+  const entradas = Array.isArray(prices?.prices) ? prices.prices : [];
+  const padrao = entradas.find((p) => p?.conditions?.min_purchase_unit == null && (p?.conditions?.context_restrictions ?? []).length === 0);
+  const base = numero(padrao?.amount);
+  const doPrices = entradas
+    .filter((p) => p?.conditions?.min_purchase_unit != null && (p?.conditions?.context_restrictions ?? []).includes("user_type_business"))
+    .map((p) => {
+      const amount = numero(p.amount);
+      const percentual = base > 0 && amount !== null ? Math.round((1 - amount / base) * 10000) / 100 : 0;
+      return { quantidade: Number(p.conditions.min_purchase_unit), percentual, id: p.id ?? null };
+    });
+  const soltas = (prices?.price_per_quantity ?? []).map((p) => ({ quantidade: Number(p?.conditions?.min_purchase_unit), percentual: numero(p?.percentage) ?? 0, id: p?.id ?? null }));
+  return [...doPrices, ...soltas].filter((f) => Number.isInteger(f.quantidade)).sort((a, b) => a.quantidade - b.quantidade);
 }
 
 /** O que entra em `publicacao.enviado.atacado` para o "!" comparar: ligado e as faixas como pares, em ordem. */
@@ -93,7 +108,12 @@ export async function lerRecomendacaoDeAtacado(ml, { itemId, preco, quantidades 
     price: { standard_amount: preco, currency: "BRL" },
   });
   if (!resposta.ok) throw new Error(`A recomendação de atacado do Mercado Livre falhou: ${mensagemDoML(resposta)}.`);
-  return (resposta.dados?.recommendations ?? []).map((r) => ({ quantity: Number(r.quantity), discount_percentage: numero(r.discount_percentage) ?? 0 }));
+  // O formato real (medido em 08/11/2026 no 100101): `recommendations[].discount.percentage`, junto de `amount`, `profit` e
+  // `shipping`. O campo plano `discount_percentage` nao existe: lelo zerava todas as faixas e o envio mandava lista vazia.
+  return (resposta.dados?.recommendations ?? []).map((r) => ({
+    quantity: Number(r.quantity),
+    discount_percentage: numero(r.discount?.percentage ?? r.discount_percentage) ?? 0,
+  }));
 }
 
 /** A versao do item para o `X-Version` (header `x-version` de GET /items/{id}/prices); `null` quando nao veio. */
@@ -117,6 +137,11 @@ export async function enviarAtacadoML(ml, { itemId, preco, atacado }) {
       faixas = faixasComRecomendacao(atacado.faixas, recomendacoes);
     }
     const corpo = corpoDoAtacado(faixas, { ligado });
+    // Ligado e sem nenhuma faixa com desconto (a recomendacao veio vazia ou zerada): mandar a lista vazia daria "ok" em silencio
+    // e o anuncio ficaria sem atacado com a tela dizendo que foi enviado.
+    if (ligado && corpo.price_per_quantity.length === 0) {
+      return { ok: false, faixas: [], erro: "O Mercado Livre não recomendou desconto para nenhuma faixa: os preços de atacado não foram enviados." };
+    }
 
     const enviar = async () => {
       const versao = await lerVersaoDoItem(ml, itemId);
@@ -129,7 +154,14 @@ export async function enviarAtacadoML(ml, { itemId, preco, atacado }) {
 
     const lidas = await ml.get(`/items/${itemId}/prices`, null, { headers: { "show-all-prices": "true" } });
     if (!lidas.ok) return { ok: false, faixas: [], erro: `Os preços de atacado foram enviados, mas a leitura de volta falhou: ${mensagemDoML(lidas)}.` };
-    return { ok: true, faixas: faixasLidas(lidas.dados), erro: null };
+    const noML = faixasLidas(lidas.dados);
+    // O ML aceitou mas as faixas nao aparecem na leitura: nao se diz "enviado" sem ver.
+    if (ligado && !corpo.price_per_quantity.every((f) => noML.some((l) => l.quantidade === f.conditions.min_purchase_unit))) {
+      return { ok: false, faixas: [], erro: "Os preços de atacado foram enviados, mas as faixas não aparecem na leitura do anúncio no Mercado Livre." };
+    }
+    // O % exato e o que foi enviado; o lido (conta sobre o amount arredondado em centavos) so serve de confirmacao.
+    const enviado = new Map(corpo.price_per_quantity.map((f) => [f.conditions.min_purchase_unit, f.percentage]));
+    return { ok: true, faixas: noML.map((f) => ({ ...f, percentual: enviado.get(f.quantidade) ?? f.percentual })), erro: null };
   } catch (erro) {
     return { ok: false, faixas: [], erro: erro?.message ?? String(erro) };
   }

@@ -3955,7 +3955,7 @@ try {
 
   {
     console.log("\nPreços de atacado (regras)");
-    const { ATACADO_PADRAO, FAIXAS_PADRAO, corpoDoAtacado, enviarAtacadoML, faixasComRecomendacao, faixasLidas, impressaoDoAtacado, lerVersaoDoItem } =
+    const { ATACADO_PADRAO, FAIXAS_PADRAO, corpoDoAtacado, enviarAtacadoML, faixasComRecomendacao, faixasLidas, impressaoDoAtacado, lerRecomendacaoDeAtacado, lerVersaoDoItem } =
       await import("../src/lib/canaisDeVenda/ml/atacado.js");
     const { mlPost } = await import("../src/lib/integracoes/mercadolivre.js");
     const { criarMLFalso } = await import("./lib/mlFalso.js");
@@ -3992,6 +3992,18 @@ try {
       [{ quantidade: 2, percentual: 0.82, id: "p1" }, { quantidade: 10, percentual: 9.86, id: "p2" }],
     );
     conferir("lidas: sem o campo", faixasLidas({ prices: [] }), []);
+    // O formato REAL (doc oficial e medicao de 08/11/2026): as faixas sao entradas de `prices[]` com `min_purchase_unit` e o
+    // `amount` ja com desconto; o % sai da conta contra o preco padrao (a entrada sem restricao de contexto).
+    const precosReais = {
+      id: "MLB1",
+      prices: [
+        { id: "7", type: "standard", amount: 100, conditions: { context_restrictions: [], start_time: null, end_time: null } },
+        { id: "10", type: "standard", amount: 90, conditions: { context_restrictions: ["channel_marketplace", "user_type_business"], min_purchase_unit: 10 } },
+        { id: "5", type: "standard", amount: 95.5, conditions: { context_restrictions: ["channel_marketplace", "user_type_business"], min_purchase_unit: 5 } },
+        { id: "9", type: "standard", amount: 80, conditions: { context_restrictions: ["channel_marketplace"], min_purchase_unit: 3 } },
+      ],
+    };
+    conferir("lidas: formato real de prices[] (so as faixas de negocio, % contra o preco padrao)", faixasLidas(precosReais), [{ quantidade: 5, percentual: 4.5, id: "5" }, { quantidade: 10, percentual: 10, id: "10" }]);
     conferir("impressao: ligado e as faixas em ordem", impressaoDoAtacado({ ligado: true, faixas: [{ quantidade: 10, percentual: 9.86 }, { quantidade: 2, percentual: 0.82 }] }), { ligado: true, faixas: [[2, 0.82], [10, 9.86]] });
     conferir("impressao: desligado", impressaoDoAtacado({ ligado: false, faixas: [{ quantidade: 2, percentual: 5 }] }), { ligado: false, faixas: [] });
     conferir("impressao: sem nada", impressaoDoAtacado(null), { ligado: false, faixas: [] });
@@ -4019,7 +4031,9 @@ try {
     conferir("envio: POST com X-Version e o corpo do ML", [gravacao?.headers?.["X-Version"], gravacao?.corpo?.price_per_quantity?.map((p) => [p.conditions.min_purchase_unit, p.percentage])], ["1", [[2, 0.82], [5, 5.5], [10, 9.86], [20, 12.27]]]);
     conferir("envio: a recomendacao foi pedida com o preco e as quantidades", ml.escritas.find((e) => e.caminho === "/prices-per-quantity/v1/recommendations")?.corpo, { item_id: itemId, range_item_quantities: [2, 5, 10, 20], price: { standard_amount: 45.9, currency: "BRL" } });
     const lidas = faixasLidas((await ml.get(`/items/${itemId}/prices`, null, { headers: { "show-all-prices": "true" } })).dados);
-    conferir("envio: o ML falso devolve as faixas gravadas", lidas.map((f) => [f.quantidade, f.percentual]), [[2, 0.82], [5, 5.5], [10, 9.86], [20, 12.27]]);
+    // A leitura real traz o `amount` com o desconto (centavos arredondados), entao o % lido so bate com o enviado ate a 1a casa.
+    conferir("envio: o ML falso devolve as faixas gravadas, no formato real de prices[]", lidas.map((f) => [f.quantidade, Math.round(f.percentual * 10) / 10]), [[2, 0.8], [5, 5.5], [10, 9.9], [20, 12.3]]);
+    conferir("recomendacao: o formato real (discount.percentage) vira quantity + discount_percentage", await lerRecomendacaoDeAtacado(ml, { itemId, preco: 45.9, quantidades: [2, 5, 10, 20] }), [{ quantity: 2, discount_percentage: 0.82 }, { quantity: 5, discount_percentage: 5.5 }, { quantity: 10, discount_percentage: 9.86 }, { quantity: 20, discount_percentage: 12.27 }]);
     conferir("envio: o % do dono acima do recomendado fica", (await enviarAtacadoML(ml, { itemId, preco: 45.9, atacado: { ligado: true, faixas: [{ quantidade: 10, percentual: 15 }] } })).faixas.map((f) => [f.quantidade, f.percentual]), [[10, 15]]);
     // Cada gravacao sobe a versao no falso (como no ML): o envio seguinte le a nova antes de mandar.
     conferir("envio: a versao sobe a cada gravacao e o envio le a atual", [await lerVersaoDoItem(ml, itemId), ml.escritas.filter((e) => e.caminho === `/items/${itemId}/prices/price-per-quantity`).map((e) => e.headers?.["X-Version"])], ["3", ["1", "2"]]);
@@ -4036,6 +4050,17 @@ try {
     const desistiu = await enviarAtacadoML(doisConflitos, { itemId: teimoso, preco: 45.9, atacado: ATACADO_PADRAO() });
     conferir("envio com dois 409: desiste na 2a com erro", [desistiu.ok, /version conflict/.test(desistiu.erro ?? ""), doisConflitos.escritas.filter((e) => e.caminho.endsWith("/price-per-quantity")).length], [false, true, 2]);
     conferir("envio desligado: manda [] e devolve nenhuma faixa", (await enviarAtacadoML(ml, { itemId, preco: 45.9, atacado: { ligado: false, faixas: [] } })), { ok: true, faixas: [], erro: null });
+    // Falha ALTA, nunca "ok" em silencio: recomendacao sem nenhum desconto (o erro de formato que mandava a lista vazia) e leitura de volta vazia.
+    const semDesconto = criarMLFalso({ recomendacaoVazia: true });
+    semDesconto.exigirEscrita("ZZ-ML-AT");
+    const idSemDesconto = (await semDesconto.post("/items", { family_name: "ZZ AT", price: 45.9, category_id: "MLB99779" })).dados.id;
+    const resSemDesconto = await enviarAtacadoML(semDesconto, { itemId: idSemDesconto, preco: 45.9, atacado: ATACADO_PADRAO() });
+    conferir("recomendacao sem nenhum desconto: erro claro e nada gravado", [resSemDesconto.ok, /recomend/i.test(resSemDesconto.erro ?? ""), semDesconto.escritas.some((e) => e.caminho.endsWith("/price-per-quantity"))], [false, true, false]);
+    const escondido = criarMLFalso({ esconderAtacado: true });
+    escondido.exigirEscrita("ZZ-ML-AT");
+    const idEscondido = (await escondido.post("/items", { family_name: "ZZ AT", price: 45.9, category_id: "MLB99779" })).dados.id;
+    const resEscondido = await enviarAtacadoML(escondido, { itemId: idEscondido, preco: 45.9, atacado: ATACADO_PADRAO() });
+    conferir("POST aceito mas a leitura nao traz as faixas: erro claro", [resEscondido.ok, /leitura|aparec/i.test(resEscondido.erro ?? "")], [false, true]);
     const recusa = criarMLFalso({ falhas: [{ metodo: "POST", caminho: "/prices-per-quantity/v1/recommendations", exato: true, status: 500 }] });
     recusa.exigirEscrita("ZZ-ML-AT");
     const outro = (await recusa.post("/items", { family_name: "ZZ AT", price: 45.9, category_id: "MLB99779" })).dados.id;
