@@ -273,8 +273,16 @@ export function produtoDaLinha(linha) {
  * dia no fornecedor e faria toda coleta parecer mudanca de preco.
  */
 export function mudouPreco(guardada, nova) {
+  // MOEDA ESTRANGEIRA (08/11/2026): o preco em reais muda toda vez que a PTAX muda, e o produto continua custando os
+  // mesmos US$ 10. Com os dois lados na mesma moeda, a serie olha o valor ORIGINAL (e o fator); a linha gravada segue
+  // levando os reais do dia. Sem original num dos lados (produto que passou a ser lido em dolar), vale o preco em reais.
+  const original = guardada.precoOriginal?.moeda && guardada.precoOriginal.moeda === nova.precoOriginal?.moeda;
+  const mudouNormal = original
+    ? guardada.precoOriginal.valor !== nova.precoOriginal.valor ||
+      (guardada.precoOriginal.fator ?? 1) !== (nova.precoOriginal.fator ?? 1)
+    : numeroDoBanco(guardada.precoNormal) !== nova.precoNormal;
   return (
-    numeroDoBanco(guardada.precoNormal) !== nova.precoNormal ||
+    mudouNormal ||
     numeroDoBanco(guardada.precoPromocional) !== nova.precoPromocional ||
     numeroDoBanco(guardada.precoReserva) !== nova.precoReserva ||
     numeroDoBanco(guardada.precoMontagem) !== (nova.precoMontagem ?? null) ||

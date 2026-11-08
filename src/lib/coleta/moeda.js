@@ -17,6 +17,56 @@
 const centavos = (valor) => Math.round(valor * 100) / 100;
 const comVirgula = (valor) => String(valor).replace(".", ",");
 
+/** As moedas para as quais o Rise tem cotacao: so o dolar (PTAX do Banco Central, `cotacaoDoDia.js`). */
+export const MOEDAS_COM_COTACAO = ["USD"];
+
+const SIMBOLOS = { USD: "US$", EUR: "€", GBP: "£", JPY: "¥", CNY: "CN¥", CAD: "CA$", AUD: "AU$" };
+
+/** "US$", "€", ... ou o proprio codigo quando nao ha simbolo conhecido. */
+export function simboloDaMoeda(moeda) {
+  return SIMBOLOS[moeda] ?? moeda;
+}
+
+/**
+ * Produto em moeda SEM cotacao no Rise (euro, libra...): fica SEM preco em reais, com o original guardado para a tela
+ * dizer "€ 10,00 (sem cotação)". Gravar o numero estrangeiro em `normal` o faria passar por reais em todo o sistema.
+ */
+export function semCotacao(produto) {
+  const { moeda, normal, promotional, ...precos } = produto.prices;
+  produto.prices = {
+    ...precos,
+    normal: null,
+    promotional: null,
+    comImpostos: null,
+    original: { moeda, valor: normal, cotacao: null, cotacaoData: null, cotacaoOrigem: null, fator: 1 },
+  };
+  produto.origens = {
+    ...(produto.origens ?? {}),
+    price: `${produto.origens?.price ?? "página"} · ${simboloDaMoeda(moeda)} ${comVirgula(normal)}, sem cotação de ${moeda} no Rise`,
+  };
+  return produto;
+}
+
+/**
+ * Converte em reais os produtos de SITE estrangeiro (SparkFun, Adafruit, 08/11/2026) antes de gravar: o normalizador deixa
+ * `prices.moeda` quando a pagina declara outra moeda. `obterCambio` e chamado UMA vez por varredura, e so quando ha produto
+ * em dolar (busca a PTAX e o fator do fornecedor ligado a fonte). Produto em real passa intocado.
+ */
+export async function converterProdutosDoSite(produtos, obterCambio) {
+  let cambio = null;
+  for (const produto of produtos ?? []) {
+    const moeda = produto?.prices?.moeda;
+    if (!moeda) continue;
+    if (!MOEDAS_COM_COTACAO.includes(moeda)) {
+      semCotacao(produto);
+      continue;
+    }
+    cambio ??= await obterCambio();
+    converterParaReais(produto, cambio);
+  }
+  return produtos;
+}
+
 /**
  * @param {object} produto  no formato da coleta, com `prices.normal` em DOLAR e `prices.moeda` = "USD"
  * @param {{ cotacao: { valor: number, data?: string|null, origem?: string }, fator?: number|null }} cambio
@@ -31,9 +81,12 @@ export function converterParaReais(produto, { cotacao, fator }) {
   const percentual = Math.round((fatorValido - 1) * 10000) / 100;
 
   const { moeda: _moeda, ...precos } = produto.prices;
+  // O promocional (site com "sale", Adafruit) vai na mesma cotacao, sem fator: o fator e do custo, nao da vitrine.
+  const promotional = typeof precos.promotional === "number" ? centavos(precos.promotional * cotacao.valor) : (precos.promotional ?? null);
   produto.prices = {
     ...precos,
     normal,
+    ...(precos.promotional !== undefined ? { promotional } : {}),
     comImpostos: fatorValido !== 1 ? centavos(normal * fatorValido) : null,
     original: {
       moeda,
@@ -45,7 +98,7 @@ export function converterParaReais(produto, { cotacao, fator }) {
     },
   };
   produto.taxes = percentual > 0 ? [{ nome: "Importação", percentual }] : [];
-  const simbolo = moeda === "USD" ? "US$" : moeda;
+  const simbolo = simboloDaMoeda(moeda);
   const deOnde = cotacao.origem === "ptax" ? `PTAX ${cotacao.data ?? ""}`.trim() : "cotação fixa";
   produto.origens = {
     ...(produto.origens ?? {}),
@@ -59,14 +112,16 @@ export function converterParaReais(produto, { cotacao, fator }) {
 /** "US$ 2,95" para a tela; null quando o preco nao veio de moeda estrangeira. */
 export function precoOriginalEmTexto(original) {
   if (!original || typeof original.valor !== "number") return null;
-  const simbolo = original.moeda === "USD" ? "US$" : original.moeda;
-  return `${simbolo} ${original.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const simbolo = simboloDaMoeda(original.moeda);
+  const texto = `${simbolo} ${original.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return original.cotacao ? texto : `${texto} (sem cotação)`;
 }
 
 /** "US$ 2,95 × 5,61 (PTAX 2026-11-04) × fator 2", para o `title` do preco em reais. */
 export function contaDoPrecoOriginal(original) {
   const texto = precoOriginalEmTexto(original);
   if (!texto) return null;
+  if (!original.cotacao) return `${texto}: o Rise não tem cotação de ${original.moeda}, então o produto fica sem preço em reais`;
   const deOnde = original.cotacaoOrigem === "ptax" ? ` (PTAX ${original.cotacaoData ?? ""})`.replace(" )", ")") : "";
   return `${texto} × ${comVirgula(original.cotacao)}${deOnde}${original.fator && original.fator !== 1 ? ` × fator ${comVirgula(original.fator)}` : ""}`;
 }

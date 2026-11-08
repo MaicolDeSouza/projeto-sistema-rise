@@ -328,7 +328,7 @@ tem a segunda trava no mesmo molde desde 08/10/2026: `ML_PUBLICACAO_CODIGOS` (li
 ```bash
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
-npm run teste:extracao            # 862 asserções da extração, do EAN interno, da conciliação, das medidas, das opções de parágrafo da descrição, do Nome que a descrição acompanha, das regras puras das Correções da descrição, da ordem da aba Concorrentes e da lista do "$" e do cabeçalho de download de arquivo, SEM rede
+npm run teste:extracao            # 877 asserções da extração, do site em moeda estrangeira, do EAN interno, da conciliação, das medidas, das opções de parágrafo da descrição, do Nome que a descrição acompanha, das regras puras das Correções da descrição, da ordem da aba Concorrentes e da lista do "$" e do cabeçalho de download de arquivo, SEM rede
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
 npm run teste:versao              # 26 asserções da versão no pé do menu (VPS: DD.MM.AAAA.NN, a data do deploy em São Paulo e o número do deploy, mostrada como "DD.MM.AAAA (build NN) - commit"; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
@@ -1505,6 +1505,27 @@ Fornecedor, com dois campos novos (migration `20261104c_moeda_do_fornecedor`): *
   **descrição no fornecedor = nome do produto na lista**, e a fonte do fornecedor é a de mesmo nome **ou** a ligada ao
   cadastro (`Fornecedor.fonteId`), também para o código. Vale para Compras (mesma função). Conferido no PC só com a Fortek (o
   PC não tem a NexMind; a leitura na VPS não foi feita).
+
+**SITE em moeda estrangeira (SparkFun e Adafruit, 08/11/2026, pedido do dono: "ver a moeda se dólar, euro ou etc e salvar isso na
+varredura... ex: $10 (R$ 60) usando a PTAX do Rise"; Opção 1: R$ em destaque, o original embaixo).** Medido no dia: as duas lojas
+respondem ao robô, publicam `priceCurrency: "USD"` no JSON-LD e no OpenGraph, e o Rise gravava "R$ 15,95" para US$ 15,95.
+- **Leitura só pelo código ISO**, nunca pelo símbolo ("$" é meia dúzia de dólares e "R$" também tem "$"): `ofertaDe` (extrair.js)
+  devolve `moeda` da oferta escolhida, `doMicrodata` lê `itemprop="priceCurrency"`, e `normalizarPagina` escolhe (JSON-LD, Microdata,
+  OpenGraph `product:price:currency`; `moedaEstrangeira`) e põe `prices.moeda` + `origens.moeda` **só quando não é BRL** (em real a
+  chave não entra, senão a assinatura dos 70 mil produtos gravados mudaria). O preço fica na moeda da página.
+- **Convertido na gravação da varredura de site** (`gravarDoSite` em `varrerFonte`, coletar.js, nos três `gravarColeta` do site):
+  `converterProdutosDoSite` (moeda.js) chama `converterParaReais` com a PTAX do dia (`garantirCotacaoDoDia`) e o fator do Fornecedor
+  ligado à fonte (`cambioDoFornecedor`), buscados **uma vez por varredura e só quando aparece dólar**. O promocional vai na mesma
+  cotação sem fator. **Só o dólar tem cotação** (`MOEDAS_COM_COTACAO`): euro, libra etc. ficam **sem preço em reais** (`semCotacao`:
+  `normal` null, original guardado, tela "€ 7,00 (sem cotação)"), porque gravar o número estrangeiro em `normal` o faria passar por
+  reais em todo o sistema. Não há campo de moeda na fonte: a moeda é a que cada página declara. Concorrente estrangeiro não ganha fator.
+- **Histórico pelo valor original** (`mudouPreco`, linha.js; `precoOriginal` entrou no select de `gravarColeta`): com os dois lados
+  na mesma moeda, a linha do `PrecoHistorico` só nasce quando o dólar ou o fator muda, não quando a PTAX muda (vale também para a
+  NexMind). O promocional ainda compara em reais.
+- **Telas:** passo "Moeda dos preços" no Testar fonte (ok em dólar; vermelho noutra moeda), prévia com "US$ 15,95" e a nota
+  "convertido em R$ pela PTAX do dia na gravação" (o teste não converte: nada é gravado), `teste:fonte` imprime "USD 12.5", e o
+  Scraper/aba Fornecedores já mostravam o original embaixo do R$ (`precoOriginalEmTexto`, agora com `simboloDaMoeda`). **Não visto no
+  navegador** (o 3000 era de outra sessão); conferido pelo `teste:fonte` da Adafruit e pelo `teste:extracao`.
 
 **Janela do fornecedor no cadastro de Produto** (06/11/2026, pedido do dono): o lápis e o "Adicionar fornecedor" abrem uma
 janela larga (`JanelaDoFornecedor` em `Fornecedores.jsx`, moldura `Janela` das Licenças, "Sair sem salvar?", portal no

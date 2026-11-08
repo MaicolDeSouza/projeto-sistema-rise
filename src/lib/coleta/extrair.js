@@ -101,6 +101,9 @@ function ofertaDe(produto) {
 
   let preco = null;
   let disponivel = null;
+  // A MOEDA da oferta escolhida (SparkFun e Adafruit publicam `priceCurrency: "USD"`, 08/11/2026). Sem ela, o dolar
+  // era gravado como se fosse real.
+  let moeda = null;
 
   for (const oferta of ofertas) {
     const valor =
@@ -108,7 +111,10 @@ function ofertaDe(produto) {
       comoNumero(oferta.lowPrice) ??
       comoNumero(oferta.priceSpecification?.price);
 
-    if (valor !== null && (preco === null || valor < preco)) preco = valor;
+    if (valor !== null && (preco === null || valor < preco)) {
+      preco = valor;
+      moeda = oferta.priceCurrency ?? oferta.priceSpecification?.priceCurrency ?? null;
+    }
 
     if (oferta.availability) {
       const texto = String(oferta.availability);
@@ -119,7 +125,7 @@ function ofertaDe(produto) {
     }
   }
 
-  return { preco, disponivel };
+  return { preco, disponivel, moeda };
 }
 
 /** additionalProperty vira um mapa simples nome -> valor. */
@@ -170,7 +176,7 @@ function doJsonLd(html) {
     const produto = achatar(bloco).find(ehProduto);
     if (!produto) continue;
 
-    const { preco, disponivel } = ofertaDe(produto);
+    const { preco, disponivel, moeda } = ofertaDe(produto);
     const gtin =
       produto.gtin13 ?? produto.gtin14 ?? produto.gtin12 ?? produto.gtin8 ?? produto.gtin;
 
@@ -185,6 +191,7 @@ function doJsonLd(html) {
       skuFonte: comoTexto(produto.sku),
       ean: gtin ? comoTexto(gtin) : null,
       preco,
+      moeda,
       disponivel: disponivel ?? true,
       imagens: imagensDe(produto.image),
       atributos: atributosDe(produto),

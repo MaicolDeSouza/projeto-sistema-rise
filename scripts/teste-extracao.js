@@ -3828,5 +3828,75 @@ console.log("\n— Lista em dólar (NexMind) —");
   ]);
 }
 
+// ---------------------------------------------------------------- site em moeda estrangeira (SparkFun, Adafruit, 08/11/2026)
+console.log("\n— Site em moeda estrangeira —");
+{
+  const { moedaEstrangeira } = await import("../src/lib/coleta/normalizar.js");
+  const { converterProdutosDoSite, semCotacao, precoOriginalEmTexto, contaDoPrecoOriginal, simboloDaMoeda } = await import("../src/lib/coleta/moeda.js");
+  const { mudouPreco } = await import("../src/lib/coleta/linha.js");
+
+  conferir("moeda: só código ISO que não é o real", ["USD", "usd", "BRL", "$", "R$", null, "EURO"].map(moedaEstrangeira), ["USD", "USD", null, null, null, null, null]);
+
+  // A pagina da SparkFun como medida em 08/11/2026: JSON-LD Product com offers[] e priceCurrency USD, sem Microdata.
+  const sparkfun = `<html><head><title>BMP384</title>
+    <meta property="product:price:amount" content="15.95"><meta property="product:price:currency" content="USD">
+    <script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "Product", name: "SparkFun Micro Pressure Sensor - BMP384 (Qwiic)", sku: "SEN-19833", image: "https://www.sparkfun.com/media/19833.jpg", offers: [{ "@type": "Offer", priceCurrency: "USD", price: 15.95 }] })}</script>
+    </head><body><h1>SparkFun Micro Pressure Sensor</h1></body></html>`;
+  const [doSparkfun] = normalizarPagina({ html: sparkfun, url: "https://www.sparkfun.com/bmp384.html" }).produtos;
+  conferir("moeda: JSON-LD priceCurrency USD vira prices.moeda, com o preço na moeda da página", [doSparkfun.prices.normal, doSparkfun.prices.moeda, doSparkfun.origens.moeda], [15.95, "USD", "json-ld"]);
+
+  // Adafruit: Microdata com itemprop="price" e "priceCurrency", OpenGraph tambem em USD.
+  const adafruit = `<html><head><title>SpokePOV</title><meta property="product:price:currency" content="USD"></head><body>
+    <div itemscope itemtype="https://schema.org/Product"><h1 itemprop="name">SpokePOV Kit</h1><span itemprop="sku">5</span>
+    <div itemprop="offers" itemscope itemtype="https://schema.org/Offer"><meta itemprop="priceCurrency" content="USD"><meta itemprop="price" content="37.5"></div></div></body></html>`;
+  const [doAdafruit] = normalizarPagina({ html: adafruit, url: "https://www.adafruit.com/product/5" }).produtos;
+  conferir("moeda: Microdata priceCurrency", [doAdafruit.prices.normal, doAdafruit.prices.moeda, doAdafruit.origens.moeda], [37.5, "USD", "itemprop=priceCurrency"]);
+
+  const soOg = `<html><head><title>X</title><meta property="og:type" content="product"><meta property="og:title" content="Sensor X">
+    <meta property="product:price:amount" content="9.99"><meta property="product:price:currency" content="EUR"></head><body><h1>Sensor X</h1></body></html>`;
+  const [doOg] = normalizarPagina({ html: soOg, url: "https://loja.de/p/x" }).produtos;
+  conferir("moeda: só o OpenGraph, em euro", [doOg.prices.normal, doOg.prices.moeda, doOg.origens.moeda], [9.99, "EUR", "product:price:currency"]);
+
+  const emReal = sparkfun.replaceAll("USD", "BRL");
+  const [doReal] = normalizarPagina({ html: emReal, url: "https://loja.com.br/p/x" }).produtos;
+  conferir("moeda: em real a chave NÃO entra (assinatura dos produtos gravados não muda)", ["moeda" in doReal.prices, "moeda" in doReal.origens], [false, false]);
+
+  // A conversao em lote da varredura: a cotacao e pedida UMA vez, so quando ha dolar; real passa intocado; euro fica sem preco.
+  let pedidas = 0;
+  const obterCambio = async () => {
+    pedidas++;
+    return { cotacao: { valor: 5.4, data: "2026-11-08", origem: "ptax" }, fator: 2 };
+  };
+  const lote = [
+    { name: "a", prices: { normal: 10, promotional: 8, moeda: "USD", comImpostos: null }, taxes: [], origens: { price: "json-ld" } },
+    { name: "b", prices: { normal: 20, promotional: null, moeda: "USD", comImpostos: null }, taxes: [], origens: {} },
+    { name: "real", prices: { normal: 30, promotional: null, comImpostos: null }, taxes: [], origens: {} },
+    { name: "euro", prices: { normal: 7, promotional: null, moeda: "EUR", comImpostos: null }, taxes: [], origens: { price: "og" } },
+  ];
+  await converterProdutosDoSite(lote, obterCambio);
+  conferir("moeda: lote convertido pela PTAX com o fator, promocional na mesma cotação sem fator, uma consulta só", [
+    pedidas, lote[0].prices.normal, lote[0].prices.promotional, lote[0].prices.comImpostos, lote[1].prices.normal, lote[1].prices.original.moeda, "moeda" in lote[0].prices,
+  ], [1, 54, 43.2, 108, 108, "USD", false]);
+  conferir("moeda: produto em real passa intocado", lote[2].prices, { normal: 30, promotional: null, comImpostos: null });
+  conferir("moeda: euro sem cotação fica sem preço em reais, com o original guardado", [lote[3].prices.normal, lote[3].prices.original, lote[3].origens.price], [
+    null, { moeda: "EUR", valor: 7, cotacao: null, cotacaoData: null, cotacaoOrigem: null, fator: 1 }, "og · € 7, sem cotação de EUR no Rise",
+  ]);
+  conferir("moeda: textos da tela sem cotação", [precoOriginalEmTexto(lote[3].prices.original), contaDoPrecoOriginal(lote[3].prices.original), simboloDaMoeda("GBP"), simboloDaMoeda("MXN")], [
+    "€ 7,00 (sem cotação)", "€ 7,00 (sem cotação): o Rise não tem cotação de EUR, então o produto fica sem preço em reais", "£", "MXN",
+  ]);
+  conferir("moeda: semCotacao sozinho zera também o promocional", semCotacao({ prices: { normal: 3, promotional: 2, moeda: "GBP" } }).prices.promotional, null);
+
+  // Historico: a PTAX mudou (R$ 54 -> R$ 56), os US$ 10 nao: NAO e mudanca de preco. Mudou o dolar ou o fator: e.
+  const guardada = { precoNormal: "54", precoPromocional: null, precoReserva: null, precoMontagem: null, estoqueStatus: "AVAILABLE", precoOriginal: { moeda: "USD", valor: 10, fator: 2 } };
+  const nova = (original, precoNormal = 56) => ({ precoNormal, precoPromocional: null, precoReserva: null, precoMontagem: null, estoqueStatus: "AVAILABLE", precoOriginal: original });
+  conferir("moeda: histórico compara pelo valor original, não pela PTAX", [
+    mudouPreco(guardada, nova({ moeda: "USD", valor: 10, fator: 2 })),
+    mudouPreco(guardada, nova({ moeda: "USD", valor: 11, fator: 2 })),
+    mudouPreco(guardada, nova({ moeda: "USD", valor: 10, fator: 3 })),
+    mudouPreco(guardada, nova(null)),
+    mudouPreco({ ...guardada, precoOriginal: null }, nova(null, 54)),
+  ], [false, true, true, true, false]);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);

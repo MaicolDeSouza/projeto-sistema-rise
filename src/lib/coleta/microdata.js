@@ -304,6 +304,8 @@ export function doMicrodata(htmlCompleto) {
     // relacionado). O menor e o que a loja esta cobrando de fato.
     preco: precos.length > 0 ? Math.min(...precos) : null,
     precos,
+    // `itemprop="priceCurrency"` (Adafruit publica "USD", 08/11/2026); quem decide se e moeda estrangeira e o normalizador.
+    moeda: valoresDe(html, "priceCurrency")[0] ?? null,
     disponibilidade,
     imagens: valoresDe(html, "image"),
   };

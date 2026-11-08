@@ -2142,6 +2142,12 @@ function opcoesDeVariacao(bruto) {
  *
  * @returns {{produtos: object[], motivo: string|null, formatos: string[]}}
  */
+/** O codigo ISO (3 letras) de uma moeda que NAO e o real, ou null: "USD" -> "USD", "brl" -> null, "$" -> null. */
+export function moedaEstrangeira(valor) {
+  const codigo = String(valor ?? "").trim().toUpperCase();
+  return /^[A-Z]{3}$/.test(codigo) && codigo !== "BRL" ? codigo : null;
+}
+
 export function normalizarPagina({
   html,
   url,
@@ -2292,6 +2298,20 @@ export function normalizarPagina({
     }
     return null;
   };
+
+  // MOEDA ESTRANGEIRA (SparkFun e Adafruit, 08/11/2026, pedido do dono: "ver a moeda se dolar euro ou etc e salvar isso
+  // na varredura"). So pelo codigo ISO que a pagina declara (JSON-LD `priceCurrency`, Microdata, OpenGraph
+  // `product:price:currency`), nunca pelo simbolo: "$" e usado por meia duzia de dolares e "R$" tambem tem "$". Em real
+  // a chave NAO entra: ela faria a assinatura de todos os produtos ja gravados mudar. Quem converte em reais e a
+  // gravacao (`converterProdutosDoSite` em moeda.js); aqui o preco fica na moeda da pagina.
+  const moeda = primeiro(
+    "moeda",
+    [moedaEstrangeira(estruturado?.moeda), "json-ld"],
+    [moedaEstrangeira(micro?.moeda), "itemprop=priceCurrency"],
+    [moedaEstrangeira(meta["product:price:currency"]), "product:price:currency"],
+  );
+  if (moeda && typeof prices.normal === "number") prices.moeda = moeda;
+  else delete origens.moeda;
 
   const name = primeiro(
     "name",

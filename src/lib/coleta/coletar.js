@@ -12,6 +12,7 @@ import { colherProdutos, colherVariasUrls, enderecoComparavel } from "./colher";
 import { enderecosDaVarredura } from "./enderecos";
 import { buscarBytes, podeVisitar } from "./buscar";
 import { conciliar, quedaSuspeita } from "./conciliar";
+import { converterProdutosDoSite } from "./moeda";
 import { catalogoJsDoEndereco, catalogoShopifyDoEndereco, portalDoEndereco, regrasDoFornecedor } from "./fornecedores";
 import { colherCatalogoJs } from "./catalogo-js";
 import { colherCatalogoShopify } from "./catalogo-shopify";
@@ -583,10 +584,29 @@ export async function varrerFonte(fonte, aoProgredir, { sinal = null, inicioDaVa
   const acumulado = { novos: 0, atualizados: 0, inalterados: 0, precosMudaram: 0, semChave: 0 };
   let gravadosEmLote = 0;
 
+  /*
+    SITE EM MOEDA ESTRANGEIRA (SparkFun e Adafruit, 08/11/2026, pedido do dono): o normalizador deixa `prices.moeda`
+    quando a pagina declara "USD", e o preco e convertido em reais AQUI, antes de cada gravacao, com a PTAX do dia e o
+    fator do fornecedor ligado a fonte (a mesma regra da lista em dolar da NexMind). A cotacao e o fator sao buscados uma
+    vez por varredura, e so quando aparece produto em dolar: loja em real nao paga a consulta ao Banco Central.
+  */
+  let cambioDoSite = null;
+  const obterCambio = async () => {
+    cambioDoSite ??= (async () => {
+      const [{ garantirCotacaoDoDia }, { fator }] = await Promise.all([import("@/lib/cotacaoDoDia"), cambioDoFornecedor(fonte)]);
+      return { cotacao: await garantirCotacaoDoDia(), fator };
+    })();
+    return cambioDoSite;
+  };
+  const gravarDoSite = async (args) => {
+    await converterProdutosDoSite(args.produtos, obterCambio);
+    return gravarColeta(args);
+  };
+
   const gravarLote = (lote) => {
     gravacoes = gravacoes.then(async () => {
       try {
-        const parcial = await gravarColeta({
+        const parcial = await gravarDoSite({
           fonte,
           produtos: lote,
           origem: "site",
@@ -656,7 +676,7 @@ export async function varrerFonte(fonte, aoProgredir, { sinal = null, inicioDaVa
     */
     await gravacoes;
     if (buffer.length > 0) {
-      await gravarColeta({ fonte, produtos: buffer, origem: "site", fecharColeta: false }).catch(
+      await gravarDoSite({ fonte, produtos: buffer, origem: "site", fecharColeta: false }).catch(
         (falha) => console.error(`lote final de ${buffer.length} nao gravado: ${falha.message}`),
       );
     }
@@ -686,7 +706,7 @@ export async function varrerFonte(fonte, aoProgredir, { sinal = null, inicioDaVa
 
   // A gravacao final leva so o que sobrou no buffer, e FECHA a coleta com a data
   // do inicio e o total da varredura inteira.
-  const final = await gravarColeta({
+  const final = await gravarDoSite({
     fonte,
     produtos: buffer,
     origem: "site",

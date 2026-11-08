@@ -89,7 +89,7 @@ for (const r of resultados) {
   for (const produto of (r.produtos ?? []).slice(0, 2)) {
     console.log(
       `\n  · ${coluna(produto.name, 46)} cod ${coluna(produto.code, 12)} ` +
-        `R$ ${produto.prices.normal}${
+        `${produto.prices.moeda ?? "R$"} ${produto.prices.normal}${
           produto.prices.promotional ? ` → ${produto.prices.promotional}` : ""
         }`,
     );

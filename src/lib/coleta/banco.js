@@ -152,6 +152,8 @@ export async function gravarColeta({
       precoPromocional: true,
       precoReserva: true,
       precoMontagem: true,
+      // A serie de preco compara pelo valor ORIGINAL quando a moeda e estrangeira (`mudouPreco`).
+      precoOriginal: true,
       estoqueStatus: true,
       ausenteDesde: true,
       quantidade: true,

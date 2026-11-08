@@ -6,6 +6,7 @@ import { pareceListagem, pareceProduto, rastrear } from "./descobrir";
 import { ehProdutoValido, normalizarPagina } from "./normalizar";
 import { camposDoCatalogo, lerCatalogo, produtoDoItemDoCatalogo, urlDoItem } from "./catalogo";
 import { chaveDoProduto, chaveSemColisao } from "./linha";
+import { MOEDAS_COM_COTACAO, simboloDaMoeda } from "./moeda";
 import {
   catalogoPublicoDe,
   identidadeDoEndereco,
@@ -881,6 +882,22 @@ export async function colherProdutos({
 
   if (encontrados.length > 0) {
     passos.push(passo("Extração concluída", true, [...formatos].join(", ") || "—"));
+
+    // MOEDA ESTRANGEIRA (SparkFun e Adafruit, 08/11/2026): so aparece quando a pagina declarou outra moeda. Em dolar
+    // a gravacao converte pela PTAX do dia; noutra moeda o Rise nao tem cotacao e o produto ficaria sem preco em reais.
+    const moedas = [...new Set(encontrados.map((produto) => produto.prices?.moeda).filter(Boolean))];
+    if (moedas.length > 0) {
+      const semCotacao = moedas.filter((moeda) => !MOEDAS_COM_COTACAO.includes(moeda));
+      passos.push(
+        passo(
+          "Moeda dos preços",
+          semCotacao.length === 0,
+          semCotacao.length === 0
+            ? `preços em ${moedas.map(simboloDaMoeda).join(", ")}: convertidos em reais pela PTAX do dia na gravação (o original fica guardado)`
+            : `preços em ${semCotacao.join(", ")}: o Rise só tem cotação do dólar, e os produtos ficariam sem preço em reais`,
+        ),
+      );
+    }
   }
 
   // Site institucional com a loja em outro dominio (Kalatec: www = WordPress, loja.* = Tray): o

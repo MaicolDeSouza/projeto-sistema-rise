@@ -9,9 +9,16 @@ import { AmpliacaoDeFoto } from "@/components/produtos/ImagemComZoom";
 import Badge from "@/components/ui/Badge";
 import RegrasDeCompra from "@/components/mercados/RegrasDeCompra";
 import { precoComImpostos } from "@/lib/coleta/impostos";
+import { MOEDAS_COM_COTACAO, simboloDaMoeda } from "@/lib/coleta/moeda";
 import { ROTULOS_CAMPOS, valoresDoProduto } from "@/lib/coleta/campos";
 
 const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
+/** Em real, "R$ 15,95"; na moeda que a pagina declarou (o teste nao converte), "US$ 15,95". */
+function formatarPreco(valor, moeda) {
+  if (!moeda) return MOEDA.format(valor);
+  return `${simboloDaMoeda(moeda)} ${valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
 const SITUACAO = {
   AVAILABLE: { rotulo: "Disponível", tom: "sucesso" },
@@ -274,9 +281,20 @@ export default function PreviaProduto({ produto, indice }) {
                       zero diria que o produto e de graca.
                     */}
                     {typeof produto.prices.normal === "number"
-                      ? MOEDA.format(produto.prices.normal)
+                      ? formatarPreco(produto.prices.normal, produto.prices.moeda)
                       : "—"}
                   </p>
+                  {/*
+                    MOEDA ESTRANGEIRA (SparkFun, Adafruit, 08/11/2026): o teste nao converte nada (nada e gravado), entao
+                    a previa mostra o preco na moeda da pagina e diz o que a gravacao vai fazer com ele.
+                  */}
+                  {produto.prices.moeda && (
+                    <p className="text-[11px] text-suave">
+                      {MOEDAS_COM_COTACAO.includes(produto.prices.moeda)
+                        ? "convertido em R$ pela PTAX do dia na gravação"
+                        : `sem cotação de ${produto.prices.moeda} no Rise`}
+                    </p>
+                  )}
                 </div>
 
                 {temPromocional && (
@@ -285,7 +303,7 @@ export default function PreviaProduto({ produto, indice }) {
                       {ehAVista ? "À vista (pix/boleto)" : ROTULOS_CAMPOS.precoPromocional}
                     </p>
                     <p className="text-lg font-semibold tabular-nums text-emerald-700">
-                      {MOEDA.format(produto.prices.promotional)}
+                      {formatarPreco(produto.prices.promotional, produto.prices.moeda)}
                     </p>
                   </div>
                 )}
