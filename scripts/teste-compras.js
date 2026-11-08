@@ -197,6 +197,9 @@ conferir(
   conferir("fornecedor: nome e A/C", [text.includes("Fornecedor Teste"), text.includes("A/C: Fulano"), text.includes("17.142.314/0001-21"), text.includes("vendas@exemplo")], [true, true, false, false]);
   conferir("obs para o fornecedor sim, interna nao", [text.includes("Entregar em horário comercial."), text.includes("Conta interna")], [true, false]);
   conferir("coluna de IPI no fornecedor nacional", text.includes("IPI %"), true);
+  // Fonte do PDF (07/11/2026): "（B1K）" da NexMind saia "ÿB1Kÿ"; formas largas viram as comuns, o resto sai.
+  const { paraFonteDoPdf } = await import("../src/lib/compras/pdf.js");
+  conferir("texto na fonte do PDF", [paraFonteDoPdf("Pot （B1K,B2K）"), paraFonteDoPdf("【Kit】 10Ω ±5% – “ok”"), paraFonteDoPdf("Ação 中文")], ["Pot (B1K,B2K)", "[Kit] 10ohm ±5% – “ok”", "Ação "]);
   // "+Obs." do item (07/11/2026): logo depois da linha do item 4, antes da do item 5.
   const posObs = text.indexOf("Obs.: Enviar a versão com o cabo de 20 cm.");
   conferir("obs do item no PDF, depois do item e antes do seguinte", [posObs > text.indexOf("FORN-3"), posObs < text.indexOf("FORN-4")], [true, true]);

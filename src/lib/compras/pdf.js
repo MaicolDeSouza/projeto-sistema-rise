@@ -22,10 +22,26 @@ const FOTO = 26;
 const LOGO = 46;
 const LOGO_LARGURA = 170;
 
+// O que a Helvetica padrao (WinAnsi) desenha alem do Latin-1; o resto sai como "ÿ" (07/11/2026: a lista da NexMind traz
+// parenteses de largura total "（B1K…）").
+const WINANSI_EXTRA = new Set([..."€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ"]);
+const TROCAS = { "【": "[", "】": "]", "「": "[", "」": "]", "『": "[", "』": "]", "〔": "[", "〕": "]", "、": ",", "。": ".", "～": "~", "Ω": "ohm" };
+
+/** O texto como a fonte do PDF consegue desenhar: formas largas viram as comuns (NFKC) e o que nao existe nela sai. */
+export function paraFonteDoPdf(texto) {
+  return [...String(texto ?? "").normalize("NFKC")]
+    .map((letra) => TROCAS[letra] ?? letra)
+    .join("")
+    .split("")
+    .filter((letra) => letra.charCodeAt(0) <= 0xff || WINANSI_EXTRA.has(letra))
+    .join("");
+}
+
 /** As colunas: a Descricao fica com o que sobra da largura. Sem IPI no estrangeiro. */
 function colunasDaTabela(largura, t, comIpi) {
   const fixas = [
-    { chave: "item", largura: 24, alinhar: "center" },
+    // 30 pt: cabe "999" sem quebrar (com 24, o item 142 saia "14" / "2", 07/11/2026).
+    { chave: "item", largura: 30, alinhar: "center" },
     { chave: "foto", largura: FOTO + RESPIRO * 2, alinhar: "center" },
     { chave: "codigo", largura: 64 },
     { chave: "descricao", largura: 0 },
@@ -47,7 +63,19 @@ function colunasDaTabela(largura, t, comIpi) {
  * @returns {Promise<Buffer>}
  */
 export function pdfDoPedido(pedido, empresa, extras = {}) {
-  const conteudo = conteudoDoPedido(pedido, extras);
+  const bruto = conteudoDoPedido(pedido, extras);
+  // So o PDF passa pela fonte limitada; a pagina do link publico (HTML) mostra o texto como veio.
+  const conteudo = {
+    ...bruto,
+    titulo: paraFonteDoPdf(bruto.titulo),
+    fornecedor: { nome: paraFonteDoPdf(bruto.fornecedor.nome), contato: paraFonteDoPdf(bruto.fornecedor.contato) },
+    itens: bruto.itens.map((item) => ({
+      ...item,
+      celulas: Object.fromEntries(Object.entries(item.celulas).map(([chave, valor]) => [chave, paraFonteDoPdf(valor)])),
+      obs: item.obs ? paraFonteDoPdf(item.obs) : null,
+    })),
+    condicoes: bruto.condicoes.map(([rotulo, valor]) => [rotulo, paraFonteDoPdf(valor)]),
+  };
   const { t } = conteudo;
   const fotos = extras.fotos ?? {};
 
