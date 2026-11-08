@@ -19,7 +19,9 @@ export const PARTES_DO_PRODUTO = ["descricao", "fotos", "pacote"];
 // O prazo de disponibilidade (28/10/2026) tambem e do proprio anuncio: vai nos termos de venda (sale_terms).
 // O preco da loja (08/11/2026, definicao 2 do dono): o "!" acende quando o preco de venda do produto muda, para o dono refazer
 // o preco do ML pelo lucro da loja; nada vai ao ML sozinho (o Enviar so registra a base nova). O custo que muda nao acende.
-export const PARTES_DO_ANUNCIO = ["preco", "ficha", "prazo", "precoDaLoja"];
+// `titulo` (08/11/2026): so o anuncio REAPROVEITADO da conta o tem na impressao; o publicado pelo Rise nao (o ML gera o titulo
+// pelo family_name) e por isso nunca acende.
+export const PARTES_DO_ANUNCIO = ["titulo", "preco", "ficha", "prazo", "precoDaLoja"];
 export const PARTES = [...PARTES_DO_PRODUTO, ...PARTES_DO_ANUNCIO];
 
 const ehKit = (rascunho) => Array.isArray(rascunho?.composicao?.itens) && rascunho.composicao.itens.length > 0;
@@ -101,6 +103,8 @@ export function conteudoAtualDoAnuncio(rascunho, produtosPorId) {
     ficha: rascunho ? fichaDoAnuncio(rascunho) : null,
     prazo: prazoDoAnuncio(rascunho),
     precoDaLoja: precoDaLojaDoAnuncio(rascunho, produtosPorId),
+    // O titulo do editor (08/11/2026): so conta no anuncio reaproveitado, cuja impressao nasce com o titulo do ML.
+    titulo: typeof rascunho?.titulo === "string" ? rascunho.titulo : null,
     kit,
   };
 }
@@ -147,7 +151,7 @@ export function mudancasDoAnuncio(enviado, atual) {
 }
 
 /** Nomes das partes para a tela ("descrição, fotos e peso e medidas"). */
-export const NOMES_DAS_PARTES = { descricao: "descrição", fotos: "fotos", pacote: "peso e medidas", preco: "preço", ficha: "ficha técnica", prazo: "prazo de disponibilidade", precoDaLoja: "preço da loja" };
+export const NOMES_DAS_PARTES = { descricao: "descrição", fotos: "fotos", pacote: "peso e medidas", preco: "preço", ficha: "ficha técnica", prazo: "prazo de disponibilidade", precoDaLoja: "preço da loja", titulo: "título", bling: "vínculo do Bling" };
 
 /** "descrição", "descrição e fotos", "descrição, fotos e peso e medidas". */
 export function textoDasPartes(partes) {

@@ -507,12 +507,14 @@ export async function validarNoMLAcao(anuncioId) {
  * "Enviar mudancas ao ML" (spec 2026-10-24): leva ao anuncio publicado o que mudou no produto (descricao, fotos, peso e
  * medidas). A mesma permissao do Publicar: os dois escrevem no item do ML.
  */
-export async function enviarMudancasMLAcao(anuncioId) {
+// `moverBling` (08/11/2026): o OK do dono, por anuncio, para o vinculo do anuncio reaproveitado sair da loja ML_4h do Bling e
+// entrar na Rise_ML; sem ele o resultado traz `pedeBling` e o editor pergunta.
+export async function enviarMudancasMLAcao(anuncioId, { moverBling = false } = {}) {
   const negado = await negarSemAcessos(["acao.mercadoLivre.publicar", "executar"]);
   if (negado) return negado;
   if (!ehId(anuncioId)) return PEDIDO_INVALIDO;
   return protegendo(async () => {
-    const resultado = await enviarMudancasML(anuncioId, { ml: clienteML() });
+    const resultado = await enviarMudancasML(anuncioId, { ml: clienteML(), bling: clienteBling(), moverBling: moverBling === true });
     revalidatePath("/canais-de-venda/mercado-livre");
     revalidatePath("/produtos");
     return resultado;

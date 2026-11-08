@@ -1,5 +1,6 @@
 import { conteudoAtualDoAnuncio, mudancasDoAnuncio } from "./acompanhar";
 import { carregarAnuncioML, gravarPublicacao } from "./banco";
+import { moverVinculoParaRiseML } from "./bling";
 import { PARTES_DO_ENVIO_ML } from "./etapasDoEnvio";
 import { iniciarProgressoML } from "./progresso";
 import { impressaoDoConteudo } from "./impressao";
@@ -11,9 +12,13 @@ import { textoDaRecusaML } from "./respostas";
 /**
  * "Enviar mudancas ao ML" (spec 2026-10-24): leva ao anuncio JA PUBLICADO o que mudou desde o ultimo envio: do produto,
  * a descricao, as fotos e o peso e as medidas; do proprio anuncio (editados nele depois de publicado, 24/10/2026), o preco
- * e a ficha tecnica. No molde do Publicar: recebe o cliente do ML por parametro, uma volta
- * so, nenhuma escrita repete sozinha, e cada parte que deu certo e gravada na impressao na hora (uma falha no meio
- * deixa o "!" so no que faltou). Para na primeira parte que falha.
+ * e a ficha tecnica; e, no anuncio reaproveitado da conta (08/11/2026), o titulo. No molde do Publicar: recebe o cliente do
+ * ML por parametro, uma volta so, nenhuma escrita repete sozinha, e cada parte que deu certo e gravada na impressao na hora
+ * (uma falha no meio deixa o "!" so no que faltou). Para na primeira parte que falha.
+ *
+ * O anuncio reaproveitado tem uma etapa a mais, depois das partes: mover o vinculo do Bling da loja ML_4h para a Rise_ML
+ * (`bling`). Ela so roda com `moverBling` (o dono confirma por anuncio, no popup do editor); sem ele o resultado traz
+ * `pedeBling` e a etapa fica para a proxima chamada. Depois de movida (`reaproveitado.blingMovidoEm`), nunca mais.
  *
  * Medir no ML real antes do primeiro uso: nenhuma das tres escritas (PUT da descricao, de `pictures` e de `attributes`)
  * foi mandada a um item publicado da conta (User Products).
@@ -21,14 +26,17 @@ import { textoDaRecusaML } from "./respostas";
 
 const textoDe = (erro) => erro?.message ?? String(erro);
 
-/** @returns {Promise<{ ok: boolean, enviadas: string[], erro?: string, parte?: string }>} */
-export async function enviarMudancasML(anuncioId, { ml, lerFoto = lerFotoDoDisco } = {}) {
+/**
+ * @returns {Promise<{ ok: boolean, enviadas: string[], avisos?: string[], erro?: string, parte?: string,
+ *   pedeBling?: { de: string|null, codigo: string, itemId: string }, bling?: object }>}
+ */
+export async function enviarMudancasML(anuncioId, { ml, bling = null, moverBling = false, lerFoto = lerFotoDoDisco } = {}) {
   if (emAndamento.has(anuncioId)) return { ok: false, enviadas: [], erro: "Envio em andamento." };
   emAndamento.add(anuncioId);
   // O andamento do popup do editor (26/10/2026): cada etapa marcada aqui, lida pela rota `/api/mercado-livre/progresso`.
   const progresso = iniciarProgressoML(anuncioId);
   try {
-    const resultado = await enviarUmaVez(anuncioId, { ml, lerFoto, progresso });
+    const resultado = await enviarUmaVez(anuncioId, { ml, bling, moverBling, lerFoto, progresso });
     if (!resultado.ok) progresso.falhou(resultado.erro ?? "O envio não foi concluído.");
     return resultado;
   } catch (erro) {
@@ -41,7 +49,7 @@ export async function enviarMudancasML(anuncioId, { ml, lerFoto = lerFotoDoDisco
   }
 }
 
-async function enviarUmaVez(anuncioId, { ml, lerFoto, progresso }) {
+async function enviarUmaVez(anuncioId, { ml, bling, moverBling, lerFoto, progresso }) {
   const carregado = await carregarAnuncioML(anuncioId);
   if (!carregado.ok) return { ok: false, enviadas: [], erro: carregado.erro };
   const { rascunho, contexto, publicacao } = carregado;
@@ -51,13 +59,42 @@ async function enviarUmaVez(anuncioId, { ml, lerFoto, progresso }) {
   const conteudo = conteudoAtualDoAnuncio(rascunho, contexto.produtos);
   const atual = impressaoDoConteudo(conteudo);
   const { partes } = mudancasDoAnuncio(publicacao.enviado ?? null, atual);
-  if (partes.length === 0) {
-    for (const etapa of ["permissao", "ler", ...PARTES_DO_ENVIO_ML]) progresso.feita(etapa, "nada a enviar");
-    return { ok: true, enviadas: [] };
-  }
-
   const principal = contexto.produtos[rascunho.produtoId];
   const codigo = String(rascunho.composicao ? rascunho.composicao.codigo : principal?.sku ?? "").trim();
+  const enviadas = [];
+  const avisos = [];
+
+  if (partes.length === 0) {
+    for (const etapa of ["permissao", "ler", ...PARTES_DO_ENVIO_ML]) progresso.feita(etapa, "nada a enviar");
+  } else {
+    const falha = await enviarPartes({ ml, lerFoto, progresso, anuncioId, itemId, codigo, rascunho, contexto, conteudo, atual, publicacao, partes, enviadas, avisos });
+    if (falha) return falha;
+  }
+
+  // O vinculo do Bling do anuncio reaproveitado, uma vez so: pede a confirmacao do dono e, com ela, move.
+  const pendente = Boolean(publicacao.reaproveitado) && !publicacao.reaproveitado.blingMovidoEm;
+  const dadosDoBling = { preco: rascunho.preco, titulo: rascunho.titulo, tipoAnuncio: rascunho.tipoAnuncio };
+  const pronto = (extra = {}) => ({ ok: true, enviadas, ...(avisos.length ? { avisos } : {}), ...extra });
+  if (!pendente) {
+    progresso.feita("bling", "não se aplica");
+    return pronto();
+  }
+  if (!moverBling) {
+    // So le, para o popup dizer de onde o anuncio sai; a etapa fica esperando a confirmacao.
+    const lido = bling ? await moverVinculoParaRiseML(bling, codigo, itemId, { ...dadosDoBling, somenteLer: true }) : null;
+    return pronto({ pedeBling: { de: lido?.ok ? lido.de : null, codigo, itemId } });
+  }
+  if (!bling) return { ok: false, enviadas, parte: "bling", erro: "Sem cliente do Bling para mover o vínculo." };
+  progresso.andando("bling");
+  const movido = await moverVinculoParaRiseML(bling, codigo, itemId, dadosDoBling);
+  if (!movido.ok) return { ok: false, enviadas, parte: "bling", erro: movido.erro ?? "O Bling não concluiu a mudança do vínculo." };
+  await gravarPublicacao(anuncioId, { reaproveitado: { ...publicacao.reaproveitado, blingMovidoEm: new Date().toISOString() } });
+  progresso.feita("bling", movido.de === "ML_4h" ? "movido da ML_4h para a Rise_ML" : "registrado na Rise_ML");
+  return pronto({ bling: movido });
+}
+
+/** As partes que mudaram, uma a uma. Devolve o resultado de falha, ou `null` quando todas foram. */
+async function enviarPartes({ ml, lerFoto, progresso, anuncioId, itemId, codigo, rascunho, contexto, conteudo, atual, publicacao, partes, enviadas, avisos }) {
   progresso.andando("permissao");
   try {
     ml.exigirEscrita(codigo);
@@ -77,7 +114,6 @@ async function enviarUmaVez(anuncioId, { ml, lerFoto, progresso }) {
   // A impressao vai sendo completada parte a parte: sem impressao (anuncio publicado antes de 24/10/2026), comeca vazia.
   let enviado = { ...(publicacao.enviado ?? {}) };
   let fotosNoML = { ...(publicacao.fotos ?? {}) };
-  const enviadas = [];
   const gravarParte = async (parte) => {
     enviado = { ...enviado, [parte]: atual[parte], em: new Date().toISOString() };
     await gravarPublicacao(anuncioId, { enviado });
@@ -87,7 +123,24 @@ async function enviarUmaVez(anuncioId, { ml, lerFoto, progresso }) {
 
   for (const parte of partes) {
     progresso.andando(parte);
-    if (parte === "descricao") {
+    let detalhe = "enviado";
+    if (parte === "titulo") {
+      // O ML nao muda o titulo de anuncio com vendas (CLAUDE.md): o Rise registra o titulo do editor e avisa, sem escrever.
+      if (Number(lido.dados?.sold_quantity ?? 0) > 0) {
+        avisos.push("O título não muda depois de vendas: ficou o do ML.");
+        detalhe = "com vendas: ficou o do ML";
+      } else {
+        // No modelo User Products o titulo vem do `family_name`; item sem ele (anuncio antigo) recebe o `title`.
+        const corpo = lido.dados?.family_name !== undefined && lido.dados?.family_name !== null ? { family_name: conteudo.titulo } : { title: conteudo.titulo };
+        let resposta;
+        try {
+          resposta = await ml.put(`/items/${itemId}`, corpo);
+        } catch (erro) {
+          return falhar(parte, `Falha ao enviar o título: ${textoDe(erro)}`);
+        }
+        if (!resposta?.ok) return falhar(parte, textoDaRecusaML(resposta, "o título"));
+      }
+    } else if (parte === "descricao") {
       let resposta;
       try {
         resposta = await ml.put(`/items/${itemId}/description`, { plain_text: conteudo.descricao });
@@ -176,11 +229,13 @@ async function enviarUmaVez(anuncioId, { ml, lerFoto, progresso }) {
         return falhar(parte, `Falha ao enviar a ficha técnica: ${textoDe(erro)}`);
       }
       if (!resposta?.ok) return falhar(parte, textoDaRecusaML(resposta, "a ficha técnica"));
+    } else if (parte === "precoDaLoja") {
+      // Sem ramo: o preco de venda da loja nao vai ao ML, so a base nova e registrada, para o "!" apagar depois que o dono
+      // refez (ou manteve) o preco do ML.
+      detalhe = "registrado";
     }
-    // `precoDaLoja` (08/11/2026) nao tem ramo: o preco de venda da loja nao vai ao ML, so a base nova e registrada, para o
-    // "!" apagar depois que o dono refez (ou manteve) o preco do ML.
     await gravarParte(parte);
-    progresso.feita(parte, parte === "precoDaLoja" ? "registrado" : "enviado");
+    progresso.feita(parte, detalhe);
   }
-  return { ok: true, enviadas };
+  return null;
 }

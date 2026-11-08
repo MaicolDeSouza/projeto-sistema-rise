@@ -17,6 +17,9 @@ import { buscarNoBling, codigosDasPecasNoBling } from "@/lib/blingSync/leitura";
  * errado quebra a sincronia de estoque SEM dar erro (CLAUDE.md, "Bling").
  */
 export const LOJA_ML_NO_BLING = "206326819";
+/// A loja antiga do ML no Bling ("ML_4h"), onde moram os ~830 anuncios de antes do Rise. So e lida e esvaziada aqui: o
+/// anuncio reaproveitado da conta (08/11/2026) sai dela e entra na Rise_ML, com o OK do dono por anuncio.
+export const LOJA_ML_ANTIGA_NO_BLING = "203593931";
 
 /// O nome do Bling tem no maximo 120 caracteres (o mesmo limite da sincronizacao do produto).
 const LIMITE_DO_NOME = 120;
@@ -169,6 +172,72 @@ export async function registrarAnuncioNoBlingML(bling, { codigo, idProduto, item
     if (!completado?.ok) return { ok: false, erro: `O anúncio ${itemId} foi registrado no Bling (id ${depois.id}), mas o Bling recusou nome e preço (${motivoDoBling(completado)}).` };
   }
   return { ok: true, id: depois.id };
+}
+
+/**
+ * Move o anuncio reaproveitado (08/11/2026) da loja antiga do ML no Bling (ML_4h) para a Rise_ML, no caminho medido em
+ * 10/10/2026 (CLAUDE.md, "Mudar um anuncio do ML_4h para o Rise_ML"): cria o vinculo e o registro na Rise_ML ANTES de apagar
+ * os da ML_4h, para o produto nunca ficar sem vinculo; cada passo le antes de escrever, entao repetir continua de onde parou.
+ * `de`: "ML_4h" quando havia algo dele na loja antiga, "Rise_ML" quando o produto ja estava vinculado la, "nenhuma" quando
+ * nao havia vinculo nenhum. Nunca lanca.
+ * @returns {Promise<{ ok: boolean, de: "ML_4h"|"Rise_ML"|"nenhuma"|null, criado: boolean, apagado: boolean, registrado: boolean, erro?: string }>}
+ */
+export async function moverVinculoParaRiseML(bling, codigo, itemId, { preco, titulo, tipoAnuncio, somenteLer = false }) {
+  const mlb = String(itemId ?? "").trim();
+  const estado = { de: null, criado: false, apagado: false, registrado: false };
+  const falhar = (erro) => ({ ok: false, ...estado, erro });
+  let idProduto;
+  let vinculoAntigo;
+  let registroAntigo;
+  let naRise;
+  try {
+    const busca = await buscarNoBling(bling, codigo);
+    if (busca.situacao === "nao_existe") return falhar(`O produto ${codigo} não está entre os produtos ativos do Bling: não há a que vincular o anúncio.`);
+    if (busca.situacao === "duplicado") return falhar(`O código ${codigo} aparece mais de uma vez no Bling: deixe só um.`);
+    idProduto = busca.id;
+    const vinculos = await bling.get("/produtos/lojas", { idProduto });
+    if (!vinculos?.ok || !Array.isArray(vinculos.dados?.data)) return falhar(`Não foi possível ler os vínculos do produto no Bling (HTTP ${vinculos?.status ?? "?"}).`);
+    naRise = vinculos.dados.data.some((vinculo) => String(vinculo?.loja?.id) === LOJA_ML_NO_BLING);
+    vinculoAntigo = vinculos.dados.data.find((vinculo) => String(vinculo?.loja?.id) === LOJA_ML_ANTIGA_NO_BLING && String(vinculo?.codigo ?? "").trim() === mlb) ?? null;
+    const registros = await bling.get("/anuncios", { tipoIntegracao: TIPO_DE_INTEGRACAO, idLoja: Number(LOJA_ML_ANTIGA_NO_BLING), idProduto });
+    if (!registros?.ok || !Array.isArray(registros.dados?.data)) return falhar(`Não foi possível ler os anúncios do produto na loja antiga do Bling (HTTP ${registros?.status ?? "?"}).`);
+    registroAntigo = registros.dados.data.find((anuncio) => String(anuncio?.anuncioLoja?.id ?? "").trim() === mlb) ?? null;
+  } catch (erro) {
+    return falhar(`Bling: ${mensagem(erro, "não foi possível ler o produto.")}`);
+  }
+  estado.de = vinculoAntigo || registroAntigo ? "ML_4h" : naRise ? "Rise_ML" : "nenhuma";
+  // So para o popup dizer de onde o anuncio sai, antes do OK do dono.
+  if (somenteLer) return { ok: true, ...estado };
+
+  try {
+    bling.exigirEscrita(codigo);
+  } catch (erro) {
+    return falhar(mensagem(erro, "Escrita no Bling bloqueada."));
+  }
+
+  if (!naRise) {
+    const criado = await vincularNoBlingML(bling, codigo, mlb, preco);
+    if (!criado.ok) return falhar(criado.erro ?? "O Bling não aceitou o vínculo na loja Rise_ML.");
+    estado.criado = !criado.jaEstava;
+  }
+  // So com a Rise_ML garantida os da loja antiga saem (o DELETE do vinculo e do registro respondem 204, medido em 10/10/2026).
+  for (const [caminho, params, oQue] of [
+    vinculoAntigo ? [`/produtos/lojas/${vinculoAntigo.id}`, undefined, "o vínculo antigo"] : null,
+    registroAntigo ? [`/anuncios/${registroAntigo.id}`, { tipoIntegracao: TIPO_DE_INTEGRACAO, idLoja: Number(LOJA_ML_ANTIGA_NO_BLING) }, "o registro antigo"] : null,
+  ].filter(Boolean)) {
+    let resposta;
+    try {
+      resposta = await bling.delete(caminho, params);
+    } catch (erro) {
+      return falhar(`Falha ao apagar ${oQue} do anúncio ${mlb} na loja ML_4h: ${mensagem(erro, "erro de rede")}. Confira no Bling antes de tentar de novo.`);
+    }
+    if (!resposta?.ok && resposta?.status !== 404) return falhar(`O Bling recusou apagar ${oQue} do anúncio ${mlb} na loja ML_4h (${motivoDoBling(resposta)}).`);
+    estado.apagado = true;
+  }
+  const registro = await registrarAnuncioNoBlingML(bling, { codigo, idProduto, itemId: mlb, titulo, preco, tipoAnuncio });
+  if (!registro.ok) return falhar(registro.erro ?? "O Bling não aceitou o registro do anúncio na loja Rise_ML.");
+  estado.registrado = true;
+  return { ok: true, ...estado };
 }
 
 // ---------------------------------------------------------------------------

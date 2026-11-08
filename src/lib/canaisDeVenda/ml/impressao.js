@@ -16,5 +16,8 @@ export function impressaoDoConteudo(conteudo) {
     prazo: conteudo?.prazo ?? null,
     // A base do preco do ML (08/11/2026): o preco de venda da loja quando o anuncio foi publicado ou registrado pela ultima vez.
     precoDaLoja: conteudo?.precoDaLoja ?? null,
+    // So o anuncio reaproveitado da conta grava o titulo (08/11/2026); sem titulo no conteudo a chave nem existe na impressao,
+    // senao toda impressao antiga (sem a chave) acenderia o titulo de um anuncio publicado pelo Rise.
+    ...(typeof conteudo?.titulo === "string" ? { titulo: conteudo.titulo } : {}),
   };
 }

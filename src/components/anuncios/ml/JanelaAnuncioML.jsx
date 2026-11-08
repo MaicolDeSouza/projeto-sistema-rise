@@ -8,9 +8,11 @@ import { Copy, Loader, Plus, Trash2, X } from "lucide-react";
 import {
   abrirAnuncioML,
   abrirNovoAnuncioML,
+  anunciosDoSkuMLAcao,
   clonarAnuncioML,
   criarVarianteMLAcao,
   listarAnunciosDoProdutoML,
+  reaproveitarAnuncioMLAcao,
 } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { NOME_DA_VARIANTE } from "@/lib/canaisDeVenda/ml/faixas";
 import BotaoNaoAnunciar from "@/components/anuncios/BotaoNaoAnunciar";
@@ -18,6 +20,7 @@ import Badge from "@/components/ui/Badge";
 import { ROTULO_DO_TIPO_ML, seloDoAnuncioML } from "@/lib/canaisDeVenda/ml/rotulos";
 import EditorAnuncioML from "./EditorAnuncioML";
 import JanelaExcluirAnuncioML from "./JanelaExcluirAnuncioML";
+import JanelaReaproveitarML from "./JanelaReaproveitarML";
 
 /**
  * Pop-up aberto pelo icone do Mercado Livre na lista de Produtos. Mostra os anuncios ML do
@@ -107,6 +110,10 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
   const [erro, setErro] = useState(null);
   // O anuncio da lista com a pergunta de excluir aberta (28/10/2026).
   const [paraExcluir, setParaExcluir] = useState(null);
+  // Os anuncios do SKU que a conta do ML ja tem e o Rise nao (08/11/2026): `{ sku, candidatos }` na fase "reaproveitar";
+  // `ocupado` e o MLB sendo reaproveitado.
+  const [candidatos, setCandidatos] = useState(null);
+  const [ocupado, setOcupado] = useState(null);
   const abertura = useRef(0);
   // A nota ("Anuncio salvo.") que a proxima carga da lista mostra; guardada para o "Tentar de novo".
   const notaDaLista = useRef(null);
@@ -135,7 +142,8 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
     [produtoId],
   );
 
-  const abrirNovo = useCallback(async () => {
+  // O editor de um anuncio novo, do zero (o caminho de sempre). `avisoInicial`: a conta nao pode ser lida, e o editor diz.
+  const abrirEditorNovo = useCallback(async (avisoInicial = null) => {
     setFase("carregando");
     const resultado = await chamar(abrirNovoAnuncioML, produtoId);
     if (!montada.current) return;
@@ -152,9 +160,24 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
       rascunho: resultado.rascunho,
       contexto: resultado.contexto,
       acessos: resultado.acessos,
+      avisoInicial,
     });
     setFase("editor");
   }, [produtoId]);
+
+  // "Novo anuncio" (definicao 4 do dono em 08/11/2026): produto sem anuncio do ML no Rise consulta a conta antes; com anuncio
+  // antigo do SKU la, a lista "Reaproveitar" aparece no lugar do editor. Com anuncio no Rise, ou sem nada na conta, o editor
+  // abre direto. A conta que nao responde nao barra o anuncio novo: o editor abre com o aviso.
+  const abrirNovo = useCallback(async () => {
+    if (anuncios.length > 0) return abrirEditorNovo();
+    setFase("carregando");
+    const resultado = await chamar(anunciosDoSkuMLAcao, produtoId);
+    if (!montada.current) return;
+    if (!resultado.ok) return abrirEditorNovo(`Não foi possível ler os anúncios da conta do Mercado Livre: ${resultado.erro}`);
+    if ((resultado.candidatos?.length ?? 0) === 0) return abrirEditorNovo();
+    setCandidatos({ sku: resultado.sku, candidatos: resultado.candidatos });
+    setFase("reaproveitar");
+  }, [anuncios.length, produtoId, abrirEditorNovo]);
 
   // Clonar (22/10/2026): um anuncio novo igual ao escolhido, do mesmo produto; nada e gravado ate o Salvar.
   const abrirClone = useCallback(async (id) => {
@@ -225,6 +248,24 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
     });
     setFase("editor");
   }, []);
+
+  // Reaproveitar (08/11/2026): o anuncio da conta vira anuncio PUBLICADO do produto no Rise e abre no editor, com o "!" do que
+  // o produto tem a mandar. Nada e escrito no ML nem no Bling aqui.
+  const reaproveitar = useCallback(
+    async (itemId) => {
+      setOcupado(itemId);
+      const resultado = await chamar((argumentos) => reaproveitarAnuncioMLAcao(...argumentos), [produtoId, itemId]);
+      if (!montada.current) return;
+      setOcupado(null);
+      if (!resultado.ok) {
+        setAviso({ tipo: "erro", texto: resultado.erro });
+        return;
+      }
+      setCandidatos(null);
+      await abrirExistente(resultado.anuncioId);
+    },
+    [produtoId, abrirExistente],
+  );
 
   const iniciar = useCallback(
     async (nota) => {
@@ -335,6 +376,17 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
           <Link href={`/produtos/${produto.id}`} className="inline-block text-acento hover:underline">
             Abrir o cadastro do produto
           </Link>
+        </div>
+      )}
+
+      {fase === "reaproveitar" && candidatos && (
+        <div className="space-y-3">
+          {aviso?.tipo === "erro" && (
+            <p role="alert" className={`rounded border px-3 py-2 text-sm ${CLASSE_DO_AVISO.erro}`}>
+              {aviso.texto}
+            </p>
+          )}
+          <JanelaReaproveitarML sku={candidatos.sku} candidatos={candidatos.candidatos} ocupado={ocupado} aoReaproveitar={reaproveitar} aoCriarNovo={() => abrirEditorNovo()} />
         </div>
       )}
 

@@ -12,7 +12,7 @@ import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import AcoesDoFimDoEnvio from "@/components/anuncios/li/AcoesDoFimDoEnvio";
 import AndamentoDoEnvio from "@/components/produtos/AndamentoDoEnvio";
 import { etapasComOResultado, etapasIniciais, lerAndamentoNoServidor, mesclarEtapas } from "@/lib/andamentoDoEnvio";
-import { ETAPAS_DO_ENVIO_ML } from "@/lib/canaisDeVenda/ml/etapasDoEnvio";
+import { etapasDoEnvioML } from "@/lib/canaisDeVenda/ml/etapasDoEnvio";
 import { NOMES_DAS_PARTES, textoDasPartes } from "@/lib/canaisDeVenda/ml/acompanhar";
 import { divergenciasDoAnuncioML } from "@/lib/canaisDeVenda/ml/divergencias";
 import { AGUARDANDO_BLING, AGUARDANDO_ESTOQUE, STATUS_ML, linkDoAnuncioML, linkDoPainelML } from "@/lib/canaisDeVenda/ml/rotulos";
@@ -140,6 +140,8 @@ export default function EditorAnuncioML({
   const [salvando, iniciarSalvamento] = useTransition();
   // "Salvar antes de publicar/enviar?" (`null` = fechada).
   const [pergunta, setPergunta] = useState(null);
+  // "Mover o vinculo do Bling?" do anuncio reaproveitado (08/11/2026): `{ de, codigo, itemId }` devolvido pelo envio.
+  const [perguntaDoBling, setPerguntaDoBling] = useState(null);
   // Id do anuncio novo salvo antes do Publicar: o `aoSalvar` (troca de endereco) espera a janela do Publicar fechar.
   const trocaPendente = useRef(null);
   const [carregandoCategoria, iniciarLeituraDaCategoria] = useTransition();
@@ -385,9 +387,14 @@ export default function EditorAnuncioML({
    * e a tela le pela rota (uma Server Action esperaria o envio acabar). So vale o andamento de numero maior que o de antes de
    * enviar. O fim vem depois da releitura do anuncio ("Conferir o resultado no ML"): o Fechar nao aparece com a tela velha.
    */
-  function enviarMudancas() {
+  function enviarMudancas(moverBling = false) {
     setErroDasMudancas(null);
-    setAndamento({ etapas: etapasIniciais(ETAPAS_DO_ENVIO_ML), fim: null, resumo: null });
+    // O titulo so no anuncio reaproveitado (a impressao tem a chave); o Bling so com o vinculo ainda por mover.
+    const etapas = etapasDoEnvioML({
+      comTitulo: Boolean(publicacao?.enviado) && Object.hasOwn(publicacao.enviado, "titulo"),
+      comBling: Boolean(publicacao?.reaproveitado) && !publicacao.reaproveitado.blingMovidoEm,
+    });
+    setAndamento({ etapas: etapasIniciais(etapas), fim: null, resumo: null, aviso: null });
     iniciarEnvioDasMudancas(async () => {
       const numeroDeAntes = (await lerAndamentoNoServidor(ROTA_DO_ANDAMENTO, idAtual))?.numero ?? 0;
       const relogio = setInterval(async () => {
@@ -397,7 +404,7 @@ export default function EditorAnuncioML({
       }, 400);
       let resultado;
       try {
-        resultado = await enviarMudancasMLAcao(idAtual);
+        resultado = await enviarMudancasMLAcao(idAtual, { moverBling: moverBling === true });
       } catch {
         resultado = { ok: false, erro: "Não foi possível falar com o servidor." };
       } finally {
@@ -419,12 +426,18 @@ export default function EditorAnuncioML({
               ...atual,
               etapas: resultado?.ok ? atual.etapas.map((etapa) => (etapa.id === "conferir" ? { ...etapa, estado: "feito" } : etapa)) : atual.etapas,
               fim: resultado?.ok ? "ok" : "falhou",
+              aviso: resultado?.ok && resultado.avisos?.length ? resultado.avisos.join(" ") : null,
               resumo: resultado?.ok
-                ? { titulo: enviadas.length > 0 ? "Enviado ao Mercado Livre:" : "Nada a enviar: o anúncio já estava igual ao produto.", linhas: enviadas.map((parte) => NOMES_DAS_PARTES[parte] ?? parte) }
+                ? {
+                    titulo: enviadas.length > 0 ? "Enviado ao Mercado Livre:" : resultado.bling ? "Vínculo do Bling na loja Rise_ML." : "Nada a enviar: o anúncio já estava igual ao produto.",
+                    linhas: [...enviadas.map((parte) => NOMES_DAS_PARTES[parte] ?? parte), ...(resultado.bling ? ["vínculo do Bling movido para a Rise_ML"] : [])],
+                  }
                 : null,
             }
           : atual,
       );
+      // O anuncio reaproveitado pede, uma vez, o OK para o vinculo do Bling sair da loja antiga (definicao do dono: por anuncio).
+      if (resultado?.ok && resultado.pedeBling) setPerguntaDoBling(resultado.pedeBling);
     });
   }
 
@@ -711,6 +724,7 @@ export default function EditorAnuncioML({
       etapas={andamento.etapas}
       fim={andamento.fim}
       resumo={andamento.resumo}
+      aviso={andamento.aviso ?? null}
       aoFechar={fecharTudo}
       aoVoltar={() => {
         const era = andamento;
@@ -745,6 +759,37 @@ export default function EditorAnuncioML({
     </div>
   );
 
+  // "Mover o vinculo do Bling?" (08/11/2026): por cima do popup de etapas; Mover chama o envio de novo so com essa etapa.
+  const caixaDoBling = perguntaDoBling && (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/50 p-4 text-left font-normal normal-case" {...propsDoFundo(() => setPerguntaDoBling(null))}>
+      <section role="alertdialog" aria-modal="true" aria-labelledby="ml-bling-titulo" className="w-full max-w-md rounded-lg border border-borda bg-superficie p-4 shadow-2xl">
+        <p id="ml-bling-titulo" className="text-sm font-semibold">
+          Mover o vínculo do Bling?
+        </p>
+        <p className="mt-1 text-sm text-suave">
+          {perguntaDoBling.de === "ML_4h"
+            ? `O anúncio ${perguntaDoBling.itemId} sai da loja ML_4h e entra na Rise_ML.`
+            : `O anúncio ${perguntaDoBling.itemId} entra na loja Rise_ML do Bling.`}
+        </p>
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" autoFocus onClick={() => setPerguntaDoBling(null)} className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo">
+            Agora não
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setPerguntaDoBling(null);
+              enviarMudancas(true);
+            }}
+            className="rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+          >
+            Mover
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+
   if (!janela) {
     return (
       <div className="space-y-4">
@@ -762,6 +807,7 @@ export default function EditorAnuncioML({
         {janelaDeExcluir}
         {popupDasMudancas}
         {caixaDePergunta}
+        {caixaDoBling}
       </div>
     );
   }
@@ -809,6 +855,7 @@ export default function EditorAnuncioML({
       {janelaDeExcluir}
       {popupDasMudancas}
       {caixaDePergunta}
+      {caixaDoBling}
 
       {confirmandoSaida && (
         <div
