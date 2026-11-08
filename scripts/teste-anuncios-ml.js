@@ -3594,6 +3594,12 @@ try {
     conferir("faixa 72-79: o sem frete cai nela e o com frete gratis sobe para R$ 79, marcado como piso", [naFaixa.preco, piso.preco, piso.freteGratis, piso.piso], [74.79, 79, true, true]);
     const alto = await precoPelaFaixa({ lucro: 60, custo: 100, variante: "classico_frete_gratis", taxas, frete });
     conferir("acima de 79 pelo lucro: sem piso, frete gratis", [alto.piso, alto.preco > 79, alto.freteGratis], [false, true, true]);
+    // O frete do vendedor cresce com o preco (a R$ 467 o 100101 x10 pagou R$ 21,65, nao os R$ 19,05 lidos a R$ 79; visto na
+    // tela em 08/11/2026): a conta tem de ser refeita com as taxas lidas no proprio preco, nao so subir centavos.
+    const freteEmDegraus = (preco, fg) => (fg || preco >= 79 ? (preco >= 200 ? 27.5 : 19.05) : 13);
+    const degraus = await precoPelaFaixa({ lucro: 60, custo: 100, variante: "classico_frete_gratis", taxas, frete: freteEmDegraus });
+    const lucroDegraus = custosDoAnuncio({ preco: degraus.preco, custo: 100, ...taxas(degraus.preco), frete: freteEmDegraus(degraus.preco, true) }).lucro;
+    conferir("frete que muda com o preco: o lucro final ainda e o pedido", [lucroDegraus >= 60, lucroDegraus < 60.2, terminaEm9(degraus.preco)], [true, true, true]);
     conferir("sem custo ou sem lucro: nada", [await precoPelaFaixa({ lucro: 9, custo: 0, variante: "classico_sem_frete", taxas, frete }), await precoPelaFaixa({ lucro: null, custo: 25, variante: "classico_sem_frete", taxas, frete })], [null, null]);
     conferir("lucro por unidade do kit", [lucroPorUnidade(15.37, 10), lucroPorUnidade(null, 10), lucroPorUnidade(15.37, 0)], [1.54, null, null]);
   }

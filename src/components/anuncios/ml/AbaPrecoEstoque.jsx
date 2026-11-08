@@ -282,7 +282,11 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
   );
 }
 
-const NOME_CURTO_DA_VARIANTE = { classico_sem_frete: "Clássico sem frete", classico_frete_gratis: "Clássico com frete grátis", premium_sem_frete: "Premium sem frete", premium_frete_gratis: "Premium com frete grátis" };
+// O nome pelo que o preco FICOU: a variante sem frete cujo preco passou de R$ 79 sai com frete gratis (obrigatorio).
+function nomeDaVariante({ variante, freteGratis }) {
+  const premium = String(variante).startsWith("premium");
+  return `${premium ? "Premium" : "Clássico"} ${freteGratis ? "com frete grátis" : "sem frete"}`;
+}
 
 /**
  * "Preco pelo lucro da loja" (definicoes do dono em 08/11/2026): o preco da variante deste anuncio que deixa no ML o mesmo
@@ -317,7 +321,7 @@ function BotaoPrecoPeloLucroDaLoja({ rascunho, custo, temPrecoDaLoja, aplicar })
       setResultado({
         texto: resposta.piso
           ? `Faixa R$ 72–79: sobe para R$ 79 com frete grátis (lucro da loja ${MOEDA.format(resposta.lucro)}).`
-          : `Lucro da loja ${MOEDA.format(resposta.lucro)} mantido como ${NOME_CURTO_DA_VARIANTE[resposta.variante] ?? resposta.variante}.`,
+          : `Lucro da loja ${MOEDA.format(resposta.lucro)} mantido como ${nomeDaVariante(resposta)}.`,
       });
     });
   }

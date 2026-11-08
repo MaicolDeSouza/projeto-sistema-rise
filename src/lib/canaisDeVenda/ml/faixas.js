@@ -118,7 +118,18 @@ async function resolver({ pedido, custo, freteDaVariante, taxas, frete }) {
     forcado = acima < LIMITE_DO_FRETE_GRATIS;
     preco = forcado ? LIMITE_DO_FRETE_GRATIS : acima;
   }
-  // Tarifa e frete podem mudar em degraus dentro do regime: confere e sobe 10 centavos ate 4 vezes.
+  // Tarifa e frete mudam com o preco (o frete do vendedor cresce com ele: a R$ 467 o kit pagou R$ 21,65, nao os R$ 19,05
+  // lidos a R$ 79): refaz a conta com as taxas lidas no proprio preco ate ela parar de mudar, como precoPorMargemNoML.
+  if (!forcado) {
+    for (let volta = 0; volta < 4; volta++) {
+      const refeito = await candidato(preco);
+      if (refeito === null || refeito === preco) break;
+      // Nunca volta para baixo de 79 vindo de cima (o regime de 79 e o que vale) nem para cima de 79 vindo de baixo.
+      if ((preco >= LIMITE_DO_FRETE_GRATIS) !== (refeito >= LIMITE_DO_FRETE_GRATIS)) break;
+      preco = refeito;
+    }
+  }
+  // Degraus menores que a conta nao pega: confere e sobe 10 centavos ate 4 vezes.
   for (let volta = 0; volta < 4; volta++) {
     const lucro = await lucroEm(preco);
     if (lucro === null || lucro >= pedido) break;
