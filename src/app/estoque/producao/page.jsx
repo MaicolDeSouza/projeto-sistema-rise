@@ -1,24 +1,26 @@
 import Link from "next/link";
 
+import NavegacaoDoTopo from "@/components/mercados/NavegacaoDoTopo";
 import Paginacao from "@/components/mercados/Paginacao";
 import SeloDaSituacao from "@/components/producao/SeloDaSituacao";
 import CampoBusca from "@/components/ui/CampoBusca";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { contarPorSituacao, listarOrdens } from "@/lib/producao/banco";
+import { porPaginaDaUrl } from "@/lib/porPagina";
 import { ROTULO_DA_SITUACAO, SITUACOES } from "@/lib/producao/regras";
 
 export const metadata = { title: "Ordens de produção | Sistema Rise" };
 export const dynamic = "force-dynamic";
 
-const POR_PAGINA = 25;
 const data = (valor) => (valor ? new Date(valor).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—");
 
-/** Link de um filtro de situacao, mantendo a busca (trocar o filtro volta a pagina 1). */
-function linkDoFiltro(situacao, busca) {
+/** Link de um filtro de situacao, mantendo a busca e o "100 por pagina" (trocar o filtro volta a pagina 1). */
+function linkDoFiltro(situacao, busca, porPagina) {
   const params = new URLSearchParams();
   if (situacao) params.set("situacao", situacao);
   if (busca) params.set("q", busca);
+  if (porPagina === 100) params.set("por", "100");
   const texto = params.toString();
   return `/estoque/producao${texto ? `?${texto}` : ""}`;
 }
@@ -33,6 +35,8 @@ export default async function OrdensPage({ searchParams }) {
   const situacao = SITUACOES.includes(params?.situacao) ? params.situacao : null;
   const busca = typeof params?.q === "string" ? params.q : "";
   const paginaPedida = Math.max(1, Number.parseInt(params?.pagina, 10) || 1);
+  // 25 ao abrir a tela; o botao "100 por página" (?por=100) e o padrao das listas (pedido do dono em 08/11/2026).
+  const POR_PAGINA = porPaginaDaUrl(params?.por);
 
   const [{ ordens, total, pagina, totalPaginas }, contagem] = await Promise.all([
     listarOrdens({ situacao, busca, pagina: paginaPedida, porPagina: POR_PAGINA }),
@@ -54,7 +58,7 @@ export default async function OrdensPage({ searchParams }) {
           {[[null, "Todas", todas], ...SITUACOES.map((item) => [item, ROTULO_DA_SITUACAO[item], contagem[item]])].map(([valor, rotulo, quantas]) => (
             <Link
               key={rotulo}
-              href={linkDoFiltro(valor, busca)}
+              href={linkDoFiltro(valor, busca, POR_PAGINA)}
               aria-current={situacao === valor ? "page" : undefined}
               className={`rounded-full border px-3 py-1 text-sm ${
                 situacao === valor ? "border-acento bg-acento/10 font-medium text-acento" : "border-borda text-suave hover:bg-fundo"
@@ -64,6 +68,7 @@ export default async function OrdensPage({ searchParams }) {
             </Link>
           ))}
         </nav>
+        <NavegacaoDoTopo pagina={pagina} totalPaginas={totalPaginas} total={total} porPagina={POR_PAGINA} />
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-borda bg-superficie">

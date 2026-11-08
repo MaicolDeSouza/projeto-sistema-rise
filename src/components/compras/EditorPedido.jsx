@@ -34,7 +34,6 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
   const [buscando, setBuscando] = useState(false);
   const [pergunta, setPergunta] = useState(null);
   const [menu, setMenu] = useState(false);
-  const [salvo, setSalvo] = useState(false);
   const [ocupado, iniciar] = useTransition();
 
   const veCusto = !pedido.semPrecos;
@@ -161,9 +160,11 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
 
   const podeCancelar = !fechado && ["RASCUNHO", "ENVIADO"].includes(pedido.status);
   const voltarALista = () => (alterado ? setPergunta("sair") : router.push("/compras/pedidos"));
+  // O Salvar volta a lista de pedidos (pedido do dono em 08/11/2026: "ao clicar em salvar deve voltar a tela principal");
+  // com erro, fica na tela com os campos marcados.
   const salvarAqui = () =>
     iniciar(async () => {
-      if (await salvar()) setSalvo(true);
+      if (await salvar()) router.push("/compras/pedidos");
     });
 
   // A acao da situacao mora no fim da linha da trilha (pedido do dono em 26/10/2026): o proximo passo ao lado do caminho.
@@ -268,7 +269,6 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
           </div>
           )}
           {alterado && <span className="text-sm font-medium text-amber-700">Alterações não salvas</span>}
-          {!alterado && salvo && <span className="text-sm text-emerald-700">Pedido salvo.</span>}
           {acaoDaSituacao && <div className="ml-auto">{acaoDaSituacao}</div>}
       </div>
 

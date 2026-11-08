@@ -1,16 +1,17 @@
 import TabelaPedidos, { BotaoNovoPedido } from "@/components/compras/TabelaPedidos";
+import NavegacaoDoTopo from "@/components/mercados/NavegacaoDoTopo";
 import Paginacao from "@/components/mercados/Paginacao";
 import CampoBusca from "@/components/ui/CampoBusca";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { COLUNAS_DOS_PEDIDOS, listarPedidos } from "@/lib/compras/banco";
 import { prisma } from "@/lib/db";
+import { porPaginaDaUrl } from "@/lib/porPagina";
 
 export const metadata = { title: "Pedidos de compra | Sistema Rise" };
 export const dynamic = "force-dynamic";
 
 const STATUS = ["RASCUNHO", "ENVIADO", "PARCIAL", "FINALIZADO", "CANCELADO"];
-const POR_PAGINA = 25;
 
 export default async function PedidosPage({ searchParams }) {
   const acesso = await exigirAcessoNaPagina("tela.compras.pedidos", "ver");
@@ -18,6 +19,8 @@ export default async function PedidosPage({ searchParams }) {
   const status = [params?.status ?? []].flat().filter((valor) => STATUS.includes(valor));
   const busca = typeof params?.q === "string" ? params.q : "";
   const paginaPedida = Math.max(1, Number.parseInt(params?.pagina, 10) || 1);
+  // 25 ao abrir a tela; o botao "100 por página" (?por=100) e o padrao das listas (pedido do dono em 08/11/2026).
+  const POR_PAGINA = porPaginaDaUrl(params?.por);
 
   // Ordem da coluna clicada (?ordenar=&direcao=, CabecalhoOrdenavel); coluna desconhecida e ignorada.
   const ordenar = COLUNAS_DOS_PEDIDOS.includes(params?.ordenar) ? params.ordenar : null;
@@ -47,7 +50,10 @@ export default async function PedidosPage({ searchParams }) {
         acao={podeEditar ? <BotaoNovoPedido fornecedores={fornecedores} /> : null}
         somenteLeitura={podeEditar ? null : "Você pode ver os pedidos, mas não editar."}
       />
-      <CampoBusca valorInicial={busca} rotulo="Buscar por número, fornecedor ou produto (código ou nome)" className="mb-3 max-w-sm" />
+      <div className="mb-3 flex flex-wrap items-start gap-3">
+        <CampoBusca valorInicial={busca} rotulo="Buscar por número, fornecedor ou produto (código ou nome)" className="w-full max-w-sm" />
+        <NavegacaoDoTopo pagina={pagina} totalPaginas={totalPaginas} total={total} porPagina={POR_PAGINA} />
+      </div>
       <TabelaPedidos linhas={linhas} status={status} veCusto={acesso.pode("dado.custo", "ver")} podeExcluir={acesso.pode("tela.compras.pedidos", "excluir")} />
       {totalPaginas > 1 && (
         <div className="mt-4">

@@ -45,7 +45,7 @@ function BotaoCemPorPagina({ ligado }) {
       role="switch"
       aria-checked={ligado}
       onClick={() => irPara(!ligado)}
-      title={ligado ? "Mostrando 100 produtos por página. Clique para voltar a 25." : "Mostrar 100 produtos por página"}
+      title={ligado ? "Mostrando 100 linhas por página. Clique para voltar a 25." : "Mostrar 100 linhas por página"}
       className="inline-flex items-center gap-2 text-xs text-suave hover:text-texto"
     >
       100 por página

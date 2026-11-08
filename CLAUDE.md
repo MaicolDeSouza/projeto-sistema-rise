@@ -184,7 +184,11 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
   - **Navegação de páginas no canto DIREITO**, com o botão liga/desliga **"100 por página"** logo acima
     (`NavegacaoDoTopo`, `src/components/mercados/`). O tamanho vem de `?por=100` (`porPaginaDaUrl`, `src/lib/porPagina.js`)
     e **sempre nasce em 25**: abrir ou recarregar a tela com `?por=100` volta a 25 (variável do módulo, o mesmo truque da
-    Pesquisa profunda). Lista nova de produtos usa os dois.
+    Pesquisa profunda). **Desde 08/11/2026 vale para TODA tela com lista paginada, não só de produtos** (pedido do dono ao ver
+    Pedidos de compra sem o botão): a linha da busca/filtros leva o `NavegacaoDoTopo` no fim, a página lê `porPaginaDaUrl(params?.por)`
+    no lugar de um `POR_PAGINA` fixo, e link que troca filtro mantém `?por=100`. Já seguem: Produtos, Scraper, Vendas, Licenças,
+    Estoque mínimo, **Pedidos de compra e Ordens de produção** (08/11/2026). **Ficam de fora, por decidirem 100 fixo:** as listas
+    de anúncios do ML e da LI (28/10/2026). **Tela nova com lista usa o mesmo, sem perguntar.**
   - **Filtro de coluna = cabeçalho que ordena** (`CabecalhoOrdenavel` e `parametrosDaOrdenacao`, `src/components/ui/`):
     nada → crescente → decrescente → nada, na URL (`?ordenar=&direcao=`), feito no banco antes de paginar, e volta à
     página 1. No Scraper: Nome, Código, Estoque, Valor e Atualizado (`listarProdutos` ganhou `ordenar`/`direcao`; vazio,
