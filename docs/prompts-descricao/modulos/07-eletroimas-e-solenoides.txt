@@ -15,7 +15,7 @@ Primeiro parágrafo, DUAS frases curtas: o que ele é e o que ele faz.
 - Eletroímã de retenção: “Este é um eletroímã de retenção de <tensão>. O eletroímã segura peças de ferro e aço com até <força> quando está ligado.”
 - Atuador: “Este é um solenoide atuador de <tensão>. Quando liga, a haste é puxada com força de <força>.”
 
-Segundo parágrafo, 3 ou 4 frases curtas, uma para cada fato confirmado, dizendo o que ele faz na prática:
+Segundo parágrafo, 3 a 5 frases curtas, uma para cada fato confirmado, dizendo o que ele faz na prática:
 - Eletroímã de retenção: ligou, segura; desligou, solta. Só segura depois de encostar: não puxa de longe. A peça precisa ser de ferro ou aço, plana e limpa. O peso que ele levanta é bem menor que a força de retenção.
 - Atuador: a haste anda <curso> quando liga; a mola devolve a haste quando desliga (só com fonte); deve ficar ligado só por pouco tempo (só com fonte).
 - Os dois: para ligar no Arduino ou ESP32, use um módulo relé ou um transistor.
