@@ -132,8 +132,8 @@ function rascunhoDoAnuncio(anuncio) {
     familyName: dados.familyName ?? "",
     tipoAnuncio: dados.tipoAnuncio ?? "gold_special",
     condicao: dados.condicao ?? "new",
-    // Anuncio gravado antes do campo (26/10/2026) abre com o padrao de 1 dia.
-    prazoDisponibilidadeDias: dados.prazoDisponibilidadeDias ?? 1,
+    // Anuncio gravado antes do campo (26/10/2026) abre com o padrao: pronta entrega desde 08/11/2026 (era 1 dia).
+    prazoDisponibilidadeDias: dados.prazoDisponibilidadeDias ?? 0,
     categoriaId: anuncio.categoriaExternaId ?? null,
     categoriaNome: dados.categoriaNome ?? null,
     preco: dados.preco ?? null,

@@ -523,9 +523,21 @@ try {
       const semPrazo = { ...base };
       delete semPrazo.prazoDisponibilidadeDias;
       conferir(
-        "esquema: o prazo passa, e o rascunho de antes (sem o campo) ganha 1 dia",
+        "esquema: o prazo passa, e o rascunho de antes (sem o campo) fica em pronta entrega (0, desde 08/11/2026)",
         [Esquema.safeParse({ ...base, prazoDisponibilidadeDias: 3 }).data?.prazoDisponibilidadeDias, Esquema.safeParse(semPrazo).data?.prazoDisponibilidadeDias],
-        [3, 1],
+        [3, 0],
+      );
+      // Anuncio JA publicado: a lista sem o prazo da 200 e o ML mantem o prazo (medido em 08/11/2026); vai com valor nulo.
+      const { termosParaAtualizar } = await import("../src/lib/canaisDeVenda/ml/payload.js");
+      conferir(
+        "atualizar: prazo 0 manda o MANUFACTURING_TIME nulo e mantem a garantia",
+        termosParaAtualizar({ ...base, prazoDisponibilidadeDias: 0 }, comProduto("a", { garantiaMeses: 3 })),
+        [{ id: "WARRANTY_TYPE", value_id: "2230280", value_name: "Garantia do vendedor" }, { id: "WARRANTY_TIME", value_name: "3 meses" }, { id: "MANUFACTURING_TIME", value_id: null, value_name: null }],
+      );
+      conferir(
+        "atualizar: prazo 2 vai como antes",
+        termosParaAtualizar({ ...base, prazoDisponibilidadeDias: 2 }, comProduto("a", { garantiaMeses: null })),
+        [{ id: "MANUFACTURING_TIME", value_name: "2 dias" }],
       );
     }
     conferir("prazo de disponibilidade: inteiro de 0 a 45", [problema({ ...base, prazoDisponibilidadeDias: 46 }, ctx, "prazoDisponibilidade")?.aba, problema({ ...base, prazoDisponibilidadeDias: 1.5 }, ctx, "prazoDisponibilidade")?.bloqueante, problema({ ...base, prazoDisponibilidadeDias: 10 }, ctx, "prazoDisponibilidade")], ["geral", true, undefined]);

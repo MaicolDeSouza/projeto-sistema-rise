@@ -125,6 +125,16 @@ export function termosDeVenda(rascunho, contexto) {
   return termos;
 }
 
+/**
+ * Os termos para o PUT de um anuncio JA publicado. Sem prazo, o MANUFACTURING_TIME vai com valor nulo: a lista sem ele da
+ * 200 e o ML MANTEM o prazo antigo (medido no MLB5467711169 em 08/11/2026); com o nulo ele sai e a garantia fica.
+ */
+export function termosParaAtualizar(rascunho, contexto) {
+  const termos = termosDeVenda(rascunho, contexto);
+  if (termos.some((termo) => termo.id === "MANUFACTURING_TIME")) return termos;
+  return [...termos, { id: "MANUFACTURING_TIME", value_id: null, value_name: null }];
+}
+
 export function montarPayloadML(rascunho, contexto) {
   const titulo = texto(rascunho.titulo);
   const envio = rascunho.envio ?? {};

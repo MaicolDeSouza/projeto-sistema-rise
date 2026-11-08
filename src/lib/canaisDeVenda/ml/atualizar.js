@@ -4,7 +4,7 @@ import { PARTES_DO_ENVIO_ML } from "./etapasDoEnvio";
 import { iniciarProgressoML } from "./progresso";
 import { impressaoDoConteudo } from "./impressao";
 import { lerCategoriaCompleta } from "./leitura";
-import { nomeDaFoto, termosDeVenda } from "./payload";
+import { nomeDaFoto, termosParaAtualizar } from "./payload";
 import { emAndamento, lerFotoDoDisco, tipoDaFoto } from "./publicar";
 import { textoDaRecusaML } from "./respostas";
 
@@ -158,10 +158,11 @@ async function enviarUmaVez(anuncioId, { ml, lerFoto, progresso }) {
       }
       if (!resposta?.ok) return falhar(parte, textoDaRecusaML(resposta, "o preço"));
     } else if (parte === "prazo") {
-      // Os termos de venda inteiros (garantia e prazo): o PUT troca a lista toda (medido em 26/10/2026).
+      // Os termos de venda inteiros (garantia e prazo). Prazo 0 vai como MANUFACTURING_TIME nulo: sem ele na lista o ML
+      // responde 200 e mantem o prazo antigo (medido em 08/11/2026).
       let resposta;
       try {
-        resposta = await ml.put(`/items/${itemId}`, { sale_terms: termosDeVenda(rascunho, contexto) });
+        resposta = await ml.put(`/items/${itemId}`, { sale_terms: termosParaAtualizar(rascunho, contexto) });
       } catch (erro) {
         return falhar(parte, `Falha ao enviar o prazo de disponibilidade: ${textoDe(erro)}`);
       }

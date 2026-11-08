@@ -283,8 +283,9 @@ export function rascunhoInicial({ principal, produtosPorId, composicao }) {
     familyName: familyNameDoProduto(principal),
     tipoAnuncio: "gold_special",
     condicao: "new",
-    // Prazo de disponibilidade (pedido do dono em 26/10/2026): 1 dia de padrao.
-    prazoDisponibilidadeDias: 1,
+    // Prazo de disponibilidade: 0 = pronta entrega (pedido do dono em 08/11/2026; era 1 dia desde 26/10/2026). Com prazo o
+    // ML tira o anuncio da disputa do catalogo (motivo `manufacturing_time`, medido em 08/11/2026: 24 de 30 fora).
+    prazoDisponibilidadeDias: 0,
     categoriaId: null,
     // So para mostrar: o nome que veio com a sugestao. Digitar o codigo a mao apaga o nome.
     categoriaNome: null,
