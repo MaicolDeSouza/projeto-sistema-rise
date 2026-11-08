@@ -4,13 +4,19 @@ Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use info
 
 PARÁGRAFOS
 
-Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 250 caracteres, o segundo até 400.
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 200 caracteres, o segundo até 350.
 
-Primeiro parágrafo, UMA frase: “A Fresa de Topo <tipo de corte> <número de cortes> <diâmetro de corte>x<comprimento de corte>mm com haste de <diâmetro da haste> é uma ferramenta de corte para router CNC, indicada para <2 ou 3 usos com os materiais confirmados: recortar chapas de acrílico, abrir canais em MDF, usinar PVC e PEAD>, que oferece <o diferencial: um corte só para o cavaco sair sem derreter o plástico; cobertura DLC; corte down para a face de cima sem rebarba>.” Só o que estiver confirmado.
+Escreva como se explicasse para uma criança: quem lê pode nunca ter usado uma fresa. Frases curtas, de no máximo 15 palavras, com UMA ideia cada. Palavras do dia a dia. Nada de frase comprida presa por vírgulas. Termo técnico sai ou é trocado por um simples: cavaco = raspas; spindle = motor da máquina; usinar = cortar; router CNC = máquina CNC; pinça = a peça da máquina que segura a fresa. As lojas de fresa escrevem assim: “Fresa de 1 corte com afiação especial para plásticos. Este tipo de fresa gera menos aquecimento no material para evitar o derretimento.”
 
-Segundo parágrafo: o porquê de ela ser boa, em 2 ou 3 frases. Diga como ela é usada (presa pela haste na pinça do spindle, corta pela lateral e pela ponta) e, a cada recurso confirmado, o que ele permite: o número de cortes (1 corte deixa um canal largo para o cavaco sair e aquece menos o material, por isso é o indicado para plásticos que derretem; 2 ou mais cortes deixam acabamento melhor em madeira e MDF), o sentido do corte (up puxa o cavaco para cima e limpa o canal; down empurra para baixo e deixa a face de cima sem rebarba; up e down faz as duas faces limpas), o comprimento de corte (a profundidade máxima que a fresa alcança) e a haste (a pinça que ela pede). Feche com um uso típico.
+Primeiro parágrafo, DUAS frases curtas: o que ela é e o que ela corta. Modelo: “Esta é uma fresa de <número de cortes> em <tipo de corte> para máquina CNC. A fresa corta <os materiais confirmados>.” Só o que estiver confirmado.
 
-Fale com o comprador: “possui”, não “tem”; “você” quando couber. Ao voltar a falar do produto, use “a fresa”, nunca “ela” no início da frase. Varie a ordem dos fatos entre as opções. Tom: explica e ensina, sem vender. Sem elogios vazios (“altíssima precisão”, “acabamento perfeito”, “a melhor do mercado”, “longa vida útil”), sem repetir o título inteiro e sem enumerar especificações.
+Segundo parágrafo, 3 ou 4 frases curtas, uma para cada recurso confirmado, dizendo o que ele faz na prática:
+- o número de cortes: 1 corte deixa muito espaço para as raspas saírem, então o material esquenta pouco e o plástico não derrete; 2 ou mais cortes deixam a borda mais lisa em madeira e MDF;
+- o sentido do corte: up puxa as raspas para cima e para fora do corte; down empurra as raspas para baixo e deixa a face de cima lisa, sem rebarba; up e down deixa as duas faces lisas; reto não puxa nem empurra;
+- o comprimento de corte: a parte que corta tem <comprimento de corte>, e a fresa corta até essa profundidade;
+- a haste: a haste de <diâmetro da haste> encaixa na pinça de <a mesma medida> da máquina.
+
+Fale com o comprador: “possui”, não “tem”; “você” quando couber. Ao voltar a falar do produto, use “a fresa”, nunca “ela” no início da frase. Tom: explica, sem vender. Sem elogios vazios (“altíssima precisão”, “acabamento perfeito”, “a melhor do mercado”, “longa vida útil”), sem repetir o título inteiro e sem enumerar especificações.
 
 PADRONIZAÇÃO DOS NOMES
 
@@ -26,7 +32,7 @@ Número de Cortes: substitui Cortes, Entradas, Lâminas, Arestas, Fios, Flutes e
 
 Tipo de Corte: substitui Perfil e Formato do corte: “espiral (helicoidal)”, “reto paralelo” ou “compressão (up e down)”. Downcut é espiral com o sentido para baixo: Tipo de Corte “espiral (helicoidal)” e Sentido do Corte “down (para baixo)”.
 
-Sentido do Corte: substitui Direção do corte e Corte: “up (para cima)”, “down (para baixo)” ou “up e down (compressão)”. Só com fonte; nunca pela foto (a hélice muda de lado na foto espelhada). Fresa de cortes retos paralelos não tem sentido: omita.
+Sentido do Corte: substitui Direção do corte, Corte e Tipo de corte (“Up e Down”): “Up (para cima)”, “Down (para baixo)”, “Up e down (compressão)” ou, na fresa de cortes retos paralelos, “Reto (não puxa nem empurra)”. Como achar o valor: ver REGRAS ESPECÍFICAS.
 
 Diâmetro de Corte: substitui Diâmetro, Diâmetro do corte, Diâmetro da ponta e D: “2mm”, “3,175mm (1/8")”.
 
@@ -51,10 +57,10 @@ Cada item contém nome, valor e referencias: nome “Diâmetro de Corte”, valo
 Com referências disponíveis, os campos obrigatórios abaixo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: País de Origem, Certificação, Tipo “fim de milhar”, Quantidade de peças, Avanço, Profundidade por passada).
 
 Campos obrigatórios:
-Fabricante; Material; Número de Cortes; Tipo de Corte; Diâmetro de Corte; Comprimento de Corte; Diâmetro da Haste; Comprimento Total; Aplicação.
+Fabricante; Material; Número de Cortes; Tipo de Corte; Sentido do Corte; Diâmetro de Corte; Comprimento de Corte; Diâmetro da Haste; Comprimento Total; Aplicação.
 
 Campos condicionais (só com fonte), cada um na posição indicada:
-Modelo (logo depois de Fabricante); Sentido do Corte (logo depois de Tipo de Corte); Cobertura e Dureza (logo depois de Comprimento Total); Rotação Recomendada (por último, depois de Aplicação).
+Modelo (logo depois de Fabricante); Cobertura e Dureza (logo depois de Comprimento Total); Rotação Recomendada (por último, depois de Aplicação).
 
 Campos finais:
 Dimensões (CxLxA); Peso.
@@ -71,9 +77,15 @@ REGRAS ESPECÍFICAS
 
 As medidas decidem a compra: diâmetro de corte, comprimento de corte, diâmetro da haste e comprimento total vêm do título e do cadastro. Fresa de outra medida nunca confirma número (a 2x12mm não é a 2x17mm). Fresa da MESMA família (mesmo fabricante, mesmo tipo de corte, mesmo número de cortes e mesma haste) com outra medida pode confirmar o material, o tipo de corte, a cobertura e a aplicação; o sentido do corte, a rotação, o peso e as medidas mudam de uma para a outra e não se copiam.
 
+Sentido do Corte é obrigatório. Ache o valor nesta ordem e registre em decisoes de onde ele veio:
+1. A fonte da mesma fresa diz o sentido (título, cadastro, fornecedor ou loja): “up”, “upcut”, “corte para cima”, “hélice à direita” é Up; “down”, “downcut”, “corte invertido”, “hélice à esquerda” é Down; “up e down”, “compressão” é Up e down.
+2. Fresa espiral sem “down”, “compressão” ou “up e down” no título, no cadastro e no anúncio do fornecedor: Up (para cima). É o padrão do mercado: a Código G e a Engenharia FSI só põem “down” ou “up e down” no nome quando a fresa é assim, e na Código G são 322 fresas up contra 18 down.
+3. Confira com a foto do produto, olhando a hélice com a haste à esquerda: linhas da hélice que descem da esquerda para a direita (“\”) são hélice à direita = Up; linhas que sobem (“/”) são hélice à esquerda = Down. Foto que contradiz o passo 2: omita o campo e registre em decisoes, porque a foto pode estar espelhada.
+Fresa de cortes retos paralelos: “Reto (não puxa nem empurra)”.
+
 A haste decide a pinça: a de 3,175mm (1/8") pede pinça de 3,175mm, a de 6,35mm (1/4") pede pinça de 6,35mm. Não diga que serve numa pinça de outra medida.
 
-Lista de fornecedor e título de marketplace sem ficha técnica confirmam as medidas do título e o material declarado, nunca rotação, dureza ou sentido do corte.
+Lista de fornecedor e título de marketplace sem ficha técnica confirmam as medidas do título e o material declarado, nunca rotação ou dureza; o sentido do corte segue a ordem acima.
 
 Não prometa corte em aço, inox ou metal endurecido sem fonte desta fresa. Não escreva avanço, profundidade por passada nem velocidade de corte.
 
