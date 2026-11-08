@@ -82,7 +82,7 @@ Escolhida: **A** (o dono: "pode seguir com a recomendada, mas os campos de valor
 | 2 | "!" de preço só quando o dono muda o **preço** da loja. Custo que muda sozinho não acende nada. Envio só pelo "Enviar mudanças". |
 | 3 | Vale para produtos novos. Nenhuma ação automática sobre anúncios antigos. |
 | 4 | Ao criar anúncio: conferir se o SKU já tem anúncio na conta (Rise ou antigo). Se tem, reaproveitar: manter tipo e frete dele; atualizar título (só sem vendas), descrição, fotos, ficha, peso e medidas, preço (pelo lucro da loja); mover o vínculo do Bling para a Rise_ML. Depois criar as variantes que faltam. |
-| 5 | Faixas pelo **preço sem frete do ML** (o que repete o lucro): < R$ 79 → Clássico sem frete + Clássico com frete grátis (o com frete grátis nunca abaixo de R$ 79, que é onde o frete grátis é obrigatório: piso de R$ 79 quando o preço pelo lucro fica abaixo); ≥ R$ 79 → um só, Clássico com frete grátis. Premium nunca automático. (Resposta do dono em 08/11: na faixa 72–79 também quer o Clássico sem frete; a regra "sobe para 79 sem 2º anúncio" caiu.) |
+| 5 | Faixas pelo **preço sem frete do ML** (o que repete o lucro): < R$ 72 → Clássico sem frete + Clássico com frete grátis; R$ 72 a 78,99 → um só, Clássico com frete grátis a R$ 79 (ou o preço pelo lucro, se maior); ≥ R$ 79 → um só, Clássico com frete grátis. Premium nunca automático. (O dono respondeu primeiro "também o Clássico sem frete" na faixa 72–79 e em seguida "manter sua recomendação": vale esta linha.) |
 | 6 | Botão "Preço pelo lucro da loja" na aba Preço do editor: aplica a regra 5 a ESTE anúncio (tipo e frete dele); valores editáveis. |
 | 7 | Kit: a faixa é decidida pelo preço do anúncio do kit; lucro mantido = lucro da loja × quantidade. |
 | 8 | Atacado em todo anúncio novo, ligado por padrão: faixas 2, 5, 10 e 20 unidades com o % recomendado pelo ML; quantidades e % editáveis; desconto nunca abaixo do recomendado (o ML recusa). |
@@ -92,9 +92,9 @@ Escolhida: **A** (o dono: "pode seguir com a recomendada, mas os campos de valor
 ### 6.1 Preço pela faixa (biblioteca, sem tela)
 
 `src/lib/canaisDeVenda/ml/faixas.js` (novo, puro, testável):
-- `variantesEsperadas(precoSemFrete)` → `["classico_sem_frete","classico_frete_gratis"]` abaixo de 79; `["classico_frete_gratis"]` de 79 em diante.
+- `variantesEsperadas(precoSemFrete)` → `["classico_sem_frete","classico_frete_gratis"]` abaixo de 72; `["classico_frete_gratis"]` de 72 em diante.
 - `varianteDoRascunho(rascunho)` → a variante pelo `tipoAnuncio` + `envio.freteGratis` (Premium devolve `"premium_sem_frete"`/`"premium_frete_gratis"`, só para rotular).
-- `precoPelaFaixa({ lucro, custo, variante, taxas, frete })` → o preço que repete o lucro, arredondado para cima em dezenas de centavos menos 1 (termina em ,X9), com frete grátis forçado a partir de 79; na variante com frete grátis o piso é R$ 79 (sem frete grátis abaixo disso não existe no ML: o frete grátis abaixo de 79 é o vendedor pagando o frete, e o preço pelo lucro já embute esse frete). `taxas`/`frete` são funções (preço → valores), para o laço de 3 voltas que o `quatro.mjs` já faz. **Nota:** abaixo de R$ 79 o frete grátis é custo do vendedor (`lerFreteDoVendedor` com `freteGratis: true`), e é isso que a variante com frete grátis repassa ao preço (18,90 → 27,99 medido); o piso de 79 só vale quando o preço calculado passa de 79 e o frete deixa de ser do vendedor.
+- `precoPelaFaixa({ lucro, custo, variante, taxas, frete })` → o preço que repete o lucro, arredondado para cima em dezenas de centavos menos 1 (termina em ,X9), com frete grátis forçado a partir de 79. Na variante com frete grátis, quando o preço SEM frete pelo lucro cai em 72–78,99, o piso é R$ 79 (a regra 5). `taxas`/`frete` são funções (preço → valores), para o laço de 3 voltas que o `quatro.mjs` já faz. Abaixo de R$ 79 o frete grátis é custo do vendedor (`lerFreteDoVendedor` com `freteGratis: true`), e é isso que a variante com frete grátis repassa ao preço (18,90 → 27,99 medido).
 - `NOME_DA_VARIANTE` para a tela ("Clássico sem frete", "Clássico com frete grátis").
 
 `leitura.js` ganha `precoPelaFaixaNoML(cliente, rascunho, { lucro, custo })`, que lê taxas e frete do ML e chama `precoPelaFaixa` (mesmo molde de `precoPorMargemNoML`).
@@ -103,7 +103,8 @@ Escolhida: **A** (o dono: "pode seguir com a recomendada, mas os campos de valor
 
 Ao lado da linha "Preço na loja (Lucro = …)": botão **"Preço pelo lucro da loja"**. Ao clicar, a ação `precoPelaFaixaMLAcao`
 devolve `{ preco, variante, freteGratis, faixa }`; o editor preenche `preco` (editável) e, quando o preço calculado passa
-de R$ 79 e o rascunho não tem frete grátis, marca `envio.freteGratis` (obrigatório no ML) e mostra em uma linha o porquê.
+de R$ 79 e o rascunho não tem frete grátis, marca `envio.freteGratis` (obrigatório no ML) e mostra em uma linha o porquê
+("Faixa R$ 72–79: sobe para R$ 79 com frete grátis").
 Kit: o lucro é `lucroDaLoja × quantidade` (a `composicao` do rascunho). Sem custo no produto: botão desligado com a
 razão.
 
@@ -184,9 +185,9 @@ e com as taxas lidas; sem elas, só o preço. É o par que compara as duas lojas
 
 ## 7. Testes
 
-- `scripts/teste-anuncios-ml.js` (já existe) ganha os casos puros: `variantesEsperadas` (78,99 → 2; 79 → 1),
-  `precoPelaFaixa` (os 4 preços medidos: 18,90/27,50/45,90/72,90 com as taxas gravadas como fixture; 72,90 com FG →
-  78,89; piso 79 quando o cálculo passa de 79; kit × quantidade), `mudancasDoAnuncio` (preço da loja muda → `precoDaLoja`; custo muda → nada; impressão sem
+- `scripts/teste-anuncios-ml.js` (já existe) ganha os casos puros: `variantesEsperadas` (71,99 → 2; 72 → 1; 79 → 1),
+  `precoPelaFaixa` (os 4 preços medidos: 18,90/27,50/45,90/72,90 com as taxas gravadas como fixture; 72,90 sem frete
+  → com FG dá 79 pelo piso; kit × quantidade), `mudancasDoAnuncio` (preço da loja muda → `precoDaLoja`; custo muda → nada; impressão sem
   `precoDaLoja` → nada), corpo do atacado (faixas, % ≥ recomendado, desligado → `[]`), `varianteDoRascunho`, o lucro por
   unidade do kit no ML (15,37 / 10 = 1,54; negativo em vermelho; sem taxas, nada).
 - Medições só leitura na VPS antes do plano fechar: (a) de onde vem a versão do item para o `X-Version`; (b) se um
@@ -204,4 +205,5 @@ cache da leitura de taxas na 6.4; texto exato dos avisos; onde a impressão guar
 
 1. Reaproveitar: o "Enviar mudanças" troca descrição, fotos e ficha de uma vez pelos do Rise (título só sem vendas).
 2. Mover o vínculo no Bling: o popup pergunta a cada anúncio, mostrando o vínculo que sai; o novo é criado antes.
-3. Faixa R$ 72–78,99: **também** o Clássico sem frete (dois anúncios até R$ 78,99). Regra 5 e 6.1 já refletem.
+3. Faixa R$ 72–78,99: um anúncio só, a R$ 79 com frete grátis (ele respondeu "também o Clássico sem frete" e logo
+   depois "manter sua recomendação").
