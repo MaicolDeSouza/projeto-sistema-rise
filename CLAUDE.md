@@ -328,7 +328,7 @@ tem a segunda trava no mesmo molde desde 08/10/2026: `ML_PUBLICACAO_CODIGOS` (li
 ```bash
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
-npm run teste:extracao            # 877 asserções da extração, do site em moeda estrangeira, do EAN interno, da conciliação, das medidas, das opções de parágrafo da descrição, do Nome que a descrição acompanha, das regras puras das Correções da descrição, da ordem da aba Concorrentes e da lista do "$" e do cabeçalho de download de arquivo, SEM rede
+npm run teste:extracao            # 896 asserções da extração, do site em moeda estrangeira (com Adafruit e SparkFun), do EAN interno, da conciliação, das medidas, das opções de parágrafo da descrição, do Nome que a descrição acompanha, das regras puras das Correções da descrição, da ordem da aba Concorrentes e da lista do "$" e do cabeçalho de download de arquivo, SEM rede
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
 npm run teste:versao              # 26 asserções da versão no pé do menu (VPS: DD.MM.AAAA.NN, a data do deploy em São Paulo e o número do deploy, mostrada como "DD.MM.AAAA (build NN) - commit"; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
@@ -1526,6 +1526,33 @@ respondem ao robô, publicam `priceCurrency: "USD"` no JSON-LD e no OpenGraph, e
   "convertido em R$ pela PTAX do dia na gravação" (o teste não converte: nada é gravado), `teste:fonte` imprime "USD 12.5", e o
   Scraper/aba Fornecedores já mostravam o original embaixo do R$ (`precoOriginalEmTexto`, agora com `simboloDaMoeda`). **Não visto no
   navegador** (o 3000 era de outra sessão); conferido pelo `teste:fonte` da Adafruit e pelo `teste:extracao`.
+- **Adafruit lida de verdade (08/11/2026, depois da 1ª varredura do dono: "estoque indeterminado e no site fora de estoque; descrição
+  errada; fotos em miniatura e de outros produtos; sem categoria; as características trouxeram vendas em quantidades; alguns anúncios sem
+  características, sempre em Technical Details"; `src/lib/coleta/adafruit.js`):** o `itemprop="availability"` é um `<h2>` com o texto
+  da vitrine ("No longer stocked"), então `situacaoDe` lê inglês (out of stock / no longer stocked / sold out / backorder → esgotado; in
+  stock → disponível) e **os negativos antes dos positivos** ("indisponível" contém "disponível"; bug latente); a descrição mora numa
+  `<section class="...description...">` (`descricaoDoBloco` aceita section, além de div, e tira o `<h2>Description</h2>`); a categoria
+  vem do `<nav aria-label="Breadcrumbs">` sem Microdata (`categoriaDoNav` em categoria.js, só os links, último recurso de toda loja); as
+  fotos vêm pelo sku no nome do arquivo (`<sku>-NN.jpg`), no tamanho 970x728 (a pasta do CDN é só o tamanho, e a galeria genérica trazia
+  os relacionados em 100x75); a tabela `quantityDiscount` ("1-4 $12.50 / 5-9 $11.88 / 10+ $11.25") vira **`precosPorQuantidade`**, no
+  formato da Santana, e **fica na moeda do site** (cada faixa com `moeda: "USD"`; `converterParaReais` não a converte; `comoMoeda(valor,
+  moeda)` em precoTexto.js e o RegrasDeCompra mostram "US$ 11,88", sem imposto por fora) — o dono: "o valor em lote deve respeitar a
+  moeda do site"; `especificacoesDeTabela` pula a linha "faixa | preço" em qualquer loja; a ficha é a seção "Technical Details"
+  (`fichaDaAdafruit`: só as linhas "Nome: valor" do `tab-technical-details-content`; "Details:" solto e "Revision History" ficam de
+  fora), e os títulos em inglês ("Technical Details", "Specifications") entraram no `TITULO_DE_FICHA` geral.
+- **SparkFun lida de verdade (08/11/2026, Magento 2 com galeria do Amasty; `src/lib/coleta/sparkfun.js`):** a oferta do JSON-LD não
+  traz `availability`, o "In stock" está só em `product-info-stock-sku` (`disponibilidadeDaSparkFun`; os relacionados repetem a
+  marcação); a galeria é `"[data-role=amasty-gallery]"` (`galeriaDoMagento` aceita as duas marcas, pula a entrada `"type":"video"` —
+  miniatura do YouTube — e, **com a galeria do Magento lida, a galeria genérica pelos `<img>` não entra**: o banner "RTK Facet" de outro
+  produto mora na mesma pasta `/1/9/` e saía como última foto de todo anúncio); a ficha é a aba "Features & Specs" (`fichaDaSparkFun`:
+  `<p><strong>Peça:</strong></p>` vira linha sem nome, `<li>` vira "nome: valor" ou linha sem nome, `I<sup>2</sup>C` → I²C, nota
+  `[1]` sai); os documentos são **todos** os links da aba "Documentation" (`documentosDaSparkFun`, 30 no KIT-20683 contra 9 da regra
+  geral), com o grupo da peça no título ("BME280: Datasheet"); o MPN igual ao código é a loja repetindo o SKU (o dono conferiu).
+  Só a `moeda` do primeiro commit chegou à VPS; o resto está na main SEM deploy; produtos já gravados só mudam na próxima varredura.
+- **Waveshare (08/11/2026, o dono: "não estou conseguindo varrer"):** o `robots.txt` pede `Crawl-delay: 60` (uma visita por minuto) e o
+  Rise respeita (`janelaDe` em buscar.js, nunca menos que o pedido): o Testar fonte (até 25 páginas) passa de 20 min e a varredura de
+  um catálogo de milhares de produtos levaria dias. Magento 1 (`skin/frontend`), sitemap só de categorias. Driblar o ritmo é decisão
+  do dono, não padrão do Rise.
 
 **Janela do fornecedor no cadastro de Produto** (06/11/2026, pedido do dono): o lápis e o "Adicionar fornecedor" abrem uma
 janela larga (`JanelaDoFornecedor` em `Fornecedores.jsx`, moldura `Janela` das Licenças, "Sair sem salvar?", portal no

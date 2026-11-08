@@ -54,6 +54,20 @@ export function caminhoDeCategoria(degraus, nomeDoProduto = null) {
   return semRepetir.length ? semRepetir.join(SEPARADOR_DE_CATEGORIA) : null;
 }
 
+/**
+ * Trilha de um `<nav>` de breadcrumb SEM Microdata nem JSON-LD (Adafruit, 08/11/2026: `<nav aria-label="Breadcrumbs"
+ * class="breadcrumbs">` com um `<a>` por categoria e o produto num `<span>`). So os LINKS entram: o ultimo degrau, o
+ * produto, nao e link. E o ultimo recurso da categoria: as trilhas estruturadas continuam vencendo.
+ */
+export function categoriaDoNav(html, nomeDoProduto = null) {
+  const nav = /<nav\b[^>]*(?:aria-label=["']breadcrumbs?["']|class=["'][^"']*\bbreadcrumbs?\b[^"']*["'])[^>]*>([\s\S]*?)<\/nav>/i.exec(html ?? "");
+  if (!nav) return null;
+  const degraus = [...nav[1].matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)]
+    .map((link) => link[1].replace(/<[^>]*>/g, "").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim())
+    .filter((texto) => texto && texto.length < 60);
+  return caminhoDeCategoria(degraus, nomeDoProduto);
+}
+
 /** Nomes de uma BreadcrumbList do JSON-LD, na ordem de `position`. */
 function nomesDaLista(lista) {
   const itens = Array.isArray(lista?.itemListElement) ? lista.itemListElement : [];

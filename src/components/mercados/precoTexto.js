@@ -1,4 +1,5 @@
 import { precoComImpostos } from "@/lib/coleta/impostos";
+import { simboloDaMoeda } from "@/lib/coleta/moeda";
 
 /**
  * Formatacao de preco compartilhada entre a lista (TabelaMercados) e o
@@ -9,8 +10,11 @@ import { precoComImpostos } from "@/lib/coleta/impostos";
 
 const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
-export function comoMoeda(valor) {
-  return valor === null || valor === undefined ? "—" : MOEDA.format(valor);
+/** "R$ 8,06", ou "US$ 11,88" quando o valor esta na moeda do site (faixas de quantidade da Adafruit, 08/11/2026). */
+export function comoMoeda(valor, moeda = null) {
+  if (valor === null || valor === undefined) return "—";
+  if (!moeda) return MOEDA.format(valor);
+  return `${simboloDaMoeda(moeda)} ${valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /**
@@ -19,16 +23,16 @@ export function comoMoeda(valor) {
  * total diferentes). Sem imposto, so o valor final: "(R$ 7,90 + )" vazio
  * pareceria erro de leitura, nao ausencia de imposto.
  */
-export function precoComImpostoTexto(base, total, impostos) {
+export function precoComImpostoTexto(base, total, impostos, moeda = null) {
   const valor = typeof total === "number" ? total : base;
   if (typeof valor !== "number") return null;
   if (typeof base !== "number" || base === total || !impostos?.length) {
-    return comoMoeda(valor);
+    return comoMoeda(valor, moeda);
   }
   const detalhe = impostos
     .map((imposto) => `${String(imposto.percentual).replace(".", ",")}% ${imposto.nome}`)
     .join(" + ");
-  return `${comoMoeda(total)} (${comoMoeda(base)} + ${detalhe})`;
+  return `${comoMoeda(total, moeda)} (${comoMoeda(base, moeda)} + ${detalhe})`;
 }
 
 /** "3-4 un." ou "5+ un." — versao curta para caber numa linha da lista. */
@@ -49,7 +53,8 @@ export function faixaCompacta(faixa) {
  */
 export function precoDaFaixaTexto(faixa, impostos) {
   if (typeof faixa.preco !== "number") return null;
-  const total = precoComImpostos(faixa.preco, impostos);
-  const texto = precoComImpostoTexto(faixa.preco, total, impostos);
+  // Faixa na moeda do site (Adafruit): sem imposto por fora e sem conversao, "US$ 11,88 (5-9 un.)".
+  const total = faixa.moeda ? faixa.preco : precoComImpostos(faixa.preco, impostos);
+  const texto = precoComImpostoTexto(faixa.preco, total, impostos, faixa.moeda ?? null);
   return texto ? `${texto} (${faixaCompacta(faixa)})` : null;
 }

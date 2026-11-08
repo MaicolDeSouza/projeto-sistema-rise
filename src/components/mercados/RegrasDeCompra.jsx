@@ -1,6 +1,5 @@
 import { precoComImpostos } from "@/lib/coleta/impostos";
-
-const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+import { comoMoeda } from "@/components/mercados/precoTexto";
 
 /** "10 a 19 un." ou "a partir de 20 un."; sem numero, o rotulo como veio. */
 function faixaEmTexto(faixa) {
@@ -42,15 +41,17 @@ export default function RegrasDeCompra({ precoNormal, precosPorQuantidade, multi
                   typeof precoNormal === "number" && precoNormal > 0
                     ? Math.round((1 - faixa.preco / precoNormal) * 1000) / 10
                     : null;
-                const comImposto = temImposto ? precoComImpostos(faixa.preco, impostos) : null;
+                // Faixa na moeda do site (Adafruit, 08/11/2026): "US$ 11,88", sem imposto por fora e sem conversao — o
+                // dono: "o valor em lote deve respeitar a moeda do site".
+                const comImposto = temImposto && !faixa.moeda ? precoComImpostos(faixa.preco, impostos) : null;
                 return (
                   <tr key={`${faixa.minimo}-${faixa.maximo}-${faixa.rotulo}`}>
                     <td className="py-0.5 pr-4 text-suave">{faixaEmTexto(faixa)}</td>
                     <td className="py-0.5 pr-3 text-right font-semibold tabular-nums">
-                      {MOEDA.format(comImposto ?? faixa.preco)}
+                      {comoMoeda(comImposto ?? faixa.preco, faixa.moeda ?? null)}
                       {comImposto !== null && (
                         <span className="block text-xs font-normal text-suave">
-                          {MOEDA.format(faixa.preco)} sem imposto
+                          {comoMoeda(faixa.preco)} sem imposto
                         </span>
                       )}
                     </td>

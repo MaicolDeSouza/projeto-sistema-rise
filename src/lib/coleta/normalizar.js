@@ -7,7 +7,9 @@ import { dadosDaMagazord, fotoOriginalDaMagazord } from "./magazord";
 import { dadosDaCodigoG } from "./codigog";
 import { dadosDaYampi } from "./yampi";
 import { produtosDaObr } from "./obr";
-import { caminhoDeCategoria, caminhoDoJsonLd } from "./categoria";
+import { caminhoDeCategoria, caminhoDoJsonLd, categoriaDoNav } from "./categoria";
+import { ehAdafruit, faixasDaAdafruit, fichaDaAdafruit, fotosDaAdafruit } from "./adafruit";
+import { disponibilidadeDaSparkFun, documentosDaSparkFun, ehSparkFun, fichaDaSparkFun } from "./sparkfun";
 import { categoriaDaRoboCore, descricaoDaRoboCore, estoqueDaRoboCore, precosDaRoboCore } from "./robocore";
 import { impostosDaFicha, precoComImpostos, semImpostos } from "./impostos";
 import { doMicrodata, escopoDoProduto } from "./microdata";
@@ -304,20 +306,25 @@ function galeriaDaPagina(html, principal, urlBase) {
  * a que a loja publicou, e a primeira e a principal (`isMain`).
  */
 function galeriaDoMagento(html, urlBase) {
-  const marca = /"\[data-gallery-role=gallery-placeholder\]"/.exec(html);
-  if (!marca) return [];
-
-  // Ate o fim do script de inicializacao: sem esse limite, um "full" de outro
-  // bloco da pagina entraria na galeria deste produto.
-  const inicio = marca.index;
-  const fim = html.indexOf("</script>", inicio);
-  const bloco = html.slice(inicio, fim === -1 ? undefined : fim);
-
+  // SPARKFUN (08/11/2026): a galeria e do Amasty (`"[data-role=amasty-gallery]"`, com os mesmos {thumb, img, full}) e a
+  // marca padrao so existe no bloco de VIDEO, sem foto nenhuma: o produto saia com 1 foto de 9. Vale o primeiro bloco
+  // que tem "full".
   const fotos = [];
-  for (const achado of bloco.matchAll(/"full"\s*:\s*"([^"]+)"/g)) {
-    // O JSON vem dentro do HTML com as barras escapadas.
-    const endereco = comoUrlAbsoluta(achado[1].replace(/\\\//g, "/"), urlBase);
-    if (endereco) fotos.push(endereco);
+  for (const marca of html.matchAll(/"\[data-gallery-role=gallery-placeholder\]"|"\[data-role=amasty-gallery\]"/g)) {
+    // Ate o fim do script de inicializacao: sem esse limite, um "full" de outro
+    // bloco da pagina entraria na galeria deste produto.
+    const inicio = marca.index;
+    const fim = html.indexOf("</script>", inicio);
+    const bloco = html.slice(inicio, fim === -1 ? undefined : fim);
+
+    for (const entrada of bloco.matchAll(/\{[^{}]*"full"\s*:\s*"([^"]+)"[^{}]*\}/g)) {
+      // A entrada de VIDEO (SparkFun: `"type":"video"`, YouTube) traz a miniatura do video em "full": nao e foto do produto.
+      if (/"type"\s*:\s*"video"/.test(entrada[0])) continue;
+      // O JSON vem dentro do HTML com as barras escapadas.
+      const endereco = comoUrlAbsoluta(entrada[1].replace(/\\\//g, "/"), urlBase);
+      if (endereco) fotos.push(endereco);
+    }
+    if (fotos.length) break;
   }
 
   return fotos.slice(0, TETO_DE_GALERIA);
@@ -1097,6 +1104,11 @@ function especificacoesDeTabela(html) {
       // <th>, "IMP" em <td>).
       if (celulas.every((celula) => celula.tag === "th")) continue;
 
+      // "1-4 | $12.50", "5-9 | $11.88", "10+ | $11.25": tabela de desconto por QUANTIDADE (Adafruit, 08/11/2026), nao
+      // caracteristica. O dono, ao ver "1-4: $12.50" na ficha: "as caracteristicas trouxeram vendas em quantidades, esta
+      // errado". Faixa de quantidade com preco na outra celula sai daqui (a Adafruit a le em faixasDaAdafruit).
+      if (/^\d+\s*(?:-\s*\d+|\+)$/.test(celulas[0].texto ?? "") && /^\s*(?:R?\$|US\$|€|£)\s*[\d.,]+\s*$/.test(celulas[1].texto ?? "")) continue;
+
       if (celulas[0].texto && celulas[1].texto) {
         itens.push({ nome: celulas[0].texto.replace(/:$/, ""), valor: celulas[1].texto });
       }
@@ -1173,8 +1185,10 @@ function especificacoesPorVariante(html, codigosConhecidos) {
 }
 
 /// Titulo que anuncia a ficha tecnica escrita na descricao.
+// SITE EM INGLES (Adafruit, 08/11/2026: `<h2>Technical Details</h2>` seguido de "Diameter: 12mm"; o dono: "na Adafruit as
+// caracteristicas nao estao vindo"): os titulos em ingles entram no mesmo vocabulario.
 const TITULO_DE_FICHA =
-  /^(especifica[cç](?:[õo]es|ao|ão)(?: t[eé]cnicas?)?|ficha t[eé]cnica|dados t[eé]cnicos|caracter[ií]sticas t[eé]cnicas)\s*:?$/i;
+  /^(especifica[cç](?:[õo]es|ao|ão)(?: t[eé]cnicas?)?|ficha t[eé]cnica|dados t[eé]cnicos|caracter[ií]sticas t[eé]cnicas|technical (?:details|specifications?|specs)|tech specs|specifications?)\s*:?$/i;
 
 /// "Especificações HDB-882 Decibelímetro Digital Portátil Hikari:" (Eletrodex, 10/10/2026):
 /// o nome do produto (ou "Elétricas") depois da palavra. Só com dois-pontos no fim, para
@@ -1648,17 +1662,24 @@ function descricaoDoBloco(html) {
     if (texto) return texto;
   }
 
+  // `<section>` tambem (Adafruit, 08/11/2026: `<section id="description" class="prod-accordion-content-description">`);
+  // so com `<div`, a pagina caia no resumo de uma linha do JSON-LD e perdia os paragrafos.
   const abertura =
-    /<div[^>]*class=["'][^"']*\bdescription\b[^"']*["'][^>]*>/i.exec(html);
+    /<(div|section)[^>]*class=["'][^"']*\bdescription\b[^"']*["'][^>]*>/i.exec(html);
   if (!abertura) return null;
 
   // O fechamento que EQUILIBRA a abertura, e nao o primeiro `</div>`: a Eletrodex
   // (Tray, 10/10/2026) abre o bloco com `<div class="title">Descricao Geral</div>`
   // e so depois vem o texto em `board_htm`. Cortar no primeiro `</div>` deixava a
   // descricao inteira como "Descricao Geral" e perdia o texto e as especificacoes.
-  const interno = conteudoDoDiv(html, abertura.index + abertura[0].length)
+  const depois = abertura.index + abertura[0].length;
+  const interno = (abertura[1].toLowerCase() === "section"
+    ? html.slice(depois, html.indexOf("</section>", depois) === -1 ? undefined : html.indexOf("</section>", depois))
+    : conteudoDoDiv(html, depois))
     // O titulo do bloco ("Descricao Geral") e rotulo da loja, nao texto do produto.
-    .replace(/^\s*<div[^>]*class=["'][^"']*\btitle\b[^"']*["'][^>]*>[\s\S]*?<\/div>/i, "");
+    .replace(/^\s*<div[^>]*class=["'][^"']*\btitle\b[^"']*["'][^>]*>[\s\S]*?<\/div>/i, "")
+    // Idem o cabecalho "Description"/"Descricao" do acordeao (Adafruit), num <h2> no comeco do bloco.
+    .replace(/^\s*(?:<div[^>]*>\s*)?<h[1-6][^>]*>\s*(?:Description|Descri(?:&ccedil;&atilde;|çã)o)\s*<\/h[1-6]>\s*(?:<\/div>)?/i, "");
 
   return textoDoBlocoDeDescricao(interno);
 }
@@ -2168,6 +2189,11 @@ export function normalizarPagina({
   const meta = metaTags(html);
   const tray = daTray(html);
   const ficha = fichaDaLoja(html);
+  // ADAFRUIT (08/11/2026): fotos pelo sku no nome do arquivo e a tabela de desconto por quantidade (ver adafruit.js).
+  const adafruit = ehAdafruit(url);
+  const faixasDeQuantidade = adafruit ? faixasDaAdafruit(html) : [];
+  // SPARKFUN (08/11/2026): estoque so no HTML, ficha na aba "Features & Specs" e documentos na aba "Documentation".
+  const sparkfun = ehSparkFun(url);
 
   // Listagem da plataforma ASP.NET: a home da Eletrus virava "produto" com o
   // primeiro card da vitrine, sem codigo e com a URL da home.
@@ -2376,6 +2402,8 @@ export function normalizarPagina({
     yampi?.disponibilidade ??
     meta["product:availability"] ??
     meta.availability ??
+    // A oferta do JSON-LD da SparkFun nao traz availability; o "In stock" esta so no HTML do produto principal.
+    (sparkfun ? disponibilidadeDaSparkFun(html) : null) ??
     null;
 
   // O escopo do produto evita ler o estoque de um relacionado, que traz a mesma
@@ -2436,7 +2464,12 @@ export function normalizarPagina({
   // foto do produto de foto de vizinho) desiste e sobrava so a principal (Neoyama, 20/10/2026: 5 fotos, 1 lida). Aqui a
   // galeria e o proprio carrossel da pagina.
   const doCarrosselNuvemshop = galeriaDaNuvemshop(html);
-  const images = vtexPagina?.imagens?.length
+  // ADAFRUIT: a pasta do CDN e so o tamanho, entao a galeria generica trazia os relacionados em miniatura; valem as
+  // fotos com o sku no nome do arquivo, no maior tamanho. Sem sku numerico (nunca visto), fica o caminho generico.
+  const daAdafruit = adafruit ? fotosDaAdafruit(html, code) : [];
+  const images = daAdafruit.length
+    ? daAdafruit
+    : vtexPagina?.imagens?.length
     ? semRepetir([...(doCatalogo?.imagens ?? []), ...vtexPagina.imagens])
     : semRepetir([
         ...(doCatalogo?.imagens ?? []),
@@ -2445,7 +2478,11 @@ export function normalizarPagina({
         ...doMagento,
         ...estruturadas,
         ...doCarrosselNuvemshop,
-        ...galeria,
+        // Com a galeria do Magento lida, a generica (pelos <img> da pagina) nao entra: na SparkFun (08/11/2026) o banner
+        // "RTK Facet" de outro produto mora na mesma pasta /1/9/ do CDN e saia como ultima foto de todo anuncio (o dono:
+        // "a ultima foto de todos os anuncios nao faz parte do produto"). A galeria do Magento e a lista completa (medido:
+        // Saravati 3 de 3, SparkFun 7 de 7).
+        ...(doMagento.length ? [] : galeria),
       ]);
 
   // --- descricao ------------------------------------------------------------
@@ -2497,7 +2534,10 @@ export function normalizarPagina({
   // atributos com UMA linha ("Fabricante: IMP") e a ficha de verdade na lista da
   // descricao — com "tabela ou lista", as quatro especificacoes sumiam.
   const daListaHtml = especificacoesDeListaHtml(html);
-  const juntas = juntarFichas(juntarFichas(aspnet?.especificacoes ?? [], declaradas), daListaHtml);
+  // A aba "Features & Specs" da SparkFun e a secao "Technical Details" da Adafruit entram antes da lista generica: sao a
+  // ficha que a loja declara.
+  const daLojaEstrangeira = sparkfun ? fichaDaSparkFun(html) : adafruit ? fichaDaAdafruit(html) : [];
+  const juntas = juntarFichas(juntarFichas(juntarFichas(aspnet?.especificacoes ?? [], declaradas), daLojaEstrangeira), daListaHtml);
 
   // Com o quadro "Ficha tecnica" da loja lido, Codigo, Estoque e Categoria ja
   // viraram campos do produto e nao se repetem como caracteristica.
@@ -2575,6 +2615,8 @@ export function normalizarPagina({
     [ficha?.categoria, "ficha tecnica da loja"],
     [yampi?.categoria, "breadcrumb do JSON da Yampi"],
     [doDataLayer(html, code), "dataLayer de analytics"],
+    // Ultimo recurso: o <nav> de breadcrumb sem Microdata nem JSON-LD (Adafruit, 08/11/2026).
+    [categoriaDoNav(html, name), "breadcrumb da pagina (nav)"],
   );
 
   if (prices.normal !== null) {
@@ -2613,7 +2655,13 @@ export function normalizarPagina({
           ? `calculado: desconto a vista de ${magentoAVista.desconto}% do parcelamento da loja`
           : "menor preco da pagina";
   }
-  const documentos = documentosDaPagina(html, baseDaPagina(html, url));
+  const documentosGenericos = documentosDaPagina(html, baseDaPagina(html, url));
+  // Na SparkFun a aba "Documentation" lista tudo (guias, GitHub, forum), e a regra geral so via 9 de 37 links: a aba
+  // vem primeiro, e o generico so acrescenta endereco que a aba nao tem.
+  const daAbaDaSparkFun = sparkfun ? documentosDaSparkFun(html, baseDaPagina(html, url)) : [];
+  const documentos = daAbaDaSparkFun.length
+    ? [...daAbaDaSparkFun, ...documentosGenericos.filter((doc) => !daAbaDaSparkFun.some((outro) => outro.url === doc.url))]
+    : documentosGenericos;
 
   if (description) origens.description = "texto mais longo entre as fontes";
   if (documentos.length) origens.documentos = `${documentos.length} link(s) de download`;
@@ -2662,6 +2710,11 @@ export function normalizarPagina({
     },
     description,
     specifications: fichaSemImpostos ?? [],
+    // So entra quando ha faixas (Adafruit): a chave nova mudaria a assinatura de todo produto ja gravado.
+    // Em site estrangeiro cada faixa leva a moeda: ela NAO e convertida na gravacao (fica "US$ 11,88" na tela).
+    ...(faixasDeQuantidade.length
+      ? { precosPorQuantidade: prices.moeda ? faixasDeQuantidade.map((faixa) => ({ ...faixa, moeda: prices.moeda })) : faixasDeQuantidade }
+      : {}),
     documentos,
     variants: opcoesDeVariacao(bruto),
     seo,

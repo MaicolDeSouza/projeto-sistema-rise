@@ -3898,5 +3898,95 @@ console.log("\n— Site em moeda estrangeira —");
   ], [false, true, true, true, false]);
 }
 
+console.log("\n— Adafruit e SparkFun: estoque, ficha, fotos, categoria, faixas e documentos (08/11/2026) —");
+{
+  const { situacaoDe } = await import("../src/lib/coleta/texto-html.js");
+  const { categoriaDoNav } = await import("../src/lib/coleta/categoria.js");
+  const { fotosDaAdafruit, faixasDaAdafruit } = await import("../src/lib/coleta/adafruit.js");
+  const { fichaDaSparkFun, documentosDaSparkFun, disponibilidadeDaSparkFun } = await import("../src/lib/coleta/sparkfun.js");
+  const { converterParaReais } = await import("../src/lib/coleta/moeda.js");
+
+  conferir("situacaoDe: texto em inglês e o negativo antes do positivo", [
+    "No longer stocked", "Out of stock", "In stock", "Backorder", "Indisponível", "Disponível", "unavailable",
+  ].map(situacaoDe), ["OUT_OF_STOCK", "OUT_OF_STOCK", "AVAILABLE", "OUT_OF_STOCK", "OUT_OF_STOCK", "AVAILABLE", "OUT_OF_STOCK"]);
+
+  // A pagina do produto 1 da Adafruit como medida em 08/11/2026 (reduzida).
+  const adafruit = `<html><head><title>MiniPOV 2 Kit</title>
+    <script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "Product", name: "MiniPOV 2 Kit", sku: "1", image: ["https://cdn-shop.adafruit.com//970x728/1-01.jpg"], offers: { "@type": "Offer", priceCurrency: "USD", price: "12.50", availability: "Discontinued" } })}</script>
+    </head><body>
+    <nav aria-label="Breadcrumbs" class="breadcrumbs"><a href="/">Home</a><a href="/category/kits">Kits &amp; Projects</a><a href="/category/minipov">MiniPOV</a><span>MiniPOV 2 Kit</span></nav>
+    <div itemscope itemtype="http://schema.org/Product"><h1 itemprop="name">MiniPOV 2 Kit</h1>
+    <div itemprop="offers" itemscope itemtype="http://schema.org/Offer"><span itemprop="price">12.50</span><meta itemprop="priceCurrency" content="USD"/><h2 itemprop="availability">No longer stocked</h2></div>
+    <img src="https://cdn-shop.adafruit.com/82x62/1-01.jpg"><img src="https://cdn-shop.adafruit.com/970x728/1-02.jpg"><img src="https://cdn-shop.adafruit.com/100x75/1-03.jpg">
+    <img src="https://cdn-shop.adafruit.com/100x75/5-01.jpg"><img src="https://cdn-shop.adafruit.com/100x75/1012-02.jpg">
+    <table class="quantityDiscount"><tr><th>Qty</th><th>Discount</th></tr><tr><td>1-4</td><td>$12.50</td></tr><tr><td>5-9</td><td>$11.88</td></tr><tr><td>10+</td><td>$11.25</td></tr></table>
+    <section id="description" class="prod-accordion-content prod-accordion-content-description"><div class="tab-heading-row"><h2 id="tab-description-heading">Description</h2></div>
+    <div id="tab-description-content"><p>A simple POV toy for beginners who are looking to learn how to solder, how to program microcontrollers, or make LED blinky toys. Requires access to a PC with parallel port.</p><p>Second paragraph of the description with more details about the kit.</p></div></section>
+    <section id="technical-details" class="prod-accordion-content"><div class="tab-heading-row"><h2 id="tab-technical-details-heading">
+      Technical Details </h2></div><div id="tab-technical-details-content"><p><strong>Revision History:&nbsp;</strong></p><ul><li><strong>As of Oct 11, 2023</strong> - we updated the kit.</li></ul><p>Details:</p><ul><li>Diameter: 12mm</li><li>Height: 4.8mm</li><li>Weight: 4g</li></ul></div></section>
+    </div></body></html>`;
+  const [daAdafruit] = normalizarPagina({ html: adafruit, url: "https://www.adafruit.com/product/1" }).produtos;
+  conferir("Adafruit: 'No longer stocked' do <h2 itemprop=availability> vira esgotado", daAdafruit.stock.status, "OUT_OF_STOCK");
+  conferir("Adafruit: categoria pelo <nav> de breadcrumb, sem Home e sem o produto", [daAdafruit.category, daAdafruit.origens.category], ["Kits & Projects > MiniPOV", "breadcrumb da pagina (nav)"]);
+  conferir("Adafruit: as fotos do produto pelo sku, no tamanho grande, sem os relacionados", daAdafruit.images, [
+    "https://cdn-shop.adafruit.com/970x728/1-01.jpg", "https://cdn-shop.adafruit.com/970x728/1-02.jpg", "https://cdn-shop.adafruit.com/970x728/1-03.jpg",
+  ]);
+  conferir("Adafruit: a descrição vem da <section> inteira, sem o título", daAdafruit.description.startsWith("A simple POV toy") && daAdafruit.description.includes("Second paragraph"), true);
+  conferir("Adafruit: a tabela de desconto por quantidade NÃO entra na ficha; 'Technical Details' entra", daAdafruit.specifications, [
+    { nome: "Diameter", valor: "12mm" }, { nome: "Height", valor: "4.8mm" }, { nome: "Weight", valor: "4g" },
+  ]);
+  conferir("Adafruit: faixas de quantidade na moeda do site", daAdafruit.precosPorQuantidade, [
+    { rotulo: "1-4", minimo: 1, maximo: 4, preco: 12.5, moeda: "USD" },
+    { rotulo: "5-9", minimo: 5, maximo: 9, preco: 11.88, moeda: "USD" },
+    { rotulo: "10+", minimo: 10, maximo: null, preco: 11.25, moeda: "USD" },
+  ]);
+  conferir("fotosDaAdafruit: sem sku numérico, nada", fotosDaAdafruit(adafruit, "N/A"), []);
+  conferir("faixasDaAdafruit: sem a tabela, nada", faixasDaAdafruit("<table><tr><td>1-4</td><td>$1</td></tr></table>"), []);
+  conferir("categoriaDoNav: sem <nav> de breadcrumb, null", categoriaDoNav("<nav class=\"menu\"><a>Loja</a></nav>"), null);
+  const convertido = converterParaReais({ prices: { normal: 12.5, moeda: "USD" }, precosPorQuantidade: daAdafruit.precosPorQuantidade }, { cotacao: { valor: 5, data: "2026-11-08" }, fator: 1 });
+  conferir("converterParaReais: o preço vira R$ e as faixas ficam na moeda do site", [convertido.prices.normal, convertido.precosPorQuantidade[1]], [62.5, { rotulo: "5-9", minimo: 5, maximo: 9, preco: 11.88, moeda: "USD" }]);
+
+  // A pagina do KIT-20683 da SparkFun (Magento 2 com a galeria do Amasty) como medida em 08/11/2026 (reduzida).
+  const sparkfun = `<html><head><title>OpenLog</title>
+    <script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "Product", name: "SparkFun OpenLog Data Collector", sku: "KIT-20683", mpn: "KIT-20683", image: "https://www.sparkfun.com/media/catalog/product/cache/abc/K/I/KIT-20683-01.jpg", offers: [{ "@type": "Offer", priceCurrency: "USD", price: 104.95 }] })}</script>
+    </head><body><nav class="breadcrumbs" aria-label="breadcrumbs"><ul><li><a href="/">Home</a></li><li><a href="/sensors.html">Sensors</a></li><li><a href="/sensors/weather.html">Weather</a></li></ul></nav>
+    <div class="product-info-main"><h1>SparkFun OpenLog Data Collector</h1><div class="product-info-stock-sku">
+      <div class="stock available" title="Availability"><span>In stock</span></div></div>
+    <script type="text/x-magento-init">{"[data-role=amasty-gallery]": {"Amasty_Conf/js/amzoomer": {"data": [{"thumb":"https:\\/\\/www.sparkfun.com\\/media\\/catalog\\/product\\/cache\\/t\\/K\\/I\\/KIT-20683-01.jpg","img":"https:\\/\\/www.sparkfun.com\\/media\\/catalog\\/product\\/cache\\/i\\/K\\/I\\/KIT-20683-01.jpg","full":"https:\\/\\/www.sparkfun.com\\/media\\/catalog\\/product\\/cache\\/abc\\/K\\/I\\/KIT-20683-01.jpg","isMain":true},{"full":"https:\\/\\/www.sparkfun.com\\/media\\/catalog\\/product\\/cache\\/abc\\/K\\/I\\/KIT-20683-02.jpg","type":"image"},{"full":"https:\\/\\/www.sparkfun.com\\/media\\/catalog\\/product\\/cache\\/abc\\/e\\/G\\/eGXE8o36e4E.jpeg","type":"video","videoUrl":"https:\\/\\/youtu.be\\/eGXE8o36e4E"}]}}}</script>
+    <img class="product-image-photo" src="https://www.sparkfun.com/media/catalog/product/cache/def/K/I/KIT-19984-RTK_Facet_Kit-02-1.png" alt="banner de outro produto na mesma pasta">
+    <script type="text/x-magento-init">{"[data-gallery-role=gallery-placeholder]": {"Magento_ProductVideo/js/fotorama-add-video-events": {"videoData": [{"mediaType":"image"}]}}}</script>
+    <div id="content-features" role="region"><div class="am-custom-tab"><h2>Features &amp; Specs</h2><p><strong>SparkFun OpenLog Artemis (without IMU):</strong></p>
+      <ul><li>Artemis Module (Cortex-M4F)</li><li>1x Qwiic enabled I<sup>2</sup>C with power control</li><li>Logging speeds up to 500000bps <a href="https://learn.sparkfun.com/x#baud"><sup>[1]</sup></a></li></ul>
+      <p><strong>BME280:</strong></p><ul><li>Operating Voltage: 1.71V-3.6V</li><li>Humidity Range: 0-100% RH</li></ul></div></div>
+    <div class="data item title mobile-accordion-header"><button>Documentation</button></div>
+    <div id="content-documentation" role="region"><div class="am-custom-tab"><h2>Documentation</h2><p><strong>SparkFun OpenLog Artemis (without IMU):</strong></p>
+      <ul><li><a href="https://cdn.sparkfun.com/assets/1/OpenLog_Schematic.pdf">Schematic</a></li><li><a href="https://learn.sparkfun.com/tutorials/openlog-artemis-hookup-guide">Hookup Guide</a></li><li><a href="https://github.com/sparkfun/Arduino_Apollo3">Arduino Core</a></li></ul>
+      <p><strong>BME280:</strong></p><ul><li><a href="https://cdn.sparkfun.com/assets/2/BME280_Datasheet.pdf">Datasheet</a></li></ul>
+      <p>WARNING: <a href="https://www.P65Warnings.ca.gov" class="link">www.P65Warnings.ca.gov</a></p></div></div>
+    <div class="data item title mobile-accordion-header"><button>Reviews</button></div><div id="content-reviews"></div>
+    <li class="product-item"><div class="stock available unavailable" title="Availability"><span>Backorder</span></div></li>
+    </div></body></html>`;
+  const [daSparkfun] = normalizarPagina({ html: sparkfun, url: "https://www.sparkfun.com/openlog.html" }).produtos;
+  conferir("SparkFun: 'In stock' do produto principal, não o Backorder do relacionado", [daSparkfun.stock.status, disponibilidadeDaSparkFun(sparkfun)], ["AVAILABLE", "In stock"]);
+  conferir("SparkFun: categoria pelo <nav>", daSparkfun.category, "Sensors > Weather");
+  conferir("SparkFun: galeria do Amasty (o bloco de vídeo não tem foto), sem a miniatura do vídeo e sem o banner de outro produto na mesma pasta", daSparkfun.images, [
+    "https://www.sparkfun.com/media/catalog/product/cache/abc/K/I/KIT-20683-01.jpg", "https://www.sparkfun.com/media/catalog/product/cache/abc/K/I/KIT-20683-02.jpg",
+  ]);
+  conferir("SparkFun: a aba Features & Specs vira ficha (grupo sem nome, par com dois-pontos, I²C, sem a nota [1])", fichaDaSparkFun(sparkfun), [
+    { nome: null, valor: "SparkFun OpenLog Artemis (without IMU)" }, { nome: null, valor: "Artemis Module (Cortex-M4F)" },
+    { nome: null, valor: "1x Qwiic enabled I²C with power control" }, { nome: null, valor: "Logging speeds up to 500000bps" },
+    { nome: null, valor: "BME280" }, { nome: "Operating Voltage", valor: "1.71V-3.6V" }, { nome: "Humidity Range", valor: "0-100% RH" },
+  ]);
+  conferir("SparkFun: a ficha entra no produto", daSparkfun.specifications.length, 7);
+  conferir("SparkFun: TODOS os links da aba Documentation, com o grupo no título e sem o aviso da Califórnia", daSparkfun.documentos, [
+    { titulo: "SparkFun OpenLog Artemis (without IMU): Schematic", url: "https://cdn.sparkfun.com/assets/1/OpenLog_Schematic.pdf" },
+    { titulo: "SparkFun OpenLog Artemis (without IMU): Hookup Guide", url: "https://learn.sparkfun.com/tutorials/openlog-artemis-hookup-guide" },
+    { titulo: "SparkFun OpenLog Artemis (without IMU): Arduino Core", url: "https://github.com/sparkfun/Arduino_Apollo3" },
+    { titulo: "BME280: Datasheet", url: "https://cdn.sparkfun.com/assets/2/BME280_Datasheet.pdf" },
+  ]);
+  conferir("documentosDaSparkFun: sem a aba, nada", documentosDaSparkFun("<html></html>", "https://www.sparkfun.com/"), []);
+  conferir("SparkFun: fora do sparkfun.com nada disso roda", normalizarPagina({ html: sparkfun, url: "https://www.outraloja.com/openlog.html" }).produtos[0].documentos.length, 2);
+}
+
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);
 process.exit(falhas === 0 ? 0 : 1);

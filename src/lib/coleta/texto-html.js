@@ -202,8 +202,15 @@ export function situacaoDe(texto) {
   if (/OutOfStock|SoldOut|BackOrder/i.test(valor)) return "OUT_OF_STOCK";
   if (/Discontinued/i.test(valor)) return "PAUSED";
 
-  if (/dispon[ií]vel|em estoque|pronta entrega/i.test(valor)) return "AVAILABLE";
+  // Os negativos ANTES dos positivos: "indisponível" contém "disponível", "out of stock" contém "stock" e
+  // "unavailable" contém "available".
   if (/esgotado|sem estoque|indispon[ií]vel/i.test(valor)) return "OUT_OF_STOCK";
+  if (/dispon[ií]vel|em estoque|pronta entrega/i.test(valor)) return "AVAILABLE";
+
+  // SITE EM INGLES (Adafruit, 08/11/2026): o `itemprop="availability"` e um <h2> com o texto da vitrine ("No longer
+  // stocked", "Out of stock", "In stock"), e nao o endereco do schema.org — caia em UNKNOWN ("Indeterminado" na tela).
+  if (/out of stock|no longer (?:stocked|made|available)|sold out|unavailable|discontinued|back ?order/i.test(valor)) return "OUT_OF_STOCK";
+  if (/in stock|available/i.test(valor)) return "AVAILABLE";
 
   return "UNKNOWN";
 }

@@ -98,6 +98,8 @@ export function converterParaReais(produto, { cotacao, fator }) {
     },
   };
   produto.taxes = percentual > 0 ? [{ nome: "Importação", percentual }] : [];
+  // As faixas de quantidade (Adafruit: "5-9 $11.88") NAO sao convertidas: ficam na moeda do site, cada uma com a sua
+  // `moeda`, e a tela mostra "US$ 11,88" (o dono, 08/11/2026: "o valor em lote deve respeitar a moeda do site").
   const simbolo = simboloDaMoeda(moeda);
   const deOnde = cotacao.origem === "ptax" ? `PTAX ${cotacao.data ?? ""}`.trim() : "cotação fixa";
   produto.origens = {
