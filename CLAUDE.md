@@ -328,7 +328,7 @@ tem a segunda trava no mesmo molde desde 08/10/2026: `ML_PUBLICACAO_CODIGOS` (li
 ```bash
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
-npm run teste:extracao            # 900 asserções da extração, do site em moeda estrangeira (com Adafruit, SparkFun, Waveshare e o ritmo próprio dela), do EAN interno, da conciliação, das medidas, das opções de parágrafo da descrição, do Nome que a descrição acompanha, das regras puras das Correções da descrição, da ordem da aba Concorrentes e da lista do "$" e do cabeçalho de download de arquivo, SEM rede
+npm run teste:extracao            # 902 asserções da extração, do site em moeda estrangeira (com Adafruit, SparkFun, Waveshare e o ritmo próprio dela), do EAN interno, da conciliação, das medidas, das opções de parágrafo da descrição, do Nome que a descrição acompanha, das regras puras das Correções da descrição, da ordem da aba Concorrentes e da lista do "$" e do cabeçalho de download de arquivo, SEM rede
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
 npm run teste:versao              # 26 asserções da versão no pé do menu (VPS: DD.MM.AAAA.NN, a data do deploy em São Paulo e o número do deploy, mostrada como "DD.MM.AAAA (build NN) - commit"; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
@@ -1563,7 +1563,7 @@ respondem ao robô, publicam `priceCurrency: "USD"` no JSON-LD e no OpenGraph, e
   endereços já vistos saíam e sobravam categorias: 0 válidos em 11 páginas); conferido com 2 rodadas seguidas nas duas lojas, 3
   produtos novos em cada. `waveshare.js`: ficha pela grade de ícones (`igKey`/`igValue`, só nas telas) e `precosPorQuantidade` pela tabela
   `waveshare_view_table` ("1~9" usa o preço da página), na moeda do site. **Fica sem:** categoria (o breadcrumb só mostra o SKU) e
-  descrição (o JSON-LD só traz o resumo; o texto da aba é uma página de marketing de 80 mil caracteres). O preço é o que a página
+  descrição boa SÓ NO INÍCIO: depois o dono pediu a descrição completa e o Wiki — `descricaoDaWaveshare` lê a aba `tab-description` inteira (títulos em linha, listas com "- ", sem imagem, teto de 20 mil caracteres; vence o JSON-LD) e `documentosDaWaveshare` põe cada link `waveshare.com/wiki/<página>` da seção Downloads como documento "Wiki: <página>". O preço é o que a página
   exibe (STM32-QFP144: US$ 110,99, enquanto a tabela de faixas dele mostra US$ 108,99 para 1 unidade: não conciliado).
 
 **Janela do fornecedor no cadastro de Produto** (06/11/2026, pedido do dono): o lápis e o "Adicionar fornecedor" abrem uma

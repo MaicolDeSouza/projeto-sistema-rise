@@ -28,6 +28,52 @@ export function fichaDaWaveshare(html) {
   return itens;
 }
 
+/** O HTML da aba "Description": de `id="tab-description"` ate a aba seguinte (Package Content ou Wiki). */
+function abaDaDescricao(html) {
+  const abertura = /id=["']tab-description["'][^>]*>/i.exec(html ?? "");
+  if (!abertura) return null;
+  const resto = html.slice(abertura.index + abertura[0].length);
+  const fim = /<div[^>]*class=["'][^"']*\btab-section\b[^"']*["'][^>]*id=["']tab-/i.exec(resto);
+  return fim ? resto.slice(0, fim.index) : resto;
+}
+
+const TETO_DA_DESCRICAO = 20000;
+
+/**
+ * A descricao COMPLETA da aba "Description" (o dono, 08/11/2026: "na waveshare a descricao nao veio completa"): o JSON-LD so
+ * traz o resumo de uma linha. Titulos (`<h2>`) viram linha propria ("Features", "Supported Devices"), listas e tabelas viram
+ * linhas, imagens saem. O "Details" do inicio e o titulo da aba, nao do produto.
+ */
+export function descricaoDaWaveshare(html) {
+  const aba = abaDaDescricao(html);
+  if (!aba) return null;
+  const texto = comoTexto(
+    aba
+      .replace(/<img\b[^>]*>/gi, "")
+      .replace(/^\s*<h2>\s*Details\s*<\/h2>/i, "")
+      .replace(/<li\b[^>]*>/gi, "<li>- "),
+  );
+  return texto ? texto.slice(0, TETO_DA_DESCRICAO) : null;
+}
+
+/**
+ * Os links do WIKI da Waveshare (o dono: "a documentacao que esta em wiki tambem nao veio"): a secao "Downloads" da aba diz
+ * "Wiki: www.waveshare.com/wiki/STM32-QFP144", as vezes so como texto, sem `<a>`. Cada endereco `waveshare.com/wiki/<pagina>`
+ * vira um documento, uma vez so.
+ */
+export function documentosDaWaveshare(html) {
+  const aba = abaDaDescricao(html) ?? "";
+  const documentos = [];
+  const vistos = new Set();
+  for (const achado of aba.matchAll(/(?:https?:\/\/)?(?:www\.)?waveshare\.com\/wiki\/([^\s"'<>)&]+)/gi)) {
+    const pagina = achado[1].replace(/[.,;]+$/, "");
+    if (!pagina || /^Special/i.test(pagina) || vistos.has(pagina.toLowerCase())) continue;
+    vistos.add(pagina.toLowerCase());
+    documentos.push({ titulo: `Wiki: ${decodeURIComponent(pagina).replace(/_/g, " ")}`, url: `https://www.waveshare.com/wiki/${pagina}` });
+  }
+  return documentos;
+}
+
 /** Preco de uma unidade como a loja exibe (`<span class="regular-price ..." id="product-price-NNN">`). */
 function precoDaPagina(html) {
   const preco = /id=["']product-price-\d+["'][^>]*>\s*<span class="price">([^<]*)/i.exec(html ?? "");

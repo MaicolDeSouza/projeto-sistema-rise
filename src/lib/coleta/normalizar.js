@@ -10,7 +10,7 @@ import { produtosDaObr } from "./obr";
 import { caminhoDeCategoria, caminhoDoJsonLd, categoriaDoNav } from "./categoria";
 import { ehAdafruit, faixasDaAdafruit, fichaDaAdafruit, fotosDaAdafruit } from "./adafruit";
 import { disponibilidadeDaSparkFun, documentosDaSparkFun, ehSparkFun, fichaDaSparkFun } from "./sparkfun";
-import { ehWaveshare, faixasDaWaveshare, fichaDaWaveshare } from "./waveshare";
+import { descricaoDaWaveshare, documentosDaWaveshare, ehWaveshare, faixasDaWaveshare, fichaDaWaveshare } from "./waveshare";
 import { categoriaDaRoboCore, descricaoDaRoboCore, estoqueDaRoboCore, precosDaRoboCore } from "./robocore";
 import { impostosDaFicha, precoComImpostos, semImpostos } from "./impostos";
 import { doMicrodata, escopoDoProduto } from "./microdata";
@@ -2511,7 +2511,9 @@ export function normalizarPagina({
       : null;
   // MAGAZORD: a descricao do JSON da pagina (com um paragrafo por linha) vence o JSON-LD, que e o mesmo texto numa
   // linha so — por ser mais longo ou igual, ele ganhava, e a ficha "Dados Tecnicos" nao saia da descricao.
-  const description = descricaoDaRoboCore(html, url) ?? codigoG?.descricao ?? (blocoDaNuvemshop && blocoDaNuvemshop.length >= 20 ? blocoDaNuvemshop : null) ?? (magazord?.descricao && magazord.descricao.length >= 20 ? magazord.descricao : null) ?? melhorDescricao([
+  // WAVESHARE: a aba "Description" inteira vence o resumo de uma linha do JSON-LD.
+  const daAbaDaWaveshare = waveshare ? descricaoDaWaveshare(html) : null;
+  const description = descricaoDaRoboCore(html, url) ?? codigoG?.descricao ?? (daAbaDaWaveshare && daAbaDaWaveshare.length >= 20 ? daAbaDaWaveshare : null) ?? (blocoDaNuvemshop && blocoDaNuvemshop.length >= 20 ? blocoDaNuvemshop : null) ?? (magazord?.descricao && magazord.descricao.length >= 20 ? magazord.descricao : null) ?? melhorDescricao([
     aspnet?.descricao,
     estruturado?.descricao,
     micro?.descricao,
@@ -2662,8 +2664,10 @@ export function normalizarPagina({
   // Na SparkFun a aba "Documentation" lista tudo (guias, GitHub, forum), e a regra geral so via 9 de 37 links: a aba
   // vem primeiro, e o generico so acrescenta endereco que a aba nao tem.
   const daAbaDaSparkFun = sparkfun ? documentosDaSparkFun(html, baseDaPagina(html, url)) : [];
-  const documentos = daAbaDaSparkFun.length
-    ? [...daAbaDaSparkFun, ...documentosGenericos.filter((doc) => !daAbaDaSparkFun.some((outro) => outro.url === doc.url))]
+  const daAbaDaWaveshareDocs = waveshare ? documentosDaWaveshare(html) : [];
+  const daLoja = daAbaDaSparkFun.length ? daAbaDaSparkFun : daAbaDaWaveshareDocs;
+  const documentos = daLoja.length
+    ? [...daLoja, ...documentosGenericos.filter((doc) => !daLoja.some((outro) => outro.url === doc.url))]
     : documentosGenericos;
 
   if (description) origens.description = "texto mais longo entre as fontes";

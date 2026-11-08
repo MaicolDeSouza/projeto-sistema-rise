@@ -4000,6 +4000,14 @@ console.log("\n— Adafruit e SparkFun: estoque, ficha, fotos, categoria, faixas
   ]);
   conferir("Waveshare: ficha pela grade de ícones", fichaDaWaveshare(paginaWaveshare), [{ nome: "Size", valor: "5\"" }, { nome: "Resolution", valor: "960×544" }]);
   conferir("Waveshare: sem tabela de faixas, nada", faixasDaWaveshare("<html></html>"), []);
+  const { descricaoDaWaveshare, documentosDaWaveshare } = await import("../src/lib/coleta/waveshare.js");
+  const abaWaveshare = `<div class="tab-section tab-pane active" id="tab-description"><h2>Details</h2><div class="std"><div class="overviewSec">Yamaichi IC Test socket</div>
+    <h2>Features</h2><ul><li>20-pin JTAG/SWD port</li><li>Onboard crystal <ul><li>pitch: 2.54mm</li></ul></li></ul><img src="a.jpg" />
+    <h2>Downloads</h2><p><strong>Wiki: </strong> <a href="http://www.waveshare.com/wiki/STM32-QFP144">www.waveshare.com/wiki/STM32-QFP144</a> e www.waveshare.com/wiki/Special:History</p></div></div>
+    <div class="tab-section tab-pane " id="tab-package_content"><p>Weight: 0.128 kg</p></div>`;
+  const descWaveshare = descricaoDaWaveshare(abaWaveshare);
+  conferir("Waveshare: descrição = aba inteira, sem o 'Details', sem imagem e sem a aba Package Content", [descWaveshare?.startsWith("Yamaichi"), descWaveshare?.includes("Features"), descWaveshare?.includes("- 20-pin JTAG/SWD port"), descWaveshare?.includes("Weight")], [true, true, true, false]);
+  conferir("Waveshare: o link do Wiki vira documento, uma vez só, sem Special:", documentosDaWaveshare(abaWaveshare), [{ titulo: "Wiki: STM32-QFP144", url: "https://www.waveshare.com/wiki/STM32-QFP144" }]);
 
   // Waveshare (08/11/2026, Opcao 2 do dono): ritmo proprio de 5 s no lugar do Crawl-delay de 60 s.
   const { ritmoProprioDe } = await import("../src/lib/coleta/ritmo.js");
