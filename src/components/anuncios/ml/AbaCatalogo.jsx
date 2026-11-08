@@ -2,11 +2,11 @@
 
 import { useEffect, useEffectEvent, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, ChevronRight, ExternalLink, Loader, RefreshCw, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronRight, ExternalLink, Loader, RefreshCw, Trophy, X } from "lucide-react";
 
 import { buscarCatalogosDoProdutoMLAcao, catalogosDoAnuncioMLAcao, preverCatalogoMLAcao, relerConcorrentesMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
-import { textoDoResumo } from "@/lib/canaisDeVenda/ml/catalogo";
+import { textoDaDisputa, textoDoResumo } from "@/lib/canaisDeVenda/ml/catalogo";
 import { linkDoPainelML } from "@/lib/canaisDeVenda/ml/rotulos";
 import { ResumoDaPosicao, TabelaDoCatalogoAoVivo, urlDoCatalogo } from "./ConcorrentesDoML";
 import SecaoDoAnuncio from "./SecaoDoAnuncio";
@@ -266,6 +266,20 @@ function PrecosDaLinha({ resumo }) {
 }
 
 /**
+ * O nosso estado na disputa do catalogo, numa linha (08/11/2026): verde quando ganhamos, ambar quando nao, com o motivo do
+ * ML (ex.: prazo de fabricacao). Sem leitura do `price_to_win`, nada.
+ */
+function EstadoNaDisputa({ disputa }) {
+  const estado = textoDaDisputa(disputa);
+  if (!estado) return null;
+  return (
+    <p className={`flex items-center gap-1.5 rounded border px-3 py-1.5 text-sm ${estado.ganhando ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+      <Trophy size={14} className="shrink-0" /> {estado.texto}
+    </p>
+  );
+}
+
+/**
  * Tudo de um catalogo, lido AGORA no ML: todos os anuncios na ordem do ML, com os do dono destacados como "Você" (pedido do
  * dono em 26/10/2026: ele era o 2o e a lista dos acompanhados, que tira os dele, pulava a linha). No catalogo acompanhado,
  * os avisos e o preco anterior (a seta) vem do que o Rise guardou, e o "Reler agora" renova o guardado e a leitura.
@@ -289,7 +303,7 @@ function JanelaDoCatalogo({ catalogo, tela, produtoId, alterar, podeReler, aoRel
 
   useEffect(() => {
     let vivo = true;
-    preverCatalogoMLAcao(catalogo.id)
+    preverCatalogoMLAcao(catalogo.id, meuItemId)
       .then((resposta) => {
         if (!vivo) return;
         if (resposta?.ok) setAoVivo(resposta);
@@ -299,7 +313,7 @@ function JanelaDoCatalogo({ catalogo, tela, produtoId, alterar, podeReler, aoRel
     return () => {
       vivo = false;
     };
-  }, [catalogo.id, leitura]);
+  }, [catalogo.id, leitura, meuItemId]);
 
   function reler() {
     iniciar(async () => {
@@ -352,7 +366,8 @@ function JanelaDoCatalogo({ catalogo, tela, produtoId, alterar, podeReler, aoRel
             <>
               {/* Os que "sairam do top 10" sairam do popup (pedido do dono em 26/10/2026): eram, em geral, os concorrentes de
                   um catalogo acompanhado antes, e pareciam ser deste. O historico continua no banco. */}
-              <TabelaDoCatalogoAoVivo itens={aoVivo.itens} alterar={alterar} anteriores={anteriores} meuItemId={meuItemId} />
+              <EstadoNaDisputa disputa={aoVivo.disputa} />
+              <TabelaDoCatalogoAoVivo itens={aoVivo.itens} alterar={alterar} anteriores={anteriores} meuItemId={meuItemId} ganhadorId={aoVivo.disputa?.ganhadorId ?? null} />
               <p className="text-[11px] text-suave">Os 10 primeiros do catálogo, na ordem do Mercado Livre, lidos agora; este anúncio aparece em verde, no fim se estiver abaixo do 10º. Clique num preço para usá-lo no anúncio.</p>
             </>
           ) : (

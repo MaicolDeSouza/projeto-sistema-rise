@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ExternalLink } from "lucide-react";
+import { ArrowDown, ArrowUp, ExternalLink, Trophy } from "lucide-react";
 
 import { linhasDoCatalogo, textoDaReputacao, textoDoResumo } from "@/lib/canaisDeVenda/ml/catalogo";
 import { ROTULO_DO_TIPO_ML } from "@/lib/canaisDeVenda/ml/rotulos";
@@ -94,13 +94,13 @@ function Tipo({ tipoAnuncio, freteGratis }) {
  * `anteriores` (itemId -> preco anterior, dos acompanhados) poe a seta de subiu/baixou; com `alterar`, clicar num preco de
  * concorrente o copia para o anuncio.
  */
-export function TabelaDoCatalogoAoVivo({ itens, alterar = null, anteriores = null, meuItemId = null }) {
+export function TabelaDoCatalogoAoVivo({ itens, alterar = null, anteriores = null, meuItemId = null, ganhadorId = null }) {
   if (itens.length === 0) return <p className="text-sm text-suave">Este catálogo não tem anúncios abertos.</p>;
   return (
     <table className="w-full text-sm">
       {CABECALHO}
       <tbody className="divide-y divide-borda">
-        {linhasDoCatalogo(itens, meuItemId).map((item) =>
+        {linhasDoCatalogo(itens, meuItemId, 10, ganhadorId).map((item) =>
           item.reticencias ? (
             <tr key="reticencias">
               <td colSpan={4} className="py-1 text-center text-suave">⋯</td>
@@ -119,6 +119,12 @@ export function TabelaDoCatalogoAoVivo({ itens, alterar = null, anteriores = nul
                 </span>
               ) : (
                 <Vendedor apelido={item.vendedor?.apelido} id={item.vendedorId} reputacao={item.vendedor?.reputacao} vendas={item.vendedor?.vendas} itemId={item.itemId} />
+              )}
+              {/* O ganhador vem do price_to_win do nosso anuncio: a lista do ML e por preco, nao pelo ganhador (08/11/2026). */}
+              {ganhadorId && item.itemId === ganhadorId && (
+                <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+                  <Trophy size={11} /> Ganhando o catálogo
+                </span>
               )}
             </td>
             <td className="py-1.5 text-xs"><Tipo tipoAnuncio={item.tipoAnuncio} freteGratis={item.freteGratis} /></td>

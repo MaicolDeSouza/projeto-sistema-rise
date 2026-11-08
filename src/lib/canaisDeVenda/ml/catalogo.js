@@ -168,6 +168,61 @@ export async function lerPrimeiroDoCatalogo(cliente, catalogoId, { meuSellerId }
   return { total: Number(resposta.dados?.paging?.total ?? lista.length), primeiro: lista[0] ? itemDoCatalogo(lista[0], 1, meuSellerId) : null };
 }
 
+/**
+ * Quem esta GANHANDO o catalogo (pedido do dono em 08/11/2026: o 1o da lista nao era o que o ML mostrava como ganhador).
+ * `/products/{id}/items` vem ordenado por preco e o `buy_box_winner` de `/products/{id}` vem nulo (medido no MLB2044491328:
+ * a lista abria com o de R$ 17,81 e o ML mostrava o de R$ 26,00). O ganhador so sai do `price_to_win` de um anuncio NOSSO
+ * no catalogo, que diz tambem o nosso estado e por que nao competimos (nesse dia: `listed`, motivo `manufacturing_time`).
+ * Falha devolve null: a janela continua sem a marca.
+ * @returns {Promise<{ ganhadorId: string|null, ganhadorPreco: number|null, status: string|null, motivos: string[], precoParaGanhar: number|null, itemId: string }|null>}
+ */
+export async function lerDisputaDoCatalogo(cliente, itemId) {
+  if (!itemId) return null;
+  const resposta = await cliente.get(`/items/${encodeURIComponent(itemId)}/price_to_win`, { siteId: "MLB", version: "v2" }).catch(() => null);
+  return resposta?.ok ? disputaDoPrecoParaGanhar(resposta.dados, itemId) : null;
+}
+
+/** A resposta do `price_to_win` no formato da janela. Pura. */
+export function disputaDoPrecoParaGanhar(dados, itemId) {
+  if (!dados || typeof dados !== "object") return null;
+  return {
+    itemId: String(itemId),
+    ganhadorId: dados.winner?.item_id ? String(dados.winner.item_id) : null,
+    ganhadorPreco: numero(dados.winner?.price),
+    status: typeof dados.status === "string" ? dados.status : null,
+    motivos: Array.isArray(dados.reason) ? dados.reason.filter((m) => typeof m === "string") : [],
+    precoParaGanhar: numero(dados.price_to_win),
+  };
+}
+
+// Os motivos do ML que ja apareceram ou estao na documentacao; motivo novo aparece com o codigo do ML.
+const MOTIVO_DA_DISPUTA = {
+  manufacturing_time: "o anúncio tem prazo de fabricação",
+  shipping_time: "o prazo de entrega é maior",
+  non_trusted_seller: "o ML ainda não confia no vendedor",
+  reputation_below_threshold: "reputação abaixo do mínimo",
+  winner_has_better_reputation: "o ganhador tem reputação melhor",
+  item_paused: "o anúncio está pausado",
+};
+
+/**
+ * A frase do nosso estado na disputa, para a janela. `null` sem disputa lida.
+ * @returns {{ texto: string, ganhando: boolean }|null}
+ */
+export function textoDaDisputa(disputa) {
+  if (!disputa?.status) return null;
+  const motivos = disputa.motivos.map((m) => MOTIVO_DA_DISPUTA[m] ?? m).join("; ");
+  const reais = (valor) => `R$ ${Number(valor).toFixed(2).replace(".", ",")}`;
+  if (disputa.status === "winning") return { texto: "Você está ganhando este catálogo.", ganhando: true };
+  if (disputa.status === "sharing_first_place") return { texto: "Você divide o 1º lugar com outro anúncio.", ganhando: true };
+  if (disputa.status === "competing") {
+    const preco = disputa.precoParaGanhar != null ? `; para ganhar: ${reais(disputa.precoParaGanhar)}` : "";
+    return { texto: `Você compete, mas não está ganhando${preco}${motivos ? ` (${motivos})` : ""}.`, ganhando: false };
+  }
+  if (disputa.status === "listed") return { texto: `Você está fora da disputa${motivos ? `: ${motivos}` : ""}.`, ganhando: false };
+  return { texto: `Estado no catálogo: ${disputa.status}${motivos ? ` (${motivos})` : ""}.`, ganhando: false };
+}
+
 const MAIS_VENDIDOS_SUGERIDOS = 10;
 const BUSCA_SUGERIDA = 10;
 const PARA_A_SUGESTAO = new Set([401, 429]);
@@ -272,10 +327,11 @@ export function posicaoNoCatalogo(lido) {
  * As linhas da tabela do popup do catalogo (pedido do dono em 26/10/2026): os `limite` primeiros e, se o anuncio aberto
  * (`meuItemId`) estiver mais abaixo, uma linha `{ reticencias: true }` e a dele no fim.
  */
-export function linhasDoCatalogo(itens, meuItemId, limite = 10) {
+export function linhasDoCatalogo(itens, meuItemId, limite = 10, ganhadorId = null) {
   const primeiros = (itens ?? []).slice(0, limite);
-  const meu = meuItemId ? (itens ?? []).slice(limite).find((item) => item.itemId === meuItemId) : null;
-  return meu ? [...primeiros, { reticencias: true, itemId: "…" }, meu] : primeiros;
+  // Abaixo do 10o, o anuncio aberto e o ganhador do catalogo continuam aparecendo, na ordem do ML.
+  const resto = (itens ?? []).slice(limite).filter((item) => (meuItemId && item.itemId === meuItemId) || (ganhadorId && item.itemId === ganhadorId));
+  return resto.length > 0 ? [...primeiros, { reticencias: true, itemId: "…" }, ...resto] : primeiros;
 }
 
 /** Os `n` primeiros que nao sao do dono, na ordem do ML. */

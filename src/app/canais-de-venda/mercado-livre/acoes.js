@@ -20,6 +20,7 @@ import {
   comResumo,
   contarVendedores,
   lerConcorrentesDoCatalogo,
+  lerDisputaDoCatalogo,
   lerVendedores,
   topDoCatalogo,
 } from "@/lib/canaisDeVenda/ml/catalogo";
@@ -532,19 +533,31 @@ export async function catalogosDosMeusAnunciosMLAcao(produtoId) {
   }
 }
 
-/** A previa do catalogo: os anuncios na ordem do ML, com o vendedor, e quais seriam acompanhados (o top). Nao grava. */
-export async function preverCatalogoMLAcao(catalogoId) {
+/**
+ * A previa do catalogo: os anuncios na ordem do ML, com o vendedor, e quais seriam acompanhados (o top). Nao grava.
+ * `disputa` (08/11/2026): quem esta ganhando e o nosso estado, pelo `price_to_win` do nosso anuncio no catalogo (o aberto,
+ * `meuItemId`, ou o primeiro nosso); sem anuncio nosso no catalogo, null.
+ */
+export async function preverCatalogoMLAcao(catalogoId, meuItemId = null) {
   const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"], ["dado.concorrentes", "ver"]);
   if (negado) return negado;
   if (!ehCatalogo(catalogoId)) return PEDIDO_INVALIDO;
+  // Id que nao e de anuncio do ML so deixa de escolher qual nosso consultar; a lista continua.
+  const aberto = typeof meuItemId === "string" && /^MLB\d{6,15}$/.test(meuItemId) ? meuItemId : null;
   try {
     const ml = clienteML();
     const lido = await lerConcorrentesDoCatalogo(ml, catalogoId.trim(), { meuSellerId: await ml.usuarioId() });
     const top = topDoCatalogo(lido.itens);
-    const vendedores = await lerVendedores(ml, lido.itens.filter((item) => !item.meu).map((item) => item.vendedorId));
+    const meus = lido.itens.filter((item) => item.meu);
+    const nosso = meus.find((item) => item.itemId === aberto) ?? meus[0] ?? null;
+    const [vendedores, disputa] = await Promise.all([
+      lerVendedores(ml, lido.itens.filter((item) => !item.meu).map((item) => item.vendedorId)),
+      lerDisputaDoCatalogo(ml, nosso?.itemId),
+    ]);
     return {
       ok: true,
       total: lido.total,
+      disputa,
       resumo: { anuncios: lido.total, vendedores: contarVendedores(lido.itens), completo: lido.itens.length >= lido.total },
       topIds: top.map((item) => item.itemId),
       itens: lido.itens.map((item) => ({ ...item, vendedor: vendedores.get(item.vendedorId) ?? null })),

@@ -482,6 +482,18 @@ try {
       conferir("popup: aberto em 20o vai no fim, depois do 10o", linhasDoCatalogo(vinte, "MLB20").map((l) => l.posicao ?? "..."), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "...", 20]);
       conferir("popup: aberto entre os 10, sem linha a mais", linhasDoCatalogo(vinte, "MLB2").length, 10);
       conferir("popup: anuncio fora do catalogo, so os 10", linhasDoCatalogo(vinte, "MLB99").length, 10);
+      conferir("popup: ganhador em 15o e aberto em 20o vao no fim, na ordem", linhasDoCatalogo(vinte, "MLB20", 10, "MLB15").map((l) => l.posicao ?? "..."), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "...", 15, 20]);
+      conferir("popup: ganhador entre os 10, sem linha a mais", linhasDoCatalogo(vinte, null, 10, "MLB3").length, 10);
+
+      // Quem ganha o catalogo (08/11/2026): o price_to_win do nosso anuncio, medido no MLB5513608473 (listed, prazo de fabricacao).
+      const { disputaDoPrecoParaGanhar, textoDaDisputa } = await import("../src/lib/canaisDeVenda/ml/catalogo.js");
+      const medida = disputaDoPrecoParaGanhar({ status: "listed", price_to_win: 27.5, reason: ["manufacturing_time"], winner: { item_id: "MLB2652746578", price: 26 } }, "MLB5513608473");
+      conferir("disputa: ganhador e o do winner, nao o 1o da lista", [medida.ganhadorId, medida.ganhadorPreco], ["MLB2652746578", 26]);
+      conferir("disputa: fora da disputa com o motivo", textoDaDisputa(medida), { texto: "Você está fora da disputa: o anúncio tem prazo de fabricação.", ganhando: false });
+      conferir("disputa: ganhando", textoDaDisputa({ ...medida, status: "winning", motivos: [] }).ganhando, true);
+      conferir("disputa: competindo com o preco para ganhar", textoDaDisputa({ ...medida, status: "competing", motivos: [], precoParaGanhar: 25.9 }).texto, "Você compete, mas não está ganhando; para ganhar: R$ 25,90.");
+      conferir("disputa: motivo desconhecido sai com o codigo", textoDaDisputa({ ...medida, motivos: ["novo_motivo"] }).texto, "Você está fora da disputa: novo_motivo.");
+      conferir("disputa: resposta vazia nao marca nada", [disputaDoPrecoParaGanhar(null, "MLB1"), textoDaDisputa(null)], [null, null]);
     }
     {
       // Peso e medidas do anuncio SIMPLES sao sempre os do produto (26/10/2026, no molde da LI): a aba so os mostra. O kit
