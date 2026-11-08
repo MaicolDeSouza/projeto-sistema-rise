@@ -370,7 +370,7 @@ npm run teste:pedidos             # 153 asserções dos Pedidos de venda: falsos
 npm run teste:extensao-aliexpress # 15 asserções da leitura da extensão (extensao-aliexpress/leitura.js) com as respostas da página Meus pedidos medidas em 28/10/2026. Puro: sem banco, sem rede, sem Chrome
 npm run teste:licencas            # 109 asserções das Licenças Softwares: regras (vagas, casamento por nome do PC, situação, frescor, ordem), zip e upload do arquivo, banco (programas, licenças, linhas, versões do arquivo, download), leitura do portal (esquema, aplicação, incompleta, sumidos, chave da extensão) e a importação das planilhas (fixtures em scripts/fixtures/licencas/). Postgres local, SEM rede; só escreve ZZ-LIC-*, zz-lic-* e "ZZ LIC *" e devolve a Conexao LIGHTBURN; `-- --manter` deixa os dados para conferir a tela
 npm run teste:extensao-lightburn  # 13 asserções da leitura da extensão "Rise LightBurn" (extensao-lightburn/leitura.js) com as respostas da API do portal medidas em 05/11/2026 (fixtures anonimizadas em scripts/fixtures/lightburn/). Puro: sem banco, sem rede, sem Chrome
-npm run teste:analise-fornecedor  # 67 asserções do modelo padrão da análise de lista de fornecedor (src/lib/analiseFornecedor/): formato dos dados, montagem e a página com DOM falso em US$ dentro do claude.ai, em R$ fora dele (Copiar escolhas) e em R$ com fator. Puro: sem banco, sem rede, sem navegador
+npm run teste:analise-fornecedor  # 73 asserções do modelo padrão da análise de lista de fornecedor (src/lib/analiseFornecedor/): formato dos dados, montagem e a página com DOM falso em US$ dentro do claude.ai (com a lista "vincular" do item sem vínculo), em R$ fora dele (Copiar escolhas) e em R$ com fator. Puro: sem banco, sem rede, sem navegador
 node scripts/importar-licencas.js --lightburn=<xlsx> --mach3=<xlsx> --pasta=<pasta> --pdf=<pdf> --simular   # importação das planilhas antigas de licenças e da pasta do Mach3 (uma vez; idempotente); --confirmo grava
 npm run teste:saude               # 68 asserções da Saúde do Rise: regras (rotinas, worker, disco, backup, memória, banco, integrações, orçamento, varreduras, PC, healthchecks), o aviso do Telegram, a gravação em RotinaDoWorker e a coleta nos modos PC e VPS. Postgres local, SEM rede; só escreve zz-saude-*
 npm run teste:acessos             # 207 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição, as projeções do lançamento 2 (Painel, lista de Produtos, Cadastros, canais, Scraper, Indicadores), "Ver como", Histórico e o guarda estático de src/app (sem lista de exceções). Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
@@ -5332,7 +5332,8 @@ para **qualquer fornecedor, com lista em R$ ou US$**. O que existe:
   preço da lista × câmbio (só US$) × fator; preço no pedido com 4 casas. Nome, apelido, moeda, câmbio, fator e pedido vêm dos
   dados; o rascunho do navegador é por fornecedor (`analise-fornecedor:<slug>:escolhas`).
   - **No claude.ai** (artefato com as capacidades `mcp` — Rise: lerPedidoDeCompra, consultarProduto, montarPedidoDeCompra — e
-    `db`): os botões gravam no rascunho do fornecedor e na lista "criar" (`criar/n<item>`), como na página da NexMind.
+    `db`): os botões gravam no rascunho do fornecedor e nas listas "criar" (`criar/n<item>`) e "vincular" (`vincular/n<item>`,
+    desde o roteiro v2), como na página da NexMind.
   - **Fora dele** (HTML no chat de outra LLM): a página só mostra; os botões ficam desligados com o motivo, e **"Copiar
     escolhas"** gera o texto (PEDIDO DE COMPRA: código; quantidade; preço / CRIAR NO RISE: item; nome; quantidade; preço) para
     colar na conversa. Sem área de transferência, o texto abre numa janela para copiar à mão.
@@ -5345,7 +5346,19 @@ para **qualquer fornecedor, com lista em R$ ou US$**. O que existe:
   (preço de venda aprovado + `cadastrarNoBling`; `--somente=` para fazer um primeiro), os dois NA VPS pela entrada padrão, com o
   plano embutido por `scripts/analise-fornecedor-embutir.js`. Sem `--confirmo` só conferem. Primeiro uso: os 38 da NexMind
   (258207 a 258244, criados e cadastrados no Bling em 07/11/2026, venda = custo × 2).
-- **Testes:** `npm run teste:analise-fornecedor` (67, com `scripts/fixtures/analise-fornecedor/`) e o `teste:mcp`.
+- **Item que entra no pedido SEM vínculo com o fornecedor (roteiro v2, 07/11/2026, pedido do dono: "Sim, acertar o modelo"):**
+  o Adicionar da página só põe o produto no pedido (`montarPedidoDeCompra`), que NÃO cria vínculo; a linha saía sem o nome do
+  fornecedor no PDF (aconteceu com 941108, 239905 e 990203 da NexMind, acertados à mão). Agora a página lê o
+  `semVinculoComOFornecedor` que o Rise devolve em `itensDestaVez`: mensagem âmbar, o item vai para a lista **"vincular"** do
+  banco da página (`vincular/n<item>` = { n, nome, codigo, sku, fornecedor, preco, moeda, precoUnitario, em }), o cartão avisa
+  "Sem vínculo com <fornecedor> no Rise" e o cabeçalho conta "Para vincular: N". Sem o banco, a mensagem manda pedir na
+  conversa. O passo 7 do roteiro manda ler a lista e, com a permissão do dono, criar o vínculo (código do fornecedor ou, sem
+  código, descrição = nome na lista; NÃO padrão) e pôr o nome na linha do pedido: `scripts/analise-fornecedor-vincular.mjs`
+  (NA VPS, plano `{ fornecedor, itens: [{ n, nome, codigo, sku }] }` pelo `analise-fornecedor-embutir.js`; sem `--confirmo`
+  só confere, e para em produto inexistente, item fora da lista gravada ou vínculo que já existe). Conferido na VPS só sem
+  gravar (os 3 já acertados param em "já está vinculado"). O `Copiar escolhas` não mudou: a LLM que grava vê o aviso na
+  resposta do `montarPedidoDeCompra`.
+- **Testes:** `npm run teste:analise-fornecedor` (73, com `scripts/fixtures/analise-fornecedor/`) e o `teste:mcp`.
 - **NO AR na VPS desde 07.11.2026.76** (commit `588682c`, 07/11/2026): a ferramenta foi conferida dentro do contêiner do app
   (roteiro v1 com os 7 passos, modelo de 53 KB com os 3 marcadores, recusa sem `tela.compras.pedidos`). **Não verificado:** a
   página aberta num navegador de verdade fora do claude.ai (só o DOM falso) e a ferramenta chamada pelo ChatGPT (a lista de

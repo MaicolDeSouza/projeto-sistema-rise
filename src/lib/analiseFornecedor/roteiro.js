@@ -5,7 +5,9 @@
  * qualquer assistente seguir igual. Nasceu da analise da NexMind (06-07/11/2026). Mudou o roteiro: suba a versao.
  */
 
-export const VERSAO_ROTEIRO_ANALISE = "v1";
+// v2 (07/11/2026): o item que entra no pedido num produto sem vinculo com o fornecedor vai para a lista "vincular" e o
+// passo 7 manda criar o vinculo (tres itens da primeira analise sairam sem o nome do fornecedor no pedido).
+export const VERSAO_ROTEIRO_ANALISE = "v2";
 
 export const ROTEIRO_ANALISE = `ANÁLISE DE LISTA DE FORNECEDOR (roteiro ${VERSAO_ROTEIRO_ANALISE}, 07/11/2026)
 
@@ -40,13 +42,14 @@ PASSO 5 · CONTAS (a página calcula; nos dados vai o preço como a lista escrev
 
 PASSO 6 · A PÁGINA
 - Monte os DADOS (parte "esquema") e ponha no modelo (parte "modelo"): troque /*__DADOS__*/null pelo JSON (com "</" escrito "<\\/"), /*__FOTOS__*/null pelo mapa de fotos ou deixe null, e o <title> por "<apelido> × concorrentes". No Claude Code, scripts/analise-fornecedor-montar.js faz isso (e reduz as fotos a 300 px).
-- No claude.ai: publique como artefato com as capacidades mcp (servidor "Rise": lerPedidoDeCompra, consultarProduto, montarPedidoDeCompra) e db. Os botões gravam direto no rascunho do fornecedor e na lista "criar" do banco da página.
+- No claude.ai: publique como artefato com as capacidades mcp (servidor "Rise": lerPedidoDeCompra, consultarProduto, montarPedidoDeCompra) e db. Os botões gravam direto no rascunho do fornecedor e nas listas "criar" e "vincular" do banco da página.
 - Em outro assistente: entregue o HTML (arquivo ou visualização). A página funciona para ver e filtrar; o botão "Copiar escolhas" gera o texto com os itens e quantidades para o dono colar na conversa.
 - Se o HTML não couber numa resposta, divida em partes com o mesmo modelo (por faixa, ou de 100 em 100 itens), ou leve só os itens com concorrente, e diga o que ficou de fora.
 
 PASSO 7 · AS ESCOLHAS DO DONO
 - Itens com código (do "Copiar escolhas" ou dos botões): montarPedidoDeCompra com o fornecedor como está no Rise e cada item com sku, quantidade, precoUnitario de 4 casas e ipiPercentual 0. Mostre o pedido devolvido. O pedido fica em RASCUNHO; mudarSituacaoDoPedidoDeCompra só quando o dono pedir com todas as letras.
 - Itens para criar (sem código): mostre a lista e só siga com a permissão do dono. O MCP não cria produto: quem cria é o Claude Code (scripts/analise-fornecedor-criar-produtos.mjs, na VPS) ou o dono na tela de cadastro. O cadastro: código automático da faixa 25xxxx; nome em português no padrão do Rise (MAIÚSCULAS, como "MÓDULO SENSOR DE CORRENTE ACS712 20A"); SIMPLES, UN; a foto da lista; o fornecedor como padrão, com o custo da lista e a descrição igual ao nome na lista. Depois de criados, entram no pedido como os outros.
+- Itens que entraram no pedido num produto SEM vínculo com o fornecedor: o montarPedidoDeCompra devolve semVinculoComOFornecedor: true no item (na página, ele vai para a lista "vincular" do banco e o cartão avisa). O pedido não cria vínculo, e a linha sai sem o nome do fornecedor no PDF. Depois das escolhas, leia a lista "vincular" (e os seus próprios montarPedidoDeCompra com esse aviso), mostre ao dono e, com a permissão dele, crie o vínculo: com o código do fornecedor quando a lista tem código, senão sem código e com a descrição igual ao nome na lista; NÃO padrão (o custo do produto não muda); e ponha o nome da lista na linha do pedido. O MCP não cria vínculo: quem cria é o Claude Code (scripts/analise-fornecedor-vincular.mjs, na VPS) ou o dono na aba Fornecedores do produto (e, no pedido, tira e põe o item de novo para a linha pegar o nome).
 - Preço de venda e Bling: pergunte ao dono a regra do preço (markup fixo sobre o custo ou a regra da loja: abaixo da Usinainfo, dentro dos 5 primeiros, piso de 30%) mostrando a tabela antes de gravar. O "Cadastrar no Bling" exige preço de venda; fornecedor sem CNPJ não vai ao Bling.
 
 NUNCA

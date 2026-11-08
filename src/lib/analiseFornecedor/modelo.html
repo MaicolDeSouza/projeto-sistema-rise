@@ -390,6 +390,7 @@ function desenharPedido() {
     for (const [n, v] of criar) { const it = porN.get(n); if (it) total += v.qtd * precoDoPedido(it); }
     l3 = `Lista para criar no Rise: ${criar.size} ${criar.size === 1 ? "item" : "itens"} · ${brl(total)}`;
   }
+  if (db && vincular.size) l3 += `${l3 ? " " : ""}· Para vincular: ${vincular.size} ${vincular.size === 1 ? "item" : "itens"}`;
   document.getElementById("pedidoLinha3").textContent = l3;
 }
 
@@ -399,6 +400,12 @@ function desenharPedido() {
 // criar/n<numero da lista> = { n, nome, preco, moeda, fornecedor, qtd, precoUnitario, em }.
 let db = null;
 const criar = new Map();
+// Lista "vincular": itens que o botao Adicionar pos no pedido num produto do Rise SEM vinculo com este fornecedor (o
+// Rise devolve semVinculoComOFornecedor). O pedido nao cria vinculo, e a linha sairia sem o nome do fornecedor no PDF
+// (07/11/2026, tres itens da primeira analise assim). Quem faz a analise cria o vinculo com a permissao do dono (roteiro,
+// passo 7).
+// vincular/n<numero da lista> = { n, nome, codigo, sku, fornecedor, preco, moeda, precoUnitario, em }.
+const vincular = new Map();
 const listaCriar = { estado: "carregando", texto: "Carregando a lista para criar…" };
 function textoDoErroDb(e) {
   switch (e?.code) {
@@ -446,6 +453,17 @@ function ouvirLista() {
     desenharPedido();
     redesenharVisiveis();
   });
+  // A lista "vincular" so informa (cartao e cabecalho): se nao carregar, nada trava.
+  db.collection("vincular").onSnapshot((snap) => {
+    vincular.clear();
+    for (const d of snap.docs) {
+      const v = d.data() ?? {};
+      const n = Number(v.n);
+      if (porN.has(n) && v.sku) vincular.set(n, { sku: String(v.sku) });
+    }
+    desenharPedido();
+    redesenharVisiveis();
+  }, () => {});
 }
 async function porNaLista(x) {
   const qtd = parseInt(x.qtd, 10);
@@ -538,7 +556,28 @@ async function adicionar(x) {
     const p = r.payload ?? {};
     aplicarPedido(p.pedido);
     const avisos = Array.isArray(p.avisos) ? p.avisos.join(" ") : "";
-    x.msg = { tipo: "ok", texto: `Gravado no ${pedido.codigo}: ${qtd} un. a ${brl(precoDoPedido(x), 4)}.` + (avisos ? " " + avisos : "") };
+    const sku = String(x.produto.sku);
+    const semVinculo = (p.itensDestaVez ?? []).some((i) => String(i.sku) === sku && i.semVinculoComOFornecedor === true);
+    let textoVinculo = "";
+    if (semVinculo) {
+      textoVinculo = ` O produto ${sku} não tem vínculo com ${NOME_CURTO} no Rise`;
+      if (db) {
+        try {
+          await comUmaTentativaAMais(() => db.doc("vincular/n" + x.n).set({
+            n: x.n, nome: x.nome, codigo: x.codigo ?? null, sku, fornecedor: FORNECEDOR, preco: x.preco,
+            moeda: EM_DOLAR ? "USD" : "BRL", precoUnitario: precoDoPedido(x), em: new Date().toISOString(),
+          }));
+          vincular.set(x.n, { sku });
+          textoVinculo += ": foi para a lista para vincular. O vínculo é criado na conversa, com a sua permissão, e a linha do pedido ganha o nome do fornecedor.";
+        } catch {
+          textoVinculo += ` e a lista para vincular não gravou: peça na conversa para vincular o item ${x.n} ao ${sku}.`;
+        }
+      } else textoVinculo += `: peça na conversa para vincular o item ${x.n} ao ${sku}.`;
+    } else if (db && vincular.has(x.n)) {
+      // O codigo agora e de um produto ja vinculado: sai da lista para vincular.
+      try { await comUmaTentativaAMais(() => db.doc("vincular/n" + x.n).delete()); vincular.delete(x.n); } catch {}
+    }
+    x.msg = { tipo: semVinculo ? "aviso" : "ok", texto: `Gravado no ${pedido.codigo}: ${qtd} un. a ${brl(precoDoPedido(x), 4)}.` + textoVinculo + (avisos ? " " + avisos : "") };
     // Ja foi para o pedido com o codigo: sai da lista para criar, se estava nela.
     if (db && criar.has(x.n)) {
       try { await comUmaTentativaAMais(() => db.doc("criar/n" + x.n).delete()); criar.delete(x.n); } catch {}
@@ -692,6 +731,7 @@ function cartao(x) {
     el("div", { class: "rot2", text: "Pedido de compra" }),
     naPedida ? el("div", { class: "noPedido num", text: `No ${pedido.codigo}: ${naPedida} un.` }) : null,
     naLista ? el("div", { class: "naLista num", text: `Na lista para criar: ${naLista.qtd} un.` }) : null,
+    vincular.has(x.n) ? el("div", { class: "aviso", text: `Sem vínculo com ${NOME_CURTO} no Rise: na lista para vincular (${vincular.get(x.n).sku})` }) : null,
     el("div", { class: "campo" }, [iQtd]),
     bAdd,
     naLista ? el("button", { type: "button", class: "ver", text: "Tirar da lista", disabled: x.enviando || !db, onclick: () => tirarDaLista(x) }) : null,

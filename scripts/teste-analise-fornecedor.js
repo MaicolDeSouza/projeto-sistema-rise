@@ -90,7 +90,8 @@ function abrirPagina(html, { claude = null, clipboard = null, store = {} } = {})
 const modelo = await lerModeloDaAnalise(new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1"));
 
 // --- 0. roteiro e montagem
-conferir("roteiro com versão, os 7 passos e o formato", [VERSAO_ROTEIRO_ANALISE, ["PASSO 1", "PASSO 2", "PASSO 3", "PASSO 4", "PASSO 5", "PASSO 6", "PASSO 7", "NUNCA"].every((p) => ROTEIRO_ANALISE.includes(p)), ESQUEMA_ANALISE.includes('"moeda": "USD"')], ["v1", true, true]);
+conferir("roteiro com versão, os 7 passos e o formato", [VERSAO_ROTEIRO_ANALISE, ["PASSO 1", "PASSO 2", "PASSO 3", "PASSO 4", "PASSO 5", "PASSO 6", "PASSO 7", "NUNCA"].every((p) => ROTEIRO_ANALISE.includes(p)), ESQUEMA_ANALISE.includes('"moeda": "USD"')], ["v2", true, true]);
+conferir("roteiro manda vincular o que entrou no pedido sem vínculo (lista vincular e o script)", ["semVinculoComOFornecedor", 'lista "vincular"', "scripts/analise-fornecedor-vincular.mjs"].map((t) => ROTEIRO_ANALISE.includes(t)), [true, true, true]);
 conferir("o modelo não tem nome de fornecedor fixo", /NexMind|PC-0027|ptax/i.test(modelo.replace(/\/\*[\s\S]*?\*\//g, "")), false);
 const usd = fixture("dados-usd.json");
 conferir("dados de exemplo em US$ passam", problemasDosDados(usd), []);
@@ -113,6 +114,8 @@ const produtos = {
   "100113": { sku: "100113", nome: "PLACA PRO MICRO", preco: 52.9, estoque: 8, custo: 30, urlRise: "/produtos/jkl", fornecedores: [{ nome: "Nightech", custo: 30, padrao: true }] },
   "190201": { sku: "190201", nome: "SENSOR A HOJE", preco: 21, estoque: 3, custo: 8, urlRise: "/produtos/xyz", fornecedores: [] },
 };
+// 100113 existe no Rise mas nao tem vinculo com o fornecedor da lista; 190201 tem.
+const semVinculoNoRise = new Set(["100113"]);
 const pedidoAtual = () => ({ codigo: "PC-0099", situacao: "RASCUNHO", situacaoTexto: "Rascunho", itens: itensNoPedido.map((i) => ({ ...i })), totais: { total: 1000 + itensNoPedido.length } });
 const mcp = {
   async callTool(server, tool, input) {
@@ -126,21 +129,28 @@ const mcp = {
     }
     if (tool === "montarPedidoDeCompra") {
       for (const it of input.itens) { const j = itensNoPedido.findIndex((i) => i.sku === it.sku); if (j >= 0) itensNoPedido[j].quantidade = it.quantidade; else itensNoPedido.push({ sku: it.sku, quantidade: it.quantidade }); }
-      return { payload: { criado: false, avisos: [], pedido: pedidoAtual() } };
+      // Como o Rise: cada item gravado volta com semVinculoComOFornecedor (o produto nao tem vinculo com o fornecedor).
+      const itensDestaVez = input.itens.map((it) => ({ sku: it.sku, quantidade: it.quantidade, acao: "novo", semVinculoComOFornecedor: semVinculoNoRise.has(it.sku) }));
+      return { payload: { criado: false, itensDestaVez, avisos: [], pedido: pedidoAtual() } };
     }
     throw { code: "not_in_manifest" };
   },
 };
-const bancoDocs = new Map([["criar/n7", { n: 7, nome: "Roda E", preco: 0.2, qtd: 12 }]]);
+const bancoDocs = new Map([
+  ["criar/n7", { n: 7, nome: "Roda E", preco: 0.2, qtd: 12 }],
+  ["vincular/n4", { n: 4, nome: "Item D", sku: "170402", fornecedor: "ZZ Fornecedor Dolar", precoUnitario: 5.5 }],
+]);
 const gravacoesDb = [];
 let falharDb = null;
-let ouvinteCriar = null;
-const entregar = () => ouvinteCriar?.({ docs: [...bancoDocs].filter(([p]) => p.startsWith("criar/")).map(([p, v]) => ({ id: p.split("/")[1], exists: true, data: () => v })) });
+// Um ouvinte por colecao ("criar" e "vincular"): cada um recebe so os documentos dela.
+const ouvintes = {};
+const entregar = (nome) => ouvintes[nome]?.({ docs: [...bancoDocs].filter(([p]) => p.startsWith(nome + "/")).map(([p, v]) => ({ id: p.split("/")[1], exists: true, data: () => v })) });
+const entregarTodas = () => { for (const nome of Object.keys(ouvintes)) entregar(nome); };
 const dbFalso = {
-  collection: () => ({ onSnapshot: (next) => { ouvinteCriar = next; setTimeout(entregar, 5); return () => {}; } }),
+  collection: (nome) => ({ onSnapshot: (next) => { ouvintes[nome] = next; setTimeout(() => entregar(nome), 5); return () => {}; } }),
   doc: (p) => ({
-    set: async (v) => { gravacoesDb.push(["set", p, v]); if (falharDb) { const e = falharDb; falharDb = null; throw e; } bancoDocs.set(p, v); setTimeout(entregar, 1); },
-    delete: async () => { gravacoesDb.push(["delete", p]); bancoDocs.delete(p); setTimeout(entregar, 1); },
+    set: async (v) => { gravacoesDb.push(["set", p, v]); if (falharDb) { const e = falharDb; falharDb = null; throw e; } bancoDocs.set(p, v); setTimeout(entregarTodas, 1); },
+    delete: async () => { gravacoesDb.push(["delete", p]); bancoDocs.delete(p); setTimeout(entregarTodas, 1); },
   }),
 };
 const copiados = [];
@@ -163,6 +173,7 @@ conferir("produto do Rise preenchido com a data dos dados", [p1.ids["sku-1"].val
 conferir("código sugerido avisa para conferir", p1.texto(2).includes("código sugerido pela análise"), true);
 conferir("sem Rise: Pôr na lista para criar, ligado com a quantidade guardada", [p1.botaoAdd(3).textContent, p1.botaoAdd(3).disabled, p1.ids["qtd-3"].value, p1.motivo(3)], ["Pôr na lista para criar", false, "7", "Vai para a lista de itens para criar no Rise, só com a sua permissão."]);
 conferir("lista criar carregada ao abrir", [p1.ids.pedidoLinha3.textContent.startsWith("Lista para criar no Rise: 1 item · R$ "), p1.texto(7).includes("Na lista para criar: 12 un."), p1.botaoAdd(7).textContent], [true, true, "Trocar quantidade da lista"]);
+conferir("lista vincular carregada ao abrir: cartão avisa e o cabeçalho conta", [p1.texto(4).includes("Sem vínculo com ZZ Dólar no Rise: na lista para vincular (170402)"), p1.ids.pedidoLinha3.textContent.endsWith("· Para vincular: 1 item")], [true, true]);
 p1.botaoAdd(3).dispatch("click");
 await espera();
 const set1 = gravacoesDb.filter((g) => g[0] === "set").pop();
@@ -234,6 +245,10 @@ p1.botaoAdd(3).dispatch("click");
 await espera();
 conferir("grava com o fornecedor do Rise, sku, quantidade e preço de 4 casas", chamadas.filter((c) => c[1] === "montarPedidoDeCompra").pop()[2], { fornecedor: "ZZ Fornecedor Dolar", itens: [{ sku: "100113", quantidade: 7, precoUnitario: 22, ipiPercentual: 0 }] });
 conferir("depois de gravar: cabeçalho, cartão e saiu da lista criar", [p1.ids.pedidoLinha2.textContent, p1.texto(3).includes("No PC-0099: 7 un."), bancoDocs.has("criar/n3")], ["Rascunho · 2 itens · R$ 1.002,00", true, false]);
+await espera();
+const vinc3 = gravacoesDb.find((g) => g[0] === "set" && g[1] === "vincular/n3");
+conferir("produto sem vínculo com o fornecedor: vai para a lista vincular com item, código e preço", [vinc3?.[2].n, vinc3?.[2].nome, vinc3?.[2].codigo, vinc3?.[2].sku, vinc3?.[2].fornecedor, vinc3?.[2].precoUnitario], [3, "Placa C sem Rise", null, "100113", "ZZ Fornecedor Dolar", 22]);
+conferir("sem vínculo: a mensagem avisa em âmbar e o cartão e o cabeçalho mostram", [p1.card(3).querySelector(".msg").className, p1.texto(3).includes("não tem vínculo com ZZ Dólar no Rise"), p1.texto(3).includes("na lista para vincular (100113)"), p1.ids.pedidoLinha3.textContent.endsWith("· Para vincular: 2 itens")], ["msg aviso", true, true, true]);
 const antes = chamadas.length;
 p1.digitar("sku-2", "100113");
 p1.digitar("qtd-2", "3");
@@ -251,6 +266,16 @@ falharProxima = { tool: "montarPedidoDeCompra", erro: { code: "approval_required
 p1.botaoAdd(1).dispatch("click");
 await espera();
 conferir("sem permissão: pede para permitir", p1.texto(1).includes("Clique de novo e escolha Permitir"), true);
+p1.botaoAdd(1).dispatch("click");
+await espera();
+conferir("produto com vínculo: grava sem aviso e não vai para a lista vincular", [p1.card(1).querySelector(".msg").className, gravacoesDb.some((g) => g[1] === "vincular/n1")], ["msg ok", false]);
+const vincularSemDb = abrirPagina(htmlUsd, { claude: { use: async (nome) => (nome === "mcp" ? mcp : null) } });
+await espera(60);
+vincularSemDb.digitar("qtd-3", "2");
+vincularSemDb.digitar("sku-3", "100113");
+vincularSemDb.botaoAdd(3).dispatch("click");
+await espera(80);
+conferir("sem a lista da página: o aviso manda pedir o vínculo na conversa", vincularSemDb.texto(3).includes("peça na conversa para vincular o item 3 ao 100113"), true);
 
 conferir("Copiar escolhas conta os itens com quantidade", p1.ids.bCopiar.textContent, "Copiar escolhas (4)");
 p1.ids.bCopiar.dispatch("click");
