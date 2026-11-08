@@ -2104,7 +2104,7 @@ try {
         conferir(
           "enviar: andamento do popup",
           [andamento.terminou, estado, /Fotos recusadas/.test(andamento.etapas.find((etapa) => etapa.id === "fotos").detalhe)],
-          [true, { permissao: "feito", ler: "feito", descricao: "feito", fotos: "falhou", pacote: "feito", preco: "feito", ficha: "feito", prazo: "feito" }, true],
+          [true, { permissao: "feito", ler: "feito", descricao: "feito", fotos: "falhou", pacote: "feito", precoDaLoja: "feito", preco: "feito", ficha: "feito", prazo: "feito" }, true],
         );
       }
 
@@ -3632,6 +3632,67 @@ try {
     conferir("lucro da loja: custo no formato do contexto ({ valor, origem })", lucroDaLojaDoRascunho(rascunho, [{ id: "p-fx", precoVenda: 45.9, custo: { valor: 25, origem: "cadastro" } }]), Math.round(lucro * 100) / 100);
     conferir("lucro da loja: kit = soma por peca x quantidade", lucroDaLojaDoRascunho({ ...rascunho, composicao: { itens: [{ produtoId: "p-fx", quantidade: 2 }, { produtoId: "p-2", quantidade: 3 }] } }, produtos), Math.round((lucro * 2 + lucroLiquido(10, 4) * 3) * 100) / 100);
     conferir("lucro da loja: peca sem custo ou produto sem preco = null", [lucroDaLojaDoRascunho({ ...rascunho, composicao: { itens: [{ produtoId: "p-3", quantidade: 1 }] } }, produtos), lucroDaLojaDoRascunho({ ...rascunho, produtoId: "p-3" }, produtos)], [null, null]);
+  }
+
+  {
+    console.log("\nPreco da loja mudou (o '!' do preco da loja, sem enviar nada sozinho)");
+    await limpar();
+    const { mudancasDoAnuncio, conteudoAtualDoAnuncio, NOMES_DAS_PARTES, PARTES_DO_ANUNCIO } = await import("../src/lib/canaisDeVenda/ml/acompanhar.js");
+    const { impressaoDoConteudo } = await import("../src/lib/canaisDeVenda/ml/impressao.js");
+    const { ETAPAS_DO_ENVIO_ML, PARTES_DO_ENVIO_ML } = await import("../src/lib/canaisDeVenda/ml/etapasDoEnvio.js");
+    const { publicarAnuncioML } = await import("../src/lib/canaisDeVenda/ml/publicar.js");
+    const { enviarMudancasML } = await import("../src/lib/canaisDeVenda/ml/atualizar.js");
+    const { criarMLFalso } = await import("./lib/mlFalso.js");
+    const { criarBlingFalso } = await import("./lib/blingFalso.js");
+    const { salvarPublicadoML } = await import("../src/lib/canaisDeVenda/ml/banco.js");
+
+    // Regra pura: a parte entra pela impressao, como o preco e a ficha; impressao sem a chave (anuncio de antes) nao acende.
+    const impressao = { descricao: "x", fotos: ["a.jpg"], pacote: { alturaCm: 2, larguraCm: 6, comprimentoCm: 7, pesoG: 50 }, preco: 49.9, ficha: [], prazo: 0, precoDaLoja: 45.9 };
+    const atualIgual = { ...impressao };
+    conferir("preco da loja: e uma parte do anuncio com nome", [PARTES_DO_ANUNCIO.includes("precoDaLoja"), NOMES_DAS_PARTES.precoDaLoja], [true, "preço da loja"]);
+    conferir("preco da loja mudou: acende so ela", mudancasDoAnuncio(impressao, { ...atualIgual, precoDaLoja: 49.9 }).partes, ["precoDaLoja"]);
+    conferir("preco da loja: impressao de antes (sem a chave) nao acende", mudancasDoAnuncio((({ precoDaLoja, ...resto }) => resto)(impressao), { ...atualIgual, precoDaLoja: 49.9 }).partes, []);
+    conferir("preco da loja igual: nada", mudancasDoAnuncio(impressao, atualIgual).partes, []);
+    conferir("etapa do envio: registrar o preco da loja antes do preco", [ETAPAS_DO_ENVIO_ML.find((etapa) => etapa.id === "precoDaLoja")?.rotulo, PARTES_DO_ENVIO_ML.indexOf("precoDaLoja") < PARTES_DO_ENVIO_ML.indexOf("preco")], ["Registrar o preço da loja", true]);
+
+    // O conteudo atual: o preco de venda do produto; kit = soma preco x quantidade; sem preco = null (o custo nao entra).
+    const produtos = { "p-a": { id: "p-a", precoVenda: 45.9, custo: { valor: 20 } }, "p-b": { id: "p-b", precoVenda: 10, custo: { valor: 4 } }, "p-c": { id: "p-c", precoVenda: null } };
+    conferir("conteudo atual: preco da loja do produto", conteudoAtualDoAnuncio({ produtoId: "p-a", preco: 49.9 }, produtos).precoDaLoja, 45.9);
+    conferir("conteudo atual: kit soma preco x quantidade", conteudoAtualDoAnuncio({ produtoId: "p-a", preco: 200, composicao: { itens: [{ produtoId: "p-a", quantidade: 2 }, { produtoId: "p-b", quantidade: 3 }] } }, produtos).precoDaLoja, 121.8);
+    conferir("conteudo atual: sem preco de venda (ou peca sem) = null", [conteudoAtualDoAnuncio({ produtoId: "p-c", preco: 49.9 }, produtos).precoDaLoja, conteudoAtualDoAnuncio({ produtoId: "p-a", preco: 200, composicao: { itens: [{ produtoId: "p-c", quantidade: 1 }] } }, produtos).precoDaLoja], [null, null]);
+    conferir("impressao leva o preco da loja", impressaoDoConteudo({ descricao: "x", precoDaLoja: 45.9 }).precoDaLoja, 45.9);
+    const custoMudou = impressaoDoConteudo(conteudoAtualDoAnuncio({ produtoId: "p-a", preco: 49.9 }, { "p-a": { ...produtos["p-a"], custo: { valor: 30 } } }));
+    conferir("custo que muda sozinho nao acende (decisao do dono)", mudancasDoAnuncio(impressaoDoConteudo(conteudoAtualDoAnuncio({ produtoId: "p-a", preco: 49.9 }, produtos)), custoMudou).partes, []);
+
+    // De verdade: anuncio ZZ-ML publicado contra o ML falso; o preco da loja muda, o Enviar so registra (nenhum PUT no ML).
+    const produto = await prisma.produto.create({
+      data: { sku: "ZZ-ML-PL", tituloBase: "ZZ PL", descricaoBase: "Descricao de ZZ PL", conferido: true, blingId: "1", pesoKg: 0.05, alturaCm: 2, larguraCm: 6, comprimentoCm: 7, estoque: 10, ncm: "8473.30.49", origem: 0, precoVenda: 45.9, custo: 20 },
+    });
+    await prisma.produtoArquivo.createMany({ data: ["a.jpg", "b.jpg"].map((arquivo, ordem) => ({ produtoId: produto.id, tipo: "IMAGEM", papel: "FOTO", arquivo: `ZZ-ML-PL-${arquivo}`, ordem, principal: ordem === 0 })) });
+    const { rascunho } = await novoRascunhoML(produto.id);
+    const salvo = await salvarRascunhoML(null, { ...rascunho, titulo: "PLACA ZZ PL", categoriaId: "MLB99779", preco: 49.9, estoque: 5, atributos: { BRAND: "ZZ", MODEL: "M1", EMPTY_GTIN_REASON: "O produto não tem código cadastrado", MICROCONTROLLER: "-1", INCLUDES_USB_CABLE: "-1", OPERATING_VOLTAGE: "-1" } });
+    if (!salvo.ok) throw new Error(`cenario: ${salvo.erro}`);
+    const ml = criarMLFalso();
+    const bling = criarBlingFalso({ produtos: [{ id: 501, codigo: "ZZ-ML-PL", nome: "ZZ PL", formato: "S", preco: 49 }] });
+    const lerFoto = async () => Buffer.from("jpg");
+    const publicado = await publicarAnuncioML(salvo.id, { ml, bling, lerFoto });
+    conferir("publicado: a impressao nasce com o preco da loja", [publicado.ok, (await carregarAnuncioML(salvo.id)).publicacao.enviado.precoDaLoja], [true, 45.9]);
+    conferir("publicado: sem mudancas nao escreve", await enviarMudancasML(salvo.id, { ml, lerFoto }), { ok: true, enviadas: [] });
+    await prisma.produto.update({ where: { id: produto.id }, data: { precoVenda: 52.9 } });
+    const inicio = ml.escritas.length;
+    const r = await enviarMudancasML(salvo.id, { ml, lerFoto });
+    conferir("preco da loja mudou: o Enviar so registra, nenhum PUT no ML", [r.ok, r.enviadas, ml.escritas.length - inicio, (await carregarAnuncioML(salvo.id)).publicacao.enviado.precoDaLoja], [true, ["precoDaLoja"], 0, 52.9]);
+    conferir("preco da loja: depois, nada mais mudou", await enviarMudancasML(salvo.id, { ml, lerFoto }), { ok: true, enviadas: [] });
+    // Anuncio publicado antes desta regra (impressao sem a chave): o primeiro Salvar grava a base de agora, e o "!" so acende pelo
+    // que mudar daqui em diante.
+    {
+      const dados = (await prisma.anuncio.findUnique({ where: { id: salvo.id }, select: { dados: true } })).dados;
+      const { precoDaLoja, ...semBase } = dados.publicacao.enviado;
+      await prisma.anuncio.update({ where: { id: salvo.id }, data: { dados: { ...dados, publicacao: { ...dados.publicacao, enviado: semBase } } } });
+      await prisma.produto.update({ where: { id: produto.id }, data: { precoVenda: 59.9 } });
+      conferir("anuncio de antes: sem base nao acende", (await enviarMudancasML(salvo.id, { ml, lerFoto })).enviadas, []);
+      conferir("anuncio de antes: o primeiro Salvar grava a base", [(await salvarPublicadoML(salvo.id, { preco: 49.9, atributos: {} })).ok, (await carregarAnuncioML(salvo.id)).publicacao.enviado.precoDaLoja], [true, 59.9]);
+    }
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.

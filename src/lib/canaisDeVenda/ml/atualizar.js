@@ -177,8 +177,10 @@ async function enviarUmaVez(anuncioId, { ml, lerFoto, progresso }) {
       }
       if (!resposta?.ok) return falhar(parte, textoDaRecusaML(resposta, "a ficha técnica"));
     }
+    // `precoDaLoja` (08/11/2026) nao tem ramo: o preco de venda da loja nao vai ao ML, so a base nova e registrada, para o
+    // "!" apagar depois que o dono refez (ou manteve) o preco do ML.
     await gravarParte(parte);
-    progresso.feita(parte, "enviado");
+    progresso.feita(parte, parte === "precoDaLoja" ? "registrado" : "enviado");
   }
   return { ok: true, enviadas };
 }

@@ -549,6 +549,7 @@ export default function EditorAnuncioML({
                 : {})}
               {...(id === "catalogo" ? { visivel: abaVisivel === "catalogo", idExterno: infoDoML.idExterno ?? null } : {})}
               {...(id === "ficha" ? { completarPelaDescricao: !bloqueado } : {})}
+              {...(id === "preco" ? { precoDaLojaEnviado: publicacao?.enviado?.precoDaLoja ?? null, mudancas } : {})}
             />
             </div>
           </Painel>

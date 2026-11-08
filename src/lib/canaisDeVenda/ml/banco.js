@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { urlDe } from "@/lib/arquivos";
 import { codigoDaComposicao, errosDaComposicao, estoqueDaComposicao, proximoCodigoDaFaixa } from "../composicao";
 import { custoDoProduto } from "../custo";
-import { conteudoAtualDoAnuncio, fichaDoAnuncio, mudancasDoAnuncio, prazoDoAnuncio, precoDoAnuncio } from "./acompanhar";
+import { conteudoAtualDoAnuncio, fichaDoAnuncio, mudancasDoAnuncio, prazoDoAnuncio, precoDaLojaDoAnuncio, precoDoAnuncio } from "./acompanhar";
 import { avisosDeVariosProdutos } from "./concorrentes";
 import { precisaAgirNoML, textoDoEstadoML } from "./estadoNoML";
 import { estadoDoIconeML, rotuloDoIconeML } from "./icone";
@@ -393,7 +393,8 @@ export async function salvarPublicadoML(anuncioId, entrada) {
     // As fotos do kit na impressao precisam dos nomes de arquivo (contexto dos produtos): lidos antes da trava.
     const linha = await prisma.anuncio.findUnique({ where: { id: anuncioId }, select: { dados: true, produtoId: true } });
     const idsDosProdutos = [linha?.produtoId, ...((linha?.dados?.composicao?.itens ?? []).map((item) => item.produtoId))].filter(Boolean);
-    const produtos = linha?.dados?.composicao ? await contextoDosProdutos(idsDosProdutos) : null;
+    // Desde 08/11/2026 o contexto vale tambem para o simples: a base do preco da loja le o preco de venda do produto.
+    const produtos = linha ? await contextoDosProdutos(idsDosProdutos) : null;
     return await prisma.$transaction(async (tx) => {
       const travado = await tx.$queryRaw`SELECT id FROM "Anuncio" WHERE id = ${anuncioId} FOR UPDATE`;
       if (travado.length === 0) return { ok: false, erro: "Anúncio não encontrado." };
@@ -412,6 +413,8 @@ export async function salvarPublicadoML(anuncioId, entrada) {
       if (!enviado || !Object.hasOwn(enviado, "ficha")) base.ficha = fichaDoAnuncio(anterior);
       if (!enviado || !Object.hasOwn(enviado, "prazo")) base.prazo = prazoDoAnuncio(anterior);
       if (kit && produtos && (!enviado || enviado.fotos === null || enviado.fotos === undefined)) base.fotos = conteudoAtualDoAnuncio(anterior, produtos).fotos;
+      // O preco da loja (08/11/2026): o anuncio publicado antes da regra ganha a base de agora no primeiro Salvar.
+      if (produtos && (!enviado || !Object.hasOwn(enviado, "precoDaLoja"))) base.precoDaLoja = precoDaLojaDoAnuncio(anterior, produtos);
       const novaPublicacao = Object.keys(base).length > 0 ? { ...publicacao, enviado: { ...(enviado ?? {}), ...base } } : publicacao;
 
       const novosDados = { ...dados, preco, publicacao: novaPublicacao };

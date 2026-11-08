@@ -17,7 +17,9 @@ import { medidasFaltando } from "./validacao";
 // As do produto primeiro (a ordem do envio): o preco e a ficha so mudam no proprio anuncio.
 export const PARTES_DO_PRODUTO = ["descricao", "fotos", "pacote"];
 // O prazo de disponibilidade (28/10/2026) tambem e do proprio anuncio: vai nos termos de venda (sale_terms).
-export const PARTES_DO_ANUNCIO = ["preco", "ficha", "prazo"];
+// O preco da loja (08/11/2026, definicao 2 do dono): o "!" acende quando o preco de venda do produto muda, para o dono refazer
+// o preco do ML pelo lucro da loja; nada vai ao ML sozinho (o Enviar so registra a base nova). O custo que muda nao acende.
+export const PARTES_DO_ANUNCIO = ["preco", "ficha", "prazo", "precoDaLoja"];
 export const PARTES = [...PARTES_DO_PRODUTO, ...PARTES_DO_ANUNCIO];
 
 const ehKit = (rascunho) => Array.isArray(rascunho?.composicao?.itens) && rascunho.composicao.itens.length > 0;
@@ -45,6 +47,22 @@ export function prazoDoAnuncio(rascunho) {
 /** O preco do anuncio para a impressao: vazio ou zero = sem preco. */
 export function precoDoAnuncio(rascunho) {
   return Number(rascunho?.preco) > 0 ? Number(rascunho.preco) : null;
+}
+
+/**
+ * O preco de venda do produto na loja (a base do preco do ML pelo lucro da loja): kit = a soma de preco x quantidade das
+ * pecas. `null` sem preco (ou com uma peca sem preco): a parte fica de fora em vez de acender o "!".
+ */
+export function precoDaLojaDoAnuncio(rascunho, produtosPorId) {
+  const precoDe = (id) => Number(produtosPorId?.[id]?.precoVenda);
+  if (!ehKit(rascunho)) return precoDe(rascunho?.produtoId) > 0 ? precoDe(rascunho.produtoId) : null;
+  let soma = 0;
+  for (const item of rascunho.composicao.itens) {
+    const quantidade = Number(item?.quantidade);
+    if (!(precoDe(item?.produtoId) > 0) || !(quantidade > 0)) return null;
+    soma += precoDe(item.produtoId) * quantidade;
+  }
+  return Math.round(soma * 100) / 100;
 }
 
 /** A ficha como vai ao ML, em ordem de id (a ordem nao muda nada la e nao pode acender o "!"). */
@@ -82,6 +100,7 @@ export function conteudoAtualDoAnuncio(rascunho, produtosPorId) {
     preco: precoDoAnuncio(rascunho),
     ficha: rascunho ? fichaDoAnuncio(rascunho) : null,
     prazo: prazoDoAnuncio(rascunho),
+    precoDaLoja: precoDaLojaDoAnuncio(rascunho, produtosPorId),
     kit,
   };
 }
@@ -128,7 +147,7 @@ export function mudancasDoAnuncio(enviado, atual) {
 }
 
 /** Nomes das partes para a tela ("descrição, fotos e peso e medidas"). */
-export const NOMES_DAS_PARTES = { descricao: "descrição", fotos: "fotos", pacote: "peso e medidas", preco: "preço", ficha: "ficha técnica", prazo: "prazo de disponibilidade" };
+export const NOMES_DAS_PARTES = { descricao: "descrição", fotos: "fotos", pacote: "peso e medidas", preco: "preço", ficha: "ficha técnica", prazo: "prazo de disponibilidade", precoDaLoja: "preço da loja" };
 
 /** "descrição", "descrição e fotos", "descrição, fotos e peso e medidas". */
 export function textoDasPartes(partes) {

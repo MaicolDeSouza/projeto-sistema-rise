@@ -7,5 +7,14 @@ import { createHash } from "node:crypto";
  */
 export function impressaoDoConteudo(conteudo) {
   const descricao = typeof conteudo?.descricao === "string" ? createHash("md5").update(conteudo.descricao).digest("hex") : null;
-  return { descricao, fotos: conteudo?.fotos ?? null, pacote: conteudo?.pacote ?? null, preco: conteudo?.preco ?? null, ficha: conteudo?.ficha ?? null, prazo: conteudo?.prazo ?? null };
+  return {
+    descricao,
+    fotos: conteudo?.fotos ?? null,
+    pacote: conteudo?.pacote ?? null,
+    preco: conteudo?.preco ?? null,
+    ficha: conteudo?.ficha ?? null,
+    prazo: conteudo?.prazo ?? null,
+    // A base do preco do ML (08/11/2026): o preco de venda da loja quando o anuncio foi publicado ou registrado pela ultima vez.
+    precoDaLoja: conteudo?.precoDaLoja ?? null,
+  };
 }

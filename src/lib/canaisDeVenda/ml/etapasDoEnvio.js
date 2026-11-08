@@ -10,6 +10,8 @@ export const ETAPAS_DO_ENVIO_ML = [
   { id: "descricao", rotulo: "Enviar a descrição" },
   { id: "fotos", rotulo: "Enviar as fotos" },
   { id: "pacote", rotulo: "Enviar peso e medidas" },
+  // O preco da loja (08/11/2026) nao vai ao ML: a etapa so registra a base nova, para o "!" apagar.
+  { id: "precoDaLoja", rotulo: "Registrar o preço da loja" },
   { id: "preco", rotulo: "Enviar o preço" },
   { id: "ficha", rotulo: "Enviar a ficha técnica" },
   { id: "prazo", rotulo: "Enviar o prazo de disponibilidade" },
@@ -17,4 +19,4 @@ export const ETAPAS_DO_ENVIO_ML = [
 ];
 
 /** As partes que o envio manda, na ordem das etapas. */
-export const PARTES_DO_ENVIO_ML = ["descricao", "fotos", "pacote", "preco", "ficha", "prazo"];
+export const PARTES_DO_ENVIO_ML = ["descricao", "fotos", "pacote", "precoDaLoja", "preco", "ficha", "prazo"];

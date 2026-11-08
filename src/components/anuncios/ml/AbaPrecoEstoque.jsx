@@ -91,7 +91,7 @@ function MargemDoPreco({ preco, custo, conta, mensagemSemCusto }) {
  */
 const MOEDA_DA_PROPOSTA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
-export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContexto, problemas, acessos = { custos: true, concorrentes: true } }) {
+export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContexto, problemas, acessos = { custos: true, concorrentes: true }, precoDaLojaEnviado = null, mudancas = null }) {
   // Texto do preco como foi digitado (ver `numeros.js`); `null` = nada digitado, mostra o numero.
   const [precoDigitado, setPrecoDigitado] = useState(null);
   // O selo "Nº de M no ML" ao lado do preco saiu em 26/10/2026 (pedido do dono, opcao 2): a posicao fica so na aba Catalogo.
@@ -103,6 +103,8 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
   const itens = Array.isArray(rascunho.composicao?.itens) ? rascunho.composicao.itens : [];
   const custo = custoDoAnuncio(rascunho, itens, contexto.produtos);
   const somaAvulsa = emKit ? somaDosPrecosAvulsos(itens, contexto.produtos) : null;
+  // O preco de venda da loja de agora (kit: a soma das pecas), a base do "Preco pelo lucro da loja" e do "!" do preco da loja.
+  const precoDaLojaAtual = emKit ? (somaAvulsa ?? 0) : Number(contexto.produtos?.[rascunho.produtoId]?.precoVenda ?? 0);
   const unidadesDoKit = itens.reduce((soma, item) => soma + (Number.isInteger(Number(item.quantidade)) && Number(item.quantidade) > 0 ? Number(item.quantidade) : 0), 0);
   // A conta com as taxas do ML serve a margem embaixo do preco e aos Custos totais: feita uma vez aqui.
   const conta =
@@ -246,18 +248,28 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
             </dl>
           )}
           {acessos.custos && (
-            <BotaoPrecoPeloLucroDaLoja
-              rascunho={rascunho}
-              custo={custo}
-              temPrecoDaLoja={emKit ? somaAvulsa !== null : Number(contexto.produtos?.[rascunho.produtoId]?.precoVenda) > 0}
-              aplicar={(resposta) => {
-                if (alvo !== null) setContexto((atual) => ({ ...atual, markupAlvo: null }));
-                setContexto((atual) => ({ ...atual, custosML: resposta.custosML ?? atual.custosML }));
-                const mudancas = { preco: resposta.preco };
-                if (resposta.freteGratis && !rascunho.envio?.freteGratis) mudancas.envio = { ...rascunho.envio, freteGratis: true };
-                alterar(mudancas);
-              }}
-            />
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              {/* O "!" do preco da loja (08/11/2026, definicao 2 do dono): o preco de venda do produto mudou depois do ultimo registro;
+                  uma linha ambar ao lado do MESMO botao, que refaz o preco do ML pelo lucro novo. Nada vai ao ML sozinho. */}
+              {mudancas?.partes?.includes("precoDaLoja") && (
+                <p className="text-[11px] text-amber-800 tabular-nums">
+                  Preço da loja mudou{precoDaLojaEnviado > 0 ? ` de ${MOEDA.format(precoDaLojaEnviado)}` : ""}
+                  {precoDaLojaAtual > 0 ? ` para ${MOEDA.format(precoDaLojaAtual)}` : ""}.
+                </p>
+              )}
+              <BotaoPrecoPeloLucroDaLoja
+                rascunho={rascunho}
+                custo={custo}
+                temPrecoDaLoja={precoDaLojaAtual > 0}
+                aplicar={(resposta) => {
+                  if (alvo !== null) setContexto((atual) => ({ ...atual, markupAlvo: null }));
+                  setContexto((atual) => ({ ...atual, custosML: resposta.custosML ?? atual.custosML }));
+                  const alteracoes = { preco: resposta.preco };
+                  if (resposta.freteGratis && !rascunho.envio?.freteGratis) alteracoes.envio = { ...rascunho.envio, freteGratis: true };
+                  alterar(alteracoes);
+                }}
+              />
+            </div>
           )}
         </Campo>
 
