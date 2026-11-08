@@ -34,7 +34,8 @@ import {
 } from "@/lib/canaisDeVenda/ml/concorrentes";
 import { LIMITES_ML, RascunhoMLSchema } from "@/lib/canaisDeVenda/ml/esquema";
 import { preencherFicha, sugerirCategoria, sugerirTitulos } from "@/lib/canaisDeVenda/ml/inteligencia";
-import { lucroDaLojaDoRascunho, varianteDoRascunho } from "@/lib/canaisDeVenda/ml/faixas";
+import { lucroDaLojaDoRascunho, VARIANTES, varianteDoRascunho, variantesDoProduto } from "@/lib/canaisDeVenda/ml/faixas";
+import { clonarVarianteML } from "@/lib/canaisDeVenda/ml/variantes";
 import { lerCategoria, lerCategoriaCompleta, lerCustosDoAnuncio, precoPelaFaixaNoML, precoPorMargemNoML, textoDoErroML } from "@/lib/canaisDeVenda/ml/leitura";
 import {
   anunciosMLDoProduto,
@@ -135,6 +136,17 @@ export async function clonarAnuncioML(id) {
 }
 
 /**
+ * A variante que falta (08/11/2026): um clone do anuncio `id` com o tipo e o frete da variante e o preco pelo lucro da loja.
+ * Nada e gravado; o mesmo retorno do Clonar, mais `aviso` quando o preco nao pode ser calculado.
+ */
+export async function criarVarianteMLAcao(id, variante) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"]);
+  if (negado) return negado;
+  if (!ehId(id) || !VARIANTES.includes(variante)) return PEDIDO_INVALIDO;
+  return protegendo(async () => comAcessosDoEditor(await clonarVarianteML(id, variante, { ml: await clienteML() })));
+}
+
+/**
  * Os anuncios ML do produto, com o que a janela da lista precisa saber dele: se ainda e
  * Conferido (so Conferido vira anuncio) e o nome para o titulo da janela.
  */
@@ -148,12 +160,13 @@ export async function listarAnunciosDoProdutoML(produtoId) {
     // `hasOwn` porque o id vem do navegador: "constructor" acharia a funcao do objeto, nao um produto.
     if (!Object.hasOwn(produtos, produtoId)) return { ok: false, erro: "Produto não encontrado. Ele pode ter sido excluído." };
 
-    const { id, sku, tituloBase, conferido } = produtos[produtoId];
+    const { id, sku, tituloBase, conferido, precoVenda } = produtos[produtoId];
     // Os avisos de concorrencia so com o dado Concorrentes; sem editar, a janela nao oferece anuncio novo.
     const { pode } = await sessaoDeAcessos();
     const acessos = acessosDoEditorML(pode);
     const linhas = acessos.concorrentes ? anuncios : anuncios.map((anuncio) => ({ ...anuncio, avisosML: [] }));
-    return { ok: true, produto: { id, sku, tituloBase, conferido }, anuncios: linhas, acessos };
+    // As variantes pelas faixas (08/11/2026): o que o produto deve ter no ML pelo preco da loja, e o que ainda falta.
+    return { ok: true, produto: { id, sku, tituloBase, conferido }, anuncios: linhas, acessos, variantes: variantesDoProduto({ precoVenda, anuncios }) };
   });
 }
 

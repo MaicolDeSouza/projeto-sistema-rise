@@ -44,6 +44,7 @@ const ABAS_PRONTAS = {
 const CLASSE_DA_MENSAGEM = {
   erro: "border-red-200 bg-red-50 text-red-800",
   ok: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  aviso: "border-amber-200 bg-amber-50 text-amber-800",
 };
 
 /// Os botoes do rodape (abrir no painel, no ML, clonar): o mesmo desenho dos "Abrir no painel da LI" e "Abrir no site".
@@ -110,6 +111,8 @@ export default function EditorAnuncioML({
   extraNoRodape = null,
   // Depois de excluir ou encerrar (28/10/2026): a janela da lista recarrega os anuncios do produto; sem ele, fecha.
   aoExcluido,
+  // Aviso ja na abertura (08/11/2026, a variante criada sem categoria ou sem custo): `{ tipo, texto }`, como os da tela.
+  mensagemInicial = null,
 }) {
   const [excluindo, setExcluindo] = useState(false);
   const [rascunho, setRascunho] = useState(rascunhoInicial);
@@ -118,7 +121,7 @@ export default function EditorAnuncioML({
   const [aba, setAba] = useState(() =>
     divergenciasDoAnuncioML({ publicado: status === "PUBLICADO", publicacao: publicacaoInicial?.publicacao, mudancas: publicacaoInicial?.mudancas }).length > 0 ? "divergencias" : ABAS_ML[0].id,
   );
-  const [mensagem, setMensagem] = useState(null);
+  const [mensagem, setMensagem] = useState(mensagemInicial);
   // `null` e "anuncio novo"; as acoes recusam `undefined` (prop esquecida) como "Pedido invalido.".
   const [idAtual, setIdAtual] = useState(anuncioId ?? null);
   // O que foi salvo por ultimo. "Alterado" e o rascunho ser outro objeto: assim, o dono que

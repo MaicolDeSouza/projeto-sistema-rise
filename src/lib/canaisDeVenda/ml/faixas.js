@@ -138,6 +138,24 @@ async function resolver({ pedido, custo, freteDaVariante, taxas, frete }) {
   return { preco: dinheiro(preco), forcado };
 }
 
+/**
+ * As variantes que o produto deve ter, tem e ainda faltam, pelas linhas de `anunciosMLDoProduto` (`tipoAnuncio`, `preco`,
+ * `freteGratis`, `situacaoCanal`, `codigo`, `sku`). A faixa sai do preco de venda da LOJA (sem chamar o ML; perto de R$ 72 pode
+ * diferir em centavos do preco exato pelo lucro, aceito). So o anuncio do proprio produto (nao o kit: `codigo === sku`) e
+ * nao encerrado conta; rascunho conta (vai virar anuncio). Premium nunca cobre o Classico.
+ */
+export function variantesDoProduto({ precoVenda, anuncios }) {
+  const esperadas = variantesEsperadas(precoVenda);
+  const existentes = [];
+  for (const anuncio of anuncios ?? []) {
+    if (!anuncio || anuncio.situacaoCanal === "ENCERRADA") continue;
+    if (String(anuncio.codigo ?? "") !== String(anuncio.sku ?? "")) continue;
+    const variante = varianteDoRascunho({ tipoAnuncio: anuncio.tipoAnuncio, envio: { freteGratis: anuncio.freteGratis }, preco: anuncio.preco });
+    if (!existentes.includes(variante)) existentes.push(variante);
+  }
+  return { esperadas, existentes, faltam: esperadas.filter((variante) => !existentes.includes(variante)) };
+}
+
 /** Lucro de uma unidade do kit (6.8 da spec): lucro do anuncio dividido pelas unidades. `null` sem lucro ou sem unidades. */
 export function lucroPorUnidade(lucro, unidades) {
   if (lucro === null || lucro === undefined || !Number.isFinite(Number(lucro)) || !(Number(unidades) > 0)) return null;

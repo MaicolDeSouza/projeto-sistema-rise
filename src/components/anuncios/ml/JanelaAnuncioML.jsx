@@ -9,8 +9,10 @@ import {
   abrirAnuncioML,
   abrirNovoAnuncioML,
   clonarAnuncioML,
+  criarVarianteMLAcao,
   listarAnunciosDoProdutoML,
 } from "@/app/canais-de-venda/mercado-livre/acoes";
+import { NOME_DA_VARIANTE } from "@/lib/canaisDeVenda/ml/faixas";
 import BotaoNaoAnunciar from "@/components/anuncios/BotaoNaoAnunciar";
 import Badge from "@/components/ui/Badge";
 import { ROTULO_DO_TIPO_ML, seloDoAnuncioML } from "@/lib/canaisDeVenda/ml/rotulos";
@@ -98,6 +100,8 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
   // Os acessos do editor (Acessos): sem editar nao ha anuncio novo, e o editor abre so para leitura.
   const [acessos, setAcessos] = useState(null);
   const [anuncios, setAnuncios] = useState([]);
+  // As variantes pelas faixas (08/11/2026): `{ esperadas, existentes, faltam }` do produto, lidas com a lista.
+  const [variantes, setVariantes] = useState(null);
   const [editor, setEditor] = useState(null);
   const [aviso, setAviso] = useState(null);
   const [erro, setErro] = useState(null);
@@ -123,6 +127,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
       setProduto(resultado.produto);
       setAcessos(resultado.acessos ?? null);
       setAnuncios(resultado.anuncios);
+      setVariantes(resultado.variantes ?? null);
       setAviso(nota ?? null);
       setFase(resultado.produto.conferido ? "lista" : "naoConferido");
       return resultado;
@@ -170,6 +175,31 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
       contexto: resultado.contexto,
       acessos: resultado.acessos,
       origem: resultado.origem,
+    });
+    setFase("editor");
+  }, []);
+
+  // Criar a variante que falta (08/11/2026): o clone do anuncio existente com o tipo e o frete da variante e o preco pelo
+  // lucro da loja, aberto como o Clonar; nada e gravado ate o Salvar. O aviso (sem categoria, sem custo) vai para a lista.
+  const criarVariante = useCallback(async (id, variante) => {
+    setFase("carregando");
+    const resultado = await chamar((argumentos) => criarVarianteMLAcao(...argumentos), [id, variante]);
+    if (!montada.current) return;
+    if (!resultado.ok) {
+      setAviso({ tipo: "erro", texto: resultado.erro });
+      setFase("lista");
+      return;
+    }
+    abertura.current += 1;
+    setEditor({
+      chave: `variante-${id}-${variante}-${abertura.current}`,
+      anuncioId: null,
+      status: undefined,
+      rascunho: resultado.rascunho,
+      contexto: resultado.contexto,
+      acessos: resultado.acessos,
+      origem: resultado.origem,
+      avisoInicial: resultado.aviso ?? null,
     });
     setFase("editor");
   }, []);
@@ -260,6 +290,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
         publicacaoInicial={editor.publicacaoInicial ?? null}
         acessos={editor.acessos}
         origem={editor.origem ?? null}
+        mensagemInicial={editor.avisoInicial ? { tipo: "aviso", texto: editor.avisoInicial } : null}
         modo="janela"
         aoSalvar={aoSalvar}
         aoFechar={aoFechar}
@@ -268,6 +299,9 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
       />
     );
   }
+
+  // O anuncio de onde a variante que falta e clonada: o do proprio produto (nao o kit) e nao encerrado, senao o primeiro.
+  const origemDaVariante = anuncios.find((anuncio) => anuncio.codigo === anuncio.sku && anuncio.situacaoCanal !== "ENCERRADA") ?? anuncios[0] ?? null;
 
   return (
     <Moldura produto={produto} aoFechar={aoFechar} rodape={fase === "lista" || fase === "naoConferido" ? botaoNaoAnunciar : null}>
@@ -360,6 +394,27 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
                 );
               })}
             </ul>
+          )}
+
+          {/* As variantes que faltam pelas faixas (08/11/2026): com um anuncio do produto, "Criar" abre o clone dele na variante,
+              com o preco pelo lucro da loja. Sem anuncio, o "Novo anúncio" ja cobre. Nada e gravado ate o Salvar. */}
+          {acessos?.editar !== false && origemDaVariante && (variantes?.faltam?.length ?? 0) > 0 && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-suave">
+              <span>Faltam:</span>
+              {variantes.faltam.map((variante) => (
+                <span key={variante} className="inline-flex items-center gap-1.5">
+                  {NOME_DA_VARIANTE[variante] ?? variante}
+                  <button
+                    type="button"
+                    onClick={() => criarVariante(origemDaVariante.id, variante)}
+                    title={`Cria o anúncio ${NOME_DA_VARIANTE[variante] ?? variante} a partir de ${origemDaVariante.codigo}, com o preço pelo lucro da loja`}
+                    className="rounded border border-borda px-2 py-0.5 text-acento transition-[background-color,transform] duration-150 ease-out hover:bg-fundo active:scale-[0.98]"
+                  >
+                    Criar
+                  </button>
+                </span>
+              ))}
+            </div>
           )}
 
           {acessos?.editar !== false && (

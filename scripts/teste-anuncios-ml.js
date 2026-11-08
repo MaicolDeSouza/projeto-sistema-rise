@@ -868,7 +868,7 @@ try {
         const lista = await listarAnunciosML({ busca: "zz-ml" });
         conferir("lista traz os anuncios de teste", lista.total >= 6, true);
         conferir("lista: acha pelo SKU sem diferenciar caixa, so do Mercado Livre", [lista.total, lista.linhas.length, lista.pagina, lista.totalPaginas], [totalDeTeste, totalDeTeste, 1, 1]);
-        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["aguardandoEstoque", "atualizadoEm", "avisosML", "codigo", "estadoML", "estadoMLPedeAcao", "estoque", "fotoUrl", "icone", "id", "idExterno", "linkDoAnuncio", "linkDoPainel", "preco", "produtoId", "rankingML", "situacaoCanal", "status", "tipoAnuncio", "titulo", "urlExterna"]);
+        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["aguardandoEstoque", "atualizadoEm", "avisosML", "codigo", "estadoML", "estadoMLPedeAcao", "estoque", "fotoUrl", "freteGratis", "icone", "id", "idExterno", "linkDoAnuncio", "linkDoPainel", "preco", "produtoId", "rankingML", "situacaoCanal", "sku", "status", "tipoAnuncio", "titulo", "urlExterna"]);
         // As colunas que ordenam (28/10/2026): no servidor, antes de paginar; o vazio vai para o fim nas duas direcoes.
         const porPreco = (direcao) => listarAnunciosML({ busca: "zz-ml", ordenar: "preco", direcao }).then((r) => r.linhas.map((l) => l.preco));
         const [subindo, descendo] = [await porPreco("asc"), await porPreco("desc")];
@@ -3693,6 +3693,41 @@ try {
       conferir("anuncio de antes: sem base nao acende", (await enviarMudancasML(salvo.id, { ml, lerFoto })).enviadas, []);
       conferir("anuncio de antes: o primeiro Salvar grava a base", [(await salvarPublicadoML(salvo.id, { preco: 49.9, atributos: {} })).ok, (await carregarAnuncioML(salvo.id)).publicacao.enviado.precoDaLoja], [true, 59.9]);
     }
+  }
+
+  {
+    console.log("\nVariantes do produto (o que falta pelas faixas)");
+    await limpar();
+    const { variantesDoProduto } = await import("../src/lib/canaisDeVenda/ml/faixas.js");
+    const { clonarVarianteML } = await import("../src/lib/canaisDeVenda/ml/variantes.js");
+    const { criarMLFalso } = await import("./lib/mlFalso.js");
+    const linha = (extra) => ({ codigo: "A", sku: "A", tipoAnuncio: "gold_special", freteGratis: false, preco: 45.99, status: "PUBLICADO", situacaoCanal: "ATIVA", ...extra });
+    conferir("abaixo de 72 com so o sem frete: falta o com frete gratis", variantesDoProduto({ precoVenda: 45.9, anuncios: [linha()] }), { esperadas: ["classico_sem_frete", "classico_frete_gratis"], existentes: ["classico_sem_frete"], faltam: ["classico_frete_gratis"] });
+    conferir("com os dois: nada falta", variantesDoProduto({ precoVenda: 45.9, anuncios: [linha(), linha({ freteGratis: true, preco: 53.49 })] }).faltam, []);
+    conferir("a partir de 79: so o com frete gratis, e o preco >= 79 conta como ele", variantesDoProduto({ precoVenda: 89.9, anuncios: [linha({ preco: 89.99 })] }), { esperadas: ["classico_frete_gratis"], existentes: ["classico_frete_gratis"], faltam: [] });
+    conferir("kit na lista e anuncio encerrado nao contam", variantesDoProduto({ precoVenda: 45.9, anuncios: [linha({ codigo: "A_10" }), linha({ freteGratis: true, situacaoCanal: "ENCERRADA" })] }), { esperadas: ["classico_sem_frete", "classico_frete_gratis"], existentes: [], faltam: ["classico_sem_frete", "classico_frete_gratis"] });
+    conferir("rascunho conta como existente (vai virar anuncio)", variantesDoProduto({ precoVenda: 45.9, anuncios: [linha({ status: "RASCUNHO", situacaoCanal: null })] }).existentes, ["classico_sem_frete"]);
+    conferir("sem preco de venda: nada esperado", variantesDoProduto({ precoVenda: null, anuncios: [linha()] }), { esperadas: [], existentes: ["classico_sem_frete"], faltam: [] });
+    conferir("premium existente nao cobre o classico", variantesDoProduto({ precoVenda: 45.9, anuncios: [linha({ tipoAnuncio: "gold_pro" })] }).faltam, ["classico_sem_frete", "classico_frete_gratis"]);
+
+    // A linha do anuncio traz o frete gratis e o SKU do produto base (o kit tem outro codigo).
+    const produto = await prisma.produto.create({ data: { sku: "ZZ-ML-VA", tituloBase: "ZZ VA", descricaoBase: "Descricao", conferido: true, blingId: "1", pesoKg: 0.05, alturaCm: 2, larguraCm: 6, comprimentoCm: 7, estoque: 10, precoVenda: 45.9, custo: 20 } });
+    const { rascunho } = await novoRascunhoML(produto.id);
+    const salvo = await salvarRascunhoML(null, { ...rascunho, titulo: "PLACA ZZ VA", categoriaId: "MLB99779", preco: 45.99, estoque: 5, envio: { ...rascunho.envio, freteGratis: false } });
+    if (!salvo.ok) throw new Error(`cenario: ${salvo.erro}`);
+    const linhas = await anunciosMLDoProduto(produto.id);
+    conferir("linha do anuncio: freteGratis e sku", [linhas[0].freteGratis, linhas[0].sku, linhas[0].codigo], [false, "ZZ-ML-VA", "ZZ-ML-VA"]);
+    conferir("variantes pelas linhas de verdade: falta o com frete gratis", variantesDoProduto({ precoVenda: 45.9, anuncios: linhas }).faltam, ["classico_frete_gratis"]);
+
+    // Criar a variante: um clone (nada gravado) com o frete gratis ligado e o preco pelo lucro da loja; sem categoria, o preco
+    // fica o do clone e o aviso diz.
+    const ml = criarMLFalso();
+    const clone = await clonarVarianteML(salvo.id, "classico_frete_gratis", { ml });
+    conferir("clonar variante: frete gratis ligado, preco acima do original, nada gravado", [clone.ok, clone.rascunho.envio.freteGratis, clone.rascunho.tipoAnuncio, clone.rascunho.preco > 45.99, clone.aviso ?? null, await prisma.anuncio.count({ where: { produtoId: produto.id } })], [true, true, "gold_special", true, null, 1]);
+    conferir("clonar variante: variante invalida recusa", (await clonarVarianteML(salvo.id, "xyz", { ml })).ok, false);
+    await prisma.anuncio.update({ where: { id: salvo.id }, data: { categoriaExternaId: null } });
+    const semCategoria = await clonarVarianteML(salvo.id, "classico_frete_gratis", { ml });
+    conferir("clonar variante sem categoria: preco do clone e aviso", [semCategoria.ok, semCategoria.rascunho.preco, /categoria/i.test(String(semCategoria.aviso))], [true, 45.99, true]);
   }
 
   // Blocos das tarefas seguintes entram aqui, antes do finally.

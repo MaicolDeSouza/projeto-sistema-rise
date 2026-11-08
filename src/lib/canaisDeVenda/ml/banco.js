@@ -596,6 +596,9 @@ function linhaDoAnuncio(anuncio) {
     id: anuncio.id,
     produtoId: anuncio.produtoId,
     codigo: anuncio.dados?.composicao?.codigo || anuncio.produto.sku,
+    // O SKU do produto base e o frete gratis (08/11/2026): `variantesDoProduto` separa o kit (codigo != sku) e le a variante.
+    sku: anuncio.produto.sku,
+    freteGratis: Boolean(anuncio.dados?.envio?.freteGratis),
     titulo: anuncio.titulo ?? "",
     tipoAnuncio: anuncio.dados?.tipoAnuncio ?? null,
     preco: anuncio.dados?.preco ?? null,
