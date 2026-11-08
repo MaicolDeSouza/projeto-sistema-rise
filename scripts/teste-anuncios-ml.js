@@ -3154,6 +3154,13 @@ try {
     const comPiso = await gravarPropostaML(ml(), "ZZ-ML-PA9", { categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] });
     const anuncioComPiso = await prisma.anuncio.findUnique({ where: { id: comPiso.anuncioId } });
     conferir("variante: entre 72 e 79 o rascunho sobe para R$ 79 com frete gratis e avisa", [comPiso.preco.valor, comPiso.preco.variante, anuncioComPiso.dados.preco, anuncioComPiso.dados.envio.freteGratis, anuncioComPiso.dados.tipoAnuncio, comPiso.avisos.some((aviso) => /R\$ 79/.test(aviso.replace(/ /g, " ")))], [79, "classico_frete_gratis", 79, true, "gold_special", true]);
+    // A conta ja tem anuncio do codigo fora do Rise: a proposta avisa (com o MLB) e devolve a lista, para o dono reaproveitar
+    // em vez de publicar outro igual.
+    await criarPronto("ZZ-ML-PA10");
+    const naConta = { id: "MLB5550001", title: "Placa antiga", price: 39.9, listing_type_id: "gold_special", shipping: { free_shipping: false }, sold_quantity: 3, status: "active", seller_custom_field: "ZZ-ML-PA10", permalink: "https://produto.mercadolivre.com.br/MLB-5550001", category_id: "MLB99779" };
+    const comAntigo = await gravarPropostaML(ml({ meusItens: { "ZZ-ML-PA10": [naConta] } }), "ZZ-ML-PA10", { categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] });
+    conferir("proposta: a conta ja tem anuncio do codigo fora do Rise, avisa com o MLB e devolve a lista", [comAntigo.avisos.some((aviso) => /MLB5550001/.test(aviso) && /Reaproveit/i.test(aviso)), comAntigo.anunciosNaConta?.map((c) => c.id)], [true, ["MLB5550001"]]);
+    conferir("proposta: sem anuncio na conta, nada a avisar", [gravada.avisos.some((aviso) => /fora do Rise/.test(aviso)), gravada.anunciosNaConta], [false, []]);
     conferir("titulo: o da LLM é ignorado e avisado, sem marca de proposta no campo", [gravada.titulo, gravada.avisos.some((a) => /título enviado foi ignorado/.test(a)), gravada.campos.includes("titulo")], ["PLACA UNO R3 CH340 ZZ", true, false]);
     conferir("GTIN e o motivo mandados pela LLM ficam fora", [anuncio.atributos.GTIN ?? null, anuncio.atributos.EMPTY_GTIN_REASON ?? null], [null, null]);
     conferir("catálogos: só os de 5 ou mais anúncios, o de 4 avisado", [gravada.catalogosSugeridos.map((c) => c.catalogoId), gravada.avisos.some((a) => /MLBP4/.test(a) && /menos de 5/.test(a))], [["MLBP9", "MLBP6"], true]);
@@ -3801,6 +3808,10 @@ try {
     conferir("kit na lista e anuncio encerrado nao contam", variantesDoProduto({ precoVenda: 45.9, anuncios: [linha({ codigo: "A_10" }), linha({ freteGratis: true, situacaoCanal: "ENCERRADA" })] }), { esperadas: ["classico_sem_frete"], existentes: [], faltam: ["classico_sem_frete"] });
     conferir("rascunho conta como existente (vai virar anuncio)", variantesDoProduto({ precoVenda: 45.9, anuncios: [linha({ status: "RASCUNHO", situacaoCanal: null })] }).existentes, ["classico_sem_frete"]);
     conferir("sem preco de venda: nada esperado", variantesDoProduto({ precoVenda: null, anuncios: [linha()] }), { esperadas: [], existentes: ["classico_sem_frete"], faltam: [] });
+    // Os anuncios que a conta do ML ja tem do SKU, fora do Rise (pedido do dono em 08/11/2026: "se ja tem anuncio o mesmo ja deve
+    // ser carregado no card junto com as outras variantes"): contam como existentes, para o "Faltam" nao pedir o que ja existe.
+    conferir("anuncio da conta fora do Rise conta como existente", variantesDoProduto({ precoVenda: 89.9, anuncios: [], naConta: [{ tipoAnuncio: "gold_special", freteGratis: true, preco: 95, status: "active" }] }), { esperadas: ["classico_frete_gratis"], existentes: ["classico_frete_gratis"], faltam: [] });
+    conferir("anuncio da conta sem frete abaixo de 72 cobre a variante", variantesDoProduto({ precoVenda: 45.9, anuncios: [], naConta: [{ tipoAnuncio: "gold_special", freteGratis: false, preco: 39.9, status: "paused" }] }).faltam, []);
     conferir("premium existente nao cobre o classico", variantesDoProduto({ precoVenda: 45.9, anuncios: [linha({ tipoAnuncio: "gold_pro" })] }).faltam, ["classico_sem_frete"]);
 
     // A linha do anuncio traz o frete gratis e o SKU do produto base (o kit tem outro codigo).

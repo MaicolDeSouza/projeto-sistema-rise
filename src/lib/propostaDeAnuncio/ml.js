@@ -5,6 +5,8 @@ import { contextoDosProdutos, carregarAnuncioML, novoRascunhoML, salvarRascunhoM
 import { catalogosDosMeusAnuncios, lerPrimeiroDoCatalogo, sugerirCatalogos } from "@/lib/canaisDeVenda/ml/catalogo";
 import { eanDoKit } from "@/lib/canaisDeVenda/ml/eanDoKit";
 import { rascunhoDaVariante } from "@/lib/canaisDeVenda/ml/faixas";
+import { anunciosDoSkuNaConta, candidatosParaReaproveitar } from "@/lib/canaisDeVenda/ml/reaproveitar";
+import { ROTULO_DO_TIPO_ML } from "@/lib/canaisDeVenda/ml/rotulos";
 import { sugerirCategoria } from "@/lib/canaisDeVenda/ml/inteligencia";
 import { lerCategoriaCompleta } from "@/lib/canaisDeVenda/ml/leitura";
 import { tituloDoKit } from "@/lib/canaisDeVenda/ml/rascunho";
@@ -222,6 +224,10 @@ export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, quan
   const precosDoRanking = aceitos.length > 0 ? aceitos.filter((c) => !c.primeiro.meu && Number(c.primeiro.preco) > 0).map((c) => Number(c.primeiro.preco)) : links.map((link) => link.preco);
   if (aceitos.length === 0 && links.length > 0) avisos.push("Sem catálogo: o preço foi comparado com os links achados pela pesquisa (preços não conferidos pelo Rise).");
 
+  // Os anuncios do codigo que a conta do ML ja tem e o Rise nao (pedido do dono em 08/11/2026: "Esse item ja tem produto
+  // publicado no ML e nao fui informado"). So leitura; o aviso vem primeiro, para o dono reaproveitar em vez de publicar outro.
+  const anunciosNaConta = kit ? [] : await anunciosForaDoRise(cliente, produto, avisos);
+
   const existente = await classicoEmRascunho(produto.id, kit);
   let base;
   if (existente) {
@@ -280,7 +286,31 @@ export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, quan
     },
   });
   await gravarProposta(salvo.id, proposta);
-  return { anuncioId: salvo.id, titulo: tituloLimpo, kit: kit ? { quantidade: kit.itens[0].quantidade, codigo: kit.codigo } : null, campos, sugestoes, preco: proposta.preco, catalogosSugeridos: aceitos, avisos };
+  return { anuncioId: salvo.id, anunciosNaConta, titulo: tituloLimpo, kit: kit ? { quantidade: kit.itens[0].quantidade, codigo: kit.codigo } : null, campos, sugestoes, preco: proposta.preco, catalogosSugeridos: aceitos, avisos };
+}
+
+/**
+ * Os anuncios do SKU na conta do ML que nao sao do Rise, com um aviso que lista cada um (MLB, tipo, frete, preco, vendas).
+ * Conta que nao responde vira aviso, nunca erro: a proposta segue.
+ */
+async function anunciosForaDoRise(cliente, produto, avisos) {
+  const lidos = await anunciosDoSkuNaConta(cliente, produto.sku);
+  if (!lidos.ok) {
+    avisos.push(`Não foi possível conferir se a conta do Mercado Livre já tem anúncio deste código: ${lidos.erro}`);
+    return [];
+  }
+  const doRise = await prisma.anuncio.findMany({ where: { canal: CANAL, produtoId: produto.id, idExterno: { not: null } }, select: { idExterno: true } });
+  const candidatos = candidatosParaReaproveitar(lidos.itens, { idsDoRise: new Set(doRise.map((anuncio) => anuncio.idExterno)) });
+  if (candidatos.length > 0) {
+    const reais = (valor) => Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const linhas = candidatos.map((c) =>
+      [c.id, ROTULO_DO_TIPO_ML[c.tipoAnuncio] ?? c.tipoAnuncio, c.freteGratis ? "frete grátis" : "sem frete", Number.isFinite(c.preco) ? reais(c.preco) : null, `${c.vendidos} venda(s)`, c.status]
+        .filter(Boolean)
+        .join(", "),
+    );
+    avisos.unshift(`A conta do Mercado Livre já tem ${candidatos.length === 1 ? "um anúncio" : `${candidatos.length} anúncios`} deste código fora do Rise: ${linhas.join("; ")}. Reaproveite no popup do produto (Anúncios do Mercado Livre) em vez de publicar outro igual.`);
+  }
+  return candidatos;
 }
 
 /** So a chave `proposta` de `dados`, com a linha travada (o Salvar do editor nao cai no meio). */

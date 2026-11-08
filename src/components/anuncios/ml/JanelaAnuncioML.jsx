@@ -3,7 +3,7 @@
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Copy, Loader, Plus, Trash2, X } from "lucide-react";
+import { Copy, ExternalLink, Loader, Plus, Trash2, X } from "lucide-react";
 
 import {
   abrirAnuncioML,
@@ -21,6 +21,9 @@ import { ROTULO_DO_TIPO_ML, seloDoAnuncioML } from "@/lib/canaisDeVenda/ml/rotul
 import EditorAnuncioML from "./EditorAnuncioML";
 import JanelaExcluirAnuncioML from "./JanelaExcluirAnuncioML";
 import JanelaReaproveitarML from "./JanelaReaproveitarML";
+
+const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const ESTADO_NO_ML = { active: "Ativo", paused: "Pausado", under_review: "Em revisão", inactive: "Inativo" };
 
 /**
  * Pop-up aberto pelo icone do Mercado Livre na lista de Produtos. Mostra os anuncios ML do
@@ -118,15 +121,36 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
   // `ocupado` e o MLB sendo reaproveitado.
   const [candidatos, setCandidatos] = useState(null);
   const [ocupado, setOcupado] = useState(null);
+  // Os anuncios do SKU na conta do ML que o Rise nao tem, lidos a cada carga da lista (pedido do dono em 08/11/2026: "Esse item
+  // ja tem produto publicado no ML e nao fui informado"): `{ sku, candidatos, variantes, erro? }`; `null` enquanto le.
+  const [naConta, setNaConta] = useState(null);
+  const leituraDaConta = useRef(null);
   const abertura = useRef(0);
   // A nota ("Anuncio salvo.") que a proxima carga da lista mostra; guardada para o "Tentar de novo".
   const notaDaLista = useRef(null);
   // As respostas chegam depois de um await: se a janela foi fechada nesse meio tempo, nada a fazer.
   const montada = useRef(false);
 
+  // Le a conta do ML (so GET) sem segurar a lista: as linhas "Na conta do ML, fora do Rise" aparecem quando a resposta chega.
+  const lerConta = useCallback(() => {
+    setNaConta(null);
+    const promessa = (async () => {
+      const resultado = await chamar(anunciosDoSkuMLAcao, produtoId);
+      if (!montada.current) return null;
+      const lido = resultado.ok
+        ? { sku: resultado.sku, candidatos: resultado.candidatos ?? [], variantes: resultado.variantes ?? null }
+        : { sku: null, candidatos: [], variantes: null, erro: resultado.erro };
+      setNaConta(lido);
+      return lido;
+    })();
+    leituraDaConta.current = promessa;
+    return promessa;
+  }, [produtoId]);
+
   const carregarLista = useCallback(
     async (nota) => {
       notaDaLista.current = nota ?? null;
+      leituraDaConta.current = null;
       const resultado = await chamar(listarAnunciosDoProdutoML, produtoId);
       if (!montada.current) return null;
       if (!resultado.ok) {
@@ -141,9 +165,10 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
       setVariantes(resultado.variantes ?? null);
       setAviso(nota ?? null);
       setFase(resultado.produto.conferido ? "lista" : "naoConferido");
+      if (resultado.produto.conferido && resultado.acessos?.editar !== false) lerConta();
       return resultado;
     },
-    [produtoId],
+    [produtoId, lerConta],
   );
 
   // O editor de um anuncio novo, do zero (o caminho de sempre). `avisoInicial`: a conta nao pode ser lida, e o editor diz.
@@ -266,6 +291,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
         return;
       }
       setCandidatos(null);
+      setNaConta((atual) => (atual ? { ...atual, candidatos: atual.candidatos.filter((candidato) => candidato.id !== itemId) } : atual));
       await abrirExistente(resultado.anuncioId);
     },
     [produtoId, abrirExistente],
@@ -274,12 +300,22 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
   const iniciar = useCallback(
     async (nota) => {
       const lista = await carregarLista(nota);
-      // Produto Conferido sem nenhum anuncio: nao ha o que listar, abre direto o editor de um novo. Com UM anuncio, abre
-      // direto o editor dele (pedido do dono em 24/10/2026); a lista so aparece com dois ou mais (Classico e Premium).
-      if (lista?.produto.conferido && lista.anuncios.length === 0 && lista.acessos?.editar !== false) await abrirNovo();
-      else if (lista?.produto.conferido && lista.anuncios.length === 1) await abrirExistente(lista.anuncios[0].id);
+      const conta = lista && leituraDaConta.current ? await leituraDaConta.current : null;
+      if (!montada.current) return;
+      const temNaConta = (conta?.candidatos?.length ?? 0) > 0;
+      // Produto Conferido sem nenhum anuncio: com anuncio do SKU na conta, a lista Reaproveitar; sem nada, o editor de um novo.
+      // Com UM anuncio, abre direto o editor dele (pedido do dono em 24/10/2026), a nao ser que a conta tenha outro do SKU fora do
+      // Rise: ai a lista fica, para o dono ver (08/11/2026).
+      if (lista?.produto.conferido && lista.anuncios.length === 0 && lista.acessos?.editar !== false) {
+        if (temNaConta) {
+          setCandidatos({ sku: conta.sku, candidatos: conta.candidatos });
+          setFase("reaproveitar");
+        } else {
+          await abrirEditorNovo(conta?.erro ? `Não foi possível ler os anúncios da conta do Mercado Livre: ${conta.erro}` : null);
+        }
+      } else if (lista?.produto.conferido && lista.anuncios.length === 1 && !temNaConta) await abrirExistente(lista.anuncios[0].id);
     },
-    [carregarLista, abrirNovo, abrirExistente],
+    [carregarLista, abrirEditorNovo, abrirExistente],
   );
 
   useEffect(() => {
@@ -346,6 +382,8 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
   }
 
   // O anuncio de onde a variante que falta e clonada: o do proprio produto (nao o kit) e nao encerrado, senao o primeiro.
+  // As variantes contando a conta do ML (quando ja lida); senao, so as do Rise.
+  const variantesDaLista = naConta?.variantes ?? variantes;
   const origemDaVariante = anuncios.find((anuncio) => anuncio.codigo === anuncio.sku && anuncio.situacaoCanal !== "ENCERRADA") ?? anuncios[0] ?? null;
 
   return (
@@ -454,10 +492,58 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
 
           {/* As variantes que faltam pelas faixas (08/11/2026): com um anuncio do produto, "Criar" abre o clone dele na variante,
               com o preco pelo lucro da loja. Sem anuncio, o "Novo anúncio" ja cobre. Nada e gravado ate o Salvar. */}
-          {acessos?.editar !== false && origemDaVariante && (variantes?.faltam?.length ?? 0) > 0 && (
+          {/* Os anuncios do SKU que a conta do ML ja tem e o Rise nao (08/11/2026): ambar, porque o dono precisa saber antes de
+              criar outro igual; "Reaproveitar" traz o anuncio para o Rise como publicado, sem escrever no ML. */}
+          {acessos?.editar !== false && naConta === null && (
+            <p className="flex items-center gap-1.5 text-xs text-suave">
+              <Loader size={12} className="animate-spin" />
+              Conferindo a conta do Mercado Livre…
+            </p>
+          )}
+          {naConta?.erro && <p className="text-xs text-amber-800">Não foi possível conferir a conta do Mercado Livre: {naConta.erro}</p>}
+          {(naConta?.candidatos?.length ?? 0) > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-amber-800">Na conta do Mercado Livre, fora do Rise</p>
+              <ul className="divide-y divide-amber-200 rounded border border-amber-200 bg-amber-50/50">
+                {naConta.candidatos.map((candidato) => (
+                  <li key={candidato.id} className="flex items-center gap-3 px-3 py-2.5">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium" title={candidato.titulo}>
+                        {candidato.titulo}
+                      </span>
+                      {candidato.link ? (
+                        <a href={candidato.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-mono text-xs text-acento hover:underline" title="Abrir o anúncio no Mercado Livre">
+                          {candidato.id}
+                          <ExternalLink size={11} />
+                        </a>
+                      ) : (
+                        <span className="font-mono text-xs text-suave">{candidato.id}</span>
+                      )}
+                    </span>
+                    <span className="shrink-0 text-xs text-suave">{ROTULO_DO_TIPO_ML[candidato.tipoAnuncio] ?? candidato.tipoAnuncio ?? ""}</span>
+                    {candidato.freteGratis && <span className="shrink-0 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-800">Frete grátis</span>}
+                    <span className="shrink-0 text-xs tabular-nums">{Number.isFinite(candidato.preco) ? MOEDA.format(candidato.preco) : ""}</span>
+                    <span className="shrink-0 text-xs text-suave">{ESTADO_NO_ML[candidato.status] ?? candidato.status ?? ""}</span>
+                    <button
+                      type="button"
+                      disabled={ocupado !== null}
+                      onClick={() => reaproveitar(candidato.id)}
+                      title="Traz este anúncio para o Rise como publicado; nada muda no Mercado Livre agora"
+                      className="inline-flex shrink-0 items-center gap-1.5 rounded bg-acento px-2.5 py-1 text-xs font-medium text-white transition-[opacity,transform] duration-150 ease-out hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
+                    >
+                      {ocupado === candidato.id && <Loader size={12} className="animate-spin" />}
+                      Reaproveitar
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {acessos?.editar !== false && origemDaVariante && (variantesDaLista?.faltam?.length ?? 0) > 0 && (
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-suave">
               <span>Faltam:</span>
-              {variantes.faltam.map((variante) => (
+              {variantesDaLista.faltam.map((variante) => (
                 <span key={variante} className="inline-flex items-center gap-1.5">
                   {NOME_DA_VARIANTE[variante] ?? variante}
                   <button

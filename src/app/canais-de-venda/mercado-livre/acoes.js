@@ -164,7 +164,9 @@ export async function anunciosDoSkuMLAcao(produtoId) {
     if (!naConta.ok) return naConta;
     const doRise = await anunciosMLDoProduto(produtoId);
     const idsDoRise = new Set(doRise.map((anuncio) => anuncio.idExterno).filter(Boolean));
-    return { ok: true, sku: produto.sku, candidatos: candidatosParaReaproveitar(naConta.itens, { idsDoRise }) };
+    const candidatos = candidatosParaReaproveitar(naConta.itens, { idsDoRise });
+    // As variantes contando o que a conta ja tem fora do Rise (08/11/2026): o "Faltam" do popup nao pede o que ja esta no ar.
+    return { ok: true, sku: produto.sku, candidatos, variantes: variantesDoProduto({ precoVenda: produto.precoVenda, anuncios: doRise, naConta: candidatos }) };
   });
 }
 

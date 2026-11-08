@@ -144,13 +144,22 @@ async function resolver({ pedido, custo, freteDaVariante, taxas, frete }) {
  * `freteGratis`, `situacaoCanal`, `codigo`, `sku`). A faixa sai do preco de venda da LOJA (sem chamar o ML; perto de R$ 72 pode
  * diferir em centavos do preco exato pelo lucro, aceito). So o anuncio do proprio produto (nao o kit: `codigo === sku`) e
  * nao encerrado conta; rascunho conta (vai virar anuncio). Premium nunca cobre o Classico.
+ *
+ * `naConta` (08/11/2026, pedido do dono): os anuncios do SKU que a conta do ML ja tem e o Rise nao (`candidatosParaReaproveitar`:
+ * `tipoAnuncio`, `freteGratis`, `preco`, `status`; os encerrados ja sairam). Contam como existentes: o "Faltam" nao pede o que
+ * ja esta no ar, so precisa ser reaproveitado.
  */
-export function variantesDoProduto({ precoVenda, anuncios }) {
+export function variantesDoProduto({ precoVenda, anuncios, naConta = [] }) {
   const esperadas = variantesEsperadas(precoVenda);
   const existentes = [];
   for (const anuncio of anuncios ?? []) {
     if (!anuncio || anuncio.situacaoCanal === "ENCERRADA") continue;
     if (String(anuncio.codigo ?? "") !== String(anuncio.sku ?? "")) continue;
+    const variante = varianteDoRascunho({ tipoAnuncio: anuncio.tipoAnuncio, envio: { freteGratis: anuncio.freteGratis }, preco: anuncio.preco });
+    if (!existentes.includes(variante)) existentes.push(variante);
+  }
+  for (const anuncio of naConta ?? []) {
+    if (!anuncio || anuncio.status === "closed") continue;
     const variante = varianteDoRascunho({ tipoAnuncio: anuncio.tipoAnuncio, envio: { freteGratis: anuncio.freteGratis }, preco: anuncio.preco });
     if (!existentes.includes(variante)) existentes.push(variante);
   }
