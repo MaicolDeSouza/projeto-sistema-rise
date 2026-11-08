@@ -280,6 +280,7 @@ export default function EditorAnuncioML({
             fotosReordenadas: enviado.fotosReordenadas,
             descricao: enviado.descricao,
             descricaoEditada: enviado.descricaoEditada,
+            atacado: enviado.atacado,
           })
         : editaPreso
           ? await salvarPresoMLAcao(idAtual, enviado)

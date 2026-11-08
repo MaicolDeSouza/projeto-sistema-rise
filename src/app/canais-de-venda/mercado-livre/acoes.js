@@ -5,10 +5,12 @@ import { acessosDoEditorML, projetarContextoML } from "@/lib/acessos/projecoes";
 
 import { revalidatePath } from "next/cache";
 
+import { prisma } from "@/lib/db";
 import { LIMITE_TITULO } from "@/lib/anuncios/canais/mercadolivre";
 import { clienteBling } from "@/lib/blingSync/cliente";
 import { prepararPublicacaoML, publicarAnuncioML, validarNoML } from "@/lib/canaisDeVenda/ml/publicar";
 import { enviarMudancasML } from "@/lib/canaisDeVenda/ml/atualizar";
+import { FAIXAS_PADRAO, lerRecomendacaoDeAtacado } from "@/lib/canaisDeVenda/ml/atacado";
 import { conferirExclusaoML, excluirAnuncioML } from "@/lib/canaisDeVenda/ml/excluir";
 import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
 import { enviarDadosFiscaisDoAnuncio, situacaoFiscalDoAnuncio } from "@/lib/canaisDeVenda/ml/fiscalNoML";
@@ -224,13 +226,36 @@ export async function marcarCatalogoVistoMLAcao(id) {
   return { ok: true, marcou };
 }
 
-export async function salvarPublicadoMLAcao(id, { preco, atributos, prazoDisponibilidadeDias, imagens, fotosReordenadas, descricao, descricaoEditada } = {}) {
+export async function salvarPublicadoMLAcao(id, { preco, atributos, prazoDisponibilidadeDias, imagens, fotosReordenadas, descricao, descricaoEditada, atacado } = {}) {
   const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"]);
   if (negado) return negado;
   if (!ehId(id)) return PEDIDO_INVALIDO;
   return protegendo(async () =>
-    revalidando(await salvarPublicadoML(id, { preco, atributos, prazoDisponibilidadeDias, imagens, fotosReordenadas, descricao, descricaoEditada })),
+    revalidando(await salvarPublicadoML(id, { preco, atributos, prazoDisponibilidadeDias, imagens, fotosReordenadas, descricao, descricaoEditada, atacado })),
   );
+}
+
+/**
+ * A recomendacao de desconto de atacado do ML para o preco do anuncio (botao "Recomendação do ML" do cartao de atacado, so
+ * no anuncio que ja existe no ML). So calcula: nada e gravado no anuncio. `quantidades` padrao: as faixas de sempre.
+ */
+export async function recomendacaoDeAtacadoMLAcao(anuncioId, { preco, quantidades } = {}) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"]);
+  if (negado) return negado;
+  if (!ehId(anuncioId)) return PEDIDO_INVALIDO;
+  const valor = Number(preco);
+  if (!(valor > 0) || valor > 10_000_000) return { ok: false, erro: "Informe o preço de venda maior que zero." };
+  const pedidas = Array.isArray(quantidades) ? quantidades : FAIXAS_PADRAO;
+  const lista = [...new Set(pedidas.map(Number).filter((q) => Number.isInteger(q) && q >= 1 && q <= 100))].sort((a, b) => a - b).slice(0, 5);
+  if (lista.length === 0) return PEDIDO_INVALIDO;
+  try {
+    const anuncio = await prisma.anuncio.findUnique({ where: { id: anuncioId }, select: { canal: true, idExterno: true } });
+    if (anuncio?.canal !== "MERCADO_LIVRE" || !anuncio.idExterno) return { ok: false, erro: "O anúncio ainda não existe no Mercado Livre." };
+    const recomendacoes = await lerRecomendacaoDeAtacado(clienteML(), { itemId: anuncio.idExterno, preco: valor, quantidades: lista });
+    return { ok: true, recomendacoes };
+  } catch (erro) {
+    return falhaDeLeitura(erro, "recomendacao de atacado");
+  }
 }
 
 /** O Salvar com a publicacao parada depois de criado no ML (27/10/2026): so o que o Retomar manda (preco, ficha; no kit, descricao, fotos e medidas). */

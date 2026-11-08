@@ -2450,6 +2450,24 @@ try {
       await prisma.anuncio.update({ where: { id: id2 }, data: { dados: { ...antesFalha, atacado: { ...antesFalha.atacado, ligado: true } } } });
       const e3 = await enviarMudancasML(id2, { ml: mlRecusa, bling: c.novoBling(), lerFoto });
       conferir("envio com atacado recusado: falha na parte atacado e o '!' continua", [e3.ok, e3.parte, (await carregarAnuncioML(id2)).mudancas.partes], [false, "atacado", ["atacado"]]);
+
+      // Validacao do atacado: quantidade repetida ou % que cai entre as faixas e problema da aba Preco; % vazio vem da recomendacao.
+      const rascunhoBase = (await carregarAnuncioML(id)).rascunho;
+      const doAtacado = (faixas, ligado = true) => validarRascunhoML({ ...rascunhoBase, atacado: { ligado, faixas } }, { produtos: {}, frases: [], codigoEmUso: null }).find((p) => p.campo === "atacado");
+      const TEXTO_DAS_FAIXAS = "As faixas de atacado precisam de quantidades diferentes e desconto crescente.";
+      conferir("atacado validacao: quantidade repetida", [doAtacado([{ quantidade: 2, percentual: 5 }, { quantidade: 2, percentual: 6 }])?.problema ?? null, doAtacado([{ quantidade: 2, percentual: 5 }, { quantidade: 2, percentual: 6 }])?.aba ?? null], [TEXTO_DAS_FAIXAS, "preco"]);
+      conferir("atacado validacao: % que cai com a quantidade", doAtacado([{ quantidade: 2, percentual: 5 }, { quantidade: 5, percentual: 3 }])?.problema ?? null, TEXTO_DAS_FAIXAS);
+      conferir("atacado validacao: % vazio e crescente nao sao problema", [doAtacado([{ quantidade: 2, percentual: null }, { quantidade: 5, percentual: null }]) ?? null, doAtacado([{ quantidade: 2, percentual: 5 }, { quantidade: 5, percentual: null }, { quantidade: 10, percentual: 9 }]) ?? null], [null, null]);
+      conferir("atacado validacao: desligado nao valida", doAtacado([{ quantidade: 2, percentual: 5 }, { quantidade: 2, percentual: 6 }], false) ?? null, null);
+
+      // O Salvar do anuncio publicado guarda o atacado (formato invalido fica como estava) e acende a parte para o Enviar.
+      const { salvarPublicadoML } = await import("../src/lib/canaisDeVenda/ml/banco.js");
+      const novoAtacado = { ligado: true, faixas: [{ quantidade: 2, percentual: 7 }, { quantidade: 5, percentual: null }] };
+      const salvo = await salvarPublicadoML(id, { preco: rascunhoBase.preco, atributos: rascunhoBase.atributos, atacado: novoAtacado });
+      conferir("publicado: o Salvar guarda o atacado e acende a parte", [salvo.ok, (await dadosDe(id)).atacado, (await carregarAnuncioML(id)).mudancas.partes.includes("atacado")], [true, { faixas: [{ percentual: 7, quantidade: 2 }, { percentual: null, quantidade: 5 }], ligado: true }, true]);
+      const seisFaixas = { ligado: true, faixas: [1, 2, 3, 4, 5, 6].map((quantidade) => ({ quantidade, percentual: null })) };
+      await salvarPublicadoML(id, { preco: rascunhoBase.preco, atributos: rascunhoBase.atributos, atacado: seisFaixas });
+      conferir("publicado: atacado invalido no Salvar fica como estava", (await dadosDe(id)).atacado.faixas.length, 2);
     }
 
     // Fase 3: as proximas tarefas entram aqui, dentro deste bloco.

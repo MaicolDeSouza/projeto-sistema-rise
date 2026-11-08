@@ -393,6 +393,8 @@ export async function salvarPublicadoML(anuncioId, entrada) {
   const prazo = RascunhoMLSchema.shape.prazoDisponibilidadeDias.safeParse(entrada?.prazoDisponibilidadeDias);
   const imagens = RascunhoMLSchema.shape.imagens.safeParse(entrada?.imagens);
   const descricao = RascunhoMLSchema.shape.descricao.safeParse(entrada?.descricao);
+  // Precos de atacado (08/11/2026): formato invalido fica como estava, como o prazo e as fotos.
+  const atacado = RascunhoMLSchema.shape.atacado.safeParse(entrada?.atacado);
   try {
     // As fotos do kit na impressao precisam dos nomes de arquivo (contexto dos produtos): lidos antes da trava.
     const linha = await prisma.anuncio.findUnique({ where: { id: anuncioId }, select: { dados: true, produtoId: true } });
@@ -419,10 +421,13 @@ export async function salvarPublicadoML(anuncioId, entrada) {
       if (kit && produtos && (!enviado || enviado.fotos === null || enviado.fotos === undefined)) base.fotos = conteudoAtualDoAnuncio(anterior, produtos).fotos;
       // O preco da loja (08/11/2026): o anuncio publicado antes da regra ganha a base de agora no primeiro Salvar.
       if (produtos && (!enviado || !Object.hasOwn(enviado, "precoDaLoja"))) base.precoDaLoja = precoDaLojaDoAnuncio(anterior, produtos);
+      // O anuncio publicado antes do atacado nao tem faixas no ML: a base e "desligado", e o que o dono ligar aqui acende o "!".
+      if (!enviado || !Object.hasOwn(enviado, "atacado")) base.atacado = { ligado: false, faixas: [] };
       const novaPublicacao = Object.keys(base).length > 0 ? { ...publicacao, enviado: { ...(enviado ?? {}), ...base } } : publicacao;
 
       const novosDados = { ...dados, preco, publicacao: novaPublicacao };
       if (prazo.success && entrada?.prazoDisponibilidadeDias !== undefined) novosDados.prazoDisponibilidadeDias = prazo.data;
+      if (atacado.success && atacado.data !== undefined) novosDados.atacado = atacado.data;
       if (imagens.success) {
         novosDados.imagens = imagens.data;
         if (!kit) novosDados.fotosReordenadas = entrada?.fotosReordenadas === true;

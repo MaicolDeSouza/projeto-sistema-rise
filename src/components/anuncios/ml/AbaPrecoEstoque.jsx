@@ -11,6 +11,7 @@ import { custosDoAnuncio, custosValem, freteQueConta, precoPorMargem } from "@/l
 import { lucroPorUnidade } from "@/lib/canaisDeVenda/ml/faixas";
 import { calcularMarkup, corDoMarkup, lucroLiquido } from "@/lib/margem";
 import CalculadoraDeMargem, { taxasUsaveis } from "./CalculadoraDeMargem";
+import AtacadoDoML from "./AtacadoDoML";
 import SecaoDoAnuncio from "./SecaoDoAnuncio";
 import CustosDoML from "./CustosDoML";
 import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
@@ -91,7 +92,7 @@ function MargemDoPreco({ preco, custo, conta, mensagemSemCusto }) {
  */
 const MOEDA_DA_PROPOSTA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
-export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContexto, problemas, acessos = { custos: true, concorrentes: true }, precoDaLojaEnviado = null, mudancas = null }) {
+export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContexto, problemas, acessos = { custos: true, concorrentes: true }, precoDaLojaEnviado = null, mudancas = null, anuncioId = null, jaNoML = false }) {
   // Texto do preco como foi digitado (ver `numeros.js`); `null` = nada digitado, mostra o numero.
   const [precoDigitado, setPrecoDigitado] = useState(null);
   // O selo "Nº de M no ML" ao lado do preco saiu em 26/10/2026 (pedido do dono, opcao 2): a posicao fica so na aba Catalogo.
@@ -276,6 +277,8 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
         {acessos.custos && <CustosDoML rascunho={rascunho} contexto={contexto} setContexto={setContexto} custo={custo} conta={conta} />}
       </div>
       </SecaoDoAnuncio>
+      {/* Precos de atacado (08/11/2026): o segundo cartao da aba, depois de "Preco e custos". */}
+      <AtacadoDoML rascunho={rascunho} alterar={alterar} anuncioId={anuncioId} jaNoML={jaNoML} problemas={problemas} />
       {/* "Pesquisar concorrentes" (pedido do dono em 05/11/2026): abre a busca do ML em outra aba com o nome do produto base,
           para ver o preco que os concorrentes praticam. A busca publica do ML pela API da 403; a pagina de lista abre normal. */}
       {linkDaBuscaNoML(contexto.produtos?.[rascunho.produtoId]?.tituloBase) && (

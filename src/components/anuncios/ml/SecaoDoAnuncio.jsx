@@ -6,17 +6,18 @@ import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
  * achar onde cada grupo de campos comeca. A explicacao vai na bolha "i" (Padrao visual, regra 2), e a acao da secao, se
  * houver, fica a direita do titulo.
  */
-export default function SecaoDoAnuncio({ titulo, ajuda = null, acao = null, children, className = "" }) {
+export default function SecaoDoAnuncio({ titulo, ajuda = null, acao = null, children, className = "", semCorpo = false }) {
   return (
     <section className={`rounded-lg border border-borda bg-superficie ${className}`}>
-      <header className="flex min-h-10 items-center justify-between gap-3 rounded-t-lg border-b border-borda bg-fundo/70 px-4 py-2">
+      {/* `semCorpo`: so a faixa do titulo (o cartao do atacado desligado: o interruptor mora na faixa e nada mais precisa aparecer). */}
+      <header className={`flex min-h-10 items-center justify-between gap-3 rounded-t-lg bg-fundo/70 px-4 py-2 ${semCorpo ? "rounded-b-lg" : "border-b border-borda"}`}>
         <div className="flex items-center gap-1.5">
           <h3 className="text-sm font-semibold text-texto">{titulo}</h3>
           {ajuda && <BolhaDeAjuda variante="inline" texto={ajuda} />}
         </div>
         {acao}
       </header>
-      <div className="p-4">{children}</div>
+      {!semCorpo && <div className="p-4">{children}</div>}
     </section>
   );
 }

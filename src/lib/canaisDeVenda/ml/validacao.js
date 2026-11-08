@@ -142,6 +142,20 @@ export function validarRascunhoML(rascunho, contexto) {
     acrescentar("prazoDisponibilidade", "geral", `O prazo de disponibilidade é em dias inteiros, de 0 a ${PRAZO_MAXIMO_DIAS}.`);
   }
 
+  // Precos de atacado (08/11/2026): quantidades diferentes e desconto que nao cai quando a quantidade sobe. % vazio vem da
+  // recomendacao do ML no envio e nao conta; desligado nao se confere.
+  const atacado = rascunho.atacado;
+  if (atacado?.ligado === true && Array.isArray(atacado.faixas)) {
+    const quantidades = atacado.faixas.map((faixa) => Number(faixa?.quantidade)).filter((quantidade) => Number.isFinite(quantidade));
+    const percentuais = atacado.faixas
+      .filter((faixa) => faixa?.percentual !== null && faixa?.percentual !== undefined && Number.isFinite(Number(faixa.quantidade)))
+      .sort((a, b) => Number(a.quantidade) - Number(b.quantidade))
+      .map((faixa) => Number(faixa.percentual));
+    const repetida = new Set(quantidades).size !== quantidades.length;
+    const caindo = percentuais.some((percentual, i) => i > 0 && percentual < percentuais[i - 1]);
+    if (repetida || caindo) acrescentar("atacado", "preco", "As faixas de atacado precisam de quantidades diferentes e desconto crescente.");
+  }
+
   // So produto Conferido entra num anuncio. Numa composicao o que conta sao os itens (o
   // principal e o primeiro deles); no anuncio simples, o proprio produto do anuncio.
   const aVerificar = composicao
