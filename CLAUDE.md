@@ -5488,11 +5488,35 @@ Spec `docs/superpowers/specs/2026-11-04-modulo-pedidos-de-venda-design.md`, plan
 **Tela "Vendas" (07/11/2026, pedido do dono):** o bloco e a lista se chamam **Vendas** (menu, título, acesso; a rota segue
 `/pedidos` e o recurso `tela.pedidos`). Período padrão de **1 mês com as duas pontas preenchidas** (`umMesAntes`; o "até" ficava em
 branco) e os atalhos **Hoje** e **7 dias** ao lado do calendário (o ativo marcado; clicar de novo volta ao mês). A coluna
-**Status junta o do pedido (em cima) e o do envio** (embaixo, com o serviço). **Código, Local e Status filtram por um menu de
+**Status junta o do pedido (em cima) e o do envio** (embaixo, com o serviço; desde 08/11/2026 é um status único, abaixo). **Código, Local e Status filtram por um menu de
 marcar** (`FiltroDaColuna`, portal no `<body>`, `?codigo=`/`?local=`/`?status=`/`?envio=` repetidos; valem para QUALQUER item do
 pedido; as opções saem dos itens da lista em `opcoesDasColunas`). A busca acha também pelo **nome do produto do Rise** e pelo
 **código ou nome das peças** (do kit e as peças próprias, inclusive as digitadas). Tabela com largura mínima de 66rem (a 1366 px
 cabe sem rolar; mais estreito rola de lado em vez de sumir com a Descrição). Testes no `teste:pedidos`.
+
+**Status único, prazo de envio e Aguardando peças (08/11/2026, pedido do dono, Opção 1 nos dois):**
+- **Status único** ("em vendas o status tem 02 informações. Quero apenas 1"): a coluna mostra UMA situação calculada do `status` e
+  do `statusDoEnvio` (`situacaoDoPedido` em `status.js`): Aguardando pagamento, Aguardando peças, **A enviar** (pago + em separação +
+  retirada), **Em trânsito** (enviado, postado ou em trânsito), Entregue (+ finalizado), Não entregue, Devolvido, Cancelado. O filtro
+  da coluna e os chips usam `?situacao=` com `condicaoDaSituacao` (o `where` do Prisma da mesma regra; o teste confere as 72
+  combinações). O status do pedido, o do envio com o serviço, o rastreio, as peças em falta e a situação do canal vão para a dica.
+  `?status=`/`?envio=` continuam valendo para link antigo. As colunas gravadas não mudaram.
+- **Prazo de envio embaixo do status** ("quero que mostre [na coluna] de status"), só para o pedido pago ainda não enviado
+  (`situacaoDoDespacho` com o `status`): ML pelo `sla` (já existia, 56ddd72); **LI = 24 h depois do pagamento** (1ª situação paga do
+  histórico; sem histórico, a data da venda, estimado; retirada e a combinar não têm; `prazoDeDespachoLI`); **Bling = a
+  `dataPrevista` do pedido de venda** (só o dia, gravado 23:59 e mostrado sem hora; `prazoDeDespachoBling`). "Enviar hoje" conta os
+  três (pago/em separação/aguardando peças, a postar ou sem envio). **Pedido já gravado só ganha o prazo quando for relido** (o
+  canal mudou algo): logo depois do deploy os abertos da LI e do Bling ficam sem prazo até a próxima mudança.
+- **Aguardando peças pela venda da última peça** (pergunta do dono: "a venda pode ter sido justamente da última peça, aí você olha
+  que está zerado o estoque, mas é que foi dado baixa da última peça devido à última venda"): o estoque do Rise é o saldo do Bling
+  lido de hora em hora, e o Bling baixa na venda; a conta antiga descontava o pedido de novo. `calcularPecas` agora devolve ao saldo o
+  que o Bling já tirou pelos pedidos abertos (pedido com cópia no Bling, ou digitado lá, e saldo lido depois: 15 min de folga da
+  venda, ou o `criadoEm` no do Bling; só o produto simples e as peças do kit, a peça própria o Bling não baixa), usa o saldo
+  **negativo** do Bling (`saldoSemCorte`: -2 = duas vendidas sem ter) e reparte do pedido mais antigo ao mais novo (empate pelo id).
+  O worker refaz as peças e o status dos abertos depois de cada leitura do estoque (`recalcularPecasDosPedidosAbertos`). **Não
+  medido:** se o Bling baixa o saldo virtual de um pedido do ML/LI na entrada ou só no "Atendido" (a regra segue o que o dono
+  disse); kit de estoque próprio (o Bling baixa o kit, não as peças) segue a conta pelas peças.
+
 Tabelas `PedidoDeVenda` (único por origem + `idExterno`) e `ItemDoPedidoDeVenda`; `Cliente.nivel`; `ConfigCanal.taxas`. Código em
 `src/lib/pedidos/` (um normalizador por origem para o formato comum de `normalizado.js`, depois `banco.js` grava tudo numa
 transação Serializable), telas em `src/app/pedidos/` e `src/components/pedidos/`.
@@ -5518,7 +5542,8 @@ transação Serializable), telas em `src/app/pedidos/` e `src/components/pedidos
   retorno pago fica como prejuízo, o lucro reabre, e com NF autorizada o "!" `nfACancelar` pede para cancelar a NF (some quando a
   NF aparece cancelada). Só no ML.
 - **Status e peças:** tabelas por origem em `status.js` (código desconhecido mantém o anterior e avisa `statusDesconhecido`);
-  AGUARDANDO_PECAS quando o estoque, descontados os pedidos abertos mais antigos, não cobre o pedido; previsão pela compra
+  AGUARDANDO_PECAS quando o estoque, descontados os pedidos abertos mais antigos, não cobre o pedido (desde 08/11/2026 com o
+  que o Bling já baixou devolvido e o saldo negativo; ver "Status único, prazo de envio e Aguardando peças"); previsão pela compra
   enviada (+ prazo) ou pela ordem de produção. "Marcar em separação" é a única ação de estado do operador.
 - **Fase 2 (04/11/2026, no GitHub, SEM deploy; plano `docs/superpowers/plans/2026-11-04-pedidos-de-venda-fase-2.md`):**
   - **Webhooks:** rota PÚBLICA `POST /api/webhooks/[origem]` (`mercado-livre`, `bling`, `loja-integrada`; exceção `@webhooks` no
