@@ -2697,6 +2697,9 @@ model PedidoDeVenda {
   ///   fonteDoCusto, cobradoDoCliente, prazo, historico: { postadoEm, entregueEm, ... } }
   envio         Json
   statusDoEnvio StatusDoEnvio @default(SEM_ENVIO)
+  /// Limite de deixar na agencia (ML: o `sla` do envio; ver lib/pedidos/despacho.js). Coluna, e nao so o JSON do envio,
+  /// para o filtro "Enviar hoje" contar e paginar no banco (08/11/2026).
+  despacharAte  DateTime?
 
   totalProdutos Decimal @db.Decimal(12, 2)
   desconto      Decimal @db.Decimal(12, 2)
@@ -2738,6 +2741,7 @@ model PedidoDeVenda {
   @@index([clienteId])
   @@index([canal, status])
   @@index([packId])
+  @@index([statusDoEnvio, despacharAte])
 }
 
 model ItemDoPedidoDeVenda {

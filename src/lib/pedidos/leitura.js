@@ -95,7 +95,11 @@ async function lerPedidoML(ml, idExterno) {
   const custosDoRetorno = await lerCustos(idDoRetorno);
   const usuario = await ml.usuarioId();
   const invoice = await opcional(ml.get(`/users/${usuario}/invoices/orders/${id}`), `GET /users/${usuario}/invoices/orders/${id}`);
-  return normalizarPedidoML({ order, billing, shipments: lista, shipment, retorno, invoice, custos, custosDoRetorno });
+  // O prazo de deixar na agencia, so enquanto a postar (08/11/2026). 404 = envio sem prazo ainda (ex.: "manufacturing");
+  // qualquer falha deixa o pedido sem o prazo, nunca sem o pedido.
+  const aPostar = ["pending", "handling", "ready_to_ship"].includes(String(shipment?.status ?? ""));
+  const sla = aPostar && idDaIda ? await opcional(ml.get(`/shipments/${idDaIda}/sla`), `GET /shipments/${idDaIda}/sla`).catch(() => null) : null;
+  return normalizarPedidoML({ order, billing, shipments: lista, shipment, retorno, invoice, custos, custosDoRetorno, sla });
 }
 
 async function lerPedidoLI(li, idExterno) {

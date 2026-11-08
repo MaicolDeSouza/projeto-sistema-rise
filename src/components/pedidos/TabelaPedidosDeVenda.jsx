@@ -10,6 +10,10 @@ import { abreviarPagamento, abrirNoCanal, dataCompleta, diaEHora, linkNoBling, l
 import FiltroDaColuna from "./FiltroDaColuna";
 import IconeDoCanalDoPedido from "./IconeDoCanalDoPedido";
 import { COR_DO_STATUS, COR_DO_STATUS_DO_ENVIO, TEXTO_DO_STATUS, TEXTO_DO_STATUS_DO_ENVIO } from "./textos";
+import { situacaoDoDespacho } from "@/lib/pedidos/despacho";
+
+// O prazo de deixar na agencia (08/11/2026): vermelho atrasado, ambar hoje, o resto discreto.
+const COR_DO_DESPACHO = { atrasado: "font-semibold text-red-700", hoje: "font-semibold text-amber-700", amanha: "text-suave", depois: "text-suave" };
 
 /** "falta 2× 900211 (previsão 12/11)", uma peca por linha: o `title` do status Aguardando peças. */
 function textoDasFaltas(faltas) {
@@ -77,7 +81,7 @@ const abreviarPedido = (numero) => {
  *
  * `ordenavel={false}` deixa os cabecalhos parados e sem filtro (a aba Pedidos do cadastro do cliente).
  */
-export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro, ordenavel = true, opcoes = null, filtros = null }) {
+export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro, ordenavel = true, opcoes = null, filtros = null, agora = null }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -247,6 +251,16 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
                       {envioDetalhe && ` · ${envioDetalhe}`}
                     </span>
                   </span>
+                  {/* So com o "agora" do servidor (a lista de Pedidos): a aba do cliente nao mostra, para nao divergir na hidratacao. */}
+                  {(() => {
+                    const despacho = agora ? situacaoDoDespacho(linha, agora) : null;
+                    if (!despacho) return null;
+                    return (
+                      <span className={`block truncate text-xs ${COR_DO_DESPACHO[despacho.chave]}`} title="Prazo do Mercado Livre para deixar na agência; passar dele conta na reputação">
+                        {despacho.texto}
+                      </span>
+                    );
+                  })()}
                 </td>
                 <td className="truncate px-2 py-2 tabular-nums text-suave" title={dataCompleta(linha.dataDaVenda)}>
                   {diaEHora(linha.dataDaVenda)}

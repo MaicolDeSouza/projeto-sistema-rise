@@ -1,3 +1,4 @@
+import { prazoDeDespachoML } from "./despacho";
 import { data, digitos, dinheiro, telefone, texto, vazio } from "./normalizado";
 
 /** O custo do frete do lado da loja (o `user_id` do vendedor) nos custos de um envio; null quando nao ha custos lidos. */
@@ -25,7 +26,7 @@ function custoDaLoja(custos, vendedorId) {
  * NAO e frete: e o valor do pedido (medido na VPS em 04/11/2026, uma fonte de R$ 49,70 saia com R$ 49,70 de frete).
  * Devolucao: retorno entregue ou tag `refunded`; o custo e o lado da loja nos custos do retorno (0 sem custos).
  */
-export function normalizarPedidoML({ order, billing = null, shipments = [], shipment = null, retorno = null, invoice = null, custos = null, custosDoRetorno = null }) {
+export function normalizarPedidoML({ order, billing = null, shipments = [], shipment = null, retorno = null, invoice = null, custos = null, custosDoRetorno = null, sla = null }) {
   const p = vazio();
   p.origem = "MERCADO_LIVRE";
   p.canal = "MERCADO_LIVRE";
@@ -119,6 +120,8 @@ export function normalizarPedidoML({ order, billing = null, shipments = [], ship
     fonteDoCusto: freteDaLoja === null ? "estimado" : "envio",
     cobradoDoCliente: freteCobrado,
     prazo: iso(shipment?.shipping_option?.estimated_delivery_time?.date),
+    // O limite de deixar na agencia (o `sla` do envio; sem ele, o dia da etiqueta, estimado): ver despacho.js.
+    ...prazoDeDespachoML({ sla, shipment }),
     historico: {
       prontoEm: iso(historicoDoEnvio.date_ready_to_ship),
       postadoEm: iso(historicoDoEnvio.date_shipped),

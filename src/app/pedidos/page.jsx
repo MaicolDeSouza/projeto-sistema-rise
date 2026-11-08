@@ -11,7 +11,7 @@ import AvisoBanco from "@/components/ui/AvisoBanco";
 import EmptyState from "@/components/ui/EmptyState";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
-import { listarPedidosDeVenda, opcoesDasColunas, resumoDaLista } from "@/lib/pedidos/banco";
+import { contarEnviosDeHoje, listarPedidosDeVenda, opcoesDasColunas, resumoDaLista } from "@/lib/pedidos/banco";
 import { projetarLinhaDaLista } from "@/lib/pedidos/projecao";
 import { porPaginaDaUrl } from "@/lib/porPagina";
 
@@ -58,6 +58,9 @@ export default async function PedidosDeVendaPage({ searchParams }) {
   const codigos = lista(params?.codigo).map((v) => v.trim().slice(0, 100)).filter(Boolean).slice(0, 50);
   const locais = lista(params?.local).map((v) => v.trim().slice(0, 100)).filter(Boolean).slice(0, 50);
   const soComAviso = umDe(params?.aviso) === "1";
+  // "Enviar hoje" (08/11/2026): a postar ate o fim de hoje, atrasados juntos; ignora o periodo.
+  const despacho = umDe(params?.despacho) === "hoje" ? "hoje" : "";
+  const agora = new Date();
   const ordenar = ORDENACOES.includes(umDe(params?.ordenar)) ? umDe(params.ordenar) : "";
   const direcao = umDe(params?.direcao) === "asc" ? "asc" : "desc";
   const porPagina = porPaginaDaUrl(umDe(params?.por));
@@ -68,6 +71,7 @@ export default async function PedidosDeVendaPage({ searchParams }) {
   // As opcoes do filtro de Status e Envio e o lucro do periodo saem do mesmo filtro da lista (sem a pagina).
   let opcoes = null;
   let resumo = null;
+  let enviosDeHoje = null;
   let erro = null;
   try {
     const filtro = {
@@ -81,14 +85,17 @@ export default async function PedidosDeVendaPage({ searchParams }) {
       codigos,
       locais,
       soComAviso,
+      despacho: despacho || undefined,
+      agora,
       ordenar: ordenar || undefined,
       direcao,
       porPagina,
     };
-    [resultado, opcoes, resumo] = await Promise.all([
+    [resultado, opcoes, resumo, enviosDeHoje] = await Promise.all([
       listarPedidosDeVenda({ ...filtro, pagina: paginaPedida }),
       opcoesDasColunas(filtro),
       veLucro ? resumoDaLista(filtro) : null,
+      contarEnviosDeHoje(agora),
     ]);
     // Pagina alem do fim (link antigo, filtro que encolheu a lista): mostra a ultima que existe.
     const ultima = Math.max(1, Math.ceil(resultado.total / porPagina));
@@ -102,7 +109,7 @@ export default async function PedidosDeVendaPage({ searchParams }) {
   const pagina = Math.min(paginaPedida, totalPaginas);
   // Sem `dado.custo`, o lucro nao vai nem no conteudo da pagina (a coluna some, e o numero tambem).
   const linhas = (resultado?.linhas ?? []).map((linha) => projetarLinhaDaLista(linha, acesso.pode));
-  const filtrando = Boolean(busca || canais.length || status.length || envio.length || codigos.length || locais.length || soComAviso || umDe(params?.desde) || umDe(params?.ate));
+  const filtrando = Boolean(busca || canais.length || status.length || envio.length || codigos.length || locais.length || soComAviso || despacho || umDe(params?.desde) || umDe(params?.ate));
 
   return (
     <>
@@ -118,6 +125,7 @@ export default async function PedidosDeVendaPage({ searchParams }) {
         canais={canais}
         status={status}
         soComAviso={soComAviso}
+        enviarHoje={{ ativo: despacho === "hoje", total: enviosDeHoje }}
         navegacao={
           <div className="ml-auto flex items-end gap-6">
             {/* O lucro do periodo (pedido do dono em 04/11/2026): a lista filtrada inteira, pela regra da coluna Lucro. */}
@@ -142,7 +150,7 @@ export default async function PedidosDeVendaPage({ searchParams }) {
       ) : (
         linhas.length > 0 && (
           <>
-            <TabelaPedidosDeVenda linhas={linhas} ordenar={ordenar} direcao={direcao} veLucro={veLucro} opcoes={opcoes} filtros={{ status, envio, codigos, locais }} />
+            <TabelaPedidosDeVenda linhas={linhas} ordenar={ordenar} direcao={direcao} veLucro={veLucro} opcoes={opcoes} filtros={{ status, envio, codigos, locais }} agora={agora.toISOString()} />
             {totalPaginas > 1 && (
               <div className="mt-4">
                 <Paginacao

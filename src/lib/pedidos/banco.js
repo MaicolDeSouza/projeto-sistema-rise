@@ -9,6 +9,7 @@ import { statusDoEnvio, statusDoPedido } from "@/lib/pedidos/status";
 import { devolvido, lucroDivergente, lucroFechado, parcelasDaEstimativa, parcelasDoReal } from "@/lib/pedidos/lucro";
 import { estimativaDoAnuncioML } from "@/lib/pedidos/estimativaML";
 import { calcularPecas } from "@/lib/pedidos/pecas";
+import { fimDoDiaEmSaoPaulo } from "@/lib/pedidos/despacho";
 
 /**
  * O pedido de venda no banco (spec 5.8): aplicar uma leitura (ML, LI ou Bling) sem duplicar, a lista, a leitura de um
@@ -150,9 +151,11 @@ async function recalcular(tx, pedido, { normalizado, custosMLLidos = null, taxas
   if (status === "DEVOLVIDO" && n.nf?.status === "authorized") avisos.add("nfACancelar");
   if (!pedido.clienteId) avisos.add("clienteSemDocumento");
 
+  const despacharAte = n.envio?.despacharAte ? new Date(n.envio.despacharAte) : null;
   const dados = {
     status,
     statusDoEnvio: envio,
+    despacharAte: despacharAte && !Number.isNaN(despacharAte.getTime()) ? despacharAte : null,
     estimativa,
     real: jsonOuNulo(real),
     lucroEstimado: estimativa?.lucro ?? null,
@@ -280,16 +283,21 @@ const ORDENACOES = {
   lucro: (d) => ({ lucroReal: d }),
 };
 
-function filtroDaLista({ busca, desde, ate, canais, status, envio, codigos, locais, soComAviso, clienteId }) {
+function filtroDaLista({ busca, desde, ate, canais, status, envio, codigos, locais, soComAviso, clienteId, despacho, agora = new Date() }) {
   const where = {};
   // A aba Pedidos do cadastro do cliente lista so os dele.
   if (clienteId) where.clienteId = clienteId;
   const e = [];
-  if (desde || ate) where.dataDaVenda = { ...(desde ? { gte: new Date(desde) } : {}), ...(ate ? { lte: new Date(ate) } : {}) };
+  // "Enviar hoje" (pedido do dono em 08/11/2026): a postar com o prazo do ML ate o fim de hoje, os atrasados juntos. Ignora
+  // o periodo: a venda de 40 dias atras que ainda nao saiu tambem e envio de hoje.
+  if (despacho === "hoje") {
+    where.statusDoEnvio = "A_POSTAR";
+    where.despacharAte = { lte: fimDoDiaEmSaoPaulo(agora) };
+  } else if (desde || ate) where.dataDaVenda = { ...(desde ? { gte: new Date(desde) } : {}), ...(ate ? { lte: new Date(ate) } : {}) };
   if (Array.isArray(canais) && canais.length > 0) where.canal = { in: canais };
   if (Array.isArray(status) && status.length > 0) where.status = { in: status };
   else if (typeof status === "string" && status) where.status = status;
-  if (Array.isArray(envio) && envio.length > 0) where.statusDoEnvio = { in: envio };
+  if (Array.isArray(envio) && envio.length > 0 && despacho !== "hoje") where.statusDoEnvio = { in: envio };
   // Filtro das colunas Codigo e Local (pedido do dono em 07/11/2026): vale QUALQUER item do pedido, nao so o 1o que a
   // linha mostra. O codigo e o SKU do produto do Rise ou, sem produto, o codigo que veio do canal.
   if (Array.isArray(codigos) && codigos.length > 0) {
@@ -324,8 +332,13 @@ function filtroDaLista({ busca, desde, ate, canais, status, envio, codigos, loca
 }
 
 /** A lista de pedidos: `{ linhas, total }`, com o cliente, o primeiro item (com foto) e quantos itens ha. */
-export async function listarPedidosDeVenda({ busca, desde, ate, canais, status, envio, codigos, locais, soComAviso = false, clienteId, ordenar, direcao, pagina = 1, porPagina = 25 } = {}) {
-  const where = filtroDaLista({ busca, desde, ate, canais, status, envio, codigos, locais, soComAviso, clienteId });
+/** Quantos pedidos tem de ir a agencia ate o fim de hoje (atrasados juntos): o numero do botao "Enviar hoje". */
+export async function contarEnviosDeHoje(agora = new Date()) {
+  return prisma.pedidoDeVenda.count({ where: filtroDaLista({ despacho: "hoje", agora }) });
+}
+
+export async function listarPedidosDeVenda({ busca, desde, ate, canais, status, envio, codigos, locais, soComAviso = false, clienteId, despacho, agora, ordenar, direcao, pagina = 1, porPagina = 25 } = {}) {
+  const where = filtroDaLista({ busca, desde, ate, canais, status, envio, codigos, locais, soComAviso, clienteId, despacho, agora });
   const sentido = direcao === "asc" ? "asc" : "desc";
   const orderBy = ORDENACOES[ordenar] ? [ORDENACOES[ordenar](sentido), { dataDaVenda: "desc" }] : [{ dataDaVenda: "desc" }];
   const take = Math.max(1, Number(porPagina) || 25);
@@ -365,6 +378,7 @@ export async function listarPedidosDeVenda({ busca, desde, ate, canais, status, 
       status: p.status,
       statusDaOrigem: p.statusDaOrigem,
       statusDoEnvio: p.statusDoEnvio,
+      despacharAte: p.despacharAte,
       emSeparacao: p.emSeparacao,
       // So o que a linha mostra: a forma e as parcelas do 1o pagamento, o tipo e o rastreio do envio, as pecas em falta.
       pagamento: (Array.isArray(p.pagamento) ? p.pagamento : []).slice(0, 1).map((pg) => ({ forma: pg?.forma ?? null, tipo: pg?.tipo ?? null, parcelas: pg?.parcelas ?? 1 })),

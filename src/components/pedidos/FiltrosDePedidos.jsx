@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { Truck } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import CampoBusca from "@/components/ui/CampoBusca";
@@ -23,7 +24,7 @@ function diasAntes(dia, n) {
  * (`desde`/`ate`, padrao 1 mes, decidido pela pagina; atalhos Hoje e 7 dias), canais e status (parametro repetido; nenhum = todos) e "Só com
  * !" (`aviso=1`). Cada mudanca volta a pagina 1. `navegacao` e a paginacao do topo, posta no canto direito da 1a linha.
  */
-export default function FiltrosDePedidos({ busca, desde, ate, hoje, canais, status, soComAviso, navegacao = null }) {
+export default function FiltrosDePedidos({ busca, desde, ate, hoje, canais, status, soComAviso, enviarHoje = null, navegacao = null }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -140,6 +141,22 @@ export default function FiltrosDePedidos({ busca, desde, ate, hoje, canais, stat
           </span>
           Só com aviso
         </button>
+
+        {/* "Enviar hoje" (pedido do dono em 08/11/2026): o que tem de ir a agencia ate o fim de hoje, atrasados juntos, pelo
+            prazo que o ML deu a cada venda. Ignora o periodo. O numero e o total, com o filtro ligado ou nao. */}
+        {enviarHoje && (
+          <button
+            type="button"
+            onClick={() => ir((params) => (enviarHoje.ativo ? params.delete("despacho") : params.set("despacho", "hoje")))}
+            aria-pressed={enviarHoje.ativo}
+            title="Pedidos que precisam ser deixados na agência até o fim de hoje (os atrasados entram), pelo prazo do Mercado Livre"
+            className={`inline-flex items-center gap-1.5 ${chip(enviarHoje.ativo)}`}
+          >
+            <Truck size={14} aria-hidden="true" />
+            Enviar hoje
+            {enviarHoje.total > 0 && <span className="rounded-full bg-amber-400 px-1.5 text-[11px] leading-4 font-semibold tabular-nums text-amber-950">{enviarHoje.total}</span>}
+          </button>
+        )}
 
         {navegacao}
       </div>

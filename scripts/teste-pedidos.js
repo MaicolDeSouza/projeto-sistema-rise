@@ -206,6 +206,34 @@ try {
       [null, "estimado"],
     );
     conferir("ML: sem envio = estimado", normalizarPedidoML({ order: fx("ml-order"), billing: null, shipments: [], shipment: null, retorno: null, invoice: null }).envio.fonteDoCusto, "estimado");
+    // Prazo de despacho (08/11/2026): o `expected_date` do /shipments/{id}/sla e o limite que conta na reputacao; sem ele
+    // (envio ainda em "manufacturing"), o dia em que o ML libera a etiqueta (`buffering`), as 16:30, marcado como estimado.
+    conferir(
+      "ML: despachar ate pelo sla",
+      (({ despacharAte, despachoEstimado }) => [despacharAte, despachoEstimado])(normalizarPedidoML({ order: fx("ml-order"), shipment: fx("ml-shipment"), sla: { status: "on_time", expected_date: "2026-11-11T16:30:00-03:00" } }).envio),
+      ["2026-11-11T19:30:00.000Z", false],
+    );
+    conferir(
+      "ML: sem sla, o dia do buffering as 16:30 e estimado",
+      (({ despacharAte, despachoEstimado }) => [despacharAte, despachoEstimado])(normalizarPedidoML({ order: fx("ml-order"), shipment: { ...fx("ml-shipment"), shipping_option: { buffering: { date: "2026-11-12T00:00:00.000Z" } } } }).envio),
+      ["2026-11-12T19:30:00.000Z", true],
+    );
+    conferir("ML: sem sla nem buffering, sem prazo", normalizarPedidoML({ order: fx("ml-order"), shipment: null }).envio.despacharAte, null);
+    {
+      const { situacaoDoDespacho, fimDoDiaEmSaoPaulo } = await import("../src/lib/pedidos/despacho.js");
+      // Domingo 08/11/2026 10:00 em Sao Paulo.
+      const agora = new Date("2026-11-08T13:00:00.000Z");
+      const aPostar = (despacharAte) => situacaoDoDespacho({ statusDoEnvio: "A_POSTAR", despacharAte }, agora);
+      conferir("despacho: hoje com a hora", aPostar("2026-11-08T19:30:00.000Z"), { chave: "hoje", texto: "Enviar hoje até 16:30" });
+      conferir("despacho: amanha", aPostar("2026-11-09T19:30:00.000Z"), { chave: "amanha", texto: "Enviar amanhã até 16:30" });
+      conferir("despacho: outro dia", aPostar("2026-11-11T19:30:00.000Z"), { chave: "depois", texto: "Enviar qua 11/11 até 16:30" });
+      conferir("despacho: passou da hora de hoje = atrasado", aPostar("2026-11-08T12:00:00.000Z"), { chave: "atrasado", texto: "Atrasado: era hoje até 09:00" });
+      conferir("despacho: dia anterior = atrasado", aPostar("2026-11-06T19:30:00.000Z"), { chave: "atrasado", texto: "Atrasado: era sex 06/11 até 16:30" });
+      conferir("despacho: ja postado nao mostra nada", situacaoDoDespacho({ statusDoEnvio: "POSTADO", despacharAte: "2026-11-08T19:30:00.000Z" }, agora), null);
+      conferir("despacho: sem prazo nao mostra nada", aPostar(null), null);
+      conferir("fim do dia de Sao Paulo", fimDoDiaEmSaoPaulo(agora).toISOString(), "2026-11-09T02:59:59.999Z");
+      conferir("fim do dia de Sao Paulo perto da meia-noite UTC", fimDoDiaEmSaoPaulo(new Date("2026-11-09T01:30:00.000Z")).toISOString(), "2026-11-09T02:59:59.999Z");
+    }
     conferir("ML: sem devolucao", ml1.devolucao, null);
     conferir("ML: devolucao entregue com frete de retorno", normalizarPedidoML({ order: fx("ml-order"), billing: null, shipments: [], shipment: fx("ml-shipment"), custos: fx("ml-shipment-costs"), retorno: fx("ml-shipment-return"), custosDoRetorno: fx("ml-shipment-return-costs"), invoice: null }).devolucao, { entregueEm: new Date("2026-11-20T14:00:00.000Z"), custoDoRetorno: 22.5 });
     conferir("ML: tag refunded sem retorno = devolucao sem custo", normalizarPedidoML({ order: { ...fx("ml-order"), tags: ["paid", "refunded"] }, billing: null, shipments: [], shipment: null, retorno: null, invoice: null }).devolucao?.custoDoRetorno, 0);
@@ -385,6 +413,19 @@ try {
     conferir("nf cancelada apaga o aviso", (await aplicarPedidoLido({ ...nml, devolucao: { entregueEm: agora, custoDoRetorno: 22.5 }, nf: { ...nml.nf, status: "cancelled" } }, { cliente: mlFalso, agora })).avisos.includes("nfACancelar"), false);
     const pago = await aplicarPedidoLido({ ...nml, idExterno: "ZZ-PED-102", numero: "ZZ-PED-102", statusDaOrigem: "paid", envio: { ...nml.envio, statusDaOrigem: "handling" }, itens: [{ ...nml.itens[0], quantidade: 50 }] }, { cliente: mlFalso, agora });
     conferir("falta de peca vira aguardando pecas", pago.status, "AGUARDANDO_PECAS");
+    // "Enviar hoje" (08/11/2026): a postar com o prazo do ML ate o fim de hoje (atrasados entram), sem olhar o periodo.
+    {
+      const hojeAs = new Date(Math.min(agora.getTime(), new Date(`${agora.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" })}T23:00:00-03:00`).getTime()));
+      const amanha = new Date(agora.getTime() + 36 * 3600 * 1000);
+      const aPostar = (id, despacharAte) => aplicarPedidoLido({ ...nml, idExterno: id, numero: id, statusDaOrigem: "paid", envio: { ...nml.envio, statusDaOrigem: "ready_to_ship", despacharAte }, itens: [{ ...nml.itens[0], quantidade: 1 }] }, { cliente: mlFalso, agora });
+      const hoje = await aPostar("ZZ-PED-110", hojeAs.toISOString());
+      const depois = await aPostar("ZZ-PED-111", amanha.toISOString());
+      conferir("despacho: coluna gravada", (await prisma.pedidoDeVenda.findUnique({ where: { id: hoje.id } })).despacharAte?.toISOString(), hojeAs.toISOString());
+      const doDia = (await listarPedidosDeVenda({ busca: "ZZ-PED-11", despacho: "hoje", agora, desde: new Date("2030-01-01"), ate: new Date("2030-01-02") })).linhas.map((l) => l.numero);
+      conferir("filtro enviar hoje: so o de hoje, ignorando o periodo", doDia, ["ZZ-PED-110"]);
+      conferir("linha leva o prazo", (await listarPedidosDeVenda({ busca: "ZZ-PED-111" })).linhas[0]?.despacharAte?.toISOString?.() ?? null, amanha.toISOString());
+      void depois;
+    }
     conferir("marcar separacao", [(await marcarEmSeparacao(pago.id, true)).ok, (await prisma.pedidoDeVenda.findUnique({ where: { id: pago.id } })).emSeparacao], [true, true]);
     conferir("separacao recusada em enviado", (await marcarEmSeparacao(a1.id, true)).ok, false);
     conferir("espelho do Bling", [await espelharNoBling("MERCADO_LIVRE", "ZZ-PED-100", { blingPedidoId: "7777", blingNumero: "123" }), await espelharNoBling("MERCADO_LIVRE", "nao-existe", { blingPedidoId: "1", blingNumero: "1" })], [true, false]);
