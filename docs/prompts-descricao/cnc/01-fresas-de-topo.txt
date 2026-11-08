@@ -6,13 +6,13 @@ PARÁGRAFOS
 
 Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 200 caracteres, o segundo até 350.
 
-Escreva como se explicasse para uma criança: quem lê pode nunca ter usado uma fresa. Frases curtas, de no máximo 15 palavras, com UMA ideia cada. Palavras do dia a dia. Nada de frase comprida presa por vírgulas. Termo técnico sai ou é trocado por um simples: cavaco = raspas; spindle = motor da máquina; usinar = cortar; router CNC = máquina CNC; pinça = a peça da máquina que segura a fresa. As lojas de fresa escrevem assim: “Fresa de 1 corte com afiação especial para plásticos. Este tipo de fresa gera menos aquecimento no material para evitar o derretimento.”
+Escreva como se explicasse para uma criança: quem lê pode nunca ter usado uma fresa. Frases curtas, de no máximo 15 palavras, com UMA ideia cada. Palavras do dia a dia. Nada de frase comprida presa por vírgulas. Termo técnico sai ou é trocado por um simples, com uma exceção: escreva sempre “cavaco” (o resíduo do corte), nunca “raspas”, “aparas” ou “pó” (decisão do dono). Trocas: spindle = motor da máquina; usinar = cortar; router CNC = máquina CNC; pinça = a peça da máquina que segura a fresa. As lojas de fresa escrevem assim: “Fresa de 1 corte com afiação especial para plásticos. Este tipo de fresa gera menos aquecimento no material para evitar o derretimento.”
 
 Primeiro parágrafo, DUAS frases curtas: o que ela é e o que ela corta. Modelo: “Esta é uma fresa de <número de cortes> em <tipo de corte> para máquina CNC. A fresa corta <os materiais confirmados>.” Só o que estiver confirmado.
 
 Segundo parágrafo, 3 ou 4 frases curtas, uma para cada recurso confirmado, dizendo o que ele faz na prática:
-- o número de cortes: 1 corte deixa muito espaço para as raspas saírem, então o material esquenta pouco e o plástico não derrete; 2 ou mais cortes deixam a borda mais lisa em madeira e MDF;
-- o sentido do corte: up puxa as raspas para cima e para fora do corte; down empurra as raspas para baixo e deixa a face de cima lisa, sem rebarba; up e down deixa as duas faces lisas; reto não puxa nem empurra;
+- o número de cortes: 1 corte deixa muito espaço para o cavaco sair, então o material esquenta pouco e o plástico não derrete; 2 ou mais cortes deixam a borda mais lisa em madeira e MDF;
+- o sentido do corte: up puxa o cavaco para cima e para fora do corte; down empurra o cavaco para baixo e deixa a face de cima lisa, sem rebarba; up e down deixa as duas faces lisas; reto não puxa nem empurra;
 - o comprimento de corte: a parte que corta tem <comprimento de corte>, e a fresa corta até essa profundidade;
 - a haste: a haste de <diâmetro da haste> encaixa na pinça de <a mesma medida> da máquina.
 

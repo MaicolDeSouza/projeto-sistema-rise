@@ -12,10 +12,12 @@
   400. Na biblioteca da VPS, o nome "CNC-Fresas de Topo". Esperando a aprovação do dono.
   No mesmo dia, depois de ver o 120919, o dono achou os parágrafos difíceis ("escreva como se tivesse escrevendo para uma
   criança de 5 anos") e pediu o sentido de corte: parágrafos de frases curtas (até 15 palavras, o 1º com 2 frases até 200
-  caracteres, o 2º com 3 ou 4 frases até 350), termos técnicos trocados (cavaco = raspas, spindle = motor da máquina), no
+  caracteres, o 2º com 3 ou 4 frases até 350), termos técnicos trocados (spindle = motor da máquina, usinar = cortar), no
   estilo direto da Código G e da Engenharia FSI. Sentido do Corte virou OBRIGATÓRIO: a fonte da mesma fresa; sem ela, a
   espiral sem "down" ou "up e down" no nome é Up (o padrão das duas lojas: 322 up contra 18 down na Código G), conferido na
   hélice da foto; a fresa de cortes retos leva "Reto (não puxa nem empurra)".
+  APROVADO pelo dono em 08/11/2026 ("aprovo. Apenas mudar de raspa para cavaco"): o texto escreve sempre "cavaco", nunca
+  "raspas". Gravado na biblioteca da VPS com o nome "CNC-Fresas de Topo".
 
 Segue as regras dos prompts de Embarcados e de Componentes (ver `../embarcados/LEIA-ME.md` e
 `../componentes/LEIA-ME.md`): campo sem dado confirmado sai da descrição, nomes padronizados por campo, "possui" em vez
