@@ -34,7 +34,8 @@ import {
 } from "@/lib/canaisDeVenda/ml/concorrentes";
 import { LIMITES_ML, RascunhoMLSchema } from "@/lib/canaisDeVenda/ml/esquema";
 import { preencherFicha, sugerirCategoria, sugerirTitulos } from "@/lib/canaisDeVenda/ml/inteligencia";
-import { lerCategoria, lerCategoriaCompleta, lerCustosDoAnuncio, precoPorMargemNoML, textoDoErroML } from "@/lib/canaisDeVenda/ml/leitura";
+import { lucroDaLojaDoRascunho, varianteDoRascunho } from "@/lib/canaisDeVenda/ml/faixas";
+import { lerCategoria, lerCategoriaCompleta, lerCustosDoAnuncio, precoPelaFaixaNoML, precoPorMargemNoML, textoDoErroML } from "@/lib/canaisDeVenda/ml/leitura";
 import {
   anunciosMLDoProduto,
   buscarProdutoParaAnuncio,
@@ -367,6 +368,36 @@ export async function precoPorMargemML(rascunho, { custo, margem } = {}) {
     return resultado ? { ok: true, ...resultado } : { ok: false, erro: "Lucro inatingível com estas taxas." };
   } catch (erro) {
     return falhaDeLeitura(erro, "preco por margem");
+  }
+}
+
+/**
+ * O botao "Preco pelo lucro da loja" (definicoes do dono em 08/11/2026): o preco da variante do rascunho
+ * (ou da pedida) que deixa no ML o mesmo lucro em R$ que o produto deixa na loja, com as faixas (72-79 sobe
+ * para 79 com frete gratis). O lucro e o custo saem do produto no banco, nunca do navegador.
+ */
+export async function precoPelaFaixaMLAcao(rascunho, { variante } = {}) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"], ["dado.custo", "ver"], ["dado.margem", "ver"]);
+  if (negado) return negado;
+  if (variante !== undefined && !["classico_sem_frete", "classico_frete_gratis", "premium_sem_frete", "premium_frete_gratis"].includes(variante)) return PEDIDO_INVALIDO;
+  const lido = RascunhoMLSchema.safeParse({ ...rascunho, preco: Number(rascunho?.preco) > 0 ? rascunho.preco : 1 });
+  if (!lido.success) return PEDIDO_INVALIDO;
+  if (!ehCategoria(lido.data.categoriaId)) return { ok: false, erro: "Sem categoria: escolha a categoria na aba Geral." };
+  try {
+    const ids = [lido.data.produtoId, ...(lido.data.composicao?.itens ?? []).map((item) => item.produtoId)];
+    const produtos = await contextoDosProdutos(ids);
+    const produto = produtos[lido.data.produtoId];
+    if (!produto) return { ok: false, erro: "Produto não encontrado. Ele pode ter sido excluído." };
+    const custo = lido.data.composicao?.itens?.length
+      ? lido.data.composicao.itens.reduce((soma, item) => soma + Number(produtos[item.produtoId]?.custo ?? 0) * Number(item.quantidade), 0)
+      : Number(produto.custo);
+    if (!(custo > 0)) return { ok: false, erro: "Sem custo do produto." };
+    const lucro = lucroDaLojaDoRascunho(lido.data, Object.values(produtos));
+    if (lucro === null) return { ok: false, erro: "Sem preço de venda do produto." };
+    const resultado = await precoPelaFaixaNoML(clienteML(), lido.data, { custo, lucro, variante: variante ?? varianteDoRascunho(lido.data) });
+    return resultado ? { ok: true, ...resultado, lucro } : { ok: false, erro: "Lucro inatingível com estas taxas." };
+  } catch (erro) {
+    return falhaDeLeitura(erro, "preco pela faixa");
   }
 }
 

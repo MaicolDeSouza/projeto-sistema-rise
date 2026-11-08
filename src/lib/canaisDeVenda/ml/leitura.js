@@ -12,6 +12,7 @@
 
 import { normalizarAtributosDaCategoria } from "./atributos";
 import { LIMITE_DO_FRETE_GRATIS, freteQueConta, precoPorMargem } from "./custos";
+import { precoPelaFaixa, varianteDoRascunho } from "./faixas";
 import { medidasFaltando } from "./validacao";
 
 const dinheiro = (valor) => Math.round((Number(valor) + Number.EPSILON) * 100) / 100;
@@ -202,4 +203,31 @@ export async function precoPorMargemNoML(cliente, rascunho, { custo, margem }) {
     custosML = await lerCustosDoAnuncio(cliente, { ...rascunho, preco });
   }
   return { preco, custosML };
+}
+
+/**
+ * O preco de uma variante que deixa no ML o LUCRO DA LOJA (regras do dono em 08/11/2026, `faixas.js`),
+ * com as taxas e o frete REAIS do ML lidos no proprio preco. Exige categoria (as taxas sao por
+ * categoria) e as medidas do pacote (o frete). Devolve tambem os custos lidos no preco final, como
+ * `precoPorMargemNoML`, para a tela mostrar. `null` sem custo ou sem lucro.
+ */
+export async function precoPelaFaixaNoML(cliente, rascunho, { custo, lucro, variante = varianteDoRascunho(rascunho) }) {
+  const categoriaId = String(rascunho?.categoriaId ?? "").trim();
+  if (!categoriaId) throw new Error("Sem categoria: escolha a categoria na aba Geral.");
+  const envio = rascunho?.envio ?? {};
+  const logistica = envio.logistica ?? "xd_drop_off";
+  const tipoAnuncio = String(variante).startsWith("premium") ? "gold_pro" : "gold_special";
+  const taxas = (preco) => lerTaxas(cliente, { preco: dinheiro(preco), categoriaId, tipoAnuncio, logistica });
+  const frete = async (preco, freteGratis) =>
+    (await lerFreteDoVendedor(cliente, { envio: { ...envio, freteGratis }, preco: dinheiro(preco), tipoAnuncio, logistica }))?.custo ?? 0;
+
+  const resultado = await precoPelaFaixa({ lucro, custo, variante, taxas, frete });
+  if (!resultado) return null;
+  const custosML = await lerCustosDoAnuncio(cliente, {
+    ...rascunho,
+    preco: resultado.preco,
+    tipoAnuncio,
+    envio: { ...envio, freteGratis: resultado.freteGratis },
+  });
+  return { ...resultado, variante, custosML };
 }

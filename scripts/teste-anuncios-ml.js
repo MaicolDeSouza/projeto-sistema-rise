@@ -3598,6 +3598,34 @@ try {
     conferir("lucro por unidade do kit", [lucroPorUnidade(15.37, 10), lucroPorUnidade(null, 10), lucroPorUnidade(15.37, 0)], [1.54, null, null]);
   }
 
+  {
+    console.log("\nPreco pela faixa no ML (taxas e frete do ML falso)");
+    const { precoPelaFaixaNoML } = await import("../src/lib/canaisDeVenda/ml/leitura.js");
+    const { lucroDaLojaDoRascunho } = await import("../src/lib/canaisDeVenda/ml/faixas.js");
+    const { custosDoAnuncio } = await import("../src/lib/canaisDeVenda/ml/custos.js");
+    const { lucroLiquido } = await import("../src/lib/margem.js");
+    const { criarMLFalso } = await import("./lib/mlFalso.js");
+    const falso = criarMLFalso();
+    const rascunho = { produtoId: "p-fx", categoriaId: "MLB99779", tipoAnuncio: "gold_special", preco: 45.9, envio: { logistica: "xd_drop_off", freteGratis: false, alturaCm: 5, larguraCm: 8, comprimentoCm: 8, pesoKg: 0.05 } };
+    const lucro = lucroLiquido(45.9, 25);
+    // O ML falso: 13% de comissao, sem tarifa fixa no xd_drop_off, frete do vendedor R$ 6,85 sem frete gratis e R$ 8,15 com.
+    const semFrete = await precoPelaFaixaNoML(falso, rascunho, { custo: 25, lucro });
+    const lucroNoML = custosDoAnuncio({ preco: semFrete.preco, custo: 25, percentual: 0.13, tarifaFixa: 0, frete: 6.85 }).lucro;
+    conferir("sem frete: preco acima do da loja, mantem o lucro da loja, variante do rascunho", [semFrete.preco > 45.9, lucroNoML >= lucro, lucroNoML < lucro + 0.1, semFrete.freteGratis, semFrete.variante], [true, true, true, false, "classico_sem_frete"]);
+    conferir("sem frete: devolve os custos lidos no preco final", [semFrete.custosML?.preco, semFrete.custosML?.frete], [semFrete.preco, 6.85]);
+    const comFrete = await precoPelaFaixaNoML(falso, rascunho, { custo: 25, lucro, variante: "classico_frete_gratis" });
+    conferir("com frete gratis: preco maior, frete gratis ligado", [comFrete.preco > semFrete.preco, comFrete.freteGratis, comFrete.variante, comFrete.custosML?.frete], [true, true, "classico_frete_gratis", 8.15]);
+    conferir("sem custo: null", await precoPelaFaixaNoML(falso, rascunho, { custo: 0, lucro }), null);
+    let erroSemCategoria = null;
+    try { await precoPelaFaixaNoML(falso, { ...rascunho, categoriaId: "" }, { custo: 25, lucro }); } catch (erro) { erroSemCategoria = erro.message; }
+    conferir("sem categoria: recusa dizendo", /categoria/i.test(String(erroSemCategoria)), true);
+
+    const produtos = [{ id: "p-fx", precoVenda: 45.9, custo: 25 }, { id: "p-2", precoVenda: 10, custo: 4 }, { id: "p-3", precoVenda: 10, custo: null }];
+    conferir("lucro da loja: simples", lucroDaLojaDoRascunho(rascunho, produtos), Math.round(lucro * 100) / 100);
+    conferir("lucro da loja: kit = soma por peca x quantidade", lucroDaLojaDoRascunho({ ...rascunho, composicao: { itens: [{ produtoId: "p-fx", quantidade: 2 }, { produtoId: "p-2", quantidade: 3 }] } }, produtos), Math.round((lucro * 2 + lucroLiquido(10, 4) * 3) * 100) / 100);
+    conferir("lucro da loja: peca sem custo ou produto sem preco = null", [lucroDaLojaDoRascunho({ ...rascunho, composicao: { itens: [{ produtoId: "p-3", quantidade: 1 }] } }, produtos), lucroDaLojaDoRascunho({ ...rascunho, produtoId: "p-3" }, produtos)], [null, null]);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } finally {
   await limpar();
