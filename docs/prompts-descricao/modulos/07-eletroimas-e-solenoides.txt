@@ -1,0 +1,128 @@
+Escreva a descrição de um eletroímã ou de um solenoide atuador em português brasileiro, no JSON exigido pelo Rise: paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm e decisoes. Não acrescente outros campos. Vale para dois tipos, cada um com a sua lista de campos:
+- Eletroímã de retenção: o redondo “de ventosa”, que segura peças de ferro e aço enquanto está ligado. A série P (P20/15, P25/11, P25/20, P30/22, P34/18, P40/20...), vendida como “eletroímã solenoide”.
+- Solenoide atuador linear: o de êmbolo que anda quando liga (push-pull ou pull), como o JF-0530B e o JF-0826B.
+Válvulas solenoide (água, gás, ar), travas e fechaduras solenoide, fechaduras eletromagnéticas de porta, bobinas de reposição de válvula, relés e ímãs permanentes não entram neste prompt.
+
+Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use informações confirmadas no cadastro ou nas referências. Não complete especificações por suposição.
+
+PARÁGRAFOS
+
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 200 caracteres, o segundo até 350.
+
+Escreva como se explicasse para uma criança: quem lê pode nunca ter usado um eletroímã. Frases curtas, de no máximo 15 palavras, com UMA ideia cada. Palavras do dia a dia. Nada de frase comprida presa por vírgulas. Termo técnico sai ou é trocado por um simples: êmbolo = a haste que se mexe; carga indutiva, flyback e bobina ficam de fora.
+
+Primeiro parágrafo, DUAS frases curtas: o que ele é e o que ele faz.
+- Eletroímã de retenção: “Este é um eletroímã de retenção de <tensão>. O eletroímã segura peças de ferro e aço com até <força> quando está ligado.”
+- Atuador: “Este é um solenoide atuador de <tensão>. Quando liga, a haste é puxada com força de <força>.”
+
+Segundo parágrafo, 3 ou 4 frases curtas, uma para cada fato confirmado, dizendo o que ele faz na prática:
+- Eletroímã de retenção: ligou, segura; desligou, solta. Só segura depois de encostar: não puxa de longe. A peça precisa ser de ferro ou aço, plana e limpa. O peso que ele levanta é bem menor que a força de retenção.
+- Atuador: a haste anda <curso> quando liga; a mola devolve a haste quando desliga (só com fonte); deve ficar ligado só por pouco tempo (só com fonte).
+- Os dois: para ligar no Arduino ou ESP32, use um módulo relé ou um transistor.
+
+Fale com o comprador: “possui”, não “tem”; “você” quando couber. Ao voltar a falar do produto, use “o eletroímã” ou “o solenoide”, nunca “ele” no início da frase. Tom: explica, sem vender. Sem elogios vazios (“alta performance”, “construção robusta”, “versatilidade”, “ideal para qualquer projeto”), sem repetir o título inteiro e sem enumerar especificações.
+
+PADRONIZAÇÃO DOS NOMES
+
+Use exatamente os nomes dos campos definidos neste prompt. As lojas usam nomes variados; converta-os assim:
+
+Fabricante: substitui Marca. Quem fabrica, como está no cadastro ou impresso na peça: “Kaka”, “Uxcell”. Sem fabricante declarado (OEM, IMP, Genérica): OEM. Nunca o nome da loja. Marca que só aparece no anúncio de um marketplace, sem estar na peça, na caixa ou no cadastro: OEM, e registre a marca do anúncio em decisoes.
+
+Modelo: o código da série ou do fabricante: “P25/20”, “KK-P25/20”, “JF-0826B”. No eletroímã de retenção o código diz as medidas: P25/20 = 25mm de diâmetro e 20mm de altura.
+
+Tipo: “Eletroímã de retenção” ou “Atuador linear push-pull” (puxa e empurra) ou “Atuador linear pull” (só puxa), como a fonte disser.
+
+Tensão de Operação: substitui Tensão, Tensão nominal, Tensão de entrada e Tensão de atuação: “24VDC”, “12VDC”.
+
+Corrente: substitui Corrente nominal, Corrente típica e Corrente de operação: “170mA”, “0,3A”. “Aprox.” sai.
+
+Potência: substitui Consumo e Potência consumida: “4W”.
+
+Força de Retenção (eletroímã): substitui Força, Capacidade, Capacidade de adesão e Força de atração: em kg e N, como a fonte publicar: “5kg (50N)”. Fonte só com kg: N = kg × 9,8, arredondado (“8kg (78N)”). Fonte só com N: kg = N ÷ 9,8, com uma casa (“25N” = “2,5kg (25N)”).
+
+Força (atuador): a força de tração em N, com o curso em que foi medida quando a fonte disser: “5N”, “20N (a 10mm)”.
+
+Curso (atuador): substitui Deslocamento e Curso do êmbolo: “10mm”.
+
+Diâmetro: o diâmetro do corpo do eletroímã: “25mm”.
+
+Fixação: substitui Rosca, Parafuso de fixação e Furo de fixação: “furo roscado M4 no centro da face de trás”.
+
+Comprimento do Cabo: substitui Comprimento do fio e Comprimento dos fios: “200mm”.
+
+Regime de Trabalho: substitui Ciclo de trabalho e Duty cycle: “contínuo” ou “intermitente (no máximo 10s ligado)”, como a fonte disser.
+
+Peça Atraída (eletroímã): o que ele segura, com a espessura mínima da fonte: “ferro ou aço plano e limpo, com 5mm ou mais de espessura”.
+
+Grau de Proteção: “IP54”. Temperatura de Operação: “-5°C a 40°C”. Material: “aço com bobina de cobre”.
+
+Use Tensão, nunca Voltagem; Corrente, nunca Amperagem.
+
+CARACTERÍSTICAS
+
+Cada item contém nome, valor e referencias: nome “Força de Retenção”, valor “5kg (50N)”, sem dois-pontos no nome.
+
+Com referências disponíveis, os campos obrigatórios do tipo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: Origem, Unidade venda, Formato, Design, Durabilidade, Versatilidade, Força dielétrica, IPI).
+
+Eletroímã de retenção, campos obrigatórios:
+Fabricante; Modelo; Tipo; Tensão de Operação; Corrente; Potência; Força de Retenção; Diâmetro; Fixação; Comprimento do Cabo.
+Condicionais (só com fonte), depois dos obrigatórios:
+Peça Atraída; Regime de Trabalho; Grau de Proteção; Temperatura de Operação; Material.
+
+Atuador linear, campos obrigatórios:
+Fabricante; Modelo; Tipo; Tensão de Operação; Corrente; Potência; Força; Curso; Comprimento do Cabo.
+Condicionais (só com fonte), depois dos obrigatórios:
+Regime de Trabalho; Fixação; Temperatura de Operação; Material.
+
+Campos finais (os dois tipos):
+Dimensões (CxLxA); Peso.
+
+Dimensões (CxLxA) e Peso são sempre os dois últimos campos e são OBRIGATÓRIOS (o Rise calcula o frete com eles; ver PESO E DIMENSÕES). Devolva os números em dimensoesMm e pesoGramas; o Rise escreve as duas linhas. Não os repita em caracteristicas.
+
+No modo sem referências, respeite a instrução acrescentada pelo Rise: inclua apenas especificações confirmadas nos dados próprios do produto. Se não houver nenhuma, retorne caracteristicas vazia.
+
+Números colados às unidades: 24VDC, 170mA, 4W, 50N, 200mm. Use vírgula decimal. Nunca use ponto e vírgula dentro de um valor. Informações distintas no mesmo valor se separam por “ / ”.
+
+REGRAS ESPECÍFICAS
+
+Força de retenção não é o peso que ele levanta. Ela é medida com uma chapa de aço plana, limpa, sem pintura, encostada na face inteira. Na prática, o peso que ele levanta é de 5 a 10 vezes menor (Adafruit, Little Bird). Pintura, ferrugem, chapa fina ou um vão de papel derrubam a força. Nunca escreva que ele levanta o valor da força de retenção.
+
+O eletroímã de retenção só segura enquanto está ligado e depois de encostar na peça: não puxa de longe. Nunca escreva que atrai à distância nem que segura sem energia.
+
+O código do modelo decide as medidas: P25/11 é 25mm de diâmetro e 11mm de altura, mesmo que a descrição antiga diga outra coisa. Descrição de outro modelo copiada no produto não vale como fonte: registre em decisoes.
+
+Força, corrente e potência mudam de um modelo para o outro e entre fabricantes. Ordem das fontes: o anúncio do fornecedor do mesmo modelo e da mesma tensão; o datasheet do fabricante do mesmo modelo; uma loja do mesmo modelo. A força do título do produto que diverge das fontes entra em decisoes, para o dono decidir. Tabela de referência, só quando as fontes acima não derem o número, citando-a em decisoes (série ZYE1-P, datasheet do fabricante, 24V): P20/15: rosca M3, cabo 200mm, 3W, 25N, 30g; P25/20: M4, 200mm, 4W, 50N, 50g; P30/22: M4, 250mm, 5W, 100N, 80g; P34/18: M4, 250mm, 6W, 180N, 90g; P40/20: M5, 250mm, 8W, 250N, 130g; peça atraída com 5mm ou mais; IP54.
+
+12V e 24V do mesmo modelo têm a mesma força e potência, com corrente diferente. Corrente sem fonte da mesma tensão: calcule por corrente = potência ÷ tensão (4W ÷ 24V = 170mA) e registre a conta em decisoes. Nunca copie a corrente da outra tensão.
+
+Atuador: a força é maior no fim do curso e menor no começo; escreva a força como a fonte publicar. Atuador sem regime de trabalho na fonte: omita o campo, não escreva “contínuo”.
+
+Fonte de alimentação: a corrente da fonte deve ser maior que a do eletroímã ou do atuador. Não escreva um valor fixo (“fonte de 1A”) sem fonte.
+
+FONTES
+
+Em referencias, registre só os números das referências fornecidas que sustentam o valor daquele campo. Para valores vindos só do cadastro ou título, e para valores desconhecidos, use referencias []. Resultado da web só vale se consultado de fato e informado como referência; prefira o datasheet do fabricante. Não invente consultas, fontes, URLs ou números de referência.
+
+ITENS INCLUSOS
+
+O primeiro item é o próprio produto, com quantidade e nome técnico: “01 ELETROÍMÃ DE RETENÇÃO P25/20 24VDC”. O parafuso de fixação entra só quando o cadastro ou o fornecedor disser que acompanha (“01 PARAFUSO M4X10”). A embalagem de outro vendedor não comprova o conteúdo vendido pela 4hobby.
+
+PESO E DIMENSÕES (OBRIGATÓRIOS)
+
+O Rise usa o peso e as medidas para calcular o frete: pesoGramas e dimensoesMm são obrigatórios e só ficam null quando nenhum passo abaixo der resultado, e então decisoes diz o que foi procurado.
+
+dimensoesMm: eletroímã de retenção, diâmetro x diâmetro x altura do corpo, sem o cabo (P25/20 = 25 x 25 x 20). Atuador: comprimento do corpo com a haste recolhida x largura x altura, sem o cabo.
+
+pesoGramas: procure nesta ordem e pare no primeiro que der o número:
+1. O cadastro do produto ou uma referência que publique o peso do MESMO modelo, sem a embalagem.
+2. O datasheet do fabricante do mesmo modelo, ou a tabela de referência acima.
+3. Uma loja na internet do mesmo modelo.
+Peso com a embalagem (“0,050kg” de marketplace para o P20/15, que pesa 23g a 30g) não vale. Peso em gramas inteiras. Não deduza medida pela foto.
+
+DIVERGÊNCIAS
+
+Para cada divergência fornecida, retorne id, opcao, motivo breve e campo com o nome padronizado deste prompt (divergências do mesmo campo compartilham o nome). opcao é o índice a partir de zero, ou null quando faltar evidência suficiente. Prefira o mesmo modelo, a mesma tensão e o datasheet do fabricante. Exceto para peso e dimensões, reserve a posição do campo divergente em caracteristicas com valor "" e referencias []. Não coloque valores divergentes nos parágrafos ou características antes da escolha do operador.
+
+GARANTIA
+
+O Rise acrescenta automaticamente: Garantia Legal de 90 dias (contra defeitos de fabricação). Não gere campo extra de garantia nem copie garantias das referências. Não escreva preço, prazo ou nome de loja.
