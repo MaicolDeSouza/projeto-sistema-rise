@@ -48,7 +48,7 @@ async function chamar(acao, argumento) {
   }
 }
 
-function Moldura({ produto, aoFechar, rodape = null, children }) {
+function Moldura({ produto, aoFechar, rodape = null, larga = false, children }) {
   const secao = useRef(null);
   // O foco vai para dentro da janela ao abrir (senao fica no icone, atras do fundo escuro e
   // fora do alcance de quem usa o teclado). Sem prender o foco: so a entrada.
@@ -67,7 +67,11 @@ function Moldura({ produto, aoFechar, rodape = null, children }) {
         role="dialog"
         aria-modal="true"
         aria-label="Anúncios do Mercado Livre"
-        className="flex max-h-full w-full max-w-2xl flex-col rounded-lg border border-borda bg-superficie shadow-2xl focus:outline-none"
+        className={`flex max-h-full w-full flex-col rounded-lg border border-borda bg-superficie shadow-2xl focus:outline-none ${
+          // A lista Reaproveitar tem 7 colunas: em 2xl (e ainda em 4xl) o botao Reaproveitar ficava escondido atras da rolagem horizontal
+          // (visto na tela em 08/11/2026), e o operador precisa ver a acao principal sem rolar.
+          larga ? "max-w-5xl" : "max-w-2xl"
+        }`}
       >
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-borda px-5 py-3">
           <div className="min-w-0">
@@ -345,7 +349,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
   const origemDaVariante = anuncios.find((anuncio) => anuncio.codigo === anuncio.sku && anuncio.situacaoCanal !== "ENCERRADA") ?? anuncios[0] ?? null;
 
   return (
-    <Moldura produto={produto} aoFechar={aoFechar} rodape={fase === "lista" || fase === "naoConferido" ? botaoNaoAnunciar : null}>
+    <Moldura produto={produto} aoFechar={aoFechar} larga={fase === "reaproveitar"} rodape={fase === "lista" || fase === "naoConferido" ? botaoNaoAnunciar : null}>
       {fase === "carregando" && (
         <p className="flex items-center justify-center gap-2 py-8 text-sm text-suave" role="status">
           <Loader size={16} className="animate-spin" />
