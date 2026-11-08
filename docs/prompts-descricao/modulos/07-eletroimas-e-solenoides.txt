@@ -12,11 +12,11 @@ Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo],
 Escreva como se explicasse para uma criança: quem lê pode nunca ter usado um eletroímã. Frases curtas, de no máximo 15 palavras, com UMA ideia cada. Palavras do dia a dia. Nada de frase comprida presa por vírgulas. Termo técnico sai ou é trocado por um simples: êmbolo = a haste que se mexe; carga indutiva, flyback e bobina ficam de fora.
 
 Primeiro parágrafo, DUAS frases curtas: o que ele é e o que ele faz.
-- Eletroímã de retenção: “Este é um eletroímã de retenção de <tensão>. O eletroímã segura peças de ferro e aço com até <força> quando está ligado.”
+- Eletroímã de retenção: “Este é um eletroímã de retenção de <tensão>, com força de retenção de <força>. Ligado, o eletroímã prende peças de ferro e aço.”
 - Atuador: “Este é um solenoide atuador de <tensão>. Quando liga, a haste é puxada com força de <força>.”
 
 Segundo parágrafo, 3 a 5 frases curtas, uma para cada fato confirmado, dizendo o que ele faz na prática:
-- Eletroímã de retenção: ligou, segura; desligou, solta. Só segura depois de encostar: não puxa de longe. A peça precisa ser de ferro ou aço, plana e limpa. O peso que ele levanta é bem menor que a força de retenção.
+- Eletroímã de retenção: ligou, prende; desligou, solta. Só prende depois de encostar: não puxa de longe. A força de retenção é a força para arrancar uma peça plana e limpa encostada nele. Para pendurar uma peça, conte com 5 a 10 vezes menos, com a conta em gramas (3kg = de 300g a 600g).
 - Atuador: a haste anda <curso> quando liga; a mola devolve a haste quando desliga (só com fonte); deve ficar ligado só por pouco tempo (só com fonte).
 - Os dois: para ligar no Arduino ou ESP32, use um módulo relé ou um transistor.
 
@@ -85,7 +85,7 @@ Números colados às unidades: 24VDC, 170mA, 4W, 50N, 200mm. Use vírgula decima
 
 REGRAS ESPECÍFICAS
 
-Força de retenção não é o peso que ele levanta. Ela é medida com uma chapa de aço plana, limpa, sem pintura, encostada na face inteira. Na prática, o peso que ele levanta é de 5 a 10 vezes menor (Adafruit, Little Bird). Pintura, ferrugem, chapa fina ou um vão de papel derrubam a força. Nunca escreva que ele levanta o valor da força de retenção.
+Força de retenção não é o peso que ele levanta. Ela é medida com uma chapa de aço plana, limpa, sem pintura, encostada na face inteira. Na prática, o peso que ele levanta é de 5 a 10 vezes menor (Adafruit, Little Bird). Pintura, ferrugem, chapa fina ou um vão de papel derrubam a força. Nunca escreva que ele segura, levanta ou aguenta “até” o valor da força de retenção: a frase do peso pendurado contradiria essa (erro apontado pelo dono em 08/11/2026). Uma palavra para cada ideia: “força de retenção” e “prende” para a força; “pendurar” para o peso. Não se contradiga entre as frases.
 
 O eletroímã de retenção só segura enquanto está ligado e depois de encostar na peça: não puxa de longe. Nunca escreva que atrai à distância nem que segura sem energia.
 
