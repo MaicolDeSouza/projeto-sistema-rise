@@ -354,7 +354,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 973 asserções do anúncio do Mercado Livre (com a proposta do ML e o kit no ML): composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 1177 asserções do anúncio do Mercado Livre (com a proposta do ML, o kit no ML, o preço pelo lucro da loja, o reaproveitar e o atacado): composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # 420 asserções da sincronização Rise -> Loja Integrada (com o cadastro automático, o estoque acertado pelo Bling no Sincronizar e as categorias e o SEO que vêm do produto): slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio, ícone e as etapas do Cadastrar (LI falsa e Bling de mentira, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
@@ -3848,6 +3848,41 @@ publicou, os 1.007 antigos da conta ficam de fora):**
   Sucesso no `ConclusaoDoEnvio`; falha por anúncio em vermelho na linha. Sem outro anúncio, a janela fecha como antes.
   Não vale para o "Enviar mudanças" nem para preço mudado no editor depois de publicado. **Nunca visto na tela** (o PC não
   publica): o primeiro Publicar real de produto que já tem anúncio antigo é o teste.
+
+### Anúncios do ML pelo lucro da loja (08/11/2026, SEM deploy)
+
+Oito definições do dono, em plano de 11 tarefas (spec `docs/superpowers/specs/2026-11-08-anuncios-ml-por-lucro-da-loja-design.md`,
+plano `docs/superpowers/plans/2026-11-08-anuncios-ml-por-lucro-da-loja.md`), executadas inline na main até `ee1125f`. **Nada foi
+ao ar e nenhuma escrita real foi feita no ML ou no Bling.**
+- **Preço = lucro da loja** (`faixas.js`, `lucroDaLojaDoRascunho`, `precoPelaFaixaNoML` em `leitura.js`): o preço do ML deixa o
+  mesmo lucro em R$ que o produto deixa na loja, com as taxas reais. Botão **"Preço pelo lucro da loja"** na aba Preço
+  (`precoPelaFaixaMLAcao`; o valor entra no campo e continua editável). Kit: lucro da loja × quantidade; a linha "Preço no ML
+  (UN)" mostra o lucro por unidade. O "!" `precoDaLoja` só acende quando o dono muda o preço da loja (nada vai ao ML sozinho).
+- **Faixas e variantes** (`VARIANTES`): abaixo de R$ 72, duas variantes (Clássico sem frete e Clássico com frete grátis); de
+  R$ 72 a 78,99, UM anúncio Clássico com frete grátis a R$ 79; de R$ 79 em diante, um. O popup de anúncios do produto mostra a
+  linha **"Faltam"** e **Criar** a variante que falta (`variantes.js`: `clonarVarianteML`). Só produto NOVO entra na regra.
+- **Reaproveitar** (`reaproveitar.js`, `JanelaReaproveitarML.jsx`): "Criar novo" num produto sem anúncio no Rise lista antes os
+  anúncios que a conta já tem com o mesmo `seller_sku` (ordenável; janela `max-w-5xl` nessa fase); **Reaproveitar** traz o
+  anúncio como PUBLICADO sem escrever no ML (abre com `reaproveitado`, o preço da loja aceso e o atacado DESLIGADO). O "Enviar
+  mudanças" ganhou a parte **`titulo`** (só no reaproveitado; com vendas o ML não muda, avisa e registra) e a pergunta "Mover o
+  vínculo do Bling?" por anúncio (`moverVinculoParaRiseML` em `bling.js`: ML_4h `203593931` → Rise_ML `206326819`, cria antes de
+  apagar, apaga também o registro antigo em `/anuncios`, idempotente).
+- **Preços de atacado** (`atacado.js`, `AtacadoDoML.jsx`): todo anúncio novo nasce com 2/5/10/20 ligados e o % vazio; o % vem da
+  recomendação do ML (`POST /prices-per-quantity/v1/recommendations`), nunca abaixo dela. O Publicar ganhou a etapa **`atacado`**
+  entre `ativar` e `gravar`: a falha NÃO derruba a publicação (aviso, etapa feita, `publicacao.atacado.erro`, "!" aceso). O
+  envio grava com `POST /items/{id}/prices/price-per-quantity` e o header `X-Version` (409 relê e tenta uma vez) e lê de volta
+  (`GET /items/{id}/prices` com `show-all-prices`). **Os % que o ML gravou voltam para o rascunho** (senão rascunho e impressão
+  nunca seriam iguais). Parte **`atacado`** em `PARTES_DO_ANUNCIO` (a última: a recomendação depende do preço), botão
+  "Recomendação do ML" no anúncio já publicado, validação "As faixas de atacado precisam de quantidades diferentes e desconto
+  crescente." (só % que cai e quantidade repetida). `mlPost(caminho, corpo, { headers })` e `mlGet(..., { comHeaders })`.
+- **Medido só em leitura na VPS (08/11/2026):** a versão do item NÃO vem no corpo, vem no header `x-version` de
+  `GET /items/{id}/prices`; a recomendação responde 200 também em item pausado; o validador não acusou segundo anúncio do mesmo
+  vendedor no mesmo catálogo (inconclusivo: o 1º Publicar real da 2ª variante é o teste).
+- **NÃO visto / nunca medido:** o `POST` das faixas de atacado (nenhuma escrita real); o formato exato de `price_per_quantity`
+  na leitura; o Reaproveitar e o Mover do Bling com dado real; o botão "Recomendação do ML"; o Salvar do anúncio PRESO não leva o
+  atacado; anúncio antigo que já tinha atacado no ML (ex.: 220204) abre desligado e o 1º Enviar com ele ligado sobrescreve as faixas.
+- Conferido na tela do PC (ZZ-TESTE-BLING, nada salvo): lista Reaproveitar, cartão de atacado (ligado, % digitado calcula o preço,
+  % que cai mostra a mensagem, desligado deixa só o título).
 
 ### Editor do ML em cartões, aba Status, prazo e garantia (26/10/2026, SEM deploy)
 
