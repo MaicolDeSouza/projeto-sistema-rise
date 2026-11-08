@@ -160,11 +160,16 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
 - **Ícone de estado na coluna Canais:** o ícone **Rise** (Conferido, verde/fosco, com o "!" do kit) vem antes do Bling;
   cor = estado, selo "!" no canto superior direito, texto do estado no `title` e no `aria-label`. A coluna "Conf." e a
   coluna vazia depois de Canais saíram em 12/10/2026 (o menu ⋮ mora no fim da célula Canais).
-  **Filtro da coluna (28/10/2026, Opção 1 do dono):** o popup mostra os próprios ícones (Rise, Bling, LI, ML, ML com "C" e
-  "!"); cada clique avança desligado → verde (tem) → riscado em vermelho (não tem) → desligado, e os ligados valem juntos.
-  Shopee fora até ter integração. Rise/Bling/LI/ML filtram no banco; "C" e "!" leem os ícones do acervo filtrado
-  (`iconesDosProdutos` em `lib/iconesDaListaDeProdutos.js`, a MESMA conta que desenha a linha; ~1 s nos 1.320 do PC).
-  Regras em `lib/filtroDeCanais.js`, testadas no `teste:navegacao`.
+  **Filtro da coluna (28/10/2026, Opção 1 do dono):** o popup mostra os próprios ícones (Rise, Bling, LI, ML e "!"); cada
+  clique avança desligado → verde (tem) → riscado em vermelho (não tem) → desligado, e os ligados valem juntos. **Desde
+  08/11/2026 (pedido do dono) o ciclo é por ícone** (`estados` em `lib/filtroDeCanais.js`): o Rise segue com "em proposta"
+  (borda âmbar com o "P", a proposta pronta e não conferida, a regra do "P" da linha) e o ML, que virou **um ícone só**,
+  segue com "em proposta" (proposta de anúncio gravada) e "com catálogo" (borda azul com o "C"; o ícone "ML com catálogo"
+  saiu, e o `?mlc=` antigo é ignorado). **O "!" aplica o filtro e fecha o popup**; os outros ficam abertos para combinar.
+  Shopee fora até ter integração. Rise/Bling/LI/ML (tem/não tem) filtram no banco; "proposta", "C" e "!" leem os ícones do
+  acervo filtrado (`iconesDosProdutos` em `lib/iconesDaListaDeProdutos.js`, a MESMA conta que desenha a linha; ~1 s nos
+  1.320 do PC; a proposta do produto é um `findMany` em `PropostaDeProduto` só quando o filtro pede). Regras em
+  `lib/filtroDeCanais.js`, testadas no `teste:navegacao`.
 - **Cartões das páginas de bloco trocam de lugar** (pedido do dono em 07/11/2026, Opção 1: salvo POR USUÁRIO): segurar o cartão
   0,4 s (mouse ou dedo) pega ele (cresce com borda azul), passar por cima de outro troca os dois, soltar grava; o clique depois
   de um arrastar não abre o cartão; "Ordem padrão" embaixo volta a do Rise. `GradeDeCartoes` (servidor, lê a ordem) +

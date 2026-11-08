@@ -5,36 +5,60 @@
  * parametro, o icone nao filtra, e varios ligados valem juntos (E). Funcao pura, sem imports: a pagina (servidor) e o
  * popup (cliente) leem a mesma lista. A regra de "vinculado" e a mesma do icone de cada canal e do `filtrarProdutos` do MCP.
  *
- * `calculado`: o "ML com catalogo" e o "!" nao cabem numa condicao do banco (o "!" junta assinaturas e o estado do kit,
- * do Bling, da LI e do ML); a pagina calcula os icones e filtra por `passaNosCalculados`.
+ * Em 08/11/2026 (pedido do dono) o ciclo passou a ser POR ICONE (`estados`, na ordem dos cliques): o Rise e o ML ganharam
+ * "proposta" (o "P" da linha: proposta de produto pronta e nao conferida; proposta de anuncio do ML gravada), e o "ML com
+ * catalogo" deixou de ser um icone a parte para virar o estado "catalogo" do unico icone do ML. O `?mlc=` antigo e ignorado.
+ *
+ * Calculados: "proposta", "catalogo" e o "!" nao cabem numa condicao do banco (o "!" junta assinaturas e o estado do kit,
+ * do Bling, da LI e do ML; a proposta pronta e uma chave dentro do JSON); a pagina calcula os icones e filtra por
+ * `passaNosCalculados`.
  */
 
 export const CANAIS_DO_FILTRO = [
-  { id: "rise", rotulo: "Rise", sim: "Conferidos", nao: "Não conferidos" },
-  { id: "bling", rotulo: "Bling", sim: "Vinculados ao Bling", nao: "Não vinculados ao Bling" },
-  { id: "li", rotulo: "Loja Integrada", sim: "Vinculados à Loja Integrada", nao: "Não vinculados à Loja Integrada" },
-  { id: "ml", rotulo: "Mercado Livre", sim: "Publicados no Mercado Livre", nao: "Não publicados no Mercado Livre" },
-  { id: "mlc", rotulo: "ML com catálogo", sim: "Concorrendo num catálogo do ML", nao: "Fora de catálogo do ML", calculado: true },
-  { id: "div", rotulo: "Com aviso (!)", sim: "Com aviso (!) em algum ícone", nao: "Sem aviso (!)", calculado: true },
+  { id: "rise", rotulo: "Rise", estados: { sim: "Conferidos", nao: "Não conferidos", proposta: "Com proposta pronta (P)" } },
+  { id: "bling", rotulo: "Bling", estados: { sim: "Vinculados ao Bling", nao: "Não vinculados ao Bling" } },
+  { id: "li", rotulo: "Loja Integrada", estados: { sim: "Vinculados à Loja Integrada", nao: "Não vinculados à Loja Integrada" } },
+  {
+    id: "ml",
+    rotulo: "Mercado Livre",
+    estados: {
+      sim: "Publicados no Mercado Livre",
+      nao: "Não publicados no Mercado Livre",
+      proposta: "Com proposta de anúncio pronta (P)",
+      catalogo: "Concorrendo num catálogo do ML (C)",
+    },
+  },
+  // O "!" aplica e fecha o popup no clique (pedido do dono em 08/11/2026).
+  { id: "div", rotulo: "Com aviso (!)", estados: { sim: "Com aviso (!) em algum ícone", nao: "Sem aviso (!)" }, fechaAoClicar: true },
 ];
 
-const VALORES = new Set(["sim", "nao"]);
+const CICLO_PADRAO = ["sim", "nao"];
+
+/** Os estados do icone, na ordem dos cliques. */
+export function estadosDoCanal(canal) {
+  return Object.keys(canal?.estados ?? {});
+}
+
+/** O texto do estado (`"Conferidos"`), ou null quando o icone nao filtra. */
+export function rotuloDoEstado(canal, valor) {
+  return canal?.estados?.[valor] ?? null;
+}
 
 /** O que a URL pede, so com icones e valores conhecidos: `{ bling: "sim", ml: "nao" }`. */
 export function filtroDeCanaisDaUrl(params) {
   const filtro = {};
-  for (const { id } of CANAIS_DO_FILTRO) {
-    const valor = Array.isArray(params?.[id]) ? params[id][0] : params?.[id];
-    if (VALORES.has(valor)) filtro[id] = valor;
+  for (const canal of CANAIS_DO_FILTRO) {
+    const valor = Array.isArray(params?.[canal.id]) ? params[canal.id][0] : params?.[canal.id];
+    if (estadosDoCanal(canal).includes(valor)) filtro[canal.id] = valor;
   }
   return filtro;
 }
 
-/** O clique no icone: desligado -> "sim" -> "nao" -> desligado (null). */
-export function proximoValorDoFiltro(atual) {
-  if (atual === "sim") return "nao";
-  if (atual === "nao") return null;
-  return "sim";
+/** O clique no icone: desligado -> 1o estado -> ... -> ultimo estado -> desligado (null). */
+export function proximoValorDoFiltro(atual, estados = CICLO_PADRAO) {
+  const posicao = estados.indexOf(atual);
+  if (posicao < 0) return estados[0] ?? null;
+  return estados[posicao + 1] ?? null;
 }
 
 // Publicado no ML = o icone verde: status PUBLICADO, ativo ou pausado (sem estoque).
@@ -56,17 +80,20 @@ export function condicoesDoFiltroDeCanais(filtro) {
     .filter(Boolean);
 }
 
-/** Ha algum filtro que so os icones calculados respondem? */
+/** Ha algum filtro que so os icones calculados respondem (o que nao tem condicao do banco)? */
 export function temFiltroCalculado(filtro) {
-  return Boolean(filtro?.mlc || filtro?.div);
+  return Object.entries(filtro ?? {}).some(([canal, valor]) => !CONDICOES[canal]?.[valor]);
 }
 
 /**
  * O produto passa nos filtros calculados? `catalogo`: algum anuncio publicado concorre num catalogo do ML (o selo "C");
- * `aviso`: algum icone da linha tem o "!".
+ * `aviso`: algum icone da linha tem o "!"; `propostaDoProduto`: o "P" do icone R (proposta pronta e produto nao
+ * conferido); `propostaDoML`: o "P" do icone do ML (proposta de anuncio gravada).
  */
-export function passaNosCalculados(filtro, { catalogo, aviso }) {
-  if (filtro?.mlc && (filtro.mlc === "sim") !== Boolean(catalogo)) return false;
+export function passaNosCalculados(filtro, { catalogo, aviso, propostaDoProduto, propostaDoML }) {
+  if (filtro?.rise === "proposta" && !propostaDoProduto) return false;
+  if (filtro?.ml === "proposta" && !propostaDoML) return false;
+  if (filtro?.ml === "catalogo" && !catalogo) return false;
   if (filtro?.div && (filtro.div === "sim") !== Boolean(aviso)) return false;
   return true;
 }

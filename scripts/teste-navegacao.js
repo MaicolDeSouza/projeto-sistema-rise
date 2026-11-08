@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
 import { enderecoDaLista, listaComParametros, ultimaListaValida } from "../src/lib/ultimaListaDeProdutos.js";
-import { condicoesDoFiltroDeCanais, filtroDeCanaisDaUrl, passaNosCalculados, proximoValorDoFiltro, temFiltroCalculado } from "../src/lib/filtroDeCanais.js";
+import { CANAIS_DO_FILTRO, condicoesDoFiltroDeCanais, estadosDoCanal, filtroDeCanaisDaUrl, passaNosCalculados, proximoValorDoFiltro, temFiltroCalculado } from "../src/lib/filtroDeCanais.js";
 
 /**
  * Voltar do produto para a lista de Produtos como ela estava (pedido do dono em 20/10/2026: a pesquisa sumia ao
@@ -36,11 +36,19 @@ conferir("produto novo sem pesquisa", listaComParametros("/produtos", { novo: "i
 conferir("filtro: 1o clique liga em 'tem'", proximoValorDoFiltro(null) === "sim");
 conferir("filtro: 2o clique vira 'nao tem'", proximoValorDoFiltro("sim") === "nao");
 conferir("filtro: 3o clique desliga", proximoValorDoFiltro("nao") === null);
-conferir("filtro: a URL traz o ML com catalogo e o aviso", JSON.stringify(filtroDeCanaisDaUrl({ mlc: "sim", div: "nao", bling: "x", shopee: "sim" })) === JSON.stringify({ mlc: "sim", div: "nao" }));
-conferir("filtro: catalogo e aviso nao viram condicao do banco", condicoesDoFiltroDeCanais({ mlc: "sim", div: "sim", rise: "sim" }).length === 1);
-conferir("filtro: so os calculados pedem os icones", temFiltroCalculado({ div: "sim" }) && !temFiltroCalculado({ bling: "sim" }));
+// 08/11/2026: o ciclo e por icone; o Rise tem "proposta" e o ML (um icone so) tem "proposta" e "catalogo".
+const ESTADOS_DO_ML = estadosDoCanal(CANAIS_DO_FILTRO.find((canal) => canal.id === "ml"));
+conferir("filtro: o ML e um icone so, com proposta e catalogo no ciclo", JSON.stringify(ESTADOS_DO_ML) === JSON.stringify(["sim", "nao", "proposta", "catalogo"]) && !CANAIS_DO_FILTRO.some((canal) => canal.id === "mlc"));
+conferir("filtro: no ML, 'nao tem' vira 'em proposta' e depois 'com catalogo'", proximoValorDoFiltro("nao", ESTADOS_DO_ML) === "proposta" && proximoValorDoFiltro("proposta", ESTADOS_DO_ML) === "catalogo" && proximoValorDoFiltro("catalogo", ESTADOS_DO_ML) === null);
+conferir("filtro: o Rise tem 'em proposta' depois do 'nao conferidos'", proximoValorDoFiltro("nao", estadosDoCanal(CANAIS_DO_FILTRO[0])) === "proposta");
+conferir("filtro: o '!' fecha o popup ao clicar", CANAIS_DO_FILTRO.find((canal) => canal.id === "div")?.fechaAoClicar === true);
+conferir("filtro: a URL traz o ML com catalogo e o aviso (o mlc antigo e ignorado)", JSON.stringify(filtroDeCanaisDaUrl({ ml: "catalogo", mlc: "sim", div: "nao", bling: "x", rise: "proposta", li: "proposta", shopee: "sim" })) === JSON.stringify({ rise: "proposta", ml: "catalogo", div: "nao" }));
+conferir("filtro: catalogo, proposta e aviso nao viram condicao do banco", condicoesDoFiltroDeCanais({ ml: "catalogo", div: "sim", rise: "proposta", bling: "sim" }).length === 1);
+conferir("filtro: so os calculados pedem os icones", temFiltroCalculado({ div: "sim" }) && temFiltroCalculado({ rise: "proposta" }) && temFiltroCalculado({ ml: "proposta" }) && !temFiltroCalculado({ bling: "sim", ml: "nao" }));
 conferir("filtro: 'com aviso' fica com quem tem o !", passaNosCalculados({ div: "sim" }, { aviso: true }) && !passaNosCalculados({ div: "sim" }, { aviso: false }));
 conferir("filtro: 'sem aviso' fica com quem nao tem", passaNosCalculados({ div: "nao" }, { aviso: false }) && !passaNosCalculados({ div: "nao" }, { aviso: true }));
-conferir("filtro: catalogo e aviso valem juntos", !passaNosCalculados({ mlc: "sim", div: "sim" }, { catalogo: true, aviso: false }) && passaNosCalculados({ mlc: "sim", div: "sim" }, { catalogo: true, aviso: true }));
+conferir("filtro: catalogo e aviso valem juntos", !passaNosCalculados({ ml: "catalogo", div: "sim" }, { catalogo: true, aviso: false }) && passaNosCalculados({ ml: "catalogo", div: "sim" }, { catalogo: true, aviso: true }));
+conferir("filtro: 'em proposta' do Rise fica com o P do icone R", passaNosCalculados({ rise: "proposta" }, { propostaDoProduto: true }) && !passaNosCalculados({ rise: "proposta" }, { propostaDoProduto: false, propostaDoML: true }));
+conferir("filtro: 'em proposta' do ML fica com o P do icone do ML", passaNosCalculados({ ml: "proposta" }, { propostaDoML: true }) && !passaNosCalculados({ ml: "proposta" }, { propostaDoML: false, propostaDoProduto: true }));
 
 console.log(`\n${contagem} asserções ok`);

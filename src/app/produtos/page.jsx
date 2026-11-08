@@ -99,17 +99,33 @@ export default async function ProdutosPage({ searchParams }) {
   const filtroCanais = filtroDeCanaisDaUrl(params);
   const condicoesDosCanais = condicoesDoFiltroDeCanais(filtroCanais);
   if (condicoesDosCanais.length > 0) where = { AND: [...(where ? [where] : []), ...condicoesDosCanais] };
-  // O "ML com catalogo" e o "!" (28/10/2026) sao calculados pelos icones: le os candidatos com o que os icones pedem,
-  // fica com os que passam e segue com os ids, para a contagem e a pagina valerem para o acervo inteiro.
+  // O "ML com catalogo", o "!" (28/10/2026) e o "em proposta" (08/11/2026) sao calculados pelos icones: le os candidatos
+  // com o que os icones pedem, fica com os que passam e segue com os ids, para a contagem e a pagina valerem para o
+  // acervo inteiro.
   let erroDoFiltro = null;
   if (temFiltroCalculado(filtroCanais)) {
     try {
       const candidatos = await prisma.produto.findMany({ where, include: INCLUDE_DOS_ICONES });
       const iconesDosCandidatos = await iconesDosProdutos(candidatos);
+      // O "P" do icone R = proposta com a secao relatorio (a mesma regra do `propostaPronta` da linha), so quando o
+      // filtro pede: e uma chave dentro do JSON, que nao vira condicao do Prisma.
+      const comPropostaPronta = new Set();
+      if (filtroCanais.rise === "proposta") {
+        const propostas = await prisma.propostaDeProduto.findMany({
+          where: { produtoId: { in: candidatos.map((produto) => produto.id) } },
+          select: { produtoId: true, secoes: true },
+        });
+        for (const proposta of propostas) if (proposta.secoes?.relatorio) comPropostaPronta.add(proposta.produtoId);
+      }
       const ids = candidatos
         .filter((produto) => {
           const icones = iconesDosCandidatos.get(produto.id);
-          return passaNosCalculados(filtroCanais, { catalogo: icones.iconeML.catalogos > 0, aviso: temSeloDeAviso(icones) });
+          return passaNosCalculados(filtroCanais, {
+            catalogo: icones.iconeML.catalogos > 0,
+            aviso: temSeloDeAviso(icones),
+            propostaDoProduto: comPropostaPronta.has(produto.id) && !produto.conferido,
+            propostaDoML: Boolean(icones.iconeML.proposta),
+          });
         })
         .map((produto) => produto.id);
       where = { id: { in: ids } };
