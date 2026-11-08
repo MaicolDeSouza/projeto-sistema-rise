@@ -14,10 +14,12 @@ const fmtData = (data) => (data ? new Date(data).toLocaleDateString("pt-BR", { t
  * e ver onde ele esta e o que vem depois e a primeira coisa que o dono precisa. Cancelado substitui a trilha.
  */
 // `rotuloEnviado`: o pedido do AliExpress nasce enviado; a trilha diz "Comprado no AliExpress".
-export default function TrilhaDoStatus({ status, enviadoEm, finalizadoEm, canceladoEm, acao = null, rotuloEnviado }) {
+// `compacta` (pedido do dono em 07/11/2026: "linha do tempo vai para cima"): so os passos, sem o cartao nem a acao, para
+// morar na linha do titulo; os botoes descem para o cartao de baixo.
+export default function TrilhaDoStatus({ status, enviadoEm, finalizadoEm, canceladoEm, acao = null, rotuloEnviado, compacta = false }) {
   if (status === "CANCELADO") {
     return (
-      <p className="mb-5 rounded-lg border border-borda bg-superficie px-4 py-3 text-sm text-suave">
+      <p className={compacta ? "text-sm text-suave" : "mb-5 rounded-lg border border-borda bg-superficie px-4 py-3 text-sm text-suave"}>
         Pedido cancelado em {fmtData(canceladoEm)}. Não conta como estoque a caminho.
       </p>
     );
@@ -26,7 +28,7 @@ export default function TrilhaDoStatus({ status, enviadoEm, finalizadoEm, cancel
   const datas = { ENVIADO: fmtData(enviadoEm), FINALIZADO: fmtData(finalizadoEm) };
 
   return (
-    <div className="mb-5 flex items-center gap-4 rounded-lg border border-borda bg-superficie px-4 py-3">
+    <div className={compacta ? "flex min-w-0 items-center" : "mb-5 flex items-center gap-4 rounded-lg border border-borda bg-superficie px-4 py-3"}>
     <ol className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto" aria-label="Situação do pedido">
       {PASSOS.map((passo, indice) => {
         const feito = indice < atual || status === "FINALIZADO";
@@ -49,7 +51,7 @@ export default function TrilhaDoStatus({ status, enviadoEm, finalizadoEm, cancel
         );
       })}
     </ol>
-    {acao && <div className="shrink-0">{acao}</div>}
+    {acao && !compacta && <div className="shrink-0">{acao}</div>}
     </div>
   );
 }

@@ -6,12 +6,29 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ClipboardList, Plus, Trash2 } from "lucide-react";
 
 import { excluirPedidoAcao } from "@/app/compras/acoes";
+import CabecalhoOrdenavel, { parametrosDaOrdenacao } from "@/components/ui/CabecalhoOrdenavel";
 import { PODE_EXCLUIR } from "@/lib/compras/regras";
 
 import JanelaNovoPedido from "./JanelaNovoPedido";
 import Pergunta from "./Pergunta";
 import { CelulaDoProduto, JanelaProdutosDoPedido } from "./ProdutosDoPedido";
 import SeloDoStatus, { TEXTO_DO_STATUS } from "./SeloDoStatus";
+
+/**
+ * O prazo com os dias que faltam (pedido do dono em 07/11/2026: "10 dias (21/11)"), so no pedido a caminho. Hoje e
+ * atrasado em vermelho: e o que pede acao.
+ */
+function TextoDoPrazo({ prazo, faltam }) {
+  if (!prazo) return "—";
+  if (faltam === null || faltam === undefined) return prazo;
+  if (faltam < 0) return <span className="font-medium text-rose-600">{-faltam === 1 ? "1 dia atrasado" : `${-faltam} dias atrasado`} ({prazo})</span>;
+  if (faltam === 0) return <span className="font-medium text-rose-600">Hoje ({prazo})</span>;
+  return (
+    <span className="text-texto">
+      {faltam === 1 ? "1 dia" : `${faltam} dias`} <span className="text-suave">({prazo})</span>
+    </span>
+  );
+}
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const FILTROS = ["RASCUNHO", "ENVIADO", "PARCIAL", "FINALIZADO", "CANCELADO"];
@@ -66,6 +83,16 @@ export default function TabelaPedidos({ linhas, status, veCusto, podeExcluir = f
     router.push(`${pathname}?${params}`);
   }
 
+  const ordenar = searchParams.get("ordenar");
+  const direcao = searchParams.get("direcao") === "desc" ? "desc" : "asc";
+  const coluna = (campo, rotulo) => ({
+    campo,
+    rotulo,
+    ordenar,
+    direcao,
+    aoClicar: (escolhida) => router.push(`${pathname}?${parametrosDaOrdenacao(searchParams, escolhida, ordenar, direcao)}`),
+  });
+
   const chip = (ativo) =>
     `rounded-full border px-3 py-1 text-xs font-medium transition-colors ${ativo ? "border-acento bg-acento/10 text-acento" : "border-borda text-suave hover:text-texto"}`;
 
@@ -92,21 +119,26 @@ export default function TabelaPedidos({ linhas, status, veCusto, podeExcluir = f
         <div className="overflow-x-auto rounded-lg border border-borda bg-superficie">
           <table className="w-full text-sm">
             <thead className="border-b border-borda bg-fundo text-left text-xs tracking-wide text-suave uppercase">
+              {/* Filtro de coluna = cabecalho que ordena (pedido do dono em 07/11/2026; padrao do Rise). */}
               <tr>
-                <th className="w-px whitespace-nowrap px-3 py-2.5 font-medium">Número</th>
-                <th className="w-40 px-3 py-2.5 font-medium">Fornecedor</th>
-                <th className="w-32 px-3 py-2.5 font-medium">Código</th>
-                <th className="px-3 py-2.5 font-medium">Produto</th>
-                <th className="w-28 px-3 py-2.5 text-right font-medium">Quantidade</th>
-                {veCusto && <th className="w-32 px-3 py-2.5 text-right font-medium">Total</th>}
-                <th className="w-36 px-3 py-2.5 font-medium">Prazo de entrega</th>
-                <th className="w-px px-3 py-2.5 font-medium">Situação</th>
+                <CabecalhoOrdenavel {...coluna("numero", "Número")} className="w-px whitespace-nowrap" />
+                <CabecalhoOrdenavel {...coluna("fornecedor", "Fornecedor")} className="w-40" />
+                <CabecalhoOrdenavel {...coluna("codigo", "Código")} className="w-32" />
+                <CabecalhoOrdenavel {...coluna("produto", "Produto")} />
+                <CabecalhoOrdenavel {...coluna("quantidade", "Quantidade")} className="w-28 text-right" />
+                {veCusto && <CabecalhoOrdenavel {...coluna("total", "Total")} className="w-32 text-right" />}
+                <CabecalhoOrdenavel {...coluna("prazo", "Prazo de entrega")} className="w-36" />
+                <CabecalhoOrdenavel {...coluna("situacao", "Situação")} className="w-px" />
                 {podeExcluir && <th className="w-12 px-2 py-2.5"><span className="sr-only">Excluir</span></th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-borda">
               {linhas.map((linha) => (
-                <tr key={linha.id} className="cursor-pointer hover:bg-fundo/60" onClick={() => router.push(`/compras/pedidos/${linha.id}`)}>
+                // Rascunho com a linha em laranja claro e a borda a esquerda (07/11/2026): o PC a fechar salta na lista.
+                <tr
+                  key={linha.id}
+                  className={`cursor-pointer ${linha.status === "RASCUNHO" ? "bg-orange-50 shadow-[inset_3px_0_0_var(--color-orange-400)] hover:bg-orange-100/70" : "hover:bg-fundo/60"}`}
+                  onClick={() => router.push(`/compras/pedidos/${linha.id}`)}>
                   <td className="whitespace-nowrap px-3 py-2.5 font-mono text-xs font-semibold">
                     <Link href={`/compras/pedidos/${linha.id}`} className="hover:text-acento" onClick={(evento) => evento.stopPropagation()}>
                       {linha.codigo}
@@ -126,7 +158,9 @@ export default function TabelaPedidos({ linhas, status, veCusto, podeExcluir = f
                     <CelulaDoProduto produtos={linha.produtos} coluna="quantidade" aoAbrir={() => setProdutosAbertos(linha)} />
                   </td>
                   {veCusto && <td className="px-3 py-2.5 text-right tabular-nums">{moeda.format(linha.total)}</td>}
-                  <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-suave">{linha.prazo ?? "—"}</td>
+                  <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-suave">
+                    <TextoDoPrazo prazo={linha.prazo} faltam={linha.prazoFaltam} />
+                  </td>
                   <td className="px-3 py-2.5">
                     <span className="flex items-center gap-1.5">
                       <SeloDoStatus status={linha.status} fase={linha.fase} />

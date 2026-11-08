@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { X } from "lucide-react";
 
+import FotoComLupa from "@/components/ui/FotoComLupa";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 
 /**
@@ -57,7 +58,8 @@ export function JanelaProdutosDoPedido({ codigo, produtos, aoFechar }) {
           <table className="w-full text-sm">
             <thead className="sticky top-0 border-b border-borda bg-fundo text-left text-xs text-suave">
               <tr>
-                <th className="w-32 px-4 py-2 font-medium">Código</th>
+                <th className="w-14 px-4 py-2 font-medium">Foto</th>
+                <th className="w-28 px-4 py-2 font-medium">Código</th>
                 <th className="px-4 py-2 font-medium">Nome</th>
                 <th className="w-28 px-4 py-2 text-right font-medium">Quantidade</th>
               </tr>
@@ -65,6 +67,10 @@ export function JanelaProdutosDoPedido({ codigo, produtos, aoFechar }) {
             <tbody className="divide-y divide-borda">
               {produtos.map((produto) => (
                 <tr key={produto.sku}>
+                  {/* Miniatura padrao do Rise (FotoComLupa): previa ao passar o mouse e foto grande no clique. */}
+                  <td className="px-4 py-1.5">
+                    {produto.foto ? <FotoComLupa src={produto.foto} alt={produto.nome} className="h-10 w-10" /> : <span className="block h-10 w-10 rounded border border-dashed border-borda" />}
+                  </td>
                   <td className="px-4 py-2.5 font-mono text-xs">{produto.sku}</td>
                   <td className="px-4 py-2.5">{produto.nome}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{produto.quantidade}</td>
@@ -74,7 +80,7 @@ export function JanelaProdutosDoPedido({ codigo, produtos, aoFechar }) {
             {produtos.length > 1 && (
               <tfoot className="border-t border-borda text-sm">
                 <tr>
-                  <td className="px-4 py-2.5 text-suave" colSpan={2}>
+                  <td className="px-4 py-2.5 text-suave" colSpan={3}>
                     {produtos.length} produtos
                   </td>
                   <td className="px-4 py-2.5 text-right font-semibold tabular-nums">{total}</td>

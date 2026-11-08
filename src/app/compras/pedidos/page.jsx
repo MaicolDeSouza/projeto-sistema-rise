@@ -3,7 +3,7 @@ import Paginacao from "@/components/mercados/Paginacao";
 import CampoBusca from "@/components/ui/CampoBusca";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
-import { listarPedidos } from "@/lib/compras/banco";
+import { COLUNAS_DOS_PEDIDOS, listarPedidos } from "@/lib/compras/banco";
 import { prisma } from "@/lib/db";
 
 export const metadata = { title: "Pedidos de compra | Sistema Rise" };
@@ -19,7 +19,10 @@ export default async function PedidosPage({ searchParams }) {
   const busca = typeof params?.q === "string" ? params.q : "";
   const paginaPedida = Math.max(1, Number.parseInt(params?.pagina, 10) || 1);
 
-  const { linhas, total } = await listarPedidos({ status, busca, pagina: paginaPedida, porPagina: POR_PAGINA });
+  // Ordem da coluna clicada (?ordenar=&direcao=, CabecalhoOrdenavel); coluna desconhecida e ignorada.
+  const ordenar = COLUNAS_DOS_PEDIDOS.includes(params?.ordenar) ? params.ordenar : null;
+  const direcao = params?.direcao === "desc" ? "desc" : "asc";
+  const { linhas, total } = await listarPedidos({ status, busca, pagina: paginaPedida, porPagina: POR_PAGINA, ordenar, direcao });
   const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
   const pagina = Math.min(paginaPedida, totalPaginas);
 

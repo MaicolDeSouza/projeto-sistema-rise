@@ -18,7 +18,7 @@ import {
   totaisDoPedido,
 } from "@/lib/compras/regras";
 import { conferirPedido } from "@/lib/compras/esquema";
-import { alertasDoPedido, avisosDoPedido, entregaPeloRastreio, faseDoPedido, prazoDoPedido, previsaoEmDatas } from "@/lib/compras/aliexpress/regras";
+import { alertasDoPedido, avisosDoPedido, diasAte, entregaPeloRastreio, faseDoPedido, prazoDoPedido, previsaoEmDatas } from "@/lib/compras/aliexpress/regras";
 import { apagarPastaDoPedido, apagarPropostaDoPedido, moverPropostaParaPedido } from "@/lib/compras/arquivos";
 
 /**
@@ -615,7 +615,25 @@ export async function lerPedido(id) {
   return pedido ? pedidoParaTela(pedido) : null;
 }
 
-export async function listarPedidos({ status, busca, pagina = 1, porPagina = 25 } = {}) {
+/**
+ * Colunas que ordenam a lista (pedido do dono em 07/11/2026: "adicionar filtro a estas colunas"). Total, prazo e
+ * quantidade sao calculados por pedido, entao com uma coluna escolhida a lista inteira do filtro vem do banco, ordena em
+ * memoria e so depois pagina (sao dezenas de pedidos, nao milhares).
+ */
+const ORDEM_DOS_PEDIDOS = {
+  numero: (linha) => linha.numero,
+  fornecedor: (linha) => linha.fornecedor.toLocaleLowerCase("pt-BR"),
+  codigo: (linha) => (linha.produtos.length === 1 ? linha.produtos[0].sku : linha.produtos.length ? "~diversos" : null),
+  produto: (linha) => (linha.produtos.length === 1 ? linha.produtos[0].nome.toLocaleLowerCase("pt-BR") : linha.produtos.length ? linha.produtos.length : null),
+  quantidade: (linha) => linha.produtos.reduce((soma, produto) => soma + (Number(produto.quantidade) || 0), 0),
+  total: (linha) => linha.total,
+  prazo: (linha) => linha.prazoFimMs,
+  situacao: (linha) => ["RASCUNHO", "ENVIADO", "PARCIAL", "FINALIZADO", "CANCELADO"].indexOf(linha.status),
+};
+export const COLUNAS_DOS_PEDIDOS = Object.keys(ORDEM_DOS_PEDIDOS);
+
+export async function listarPedidos({ status, busca, pagina = 1, porPagina = 25, ordenar = null, direcao = "asc" } = {}) {
+  const chave = ORDEM_DOS_PEDIDOS[ordenar] ? ordenar : null;
   const texto = String(busca ?? "").trim();
   // O numero do pedido e Int: o numero do AliExpress (16 digitos) estouraria a consulta, e nao e numero de pedido do Rise.
   const numeroBuscado = /^(pc-?)?\d{1,9}$/i.test(texto) ? Number(texto.replace(/\D/g, "")) : null;
@@ -643,11 +661,10 @@ export async function listarPedidos({ status, busca, pagina = 1, porPagina = 25 
     prisma.pedidoDeCompra.findMany({
       where,
       orderBy: { numero: "desc" },
-      skip: (Math.max(1, pagina) - 1) * porPagina,
-      take: porPagina,
+      ...(chave ? {} : { skip: (Math.max(1, pagina) - 1) * porPagina, take: porPagina }),
       include: {
         fornecedor: { select: { nome: true } },
-        itens: { orderBy: { ordem: "asc" }, select: { quantidade: true, quantidadeLancada: true, prazoDias: true, precoUnitario: true, ipiPercentual: true, produto: { select: { sku: true, tituloBase: true } } } },
+        itens: { orderBy: { ordem: "asc" }, select: { quantidade: true, quantidadeLancada: true, prazoDias: true, precoUnitario: true, ipiPercentual: true, produto: { select: { sku: true, tituloBase: true, arquivos: { where: { tipo: "IMAGEM", papel: "FOTO" }, orderBy: { ordem: "asc" }, take: 1, select: { arquivo: true } } } } } },
         aliexpress: {
           select: {
             loja: true,
@@ -662,9 +679,7 @@ export async function listarPedidos({ status, busca, pagina = 1, porPagina = 25 
       },
     }),
   ]);
-  return {
-    total,
-    linhas: pedidos.map((pedido) => ({
+  const todas = pedidos.map((pedido) => ({
       id: pedido.id,
       numero: pedido.numero,
       codigo: numeroDoPedido(pedido.numero),
@@ -672,7 +687,13 @@ export async function listarPedidos({ status, busca, pagina = 1, porPagina = 25 
       status: pedido.status,
       itens: pedido.itens.length,
       // Coluna Produtos (pedido do dono em 29/10/2026): nome e codigo do Rise; com varios, a tela abre a lista.
-      produtos: pedido.itens.map((item) => ({ sku: item.produto.sku, nome: item.produto.tituloBase, quantidade: item.quantidade })),
+      // A foto (miniatura com zoom na janela dos produtos, pedido do dono em 07/11/2026).
+      produtos: pedido.itens.map((item) => ({
+        sku: item.produto.sku,
+        nome: item.produto.tituloBase,
+        quantidade: item.quantidade,
+        foto: item.produto.arquivos?.[0] ? urlDe(item.produto.sku, "IMAGEM", item.produto.arquivos[0].arquivo) : null,
+      })),
       total: totaisDoPedido({
         itens: pedido.itens.map((item) => ({ ...item, precoUnitario: numero(item.precoUnitario), ipiPercentual: numero(item.ipiPercentual) })),
         icmsSt: numero(pedido.icmsSt),
@@ -685,9 +706,33 @@ export async function listarPedidos({ status, busca, pagina = 1, porPagina = 25 
       atualizadoEm: pedido.atualizadoEm,
       origem: pedido.origem,
       loja: pedido.aliexpress?.loja ?? null,
-      ...(({ prazo, alertas, fase }) => ({ prazo: prazo?.texto ?? null, alertas, fase }))(motivosDoPedido(pedido, pedido.itens)),
-    })),
-  };
+      ...(({ prazo, alertas, fase }) => ({
+        prazo: prazo?.texto ?? null,
+        prazoFimMs: prazo?.fim ? new Date(prazo.fim).getTime() : null,
+        // Dias que faltam so no pedido a caminho (ENVIADO/PARCIAL): no fechado o prazo ja nao conta (07/11/2026).
+        prazoFaltam: prazo?.fim && ["ENVIADO", "PARCIAL"].includes(pedido.status) ? diasAte(prazo.fim) : null,
+        alertas,
+        fase,
+      }))(motivosDoPedido(pedido, pedido.itens)),
+    }));
+  if (!chave) return { total, linhas: todas };
+  // Vazio sempre no fim, nas duas direcoes; empate desfeito pelo numero mais novo primeiro.
+  const valor = ORDEM_DOS_PEDIDOS[chave];
+  const sinal = direcao === "desc" ? -1 : 1;
+  todas.sort((a, b) => {
+    const [x, y] = [valor(a), valor(b)];
+    if (x === null || x === undefined) return y === null || y === undefined ? b.numero - a.numero : 1;
+    if (y === null || y === undefined) return -1;
+    if (typeof x === "number" && typeof y === "number") {
+      if (x !== y) return (x - y) * sinal;
+    } else {
+      const comparado = String(x).localeCompare(String(y), "pt-BR", { numeric: true });
+      if (comparado) return comparado * sinal;
+    }
+    return b.numero - a.numero;
+  });
+  const inicio = (Math.max(1, pagina) - 1) * porPagina;
+  return { total, linhas: todas.slice(inicio, inicio + porPagina) };
 }
 
 export async function contarPedidosPorStatus() {

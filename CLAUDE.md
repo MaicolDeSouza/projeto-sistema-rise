@@ -5263,6 +5263,15 @@ plano `docs/superpowers/plans/2026-10-26-modulo-compras.md` (12 tarefas, inline)
   `paginaPublica.js`), inclusive inglês/US$ no estrangeiro e a faixa da Obs. do item. Cancelado mostra "Pedido cancelado".
   **Caddy:** `@pedidoPublico` (só GET/HEAD e só `^/p/compra/[A-Za-z0-9_-]{43}$`) sem o forward_auth; o guarda do
   `teste:acessos` aceita a rota por `pedidoPelaChavePublica(`. Só funciona na VPS depois do deploy (o Caddy recarrega).
+- **Ajustes de tela de 07/11/2026 (pedidos do dono):** rascunho em **laranja** (selo `SeloDoStatus`, que ignora a fase no
+  rascunho, e a linha da lista com fundo laranja claro e borda à esquerda: "sei que preciso fechar esse PC"); **filtro de
+  coluna** na lista (`CabecalhoOrdenavel` em todas as colunas; `listarPedidos({ ordenar, direcao })` com
+  `COLUNAS_DOS_PEDIDOS`: com coluna escolhida lê o filtro inteiro, ordena em memória, vazio no fim, e só então pagina);
+  **prazo com dias que faltam** ("10 dias (21/11)", "Hoje", "2 dias atrasado" em vermelho; `diasAte` pelo dia de São Paulo,
+  só em Enviado/Parcial); **foto com lupa** (`FotoComLupa`) na janela "Produtos de PC-…"; no editor, a **linha do tempo
+  subiu** para a linha do título (`TrilhaDoStatus compacta`) e os botões (Link público, Baixar PDF, Salvar, Cancelar, ⋮ e a
+  ação da situação) **desceram** para o cartão; o cartão **Fornecedor saiu** (o nome no título leva ao cadastro; o resumo do
+  AliExpress ficou num cartão "AliExpress"). PDF: coluna "#" com 30 pt e texto pela `paraFonteDoPdf` (NFKC; "（）" saía "ÿ").
 - **Busca dentro do pedido** (pedido do dono em 07/11/2026, pedido de 141 itens): campo "Buscar no pedido" no título de
   Itens do pedido; todas as palavras, sem acento, no nome, SKU, descrição e código do fornecedor e na observação. Só esconde
   linhas (`hidden`), então os índices do formulário e o "Todos os itens" do prazo continuam valendo para todos.

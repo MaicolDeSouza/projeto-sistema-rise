@@ -197,6 +197,13 @@ conferir(
   conferir("fornecedor: nome e A/C", [text.includes("Fornecedor Teste"), text.includes("A/C: Fulano"), text.includes("17.142.314/0001-21"), text.includes("vendas@exemplo")], [true, true, false, false]);
   conferir("obs para o fornecedor sim, interna nao", [text.includes("Entregar em horário comercial."), text.includes("Conta interna")], [true, false]);
   conferir("coluna de IPI no fornecedor nacional", text.includes("IPI %"), true);
+  // Dias que faltam no prazo (07/11/2026), pelo dia de Sao Paulo.
+  const { diasAte } = await import("../src/lib/compras/aliexpress/regras.js");
+  conferir(
+    "dias ate o prazo pelo dia de Sao Paulo",
+    [diasAte("2026-11-21T15:00:00Z", new Date("2026-11-07T23:30:00Z")), diasAte("2026-11-08T02:00:00Z", new Date("2026-11-07T12:00:00Z")), diasAte("2026-11-05T12:00:00Z", new Date("2026-11-07T12:00:00Z")), diasAte(null)],
+    [14, 0, -2, null],
+  );
   // Fonte do PDF (07/11/2026): "（B1K）" da NexMind saia "ÿB1Kÿ"; formas largas viram as comuns, o resto sai.
   const { paraFonteDoPdf } = await import("../src/lib/compras/pdf.js");
   conferir("texto na fonte do PDF", [paraFonteDoPdf("Pot （B1K,B2K）"), paraFonteDoPdf("【Kit】 10Ω ±5% – “ok”"), paraFonteDoPdf("Ação 中文")], ["Pot (B1K,B2K)", "[Kit] 10ohm ±5% – “ok”", "Ação "]);
@@ -406,6 +413,16 @@ try {
       const caddy = readFileSync(new URL("../deploy/caddy/Caddyfile", import.meta.url), "utf8");
       conferir("Caddy: so /p/compra/<43> fica sem login, so GET e HEAD", caddy.includes("path_regexp ^/p/compra/[A-Za-z0-9_-]{43}$") && /@pedidoPublico \{\s*method GET HEAD/.test(caddy), true);
       await banco.salvarPedido(criado.pedidoId, { itens, observacoesFornecedor: "" });
+    }
+
+    // Filtro de coluna da lista (07/11/2026): ordena o filtro inteiro e so depois pagina.
+    {
+      const emOrdem = (lista, desc) => lista.every((valor, i) => i === 0 || (desc ? lista[i - 1] >= valor : lista[i - 1] <= valor));
+      const porTotal = (await banco.listarPedidos({ ordenar: "total", direcao: "desc", porPagina: 1000 })).linhas.map((linha) => linha.total);
+      const porNumero = (await banco.listarPedidos({ ordenar: "numero", direcao: "asc", porPagina: 1000 })).linhas.map((linha) => linha.numero);
+      const pagina2 = await banco.listarPedidos({ ordenar: "numero", direcao: "asc", porPagina: 1, pagina: 2 });
+      conferir("lista ordena por total e numero, e pagina depois", [emOrdem(porTotal, true), emOrdem(porNumero, false), pagina2.linhas[0]?.numero === porNumero[1]], [true, true, true]);
+      conferir("coluna desconhecida cai na ordem padrao", (await banco.listarPedidos({ ordenar: "x", porPagina: 3 })).linhas.length <= 3, true);
     }
 
     // Quem nao ve custo manda o item SEM os campos de preco: o banco tem de manter os gravados.

@@ -1,6 +1,8 @@
 /** O selo da situacao do pedido, a mesma cor na lista e no editor. */
 const SELOS = {
-  RASCUNHO: { texto: "Rascunho", classe: "bg-slate-100 text-slate-700" },
+  // Laranja (pedido do dono em 07/11/2026: "rascunho de outra cor, assim sei que preciso fechar esse PC o quanto antes").
+  // Nenhuma outra situacao ou fase usa laranja.
+  RASCUNHO: { texto: "Rascunho", classe: "bg-orange-100 text-orange-800 ring-1 ring-inset ring-orange-300" },
   ENVIADO: { texto: "Enviado", classe: "bg-sky-100 text-sky-800" },
   PARCIAL: { texto: "Entrega parcial", classe: "bg-amber-100 text-amber-800" },
   FINALIZADO: { texto: "Finalizado", classe: "bg-emerald-100 text-emerald-800" },
@@ -22,7 +24,8 @@ const TONS = {
 };
 
 export default function SeloDoStatus({ status, fase = null }) {
-  const selo = fase ? { texto: fase.rotulo, classe: TONS[fase.tom] ?? TONS.caminho } : (SELOS[status] ?? SELOS.RASCUNHO);
+  // No rascunho o selo laranja vale sempre: a fase dele vinha em tom neutro e escondia o "feche este PC".
+  const selo = fase && status !== "RASCUNHO" ? { texto: fase.rotulo, classe: TONS[fase.tom] ?? TONS.caminho } : (SELOS[status] ?? SELOS.RASCUNHO);
   // Com a fase, o title traz cada pacote e o status do Rise (o filtro do topo continua sendo pelo status).
   const titulo = fase ? [...(fase.detalhe ?? []), `No Rise: ${SELOS[status]?.texto ?? status}`].join("\n") : undefined;
   return (

@@ -201,15 +201,29 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
           >
             <ArrowLeft size={20} />
           </button>
+          {/* O cartao "Fornecedor" saiu (07/11/2026, o nome ja esta aqui): o nome leva ao cadastro dele. */}
           <h1 className="truncate text-2xl font-semibold text-balance">
-            <span className="font-mono">{pedido.codigo}</span> · {pedido.fornecedor.nome}
+            <span className="font-mono">{pedido.codigo}</span> ·{" "}
+            <Link href={`/cadastros/fornecedores/${pedido.fornecedor.id}`} className="hover:text-acento hover:underline" title="Abrir o cadastro do fornecedor">
+              {pedido.fornecedor.nome}
+            </Link>
           </h1>
           <SeloDoStatus status={pedido.status} />
         </div>
-        {/* Salvar e Cancelar no topo, no padrao do cadastro de Produto (pedido do dono em 26/10/2026). */}
-        <div className="flex flex-wrap items-center gap-2">
-          {alterado && <span className="text-sm font-medium text-amber-700">Alterações não salvas</span>}
-          {!alterado && salvo && <span className="text-sm text-emerald-700">Pedido salvo.</span>}
+        {/* A linha do tempo no topo e os botoes no cartao de baixo (pedido do dono em 07/11/2026: "inverter"). */}
+        <TrilhaDoStatus
+          compacta
+          status={pedido.status}
+          enviadoEm={pedido.enviadoEm}
+          finalizadoEm={pedido.finalizadoEm}
+          canceladoEm={pedido.canceladoEm}
+          rotuloEnviado={pedido.aliexpress ? "Comprado no AliExpress" : undefined}
+        />
+      </div>
+
+      <div className="mb-5 flex flex-wrap items-center justify-end gap-2 rounded-lg border border-borda bg-superficie px-4 py-2.5">
+          {alterado && <span className="mr-auto text-sm font-medium text-amber-700">Alterações não salvas</span>}
+          {!alterado && salvo && <span className="mr-auto text-sm text-emerald-700">Pedido salvo.</span>}
           <span className="mx-1 text-sm">
             {extras.linkDoPdf ? (
               extras.linkDoPdf({ pedido, alterado, salvar })
@@ -254,30 +268,20 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
             )}
           </div>
           )}
-        </div>
+          {acaoDaSituacao && <div className="ml-2 border-l border-borda pl-4">{acaoDaSituacao}</div>}
       </div>
-
-      <TrilhaDoStatus
-        status={pedido.status}
-        enviadoEm={pedido.enviadoEm}
-        finalizadoEm={pedido.finalizadoEm}
-        canceladoEm={pedido.canceladoEm}
-        acao={acaoDaSituacao}
-        rotuloEnviado={pedido.aliexpress ? "Comprado no AliExpress" : undefined}
-      />
 
       {pedido.aliexpress && <AvisosAliExpress avisos={pedido.avisos} aliexpress={pedido.aliexpress} podeCasar={casavel} aoAtualizar={aplicar} />}
 
       {erroGeral && <p className="mb-4 rounded-md border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm text-rose-700" role="alert">{erroGeral}</p>}
 
       <div className="space-y-6">
-        {/* So o nome, simples e direto (pedido do dono em 26/10/2026); o nome leva ao cadastro do fornecedor. */}
-        <SecaoDoAnuncio titulo="Fornecedor">
-          <Link href={`/cadastros/fornecedores/${pedido.fornecedor.id}`} className="text-base font-semibold hover:text-acento hover:underline">
-            {pedido.fornecedor.nome}
-          </Link>
-          {pedido.aliexpress && <ResumoAliExpress aliexpress={pedido.aliexpress} />}
-        </SecaoDoAnuncio>
+        {/* O cartao Fornecedor saiu (07/11/2026); no pedido do AliExpress o resumo dele continua num cartao proprio. */}
+        {pedido.aliexpress && (
+          <SecaoDoAnuncio titulo="AliExpress">
+            <ResumoAliExpress aliexpress={pedido.aliexpress} />
+          </SecaoDoAnuncio>
+        )}
 
         <BlocoItens
           pedidoId={pedido.id}

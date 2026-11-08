@@ -381,6 +381,16 @@ export function prazoDoPedido({ status, enviadoEm = null, prazosDosItens = [], p
 }
 
 /**
+ * Quantos dias faltam ate `fim`, contados pelo DIA em Sao Paulo (pedido do dono em 07/11/2026: "10 dias (21/11)").
+ * Negativo = atrasado; 0 = hoje. Sem data -> null.
+ */
+export function diasAte(fim, agora = new Date()) {
+  if (!fim) return null;
+  const dia = (data) => Date.parse(`${new Date(data).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" })}T00:00:00Z`);
+  return Math.round((dia(fim) - dia(agora)) / DIA_MS);
+}
+
+/**
  * Os motivos do "!" de um pedido aberto (ENVIADO ou PARCIAL): passou do prazo sem entregar, problema no ultimo evento de
  * algum pacote, situacao estranha no AliExpress (disputa, reembolso), itens sem produto e "entregue, falta lancar".
  * Pedido fechado nao tem "!". O atraso conta pelo dia em Sao Paulo: vence no dia seguinte ao fim da previsao.
