@@ -388,9 +388,12 @@ export async function precoPelaFaixaMLAcao(rascunho, { variante } = {}) {
     const produtos = await contextoDosProdutos(ids);
     const produto = produtos[lido.data.produtoId];
     if (!produto) return { ok: false, erro: "Produto não encontrado. Ele pode ter sido excluído." };
+    // `custo` no contexto e `{ valor, origem }` (custoDoProduto); kit = soma do custo de cada peca vezes a quantidade, como
+    // a aba Preco conta (custoDaComposicao): peca sem custo derruba o total.
+    const custoDe = (id) => Number(produtos[id]?.custo?.valor);
     const custo = lido.data.composicao?.itens?.length
-      ? lido.data.composicao.itens.reduce((soma, item) => soma + Number(produtos[item.produtoId]?.custo ?? 0) * Number(item.quantidade), 0)
-      : Number(produto.custo);
+      ? lido.data.composicao.itens.reduce((soma, item) => (soma === null || !(custoDe(item.produtoId) > 0) ? null : soma + custoDe(item.produtoId) * Number(item.quantidade)), 0)
+      : custoDe(lido.data.produtoId);
     if (!(custo > 0)) return { ok: false, erro: "Sem custo do produto." };
     const lucro = lucroDaLojaDoRascunho(lido.data, Object.values(produtos));
     if (lucro === null) return { ok: false, erro: "Sem preço de venda do produto." };

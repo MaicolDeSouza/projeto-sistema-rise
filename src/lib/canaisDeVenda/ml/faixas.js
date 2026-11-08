@@ -140,7 +140,9 @@ export function lucroPorUnidade(lucro, unidades) {
  */
 export function lucroDaLojaDoRascunho(rascunho, produtos) {
   const porId = produtos instanceof Map ? produtos : new Map((produtos ?? []).map((p) => [p.id, p]));
-  const lucroDe = (produto) => lucroLiquido(Number(produto?.precoVenda), Number(produto?.custo));
+  // O contexto dos produtos traz o custo como `{ valor, origem }` (custoDoProduto); o teste e outros chamadores, um numero.
+  const custoDe = (produto) => Number(produto?.custo && typeof produto.custo === "object" ? produto.custo.valor : produto?.custo);
+  const lucroDe = (produto) => lucroLiquido(Number(produto?.precoVenda), custoDe(produto));
   const pecas = Array.isArray(rascunho?.composicao?.itens) && rascunho.composicao.itens.length ? rascunho.composicao.itens : null;
   if (!pecas) {
     const lucro = lucroDe(porId.get(rascunho?.produtoId));

@@ -3622,6 +3622,8 @@ try {
 
     const produtos = [{ id: "p-fx", precoVenda: 45.9, custo: 25 }, { id: "p-2", precoVenda: 10, custo: 4 }, { id: "p-3", precoVenda: 10, custo: null }];
     conferir("lucro da loja: simples", lucroDaLojaDoRascunho(rascunho, produtos), Math.round(lucro * 100) / 100);
+    // O contexto dos produtos (`contextoDosProdutos`) traz o custo como `{ valor, origem }`, o mesmo que a aba Preco le.
+    conferir("lucro da loja: custo no formato do contexto ({ valor, origem })", lucroDaLojaDoRascunho(rascunho, [{ id: "p-fx", precoVenda: 45.9, custo: { valor: 25, origem: "cadastro" } }]), Math.round(lucro * 100) / 100);
     conferir("lucro da loja: kit = soma por peca x quantidade", lucroDaLojaDoRascunho({ ...rascunho, composicao: { itens: [{ produtoId: "p-fx", quantidade: 2 }, { produtoId: "p-2", quantidade: 3 }] } }, produtos), Math.round((lucro * 2 + lucroLiquido(10, 4) * 3) * 100) / 100);
     conferir("lucro da loja: peca sem custo ou produto sem preco = null", [lucroDaLojaDoRascunho({ ...rascunho, composicao: { itens: [{ produtoId: "p-3", quantidade: 1 }] } }, produtos), lucroDaLojaDoRascunho({ ...rascunho, produtoId: "p-3" }, produtos)], [null, null]);
   }
