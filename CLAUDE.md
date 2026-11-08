@@ -328,7 +328,7 @@ tem a segunda trava no mesmo molde desde 08/10/2026: `ML_PUBLICACAO_CODIGOS` (li
 ```bash
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
-npm run teste:extracao            # 896 asserções da extração, do site em moeda estrangeira (com Adafruit e SparkFun), do EAN interno, da conciliação, das medidas, das opções de parágrafo da descrição, do Nome que a descrição acompanha, das regras puras das Correções da descrição, da ordem da aba Concorrentes e da lista do "$" e do cabeçalho de download de arquivo, SEM rede
+npm run teste:extracao            # 900 asserções da extração, do site em moeda estrangeira (com Adafruit, SparkFun, Waveshare e o ritmo próprio dela), do EAN interno, da conciliação, das medidas, das opções de parágrafo da descrição, do Nome que a descrição acompanha, das regras puras das Correções da descrição, da ordem da aba Concorrentes e da lista do "$" e do cabeçalho de download de arquivo, SEM rede
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
 npm run teste:versao              # 26 asserções da versão no pé do menu (VPS: DD.MM.AAAA.NN, a data do deploy em São Paulo e o número do deploy, mostrada como "DD.MM.AAAA (build NN) - commit"; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
@@ -1551,8 +1551,20 @@ respondem ao robô, publicam `priceCurrency: "USD"` no JSON-LD e no OpenGraph, e
   Só a `moeda` do primeiro commit chegou à VPS; o resto está na main SEM deploy; produtos já gravados só mudam na próxima varredura.
 - **Waveshare (08/11/2026, o dono: "não estou conseguindo varrer"):** o `robots.txt` pede `Crawl-delay: 60` (uma visita por minuto) e o
   Rise respeita (`janelaDe` em buscar.js, nunca menos que o pedido): o Testar fonte (até 25 páginas) passa de 20 min e a varredura de
-  um catálogo de milhares de produtos levaria dias. Magento 1 (`skin/frontend`), sitemap só de categorias. Driblar o ritmo é decisão
-  do dono, não padrão do Rise.
+  um catálogo de milhares de produtos levaria dias. Magento 1 (`skin/frontend`), sitemap só de categorias. **Opção 2 do dono no mesmo
+  dia ("vamos tentar a opção 2"): ritmo próprio** em `src/lib/coleta/ritmo.js` (módulo de dados: `waveshare.com` = 5 s, 12 visitas por
+  minuto), que `janelaDe` usa no lugar do Crawl-delay, nunca abaixo dos 2 s do Rise; o passo "robots.txt analisado" do Testar fonte diz
+  "pede 60s entre visitas; o Rise usa 5s (ritmo próprio, decisão do dono)". Site novo com a mesma decisão entra na lista, não no código.
+  Risco assumido: bloqueio pelo site. **Leitura (mesmo dia):** o Testar fonte dava 0 válidos porque o sitemap lista as 300 categorias
+  ("/product.htm", "/product/<...>.htm") antes dos 2.384 produtos da raiz ("/5inch-hdmi-amoled.htm"), todas ".htm", e a amostra de 8
+  endereços abria só categoria. Agora **SparkFun e Waveshare ordenam o sitemap pela `<priority>`** (produto 1.0, categoria 0.5, rotas
+  internas 0.2; `lerSitemaps` devolve `prioridade` em cada item, `grupo` em colher.js só a usa nesses dois domínios, porque em outras
+  lojas a prioridade pode estar invertida). Isso também resolveu o erro do dono na SparkFun com a **"Amostra variada"** ligada (os
+  endereços já vistos saíam e sobravam categorias: 0 válidos em 11 páginas); conferido com 2 rodadas seguidas nas duas lojas, 3
+  produtos novos em cada. `waveshare.js`: ficha pela grade de ícones (`igKey`/`igValue`, só nas telas) e `precosPorQuantidade` pela tabela
+  `waveshare_view_table` ("1~9" usa o preço da página), na moeda do site. **Fica sem:** categoria (o breadcrumb só mostra o SKU) e
+  descrição (o JSON-LD só traz o resumo; o texto da aba é uma página de marketing de 80 mil caracteres). O preço é o que a página
+  exibe (STM32-QFP144: US$ 110,99, enquanto a tabela de faixas dele mostra US$ 108,99 para 1 unidade: não conciliado).
 
 **Janela do fornecedor no cadastro de Produto** (06/11/2026, pedido do dono): o lápis e o "Adicionar fornecedor" abrem uma
 janela larga (`JanelaDoFornecedor` em `Fornecedores.jsx`, moldura `Janela` das Licenças, "Sair sem salvar?", portal no

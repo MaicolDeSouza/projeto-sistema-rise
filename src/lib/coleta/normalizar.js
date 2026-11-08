@@ -10,6 +10,7 @@ import { produtosDaObr } from "./obr";
 import { caminhoDeCategoria, caminhoDoJsonLd, categoriaDoNav } from "./categoria";
 import { ehAdafruit, faixasDaAdafruit, fichaDaAdafruit, fotosDaAdafruit } from "./adafruit";
 import { disponibilidadeDaSparkFun, documentosDaSparkFun, ehSparkFun, fichaDaSparkFun } from "./sparkfun";
+import { ehWaveshare, faixasDaWaveshare, fichaDaWaveshare } from "./waveshare";
 import { categoriaDaRoboCore, descricaoDaRoboCore, estoqueDaRoboCore, precosDaRoboCore } from "./robocore";
 import { impostosDaFicha, precoComImpostos, semImpostos } from "./impostos";
 import { doMicrodata, escopoDoProduto } from "./microdata";
@@ -2191,7 +2192,9 @@ export function normalizarPagina({
   const ficha = fichaDaLoja(html);
   // ADAFRUIT (08/11/2026): fotos pelo sku no nome do arquivo e a tabela de desconto por quantidade (ver adafruit.js).
   const adafruit = ehAdafruit(url);
-  const faixasDeQuantidade = adafruit ? faixasDaAdafruit(html) : [];
+  // WAVESHARE (08/11/2026): grade de icones como ficha e tabela "1~9 / 10~49 / 100+" de preco por quantidade.
+  const waveshare = ehWaveshare(url);
+  const faixasDeQuantidade = adafruit ? faixasDaAdafruit(html) : waveshare ? faixasDaWaveshare(html) : [];
   // SPARKFUN (08/11/2026): estoque so no HTML, ficha na aba "Features & Specs" e documentos na aba "Documentation".
   const sparkfun = ehSparkFun(url);
 
@@ -2536,7 +2539,7 @@ export function normalizarPagina({
   const daListaHtml = especificacoesDeListaHtml(html);
   // A aba "Features & Specs" da SparkFun e a secao "Technical Details" da Adafruit entram antes da lista generica: sao a
   // ficha que a loja declara.
-  const daLojaEstrangeira = sparkfun ? fichaDaSparkFun(html) : adafruit ? fichaDaAdafruit(html) : [];
+  const daLojaEstrangeira = sparkfun ? fichaDaSparkFun(html) : adafruit ? fichaDaAdafruit(html) : waveshare ? fichaDaWaveshare(html) : [];
   const juntas = juntarFichas(juntarFichas(juntarFichas(aspnet?.especificacoes ?? [], declaradas), daLojaEstrangeira), daListaHtml);
 
   // Com o quadro "Ficha tecnica" da loja lido, Codigo, Estoque e Categoria ja

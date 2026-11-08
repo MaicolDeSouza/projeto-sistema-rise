@@ -153,10 +153,14 @@ export async function lerSitemaps(
 
       const lastmod = conteudo(bloco, "lastmod");
       const data = lastmod ? new Date(lastmod) : null;
+      // `<priority>`: SparkFun e Waveshare separam produto (1.0) de categoria (0.5) por ele; colher.js so o usa nesses sites.
+      const prioridadeTexto = conteudo(bloco, "priority");
+      const prioridade = prioridadeTexto ? Number(prioridadeTexto) : NaN;
 
       porUrl.set(url, {
         url,
         alteradoEm: data && !Number.isNaN(data.getTime()) ? data : null,
+        prioridade: Number.isFinite(prioridade) ? prioridade : null,
       });
     }
   }

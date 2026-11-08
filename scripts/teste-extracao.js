@@ -3986,6 +3986,26 @@ console.log("\n— Adafruit e SparkFun: estoque, ficha, fotos, categoria, faixas
   ]);
   conferir("documentosDaSparkFun: sem a aba, nada", documentosDaSparkFun("<html></html>", "https://www.sparkfun.com/"), []);
   conferir("SparkFun: fora do sparkfun.com nada disso roda", normalizarPagina({ html: sparkfun, url: "https://www.outraloja.com/openlog.html" }).produtos[0].documentos.length, 2);
+
+  // Waveshare: ficha pela grade de icones e faixas pela tabela "1~9 / 10~49 / 100+" (a 1a faixa usa o preco da pagina).
+  const { faixasDaWaveshare, fichaDaWaveshare } = await import("../src/lib/coleta/waveshare.js");
+  const paginaWaveshare = `<span class="regular-price waveshare_product_detail_price" id="product-price-4318"><span class="price">$82.99</span></span>
+    <table class="waveshare_view_table data-table"><tbody><tr><td><span class="waveshare_view_price">Price</span><span class="waveshare_view_num">Quantity</span></td></tr>
+    <tr><td><span class="waveshare_view_price waveshare_product_detail_price_one"></span><span class="waveshare_view_num">1~9</span></td></tr>
+    <tr><td><span class="waveshare_view_price"><span class="price">$80.99</span></span><span class="waveshare_view_num">10~49</span></td></tr>
+    <tr><td><span class="waveshare_view_price"><span class="price">$79.59</span></span><span class="waveshare_view_num">100+</span></td></tr></tbody></table>
+    <ul id="IconGrid"><li><span class="igKey">Size</span><img src="a.png" /><span class="igValue">5"</span></li><li><span class="igKey">Resolution</span><img src="b.png" /><span class="igValue">960×544</span></li></ul>`;
+  conferir("Waveshare: faixas por quantidade, a 1ª com o preço da página", faixasDaWaveshare(paginaWaveshare), [
+    { rotulo: "1-9", minimo: 1, maximo: 9, preco: 82.99 }, { rotulo: "10-49", minimo: 10, maximo: 49, preco: 80.99 }, { rotulo: "100+", minimo: 100, maximo: null, preco: 79.59 },
+  ]);
+  conferir("Waveshare: ficha pela grade de ícones", fichaDaWaveshare(paginaWaveshare), [{ nome: "Size", valor: "5\"" }, { nome: "Resolution", valor: "960×544" }]);
+  conferir("Waveshare: sem tabela de faixas, nada", faixasDaWaveshare("<html></html>"), []);
+
+  // Waveshare (08/11/2026, Opcao 2 do dono): ritmo proprio de 5 s no lugar do Crawl-delay de 60 s.
+  const { ritmoProprioDe } = await import("../src/lib/coleta/ritmo.js");
+  conferir("ritmoProprioDe: a Waveshare (com ou sem www) tem 5 s; as outras lojas seguem o robots.txt", [
+    ritmoProprioDe("www.waveshare.com")?.janelaMs, ritmoProprioDe("waveshare.com")?.janelaMs, ritmoProprioDe("www.sparkfun.com"), ritmoProprioDe("notwaveshare.com"),
+  ], [5000, 5000, null, null]);
 }
 
 console.log(falhas === 0 ? "\nTODOS OS TESTES PASSARAM" : `\n${falhas} FALHA(S)`);

@@ -1,4 +1,4 @@
-import { buscarPagina, podeVisitar, ritmoPedido, sitemapsDeclarados } from "./buscar";
+import { buscarPagina, podeVisitar, ritmoPedido, ritmoProprio, sitemapsDeclarados } from "./buscar";
 import { mesmoSiteSemWww } from "./http";
 import { backendDoMagentoPwa, colherMagentoPwa } from "./magento-pwa";
 import { colherWooCommerce } from "./woocommerce";
@@ -244,12 +244,18 @@ export async function colherProdutos({
 
   const permissao = await podeVisitar(alvo.toString());
   const ritmo = await ritmoPedido(alvo.toString());
+  // Ritmo proprio fixado pelo dono (ritmo.js): o passo diz o que o site pede E o que o Rise usa.
+  const proprio = ritmoProprio(alvo.toString());
   passos.push(
     passo(
       "robots.txt analisado",
       permissao.permitido,
       permissao.motivo ??
-        (ritmo ? `permite · pede ${ritmo / 1000}s entre visitas` : "permite a coleta"),
+        (proprio
+          ? `permite · pede ${ritmo ? `${ritmo / 1000}s` : "nada"} entre visitas; o Rise usa ${proprio / 1000}s (ritmo próprio, decisão do dono)`
+          : ritmo
+            ? `permite · pede ${ritmo / 1000}s entre visitas`
+            : "permite a coleta"),
     ),
   );
 
@@ -636,7 +642,17 @@ export async function colherProdutos({
   // termina em numero e o `pareceProduto` a tomava por produto. Nessa plataforma o produto e SO "/{slug}/p".
   const produtoDoAspNet = (endereco) =>
     plataforma.id === "aspnet-uploads" && /\/[^/]+\/p\/?$/i.test(endereco.split("?")[0]);
+  // SPARKFUN e WAVESHARE (08/11/2026; o dono: "não estou conseguindo varrer" e "na sparkfun dá erro se ligo amostra variada"):
+  // produto e categoria terminam igual (".html" / ".htm"), e o sitemap lista as categorias ANTES dos produtos. A amostra de 8
+  // endereços do teste (e a "Amostra variada", que tira os já vistos) abria só categoria: 0 válidos. Os dois sites separam os
+  // dois pela `<priority>` do sitemap (produto 1.0, categoria 0.5, rotas internas 0.2), então só neles ela manda na ordem.
+  const ordemPorPrioridade = /(^|\.)(sparkfun|waveshare)\.com$/i.test(alvo.hostname);
+  const prioridadeDoEndereco = new Map();
   const grupo = (endereco) => {
+    if (ordemPorPrioridade) {
+      const caminho = endereco.split("?")[0].replace(/^https?:\/\/[^/]+/i, "");
+      return (prioridadeDoEndereco.get(endereco) ?? 0) >= 1 && caminho !== "/" ? 0 : 2;
+    }
     if (plataforma.id === "aspnet-uploads") return produtoDoAspNet(endereco) ? 0 : pareceListagem(endereco) ? 2 : 1;
     return pareceProduto(endereco) || produtoDaNuvemshop(endereco) ? 0 : pareceListagem(endereco) ? 2 : 1;
   };
@@ -646,7 +662,12 @@ export async function colherProdutos({
   if (sitemaps.length > 0) {
     const ler = (teto) =>
       lerSitemaps(sitemaps, { maxSitemaps: 6, limite: teto, sinal });
-    let leitura = await ler(TETO_SITEMAP);
+    const lerEAnotar = async (teto) => {
+      const lida = await ler(teto);
+      for (const item of lida.urls) prioridadeDoEndereco.set(item.url, item.prioridade);
+      return lida;
+    };
+    let leitura = await lerEAnotar(TETO_SITEMAP);
     conferirSinal();
 
     // SITEMAP PLANO COM AS CATEGORIAS ANTES DOS PRODUTOS (Eletropecas, 13/10/2026): o arquivo unico lista 1.017
@@ -657,7 +678,7 @@ export async function colherProdutos({
       leitura.urls.length >= TETO_SITEMAP && !leitura.urls.some((item) => grupo(item.url) === 0);
     if (semProdutoNoCorte) {
       TETO_SITEMAP = 60000;
-      leitura = await ler(TETO_SITEMAP);
+      leitura = await lerEAnotar(TETO_SITEMAP);
       conferirSinal();
     }
     // Produto primeiro, listagem por ultimo, o resto no meio — na ordem do

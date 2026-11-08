@@ -1,6 +1,7 @@
 import { limitar } from "@/lib/integracoes/httpClient";
 
 import { obter, USER_AGENT } from "./http";
+import { ritmoProprioDe } from "./ritmo";
 
 /**
  * Busca educada de paginas para a secao Mercados.
@@ -269,6 +270,10 @@ export async function podeVisitar(url) {
  * do que combinamos e educado, mais rapido nao.
  */
 async function janelaDe(origem) {
+  // Excecao decidida pelo dono, site a site (ritmo.js: a Waveshare pede 60 s): o ritmo proprio vale no lugar do
+  // Crawl-delay, nunca abaixo do nosso.
+  const proprio = ritmoProprioDe(new URL(origem).hostname);
+  if (proprio) return Math.max(JANELA_MS, proprio.janelaMs);
   const robots = await lerRobots(origem);
   return Math.max(JANELA_MS, robots.atrasoMs ?? 0);
 }
@@ -277,6 +282,12 @@ async function janelaDe(origem) {
 export async function ritmoPedido(url) {
   const robots = await lerRobots(new URL(url).origin);
   return robots.atrasoMs;
+}
+
+/** O ritmo PROPRIO que o dono fixou para este site (ritmo.js), em ms, ou null quando o site segue o robots.txt. */
+export function ritmoProprio(url) {
+  const regra = ritmoProprioDe(new URL(url).hostname);
+  return regra ? Math.max(JANELA_MS, regra.janelaMs) : null;
 }
 
 /** Enderecos de sitemap declarados no robots.txt do dominio. */
