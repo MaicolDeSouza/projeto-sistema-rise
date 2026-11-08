@@ -36,6 +36,7 @@ import { LIMITES_ML, RascunhoMLSchema } from "@/lib/canaisDeVenda/ml/esquema";
 import { preencherFicha, sugerirCategoria, sugerirTitulos } from "@/lib/canaisDeVenda/ml/inteligencia";
 import { lucroDaLojaDoRascunho, VARIANTES, varianteDoRascunho, variantesDoProduto } from "@/lib/canaisDeVenda/ml/faixas";
 import { clonarVarianteML } from "@/lib/canaisDeVenda/ml/variantes";
+import { anunciosDoSkuNaConta, candidatosParaReaproveitar, reaproveitarAnuncioML } from "@/lib/canaisDeVenda/ml/reaproveitar";
 import { lerCategoria, lerCategoriaCompleta, lerCustosDoAnuncio, precoPelaFaixaNoML, precoPorMargemNoML, textoDoErroML } from "@/lib/canaisDeVenda/ml/leitura";
 import {
   anunciosMLDoProduto,
@@ -144,6 +145,33 @@ export async function criarVarianteMLAcao(id, variante) {
   if (negado) return negado;
   if (!ehId(id) || !VARIANTES.includes(variante)) return PEDIDO_INVALIDO;
   return protegendo(async () => comAcessosDoEditor(await clonarVarianteML(id, variante, { ml: await clienteML() })));
+}
+
+/**
+ * Os anuncios do SKU do produto que ja existem na conta do ML e ainda nao sao do Rise (definicao 4 do dono em 08/11/2026):
+ * a janela "Novo anuncio" oferece reaproveitar um deles antes de publicar outro. `{ ok, sku, candidatos }`.
+ */
+export async function anunciosDoSkuMLAcao(produtoId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"]);
+  if (negado) return negado;
+  if (!ehId(produtoId)) return PEDIDO_INVALIDO;
+  return protegendo(async () => {
+    const produto = (await contextoDosProdutos([produtoId]))[produtoId];
+    if (!produto) return { ok: false, erro: "Produto não encontrado." };
+    const naConta = await anunciosDoSkuNaConta(clienteML(), produto.sku);
+    if (!naConta.ok) return naConta;
+    const doRise = await anunciosMLDoProduto(produtoId);
+    const idsDoRise = new Set(doRise.map((anuncio) => anuncio.idExterno).filter(Boolean));
+    return { ok: true, sku: produto.sku, candidatos: candidatosParaReaproveitar(naConta.itens, { idsDoRise }) };
+  });
+}
+
+/** Adota o anuncio `itemId` do ML como anuncio PUBLICADO do produto (nada e escrito no ML). */
+export async function reaproveitarAnuncioMLAcao(produtoId, itemId) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"]);
+  if (negado) return negado;
+  if (!ehId(produtoId) || !/^MLB\d{6,15}$/.test(String(itemId ?? ""))) return PEDIDO_INVALIDO;
+  return revalidando(await protegendo(() => reaproveitarAnuncioML(produtoId, itemId, { ml: clienteML() })));
 }
 
 /**

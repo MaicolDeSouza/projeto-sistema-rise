@@ -3730,6 +3730,51 @@ try {
     conferir("clonar variante sem categoria: preco do clone e aviso", [semCategoria.ok, semCategoria.rascunho.preco, /categoria/i.test(String(semCategoria.aviso))], [true, 45.99, true]);
   }
 
+  {
+    console.log("\nReaproveitar anuncio da conta (anuncio antigo do SKU vira anuncio PUBLICADO do Rise)");
+    await limpar();
+    const { candidatosParaReaproveitar, anunciosDoSkuNaConta, reaproveitarAnuncioML } = await import("../src/lib/canaisDeVenda/ml/reaproveitar.js");
+    const { criarMLFalso } = await import("./lib/mlFalso.js");
+    const itemAntigo = {
+      id: "MLBANTIGO1", title: "Placa ZZ RE antiga", price: 39.9, listing_type_id: "gold_special", shipping: { free_shipping: false },
+      sold_quantity: 3, status: "active", catalog_listing: false, category_id: "MLB99779", permalink: "https://produto.mercadolivre.com.br/MLBANTIGO1",
+      family_name: "PLACA ZZ RE", date_created: "2025-03-01T12:00:00.000Z", seller_custom_field: "ZZ-ML-RE",
+    };
+    const fechado = { ...itemAntigo, id: "MLBFECHADO", status: "closed", sold_quantity: 9 };
+    const doRise = { ...itemAntigo, id: "MLBDORISE", sold_quantity: 50 };
+    const semVenda = { ...itemAntigo, id: "MLBSEMVENDA", sold_quantity: 0, status: "paused" };
+
+    // Puro: tira os do Rise e os encerrados; ativo primeiro, depois quem vendeu mais.
+    const candidatos = candidatosParaReaproveitar([semVenda, fechado, doRise, itemAntigo], { idsDoRise: new Set(["MLBDORISE"]) });
+    conferir("candidatos: sem os do Rise e sem closed, ativo primeiro", candidatos.map((c) => c.id), ["MLBANTIGO1", "MLBSEMVENDA"]);
+    conferir("candidatos: os campos da linha", Object.keys(candidatos[0]).sort(), ["catalogo", "categoriaId", "freteGratis", "id", "link", "preco", "status", "tipoAnuncio", "titulo", "vendidos"]);
+    conferir("candidatos: valores lidos do item", [candidatos[0].titulo, candidatos[0].preco, candidatos[0].tipoAnuncio, candidatos[0].freteGratis, candidatos[0].vendidos, candidatos[0].catalogo, candidatos[0].link], ["Placa ZZ RE antiga", 39.9, "gold_special", false, 3, false, "https://produto.mercadolivre.com.br/MLBANTIGO1"]);
+
+    const produto = await prisma.produto.create({ data: { sku: "ZZ-ML-RE", tituloBase: "ZZ RE", descricaoBase: "Descricao do Rise", conferido: true, blingId: "1", pesoKg: 0.05, alturaCm: 2, larguraCm: 6, comprimentoCm: 7, estoque: 10, precoVenda: 45.9, custo: 20 } });
+    const ml = criarMLFalso({ meusItens: { "ZZ-ML-RE": [itemAntigo, fechado] } });
+    const naConta = await anunciosDoSkuNaConta(ml, "ZZ-ML-RE");
+    conferir("anuncios do SKU na conta: le a busca e cada item", [naConta.ok, naConta.itens.map((i) => i.id)], [true, ["MLBANTIGO1", "MLBFECHADO"]]);
+
+    conferir("reaproveitar: item encerrado recusa", /encerrado/i.test(String((await reaproveitarAnuncioML(produto.id, "MLBFECHADO", { ml })).erro)), true);
+    const outroSku = criarMLFalso({ meusItens: { "OUTRO": [{ ...itemAntigo, id: "MLBOUTRO", seller_custom_field: "OUTRO" }] } });
+    conferir("reaproveitar: item de outro SKU recusa", /SKU/.test(String((await reaproveitarAnuncioML(produto.id, "MLBOUTRO", { ml: outroSku })).erro)), true);
+
+    const feito = await reaproveitarAnuncioML(produto.id, "MLBANTIGO1", { ml });
+    conferir("reaproveitar: cria o anuncio", [feito.ok, typeof feito.anuncioId], [true, "string"]);
+    const gravado = await prisma.anuncio.findUnique({ where: { id: feito.anuncioId } });
+    conferir("reaproveitar: colunas do anuncio", [gravado.canal, gravado.status, gravado.idExterno, gravado.urlExterna, gravado.categoriaExternaId, gravado.titulo, gravado.temVendas, gravado.publicadoEm?.toISOString()], ["MERCADO_LIVRE", "PUBLICADO", "MLBANTIGO1", "https://produto.mercadolivre.com.br/MLBANTIGO1", "MLB99779", "Placa ZZ RE antiga", true, "2025-03-01T12:00:00.000Z"]);
+    conferir("reaproveitar: dados do item no rascunho", [gravado.dados.tipoAnuncio, gravado.dados.envio.freteGratis, gravado.dados.preco], ["gold_special", false, 39.9]);
+    const pub = gravado.dados.publicacao;
+    conferir("reaproveitar: publicacao", [pub.itemId, pub.statusML, pub.criadoCom, pub.reaproveitado?.blingMovidoEm, typeof pub.reaproveitado?.em, pub.enviado.titulo, pub.enviado.preco, pub.enviado.ficha, pub.enviado.prazo, pub.enviado.precoDaLoja], ["MLBANTIGO1", "active", null, null, "string", "Placa ZZ RE antiga", 39.9, [], null, null]);
+    conferir("reaproveitar: as etapas do simples constam feitas", pub.feitas.includes("gravar") && !pub.feitas.includes("kit_bling"), true);
+    conferir("reaproveitar: zero escritas no ML", ml.escritas.length, 0);
+    const aberto = await carregarAnuncioML(feito.anuncioId);
+    // O preco do editor E o do ML (39,90), entao `preco` nao acende; o que acende e o preco da loja (45,90 contra nenhum).
+    conferir("reaproveitar: abre com '!' em descricao e no preco da loja (nada do produto conferido)", [aberto.status, aberto.mudancas.naoConferido, aberto.mudancas.partes.includes("descricao"), aberto.mudancas.partes.includes("precoDaLoja"), aberto.mudancas.partes.includes("preco")], ["PUBLICADO", true, true, true, false]);
+    conferir("reaproveitar: o mesmo item de novo recusa", /já está no Rise/.test(String((await reaproveitarAnuncioML(produto.id, "MLBANTIGO1", { ml })).erro)), true);
+    conferir("reaproveitar: continua um so anuncio", await prisma.anuncio.count({ where: { produtoId: produto.id } }), 1);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } finally {
   await limpar();
