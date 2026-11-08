@@ -7,7 +7,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import CampoBusca from "@/components/ui/CampoBusca";
 import { CANAIS } from "@/lib/canais";
 
-import { STATUS, TEXTO_DO_STATUS } from "./textos";
+import { SITUACOES, TEXTO_DA_SITUACAO } from "./textos";
 
 // Os canais que tem pedido lido pelo Rise; a Shopee aparece desligada ate ter integracao.
 const CANAIS_DO_FILTRO = CANAIS.filter((canal) => ["BLING", "LOJA_INTEGRADA", "MERCADO_LIVRE", "SHOPEE"].includes(canal.id));
@@ -24,7 +24,7 @@ function diasAntes(dia, n) {
  * (`desde`/`ate`, padrao 1 mes, decidido pela pagina; atalhos Hoje e 7 dias), canais e status (parametro repetido; nenhum = todos) e "Só com
  * !" (`aviso=1`). Cada mudanca volta a pagina 1. `navegacao` e a paginacao do topo, posta no canto direito da 1a linha.
  */
-export default function FiltrosDePedidos({ busca, desde, ate, hoje, canais, status, soComAviso, enviarHoje = null, navegacao = null }) {
+export default function FiltrosDePedidos({ busca, desde, ate, hoje, canais, situacoes, soComAviso, enviarHoje = null, navegacao = null }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -149,7 +149,7 @@ export default function FiltrosDePedidos({ busca, desde, ate, hoje, canais, stat
             type="button"
             onClick={() => ir((params) => (enviarHoje.ativo ? params.delete("despacho") : params.set("despacho", "hoje")))}
             aria-pressed={enviarHoje.ativo}
-            title="Pedidos que precisam ser deixados na agência até o fim de hoje (os atrasados entram), pelo prazo do Mercado Livre"
+            title="Pedidos que precisam ser enviados até o fim de hoje (os atrasados entram): prazo do Mercado Livre, 24 h na Loja Integrada e a data prevista do pedido no Bling"
             className={`inline-flex items-center gap-1.5 ${chip(enviarHoje.ativo)}`}
           >
             <Truck size={14} aria-hidden="true" />
@@ -162,12 +162,12 @@ export default function FiltrosDePedidos({ busca, desde, ate, hoje, canais, stat
       </div>
 
       <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar pela situação">
-        <button type="button" onClick={() => alternarRepetido("status", null)} className={chip(status.length === 0)} aria-pressed={status.length === 0}>
+        <button type="button" onClick={() => alternarRepetido("situacao", null)} className={chip(situacoes.length === 0)} aria-pressed={situacoes.length === 0}>
           Todos
         </button>
-        {STATUS.map((valor) => (
-          <button key={valor} type="button" onClick={() => alternarRepetido("status", valor)} className={chip(status.includes(valor))} aria-pressed={status.includes(valor)}>
-            {TEXTO_DO_STATUS[valor]}
+        {SITUACOES.map((valor) => (
+          <button key={valor} type="button" onClick={() => alternarRepetido("situacao", valor)} className={chip(situacoes.includes(valor))} aria-pressed={situacoes.includes(valor)}>
+            {TEXTO_DA_SITUACAO[valor]}
           </button>
         ))}
       </div>

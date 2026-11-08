@@ -1,3 +1,4 @@
+import { prazoDeDespachoBling } from "./despacho";
 import { dataDeSaoPaulo, digitos, dinheiro, texto, vazio } from "./normalizado";
 
 /**
@@ -148,6 +149,8 @@ export function normalizarPedidoBling({ pedido, formas = [], situacoes = [], nfe
     prazo: transporte.prazoEntrega === undefined || transporte.prazoEntrega === null ? null : Number(transporte.prazoEntrega),
     // A data de saida e o unico "postado em" que o Bling da; o status unificado conta 15 e 30 dias a partir dela.
     historico: saiuEm ? { postadoEm: saiuEm.toISOString() } : {},
+    // O prazo de envio e a data prevista do pedido de venda (regra do dono em 08/11/2026; `prazoDeDespachoBling`).
+    ...prazoDeDespachoBling({ dataPrevista: pedido.dataPrevista }),
   };
 
   p.nf = nfe

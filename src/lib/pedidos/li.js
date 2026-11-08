@@ -1,3 +1,4 @@
+import { prazoDeDespachoLI } from "./despacho";
 import { data, dataDeSaoPaulo, digitos, dinheiro, telefone, texto, vazio } from "./normalizado";
 
 const CANCELADAS = new Set(["cancelled", "cancelling"]);
@@ -151,6 +152,9 @@ export function normalizarPedidoLI({ pedido, historico = [], etiquetas = [], nf 
     .map((h) => ({ em: dataDeSaoPaulo(h.data), statusDaOrigem: texto(h.situacao?.codigo) }))
     .filter((h) => h.em && h.statusDaOrigem)
     .sort((a, b) => a.em - b.em);
+
+  // O prazo de envio: 24 h depois do pagamento (regra do dono em 08/11/2026; `prazoDeDespachoLI`).
+  Object.assign(p.envio, prazoDeDespachoLI({ historico: p.historico, statusDaOrigem: p.statusDaOrigem, dataDaVenda: p.dataDaVenda, tipoDeEnvio: p.envio.tipo }));
 
   return p;
 }

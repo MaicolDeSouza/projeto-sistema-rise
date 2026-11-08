@@ -5,7 +5,7 @@ import { config } from "@/lib/integracoes/config";
 import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
 import { clienteDoPedido } from "@/lib/pedidos/cliente";
 import { casarItens } from "@/lib/pedidos/itens";
-import { statusDoEnvio, statusDoPedido } from "@/lib/pedidos/status";
+import { SITUACOES, condicaoDaSituacao, situacaoDoPedido, statusDoEnvio, statusDoPedido } from "@/lib/pedidos/status";
 import { devolvido, lucroDivergente, lucroFechado, parcelasDaEstimativa, parcelasDoReal } from "@/lib/pedidos/lucro";
 import { estimativaDoAnuncioML } from "@/lib/pedidos/estimativaML";
 import { calcularPecas } from "@/lib/pedidos/pecas";
@@ -283,7 +283,7 @@ const ORDENACOES = {
   lucro: (d) => ({ lucroReal: d }),
 };
 
-function filtroDaLista({ busca, desde, ate, canais, status, envio, codigos, locais, soComAviso, clienteId, despacho, agora = new Date() }) {
+function filtroDaLista({ busca, desde, ate, canais, status, envio, situacoes, codigos, locais, soComAviso, clienteId, despacho, agora = new Date() }) {
   const where = {};
   // A aba Pedidos do cadastro do cliente lista so os dele.
   if (clienteId) where.clienteId = clienteId;
@@ -291,13 +291,19 @@ function filtroDaLista({ busca, desde, ate, canais, status, envio, codigos, loca
   // "Enviar hoje" (pedido do dono em 08/11/2026): a postar com o prazo do ML ate o fim de hoje, os atrasados juntos. Ignora
   // o periodo: a venda de 40 dias atras que ainda nao saiu tambem e envio de hoje.
   if (despacho === "hoje") {
-    where.statusDoEnvio = "A_POSTAR";
+    // So o que ainda esta nas maos do operador (pago, em separacao ou esperando peca): o ML, a LI (24 h) e o Bling (data
+    // prevista) podem ter prazo em pedido nao pago, e esse nao e envio de hoje.
+    where.status = { in: [...STATUS_QUE_SEPARAM] };
+    where.statusDoEnvio = { in: ["A_POSTAR", "SEM_ENVIO"] };
     where.despacharAte = { lte: fimDoDiaEmSaoPaulo(agora) };
   } else if (desde || ate) where.dataDaVenda = { ...(desde ? { gte: new Date(desde) } : {}), ...(ate ? { lte: new Date(ate) } : {}) };
   if (Array.isArray(canais) && canais.length > 0) where.canal = { in: canais };
   if (Array.isArray(status) && status.length > 0) where.status = { in: status };
   else if (typeof status === "string" && status) where.status = status;
   if (Array.isArray(envio) && envio.length > 0 && despacho !== "hoje") where.statusDoEnvio = { in: envio };
+  // A coluna Status (08/11/2026): o status unico, pedido + envio. Varias marcadas valem juntas (OU).
+  const condicoes = (Array.isArray(situacoes) ? situacoes : []).map(condicaoDaSituacao).filter(Boolean);
+  if (condicoes.length > 0) e.push({ OR: condicoes });
   // Filtro das colunas Codigo e Local (pedido do dono em 07/11/2026): vale QUALQUER item do pedido, nao so o 1o que a
   // linha mostra. O codigo e o SKU do produto do Rise ou, sem produto, o codigo que veio do canal.
   if (Array.isArray(codigos) && codigos.length > 0) {
@@ -337,8 +343,8 @@ export async function contarEnviosDeHoje(agora = new Date()) {
   return prisma.pedidoDeVenda.count({ where: filtroDaLista({ despacho: "hoje", agora }) });
 }
 
-export async function listarPedidosDeVenda({ busca, desde, ate, canais, status, envio, codigos, locais, soComAviso = false, clienteId, despacho, agora, ordenar, direcao, pagina = 1, porPagina = 25 } = {}) {
-  const where = filtroDaLista({ busca, desde, ate, canais, status, envio, codigos, locais, soComAviso, clienteId, despacho, agora });
+export async function listarPedidosDeVenda({ busca, desde, ate, canais, status, envio, situacoes, codigos, locais, soComAviso = false, clienteId, despacho, agora, ordenar, direcao, pagina = 1, porPagina = 25 } = {}) {
+  const where = filtroDaLista({ busca, desde, ate, canais, status, envio, situacoes, codigos, locais, soComAviso, clienteId, despacho, agora });
   const sentido = direcao === "asc" ? "asc" : "desc";
   const orderBy = ORDENACOES[ordenar] ? [ORDENACOES[ordenar](sentido), { dataDaVenda: "desc" }] : [{ dataDaVenda: "desc" }];
   const take = Math.max(1, Number(porPagina) || 25);
@@ -410,9 +416,10 @@ const ORDEM_DO_ENVIO = ["SEM_ENVIO", "A_POSTAR", "POSTADO", "EM_TRANSITO", "ENTR
  * proxima): os valores que EXISTEM na lista com os outros filtros, sem o da propria coluna, na ordem da tabela.
  */
 export async function opcoesDasColunas(filtro = {}) {
-  const [porStatus, porEnvio, itensPorCodigo, itensPorLocal] = await Promise.all([
+  const [porStatus, porEnvio, porSituacao, itensPorCodigo, itensPorLocal] = await Promise.all([
     prisma.pedidoDeVenda.groupBy({ by: ["status"], where: filtroDaLista({ ...filtro, status: undefined }) }),
     prisma.pedidoDeVenda.groupBy({ by: ["statusDoEnvio"], where: filtroDaLista({ ...filtro, envio: undefined }) }),
+    prisma.pedidoDeVenda.groupBy({ by: ["status", "statusDoEnvio"], where: filtroDaLista({ ...filtro, situacoes: undefined }) }),
     // Codigo e Local (07/11/2026): os valores dos itens dos pedidos da lista, sem o filtro da propria coluna.
     prisma.itemDoPedidoDeVenda.findMany({
       where: { pedido: filtroDaLista({ ...filtro, codigos: undefined }) },
@@ -425,10 +432,12 @@ export async function opcoesDasColunas(filtro = {}) {
   ]);
   const status = new Set(porStatus.map((g) => g.status));
   const envio = new Set(porEnvio.map((g) => g.statusDoEnvio));
+  const situacoes = new Set(porSituacao.map(situacaoDoPedido));
   const ordenados = (valores) => [...new Set(valores.filter((v) => typeof v === "string" && v.trim()))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
   return {
     status: ORDEM_DO_STATUS.filter((v) => status.has(v)),
     envio: ORDEM_DO_ENVIO.filter((v) => envio.has(v)),
+    situacoes: SITUACOES.filter((v) => situacoes.has(v)),
     codigos: ordenados(itensPorCodigo.map((i) => i.produto?.sku ?? i.codigoNaOrigem)),
     locais: ordenados(itensPorLocal.map((i) => i.produto?.localizacao)),
   };
@@ -508,6 +517,34 @@ export async function lerPedidoDeVenda(id) {
 }
 
 // ---- Acoes do operador ----
+
+/**
+ * Refaz as pecas e o "Aguardando pecas" dos pedidos abertos (08/11/2026). As pecas eram calculadas so quando o canal
+ * mudava o pedido, e o estoque vem do Bling de hora em hora: depois de cada leitura do estoque (worker) o pedido que ficou
+ * sem a peca, ou que a ganhou, troca de status sozinho. Do mais antigo ao mais novo, um pedido por transacao.
+ * @returns {{ conferidos: number, mudados: number }}
+ */
+export async function recalcularPecasDosPedidosAbertos() {
+  const abertos = await prisma.pedidoDeVenda.findMany({
+    where: { status: { in: [...STATUS_QUE_SEPARAM] } },
+    orderBy: [{ dataDaVenda: "asc" }, { id: "asc" }],
+    select: { id: true },
+  });
+  let mudados = 0;
+  for (const { id } of abertos) {
+    const mudou = await transacao(async (tx) => {
+      const pedido = await tx.pedidoDeVenda.findUnique({ where: { id }, include: { itens: true } });
+      if (!pedido || !STATUS_QUE_SEPARAM.has(pedido.status)) return false;
+      const pecas = await calcularPecas(tx, pedido);
+      const status = pecas.falta ? "AGUARDANDO_PECAS" : pedido.emSeparacao ? "EM_SEPARACAO" : "PAGO";
+      if (status === pedido.status && JSON.stringify(pecas) === JSON.stringify(pedido.pecas ?? null)) return false;
+      await tx.pedidoDeVenda.update({ where: { id }, data: { status, pecas } });
+      return true;
+    });
+    if (mudou) mudados += 1;
+  }
+  return { conferidos: abertos.length, mudados };
+}
 
 /** Liga ou desliga "em separacao" (so em PAGO, AGUARDANDO_PECAS e EM_SEPARACAO). */
 export async function marcarEmSeparacao(id, ligado) {

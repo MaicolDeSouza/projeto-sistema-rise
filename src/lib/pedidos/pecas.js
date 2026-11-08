@@ -11,6 +11,8 @@ const SELECAO_DO_PRODUTO = {
   sku: true,
   tituloBase: true,
   estoque: true,
+  blingSaldo: true,
+  blingSaldoLidoEm: true,
   tipo: true,
   pecasProprias: true,
   componentes: { select: { componenteId: true, quantidade: true } },
@@ -26,8 +28,10 @@ function somar(mapa, produtoId, quantidade) {
  * Quantas unidades de cada produto um pedido consome (Map produtoId → quantidade). Kit = cada componente x quantidade;
  * produto com pecas proprias = cada peca com produto (`componenteId`) x quantidade, arredondada para cima (meia peca
  * nao existe na prateleira). `produtosPorId` e um Map (ou objeto) dos produtos ja lidos com `componentes` e `pecasDoProduto`.
+ * `soOQueOBlingBaixa`: so o produto simples e as pecas do kit, que o Bling tira do saldo na venda; a peca propria (ordem de
+ * producao) o Bling nao conhece, ele baixa o produto pronto.
  */
-export function necessidadeDoPedido(itens, produtosPorId) {
+export function necessidadeDoPedido(itens, produtosPorId, { soOQueOBlingBaixa = false } = {}) {
   const ler = (id) => (produtosPorId instanceof Map ? produtosPorId.get(id) : produtosPorId?.[id]) ?? null;
   const necessidade = new Map();
   for (const item of Array.isArray(itens) ? itens : []) {
@@ -37,6 +41,7 @@ export function necessidadeDoPedido(itens, produtosPorId) {
     if (produto.tipo === "COMPOSICAO") {
       for (const peca of produto.componentes ?? []) somar(necessidade, peca.componenteId, Number(peca.quantidade ?? 0) * quantidade);
     } else if (produto.pecasProprias) {
+      if (soOQueOBlingBaixa) continue;
       for (const peca of produto.pecasDoProduto ?? []) {
         if (!peca.componenteId) continue;
         somar(necessidade, peca.componenteId, Math.ceil(Number(peca.quantidade ?? 0) * quantidade));
@@ -46,6 +51,21 @@ export function necessidadeDoPedido(itens, produtosPorId) {
     }
   }
   return necessidade;
+}
+
+/** Folga entre a venda e a copia dela no Bling (o aviso `espelhoNoBlingAusente` so sai com 1 h). */
+const FOLGA_DA_COPIA_MS = 15 * 60 * 1000;
+
+/**
+ * O saldo do produto SEM o corte em zero: o `estoque` do Rise para em 0, mas o saldo virtual do Bling fica negativo
+ * quando se vendeu mais do que havia (-2 = duas unidades vendidas sem ter). Com estoque > 0 os dois sao iguais; com 0, vale
+ * o negativo do Bling (os ajustes do Rise ainda nao enviados ficam de fora nesse caso, e sao raros).
+ */
+export function saldoSemCorte(produto) {
+  const estoque = Number(produto?.estoque ?? 0);
+  if (estoque > 0) return estoque;
+  const doBling = Number(produto?.blingSaldo);
+  return Number.isFinite(doBling) ? Math.min(0, doBling) : 0;
 }
 
 const diaMes = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
@@ -76,12 +96,19 @@ export async function calcularPecas(tx, pedido) {
   const idsDoPedido = [...new Set(itens.map((item) => item?.produtoId).filter(Boolean))];
   if (idsDoPedido.length === 0) return { pecas: [], falta: false };
 
-  // Os pedidos abertos vendidos antes deste reservam as pecas deles primeiro.
-  const abertos = await tx.pedidoDeVenda.findMany({
-    where: { id: { not: pedido.id }, status: { in: STATUS_ABERTOS_PARA_PECAS }, dataDaVenda: { lt: pedido.dataDaVenda } },
-    select: { itens: { select: { produtoId: true, quantidade: true } } },
+  // TODOS os pedidos abertos entram: os mais antigos reservam as pecas deles primeiro, e o que o Bling ja tirou do saldo
+  // por qualquer um deles (inclusive os mais novos) volta para a conta (abaixo).
+  const outros = await tx.pedidoDeVenda.findMany({
+    where: { id: { not: pedido.id }, status: { in: STATUS_ABERTOS_PARA_PECAS } },
+    select: { id: true, origem: true, dataDaVenda: true, criadoEm: true, blingPedidoId: true, itens: { select: { produtoId: true, quantidade: true } } },
   });
-  const idsDosAbertos = abertos.flatMap((p) => p.itens.map((item) => item.produtoId)).filter(Boolean);
+  const esteAntes = (outro) => {
+    const a = new Date(outro.dataDaVenda).getTime();
+    const b = new Date(pedido.dataDaVenda).getTime();
+    // Mesma hora: o id desempata, para os dois pedidos nao acharem que a ultima unidade e de cada um.
+    return a < b || (a === b && String(outro.id) < String(pedido.id));
+  };
+  const idsDosAbertos = outros.flatMap((p) => p.itens.map((item) => item.produtoId)).filter(Boolean);
 
   const produtos = await tx.produto.findMany({ where: { id: { in: [...new Set([...idsDoPedido, ...idsDosAbertos])] } }, select: SELECAO_DO_PRODUTO });
   const porId = new Map(produtos.map((p) => [p.id, p]));
@@ -89,7 +116,7 @@ export async function calcularPecas(tx, pedido) {
   if (necessidade.size === 0) return { pecas: [], falta: false };
 
   const reservas = new Map();
-  for (const aberto of abertos) {
+  for (const aberto of outros.filter(esteAntes)) {
     for (const [produtoId, quantidade] of necessidadeDoPedido(aberto.itens, porId)) somar(reservas, produtoId, quantidade);
   }
 
@@ -99,10 +126,30 @@ export async function calcularPecas(tx, pedido) {
     for (const p of await tx.produto.findMany({ where: { id: { in: idsDasPecas } }, select: SELECAO_DO_PRODUTO })) porId.set(p.id, p);
   }
 
-  const emFalta = [...necessidade.entries()].filter(([produtoId, necessario]) => {
-    const estoque = Number(porId.get(produtoId)?.estoque ?? 0);
-    return necessario > Math.max(0, estoque - (reservas.get(produtoId) ?? 0));
-  });
+  // O que o Bling JA tirou do saldo por estes pedidos abertos (pergunta do dono em 08/11/2026: "a venda pode ter sido
+  // justamente da ultima peca, ai vc olha que esta zerado o estoque, mas e que foi dado baixa da ultima peca devido a
+  // ultima venda"). O estoque do Rise e o saldo do Bling lido de hora em hora, e o Bling baixa na venda: contar o pedido
+  // de novo deixava "Aguardando pecas" com a peca na prateleira.
+  const devolvido = new Map();
+  for (const aberto of [pedido, ...outros]) {
+    // O pedido do ML ou da LI sem copia no Bling nao baixou o saldo; o digitado no Bling e a propria venda de la (a coluna
+    // `blingPedidoId` so e gravada na copia dos canais).
+    if (!aberto.blingPedidoId && aberto.origem !== "BLING") continue;
+    const vendaEm = new Date(aberto.dataDaVenda).getTime();
+    // A copia do canal chega ao Bling minutos depois da venda: so conta como baixado o saldo lido com folga depois dela.
+    // O pedido digitado no Bling ja estava la quando o Rise o viu (`criadoEm`).
+    const baixadoDesde = aberto.origem === "BLING" && aberto.criadoEm ? new Date(aberto.criadoEm).getTime() : vendaEm + FOLGA_DA_COPIA_MS;
+    for (const [produtoId, quantidade] of necessidadeDoPedido(aberto.itens, porId, { soOQueOBlingBaixa: true })) {
+      const lidoEm = porId.get(produtoId)?.blingSaldoLidoEm;
+      if (lidoEm && new Date(lidoEm).getTime() >= baixadoDesde) somar(devolvido, produtoId, quantidade);
+    }
+  }
+
+  /** As unidades livres antes dos pedidos abertos: o saldo de agora mais o que o Bling ja tirou por eles. */
+  const livre = (produtoId) => saldoSemCorte(porId.get(produtoId)) + (devolvido.get(produtoId) ?? 0);
+  const disponivelPara = (produtoId) => Math.max(0, livre(produtoId) - (reservas.get(produtoId) ?? 0));
+
+  const emFalta = [...necessidade.entries()].filter(([produtoId, necessario]) => necessario > disponivelPara(produtoId));
   const idsEmFalta = emFalta.map(([produtoId]) => produtoId);
   const [compras, ordens] =
     idsEmFalta.length > 0
@@ -123,7 +170,7 @@ export async function calcularPecas(tx, pedido) {
 
   const pecas = [...necessidade.entries()].map(([produtoId, necessario]) => {
     const produto = porId.get(produtoId);
-    const disponivel = Math.max(0, Number(produto?.estoque ?? 0) - (reservas.get(produtoId) ?? 0));
+    const disponivel = disponivelPara(produtoId);
     const falta = Math.max(0, necessario - disponivel);
     const previsao = falta > 0 ? previsaoDaPeca(produtoId, comprasPendentes, ordens) : { previsao: null, previsaoOrigem: null };
     return { produtoId, sku: produto?.sku ?? null, nome: produto?.tituloBase ?? null, necessario, disponivel, falta, ...previsao };

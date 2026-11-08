@@ -3,7 +3,7 @@ import { ShoppingCart } from "lucide-react";
 import FiltrosDePedidos from "@/components/pedidos/FiltrosDePedidos";
 import { diaIso } from "@/components/pedidos/formato";
 import TabelaPedidosDeVenda from "@/components/pedidos/TabelaPedidosDeVenda";
-import { STATUS, TEXTO_DO_STATUS_DO_ENVIO } from "@/components/pedidos/textos";
+import { SITUACOES, STATUS, TEXTO_DO_STATUS_DO_ENVIO } from "@/components/pedidos/textos";
 import { moedaComSinal } from "@/components/pedidos/formato";
 import NavegacaoDoTopo from "@/components/mercados/NavegacaoDoTopo";
 import Paginacao from "@/components/mercados/Paginacao";
@@ -54,6 +54,8 @@ export default async function PedidosDeVendaPage({ searchParams }) {
   const canais = lista(params?.canal).filter((canal) => CANAIS.includes(canal));
   const status = lista(params?.status).filter((valor) => STATUS.includes(valor));
   const envio = lista(params?.envio).filter((valor) => valor in TEXTO_DO_STATUS_DO_ENVIO);
+  // O status unico da coluna Status (08/11/2026); `status` e `envio` continuam valendo para link antigo.
+  const situacoes = lista(params?.situacao).filter((valor) => SITUACOES.includes(valor));
   // Filtros das colunas Codigo e Local (parametro repetido, como o canal).
   const codigos = lista(params?.codigo).map((v) => v.trim().slice(0, 100)).filter(Boolean).slice(0, 50);
   const locais = lista(params?.local).map((v) => v.trim().slice(0, 100)).filter(Boolean).slice(0, 50);
@@ -82,6 +84,7 @@ export default async function PedidosDeVendaPage({ searchParams }) {
       canais,
       status,
       envio,
+      situacoes,
       codigos,
       locais,
       soComAviso,
@@ -109,7 +112,7 @@ export default async function PedidosDeVendaPage({ searchParams }) {
   const pagina = Math.min(paginaPedida, totalPaginas);
   // Sem `dado.custo`, o lucro nao vai nem no conteudo da pagina (a coluna some, e o numero tambem).
   const linhas = (resultado?.linhas ?? []).map((linha) => projetarLinhaDaLista(linha, acesso.pode));
-  const filtrando = Boolean(busca || canais.length || status.length || envio.length || codigos.length || locais.length || soComAviso || despacho || umDe(params?.desde) || umDe(params?.ate));
+  const filtrando = Boolean(busca || canais.length || status.length || envio.length || situacoes.length || codigos.length || locais.length || soComAviso || despacho || umDe(params?.desde) || umDe(params?.ate));
 
   return (
     <>
@@ -123,7 +126,7 @@ export default async function PedidosDeVendaPage({ searchParams }) {
         ate={ate}
         hoje={hoje}
         canais={canais}
-        status={status}
+        situacoes={situacoes}
         soComAviso={soComAviso}
         enviarHoje={{ ativo: despacho === "hoje", total: enviosDeHoje }}
         navegacao={
@@ -150,7 +153,7 @@ export default async function PedidosDeVendaPage({ searchParams }) {
       ) : (
         linhas.length > 0 && (
           <>
-            <TabelaPedidosDeVenda linhas={linhas} ordenar={ordenar} direcao={direcao} veLucro={veLucro} opcoes={opcoes} filtros={{ status, envio, codigos, locais }} agora={agora.toISOString()} />
+            <TabelaPedidosDeVenda linhas={linhas} ordenar={ordenar} direcao={direcao} veLucro={veLucro} opcoes={opcoes} filtros={{ situacoes, codigos, locais }} agora={agora.toISOString()} />
             {totalPaginas > 1 && (
               <div className="mt-4">
                 <Paginacao

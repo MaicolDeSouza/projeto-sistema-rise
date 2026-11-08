@@ -27,12 +27,12 @@ const { readFileSync } = await import("node:fs");
 const { normalizarPedidoML } = await import("../src/lib/pedidos/ml.js");
 const { normalizarPedidoLI, escolherEtiquetaEnviali } = await import("../src/lib/pedidos/li.js");
 const { normalizarPedidoBling, classificarLojaDoBling } = await import("../src/lib/pedidos/bling.js");
-const { statusDoPedido, statusDoEnvio } = await import("../src/lib/pedidos/status.js");
+const { statusDoPedido, statusDoEnvio, situacaoDoPedido, condicaoDaSituacao, SITUACOES } = await import("../src/lib/pedidos/status.js");
 const { clienteDoPedido } = await import("../src/lib/pedidos/cliente.js");
 const { custoCongeladoDoProduto, casarItens } = await import("../src/lib/pedidos/itens.js");
 const { parcelasDaEstimativa, parcelasDoReal, devolvido, lucroDivergente, lucroFechado } = await import("../src/lib/pedidos/lucro.js");
-const { necessidadeDoPedido, calcularPecas } = await import("../src/lib/pedidos/pecas.js");
-const { aplicarPedidoLido, listarPedidosDeVenda, lerPedidoDeVenda, marcarEmSeparacao, salvarCustoDoFreteManual, vincularCliente, espelharNoBling, criarClienteDoPedido, buscarClientesParaVincular, opcoesDasColunas, resumoDaLista } = await import("../src/lib/pedidos/banco.js");
+const { necessidadeDoPedido, calcularPecas, saldoSemCorte } = await import("../src/lib/pedidos/pecas.js");
+const { aplicarPedidoLido, listarPedidosDeVenda, lerPedidoDeVenda, marcarEmSeparacao, salvarCustoDoFreteManual, vincularCliente, espelharNoBling, criarClienteDoPedido, buscarClientesParaVincular, opcoesDasColunas, resumoDaLista, recalcularPecasDosPedidosAbertos } = await import("../src/lib/pedidos/banco.js");
 const { rodarLeituraDePedidos } = await import("../src/lib/pedidos/leitura.js");
 const { ROTINAS_DO_WORKER } = await import("../src/lib/saude/regras.js");
 const { RECURSOS } = await import("../src/lib/acessos/recursos.js");
@@ -233,6 +233,51 @@ try {
       conferir("despacho: sem prazo nao mostra nada", aPostar(null), null);
       conferir("fim do dia de Sao Paulo", fimDoDiaEmSaoPaulo(agora).toISOString(), "2026-11-09T02:59:59.999Z");
       conferir("fim do dia de Sao Paulo perto da meia-noite UTC", fimDoDiaEmSaoPaulo(new Date("2026-11-09T01:30:00.000Z")).toISOString(), "2026-11-09T02:59:59.999Z");
+      // Com o status (a lista de Vendas, 08/11/2026): so o pedido pago, a postar ou sem envio; prazo so do dia sem hora.
+      const comStatus = (status, statusDoEnvio, despacharAte) => situacaoDoDespacho({ status, statusDoEnvio, despacharAte }, agora);
+      conferir("despacho: nao pago com prazo nao mostra", comStatus("AGUARDANDO_PAGAMENTO", "A_POSTAR", "2026-11-08T19:30:00.000Z"), null);
+      conferir("despacho: aguardando pecas mostra", comStatus("AGUARDANDO_PECAS", "A_POSTAR", "2026-11-08T19:30:00.000Z")?.chave, "hoje");
+      conferir("despacho: Bling sem envio mostra o dia sem a hora", comStatus("PAGO", "SEM_ENVIO", "2026-11-09T02:59:00.000Z"), { chave: "hoje", texto: "Enviar hoje" });
+      conferir("despacho: Bling atrasado sem a hora", comStatus("PAGO", "SEM_ENVIO", "2026-11-07T02:59:00.000Z"), { chave: "atrasado", texto: "Atrasado: era sex 06/11" });
+      conferir("despacho: enviado nao mostra", comStatus("ENVIADO", "EM_TRANSITO", "2026-11-08T19:30:00.000Z"), null);
+    }
+    {
+      // Status unico de Vendas (08/11/2026): a regra da linha e a do filtro dao a MESMA situacao em toda combinacao.
+      const STATUS_TODOS = ["AGUARDANDO_PAGAMENTO", "PAGO", "AGUARDANDO_PECAS", "EM_SEPARACAO", "ENVIADO", "ENTREGUE", "FINALIZADO", "CANCELADO", "DEVOLVIDO"];
+      const ENVIOS_TODOS = ["SEM_ENVIO", "A_POSTAR", "POSTADO", "EM_TRANSITO", "ENTREGUE", "NAO_ENTREGUE", "DEVOLVIDO", "CANCELADO"];
+      // Avalia um `where` do Prisma (so o que condicaoDaSituacao usa) contra uma linha.
+      const casa = (where, linha) =>
+        Object.entries(where).every(([campo, valor]) => {
+          if (campo === "OR") return valor.some((w) => casa(w, linha));
+          if (typeof valor === "string") return linha[campo] === valor;
+          if (valor.in) return valor.in.includes(linha[campo]);
+          if (valor.notIn) return !valor.notIn.includes(linha[campo]);
+          if (valor.not) return linha[campo] !== valor.not;
+          throw new Error(`condicao desconhecida: ${campo}`);
+        });
+      const erradas = [];
+      for (const status of STATUS_TODOS) {
+        for (const statusDoEnvio of ENVIOS_TODOS) {
+          const linha = { status, statusDoEnvio };
+          const casadas = SITUACOES.filter((s) => casa(condicaoDaSituacao(s), linha));
+          if (casadas.length !== 1 || casadas[0] !== situacaoDoPedido(linha)) erradas.push(`${status}/${statusDoEnvio}: linha ${situacaoDoPedido(linha)}, filtro ${casadas.join("+") || "nenhum"}`);
+        }
+      }
+      conferir("situacao: linha e filtro iguais nas 72 combinacoes", erradas, []);
+      conferir(
+        "situacao: exemplos",
+        [
+          situacaoDoPedido({ status: "PAGO", statusDoEnvio: "A_POSTAR" }),
+          situacaoDoPedido({ status: "EM_SEPARACAO", statusDoEnvio: "A_POSTAR" }),
+          situacaoDoPedido({ status: "PAGO", statusDoEnvio: "SEM_ENVIO" }),
+          situacaoDoPedido({ status: "ENVIADO", statusDoEnvio: "EM_TRANSITO" }),
+          situacaoDoPedido({ status: "PAGO", statusDoEnvio: "POSTADO" }),
+          situacaoDoPedido({ status: "FINALIZADO", statusDoEnvio: "ENTREGUE" }),
+          situacaoDoPedido({ status: "ENVIADO", statusDoEnvio: "NAO_ENTREGUE" }),
+          situacaoDoPedido({ status: "CANCELADO", statusDoEnvio: "DEVOLVIDO" }),
+        ],
+        ["A_ENVIAR", "A_ENVIAR", "A_ENVIAR", "EM_TRANSITO", "EM_TRANSITO", "ENTREGUE", "NAO_ENTREGUE", "CANCELADO"],
+      );
     }
     conferir("ML: sem devolucao", ml1.devolucao, null);
     conferir("ML: devolucao entregue com frete de retorno", normalizarPedidoML({ order: fx("ml-order"), billing: null, shipments: [], shipment: fx("ml-shipment"), custos: fx("ml-shipment-costs"), retorno: fx("ml-shipment-return"), custosDoRetorno: fx("ml-shipment-return-costs"), invoice: null }).devolucao, { entregueEm: new Date("2026-11-20T14:00:00.000Z"), custoDoRetorno: 22.5 });
@@ -252,6 +297,11 @@ try {
     conferir("LI: enviali sem etiqueta = estimado", normalizarPedidoLI({ pedido: fx("li-pedido"), historico: [], etiquetas: [] }).envio.fonteDoCusto, "estimado");
     const retirada = normalizarPedidoLI({ pedido: { ...fx("li-pedido"), envios: [{ forma_envio: { nome: "Retirada", tipo: "retirada" }, valor: "0.00" }] }, historico: [], etiquetas: [] }).envio;
     conferir("LI: retirada = frete 0 do pedido", [retirada.custoDoVendedor, retirada.fonteDoCusto], [0, "pedido"]);
+    // Prazo de envio da LI (08/11/2026): 24 h depois do pagamento, pelo historico; retirada nao tem.
+    conferir("LI: prazo 24 h depois do pagamento", [li1.envio.despacharAte, li1.envio.despachoEstimado], ["2026-11-03T17:35:12.673Z", false]);
+    conferir("LI: sem historico, 24 h da venda paga (estimado)", (({ despacharAte, despachoEstimado }) => [despacharAte, despachoEstimado])(normalizarPedidoLI({ pedido: fx("li-pedido"), historico: [], etiquetas: [] }).envio), ["2026-11-03T17:30:00.123Z", true]);
+    conferir("LI: retirada sem prazo", retirada.despacharAte, null);
+    conferir("LI: nao pago sem prazo", normalizarPedidoLI({ pedido: { ...fx("li-pedido"), situacao: { codigo: "aguardando_pagamento", nome: "Aguardando pagamento" } }, historico: [], etiquetas: [] }).envio.despacharAte, null);
 
     const bl1 = normalizarPedidoBling({ pedido: fx("bling-pedido")[0], formas: fx("bling-formas").data, situacoes: fx("bling-situacoes").situacoes["98310"], nfe: fx("bling-nfe").data });
     conferir("Bling: pedido digitado", [bl1.canal, bl1.numero, bl1.pagamento[0].forma, bl1.statusDaOrigem, bl1.nf.chave.length], ["BLING", "7001", "Pix", "Em andamento", 44]);
@@ -259,6 +309,9 @@ try {
     conferir("Bling: totais, item e envio", [bl1.totais, bl1.itens[0].total, bl1.envio.rastreio, bl1.envio.fonteDoCusto, bl1.envio.custoDoVendedor], [{ totalProdutos: 119.8, desconto: 0, freteCobrado: 18.12, total: 137.92 }, 119.8, "QB123456789BR", "estimado", null]);
     conferir("Bling: nf", [bl1.nf.origem, bl1.nf.numero, bl1.nf.status, bl1.nf.urlPdf, bl1.nf.urlXml], ["BLING", "1234", "autorizada", "https://www.bling.com.br/relatorios/nfe.pdf?id=9001", null]);
     conferir("Bling: sem nf", normalizarPedidoBling({ pedido: fx("bling-pedido")[1], formas: [], situacoes: [], nfe: null }).nf, null);
+    // Prazo de envio do Bling (08/11/2026): a data prevista do pedido, ate o fim do dia; sem data, sem prazo.
+    conferir("Bling: prazo = data prevista as 23:59", bl1.envio.despacharAte, "2026-11-07T02:59:00.000Z");
+    conferir("Bling: sem data prevista, sem prazo", [normalizarPedidoBling({ pedido: { ...fx("bling-pedido")[0], dataPrevista: "" } }).envio.despacharAte, normalizarPedidoBling({ pedido: { ...fx("bling-pedido")[0], dataPrevista: "0000-00-00" } }).envio.despacharAte], [null, null]);
     conferir("Bling: data de Sao Paulo", bl1.dataDaVenda.toISOString(), "2026-11-02T03:00:00.000Z");
     conferir("Bling: loja", [classificarLojaDoBling(undefined), classificarLojaDoBling(0), classificarLojaDoBling(206326819), classificarLojaDoBling("203593931"), classificarLojaDoBling(203478870), classificarLojaDoBling(999)], ["bling", "bling", "espelhoML", "espelhoML", "espelhoLI", "outra"]);
     // MercadoShops: a loja do Bling que recebe parte das vendas do ML (medido na VPS em 04/11/2026: numeroLoja = pack do ML).
@@ -365,6 +418,41 @@ try {
     conferir("previsao pela producao quando nao ha compra", (await calcularPecas(prisma, pedidoComP3)).pecas.find((p) => p.sku === "ZZ-PED-P3").previsao, "em produção, ordem OP-" + String(op.numero).padStart(4, "0"));
     await prisma.pedidoDeVenda.update({ where: { id: pedidoAntigo.id }, data: { status: "CANCELADO" } });
     conferir("pedido cancelado libera a reserva", (await calcularPecas(prisma, pedidoNovo)).pecas[0].falta, 0);
+
+    // A ultima peca (pergunta do dono em 08/11/2026): o Bling baixa o saldo na venda, e o Rise le o saldo depois. A venda
+    // da ultima unidade NAO pode ficar "Aguardando pecas" so porque o estoque lido ja e 0.
+    conferir("saldo sem corte", [saldoSemCorte({ estoque: 3, blingSaldo: 3 }), saldoSemCorte({ estoque: 0, blingSaldo: -2 }), saldoSemCorte({ estoque: 0, blingSaldo: null }), saldoSemCorte({ estoque: 0, blingSaldo: 4 })], [3, -2, 0, 0]);
+    const u1 = await prisma.produto.create({ data: { sku: "ZZ-PED-U1", tituloBase: "ZZ Ped Ultima", estoque: 1 } });
+    // O pedido digitado no Bling chega ao Rise minutos depois de criado la (`criadoEm` = quando o Rise o viu).
+    const ultima = await novoPedido("ZZ-PED-30", "13:00", [{ produtoId: u1.id, quantidade: 1 }]);
+    await prisma.pedidoDeVenda.update({ where: { id: ultima.id }, data: { criadoEm: new Date("2026-11-04T13:05:00-03:00") } });
+    ultima.criadoEm = new Date("2026-11-04T13:05:00-03:00");
+    conferir("ultima peca, saldo ainda nao relido: tem", (await calcularPecas(prisma, ultima)).falta, false);
+    // O saldo relido 1 h depois da venda ja vem sem a unidade: o Bling baixou.
+    await prisma.produto.update({ where: { id: u1.id }, data: { estoque: 0, blingSaldo: 0, blingSaldoLidoEm: new Date("2026-11-04T14:00:00-03:00") } });
+    conferir("ultima peca, saldo relido ja sem ela: continua tendo", (await calcularPecas(prisma, ultima)).pecas.map((p) => [p.disponivel, p.falta]), [[1, 0]]);
+    // Venda do canal (ML) SEM copia no Bling: o saldo nao baixou por ela, e o 0 e de verdade.
+    await prisma.pedidoDeVenda.update({ where: { id: ultima.id }, data: { origem: "MERCADO_LIVRE", canal: "MERCADO_LIVRE", blingPedidoId: null } });
+    conferir("venda do canal sem copia no Bling: o 0 vale", (await calcularPecas(prisma, { ...ultima, origem: "MERCADO_LIVRE", blingPedidoId: null })).falta, true);
+    await prisma.pedidoDeVenda.update({ where: { id: ultima.id }, data: { blingPedidoId: "999001" } });
+    conferir("com a copia no Bling: tem de novo", (await calcularPecas(prisma, { ...ultima, origem: "MERCADO_LIVRE", blingPedidoId: "999001" })).falta, false);
+    // Saldo lido logo depois da venda (antes da copia chegar ao Bling): a venda ainda nao saiu dele.
+    await prisma.produto.update({ where: { id: u1.id }, data: { estoque: 1, blingSaldo: 1, blingSaldoLidoEm: new Date("2026-11-04T13:05:00-03:00") } });
+    conferir("saldo lido 5 min depois da venda: ainda nao baixado", (await calcularPecas(prisma, { ...ultima, origem: "MERCADO_LIVRE", blingPedidoId: "999001" })).pecas[0].disponivel, 1);
+    // Duas vendas da unica unidade: o Bling fica com -1; o pedido mais antigo leva a peca e o mais novo espera.
+    await prisma.produto.update({ where: { id: u1.id }, data: { estoque: 0, blingSaldo: -1, blingSaldoLidoEm: new Date("2026-11-04T16:00:00-03:00") } });
+    const segunda = await novoPedido("ZZ-PED-31", "14:00", [{ produtoId: u1.id, quantidade: 1 }]);
+    await prisma.pedidoDeVenda.update({ where: { id: segunda.id }, data: { criadoEm: new Date("2026-11-04T14:05:00-03:00") } });
+    segunda.criadoEm = new Date("2026-11-04T14:05:00-03:00");
+    conferir("duas vendas da ultima: a mais antiga tem", (await calcularPecas(prisma, { ...ultima, origem: "MERCADO_LIVRE", blingPedidoId: "999001" })).falta, false);
+    conferir("duas vendas da ultima: a mais nova espera", (await calcularPecas(prisma, segunda)).pecas.map((p) => [p.disponivel, p.falta]), [[0, 1]]);
+    // A releitura do estoque refaz o status dos abertos: a mais nova vira Aguardando pecas sozinha.
+    await recalcularPecasDosPedidosAbertos();
+    conferir(
+      "recalculo depois do estoque: status das duas",
+      (await prisma.pedidoDeVenda.findMany({ where: { id: { in: [ultima.id, segunda.id] } }, orderBy: { dataDaVenda: "asc" }, select: { status: true } })).map((p) => p.status),
+      ["PAGO", "AGUARDANDO_PECAS"],
+    );
 
     // Busca pelo nome do produto e pelo codigo/nome das PECAS, e os filtros das colunas Codigo e Local (pedido do dono em
     // 07/11/2026). O titulo do item ("x") nao tem nada disso: so acha pelo produto do Rise.

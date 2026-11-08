@@ -47,18 +47,63 @@ export function prazoDeDespachoML({ sla = null, shipment = null } = {}) {
 }
 
 /**
- * O que a linha do pedido mostra: so para o que esta A POSTAR e tem prazo.
+ * Loja Integrada: 24 horas depois do pagamento (regra do dono em 08/11/2026: "se for venda da LI o prazo e de 24hrs para
+ * envio"). O pagamento e a 1a vez que o historico de situacoes mostra o pedido pago (ou ja adiante); sem historico, a
+ * data da venda (marcado estimado). Pedido sem pacote (retirada, a combinar) e o que ainda nao foi pago nao tem prazo.
+ * @returns {{ despacharAte: string|null, despachoEstimado: boolean|null }}
+ */
+const PAGO_NA_LI = new Set(["pedido_pago", "pedido_em_separacao", "pedido_pronto_retirada", "pedido_enviado", "pedido_entregue"]);
+const SEM_PACOTE_NA_LI = new Set(["retirada", "combinar", "a_combinar", "sem_envio"]);
+const UM_DIA_MS = 24 * 60 * 60 * 1000;
+
+export function prazoDeDespachoLI({ historico = [], statusDaOrigem = null, dataDaVenda = null, tipoDeEnvio = null } = {}) {
+  const nada = { despacharAte: null, despachoEstimado: null };
+  const tipo = String(tipoDeEnvio ?? "").toLowerCase();
+  if (!tipo || SEM_PACOTE_NA_LI.has(tipo)) return nada;
+  const pagoNoHistorico = (historico ?? [])
+    .filter((h) => PAGO_NA_LI.has(h?.statusDaOrigem) && h?.em)
+    .map((h) => new Date(h.em))
+    .filter((d) => !Number.isNaN(d.getTime()))
+    .sort((a, b) => a - b)[0];
+  const pagoEm = pagoNoHistorico ?? (PAGO_NA_LI.has(statusDaOrigem) && dataDaVenda ? new Date(dataDaVenda) : null);
+  if (!pagoEm || Number.isNaN(pagoEm.getTime())) return nada;
+  return { despacharAte: new Date(pagoEm.getTime() + UM_DIA_MS).toISOString(), despachoEstimado: !pagoNoHistorico };
+}
+
+/** O prazo so do dia (Bling): a hora 23:59 nao vai para a tela. */
+const FIM_DO_DIA = "23:59";
+
+/**
+ * Bling (pedido digitado la): a data prevista do proprio pedido de venda (`dataPrevista`; regra do dono em 08/11/2026: "se
+ * for venda do bling o prazo deve vir do pedido de venda"). O Bling guarda so o DIA: o prazo e o fim dele (23:59), e a
+ * tela mostra so o dia ("Enviar hoje"). Sem data ("0000-00-00" ou vazio), sem prazo.
+ */
+export function prazoDeDespachoBling({ dataPrevista = null } = {}) {
+  const dia = String(dataPrevista ?? "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dia) || dia.startsWith("0000")) return { despacharAte: null, despachoEstimado: null };
+  const limite = new Date(`${dia}T${FIM_DO_DIA}:00${DESLOCAMENTO}`);
+  return Number.isNaN(limite.getTime()) ? { despacharAte: null, despachoEstimado: null } : { despacharAte: limite.toISOString(), despachoEstimado: false };
+}
+
+/** Os status em que o pedido ainda esta nas maos do operador (pago, em separacao ou esperando peca). */
+const AINDA_NAO_SAIU = new Set(["PAGO", "EM_SEPARACAO", "AGUARDANDO_PECAS"]);
+
+/**
+ * O que a linha do pedido mostra: so para o que ainda nao saiu (a postar, ou sem envio no Bling) e tem prazo. Com o
+ * `status`, so o pedido pago (o nao pago tambem pode ter prazo gravado); sem ele (chamada antiga), so o A_POSTAR.
  * @returns {{ chave: "atrasado"|"hoje"|"amanha"|"depois", texto: string }|null}
  */
-export function situacaoDoDespacho({ statusDoEnvio, despacharAte }, agora = new Date()) {
-  if (statusDoEnvio !== "A_POSTAR" || !despacharAte) return null;
+export function situacaoDoDespacho({ status = null, statusDoEnvio, despacharAte }, agora = new Date()) {
+  if (!despacharAte) return null;
+  if (status ? !AINDA_NAO_SAIU.has(status) || !["A_POSTAR", "SEM_ENVIO"].includes(statusDoEnvio) : statusDoEnvio !== "A_POSTAR") return null;
   const limite = new Date(despacharAte);
   if (Number.isNaN(limite.getTime())) return null;
   const hora = horaEmSaoPaulo(limite);
+  const ate = hora === FIM_DO_DIA ? "" : ` até ${hora}`;
   const hoje = diaEmSaoPaulo(agora);
   const dia = diaEmSaoPaulo(limite);
-  if (limite.getTime() < new Date(agora).getTime()) return { chave: "atrasado", texto: `Atrasado: era ${dia === hoje ? "hoje" : diaCurto(limite)} até ${hora}` };
-  if (dia === hoje) return { chave: "hoje", texto: `Enviar hoje até ${hora}` };
-  if (dia === somarDias(hoje, 1)) return { chave: "amanha", texto: `Enviar amanhã até ${hora}` };
-  return { chave: "depois", texto: `Enviar ${diaCurto(limite)} até ${hora}` };
+  if (limite.getTime() < new Date(agora).getTime()) return { chave: "atrasado", texto: `Atrasado: era ${dia === hoje ? "hoje" : diaCurto(limite)}${ate}` };
+  if (dia === hoje) return { chave: "hoje", texto: `Enviar hoje${ate}` };
+  if (dia === somarDias(hoje, 1)) return { chave: "amanha", texto: `Enviar amanhã${ate}` };
+  return { chave: "depois", texto: `Enviar ${diaCurto(limite)}${ate}` };
 }

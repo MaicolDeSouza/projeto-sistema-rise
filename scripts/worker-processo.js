@@ -61,6 +61,7 @@ const { relerMonitorLI } = await import("../src/lib/canaisDeVenda/li/monitor.js"
 const { rodarAvisosDoTelegram, AVISOS_TELEGRAM_MS } = await import("../src/lib/telegram/avisos.js");
 const { registrarRotina, registrarMemoria } = await import("../src/lib/saude/registro.js");
 const { rodarLeituraDePedidos, processarNotificacoes } = await import("../src/lib/pedidos/leitura.js");
+const { recalcularPecasDosPedidosAbertos } = await import("../src/lib/pedidos/banco.js");
 
 /// Os avisos do Telegram (Rise AI, Entrega C1): a cada minuto, so o worker normal. A rotina nao faz nada com o bot
 /// desligado, sem token ou sem ninguem vinculado, e nunca lanca.
@@ -566,8 +567,16 @@ async function laco() {
       if (!FONTES && !SO_NO_PC && Date.now() - estoqueSincronizadoEm >= SINCRONIZA_ESTOQUE_MS) {
         estoqueSincronizadoEm = Date.now();
         const estoque = await rodarRotina("estoqueBling", SINCRONIZA_ESTOQUE_MS, () => rodarSincronizacaoDeEstoque());
-        if (estoque.rodou) log(`estoque do Bling: ${estoque.atualizados} atualizados, ${estoque.semCodigoNoBling} sem codigo, ${estoque.falhas} falhas`);
-        else if (estoque.motivo === "erro") logErro(`estoque do Bling nao lido: ${estoque.erro}`);
+        if (estoque.rodou) {
+          log(`estoque do Bling: ${estoque.atualizados} atualizados, ${estoque.semCodigoNoBling} sem codigo, ${estoque.falhas} falhas`);
+          // Com o saldo novo, os pedidos abertos refazem o "Aguardando pecas" (08/11/2026); falha aqui nao derruba a volta.
+          try {
+            const pecas = await recalcularPecasDosPedidosAbertos();
+            if (pecas.mudados > 0) log(`pecas dos pedidos abertos: ${pecas.mudados} de ${pecas.conferidos} mudaram`);
+          } catch (erro) {
+            logErro(`pecas dos pedidos abertos nao recalculadas: ${erro?.message ?? erro}`);
+          }
+        } else if (estoque.motivo === "erro") logErro(`estoque do Bling nao lido: ${estoque.erro}`);
         else log(`estoque do Bling nao lido: ${estoque.motivo}`);
       }
       // Os pedidos de venda (fora do `coletaPausada`): so o worker normal. Uma origem fora do ar nao para as outras, e a

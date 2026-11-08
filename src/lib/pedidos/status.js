@@ -69,6 +69,82 @@ export const COR_DO_STATUS_DO_ENVIO = {
   CANCELADO: "bg-zinc-400",
 };
 
+// ---- Situacao: o status unico da lista de Vendas ----
+
+/**
+ * A coluna Status de Vendas mostra UM status (pedido do dono em 08/11/2026, Opcao 1: "em vendas o status tem 02
+ * informacoes. Quero apenas 1"), juntando o do pedido e o do envio. As colunas gravadas (`status`, `statusDoEnvio`)
+ * continuam as mesmas; a situacao e calculada delas, na linha (`situacaoDoPedido`) e no filtro (`condicaoDaSituacao`),
+ * e as duas regras precisam dar sempre a mesma resposta (o teste:pedidos confere todas as combinacoes).
+ */
+export const SITUACOES = ["AGUARDANDO_PAGAMENTO", "AGUARDANDO_PECAS", "A_ENVIAR", "EM_TRANSITO", "ENTREGUE", "NAO_ENTREGUE", "DEVOLVIDO", "CANCELADO"];
+
+export const TEXTO_DA_SITUACAO = {
+  AGUARDANDO_PAGAMENTO: "Aguardando pagamento",
+  AGUARDANDO_PECAS: "Aguardando peças",
+  A_ENVIAR: "A enviar",
+  EM_TRANSITO: "Em trânsito",
+  ENTREGUE: "Entregue",
+  NAO_ENTREGUE: "Não entregue",
+  DEVOLVIDO: "Devolvido",
+  CANCELADO: "Cancelado",
+};
+
+/** Ambar = pede acao do operador, azul = andando, verde = terminou, vermelho = problema. */
+export const COR_DA_SITUACAO = {
+  AGUARDANDO_PAGAMENTO: "bg-amber-500",
+  AGUARDANDO_PECAS: "bg-amber-500",
+  A_ENVIAR: "bg-amber-500",
+  EM_TRANSITO: "bg-sky-500",
+  ENTREGUE: "bg-emerald-500",
+  NAO_ENTREGUE: "bg-red-500",
+  DEVOLVIDO: "bg-red-500",
+  CANCELADO: "bg-zinc-400",
+};
+
+/** Envios que ja sairam das maos do operador (ou voltaram): com eles o pedido nao esta mais "a enviar". */
+const ENVIO_QUE_SAIU = ["POSTADO", "EM_TRANSITO", "ENTREGUE", "NAO_ENTREGUE", "DEVOLVIDO"];
+
+/** A situacao de um pedido, na ordem: cancelado, devolvido, nao entregue, entregue, em transito, e so entao o que falta fazer. */
+export function situacaoDoPedido({ status, statusDoEnvio }) {
+  if (status === "CANCELADO") return "CANCELADO";
+  if (status === "DEVOLVIDO" || statusDoEnvio === "DEVOLVIDO") return "DEVOLVIDO";
+  if (statusDoEnvio === "NAO_ENTREGUE") return "NAO_ENTREGUE";
+  if (status === "ENTREGUE" || status === "FINALIZADO" || statusDoEnvio === "ENTREGUE") return "ENTREGUE";
+  if (status === "ENVIADO" || statusDoEnvio === "POSTADO" || statusDoEnvio === "EM_TRANSITO") return "EM_TRANSITO";
+  if (status === "AGUARDANDO_PAGAMENTO") return "AGUARDANDO_PAGAMENTO";
+  if (status === "AGUARDANDO_PECAS") return "AGUARDANDO_PECAS";
+  return "A_ENVIAR";
+}
+
+/** O `where` do Prisma de uma situacao: a mesma ordem de `situacaoDoPedido`, escrita como condicoes que nao se sobrepoem. */
+export function condicaoDaSituacao(situacao) {
+  const vivo = { status: { notIn: ["CANCELADO", "DEVOLVIDO"] } };
+  switch (situacao) {
+    case "CANCELADO":
+      return { status: "CANCELADO" };
+    case "DEVOLVIDO":
+      return { status: { not: "CANCELADO" }, OR: [{ status: "DEVOLVIDO" }, { statusDoEnvio: "DEVOLVIDO" }] };
+    case "NAO_ENTREGUE":
+      return { ...vivo, statusDoEnvio: "NAO_ENTREGUE" };
+    case "ENTREGUE":
+      return { ...vivo, statusDoEnvio: { notIn: ["DEVOLVIDO", "NAO_ENTREGUE"] }, OR: [{ status: { in: ["ENTREGUE", "FINALIZADO"] } }, { statusDoEnvio: "ENTREGUE" }] };
+    case "EM_TRANSITO":
+      return {
+        status: { notIn: ["CANCELADO", "DEVOLVIDO", "ENTREGUE", "FINALIZADO"] },
+        statusDoEnvio: { notIn: ["DEVOLVIDO", "NAO_ENTREGUE", "ENTREGUE"] },
+        OR: [{ status: "ENVIADO" }, { statusDoEnvio: { in: ["POSTADO", "EM_TRANSITO"] } }],
+      };
+    case "AGUARDANDO_PAGAMENTO":
+    case "AGUARDANDO_PECAS":
+      return { status: situacao, statusDoEnvio: { notIn: ENVIO_QUE_SAIU } };
+    case "A_ENVIAR":
+      return { status: { in: ["PAGO", "EM_SEPARACAO"] }, statusDoEnvio: { notIn: ENVIO_QUE_SAIU } };
+    default:
+      return null;
+  }
+}
+
 /** Os status em que o pedido ja saiu das maos do operador: "em separacao" manual nao os sobrepoe. */
 const FECHADOS = new Set(["ENVIADO", "ENTREGUE", "FINALIZADO", "CANCELADO", "DEVOLVIDO"]);
 

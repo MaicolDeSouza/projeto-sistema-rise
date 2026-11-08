@@ -9,11 +9,16 @@ import FotoComLupa from "@/components/ui/FotoComLupa";
 import { abreviarPagamento, abrirNoCanal, dataCompleta, diaEHora, linkNoBling, linkNoCanal, moedaComSinal, moeda } from "./formato";
 import FiltroDaColuna from "./FiltroDaColuna";
 import IconeDoCanalDoPedido from "./IconeDoCanalDoPedido";
-import { COR_DO_STATUS, COR_DO_STATUS_DO_ENVIO, TEXTO_DO_STATUS, TEXTO_DO_STATUS_DO_ENVIO } from "./textos";
+import { COR_DA_SITUACAO, TEXTO_DA_SITUACAO, TEXTO_DO_STATUS, TEXTO_DO_STATUS_DO_ENVIO, situacaoDoPedido } from "./textos";
 import { situacaoDoDespacho } from "@/lib/pedidos/despacho";
 
-// O prazo de deixar na agencia (08/11/2026): vermelho atrasado, ambar hoje, o resto discreto.
+// O prazo de envio (08/11/2026): vermelho atrasado, ambar hoje, o resto discreto.
 const COR_DO_DESPACHO = { atrasado: "font-semibold text-red-700", hoje: "font-semibold text-amber-700", amanha: "text-suave", depois: "text-suave" };
+const DICA_DO_PRAZO = {
+  MERCADO_LIVRE: "Prazo do Mercado Livre para deixar na agência; passar dele conta na reputação",
+  LOJA_INTEGRADA: "Loja Integrada: 24 horas depois do pagamento",
+  BLING: "Bling: a data prevista do pedido de venda",
+};
 
 /** "falta 2× 900211 (previsão 12/11)", uma peca por linha: o `title` do status Aguardando peças. */
 function textoDasFaltas(faltas) {
@@ -74,9 +79,10 @@ const abreviarPedido = (numero) => {
 
 /**
  * A lista de Vendas, na ordem do dono (04/11/2026): Foto, Qtd. ("2x"), Descrição, Código, Local, Total, Lucro, Status,
- * Data, Pedido (abreviado; abre o pedido no canal, e o "Bling N" no Bling) e Canal. Desde 07/11/2026 (pedido do dono) a
- * coluna Status junta o status do pedido (em cima) e o do envio (embaixo, com o servico), e Codigo, Local e Status filtram
- * por um menu de marcar (`FiltroDaColuna`). Linha-guia: o operador ve primeiro os pedidos que pedem acao (fundo ambar); a linha abre o pedido no Rise. Um
+ * Data, Pedido (abreviado; abre o pedido no canal, e o "Bling N" no Bling) e Canal. Desde 08/11/2026 (pedido do dono,
+ * Opcao 1) a coluna Status mostra UM status, o pedido e o envio juntos (`situacaoDoPedido`), com o prazo de envio embaixo
+ * quando ha; o status do canal, o servico e o rastreio ficam na dica. Codigo, Local e Status filtram por um menu de marcar
+ * (`FiltroDaColuna`). Linha-guia: o operador ve primeiro os pedidos que pedem acao (fundo ambar); a linha abre o pedido no Rise. Um
  * pedido com varios itens mostra o 1o e "e mais N". Ordenam: data, total, lucro e pedido (no banco, antes de paginar).
  *
  * `ordenavel={false}` deixa os cabecalhos parados e sem filtro (a aba Pedidos do cadastro do cliente).
@@ -133,7 +139,7 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
           {/* Total com 8rem: cabe ate "R$ 1.234,56 c/ frete" (05/11/2026); o que passar corta e abre ao passar o mouse. */}
           <col style={{ width: "8rem" }} />
           {veLucro && <col style={{ width: "5.75rem" }} />}
-          {/* Status = pedido + envio numa coluna so (07/11/2026; eram 7.75 + 8.25rem; agora 10.25). */}
+          {/* Status unico com o prazo embaixo (08/11/2026): cabe "Aguardando pagamento" e "Atrasado: era sex 07/11 até 16:30". */}
           <col style={{ width: "10.25rem" }} />
           {/* Data inteira ("07/11 06:41"); com 6rem cortava a hora. */}
           <col style={{ width: "6.5rem" }} />
@@ -172,10 +178,7 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
               <FiltroDaColuna
                 rotulo="Status"
                 className="whitespace-nowrap"
-                grupos={[
-                  { parametro: "status", titulo: "Pedido", opcoes: comoOpcoes(comAtuais(opcoes.status, filtros.status), TEXTO_DO_STATUS, COR_DO_STATUS), atuais: filtros.status },
-                  { parametro: "envio", titulo: "Envio", opcoes: comoOpcoes(comAtuais(opcoes.envio, filtros.envio), TEXTO_DO_STATUS_DO_ENVIO, COR_DO_STATUS_DO_ENVIO), atuais: filtros.envio },
-                ]}
+                grupos={[{ parametro: "situacao", opcoes: comoOpcoes(comAtuais(opcoes.situacoes ?? [], filtros.situacoes), TEXTO_DA_SITUACAO, COR_DA_SITUACAO), atuais: filtros.situacoes }]}
                 aoMudar={filtrar}
               />
             ) : (
@@ -190,14 +193,19 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
           {linhas.map((linha) => {
             const pedeAcao = linha.avisos?.length > 0 || linha.status === "AGUARDANDO_PECAS";
             const href = `/pedidos/${linha.id}`;
-            const tituloDoStatus =
-              linha.status === "AGUARDANDO_PECAS" && linha.faltas?.length > 0
-                ? textoDasFaltas(linha.faltas)
-                : linha.statusDaOrigem
-                  ? `No canal: ${linha.statusDaOrigem}`
-                  : undefined;
+            const situacao = situacaoDoPedido(linha);
             const envioDetalhe = linha.envio?.servico ?? linha.envio?.transportadora ?? null;
-            const tituloDoEnvio = [envioDetalhe, linha.envio?.rastreio ? `Rastreio: ${linha.envio.rastreio}` : null].filter(Boolean).join("\n") || undefined;
+            // A dica guarda o que a coluna deixou de mostrar: o status do pedido e o do envio, o servico, o rastreio, as
+            // pecas em falta e a situacao escrita pelo canal.
+            const tituloDoStatus = [
+              `Pedido: ${TEXTO_DO_STATUS[linha.status] ?? linha.status}`,
+              `Envio: ${TEXTO_DO_STATUS_DO_ENVIO[linha.statusDoEnvio] ?? linha.statusDoEnvio}${envioDetalhe ? ` · ${envioDetalhe}` : ""}`,
+              linha.envio?.rastreio ? `Rastreio: ${linha.envio.rastreio}` : null,
+              linha.status === "AGUARDANDO_PECAS" && linha.faltas?.length > 0 ? textoDasFaltas(linha.faltas) : null,
+              linha.statusDaOrigem ? `No canal: ${linha.statusDaOrigem}` : null,
+            ]
+              .filter(Boolean)
+              .join("\n");
             const pagamento = abreviarPagamento(linha.pagamento);
             const noCanal = linkNoCanal(linha);
             const noBling = linha.origem !== "BLING" ? linkNoBling(linha) : null;
@@ -236,27 +244,20 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
                     <CelulaDoLucro linha={linha} />
                   </td>
                 )}
-                {/* Status: o do pedido em cima e o do envio embaixo, com o servico (pedido do dono em 07/11/2026: "a coluna
-                    status e envio deve se unir ... status de pagamento e depois status de envio"). Cada linha tem a
-                    propria dica; o servico longo corta e abre ao passar o mouse. */}
+                {/* Status: UM status (pedido do dono em 08/11/2026: "em vendas o status tem 02 informacoes. Quero apenas 1",
+                    Opcao 1) e, embaixo, o prazo de envio de cada canal ("com relacao ao prazo quero que mostre [na coluna]
+                    de status"). O resto vai para a dica. */}
                 <td className="max-w-0 px-2 py-2">
                   <span className="flex min-w-0 items-center gap-1.5" title={tituloDoStatus}>
-                    <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${COR_DO_STATUS[linha.status] ?? "bg-zinc-300"}`} />
-                    <span className="truncate">{TEXTO_DO_STATUS[linha.status] ?? linha.status}</span>
-                  </span>
-                  <span className="flex min-w-0 items-center gap-1.5 text-xs text-suave" title={tituloDoEnvio}>
-                    <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${COR_DO_STATUS_DO_ENVIO[linha.statusDoEnvio] ?? "bg-zinc-300"}`} />
-                    <span className="truncate">
-                      <span className="text-texto">{TEXTO_DO_STATUS_DO_ENVIO[linha.statusDoEnvio] ?? linha.statusDoEnvio}</span>
-                      {envioDetalhe && ` · ${envioDetalhe}`}
-                    </span>
+                    <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${COR_DA_SITUACAO[situacao] ?? "bg-zinc-300"}`} />
+                    <span className="truncate">{TEXTO_DA_SITUACAO[situacao] ?? situacao}</span>
                   </span>
                   {/* So com o "agora" do servidor (a lista de Pedidos): a aba do cliente nao mostra, para nao divergir na hidratacao. */}
                   {(() => {
                     const despacho = agora ? situacaoDoDespacho(linha, agora) : null;
                     if (!despacho) return null;
                     return (
-                      <span className={`block truncate text-xs ${COR_DO_DESPACHO[despacho.chave]}`} title="Prazo do Mercado Livre para deixar na agência; passar dele conta na reputação">
+                      <span className={`block truncate text-xs ${COR_DO_DESPACHO[despacho.chave]}`} title={DICA_DO_PRAZO[linha.origem] ?? "Prazo de envio"}>
                         {despacho.texto}
                       </span>
                     );

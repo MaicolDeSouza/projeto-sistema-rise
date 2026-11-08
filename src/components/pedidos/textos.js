@@ -4,7 +4,17 @@
  * lugar so.
  */
 
-export { COR_DO_STATUS, COR_DO_STATUS_DO_ENVIO, STATUS, TEXTO_DO_STATUS, TEXTO_DO_STATUS_DO_ENVIO } from "@/lib/pedidos/status";
+export {
+  COR_DA_SITUACAO,
+  COR_DO_STATUS,
+  COR_DO_STATUS_DO_ENVIO,
+  SITUACOES,
+  STATUS,
+  TEXTO_DA_SITUACAO,
+  TEXTO_DO_STATUS,
+  TEXTO_DO_STATUS_DO_ENVIO,
+  situacaoDoPedido,
+} from "@/lib/pedidos/status";
 
 export const TEXTO_DO_AVISO = {
   clienteSemDocumento: "Pedido sem cliente: o canal não informou CPF/CNPJ.",
