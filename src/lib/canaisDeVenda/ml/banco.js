@@ -363,6 +363,8 @@ export async function gravarPublicacao(anuncioId, parcial = {}, colunas = {}, op
     };
     const novos = { ...(dados ?? {}), publicacao };
     if (opcoes.blingProdutoId !== undefined && novos.composicao) novos.composicao = { ...novos.composicao, blingProdutoId: opcoes.blingProdutoId };
+    // O atacado que o ML gravou (08/11/2026): os % da recomendacao entram no rascunho, para ele e a impressao ficarem iguais.
+    if (opcoes.atacado !== undefined) novos.atacado = opcoes.atacado;
     // A proposta de anuncio (spec 2026-10-23) sai no Publicar que deu certo, nesta mesma gravacao: o "P" do icone some.
     if (opcoes.apagarProposta) delete novos.proposta;
     await tx.anuncio.update({ where: { id: anuncioId }, data: { ...colunas, dados: novos } });

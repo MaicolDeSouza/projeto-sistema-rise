@@ -389,9 +389,11 @@ export default function EditorAnuncioML({
    */
   function enviarMudancas(moverBling = false) {
     setErroDasMudancas(null);
-    // O titulo so no anuncio reaproveitado (a impressao tem a chave); o Bling so com o vinculo ainda por mover.
+    // O titulo so no anuncio reaproveitado (a impressao tem a chave) e o atacado so no que ja tem a base dele; o Bling so
+    // com o vinculo ainda por mover.
     const etapas = etapasDoEnvioML({
       comTitulo: Boolean(publicacao?.enviado) && Object.hasOwn(publicacao.enviado, "titulo"),
+      comAtacado: Boolean(publicacao?.enviado) && Object.hasOwn(publicacao.enviado, "atacado"),
       comBling: Boolean(publicacao?.reaproveitado) && !publicacao.reaproveitado.blingMovidoEm,
     });
     setAndamento({ etapas: etapasIniciais(etapas), fim: null, resumo: null, aviso: null });

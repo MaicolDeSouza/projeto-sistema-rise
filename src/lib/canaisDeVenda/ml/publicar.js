@@ -4,6 +4,7 @@ import { caminhoDe } from "@/lib/arquivos";
 import { prisma } from "@/lib/db";
 import { buscarNoBling } from "@/lib/blingSync/leitura";
 import { conteudoAtualDoAnuncio } from "./acompanhar";
+import { atacadoDoEnvio, enviarAtacadoML, impressaoDoAtacado } from "./atacado";
 import { carregarAnuncioML, gravarPublicacao, lerPublicacao } from "./banco";
 import { impressaoDoConteudo } from "./impressao";
 import { conferirKitNoBling, criarKitNoBling, registrarAnuncioNoBlingML, vincularNoBlingML, vinculoNoBlingML } from "./bling";
@@ -459,13 +460,30 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto, p
         else if (!resposta?.ok) return falhar(etapa, textoDaRecusaML(resposta, `a ativação do anúncio ${pub.itemId}`));
         else await gravar({ statusML: resposta.dados?.status ?? "active", aguardandoEstoque: false });
       }
+    } else if (etapa === "atacado") {
+      // Os precos de atacado (08/11/2026). A falha NAO derruba a publicacao: o anuncio ja esta no ar, entao avisa, a etapa
+      // fica feita (o Retomar nao a repete) e o "!" da parte `atacado` chama de volta. `enviado` guarda o que o ML tem de
+      // fato (nada, quando falhou ou ficou desligado), para a impressao nunca dizer que foi enviado o que nao foi.
+      const desligado = { ligado: false, faixas: [] };
+      if (!rascunho.atacado?.ligado) {
+        await gravar({ atacado: { ligado: false, enviado: desligado, em: new Date().toISOString() } });
+      } else {
+        const enviadoAtacado = await enviarAtacadoML(ml, { itemId: pub.itemId, preco: rascunho.preco, atacado: rascunho.atacado });
+        if (enviadoAtacado.ok) {
+          const noRascunho = atacadoDoEnvio(rascunho.atacado, enviadoAtacado.faixas);
+          await gravar({ atacado: { faixas: enviadoAtacado.faixas, enviado: impressaoDoAtacado(noRascunho), em: new Date().toISOString() } }, {}, { atacado: noRascunho });
+        } else {
+          avisos = [...avisos, `O anúncio foi publicado, mas os preços de atacado não foram enviados: ${enviadoAtacado.erro} Use Enviar mudanças para tentar de novo.`];
+          await gravar({ atacado: { erro: enviadoAtacado.erro, enviado: desligado, em: new Date().toISOString() } });
+        }
+      }
     } else if (etapa === "gravar") {
       // A impressao do que foi ao ML (spec 2026-10-24): e com ela que a lista acende o "!" quando o produto mudar. As
       // fotos sao as do PRODUTO, sem o corte da categoria: senao o anuncio cortado nasceria "para tras" do produto.
       // Sem `titulo`: o ML gera o titulo pelo family_name, entao o publicado pelo Rise nao acompanha o titulo do editor (so o
       // anuncio reaproveitado da conta tem a chave, 08/11/2026).
       const { titulo: _titulo, ...impressao } = impressaoDoConteudo(conteudoAtualDoAnuncio(rascunho, contexto.produtos));
-      const enviado = { ...impressao, em: new Date().toISOString() };
+      const enviado = { ...impressao, atacado: pub.atacado?.enviado ?? { ligado: false, faixas: [] }, em: new Date().toISOString() };
       await gravar(
         { feitas: [...new Set([...(pub.feitas ?? []), "gravar"])], erro: null, etapaComErro: null, enviado },
         { status: "PUBLICADO", situacaoCanal: situacaoDoItem(pub.statusML), publicadoEm: new Date(), erro: null },

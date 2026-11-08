@@ -9,9 +9,10 @@
  * e ativado depois do vinculo no Bling.
  */
 
+// "atacado" (08/11/2026): os precos de atacado depois de ativar; a falha NAO derruba a publicacao (avisa, e o "!" chama de volta).
 // "fiscal" (05/11/2026): os dados fiscais do SKU no ML, ANTES de ativar, para o anuncio nascer faturavel (sem eles o
 // faturador do ML nao emite a nota e o pacote nao sai). Anuncio que estava no meio da publicacao a faz no Retomar.
-export const ETAPAS = ["fotos", "validar", "criar", "pausar", "descricao", "fiscal", "kit_bling", "vinculo", "registrar_bling", "ativar", "gravar"];
+export const ETAPAS = ["fotos", "validar", "criar", "pausar", "descricao", "fiscal", "kit_bling", "vinculo", "registrar_bling", "ativar", "atacado", "gravar"];
 
 export const ROTULO_DA_ETAPA = {
   fotos: "Enviar as fotos",
@@ -24,6 +25,7 @@ export const ROTULO_DA_ETAPA = {
   vinculo: "Vincular o produto à loja no Bling",
   registrar_bling: "Registrar o anúncio no Bling",
   ativar: "Ativar o anúncio",
+  atacado: "Enviar os preços de atacado",
   gravar: "Gravar no Rise",
   // Fora de ETAPAS de proposito: so roda no Retomar com o item ja criado (publicar.js) e nunca entra em `feitas`.
   atualizar: "Atualizar no ML o que mudou",

@@ -9,6 +9,7 @@
  * sao do anuncio, nao de um produto.
  */
 
+import { impressaoDoAtacado } from "./atacado";
 import { montarDescricaoML } from "./descricao";
 import { atributosDaFicha } from "./payload";
 import { descricaoDoRise, fotosDoKitDoRise, fotosDoRise } from "./rascunho";
@@ -21,7 +22,8 @@ export const PARTES_DO_PRODUTO = ["descricao", "fotos", "pacote"];
 // o preco do ML pelo lucro da loja; nada vai ao ML sozinho (o Enviar so registra a base nova). O custo que muda nao acende.
 // `titulo` (08/11/2026): so o anuncio REAPROVEITADO da conta o tem na impressao; o publicado pelo Rise nao (o ML gera o titulo
 // pelo family_name) e por isso nunca acende.
-export const PARTES_DO_ANUNCIO = ["titulo", "preco", "ficha", "prazo", "precoDaLoja"];
+// `atacado` por ultimo: o envio manda o preco antes, e a recomendacao do ML depende do preco (08/11/2026).
+export const PARTES_DO_ANUNCIO = ["titulo", "preco", "ficha", "prazo", "precoDaLoja", "atacado"];
 export const PARTES = [...PARTES_DO_PRODUTO, ...PARTES_DO_ANUNCIO];
 
 const ehKit = (rascunho) => Array.isArray(rascunho?.composicao?.itens) && rascunho.composicao.itens.length > 0;
@@ -105,6 +107,8 @@ export function conteudoAtualDoAnuncio(rascunho, produtosPorId) {
     precoDaLoja: precoDaLojaDoAnuncio(rascunho, produtosPorId),
     // O titulo do editor (08/11/2026): so conta no anuncio reaproveitado, cuja impressao nasce com o titulo do ML.
     titulo: typeof rascunho?.titulo === "string" ? rascunho.titulo : null,
+    // Os precos de atacado do rascunho (08/11/2026): so conta quando a impressao enviada tem a chave (anuncio antigo nao acende).
+    atacado: impressaoDoAtacado(rascunho?.atacado),
     kit,
   };
 }
@@ -151,7 +155,7 @@ export function mudancasDoAnuncio(enviado, atual) {
 }
 
 /** Nomes das partes para a tela ("descrição, fotos e peso e medidas"). */
-export const NOMES_DAS_PARTES = { descricao: "descrição", fotos: "fotos", pacote: "peso e medidas", preco: "preço", ficha: "ficha técnica", prazo: "prazo de disponibilidade", precoDaLoja: "preço da loja", titulo: "título", bling: "vínculo do Bling" };
+export const NOMES_DAS_PARTES = { descricao: "descrição", fotos: "fotos", pacote: "peso e medidas", preco: "preço", ficha: "ficha técnica", prazo: "prazo de disponibilidade", precoDaLoja: "preço da loja", atacado: "preços de atacado", titulo: "título", bling: "vínculo do Bling" };
 
 /** "descrição", "descrição e fotos", "descrição, fotos e peso e medidas". */
 export function textoDasPartes(partes) {

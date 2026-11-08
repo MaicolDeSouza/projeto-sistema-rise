@@ -19,5 +19,7 @@ export function impressaoDoConteudo(conteudo) {
     // So o anuncio reaproveitado da conta grava o titulo (08/11/2026); sem titulo no conteudo a chave nem existe na impressao,
     // senao toda impressao antiga (sem a chave) acenderia o titulo de um anuncio publicado pelo Rise.
     ...(typeof conteudo?.titulo === "string" ? { titulo: conteudo.titulo } : {}),
+    // Idem o atacado (08/11/2026): a chave so existe quando o conteudo a traz; o publicado antes dela nao acende sozinho.
+    ...(conteudo?.atacado && typeof conteudo.atacado === "object" ? { atacado: conteudo.atacado } : {}),
   };
 }

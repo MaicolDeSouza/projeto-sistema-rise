@@ -392,6 +392,10 @@ export function criarMLFalso(opcoes = {}) {
     if (pxq) {
       const item = acharItem(pxq[1]);
       if (!item) return naoAchou(`Item ${pxq[1]} not found`);
+      // `recusarAtacado`: o ML recusa a gravacao (teste do Publicar, que nao pode cair por causa do atacado).
+      if (opcoes.recusarAtacado) {
+        return resposta(400, { message: "Item is not eligible for price per quantity", error: "bad_request", status: 400, cause: [] });
+      }
       const versao = headers?.["X-Version"] ?? headers?.["x-version"];
       if (String(versao ?? "") !== String(item.version ?? "1")) {
         return resposta(409, { message: "Item version conflict", error: "conflict", status: 409, cause: [] });

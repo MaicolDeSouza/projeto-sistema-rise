@@ -1661,7 +1661,7 @@ try {
       await limpar();
       const { ETAPAS, ROTULO_DA_ETAPA, proximaEtapa, etapasDoAnuncio } = await import("../src/lib/canaisDeVenda/ml/etapas.js");
       const { lerPublicacao, gravarPublicacao } = await import("../src/lib/canaisDeVenda/ml/banco.js");
-      conferir("etapas: ordem", ETAPAS, ["fotos", "validar", "criar", "pausar", "descricao", "fiscal", "kit_bling", "vinculo", "registrar_bling", "ativar", "gravar"]);
+      conferir("etapas: ordem", ETAPAS, ["fotos", "validar", "criar", "pausar", "descricao", "fiscal", "kit_bling", "vinculo", "registrar_bling", "ativar", "atacado", "gravar"]);
       conferir("etapas: todas com rotulo", ETAPAS.every((etapa) => typeof ROTULO_DA_ETAPA[etapa] === "string"), true);
       conferir("etapas: simples nao tem kit_bling", etapasDoAnuncio({ kit: false }).includes("kit_bling"), false);
       conferir("etapas: kit tem kit_bling", etapasDoAnuncio({ kit: true }).includes("kit_bling"), true);
@@ -2104,7 +2104,7 @@ try {
         conferir(
           "enviar: andamento do popup",
           [andamento.terminou, estado, /Fotos recusadas/.test(andamento.etapas.find((etapa) => etapa.id === "fotos").detalhe)],
-          [true, { permissao: "feito", ler: "feito", titulo: "feito", descricao: "feito", fotos: "falhou", pacote: "feito", precoDaLoja: "feito", preco: "feito", ficha: "feito", prazo: "feito", bling: "espera" }, true],
+          [true, { permissao: "feito", ler: "feito", titulo: "feito", descricao: "feito", fotos: "falhou", pacote: "feito", precoDaLoja: "feito", preco: "feito", ficha: "feito", prazo: "feito", atacado: "feito", bling: "espera" }, true],
         );
       }
 
@@ -2202,9 +2202,9 @@ try {
       let r = await publicarAnuncioML(idSimples, { ml, bling: bf, lerFoto });
       conferir("publicar: a proposta de anuncio sai no Publicar que deu certo", await temProposta(idSimples), false);
       conferir("publicar: tudo certo", [r.ok, r.feitas.at(-1), (await estado(idSimples)).status], [true, "gravar", "PUBLICADO"]);
-      conferir("publicar: ordem das escritas no ML", ml.escritas.map(semMLB), ["POST /pictures/items/upload", "POST /pictures/items/upload", "POST /items/validate", "POST /items", "POST /items/MLB/description", "POST /items/fiscal_information", "POST /items/fiscal_information/items", "PUT /items/MLB"]);
+      conferir("publicar: ordem das escritas no ML", ml.escritas.map(semMLB), ["POST /pictures/items/upload", "POST /pictures/items/upload", "POST /items/validate", "POST /items", "POST /items/MLB/description", "POST /items/fiscal_information", "POST /items/fiscal_information/items", "PUT /items/MLB", "POST /prices-per-quantity/v1/recommendations", "POST /items/MLB/prices/price-per-quantity"]);
       conferir("publicar: criou pausado, com preco e fotos por id, sem title", (({ status, price, pictures, title }) => [status, price, pictures.length, pictures.every((foto) => /^999-MLB/.test(foto.id)), title])(ml.escritas[3].corpo), ["paused", 49.9, 2, true, undefined]);
-      conferir("publicar: ativou no fim", ml.escritas.at(-1).corpo, { status: "active" });
+      conferir("publicar: ativou no fim (antes do atacado)", ml.escritas.filter((e) => e.metodo === "PUT").at(-1).corpo, { status: "active" });
       conferir("publicar: descricao do produto", ml.escritas[4].corpo.plain_text.startsWith("Descricao de ZZ-ML-S1"), true);
       conferir("publicar: um vinculo no Bling, na loja do ML, com o MLB e o preco", [postsNoBling(bf, "/produtos/lojas"), bf.chamadas.find((chamada) => chamada.caminho === "/produtos/lojas" && chamada.metodo === "POST").corpo], [1, { codigo: r.itemId, preco: 49.9, produto: { id: 501 }, loja: { id: 206326819 } }]);
       const publicado = await estado(idSimples);
@@ -2314,7 +2314,7 @@ try {
       r = await publicarAnuncioML(idVinculo, { ml: mlVinculo, bling: bfVinculo, lerFoto });
       conferir("vinculo: para no vinculo, pausado", [r.ok, r.etapa, /vinculo recusado/.test(r.erro), mlVinculo.escritas.some((e) => e.corpo?.status === "active"), (await lerPublicacao(idVinculo)).publicacao.etapaComErro], [false, "vinculo", true, false, "vinculo"]);
       r = await publicarAnuncioML(idVinculo, { ml: mlVinculo, bling: bfVinculo, lerFoto });
-      conferir("vinculo: retomar vincula e ativa", [r.ok, mlVinculo.escritas.at(-1).corpo, mlVinculo.escritas.filter((e) => e.caminho === "/items").length], [true, { status: "active" }, 1]);
+      conferir("vinculo: retomar vincula e ativa", [r.ok, mlVinculo.escritas.filter((e) => e.metodo === "PUT").at(-1).corpo, mlVinculo.escritas.filter((e) => e.caminho === "/items").length], [true, { status: "active" }, 1]);
 
       // Registro do anuncio no Bling (/anuncios): um por MLB, depois do vinculo e antes de ativar.
       conferir("registrar: um POST /anuncios no caminho feliz, com o MLB e a modalidade", [postsNoBling(bf, "/anuncios"), bf.chamadas.find((chamada) => chamada.metodo === "POST" && chamada.caminho === "/anuncios")?.corpo.anuncioLoja.id === publicado.idExterno, bf.chamadas.find((chamada) => chamada.metodo === "POST" && chamada.caminho === "/anuncios")?.corpo.mercadoLivre], [1, true, { modalidade: "gold_special" }]);
@@ -2325,7 +2325,7 @@ try {
       r = await publicarAnuncioML(idRegistro, { ml: mlRegistro, bling: bfRegistro, lerFoto });
       conferir("registrar: falha para em registrar_bling, pausado e vinculado", [r.ok, r.etapa, mlRegistro.escritas.some((e) => e.corpo?.status === "active"), postsNoBling(bfRegistro, "/produtos/lojas"), (await lerPublicacao(idRegistro)).publicacao.etapaComErro], [false, "registrar_bling", false, 1, "registrar_bling"]);
       r = await publicarAnuncioML(idRegistro, { ml: mlRegistro, bling: bfRegistro, lerFoto });
-      conferir("registrar: retomar registra, nao revincula e ativa", [r.ok, postsNoBling(bfRegistro, "/anuncios"), postsNoBling(bfRegistro, "/produtos/lojas"), mlRegistro.escritas.at(-1).corpo, (await estado(idRegistro)).status], [true, 2, 1, { status: "active" }, "PUBLICADO"]);
+      conferir("registrar: retomar registra, nao revincula e ativa", [r.ok, postsNoBling(bfRegistro, "/anuncios"), postsNoBling(bfRegistro, "/produtos/lojas"), mlRegistro.escritas.filter((e) => e.metodo === "PUT").at(-1).corpo, (await estado(idRegistro)).status], [true, 2, 1, { status: "active" }, "PUBLICADO"]);
       // Segundo anuncio do MESMO produto: o vinculo e reaproveitado e o /anuncios ganha mais um registro.
       const mlSegundo = criarMLFalso();
       const bfSegundo = c.novoBling({ vinculosDeLoja: [{ codigo: "MLB900", preco: 10, produto: { id: 501 }, loja: { id: 206326819 } }], anuncios: [{ produto: { id: 501 }, loja: { id: 206326819 }, anuncioLoja: { id: "MLB900" }, nome: "PLACA ZZ ML", preco: { valor: 10 }, situacao: 1 }] });
@@ -2393,6 +2393,63 @@ try {
 
       const motivos = await publicarAnuncioML(await c.anuncioSimples(c.semBling), { ml: criarMLFalso(), bling: c.novoBling(), lerFoto });
       conferir("publicar: pre-checagem recusada devolve os motivos", [motivos.ok, motivos.motivos?.some((m) => /blingId/.test(m))], [false, true]);
+    }
+
+    {
+      console.log("\nAtacado no Publicar e no Enviar mudanças");
+      await limpar();
+      const { publicarAnuncioML } = await import("../src/lib/canaisDeVenda/ml/publicar.js");
+      const { enviarMudancasML } = await import("../src/lib/canaisDeVenda/ml/atualizar.js");
+      const c = await cenarioDePublicacao();
+      const lerFoto = async () => Buffer.from("jpg");
+      const faixasNoML = (ml, itemId) => (ml.itens.get(itemId).price_per_quantity ?? []).map((p) => [p.conditions.min_purchase_unit, p.percentage]);
+      const dadosDe = async (id) => (await prisma.anuncio.findUnique({ where: { id }, select: { dados: true } })).dados;
+      const postsDeAtacado = (ml) => ml.escritas.filter((e) => e.metodo === "POST" && e.caminho.endsWith("/prices/price-per-quantity"));
+
+      // Caminho feliz: o rascunho novo nasce com o atacado ligado e o Publicar o envia depois de ativar.
+      const ml = criarMLFalso();
+      const id = await c.anuncioSimples(c.s1);
+      const r = await publicarAnuncioML(id, { ml, bling: c.novoBling(), lerFoto });
+      const ordem = r.feitas.indexOf("atacado");
+      conferir("publicar: ok, atacado entre ativar e gravar, 4 faixas no item", [r.ok, ordem === r.feitas.indexOf("ativar") + 1, r.feitas.indexOf("gravar") === ordem + 1, faixasNoML(ml, r.itemId)], [true, true, true, [[2, 0.82], [5, 5.5], [10, 9.86], [20, 12.27]]]);
+      const dados = await dadosDe(id);
+      conferir("publicar: grava publicacao.atacado e os % enviados no rascunho", [dados.publicacao.atacado.faixas.length, dados.atacado.faixas.map((f) => f.percentual)], [4, [0.82, 5.5, 9.86, 12.27]]);
+      conferir("publicar: a impressao do atacado e a do rascunho (sem '!')", [dados.publicacao.enviado.atacado, (await carregarAnuncioML(id)).mudancas], [{ faixas: [[2, 0.82], [5, 5.5], [10, 9.86], [20, 12.27]], ligado: true }, { partes: [], naoConferido: false }]);
+
+      // O ML recusa o atacado: a publicacao NAO cai, avisa, a etapa fica feita (o Retomar nao a repete) e o "!" chama de volta.
+      const mlRecusa = criarMLFalso({ recusarAtacado: true });
+      const id2 = await c.anuncioSimples(c.s1);
+      const r2 = await publicarAnuncioML(id2, { ml: mlRecusa, bling: c.novoBling(), lerFoto });
+      const dados2 = await dadosDe(id2);
+      conferir("publicar com atacado recusado: ok, aviso, etapa feita e erro gravado", [r2.ok, r2.avisos?.some((aviso) => /atacado/i.test(aviso)), r2.feitas.includes("atacado"), typeof dados2.publicacao.atacado.erro, dados2.publicacao.enviado.atacado], [true, true, true, "string", { faixas: [], ligado: false }]);
+      conferir("publicar com atacado recusado: o '!' acende so o atacado", (await carregarAnuncioML(id2)).mudancas.partes, ["atacado"]);
+
+      // Desligado no rascunho: nada vai ao ML, e a etapa fica feita.
+      const idOff = await c.anuncioSimples(c.s1, { atacado: { ligado: false, faixas: [] } });
+      const mlOff = criarMLFalso();
+      const rOff = await publicarAnuncioML(idOff, { ml: mlOff, bling: c.novoBling(), lerFoto });
+      conferir("publicar com atacado desligado: nenhum POST de atacado, etapa feita, sem '!'", [rOff.ok, postsDeAtacado(mlOff).length, rOff.feitas.includes("atacado"), (await carregarAnuncioML(idOff)).mudancas.partes], [true, 0, true, []]);
+
+      // Enviar mudancas: o dono subiu o % da faixa de 2 unidades.
+      const antes = await dadosDe(id);
+      const faixas = antes.atacado.faixas.map((f, i) => (i === 0 ? { ...f, percentual: 5 } : f));
+      await prisma.anuncio.update({ where: { id }, data: { dados: { ...antes, atacado: { ...antes.atacado, faixas } } } });
+      conferir("envio: o % editado acende so o atacado", (await carregarAnuncioML(id)).mudancas.partes, ["atacado"]);
+      const e1 = await enviarMudancasML(id, { ml, bling: c.novoBling(), lerFoto });
+      conferir("envio: POST novo com 5% na faixa de 2 e a impressao nova", [e1.ok, e1.enviadas, faixasNoML(ml, r.itemId)[0], (await carregarAnuncioML(id)).mudancas.partes], [true, ["atacado"], [2, 5], []]);
+
+      // Desligar manda a lista vazia e a impressao fica desligada.
+      const meio = await dadosDe(id);
+      await prisma.anuncio.update({ where: { id }, data: { dados: { ...meio, atacado: { ...meio.atacado, ligado: false } } } });
+      conferir("envio: desligar acende o atacado", (await carregarAnuncioML(id)).mudancas.partes, ["atacado"]);
+      const e2 = await enviarMudancasML(id, { ml, bling: c.novoBling(), lerFoto });
+      conferir("envio desligado: POST com lista vazia, item sem faixas e impressao desligada", [e2.ok, postsDeAtacado(ml).at(-1).corpo, faixasNoML(ml, r.itemId), (await dadosDe(id)).publicacao.enviado.atacado, (await carregarAnuncioML(id)).mudancas.partes], [true, { price_per_quantity: [] }, [], { faixas: [], ligado: false }, []]);
+
+      // O ML recusa no Enviar mudancas: a falha vem na parte, sem gravar a impressao.
+      const antesFalha = await dadosDe(id2);
+      await prisma.anuncio.update({ where: { id: id2 }, data: { dados: { ...antesFalha, atacado: { ...antesFalha.atacado, ligado: true } } } });
+      const e3 = await enviarMudancasML(id2, { ml: mlRecusa, bling: c.novoBling(), lerFoto });
+      conferir("envio com atacado recusado: falha na parte atacado e o '!' continua", [e3.ok, e3.parte, (await carregarAnuncioML(id2)).mudancas.partes], [false, "atacado", ["atacado"]]);
     }
 
     // Fase 3: as proximas tarefas entram aqui, dentro deste bloco.
@@ -3795,7 +3852,8 @@ try {
     conferir("titulo: impressao com outro titulo acende", mudancasDoAnuncio({ ...base, titulo: "VELHO" }, { ...base, titulo: "NOVO" }).partes, ["titulo"]);
     conferir("titulo: conteudo atual leva o titulo do rascunho", conteudoAtualDoAnuncio({ produtoId: "x", titulo: "T", preco: 1, atributos: {}, composicao: null, envio: {} }, {}).titulo, "T");
     conferir("titulo: a impressao guarda o titulo", impressaoDoConteudo({ titulo: "T" }).titulo, "T");
-    conferir("etapas: titulo e bling", [ETAPAS_DO_ENVIO_ML.map((e) => e.id), PARTES_DO_ENVIO_ML], [["permissao", "ler", "titulo", "descricao", "fotos", "pacote", "precoDaLoja", "preco", "ficha", "prazo", "bling", "conferir"], ["titulo", "descricao", "fotos", "pacote", "precoDaLoja", "preco", "ficha", "prazo"]]);
+    conferir("etapas: titulo e bling", [ETAPAS_DO_ENVIO_ML.map((e) => e.id), PARTES_DO_ENVIO_ML], [["permissao", "ler", "titulo", "descricao", "fotos", "pacote", "precoDaLoja", "preco", "ficha", "prazo", "atacado", "bling", "conferir"], ["titulo", "descricao", "fotos", "pacote", "precoDaLoja", "preco", "ficha", "prazo", "atacado"]]);
+    conferir("etapas do popup: atacado so quando a impressao o tem", [etapasDoEnvioML({}).some((e) => e.id === "atacado"), etapasDoEnvioML({ comAtacado: true }).some((e) => e.id === "atacado")], [false, true]);
     conferir("etapas do popup: titulo e bling so quando se aplicam", [etapasDoEnvioML({ comTitulo: false, comBling: false }).map((e) => e.id).filter((id) => id === "titulo" || id === "bling"), etapasDoEnvioML({ comTitulo: true, comBling: true }).map((e) => e.id).filter((id) => id === "titulo" || id === "bling")], [[], ["titulo", "bling"]]);
     conferir("loja antiga do ML no Bling", LOJA_ML_ANTIGA_NO_BLING, "203593931");
 
@@ -3850,6 +3908,8 @@ try {
       return (await carregarAnuncioML(anuncioId)).mudancas.partes;
     };
     const comVendas = await reaproveitarAnuncioML(produto.id, "MLBANTIGO1", { ml });
+    // Regra 3 (08/11/2026): o anuncio que a conta ja tinha nao tem faixas de atacado no ML, entao abre DESLIGADO (ligar e do dono).
+    conferir("reaproveitar: atacado desligado e sem '!' de atacado", [(await prisma.anuncio.findUnique({ where: { id: comVendas.anuncioId }, select: { dados: true } })).dados.atacado, (await carregarAnuncioML(comVendas.anuncioId)).mudancas.partes.includes("atacado")], [{ faixas: [], ligado: false }, false]);
     conferir("envio: so o titulo mudou", await soOTitulo(comVendas.anuncioId, "PLACA NOVA COM VENDAS"), ["titulo"]);
     const putsDeTitulo = () => ml.escritas.filter((e) => e.metodo === "PUT" && /^\/items\/MLB[^/]+$/.test(e.caminho) && (e.corpo?.family_name || e.corpo?.title));
     const semMover = await enviarMudancasML(comVendas.anuncioId, { ml, bling });

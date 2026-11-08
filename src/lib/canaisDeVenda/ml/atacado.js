@@ -70,6 +70,18 @@ export function impressaoDoAtacado(atacado) {
   };
 }
 
+/**
+ * O atacado do rascunho depois de um envio que deu certo: cada faixa passa a ter o % que o ML gravou (a recomendacao
+ * preenche o que estava vazio). Com isso o rascunho e a impressao enviada ficam iguais e o "!" nao acende sozinho.
+ * Faixa que o ML nao gravou (% 0) fica com 0. Desligado nao mexe nas faixas.
+ */
+export function atacadoDoEnvio(atacado, faixasDoML) {
+  const base = { ligado: atacado?.ligado === true, faixas: atacado?.faixas ?? [] };
+  if (!base.ligado) return base;
+  const gravado = new Map((faixasDoML ?? []).map((f) => [f.quantidade, f.percentual]));
+  return { ligado: true, faixas: base.faixas.map((f) => ({ quantidade: f.quantidade, percentual: gravado.get(Number(f.quantidade)) ?? 0 })) };
+}
+
 const mensagemDoML = (resposta) =>
   resposta?.dados?.message ?? resposta?.dados?.error ?? (resposta?.status ? `HTTP ${resposta.status}` : "sem resposta");
 

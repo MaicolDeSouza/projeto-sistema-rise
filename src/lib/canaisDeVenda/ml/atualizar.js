@@ -1,5 +1,6 @@
 import { conteudoAtualDoAnuncio, mudancasDoAnuncio } from "./acompanhar";
 import { carregarAnuncioML, gravarPublicacao } from "./banco";
+import { atacadoDoEnvio, enviarAtacadoML, impressaoDoAtacado } from "./atacado";
 import { moverVinculoParaRiseML } from "./bling";
 import { PARTES_DO_ENVIO_ML } from "./etapasDoEnvio";
 import { iniciarProgressoML } from "./progresso";
@@ -114,8 +115,10 @@ async function enviarPartes({ ml, lerFoto, progresso, anuncioId, itemId, codigo,
   // A impressao vai sendo completada parte a parte: sem impressao (anuncio publicado antes de 24/10/2026), comeca vazia.
   let enviado = { ...(publicacao.enviado ?? {}) };
   let fotosNoML = { ...(publicacao.fotos ?? {}) };
+  // O atacado que o ML gravou: a impressao dele vem daqui (com os % da recomendacao), nao do rascunho de antes do envio.
+  let atacadoEnviado = null;
   const gravarParte = async (parte) => {
-    enviado = { ...enviado, [parte]: atual[parte], em: new Date().toISOString() };
+    enviado = { ...enviado, [parte]: parte === "atacado" && atacadoEnviado ? impressaoDoAtacado(atacadoEnviado) : atual[parte], em: new Date().toISOString() };
     await gravarPublicacao(anuncioId, { enviado });
     enviadas.push(parte);
   };
@@ -229,6 +232,14 @@ async function enviarPartes({ ml, lerFoto, progresso, anuncioId, itemId, codigo,
         return falhar(parte, `Falha ao enviar a ficha técnica: ${textoDe(erro)}`);
       }
       if (!resposta?.ok) return falhar(parte, textoDaRecusaML(resposta, "a ficha técnica"));
+    } else if (parte === "atacado") {
+      // Recomendacao do ML -> POST com X-Version -> leitura de volta. Desligar manda a lista vazia. Os % que o ML gravou
+      // entram no rascunho, para ele e a impressao ficarem iguais (spec 6.6).
+      const resultado = await enviarAtacadoML(ml, { itemId, preco: conteudo.preco, atacado: rascunho.atacado });
+      if (!resultado.ok) return falhar(parte, resultado.erro);
+      atacadoEnviado = atacadoDoEnvio(rascunho.atacado, resultado.faixas);
+      await gravarPublicacao(anuncioId, {}, {}, { atacado: atacadoEnviado });
+      detalhe = rascunho.atacado?.ligado ? "enviado" : "desligado";
     } else if (parte === "precoDaLoja") {
       // Sem ramo: o preco de venda da loja nao vai ao ML, so a base nova e registrada, para o "!" apagar depois que o dono
       // refez (ou manteve) o preco do ML.

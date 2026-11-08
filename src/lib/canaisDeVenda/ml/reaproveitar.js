@@ -83,7 +83,7 @@ export async function reaproveitarAnuncioML(produtoId, itemId, { ml }) {
   }
 
   const base = rascunhoInicial({ principal, produtosPorId: produtos, composicao: null });
-  const { produtoId: _produtoId, titulo: _titulo, descricao, atributos, categoriaId: _categoriaId, ...dados } = base;
+  const { produtoId: _produtoId, titulo: _titulo, descricao, atributos, categoriaId: _categoriaId, atacado: _atacado, ...dados } = base;
   const preco = Number(item.price);
   const agora = new Date().toISOString();
   const publicacao = {
@@ -118,6 +118,8 @@ export async function reaproveitarAnuncioML(produtoId, itemId, { ml }) {
         familyName: item.family_name ?? dados.familyName,
         tipoAnuncio: item.listing_type_id ?? dados.tipoAnuncio,
         envio: { ...dados.envio, freteGratis: Boolean(item.shipping?.free_shipping) },
+        // O anuncio que a conta ja tinha nao tem faixas de atacado no ML: abre desligado (regra 3, 08/11/2026); ligar e do dono.
+        atacado: { ligado: false, faixas: [] },
         preco: Number.isFinite(preco) ? preco : dados.preco,
         publicacao,
       },
