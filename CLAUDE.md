@@ -3942,7 +3942,16 @@ ao ar e nenhuma escrita real foi feita no ML ou no Bling.**
   Livre, fora do Rise", com Reaproveitar), lidos a cada carga da lista (`anunciosDoSkuMLAcao`, só GET), contam nas variantes
   (`variantesDoProduto({ naConta })`, o "Faltam" não pede o que já está no ar) e seguram o popup na lista mesmo com um anúncio
   só no Rise; a proposta avisa no topo com MLB, tipo, frete, preço, vendas e estado e devolve `anunciosNaConta`. Visto na tela
-  do PC no 100101 (3 anúncios da conta listados). Premium continua sem regra de entrada.
+  do PC no 100101 (3 anúncios da conta listados).
+- **Premium e a IA pelo MCP (08/11/2026, noite, "pode seguir dessa forma"):** a partir de R$ 150 no ML o produto tem DOIS
+  anúncios, Clássico + frete grátis e Premium + frete grátis (`LIMITE_DO_PREMIUM`; `variantesDoProduto` usa o MAIOR entre o
+  preço da loja e o dos Clássicos já feitos). A proposta grava o Premium junto (rascunho Premium do produto, preço do mesmo lucro)
+  e não cria outro Clássico quando a variante já está publicada no Rise. As regras em texto moram em `REGRAS_DAS_VARIANTES`
+  (`faixas.js`): a bolha "i" do título do popup "Anúncios do Mercado Livre" e o roteiro da IA leem a mesma lista. As linhas do
+  popup mostram a variante ("Clássico + frete grátis", `ROTULO_DA_VARIANTE`). **IA pelo MCP:** `lerParaPropostaML` traz
+  `anunciosNaConta`, `anunciosNoRise` e `regrasDasVariantes`; a ferramenta nova `reaproveitarAnuncioML(sku, itemId)` traz o
+  anúncio da conta para o Rise (só banco); o roteiro v10 manda conferir e reaproveitar ANTES de gravar a proposta e não gravar
+  quando todas as variantes já existem. A bolha e as linhas foram vistas na tela do PC (100101).
 - **Medido só em leitura na VPS (08/11/2026):** a versão do item NÃO vem no corpo, vem no header `x-version` de
   `GET /items/{id}/prices`; a recomendação responde 200 também em item pausado; o validador não acusou segundo anúncio do mesmo
   vendedor no mesmo catálogo (inconclusivo: o 1º Publicar real da 2ª variante é o teste).

@@ -14,7 +14,8 @@ import {
   listarAnunciosDoProdutoML,
   reaproveitarAnuncioMLAcao,
 } from "@/app/canais-de-venda/mercado-livre/acoes";
-import { NOME_DA_VARIANTE } from "@/lib/canaisDeVenda/ml/faixas";
+import { NOME_DA_VARIANTE, REGRAS_DAS_VARIANTES, ROTULO_DA_VARIANTE, varianteDoRascunho } from "@/lib/canaisDeVenda/ml/faixas";
+import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import BotaoNaoAnunciar from "@/components/anuncios/BotaoNaoAnunciar";
 import Badge from "@/components/ui/Badge";
 import { ROTULO_DO_TIPO_ML, seloDoAnuncioML } from "@/lib/canaisDeVenda/ml/rotulos";
@@ -23,7 +24,12 @@ import JanelaExcluirAnuncioML from "./JanelaExcluirAnuncioML";
 import JanelaReaproveitarML from "./JanelaReaproveitarML";
 
 const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-const ESTADO_NO_ML = { active: "Ativo", paused: "Pausado", under_review: "Em revisão", inactive: "Inativo" };
+// "Clássico + frete grátis", "Premium + frete grátis"...: o tipo e o frete (ligado, ou obrigatorio pelo preco >= 79) num texto so.
+const rotuloDaVariante = (anuncio) => {
+  const variante = varianteDoRascunho({ tipoAnuncio: anuncio?.tipoAnuncio, envio: { freteGratis: anuncio?.freteGratis }, preco: anuncio?.preco });
+  return ROTULO_DA_VARIANTE[variante] ?? ROTULO_DO_TIPO_ML[anuncio?.tipoAnuncio] ?? "-";
+};
+const ESTADO_NO_ML ={ active: "Ativo", paused: "Pausado", under_review: "Em revisão", inactive: "Inativo" };
 
 /**
  * Pop-up aberto pelo icone do Mercado Livre na lista de Produtos. Mostra os anuncios ML do
@@ -78,7 +84,23 @@ function Moldura({ produto, aoFechar, rodape = null, larga = false, children }) 
       >
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-borda px-5 py-3">
           <div className="min-w-0">
-            <p className="text-sm font-semibold">Anúncios do Mercado Livre</p>
+            <p className="flex items-center gap-1.5 text-sm font-semibold">
+              Anúncios do Mercado Livre
+              {/* As regras das variantes (pedido do dono em 08/11/2026): a mesma lista que o roteiro da IA le (REGRAS_DAS_VARIANTES). */}
+              <BolhaDeAjuda
+                variante="inline"
+                texto={
+                  <>
+                    <span className="block font-medium">Quantos anúncios por produto</span>
+                    {REGRAS_DAS_VARIANTES.map((linha) => (
+                      <span key={linha} className="block">
+                        {linha}
+                      </span>
+                    ))}
+                  </>
+                }
+              />
+            </p>
             {produto && (
               <p className="mt-0.5 truncate text-xs text-suave">
                 <span className="font-mono">{produto.sku}</span> · {produto.tituloBase}
@@ -459,7 +481,8 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
                         </span>
                         <span className="block truncate font-mono text-xs text-suave">{anuncio.codigo}</span>
                       </span>
-                      <span className="shrink-0 text-xs text-suave">{ROTULO_DO_TIPO_ML[anuncio.tipoAnuncio] ?? "-"}</span>
+                      {/* A variante em texto (pedido do dono em 08/11/2026: "fique claro se e classico + frete, premium + frete"). */}
+                      <span className="shrink-0 text-xs text-suave">{rotuloDaVariante(anuncio)}</span>
                       <Badge tom={situacao.tom}>{situacao.rotulo}</Badge>
                     </button>
                     {acessos?.editar !== false && (
@@ -520,8 +543,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
                         <span className="font-mono text-xs text-suave">{candidato.id}</span>
                       )}
                     </span>
-                    <span className="shrink-0 text-xs text-suave">{ROTULO_DO_TIPO_ML[candidato.tipoAnuncio] ?? candidato.tipoAnuncio ?? ""}</span>
-                    {candidato.freteGratis && <span className="shrink-0 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-800">Frete grátis</span>}
+                    <span className="shrink-0 text-xs text-suave">{rotuloDaVariante(candidato)}</span>
                     <span className="shrink-0 text-xs tabular-nums">{Number.isFinite(candidato.preco) ? MOEDA.format(candidato.preco) : ""}</span>
                     <span className="shrink-0 text-xs text-suave">{ESTADO_NO_ML[candidato.status] ?? candidato.status ?? ""}</span>
                     <button
@@ -545,7 +567,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
               <span>Faltam:</span>
               {variantesDaLista.faltam.map((variante) => (
                 <span key={variante} className="inline-flex items-center gap-1.5">
-                  {NOME_DA_VARIANTE[variante] ?? variante}
+                  {ROTULO_DA_VARIANTE[variante] ?? NOME_DA_VARIANTE[variante] ?? variante}
                   <button
                     type="button"
                     onClick={() => criarVariante(origemDaVariante.id, variante)}
