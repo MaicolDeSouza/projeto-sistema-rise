@@ -4,8 +4,8 @@ import { completarFichaPelaDescricao, problemasDosAtributos } from "@/lib/canais
 import { contextoDosProdutos, carregarAnuncioML, novoRascunhoML, salvarRascunhoML } from "@/lib/canaisDeVenda/ml/banco";
 import { catalogosDosMeusAnuncios, lerPrimeiroDoCatalogo, sugerirCatalogos } from "@/lib/canaisDeVenda/ml/catalogo";
 import { eanDoKit } from "@/lib/canaisDeVenda/ml/eanDoKit";
-import { LIMITE_DO_PREMIUM, ROTULO_DA_VARIANTE, rascunhoDaVariante, varianteDoRascunho } from "@/lib/canaisDeVenda/ml/faixas";
-import { anunciosDoSkuNaConta, candidatosParaReaproveitar } from "@/lib/canaisDeVenda/ml/reaproveitar";
+import { LIMITE_DO_PREMIUM, REGRAS_DAS_VARIANTES, ROTULO_DA_VARIANTE, rascunhoDaVariante, varianteDoRascunho } from "@/lib/canaisDeVenda/ml/faixas";
+import { anunciosDoSkuNaConta, candidatosParaReaproveitar, reaproveitarAnuncioML } from "@/lib/canaisDeVenda/ml/reaproveitar";
 import { ROTULO_DO_TIPO_ML } from "@/lib/canaisDeVenda/ml/rotulos";
 import { sugerirCategoria } from "@/lib/canaisDeVenda/ml/inteligencia";
 import { lerCategoriaCompleta } from "@/lib/canaisDeVenda/ml/leitura";
@@ -97,6 +97,10 @@ export async function lerParaPropostaML(cliente, sku, { quantidade } = {}) {
     avisos.push(`Os catálogos não foram lidos agora (Mercado Livre respondeu ${erro?.status ?? "erro"}): procure de novo em instantes.`);
   }
   const meusCatalogos = await catalogosDosMeusAnuncios(cliente, sku).catch(() => []);
+  // O que ja existe do produto, ANTES de propor (pedido do dono em 08/11/2026: "consultar no ML primeiro se tem anuncio daquele
+  // produto e reaproveitar"): os anuncios do codigo na conta fora do Rise e os que o Rise ja tem, com a variante em texto.
+  const anunciosNaConta = kit ? [] : await anunciosForaDoRise(cliente, produto, avisos);
+  const anunciosNoRise = await anunciosDoProdutoNoRise(produto.id);
 
   return {
     // `composicao` diz se a LLM pode propor outro titulo (so o kit); nos demais o titulo do anuncio e o `nome`.
@@ -119,6 +123,9 @@ export async function lerParaPropostaML(cliente, sku, { quantidade } = {}) {
     meusCatalogos,
     referencias: (await lerReferenciasML(produto.id).catch(() => [])).map((referencia) => ({ catalogoId: referencia.catalogoId, nome: referencia.nome })),
     regras: { maximoDeCatalogos: MAXIMO_DE_CATALOGOS, minimoDeAnuncios: MINIMO_DE_ANUNCIOS, maximoDeLinks: MAXIMO_DE_LINKS },
+    anunciosNaConta,
+    anunciosNoRise,
+    regrasDasVariantes: REGRAS_DAS_VARIANTES,
     avisos,
   };
 }
@@ -381,9 +388,48 @@ async function anunciosForaDoRise(cliente, produto, avisos) {
         .filter(Boolean)
         .join(", "),
     );
-    avisos.unshift(`A conta do Mercado Livre já tem ${candidatos.length === 1 ? "um anúncio" : `${candidatos.length} anúncios`} deste código fora do Rise: ${linhas.join("; ")}. Reaproveite no popup do produto (Anúncios do Mercado Livre) em vez de publicar outro igual.`);
+    avisos.unshift(`A conta do Mercado Livre já tem ${candidatos.length === 1 ? "um anúncio" : `${candidatos.length} anúncios`} deste código fora do Rise: ${linhas.join("; ")}. Reaproveite (reaproveitarAnuncioML, ou no popup do produto) em vez de publicar outro igual.`);
   }
-  return candidatos;
+  // A variante em texto ("Clássico + frete grátis"), para a IA e o dono lerem sem decodificar tipo e frete.
+  return candidatos.map((candidato) => ({ ...candidato, variante: rotuloDaVariante(candidato.tipoAnuncio, candidato.freteGratis, candidato.preco) }));
+}
+
+/**
+ * Reaproveitar pela IA (MCP `reaproveitarAnuncioML`, pedido do dono em 08/11/2026): o anuncio do codigo que a conta ja tem vira
+ * anuncio PUBLICADO do produto no Rise (`reaproveitarAnuncioML`: rele o item, recusa encerrado, outro SKU e MLB ja no Rise).
+ * Nada e escrito no ML nem no Bling. Recusa vira `ErroDeFerramenta` com o motivo.
+ */
+export async function reaproveitarParaProposta(cliente, sku, itemId) {
+  const produto = await produtoPeloSku(sku);
+  const resultado = await reaproveitarAnuncioML(produto.id, String(itemId ?? "").trim(), { ml: cliente });
+  if (!resultado.ok) throw new ErroDeFerramenta(resultado.erro ?? "O anúncio não foi reaproveitado.");
+  const anuncio = await prisma.anuncio.findUnique({ where: { id: resultado.anuncioId }, select: { dados: true } });
+  return {
+    anuncioId: resultado.anuncioId,
+    itemId,
+    variante: rotuloDaVariante(anuncio?.dados?.tipoAnuncio, anuncio?.dados?.envio?.freteGratis, anuncio?.dados?.preco),
+    preco: anuncio?.dados?.preco ?? null,
+    proximo: "O anúncio está no Rise como publicado. O dono revisa no editor do ML, usa Enviar mudanças e decide se move o vínculo do Bling.",
+  };
+}
+
+const rotuloDaVariante = (tipoAnuncio, freteGratis, preco) => {
+  const variante = varianteDoRascunho({ tipoAnuncio, envio: { freteGratis }, preco });
+  return ROTULO_DA_VARIANTE[variante] ?? variante;
+};
+
+/** Os anuncios do ML do produto que o Rise ja tem (rascunho ou publicado), com a variante em texto e o MLB quando ha. */
+async function anunciosDoProdutoNoRise(produtoId) {
+  const anuncios = await prisma.anuncio.findMany({ where: { canal: CANAL, produtoId }, orderBy: { criadoEm: "asc" }, select: { id: true, status: true, idExterno: true, situacaoCanal: true, dados: true } });
+  return anuncios.map((anuncio) => ({
+    id: anuncio.id,
+    mlb: anuncio.idExterno ?? anuncio.dados?.publicacao?.itemId ?? null,
+    status: anuncio.status,
+    situacao: anuncio.situacaoCanal ?? null,
+    variante: rotuloDaVariante(anuncio.dados?.tipoAnuncio, anuncio.dados?.envio?.freteGratis, anuncio.dados?.preco),
+    preco: anuncio.dados?.preco ?? null,
+    kit: anuncio.dados?.composicao ? (anuncio.dados.composicao.codigo ?? true) : null,
+  }));
 }
 
 /** So a chave `proposta` de `dados`, com a linha travada (o Salvar do editor nao cai no meio). */

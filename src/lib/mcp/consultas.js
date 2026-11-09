@@ -48,6 +48,7 @@ const RESUMOS = {
   lerParaPropostaML: (a) => `proposta ML de ${a.sku}: leitura`,
   lerCategoriaML: (a) => `proposta ML: categoria ${a.categoriaId}`,
   gravarPropostaML: (a) => `proposta ML de ${a.sku}: gravou`,
+  reaproveitarAnuncioML: (a) => `proposta ML de ${a.sku}: reaproveitou ${a.itemId}`,
   gravarCorrecaoDaDescricao: (a) => `correção da descrição: ${a.tipo === "REGRA" ? a.certo : `${a.errado} → ${a.certo}`}`,
   listarCorrecoesDaDescricao: () => "correções da descrição: lista",
   desligarCorrecaoDaDescricao: (a) => `correção da descrição ${a.id}: desligou`,

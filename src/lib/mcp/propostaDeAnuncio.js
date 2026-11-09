@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
-import { gravarPropostaML, lerCategoriaML, lerParaPropostaML } from "@/lib/propostaDeAnuncio/ml";
+import { gravarPropostaML, lerCategoriaML, lerParaPropostaML, reaproveitarParaProposta } from "@/lib/propostaDeAnuncio/ml";
 import { lerSituacaoDoProduto, proximoPasso } from "@/lib/propostaDeAnuncio/situacao";
 import { ErroDeFerramenta } from "@/lib/riseAi/ferramentas/erro";
 
@@ -64,7 +64,7 @@ const clienteDoML = (contexto) => contexto?.mcp?.clienteML ?? clienteML();
 const LER_PARA_PROPOSTA_ML = {
   nome: "lerParaPropostaML",
   descricao:
-    "Primeiro passo da proposta do anúncio do Mercado Livre: traz o produto (com o custo), as categorias candidatas, os atributos da categoria mais provável, os catálogos candidatos (total de anúncios e o 1º colocado de cada um), os catálogos dos anúncios do dono e as referências do produto. Com quantidade (kit no ML), o custo já é o das N unidades e vem o código e o título de partida do kit. Só lê.",
+    "Primeiro passo da proposta do anúncio do Mercado Livre: traz o produto (com o custo), as categorias candidatas, os atributos da categoria mais provável, os catálogos candidatos (total de anúncios e o 1º colocado de cada um), os catálogos dos anúncios do dono e as referências do produto. Traz também o que JÁ EXISTE: anunciosNaConta (anúncios do código na conta do ML que o Rise ainda não tem, com a variante em texto), anunciosNoRise e regrasDasVariantes (quantos anúncios e de que tipo o produto deve ter pelo preço). Com quantidade (kit no ML), o custo já é o das N unidades e vem o código e o título de partida do kit. Só lê.",
   esquema: z.object({ sku: SKU, quantidade: QUANTIDADE_DO_KIT }),
   anotacoes: { ...SO_LEITURA, openWorldHint: true },
   async executar({ sku, quantidade }, contexto) {
@@ -93,7 +93,7 @@ const LINK = z.object({
 const GRAVAR_PROPOSTA_ML = {
   nome: "gravarPropostaML",
   descricao: [
-    "Grava a proposta do anúncio do Mercado Livre no rascunho do Rise (sempre um Clássico): categoria folha, ficha (atributos), até 10 catálogos do mesmo produto e, sem catálogo, até 5 links com preço. O título do anúncio é o nome do produto base e o Rise o põe sozinho: só o produto com composição (kit) e o kit no ML aceitam o título que você mandar.",
+    "Grava a proposta do anúncio do Mercado Livre no rascunho do Rise: o Clássico na variante que o preço pede (sem frete abaixo de R$ 72; com frete grátis de R$ 72 em diante, subindo para R$ 79 entre 72 e 79) e, com o Clássico a R$ 150 ou mais, também o Premium + frete grátis. A variante que já está no Rise publicada (reaproveitada ou publicada antes) não ganha outro rascunho. Categoria folha, ficha (atributos), até 10 catálogos do mesmo produto e, sem catálogo, até 5 links com preço. O título do anúncio é o nome do produto base e o Rise o põe sozinho: só o produto com composição (kit) e o kit no ML aceitam o título que você mandar.",
     "Kit no ML: com quantidade N o anúncio é o do próprio produto com o Kit de N ligado (código {sku}_{N}, estoque do produto base, custo, peso e medidas das N unidades); nenhum produto novo no Rise.",
     "O Rise lê o 1º de cada catálogo, descarta os de menos de 5 anúncios e CALCULA O PREÇO (o que deixa no ML, com as taxas dele e o imposto, o mesmo lucro em R$ que o produto dá na loja; sem regra de %, e o ranking só dá a posição). Nada é publicado e nada entra no ranking: o dono revisa, adiciona os catálogos e publica. Gravar de novo substitui a proposta.",
   ].join(" "),
@@ -115,4 +115,22 @@ const GRAVAR_PROPOSTA_ML = {
   },
 };
 
-export const FERRAMENTAS_DA_PROPOSTA_DE_ANUNCIO = [SITUACAO_DO_PRODUTO, LER_PARA_PROPOSTA_ML, LER_CATEGORIA_ML, GRAVAR_PROPOSTA_ML];
+// Reaproveitar (pedido do dono em 08/11/2026: "como informar ela para consultar no ML primeiro se tem anuncio daquele produto e
+// reaproveitar?"): a leitura ja traz `anunciosNaConta`; esta ferramenta traz um deles para o Rise. So grava no banco do Rise.
+const REAPROVEITAR_ANUNCIO_ML = {
+  nome: "reaproveitarAnuncioML",
+  descricao: [
+    "Traz para o Rise, como anúncio PUBLICADO do produto, um anúncio que a conta do Mercado Livre já tem com o mesmo código (um dos anunciosNaConta de lerParaPropostaML).",
+    "Nada é escrito no Mercado Livre nem no Bling: o Rise passa a acompanhar o anúncio, e o dono revisa no editor, usa Enviar mudanças e decide se move o vínculo do Bling.",
+    "Use ANTES de gravarPropostaML quando o anúncio da conta é do MESMO produto (confira título e preço: o código às vezes se repete em outro produto) e é uma das variantes que a faixa pede.",
+    "Recusa anúncio encerrado, de outro código ou que já está no Rise.",
+  ].join(" "),
+  esquema: z.object({ sku: SKU, itemId: z.string().trim().regex(/^MLB\d{6,15}$/, "Um MLB, ex.: MLB1234567890.").describe("O MLB do anúncio, de anunciosNaConta") }),
+  anotacoes: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+  async executar({ sku, itemId }, contexto) {
+    exigirPropostaDeAnuncio(contexto, "ml");
+    return reaproveitarParaProposta(clienteDoML(contexto), sku, itemId);
+  },
+};
+
+export const FERRAMENTAS_DA_PROPOSTA_DE_ANUNCIO = [SITUACAO_DO_PRODUTO, LER_PARA_PROPOSTA_ML, LER_CATEGORIA_ML, REAPROVEITAR_ANUNCIO_ML, GRAVAR_PROPOSTA_ML];

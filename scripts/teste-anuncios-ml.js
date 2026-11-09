@@ -3136,6 +3136,19 @@ try {
     const produto = await criarPronto("ZZ-ML-PA1");
     const lida = await lerParaPropostaML(ml(), "ZZ-ML-PA1");
     conferir("ler: custo, categoria candidata e os atributos dela", [lida.produto.custo, lida.categorias[0]?.categoriaId, lida.atributos.some((a) => a.id === "BRAND")], [20, "MLB99779", true]);
+    // O que a IA precisa saber ANTES de propor (pedido do dono em 08/11/2026: "consulta no ML primeiro se tem anuncio daquele
+    // produto e reaproveitar"): os anuncios do codigo na conta fora do Rise, os do Rise e as regras das variantes.
+    conferir("ler: anuncios na conta, do Rise e as regras das variantes", [lida.anunciosNaConta, lida.anunciosNoRise, lida.regrasDasVariantes?.length > 0], [[], [], true]);
+    await criarPronto("ZZ-ML-PA12");
+    const lidaComConta = await lerParaPropostaML(ml({ meusItens: { "ZZ-ML-PA12": [{ id: "MLB5550012", title: "Placa antiga 12", price: 89.9, listing_type_id: "gold_special", shipping: { free_shipping: true }, sold_quantity: 7, status: "active", seller_custom_field: "ZZ-ML-PA12", permalink: "https://produto.mercadolivre.com.br/MLB-5550012" }] } }), "ZZ-ML-PA12");
+    conferir("ler: anuncio da conta com a variante em texto e o aviso", [lidaComConta.anunciosNaConta.map((c) => [c.id, c.variante, c.vendidos]), lidaComConta.avisos.some((aviso) => /MLB5550012/.test(aviso))], [[["MLB5550012", "Clássico + frete grátis", 7]], true]);
+    // A IA reaproveita pelo MCP (reaproveitarAnuncioML): o anuncio da conta vira anuncio do Rise e sai de anunciosNaConta.
+    const { reaproveitarParaProposta } = await import("../src/lib/propostaDeAnuncio/ml.js");
+    const mlPA12 = ml({ meusItens: { "ZZ-ML-PA12": [{ id: "MLB5550012", title: "Placa antiga 12", price: 89.9, listing_type_id: "gold_special", shipping: { free_shipping: true }, sold_quantity: 7, status: "active", seller_custom_field: "ZZ-ML-PA12", permalink: "https://produto.mercadolivre.com.br/MLB-5550012", category_id: "MLB99779", date_created: "2025-01-01T00:00:00.000Z" }] } });
+    const reaproveitado = await reaproveitarParaProposta(mlPA12, "ZZ-ML-PA12", "MLB5550012");
+    const relida = await lerParaPropostaML(mlPA12, "ZZ-ML-PA12");
+    conferir("reaproveitar pela IA: vira anuncio do Rise e sai da conta", [typeof reaproveitado.anuncioId, reaproveitado.variante, relida.anunciosNaConta.length, relida.anunciosNoRise.map((a) => [a.mlb, a.status, a.variante])], ["string", "Clássico + frete grátis", 0, [["MLB5550012", "PUBLICADO", "Clássico + frete grátis"]]]);
+    conferir("reaproveitar pela IA: MLB de outro SKU e recusado com o motivo", await reaproveitarParaProposta(mlPA12, "ZZ-ML-PA1", "MLB5550012").then(() => "aceitou", (erro) => (/SKU|Rise/.test(erro.message) ? "recusou" : erro.message)), "recusou");
 
     const gravada = await gravarPropostaML(ml(), "ZZ-ML-PA1", { categoriaId: "MLB99779", titulo: "Placa Uno R3 CH340 compatível", atributos: { ...ATRIBUTOS, GTIN: "7890000000000", EMPTY_GTIN_REASON: "x" }, catalogos: ["MLBP9", "MLBP4", "MLBP6"], relatorio: "- teste" });
     const anuncio = await prisma.anuncio.findUnique({ where: { id: gravada.anuncioId } });

@@ -46,7 +46,7 @@ const PROPOSTA = ["baixarCandidatas", "folhaDeContato", "gravarSecao", "lerParaP
 // A marcacao das referencias (25/10/2026), etapa de antes da proposta: tambem sem o lembrete.
 const REFERENCIAS = ["marcarReferencias"];
 // As da proposta de anuncio (plano 2026-10-23): tambem sem o lembrete.
-const PROPOSTA_DE_ANUNCIO = ["situacaoDoProduto", "lerParaPropostaML", "lerCategoriaML", "gravarPropostaML"];
+const PROPOSTA_DE_ANUNCIO = ["situacaoDoProduto", "lerParaPropostaML", "lerCategoriaML", "reaproveitarAnuncioML", "gravarPropostaML"];
 // As que gravam pedido de compra (26/10/2026): escrita pedida pelo dono, sem o lembrete.
 const COMPRAS_ESCRITA = ["montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra"];
 // As Correcoes da descricao (07/11/2026): ditadas pelo dono, sem o lembrete.
@@ -759,7 +759,7 @@ try {
         descoberta?.instructions === INSTRUCOES && INSTRUCOES.includes("anotarDuvida"),
       ],
       [
-        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "comprasACaminhoDoProduto", "consultarEstoque", "consultarPreco", "consultarProduto", "desligarCorrecaoDaDescricao", "filtrarProdutos", "folhaDeContato", "gravarCorrecaoDaDescricao", "gravarPropostaML", "gravarSecao", "historicoDePreco", "lerCategoriaML", "lerParaProposta", "lerParaPropostaML", "lerPedidoDeCompra", "lerPedidoDeVenda", "lerProposta", "listarClientes", "listarConcorrentes", "listarCorrecoesDaDescricao", "listarFornecedores", "listarMarcas", "listarPedidosDeCompra", "listarPedidosDeVenda", "listarTransportadoras", "marcarReferencias", "montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra", "produtosAbaixoDoMinimo", "relatorioDeVendas", "roteiroDaAnaliseDeFornecedor", "roteiroDaProposta", "situacaoDoProduto"],
+        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "comprasACaminhoDoProduto", "consultarEstoque", "consultarPreco", "consultarProduto", "desligarCorrecaoDaDescricao", "filtrarProdutos", "folhaDeContato", "gravarCorrecaoDaDescricao", "gravarPropostaML", "gravarSecao", "historicoDePreco", "lerCategoriaML", "lerParaProposta", "lerParaPropostaML", "lerPedidoDeCompra", "lerPedidoDeVenda", "lerProposta", "listarClientes", "listarConcorrentes", "listarCorrecoesDaDescricao", "listarFornecedores", "listarMarcas", "listarPedidosDeCompra", "listarPedidosDeVenda", "listarTransportadoras", "marcarReferencias", "montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra", "produtosAbaixoDoMinimo", "reaproveitarAnuncioML", "relatorioDeVendas", "roteiroDaAnaliseDeFornecedor", "roteiroDaProposta", "situacaoDoProduto"],
         32,
         true,
       ],
@@ -1481,6 +1481,14 @@ try {
     conferir("gravarPropostaML: quantidade do kit em texto passa da validação", [kitEmTexto?.isError, /Bling/.test(kitEmTexto?.content?.[0]?.text ?? "")], [true, true]);
     const kitRuim = await chamar("gravarPropostaML", { sku: "ZZ-MCP-PA1", categoriaId: "MLB99779", quantidade: "dez" });
     conferir("gravarPropostaML: quantidade que não é número é recusada antes", [kitRuim?.isError, /Bling/.test(kitRuim?.content?.[0]?.text ?? "")], [true, false]);
+    // Reaproveitar pela IA (08/11/2026): a ferramenta existe, grava (nao e so leitura), confere o acesso da proposta e o MLB.
+    const reaproveitar = lista.find((ferramenta) => ferramenta.name === "reaproveitarAnuncioML");
+    conferir("reaproveitarAnuncioML: na lista, grava e pede sku e itemId", [Boolean(reaproveitar), reaproveitar?.annotations?.readOnlyHint, Boolean(reaproveitar?.inputSchema?.properties?.itemId)], [true, false, true]);
+    const semAcao = await chamar("reaproveitarAnuncioML", { sku: "ZZ-MCP-PA1", itemId: "MLB1234567890" }, quem((recurso) => recurso !== "acao.canaisDeVenda.proporAnuncio"));
+    conferir("reaproveitarAnuncioML sem Propor anúncio: recusa", [semAcao?.isError, (semAcao?.content?.[0]?.text ?? "").includes("Propor anúncio")], [true, true]);
+    const mlbRuim = await chamar("reaproveitarAnuncioML", { sku: "ZZ-MCP-PA1", itemId: "123" });
+    conferir("reaproveitarAnuncioML: MLB fora do formato e recusado antes", mlbRuim?.isError, true);
+    conferir("resumo do reaproveitar na Revisao", resumoDaChamada("reaproveitarAnuncioML", { sku: "ZZ-MCP-PA1", itemId: "MLB1" }), "proposta ML de ZZ-MCP-PA1: reaproveitou MLB1");
     conferir("tools/list descreve a quantidade do kit", ["lerParaPropostaML", "gravarPropostaML"].map((nome) => Boolean(lista.find((ferramenta) => ferramenta.name === nome)?.inputSchema?.properties?.quantidade)), [true, true]);
     const roteiroML = JSON.parse((await chamar("roteiroDaProposta", { canal: "ml" }))?.content?.[0]?.text || "{}");
     // A versao vem da constante: o numero fixo quebrava a cada mudanca de regra do roteiro (4 -> 5 em 25/10/2026).
@@ -1536,6 +1544,13 @@ try {
     await prisma.produtoFornecedor.create({ data: { produto: { connect: { sku: "ZZ-MCP-REF" } }, fornecedor: { connect: { nome: "ZZ-MCP Atacado" } }, codigo: "A1", padrao: true } });
     const padrao = lerJson(await chamar("marcarReferencias", { sku: "ZZ-MCP-REF", fornecedores: { remover: [{ fonte: "ZZ-MCP Atacado", codigo: "A1" }] } }));
     conferir("o padrao nao sai pelo MCP", [padrao.feitos?.length, padrao.recusados?.[0]?.motivo?.includes("padrão")], [0, true]);
+
+    // O unico fornecedor e sempre o padrao (pedido do dono em 08/11/2026): sem o rascunho do Bling, a aba mostraria so ele.
+    await prisma.produto.create({ data: { sku: "ZZ-MCP-REF2", tituloBase: "ZZMCP PLACA SEM RASCUNHO" } });
+    const sozinho = lerJson(await chamar("marcarReferencias", { sku: "ZZ-MCP-REF2", fornecedores: { adicionar: [{ fonte: "ZZ-MCP Atacado", codigo: "A1" }] } }));
+    const unica = await prisma.produtoFornecedor.findFirst({ where: { produto: { sku: "ZZ-MCP-REF2" } } });
+    const produtoRef2 = await prisma.produto.findUnique({ where: { sku: "ZZ-MCP-REF2" }, select: { custo: true } });
+    conferir("sem rascunho do Bling, o unico fornecedor marcado vira padrao e da o custo", [sozinho.feitos?.map((item) => item.acao), unica?.padrao, Number(produtoRef2?.custo)], [["fornecedor marcado"], true, 30.5]);
   }
 
   // (os blocos das tarefas seguintes entram aqui, antes do finally)

@@ -18,14 +18,22 @@
 // 25/10/2026: o Publicar exige a ficha inteira preenchida (pedido do dono), e o roteiro diz isso a LLM. "8" em 28/10/2026: o
 // kit no ML ("anuncio com 10 pecas do 900211"), montado no editor e ligado ao produto base, nunca um produto novo, com o titulo
 // "10x ..." (pedidos do dono). "9" em 05/11/2026: o preco sai do lucro na loja (o mesmo lucro em R$ no ML), sem regra de %,
-// e o ranking so da a posicao (pedido do dono).
-export const VERSAO_ROTEIRO_ML = "9";
+// e o ranking so da a posicao (pedido do dono). "10" em 08/11/2026: as variantes pelo preco (sem frete abaixo de R$ 72, frete
+// gratis de 72 em diante com piso de 79, Premium + frete gratis a partir de 150) e, antes de propor, consultar o que ja existe na
+// conta do ML e reaproveitar (pedidos do dono: "como informar ela para consultar no ML primeiro se tem anuncio daquele produto e
+// reaproveitar?").
+import { REGRAS_DAS_VARIANTES } from "@/lib/canaisDeVenda/ml/faixas";
+
+export const VERSAO_ROTEIRO_ML = "10";
 
 export const ROTEIRO_ML = `ROTEIRO DA PROPOSTA DE ANÚNCIO DO MERCADO LIVRE (Rise / 4hobby), versão ${VERSAO_ROTEIRO_ML}
 
 O QUE É
-Você monta a PROPOSTA do anúncio do produto no Mercado Livre: sempre UM anúncio, Clássico. Você NÃO publica nada: a
-proposta fica no rascunho do anúncio no Rise, e o dono revisa no editor do Mercado Livre e publica.
+Você monta a PROPOSTA dos anúncios do produto no Mercado Livre. Você NÃO publica nada: a proposta fica no rascunho dos
+anúncios no Rise, e o dono revisa no editor do Mercado Livre e publica.
+
+QUANTOS ANÚNCIOS E DE QUE TIPO (o Rise decide pelo preço que ele calcula; você só confere e explica ao dono):
+${REGRAS_DAS_VARIANTES.map((linha) => `- ${linha}`).join("\n")}
 A proposta usa só você (sem custo de IA para o Rise). O PREÇO é calculado pelo Rise, nunca por você.
 
 CAMINHO (nesta ordem)
@@ -37,6 +45,14 @@ CAMINHO (nesta ordem)
 2. lerParaPropostaML(sku): o produto (com o custo), as categorias candidatas, os atributos da categoria mais provável,
    os catálogos candidatos (cada um com o total de anúncios e o 1º colocado), os catálogos dos anúncios do dono e as
    referências que o produto já tem. No kit no ML, com quantidade (veja KIT NO ML).
+   ANTES DE PROPOR, O QUE JÁ EXISTE (obrigatório): a leitura traz anunciosNaConta (anúncios do código na conta do Mercado
+   Livre que o Rise ainda não tem, com a variante em texto, preço, vendas e estado) e anunciosNoRise (os que o Rise já tem).
+   a) Para cada anúncio de anunciosNaConta, confira se é o MESMO produto (título e preço; o código às vezes se repete em
+      outro produto, como um cabo vendido junto). Sendo o mesmo produto e uma das variantes que a faixa pede, chame
+      reaproveitarAnuncioML(sku, itemId): ele vira anúncio do Rise, sem escrever nada no ML. Prefira o que tem mais vendas.
+   b) Não reaproveite anúncio de outro produto, nem uma segunda cópia da mesma variante: liste esses ao dono no chat.
+   c) Diga ao dono, ANTES de gravar a proposta, o que reaproveitou, o que já estava no Rise e quais variantes ainda faltam.
+   d) Se todas as variantes que a faixa pede já existem no Rise, NÃO grave proposta: diga isso e pare.
 KIT NO ML: quando o dono pede o anúncio em kit ("anúncio com 10 peças", "kit de 10"), o kit é montado no EDITOR do ML,
    no anúncio do PRÓPRIO produto base, que controla o estoque. Nunca crie nem peça um produto kit novo no Rise. Passe
    quantidade N em lerParaPropostaML e em gravarPropostaML: o Rise cria (ou atualiza) o Clássico do produto com o Kit de N
@@ -68,10 +84,12 @@ KIT NO ML: quando o dono pede o anúncio em kit ("anúncio com 10 peças", "kit 
      mande url, título e preço de cada um em linksSemCatalogo. Esses links não são salvos no Rise: só entram na posição
      do ranking e no relatório.
 4. gravarPropostaML(sku, categoriaId, atributos, catalogos, linksSemCatalogo, relatorio), com titulo só no kit e
-   quantidade só no kit no ML. O
+   quantidade só no kit no ML. O Rise grava o Clássico na variante do preço e, com o Clássico a R$ 150 ou mais, também o
+   Premium + frete grátis (premium na resposta); a variante que já está publicada no Rise não ganha outro rascunho. O
    relatório em tópicos curtos: por que a categoria, de onde veio cada valor da ficha, por que cada catálogo é o mesmo
    produto. Se voltar erro, corrija e grave de novo.
-5. Mostre à pessoa o que o Rise devolveu: o título usado, o preço, o lucro no ML ao lado do lucro na loja (o Rise
+5. Mostre à pessoa o que o Rise devolveu: o título usado, a variante de cada anúncio (preco.variante e, quando houver,
+   premium.preco), o preço, o lucro no ML ao lado do lucro na loja (o Rise
    calcula o preço do ML para deixar o MESMO lucro em R$ que o produto dá na loja, depois da comissão, do frete do ML e
    do imposto; não há regra de %), a posição no ranking (só informa: fora dos 5 primeiros vem um aviso), os catálogos
    aceitos e os avisos.
