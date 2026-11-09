@@ -242,6 +242,9 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
                   title={linha.item?.unidadesPorKit > 1 ? `Kit de ${linha.item.unidadesPorKit} unidades` : undefined}
                 >
                   {linha.item?.quantidade ? `${linha.item.quantidade}x` : "—"}
+                  {/* As PECAS escritas embaixo no kit (pedido do dono em 09/11/2026: "10x" ao lado de "10x Conector" parecia 100
+                      unidades). "1x" e o kit vendido; "10 un." e o que sai do estoque e o que se separa. */}
+                  {linha.item?.unidadesPorKit > 1 && <span className="block text-xs font-normal text-suave">{linha.item.unidades} un.</span>}
                 </td>
                 <td className="max-w-0 px-2 py-2">
                   {/* So o nome abre o pedido (pedido do dono em 09/11/2026): clicar no codigo, no local ou na linha nao navega,

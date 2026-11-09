@@ -418,7 +418,7 @@ export async function listarPedidosDeVenda({ busca, desde, ate, canais, status, 
       doRise: doRise.has(p.id),
       // Qtd. em KITS vendidos (09/11/2026): o "20x Chave" vendido uma vez e 1x, nao 20x (as 20 unidades ficam no estoque e nas pecas).
       item: primeiro
-        ? { titulo: primeiro.titulo, quantidade: Math.round(primeiro.quantidade / (primeiro.quantidadeDoKit || 1)), unidadesPorKit: primeiro.quantidadeDoKit ?? 1, sku: codigoVendido({ sku: primeiro.produto?.sku, codigoNaOrigem: primeiro.codigoNaOrigem, quantidadeDoKit: primeiro.quantidadeDoKit }), localizacao: primeiro.produto?.localizacao ?? null, produtoId: primeiro.produtoId, foto: fotoDe(primeiro.produto) }
+        ? { titulo: primeiro.titulo, quantidade: Math.round(primeiro.quantidade / (primeiro.quantidadeDoKit || 1)), unidades: primeiro.quantidade, unidadesPorKit: primeiro.quantidadeDoKit ?? 1, sku: codigoVendido({ sku: primeiro.produto?.sku, codigoNaOrigem: primeiro.codigoNaOrigem, quantidadeDoKit: primeiro.quantidadeDoKit }), localizacao: primeiro.produto?.localizacao ?? null, produtoId: primeiro.produtoId, foto: fotoDe(primeiro.produto) }
         : null,
     };
   });
