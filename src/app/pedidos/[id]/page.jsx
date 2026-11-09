@@ -5,6 +5,7 @@ import IconeDoCanalDoPedido from "@/components/pedidos/IconeDoCanalDoPedido";
 import PedidoDeVenda from "@/components/pedidos/PedidoDeVenda";
 import { COR_DO_STATUS, TEXTO_DO_STATUS } from "@/components/pedidos/textos";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
+import { SetaParaLista } from "@/components/ui/ListaLembrada";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { config } from "@/lib/integracoes/config";
@@ -40,8 +41,7 @@ export default async function PedidoDeVendaPage({ params }) {
   return (
     <>
       <PageHeader
-        voltarPara="/pedidos"
-        voltarRotulo="Voltar aos pedidos"
+        voltar={<SetaParaLista caminho="/pedidos" rotulo="Voltar aos pedidos" />}
         titulo={
           <span className="inline-flex items-center gap-2.5">
             <IconeDoCanalDoPedido canal={pedido.canal} avisos={pedido.avisos} doRise={pedido.doRise} />

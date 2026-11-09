@@ -585,7 +585,7 @@ async function laco() {
         pedidosLidosEm = Date.now();
         const pedidos = await rodarRotina("pedidos", LER_PEDIDOS_MS, () => rodarLeituraDePedidos());
         if (pedidos.motivo === "erro") logErro(`pedidos de venda nao lidos: ${pedidos.erro}`);
-        else if (pedidos.lidos > 0 || pedidos.erros > 0) log(`pedidos de venda: ${pedidos.lidos} lido(s), ${pedidos.criados} novo(s), ${pedidos.erros} falha(s)`);
+        else if (pedidos.lidos > 0 || pedidos.erros > 0 || pedidos.reconferidos > 0) log(`pedidos de venda: ${pedidos.lidos} lido(s), ${pedidos.criados} novo(s), ${pedidos.reconferidos ?? 0} reconferido(s), ${pedidos.erros} falha(s)`);
       }
       // A fila dos webhooks (fase 2): a cada volta, para a venda nova aparecer em segundos e nao em ate 5 min. A linha
       // que falha conta tentativa e desiste na 5a; a rotina acima continua cobrindo o pedido.

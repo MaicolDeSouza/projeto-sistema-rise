@@ -266,9 +266,10 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
                 <td className="truncate px-2 py-2 tabular-nums text-suave" title={dataCompleta(linha.dataDaVenda)}>
                   {diaEHora(linha.dataDaVenda)}
                 </td>
-                <td className="truncate px-2 py-2 font-mono text-xs font-semibold">
+                <td className="truncate px-2 py-2 text-left font-mono text-xs font-semibold">
                   {noCanal ? (
                     <a href={noCanal} target="_blank" rel="noreferrer" onClick={parar} title={`${abrirNoCanal(linha.origem)}: ${linha.numero}`} className={linkExterno}>
+                      {linha.origem === "MERCADO_LIVRE" && <span className="mr-1 font-sans font-semibold text-suave">ML</span>}
                       {abreviarPedido(linha.numero)}
                     </a>
                   ) : (

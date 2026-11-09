@@ -219,6 +219,11 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
     no lugar de um `POR_PAGINA` fixo, e link que troca filtro mantém `?por=100`. Já seguem: Produtos, Scraper, Vendas, Licenças,
     Estoque mínimo, **Pedidos de compra e Ordens de produção** (08/11/2026). **Ficam de fora, por decidirem 100 fixo:** as listas
     de anúncios do ML e da LI (28/10/2026). **Tela nova com lista usa o mesmo, sem perguntar.**
+    **Voltar de um detalhe mantém a lista como estava** (pedido do dono em 09/11/2026, em Vendas: marcou "100 por página", abriu uma
+    venda e a lista voltou a 25): a lista guarda o próprio endereço no `sessionStorage` (`LembrarLista`, `src/components/ui/ListaLembrada.jsx`,
+    `src/lib/ultimaListaDaTela.js`) e a seta do detalhe (`SetaParaLista`) volta para ele, com o 100, os filtros e a página; sair pelo menu e
+    voltar começa limpo em 25. Já seguem Vendas, Ordens de produção e Pedidos de compra (o Salvar e o Cancelar do editor). Produtos tem o
+    seu desde 20/10/2026 (`ultimaListaDeProdutos.js`). **Detalhe novo de uma lista usa a mesma seta.**
   - **Filtro de coluna = cabeçalho que ordena** (`CabecalhoOrdenavel` e `parametrosDaOrdenacao`, `src/components/ui/`):
     nada → crescente → decrescente → nada, na URL (`?ordenar=&direcao=`), feito no banco antes de paginar, e volta à
     página 1. No Scraper: Nome, Código, Estoque, Valor e Atualizado (`listarProdutos` ganhou `ordenar`/`direcao`; vazio,
@@ -5705,6 +5710,13 @@ Pedido do dono: "vincular o AliExpress via API para pegar minhas compras". A API
 ## Pedidos de venda (04/11/2026, fase 1, NO AR na VPS desde 04.11.2026.60)
 
 Spec `docs/superpowers/specs/2026-11-04-modulo-pedidos-de-venda-design.md`, plano `docs/superpowers/plans/2026-11-04-modulo-pedidos-de-venda.md`.
+
+**Pedido antigo sai do aviso quando o produto muda (09/11/2026, o dono: o 910207 ficou conferido e o pedido seguiu "produto não
+  conferido" e sem lucro).** A rotina só lê o que mudou na origem; `pedidosParaReconferir` (`lib/pedidos/banco.js`) refaz o casamento só no
+  banco e acha o pedido com `semCusto`, `produtoNaoConferido`, `produtoForaDoRise` ou `semEstimativa` (esta só nos 30 dias) que já melhorou, e
+  `reconferirPedidosPendentes` (`leitura.js`, no fim de cada volta, até 40) relê da origem e refaz custo, aviso e lucro (o lucro fechado sem custo
+  é reaberto). O custo congelado só é preenchido onde era vazio. O aviso "Sem estimativa" virou "Lucro estimado indisponível: o Rise não conseguiu
+  ler as taxas do anúncio no Mercado Livre". Coluna Pedido de Vendas: "ML" antes do número. Teste em `teste:pedidos`.
 
 **Tela "Vendas" (07/11/2026, pedido do dono):** o bloco e a lista se chamam **Vendas** (menu, título, acesso; a rota segue
 `/pedidos` e o recurso `tela.pedidos`). Período padrão de **1 mês com as duas pontas preenchidas** (`umMesAntes`; o "até" ficava em

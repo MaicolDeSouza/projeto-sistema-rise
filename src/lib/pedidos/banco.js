@@ -664,3 +664,38 @@ export async function espelharNoBling(origem, numeroNaLoja, { blingPedidoId, bli
   });
   return true;
 }
+
+/**
+ * Pedidos cujo aviso ja nao vale (pedido do dono em 09/11/2026: o 910207 ficou conferido e com custo, e o pedido seguiu
+ * "produto nao conferido" e sem lucro). A rotina so le o que MUDOU na origem, entao um pedido antigo nunca refazia o casamento
+ * com o produto. Aqui o casamento e refeito so no banco (sem rede) e devolve `{ origem, idExterno }` de quem mudaria: o
+ * produto agora esta conferido, o item agora tem custo, ou o anuncio vendido agora existe no Rise (estimativa de novo).
+ */
+export async function pedidosParaReconferir({ limite = 40 } = {}) {
+  const candidatos = await prisma.pedidoDeVenda.findMany({
+    where: { avisos: { hasSome: ["semCusto", "produtoNaoConferido", "semEstimativa", "produtoForaDoRise"] } },
+    orderBy: [{ dataDaVenda: "desc" }, { id: "asc" }],
+    take: 300,
+    select: { id: true, origem: true, idExterno: true, avisos: true, dataDaVenda: true, itens: { orderBy: { ordem: "asc" }, select: { idNaOrigem: true, codigoNaOrigem: true, quantidade: true } } },
+  });
+  const mudariam = [];
+  for (const pedido of candidatos) {
+    const agora = await casarItens(prisma, { origem: pedido.origem, itens: pedido.itens });
+    const depois = new Set(agora.avisos);
+    const tinha = new Set(pedido.avisos);
+    const melhorou =
+      (tinha.has("semCusto") && !depois.has("semCusto")) ||
+      (tinha.has("produtoNaoConferido") && !depois.has("produtoNaoConferido")) ||
+      (tinha.has("produtoForaDoRise") && !depois.has("produtoForaDoRise")) ||
+      // A estimativa depende de ler o ML: so se tenta de novo nos 30 dias, para o aviso que nao se resolve nao custar rede para sempre.
+      (tinha.has("semEstimativa") && Date.now() - new Date(pedido.dataDaVenda).getTime() < 30 * 86400000 && agora.itens.some((item) => item.anuncioId));
+    if (melhorou) mudariam.push({ id: pedido.id, origem: pedido.origem, idExterno: pedido.idExterno, semCusto: tinha.has("semCusto") });
+    if (mudariam.length >= limite) break;
+  }
+  return mudariam;
+}
+
+/** Reabre o lucro de um pedido que fechou sem custo, para a releitura refazer o real (o fechado nunca se refaz). */
+export async function reabrirLucroDoPedido(id) {
+  await prisma.pedidoDeVenda.update({ where: { id }, data: { lucroFechado: false } });
+}

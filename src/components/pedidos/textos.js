@@ -22,7 +22,7 @@ export const TEXTO_DO_AVISO = {
   produtoForaDoRise: "Item que não está cadastrado no Rise.",
   produtoNaoConferido: "Item com produto não conferido.",
   semCusto: "Item sem custo: o lucro fica em aberto.",
-  semEstimativa: "Sem estimativa: o anúncio do ML não foi lido.",
+  semEstimativa: "Lucro estimado indisponível: o Rise não conseguiu ler as taxas do anúncio no Mercado Livre.",
   lucroDivergente: "Lucro real diferente do estimado.",
   statusDesconhecido: "Situação nova no canal, que o Rise não conhece.",
   lojaDesconhecida: "Loja do Bling que o Rise não lê.",

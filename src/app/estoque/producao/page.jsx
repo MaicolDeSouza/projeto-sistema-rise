@@ -4,6 +4,7 @@ import NavegacaoDoTopo from "@/components/mercados/NavegacaoDoTopo";
 import Paginacao from "@/components/mercados/Paginacao";
 import SeloDaSituacao from "@/components/producao/SeloDaSituacao";
 import CampoBusca from "@/components/ui/CampoBusca";
+import { LembrarLista } from "@/components/ui/ListaLembrada";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { contarPorSituacao, listarOrdens } from "@/lib/producao/banco";
@@ -46,6 +47,7 @@ export default async function OrdensPage({ searchParams }) {
 
   return (
     <>
+      <LembrarLista caminho="/estoque/producao" />
       <PageHeader
         titulo="Ordens de produção"
         descricao={total === 1 ? "1 ordem." : `${total} ordens.`}

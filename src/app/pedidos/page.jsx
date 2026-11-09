@@ -6,6 +6,7 @@ import TabelaPedidosDeVenda from "@/components/pedidos/TabelaPedidosDeVenda";
 import { SITUACOES, STATUS, TEXTO_DO_STATUS_DO_ENVIO } from "@/components/pedidos/textos";
 import { moedaComSinal } from "@/components/pedidos/formato";
 import NavegacaoDoTopo from "@/components/mercados/NavegacaoDoTopo";
+import { LembrarLista } from "@/components/ui/ListaLembrada";
 import Paginacao from "@/components/mercados/Paginacao";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import EmptyState from "@/components/ui/EmptyState";
@@ -116,6 +117,7 @@ export default async function PedidosDeVendaPage({ searchParams }) {
 
   return (
     <>
+      <LembrarLista caminho="/pedidos" />
       <PageHeader titulo="Vendas" descricao={total === 1 ? "1 pedido no período." : `${total} pedidos no período.`} />
 
       {erro && <AvisoBanco erro={erro} />}

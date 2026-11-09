@@ -2,6 +2,7 @@ import TabelaPedidos, { BotaoNovoPedido } from "@/components/compras/TabelaPedid
 import NavegacaoDoTopo from "@/components/mercados/NavegacaoDoTopo";
 import Paginacao from "@/components/mercados/Paginacao";
 import CampoBusca from "@/components/ui/CampoBusca";
+import { LembrarLista } from "@/components/ui/ListaLembrada";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { COLUNAS_DOS_PEDIDOS, listarPedidos } from "@/lib/compras/banco";
@@ -42,6 +43,7 @@ export default async function PedidosPage({ searchParams }) {
 
   return (
     <>
+      <LembrarLista caminho="/compras/pedidos" />
       <PageHeader
         titulo="Pedidos de compra"
         descricao={total === 1 ? "1 pedido." : `${total} pedidos.`}

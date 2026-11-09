@@ -10,6 +10,11 @@ import { POR_PAGINA_GRANDE, POR_PAGINA_PADRAO } from "@/lib/porPagina";
 /// carga inteira, e nao zera nas navegacoes de dentro do app (trocar de pagina, buscar, ordenar).
 let jaIniciado = false;
 
+/** Chamada pela seta que volta de um detalhe: a lista que abre em seguida continua o trabalho, nao e uma carga nova. */
+export function marcarTelaIniciada() {
+  jaIniciado = true;
+}
+
 /**
  * Liga e desliga as 100 linhas por pagina. SEMPRE NASCE EM 25 (pedido do dono em 23/10/2026): abrir ou recarregar a
  * tela com `?por=100` (link salvo, F5) volta a 25; o 100 continua so enquanto o dono trabalha na tela.

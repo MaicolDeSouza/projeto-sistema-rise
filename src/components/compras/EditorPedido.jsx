@@ -7,7 +7,9 @@ import { ArrowLeft, CheckCheck, FileDown, Loader2, MoreVertical, Send } from "lu
 
 import { adicionarItemAcao, desfazerCasamentoAliExpressAcao, mudarStatusAcao, salvarPedidoAcao } from "@/app/compras/acoes";
 import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
+import { marcarTelaIniciada } from "@/components/mercados/NavegacaoDoTopo";
 import { faltaLancar } from "@/lib/compras/regras";
+import { lerListaDaTela } from "@/lib/ultimaListaDaTela";
 import { AvisosAliExpress, ResumoAliExpress } from "./AliExpressDoPedido";
 import BlocoItens from "./BlocoItens";
 import { BlocoFrete, BlocoObservacoes, BlocoPagamento, BlocoProposta, BlocoTotais } from "./BlocosDoPedido";
@@ -26,6 +28,11 @@ import TrilhaDoStatus from "./TrilhaDoStatus";
  */
 export default function EditorPedido({ pedidoInicial, transportadoras, podeEditar, podeCasar = false, extras = {} }) {
   const router = useRouter();
+  // A lista de pedidos como estava (100 por pagina, busca, pagina): ver src/lib/ultimaListaDaTela.js.
+  const irParaALista = () => {
+    marcarTelaIniciada();
+    router.push(lerListaDaTela("/compras/pedidos"));
+  };
   const [pedido, setPedido] = useState(pedidoInicial);
   const [base, setBase] = useState(() => formularioDoPedido(pedidoInicial));
   const [formulario, setFormulario] = useState(base);
@@ -124,7 +131,7 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
 
   const perguntas = {
     sair: (
-      <Pergunta titulo="Sair sem salvar?" confirmar="Sair sem salvar" recuar="Continuar editando" destrutiva aoRecuar={() => setPergunta(null)} aoConfirmar={() => router.push("/compras/pedidos")}>
+      <Pergunta titulo="Sair sem salvar?" confirmar="Sair sem salvar" recuar="Continuar editando" destrutiva aoRecuar={() => setPergunta(null)} aoConfirmar={() => irParaALista()}>
         As alterações deste pedido ainda não foram salvas e serão perdidas.
       </Pergunta>
     ),
@@ -159,12 +166,12 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
   };
 
   const podeCancelar = !fechado && ["RASCUNHO", "ENVIADO"].includes(pedido.status);
-  const voltarALista = () => (alterado ? setPergunta("sair") : router.push("/compras/pedidos"));
+  const voltarALista = () => (alterado ? setPergunta("sair") : irParaALista());
   // O Salvar volta a lista de pedidos (pedido do dono em 08/11/2026: "ao clicar em salvar deve voltar a tela principal");
   // com erro, fica na tela com os campos marcados.
   const salvarAqui = () =>
     iniciar(async () => {
-      if (await salvar()) router.push("/compras/pedidos");
+      if (await salvar()) irParaALista();
     });
 
   // A acao da situacao mora no fim da linha da trilha (pedido do dono em 26/10/2026): o proximo passo ao lado do caminho.

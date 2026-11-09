@@ -32,7 +32,7 @@ const { clienteDoPedido } = await import("../src/lib/pedidos/cliente.js");
 const { custoCongeladoDoProduto, casarItens } = await import("../src/lib/pedidos/itens.js");
 const { parcelasDaEstimativa, parcelasDoReal, devolvido, lucroDivergente, lucroFechado } = await import("../src/lib/pedidos/lucro.js");
 const { necessidadeDoPedido, calcularPecas, saldoSemCorte } = await import("../src/lib/pedidos/pecas.js");
-const { aplicarPedidoLido, listarPedidosDeVenda, lerPedidoDeVenda, marcarEmSeparacao, salvarCustoDoFreteManual, vincularCliente, espelharNoBling, criarClienteDoPedido, buscarClientesParaVincular, opcoesDasColunas, resumoDaLista, recalcularPecasDosPedidosAbertos } = await import("../src/lib/pedidos/banco.js");
+const { aplicarPedidoLido, listarPedidosDeVenda, lerPedidoDeVenda, marcarEmSeparacao, salvarCustoDoFreteManual, vincularCliente, espelharNoBling, criarClienteDoPedido, buscarClientesParaVincular, opcoesDasColunas, resumoDaLista, recalcularPecasDosPedidosAbertos, pedidosParaReconferir } = await import("../src/lib/pedidos/banco.js");
 const { rodarLeituraDePedidos } = await import("../src/lib/pedidos/leitura.js");
 const { ROTINAS_DO_WORKER } = await import("../src/lib/saude/regras.js");
 const { RECURSOS } = await import("../src/lib/acessos/recursos.js");
@@ -528,6 +528,18 @@ try {
     conferir("releitura nao apaga o frete manual", Number((await (async () => { await aplicarPedidoLido(nbling, { agora }); return prisma.pedidoDeVenda.findUnique({ where: { id: bl.id } }); })()).custoDoFreteManual), 25);
     const semCliente = await aplicarPedidoLido({ ...nbling, idExterno: "ZZ-PED-104", numero: "ZZ-PED-104", comprador: { ...nbling.comprador, documento: null } }, { agora });
     conferir("vincular cliente tira o aviso", [semCliente.avisos.includes("clienteSemDocumento"), (await vincularCliente(semCliente.id, g1.clienteId)).ok, (await prisma.pedidoDeVenda.findUnique({ where: { id: semCliente.id } })).avisos.includes("clienteSemDocumento")], [true, true, false]);
+    // Reconferir (09/11/2026): o produto ganhou custo depois da venda; a rotina so le o que mudou na origem, entao o pedido
+    // antigo ficava com "sem custo" para sempre. `pedidosParaReconferir` acha o pedido e a releitura refaz custo e lucro.
+    const produtoRC = await prisma.produto.create({ data: { sku: "ZZ-PED-RC", tituloBase: "ZZ Ped RC", conferido: false } });
+    const nrc = { ...nbling, idExterno: "ZZ-PED-106", numero: "ZZ-PED-106", blingPedidoId: "ZZ-PED-106", blingNumero: "ZZ-PED-106", itens: [{ ...nbling.itens[0], idNaOrigem: "0", codigoNaOrigem: "ZZ-PED-RC" }] };
+    const rc1 = await aplicarPedidoLido(nrc, { agora });
+    conferir("reconferir: nasce sem custo", rc1.avisos.includes("semCusto"), true);
+    conferir("reconferir: nada mudou, nao relê", (await pedidosParaReconferir({ limite: 500 })).some((p) => p.idExterno === "ZZ-PED-106"), false);
+    await prisma.produto.update({ where: { id: produtoRC.id }, data: { custo: 5, conferido: true } });
+    conferir("reconferir: o custo chegou, o pedido entra na fila", (await pedidosParaReconferir({ limite: 500 })).some((p) => p.idExterno === "ZZ-PED-106"), true);
+    const rc2 = await aplicarPedidoLido(nrc, { agora });
+    const itemRC = (await prisma.pedidoDeVenda.findUnique({ where: { id: rc1.id }, include: { itens: true } })).itens[0];
+    conferir("reconferir: custo preenchido e aviso some", [Number(itemRC.custoUnitarioCongelado), rc2.avisos.includes("semCusto")], [5, false]);
     const semDoc = await aplicarPedidoLido({ ...nbling, idExterno: "ZZ-PED-105", numero: "ZZ-PED-105", comprador: { ...nbling.comprador, documento: null } }, { agora });
     const criado = await criarClienteDoPedido(semDoc.id);
     const gSemDoc = await prisma.pedidoDeVenda.findUnique({ where: { id: semDoc.id }, include: { cliente: true } });

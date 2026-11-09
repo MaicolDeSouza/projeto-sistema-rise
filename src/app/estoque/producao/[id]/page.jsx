@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import OrdemDeProducao from "@/components/producao/OrdemDeProducao";
 import SeloDaSituacao from "@/components/producao/SeloDaSituacao";
+import { SetaParaLista } from "@/components/ui/ListaLembrada";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { lerOrdem } from "@/lib/producao/banco";
@@ -31,8 +32,7 @@ export default async function OrdemPage({ params }) {
           </span>
         }
         descricao={`${ordem.produto.sku} · ${ordem.produto.tituloBase}`}
-        voltarPara="/estoque/producao"
-        voltarRotulo="Voltar às ordens"
+        voltar={<SetaParaLista caminho="/estoque/producao" rotulo="Voltar às ordens" />}
         somenteLeitura={podeMovimentar ? null : "Você pode ver a ordem, mas não movimentar o estoque."}
       />
       {/* Decimal e Date nao atravessam para o cliente: vai o JSON. */}

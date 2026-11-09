@@ -7,7 +7,7 @@ import { clienteBling } from "@/lib/blingSync/cliente";
 import { normalizarPedidoML } from "@/lib/pedidos/ml";
 import { normalizarPedidoLI } from "@/lib/pedidos/li";
 import { classificarLojaDoBling, normalizarPedidoBling } from "@/lib/pedidos/bling";
-import { aplicarPedidoLido, espelharNoBling } from "@/lib/pedidos/banco";
+import { aplicarPedidoLido, espelharNoBling, pedidosParaReconferir, reabrirLucroDoPedido } from "@/lib/pedidos/banco";
 
 /**
  * A leitura dos pedidos por origem (spec 5.2): a rotina `pedidos` do worker, a cada 5 min, pede a cada origem so o que
@@ -355,6 +355,7 @@ export async function rodarLeituraDePedidos({ ml = null, li = null, bling = null
   }
   espelhos = pendentes.slice(-TETO_DE_ESPELHOS_PENDENTES);
 
+  const reconferidos = await reconferirPedidosPendentes({ ...clientes, agora, taxas }).catch(() => ({ conferidos: 0, falhas: 0 }));
   const espelhosAusentes = await marcarEspelhosAusentes(agora);
   const erros = detalhes.length;
   await gravarMemoria({ cursores, espelhosPendentes: espelhos, ignoradosPorLoja: ignorados, lidos, criados, erros, ultimaVoltaEm: new Date(agora).toISOString() });
@@ -370,6 +371,7 @@ export async function rodarLeituraDePedidos({ ml = null, li = null, bling = null
     ignorados,
     espelhosPendentes: espelhos.length,
     espelhosAusentes,
+    reconferidos: reconferidos.conferidos,
     aviso: erros > 0 ? `${erros} falha(s)` : null,
     detalhes,
   };
@@ -484,4 +486,26 @@ export async function processarNotificacoes({ ml = null, li = null, bling = null
     }
   }
   return { processadas, erros };
+}
+
+/**
+ * Relê da origem os pedidos que ja tinham aviso (sem custo, produto nao conferido, sem estimativa) e cujo produto ou
+ * anuncio mudou no Rise depois (pedido do dono em 09/11/2026). Sem isso o pedido antigo nunca saia do aviso: a rotina so
+ * le o que mudou na origem. Nunca lanca; uma falha deixa o pedido para a proxima volta.
+ */
+export async function reconferirPedidosPendentes({ ml = null, li = null, bling = null, agora = new Date(), taxas = null } = {}) {
+  const resultado = { conferidos: 0, falhas: 0 };
+  const lista = await pedidosParaReconferir().catch(() => []);
+  for (const pedido of lista) {
+    try {
+      // O lucro fechado sem custo nunca se refaz sozinho; aqui ele ainda esta em aberto de verdade.
+      if (pedido.semCusto) await reabrirLucroDoPedido(pedido.id);
+      const normalizado = await lerPedidoDaOrigem(pedido.origem, { ml, li, bling });
+      await aplicarPedidoLido(normalizado, { cliente: ml ?? clienteML(), taxas, agora });
+      resultado.conferidos += 1;
+    } catch {
+      resultado.falhas += 1;
+    }
+  }
+  return resultado;
 }

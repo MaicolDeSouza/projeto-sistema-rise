@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 import { enderecoDaLista, listaComParametros, ultimaListaValida } from "../src/lib/ultimaListaDeProdutos.js";
+import { enderecoDaTela, listaDaTelaValida } from "../src/lib/ultimaListaDaTela.js";
 import { aplicarOrdem, ehOrdemPadrao, moverPara, validarOrdem } from "../src/lib/ordemDosCartoes/regras.js";
 import { CANAIS_DO_FILTRO,condicoesDoFiltroDeCanais, estadosDoCanal, filtroDeCanaisDaUrl, passaNosCalculados, proximoValorDoFiltro, temFiltroCalculado } from "../src/lib/filtroDeCanais.js";
 
@@ -61,5 +62,9 @@ conferir("ordem: soltar no proprio lugar nao muda nada", moverPara(BOTOES, "/cad
 conferir("ordem: a padrao nao precisa ser guardada", ehOrdemPadrao(BOTOES, BOTOES) && !ehOrdemPadrao(moverPara(BOTOES, "/compras", "/"), BOTOES));
 conferir("ordem: o menu e uma pagina que guarda ordem, e pagina qualquer nao", validarOrdem("menu", BOTOES).ok && validarOrdem("painel", BOTOES).ok && !validarOrdem("outra", BOTOES).ok);
 conferir("ordem: lista vazia volta ao padrao, repetido vira um so, id invalido e recusado", validarOrdem("menu", []).ordem.length === 0 && validarOrdem("menu", ["/a", "/a"]).ordem.length === 1 && !validarOrdem("menu", [1]).ok && !validarOrdem("menu", "x").ok);
+
+// A lista de uma tela lembrada na aba (09/11/2026, Vendas: abrir um pedido nao desfaz o "100 por pagina").
+conferir("lista da tela: guarda a consulta inteira", enderecoDaTela("/pedidos", "por=100&pagina=2&aviso=1") === "/pedidos?por=100&pagina=2&aviso=1" && enderecoDaTela("/pedidos", "") === "/pedidos");
+conferir("lista da tela: so o endereco da propria tela vale", listaDaTelaValida("/pedidos", "/pedidos?por=100") === "/pedidos?por=100" && listaDaTelaValida("/pedidos", "/pedidos/abc") === "/pedidos" && listaDaTelaValida("/pedidos", "https://x.com/pedidos") === "/pedidos" && listaDaTelaValida("/pedidos", null) === "/pedidos");
 
 console.log(`\n${contagem} asserções ok`);
