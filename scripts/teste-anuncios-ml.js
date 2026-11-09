@@ -1559,6 +1559,20 @@ try {
       );
       conferir("causasDoML: sem cause usa message", causasDoML({ message: "invalid token" }), { erros: ["invalid token"], avisos: [] });
       conferir("causasDoML: nada", causasDoML(null), { erros: [], avisos: [] });
+      // 09/11/2026: o ML dos dados fiscais manda o motivo em `errorlist`, com `cause` vazio.
+      conferir(
+        "causasDoML: errorlist com objetos",
+        causasDoML({ message: "Many errors. 1 embedded errors, see errorlist property for details", cause: [], errorlist: [{ code: "invalid_ncm", message: "NCM invalido", field: "tax_information.ncm" }] }),
+        { erros: ["NCM invalido (invalid_ncm) [tax_information.ncm]"], avisos: [] },
+      );
+      conferir("causasDoML: errorlist com texto puro", causasDoML({ message: "Many errors", errorlist: ["CEST obrigatorio para este NCM"] }), { erros: ["CEST obrigatorio para este NCM"], avisos: [] });
+      conferir("causasDoML: errorlist de forma desconhecida vira JSON", causasDoML({ message: "Many errors", errorlist: [{ x: 1 }] }), { erros: ['{"x":1}'], avisos: [] });
+      conferir("causasDoML: errorlist vazio cai na message", causasDoML({ message: "Many errors", errorlist: [] }), { erros: ["Many errors"], avisos: [] });
+      conferir(
+        "textoDaRecusaML: mostra o motivo do errorlist",
+        textoDaRecusaML({ status: 400, dados: { message: "Many errors. 1 embedded errors", cause: [], errorlist: [{ message: "NCM invalido", code: "ncm" }] } }, "os dados fiscais do SKU 940502_2"),
+        "O Mercado Livre recusou os dados fiscais do SKU 940502_2 (HTTP 400): NCM invalido (ncm)",
+      );
       conferir("situacaoDoItem", ["active", "paused", "closed", "x"].map(situacaoDoItem), ["ATIVA", "PAUSADA", "ENCERRADA", "DESCONHECIDA"]);
       conferir("textoDaRecusaML", textoDaRecusaML({ status: 400, dados: { message: "bad", cause: [] } }, "a criação do anúncio"), "O Mercado Livre recusou a criação do anúncio (HTTP 400): bad");
       conferir("textoDaRecusaML: sem texto", textoDaRecusaML({ status: 500, dados: null }, "a descrição"), "O Mercado Livre recusou a descrição (HTTP 500).");
