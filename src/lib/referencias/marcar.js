@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { custoDoFornecedor } from "@/lib/coleta/impostos";
 import { rascunhoVale } from "@/lib/fornecedorRascunho";
+import { garantirPadraoDoUnico } from "@/lib/fornecedorPadraoBanco";
 
 /**
  * MARCAR AS REFERENCIAS de um produto (pedido do dono em 25/10/2026): a LLM escolhe os fornecedores e concorrentes no
@@ -8,8 +9,9 @@ import { rascunhoVale } from "@/lib/fornecedorRascunho";
  * sozinha, na primeira busca, quem esta vinculado; a aba Fornecedores / Concorrentes mostra as linhas.
  *
  * Grava como a lupa grava ao fechar a janela, com duas diferencas de proposito:
- * - fornecedor NUNCA entra como padrao: o custo do produto nao muda e o rascunho do Bling continua valendo
- *   (`rascunhoVale`); quem escolhe o padrao e o dono, na tela;
+ * - fornecedor nao entra como padrao: o custo do produto nao muda e o rascunho do Bling continua valendo
+ *   (`rascunhoVale`); quem escolhe o padrao entre varios e o dono, na tela. A excecao e a regra do dono de 08/11/2026:
+ *   o UNICO fornecedor do produto (sem rascunho do Bling valendo) vira padrao sozinho (`garantirPadraoDoUnico`);
  * - nada vai ao Bling, a Loja Integrada ou ao Mercado Livre (o Salvar do produto e que envia).
  *
  * Cada item e achado no acervo pela fonte (o nome, como `buscarNoMercado` devolve) e pelo codigo, ou pelo endereco
@@ -80,7 +82,7 @@ export async function marcarReferencias(sku, plano) {
     feitos.push({ acao: "concorrente desmarcado", fonte: coletado.fonte.nome, codigo: coletado.codigo, nome: coletado.nome });
   }
 
-  // --- fornecedores: uma linha por fornecedor + codigo, nunca padrao
+  // --- fornecedores: uma linha por fornecedor + codigo, sem padrao (o unico vira padrao no fim, regra do dono)
   const linhas = [...produto.fornecedores];
   for (const item of plano?.fornecedores?.adicionar ?? []) {
     const coletado = await acharColetado(item);
@@ -122,6 +124,11 @@ export async function marcarReferencias(sku, plano) {
     await prisma.produtoFornecedor.delete({ where: { id: alvo.id } });
     linhas.splice(linhas.indexOf(alvo), 1);
     feitos.push({ acao: "fornecedor desmarcado", fonte: fornecedor.nome, codigo: alvo.codigo });
+  }
+  // O unico fornecedor e sempre o padrao (pedido do dono em 08/11/2026): com um so, nao ha o que o dono escolher.
+  if (await garantirPadraoDoUnico(produto.id)) {
+    const unica = linhas.length === 1 ? linhas[0] : null;
+    if (unica) unica.padrao = true;
   }
 
   const concorrentes = await prisma.produtoConcorrente.count({ where: { produtoId: produto.id } });

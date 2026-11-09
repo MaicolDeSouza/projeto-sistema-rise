@@ -78,6 +78,18 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
   taxas e desejado 40%, antes 40% de piso e antes 30% de margem). Propostas gravadas antes guardaram `margem` e
   aparecem como margem. Os nomes antigos (`calcularMargem`, `CalculadoraDeMargem`, `dado.margem`) ficaram; tela nova
   mostra markup. **As seções abaixo que falam de "margem" de 30% ou 60% descrevem o que valia antes.**
+- **Fornecedor padrão do produto** (pedido do dono em 08/11/2026: "sempre que o produto tiver um único fornecedor
+  automaticamente deve marcar aquele como padrão"): o **único fornecedor é sempre o padrão**; com vários, **o padrão não
+  sai** até o dono marcar outro (lixeira desabilitada com o motivo no `title`, regra 8, e o servidor recusa igual);
+  sozinho, sai mesmo marcado. Regra pura em `src/lib/fornecedorPadrao.js` (`comPadraoUnico`, `podeRemoverFornecedor`,
+  `semOFornecedor`): a aba abre com o único já marcado e o Salvar grava. No banco, `garantirPadraoDoUnico`
+  (`src/lib/fornecedorPadraoBanco.js`) marca e leva o custo do vínculo para o produto (menos com peças próprias ou vínculo
+  sem custo), chamada no `removerFornecedorDoProduto`, no `marcarReferencias` do MCP (roteiro de referências v2) e no
+  `gravarVinculo` do AliExpress. **Exceção:** o fornecedor do Bling em rascunho que ainda vale (`rascunhoVale`) conta como
+  fornecedor (a aba mostra dois e o rascunho é o padrão), então o vínculo real não é marcado. Até ali, remover o padrão
+  passava a marca ao mais antigo em silêncio e o custo trocava sem o dono escolher. Os que já estavam sem padrão:
+  `scripts/fornecedor-padrao-unico.js --simular | --confirmo` (VPS em 08/11/2026: 5 a corrigir, todos Fortek; 229 com
+  rascunho do Bling e 149 com vários ficam; **não aplicado**, esperando o dono). Testes no `teste:cadastros` e no `teste:mcp`.
 
 **Interface**
 
@@ -350,7 +362,7 @@ npm run teste:fonte -- <url>      # avalia um concorrente pela linha de comando
 npm run teste:fonte -- --tipo=FORNECEDOR <url>   # preco deixa de ser exigido
 COLETA_TIMEOUT_MS=90000 npm run teste:fonte -- <url>   # site lento
 npm run teste:coleta              # 107 asserções da gravação no banco, da busca ampla (inclusive pelo nome da fonte), do custo que segue a varredura (também pelo nome, na lista sem código) e do custo adicional do fornecedor (usa o Postgres, SEM rede)
-npm run teste:cadastros           # 89 asserções: CPF/CNPJ/CEP/telefone, CNPJ obrigatório do fornecedor, a ligação fonte -> cadastro e as indicações dos vínculos salvos (Postgres, SEM rede)
+npm run teste:cadastros           # 123 asserções: CPF/CNPJ/CEP/telefone, CNPJ obrigatório do fornecedor, a ligação fonte -> cadastro, as indicações dos vínculos salvos e a regra do fornecedor padrão (lista e banco) (Postgres, SEM rede)
 npm run coletar -- <url>          # colhe uma fonte CADASTRADA e grava no banco
 npm run worker                    # supervisor + worker: varre o que "Atualizar dados" enfileira
 npm run worker:parar              # encerra do jeito certo (devolve as varreduras a fila)
@@ -370,7 +382,7 @@ npm run teste:fundo               # 9 asserções da regra do fundo das janelas 
 npm run teste:composicao          # 136 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças (com o que falta a cada produto), a descrição só com referências cadastradas e os ajustes de 10/10/2026 (código sugerido, localização da peça, peça de origem, documentos e descrições das peças, o "!" do kit e o "Anexar a este produto") (Postgres, SEM rede; só escreve produtos ZZ-KIT-* e a pasta dados/produtos/ZZ-KIT-C3, que apaga)
 npm run teste:bling-sync          # 754 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos e de fotos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 npm run teste:rise-ai             # 616 asserções do Rise AI (Entrega 1 e A1; o chat da tela e a leitura do fluxo SSE saíram em 20/10/2026): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo e a coluna Outros, configuração e as quatro abas, orçamento e reserva, cotação do dia, Parar, texto seguro, perfil cliente, pesquisa na internet, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
-npm run teste:mcp                 # 255 asserções do servidor MCP (com o buscarNoMercado, os filtros do catálogo, anúncios, histórico de preço, os cadastros, as Correções da descrição e o roteiro da análise de fornecedor): sondagem do SDK, OAuth puro e no banco (só hash, rotação, revogação por família), portão 401/403/503, rotas do protocolo, tela Autorizar, as ferramentas com o pode() do login, o registro de cada chamada, anotarDuvida, a rota /mcp, o Caddyfile, a aba Conexões e a Revisão do dia. Postgres local, SEM rede e SEM IA; só escreve zz-mcp-*, ZZ-MCP * e ZZ-MCP-*
+npm run teste:mcp                 # 260 asserções do servidor MCP (com o buscarNoMercado, os filtros do catálogo, anúncios, histórico de preço, os cadastros, as Correções da descrição e o roteiro da análise de fornecedor): sondagem do SDK, OAuth puro e no banco (só hash, rotação, revogação por família), portão 401/403/503, rotas do protocolo, tela Autorizar, as ferramentas com o pode() do login, o registro de cada chamada, anotarDuvida, a rota /mcp, o Caddyfile, a aba Conexões e a Revisão do dia. Postgres local, SEM rede e SEM IA; só escreve zz-mcp-*, ZZ-MCP * e ZZ-MCP-*
 npm run teste:telegram            # 96 asserções da Entrega C1 (avisos no Telegram): banco, texto dos avisos (4 linhas, neutralizado, mascarado), cliente da API do bot e o token mascarado no log, vínculo por código, a configuração e a aba Canais, e a rotina do worker (linha de base, zerou/voltou/zerou, orçamento 80/100%, varredura que falhou, resumo das 20h, bloqueado, 3 tentativas). Telegram FALSO (SEM rede); Postgres local, só escreve zz-tg-* e ZZ-TG-* e devolve a Conexao TELEGRAM, a configuração e a linha de base do dono
 npm run teste:producao            # 89 asserções das peças próprias e da ordem de produção: regras (custo, cor do estoque, validação, arredondamento), custo pelas peças e o recálculo, trava da entrada manual, preparo do Salvar, clone, rascunho, a ordem (cria, baixa com falta, baixa, clique duplo, conclui com perda, cancela devolvendo, kit recalculado) contra o Bling falso. Postgres local, SEM rede; só escreve ZZ-PROD-*
 npm run teste:compras             # 174 asserções do módulo Compras (com a observação por item e o link público): regras (totais, desconto % ou R$, a caminho, carrinho, situação), lista do mínimo e rascunho automático (com concorrência), pedido (salvar, itens, situação, preço que não se apaga), lançamento contra o Bling falso (clique duplo, Bling que recusa, desfazer com estoque vendido), proposta pelos bytes, dados da empresa, o PDF e as ferramentas de Compras do MCP. Postgres local, SEM rede; só escreve ZZ-COMPRA-* e "ZZ Compra *"

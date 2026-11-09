@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { fornecedorDoAliExpress } from "./fornecedor";
 import { totaisDoPedido } from "@/lib/compras/regras";
 import { fatorValido } from "@/lib/custoAdicionalRegras";
+import { garantirPadraoDoUnico } from "@/lib/fornecedorPadraoBanco";
 
 import { anuncioDoLink, codigoDoVinculo, custoPorPeca, decidirCasamento, precoMedioPonderado, precoNoRise, quantidadeNoRise } from "./regras";
 import { entradaNoVirtual, saidaDoVirtual } from "./virtual";
@@ -105,6 +106,8 @@ async function gravarVinculo(tx, { aliId, produtoId, codigo, linha, fator, preco
     },
     select: { id: true },
   });
+  // O unico fornecedor do produto e sempre o padrao (pedido do dono em 08/11/2026).
+  await garantirPadraoDoUnico(produtoId, tx);
   return criado.id;
 }
 

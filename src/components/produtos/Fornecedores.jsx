@@ -28,6 +28,7 @@ import { precoComImpostoTexto, precoDaFaixaTexto } from "@/components/mercados/p
 import { precoComImpostos as precoComImpostosCalc } from "@/lib/coleta/impostos";
 import { situacaoDeEstoque } from "@/lib/estoqueDoConcorrente";
 import { MAXIMO_ADICIONAIS, custoTotal, normalizarAdicionais, somaDosAdicionais } from "@/lib/custoAdicionalRegras";
+import { podeRemoverFornecedor, semOFornecedor } from "@/lib/fornecedorPadrao";
 import CadastroRapidoFornecedor from "./CadastroRapidoFornecedor";
 import BuscaColetadoPorCodigo from "./BuscaColetadoPorCodigo";
 import FotoComLupa from "@/components/ui/FotoComLupa";
@@ -524,12 +525,16 @@ export default function Fornecedores({
   }
 
   function remover(vinculo) {
+    // O padrao so sai sozinho (pedido do dono em 08/11/2026): com outros, marque outro antes. A lixeira ja fica
+    // desabilitada; isto e a defesa contra clique que chegue mesmo assim.
+    const permitido = podeRemoverFornecedor(vinculos, vinculo.id);
+    if (!permitido.ok) {
+      aoFalhar?.(permitido.erro);
+      return;
+    }
     if (modoRascunho) {
-      aoMudarRascunho((atual) => {
-        const restante = atual.filter((item) => item.id !== vinculo.id);
-        if (vinculo.padrao && restante.length > 0) restante[0] = { ...restante[0], padrao: true };
-        return restante;
-      });
+      // Sobrou um so: ele vira o padrao.
+      aoMudarRascunho((atual) => semOFornecedor(atual, vinculo.id));
       return;
     }
     iniciarTransicao(async () => {
@@ -706,15 +711,23 @@ export default function Fornecedores({
                       >
                         <Pencil size={14} />
                       </button>
-                      <button
-                        type="button"
-                        disabled={pendente}
-                        onClick={() => remover(vinculo)}
-                        aria-label="Remover fornecedor"
-                        className="rounded p-1 text-suave hover:bg-red-50 hover:text-red-700"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      {(() => {
+                        // Recusa e estado, nao texto (Padrao visual, regra 8): o padrao com outros fornecedores deixa a
+                        // lixeira desabilitada, com o motivo no title.
+                        const remocao = podeRemoverFornecedor(vinculos, vinculo.id);
+                        return (
+                          <button
+                            type="button"
+                            disabled={pendente || !remocao.ok}
+                            onClick={() => remover(vinculo)}
+                            aria-label={remocao.ok ? "Remover fornecedor" : remocao.erro}
+                            title={remocao.ok ? "Remover fornecedor" : remocao.erro}
+                            className="rounded p-1 text-suave enabled:hover:bg-red-50 enabled:hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        );
+                      })()}
                     </div>
                   </td>
                 </tr>

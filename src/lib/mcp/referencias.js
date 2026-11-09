@@ -37,7 +37,7 @@ const MARCAR_REFERENCIAS = {
   nome: "marcarReferencias",
   descricao: [
     "Marca (vincula) ou desmarca os fornecedores e concorrentes de um produto, para o dono conferir na lupa e na aba Fornecedores / Concorrentes. Siga o roteiro da roteiroDaProposta com canal 'referencias'.",
-    "Cada item pela loja e código que buscarNoMercado devolveu. Fornecedor nunca vira padrão (o custo do produto não muda e o fornecedor que veio do Bling continua valendo). Nada vai ao Bling.",
+    "Cada item pela loja e código que buscarNoMercado devolveu. Fornecedor não vira padrão (o custo do produto não muda e o fornecedor que veio do Bling continua valendo), menos quando é o único fornecedor do produto: aí ele vira padrão sozinho, regra do Rise. Nada vai ao Bling.",
     "Devolve o que foi feito, os recusados com o motivo e quantos ficaram vinculados.",
   ].join(" "),
   esquema: z.object({

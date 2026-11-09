@@ -60,6 +60,8 @@ import { proximoCodigoLivre } from "@/lib/proposta/codigo";
 import { salvarFotoManual } from "@/lib/producao/fotosManuais";
 import { normalizarAdicionais } from "@/lib/custoAdicionalRegras";
 import { custosDosProdutos, produtosQueDependem, recalcularQuemUsa, recalcularVinculos, vinculosDoProduto } from "@/lib/custoAdicional";
+import { podeRemoverFornecedor } from "@/lib/fornecedorPadrao";
+import { garantirPadraoDoUnico } from "@/lib/fornecedorPadraoBanco";
 import {
   MAXIMO_IMAGENS,
   apagarArquivo,
@@ -1740,23 +1742,15 @@ export async function removerFornecedorDoProduto(vinculoId) {
   });
   if (!alvo) return { ok: false, erro: "Fornecedor não encontrado." };
 
-  await prisma.produtoFornecedor.delete({ where: { id: vinculoId } });
+  // O padrao so sai sozinho (pedido do dono em 08/11/2026): com outros fornecedores, o dono marca outro antes. Ate ali o
+  // mais antigo assumia em silencio, e o custo do produto trocava sem ele escolher.
+  const linhas = await prisma.produtoFornecedor.findMany({ where: { produtoId: alvo.produtoId }, select: { id: true, padrao: true } });
+  const permitido = podeRemoverFornecedor(linhas, vinculoId);
+  if (!permitido.ok) return permitido;
 
-  // Removeu o padrao? Outro assume, senao o produto fica sem custo mesmo tendo
-  // fornecedor cadastrado.
-  if (alvo.padrao) {
-    const proximo = await prisma.produtoFornecedor.findFirst({
-      where: { produtoId: alvo.produtoId },
-      orderBy: { criadoEm: "asc" },
-      select: { id: true },
-    });
-    if (proximo) {
-      await prisma.produtoFornecedor.update({
-        where: { id: proximo.id },
-        data: { padrao: true },
-      });
-    }
-  }
+  await prisma.produtoFornecedor.delete({ where: { id: vinculoId } });
+  // Sobrou um so: ele vira o padrao.
+  await garantirPadraoDoUnico(alvo.produtoId);
 
   await recalcularCusto(alvo.produtoId);
   await ajustarQuemUsa(alvo.produtoId);

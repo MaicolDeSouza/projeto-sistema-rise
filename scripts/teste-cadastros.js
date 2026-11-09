@@ -18,6 +18,9 @@ const { validarCpf, validarCnpj, formatarCpf, formatarCnpj, formatarCep } = awai
 const { garantirCadastroDaFonte } = await import("../src/lib/cadastros.js");
 const { FornecedorDoProdutoSchema } = await import("../src/lib/validacao.js");
 const { fornecedoresComRascunho } = await import("../src/lib/fornecedorRascunho.js");
+const { comPadraoUnico, podeRemoverFornecedor, semOFornecedor, RECADO_TROCAR_PADRAO } = await import(
+  "../src/lib/fornecedorPadrao.js"
+);
 const { prisma } = await import("../src/lib/db.js");
 
 let falhas = 0;
@@ -200,6 +203,41 @@ conferir("observacao acima de 500 continua recusada", FornecedorDoProdutoSchema.
 conferir("sem nome continua recusada", FornecedorDoProdutoSchema.safeParse({ nome: "", precoCusto: 1 }).success, false);
 
 // ---------------------------------------------------------------------------
+// Fornecedor padrao (pedido do dono em 08/11/2026): o unico e sempre o padrao; com varios, o padrao so sai depois de
+// marcar outro; sozinho, sai mesmo marcado.
+// ---------------------------------------------------------------------------
+
+console.log("\nFornecedor padrao: regra da lista");
+
+const marcas = (lista) => lista.map((item) => [item.id, item.padrao]);
+conferir("lista vazia continua vazia", comPadraoUnico([]), []);
+conferir("um fornecedor so vira o padrao", marcas(comPadraoUnico([{ id: "a", padrao: false }])), [["a", true]]);
+conferir("o unico ja marcado fica igual", marcas(comPadraoUnico([{ id: "a", padrao: true }])), [["a", true]]);
+conferir(
+  "dois sem padrao: a regra nao escolhe por ele",
+  marcas(comPadraoUnico([{ id: "a", padrao: false }, { id: "b", padrao: false }])),
+  [["a", false], ["b", false]],
+);
+conferir(
+  "o fornecedor do Bling em rascunho sozinho ja e o padrao",
+  marcas(comPadraoUnico(fornecedoresComRascunho([], { nome: "Fortek", precoCusto: 23 }))),
+  [["bling-rascunho", true]],
+);
+const doisFornecedores = [{ id: "a", padrao: true }, { id: "b", padrao: false }];
+conferir("com outro fornecedor, o padrao nao sai", podeRemoverFornecedor(doisFornecedores, "a"), { ok: false, erro: RECADO_TROCAR_PADRAO });
+conferir("o que nao e padrao sai", podeRemoverFornecedor(doisFornecedores, "b"), { ok: true });
+conferir("sozinho, o padrao sai", podeRemoverFornecedor([{ id: "a", padrao: true }], "a"), { ok: true });
+conferir("fornecedor que nao esta na lista", podeRemoverFornecedor(doisFornecedores, "x").ok, false);
+conferir("tirar o que nao e padrao mantem o padrao", marcas(semOFornecedor(doisFornecedores, "b")), [["a", true]]);
+conferir(
+  "sobrou um so: ele vira o padrao",
+  marcas(semOFornecedor([{ id: "a", padrao: false }, { id: "b", padrao: false }, { id: "c", padrao: false }].slice(0, 2), "a")),
+  [["b", true]],
+);
+conferir("tirar o unico deixa a lista vazia", semOFornecedor([{ id: "a", padrao: true }], "a"), []);
+conferir("recado manda marcar outro antes", RECADO_TROCAR_PADRAO, "Marque outro fornecedor como padrão antes de excluir este.");
+
+// ---------------------------------------------------------------------------
 // Fonte -> cadastro (banco)
 // ---------------------------------------------------------------------------
 
@@ -319,7 +357,64 @@ try {
   conferir("campos: EAN valido do vinculo vira indicacao", campos.ean.map((item) => item.valor), ["7891234567895"]);
   conferir("campos: EAN que nao e codigo de barras (\"123\") fica de fora", campos.ean.some((item) => item.valor === "123"), false);
   conferir("campos: marca e modelo dos vinculos", [campos.marca.map((item) => item.valor), campos.modelo.map((item) => item.valor)], [["MARCAZZV"], ["MODZZV"]]);
+
+  // -------------------------------------------------------------------------
+  // Fornecedor padrao no banco (08/11/2026): o vinculo unico vira padrao e da o custo do produto, quando a aba tambem
+  // mostraria um so (sem o fornecedor do Bling em rascunho valendo).
+  // -------------------------------------------------------------------------
+  console.log("\nFornecedor padrao: o unico vinculo do produto (banco)");
+  const { garantirPadraoDoUnico } = await import("../src/lib/fornecedorPadraoBanco.js");
+  await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-CAD-PADRAO-" } } });
+  const fornecedorUnico = await prisma.fornecedor.create({ data: { nome: `${PREFIXO} Padrao` } });
+  const produtoCom = (sku, vinculos, extra = {}) =>
+    prisma.produto.create({
+      data: {
+        sku,
+        tituloBase: `ZZ PRODUTO ${sku}`,
+        ...extra,
+        fornecedores: { create: vinculos.map((vinculo) => ({ fornecedorId: fornecedorUnico.id, ...vinculo })) },
+      },
+      select: { id: true },
+    });
+  const lerPadrao = async (id) => {
+    const lido = await prisma.produto.findUnique({
+      where: { id },
+      select: { custo: true, fornecedores: { orderBy: { codigo: "asc" }, select: { codigo: true, padrao: true } } },
+    });
+    return { custo: lido.custo === null ? null : Number(lido.custo), padroes: lido.fornecedores.map((item) => [item.codigo, item.padrao]) };
+  };
+
+  const unico = await produtoCom("ZZ-CAD-PADRAO-1", [{ codigo: "U1", precoCusto: 12.5, padrao: false }]);
+  conferir("um vinculo sem padrao: marca", await garantirPadraoDoUnico(unico.id), true);
+  conferir("o unico virou padrao e deu o custo do produto", await lerPadrao(unico.id), { custo: 12.5, padroes: [["U1", true]] });
+  conferir("chamar de novo nao muda nada", await garantirPadraoDoUnico(unico.id), false);
+
+  const varios = await produtoCom("ZZ-CAD-PADRAO-2", [
+    { codigo: "D1", precoCusto: 5, padrao: false },
+    { codigo: "D2", precoCusto: 6, padrao: false },
+  ]);
+  conferir("dois vinculos sem padrao: nao escolhe", await garantirPadraoDoUnico(varios.id), false);
+  conferir("os dois continuam sem padrao", (await lerPadrao(varios.id)).padroes, [["D1", false], ["D2", false]]);
+
+  const comRascunho = await produtoCom("ZZ-CAD-PADRAO-3", [{ codigo: "R1", precoCusto: 7, padrao: false }], {
+    fornecedorRascunho: { nome: "Do Bling", precoCusto: 9 },
+  });
+  conferir("com o fornecedor do Bling em rascunho a aba mostra dois: nao marca", await garantirPadraoDoUnico(comRascunho.id), false);
+
+  const pecaPropria = await produtoCom("ZZ-CAD-PADRAO-4", [{ codigo: "P1", precoCusto: 8, padrao: false }], { pecasProprias: true, custo: 3 });
+  conferir("peca propria: marca o padrao", await garantirPadraoDoUnico(pecaPropria.id), true);
+  conferir("peca propria: o custo continua o das pecas", (await lerPadrao(pecaPropria.id)).custo, 3);
+
+  // O AliExpress cria o vinculo sem custo (o custo chega depois, com o pedido): marcar o padrao nao apaga o custo que o
+  // produto ja tem.
+  const semCusto = await produtoCom("ZZ-CAD-PADRAO-6", [{ codigo: "S1", padrao: false }], { custo: 4 });
+  conferir("vinculo sem custo: marca o padrao", await garantirPadraoDoUnico(semCusto.id), true);
+  conferir("vinculo sem custo: o custo do produto fica", (await lerPadrao(semCusto.id)).custo, 4);
+
+  const semVinculo = await produtoCom("ZZ-CAD-PADRAO-5", []);
+  conferir("sem vinculo: nada a marcar", await garantirPadraoDoUnico(semVinculo.id), false);
 } finally {
+  await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-CAD-PADRAO-" } } });
   await prisma.concorrente.deleteMany({ where: { nome: { startsWith: PREFIXO } } });
   await prisma.fornecedor.deleteMany({ where: { nome: { startsWith: PREFIXO } } });
   await prisma.fonteColeta.deleteMany({ where: { id: { in: fontesCriadas } } });

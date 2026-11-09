@@ -6,7 +6,7 @@
  *
  * Texto para a LLM, com acento. Sem crase dentro do texto (ele mora numa string de crase).
  */
-export const VERSAO_ROTEIRO_REFERENCIAS = "1";
+export const VERSAO_ROTEIRO_REFERENCIAS = "2";
 
 export const ROTEIRO_REFERENCIAS = `ROTEIRO DA ESCOLHA DE REFERÊNCIAS (Rise / 4hobby), versão ${VERSAO_ROTEIRO_REFERENCIAS}
 
@@ -33,8 +33,9 @@ CAMINHO (as ferramentas do Rise, nesta ordem)
    primeira foto de cada um, folhaDeContato(sku) para olhar lado a lado com a nossa. Tire os que não batem com
    marcarReferencias(sku, concorrentes.remover).
 6. Fornecedores: as listas de fornecedor não têm foto. Escolha pelo título e pelo código, e marque com
-   marcarReferencias(sku, fornecedores.adicionar). Fornecedor nunca vira padrão: o custo do produto não muda e o
-   fornecedor que veio do Bling continua valendo até o dono escolher o padrão na tela.
+   marcarReferencias(sku, fornecedores.adicionar). Fornecedor não vira padrão: o custo do produto não muda e o
+   fornecedor que veio do Bling continua valendo até o dono escolher o padrão na tela. A exceção é o único fornecedor
+   do produto (sem fornecedor do Bling em rascunho): o Rise o marca como padrão sozinho.
 7. Mostre ao dono: uma tabela dos marcados (loja, código, nome, preço, estoque, por que entrou), os que você tirou e
    por quê, e as dúvidas. Termine dizendo para ele abrir o produto numa ABA NOVA antes de salvar (uma aba que já estava
    aberta, ao Salvar, apaga as marcações novas).

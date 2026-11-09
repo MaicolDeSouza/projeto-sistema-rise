@@ -82,6 +82,7 @@ import SeoDaLoja from "./SeoDaLoja";
 import { chaveDoRascunho } from "@/lib/rascunhoDoCadastro";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { fornecedoresComRascunho } from "@/lib/fornecedorRascunho";
+import { comPadraoUnico } from "@/lib/fornecedorPadrao";
 import ReferenciasDeMercado, { MAXIMO_MARCADOS } from "./ReferenciasDeMercado";
 import SeloPosicaoDePreco from "./SeloPosicaoDePreco";
 import {
@@ -2340,8 +2341,9 @@ export default function FormularioProduto({
   // fornecedor PADRAO de verdade (25/10/2026, `rascunhoVale`): os vinculos
   // que o MCP marca (nunca padrao) entram junto, atras dele; depois de salvo,
   // o rascunho some, substituido pelos vinculos reais.
+  // O unico fornecedor da lista ja abre como padrao (pedido do dono em 08/11/2026); o Salvar grava a marca.
   const [fornecedoresRascunho, setFornecedoresRascunho] = useState(() =>
-    clone ? clone.fornecedores : fornecedoresComRascunho(fornecedores, produto?.fornecedorRascunho),
+    comPadraoUnico(clone ? clone.fornecedores : fornecedoresComRascunho(fornecedores, produto?.fornecedorRascunho)),
   );
 
   function mudarFornecedoresRascunho(atualizador) {
