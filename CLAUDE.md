@@ -393,7 +393,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 1177 asserções do anúncio do Mercado Livre (com a proposta do ML, o kit no ML, o preço pelo lucro da loja, o reaproveitar e o atacado): composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 1223 asserções do anúncio do Mercado Livre (com a proposta do ML, o kit no ML, o preço pelo lucro da loja, o reaproveitar, o atacado com a espera da sugestão no Publicar e o popup do produto: o "!" de cada anúncio e a ordem fixa): composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # 420 asserções da sincronização Rise -> Loja Integrada (com o cadastro automático, o estoque acertado pelo Bling no Sincronizar e as categorias e o SEO que vêm do produto): slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio, ícone e as etapas do Cadastrar (LI falsa e Bling de mentira, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
@@ -3991,7 +3991,24 @@ ao ar e nenhuma escrita real foi feita no ML ou no Bling.**
   tinham um formato inventado, então todo desconto virava 0, o envio mandava lista vazia e dava "ok". Agora `lerRecomendacaoDeAtacado`
   e `faixasLidas` leem o formato real, o ML falso o imita, e o envio FALHA em voz alta quando nenhuma faixa tem desconto ou quando a
   leitura não mostra as faixas. Anúncio que já gravou 0%: use "Recomendação do ML", salve e sincronize.
-- **NÃO visto / nunca medido:** o `POST` das faixas de atacado (nenhuma escrita real; o corpo segue o exemplo oficial); o Reaproveitar e o Mover do Bling com dado real; o botão "Recomendação do ML"; o Salvar do anúncio PRESO não leva o
+- **Medido em 09/11/2026 (kit de 5 do 120920):** o PRIMEIRO envio real de atacado deu certo pelo botão "Recomendação do ML" + Sincronizar
+  (Premium MLB7961930376 4,68/8,05/9,38/10,06%; Clássico MLB5530057065 4,85/8,34/9,72/10,42%, conferidos no `GET /items/{id}/prices`). No
+  Publicar do Premium a sugestão veio VAZIA (o item tinha acabado de ser criado) e estava lá menos de 1 minuto depois. Anúncio SEM frete
+  grátis nunca recebe sugestão: a recomendação responde **HTTP 204, sem corpo** (medido nos de R$ 27,20 e R$ 37,90), porque ela é a
+  economia de frete do vendedor repassada (no kit, 4,85% = R$ 8,24 por unidade ≈ os R$ 8,23 de frete economizados em 2 unidades).
+- **Pedidos do dono em 09/11/2026 (f950280):** (1) **o Publicar espera a sugestão na etapa `atacado`** quando o anúncio tem frete grátis:
+  relê a cada 10 s até 90 s (`ESPERA_DA_SUGESTAO_MS`, `INTERVALO_DA_SUGESTAO_MS`, `enviarAtacadoML(..., { esperaMs, aoEsperar })`), e o popup
+  de etapas mostra "aguardando a sugestão do ML (20 s de 90 s)" (`progresso.andando(id, detalhe)`); sem sugestão no fim, ou sem frete grátis
+  (não espera), a etapa fica **em vermelho**, a publicação termina (o anúncio já está no ar) e o recado âmbar do fim diz o caminho a mão
+  (`avisoDoAtacado`; `etapasComOResultado` mantém a etapa que falhou num envio que deu certo). Antes o aviso se perdia: a janela fechava
+  sozinha no sucesso. (2) **O popup "Anúncios do Mercado Livre"** mostra o **"!"** na linha do anúncio com problema, com o motivo ao passar
+  o mouse (`anunciosMLDoProduto` devolve `alerta`; `temProblemaNoIconeML` e `motivosDoProblemaML` em `icone.js`, a mesma regra do ícone da
+  lista, agora com nome para título, preço da loja, prazo e atacado) e as linhas em **ordem fixa**: Clássico sem frete, Premium sem frete,
+  Clássico com frete, Premium com frete, depois os kits do menor ao maior (`ordenarAnunciosDoProduto` em `faixas.js`). (3) **Botão
+  "Voltar"** no rodapé do editor aberto pelo popup com mais de um anúncio (`aoVoltar`): com alteração não salva pergunta "Salvar antes de
+  voltar?" (Cancelar / Salvar e voltar / Voltar sem salvar). Visto na tela do PC num produto de teste (ordem, "!" com o motivo, Voltar e a
+  pergunta); o popup de etapas esperando a sugestão só foi testado pelo `teste:anuncios-ml`.
+- **NÃO visto / nunca medido:** o Mover do Bling com dado real (o Reaproveitar foi usado de verdade em 09/11/2026, MLB5422680858 do 120920); o Salvar do anúncio PRESO não leva o
   atacado; anúncio antigo que já tinha atacado no ML (ex.: 220204) abre desligado e o 1º Enviar com ele ligado sobrescreve as faixas.
 - Conferido na tela do PC (ZZ-TESTE-BLING, nada salvo): lista Reaproveitar, cartão de atacado (ligado, % digitado calcula o preço,
   % que cai mostra a mensagem, desligado deixa só o título).
