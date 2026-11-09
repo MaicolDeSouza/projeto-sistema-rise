@@ -85,6 +85,12 @@ export default function JanelaReaproveitarML({ sku, candidatos, ocupado = null, 
                     {anuncio.catalogo && <span className="ml-1.5 rounded bg-sky-50 px-1.5 py-0.5 text-[10px] text-sky-800">Catálogo</span>}
                     {/* O kit do codigo ({sku}_{N}, 09/11/2026): reaproveitado, vira o Kit de N do produto base. */}
                     {anuncio.kit && <span className="ml-1.5 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-800">Kit de {anuncio.kit}</span>}
+                    {/* O Rise ja tem esta variante (09/11/2026): o ML nao aceita anuncio duplicado. */}
+                    {anuncio.duplicado && (
+                      <span title="O Rise já tem esta variante; o Mercado Livre não aceita anúncio duplicado" className="ml-1.5 rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-700">
+                        Duplicado
+                      </span>
+                    )}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{Number.isFinite(anuncio.preco) ? MOEDA.format(anuncio.preco) : ""}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{anuncio.vendidos}</td>

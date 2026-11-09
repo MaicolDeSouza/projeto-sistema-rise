@@ -161,7 +161,10 @@ export default function LinhaProduto({
   const [editando, setEditando] = useState(null);
   const fecharEdicao = () => setEditando(null);
   // Cor e ponto sozinhos nao dizem o estado: o mesmo texto vai no nome acessivel e na dica.
-  const rotuloML = `${naoML ? "Mercado Livre: marcado para não anunciar" : iconeML.proposta ? "Mercado Livre: Proposta pronta, aguardando aprovação" : rotuloDoIconeML(iconeML)}${sufixoInativo}`;
+  // O anuncio antigo da conta fora do Rise (09/11/2026) acende o "!" mesmo no "não anunciar" (ele vende do mesmo jeito): o
+  // motivo vai junto, senao o "!" ficaria sem explicacao.
+  const foraDoRiseML = iconeML.foraDoRise > 0 ? `, ${iconeML.foraDoRise} ${iconeML.foraDoRise === 1 ? "anúncio" : "anúncios"} na conta fora do Rise` : "";
+  const rotuloML = `${naoML ? `Mercado Livre: marcado para não anunciar${foraDoRiseML}` : iconeML.proposta ? "Mercado Livre: Proposta pronta, aguardando aprovação" : rotuloDoIconeML(iconeML)}${sufixoInativo}`;
 
   const moeda = new Intl.NumberFormat("pt-BR", {
     style: "currency",

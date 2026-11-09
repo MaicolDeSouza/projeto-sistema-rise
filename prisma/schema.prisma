@@ -292,6 +292,8 @@ model Produto {
   fornecedores ProdutoFornecedor[]
   concorrentes ProdutoConcorrente[]
   anuncios     Anuncio[]
+  /// Os anuncios da conta do ML deste produto que o Rise ainda nao tem (botao "Verificar anuncios antigos", 09/11/2026).
+  anunciosForaDoRiseML AnuncioForaDoRiseML[]
 
   movimentosEstoque MovimentoEstoque[]
   blingCopias       BlingCopiaProduto[]
@@ -2458,6 +2460,27 @@ model OrdemDosCartoes {
   atualizadoEm DateTime @updatedAt
 
   @@id([chave, pagina])
+}
+
+/// Anuncio da conta do ML que o Rise ainda nao tem, de um produto CONFERIDO pelo codigo (o SKU = kit 1, `{sku}_{N}` = kit N).
+/// Gravado pelo botao "Verificar anuncios antigos" da lista do ML (pedido do dono em 09/11/2026: "caso tenha anuncios antigos
+/// deve ligar ! para eu possa reaproveitar"), trocado inteiro a cada verificacao; o Reaproveitar apaga a linha do MLB.
+model AnuncioForaDoRiseML {
+  itemId      String   @id
+  produtoId   String
+  produto     Produto  @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  /// 1 no anuncio de uma unidade; N no kit `{sku}_{N}`.
+  kit         Int      @default(1)
+  titulo      String
+  preco       Decimal? @db.Decimal(12, 2)
+  tipoAnuncio String?
+  freteGratis Boolean  @default(false)
+  vendidos    Int      @default(0)
+  status      String?
+  link        String?
+  lidoEm      DateTime @default(now())
+
+  @@index([produtoId])
 }
 
 /// Uma peca propria: produto do Rise (componenteId) OU item manual (descricao + custoManual), nunca os dois.

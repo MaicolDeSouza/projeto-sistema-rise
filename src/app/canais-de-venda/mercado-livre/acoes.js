@@ -39,6 +39,7 @@ import { preencherFicha, sugerirCategoria, sugerirTitulos } from "@/lib/canaisDe
 import { lucroDaLojaDoRascunho, ordenarAnunciosDoProduto, VARIANTES, varianteDoRascunho, variantesDoProduto } from "@/lib/canaisDeVenda/ml/faixas";
 import { clonarVarianteML } from "@/lib/canaisDeVenda/ml/variantes";
 import { anunciosDoSkuNaConta, candidatosParaReaproveitar, reaproveitarAnuncioML } from "@/lib/canaisDeVenda/ml/reaproveitar";
+import { marcarDuplicados, verificarAnunciosAntigosML } from "@/lib/canaisDeVenda/ml/anunciosAntigos";
 import { lerCategoria, lerCategoriaCompleta, lerCustosDoAnuncio, precoPelaFaixaNoML, precoPorMargemNoML, textoDoErroML } from "@/lib/canaisDeVenda/ml/leitura";
 import {
   anunciosMLDoProduto,
@@ -165,11 +166,22 @@ export async function anunciosDoSkuMLAcao(produtoId) {
     if (!naConta.ok) return naConta;
     const doRise = await anunciosMLDoProduto(produtoId);
     const idsDoRise = new Set(doRise.map((anuncio) => anuncio.idExterno).filter(Boolean));
-    const candidatos = candidatosParaReaproveitar(naConta.itens, { idsDoRise, sku: produto.sku });
+    // "duplicado" (09/11/2026): o Rise ja tem a mesma variante, e o ML nao aceita anuncio duplicado; o dono decide na linha.
+    const candidatos = marcarDuplicados(candidatosParaReaproveitar(naConta.itens, { idsDoRise, sku: produto.sku }), doRise);
     // As variantes contando o que a conta ja tem fora do Rise (08/11/2026): o "Faltam" do popup nao pede o que ja esta no ar.
     // O kit nao conta como a variante de 1 unidade.
     return { ok: true, sku: produto.sku, candidatos, variantes: variantesDoProduto({ precoVenda: produto.precoVenda, anuncios: doRise, naConta: candidatos.filter((c) => !c.kit) }) };
   });
+}
+
+/**
+ * O botao "Verificar anuncios antigos" da lista do ML (pedido do dono em 09/11/2026): le a conta inteira (so GET) e grava os
+ * anuncios dos produtos conferidos que o Rise ainda nao tem; o icone do ML na lista de Produtos acende o "!" por eles.
+ */
+export async function verificarAnunciosAntigosMLAcao() {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"]);
+  if (negado) return negado;
+  return revalidando(await protegendo(() => verificarAnunciosAntigosML()));
 }
 
 /** Adota o anuncio `itemId` do ML como anuncio PUBLICADO do produto (nada e escrito no ML). */

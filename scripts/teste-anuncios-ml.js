@@ -4087,6 +4087,63 @@ try {
   }
 
   {
+    // Anuncios antigos fora do Rise (pedido do dono em 09/11/2026): o botao "Verificar anuncios antigos" le a conta inteira, casa
+    // pelo codigo com os produtos CONFERIDOS (o SKU = kit 1, `{sku}_{N}` = kit N) e acende o "!" do icone do ML.
+    console.log("\nAnuncios antigos da conta fora do Rise");
+    await limpar();
+    const { casarAnunciosDaConta, verificarAnunciosAntigosML, marcarDuplicados } = await import("../src/lib/canaisDeVenda/ml/anunciosAntigos.js");
+    const { reaproveitarAnuncioML } = await import("../src/lib/canaisDeVenda/ml/reaproveitar.js");
+    const { estadoDoIconeML, temProblemaNoIconeML, motivosDoProblemaML } = await import("../src/lib/canaisDeVenda/ml/icone.js");
+    const { INCLUDE_DOS_ICONES, iconesDosProdutos, temSeloDeAviso } = await import("../src/lib/iconesDaListaDeProdutos.js");
+    const { criarMLFalso } = await import("./lib/mlFalso.js");
+    const item = (id, codigo, extra = {}) => ({ id, title: `Item ${id}`, price: 30, status: "active", sold_quantity: 2, listing_type_id: "gold_special", shipping: { free_shipping: false }, seller_custom_field: codigo, attributes: [], permalink: `https://produto.mercadolivre.com.br/${id}`, category_id: "MLB99779", ...extra });
+
+    // Puro: o casamento pelo codigo.
+    const casados = casarAnunciosDaConta(
+      [item("MLB1", "ZZ-ML-AA"), item("MLB2", "zz-ml-aa_10"), item("MLB3", "ZZ-ML-AA_1"), item("MLB4", "OUTRO"), item("MLB5", "ZZ-ML-AA", { status: "closed" }), item("MLB6", "ZZ-ML-AA"), item("MLB7", null, { attributes: [{ id: "SELLER_SKU", value_name: "ZZ-ML-AA_20" }] })],
+      { produtos: [{ id: "p1", sku: "ZZ-ML-AA" }], idsDoRise: new Set(["MLB6"]) },
+    );
+    conferir("casar: codigo do produto = kit 1, codigo_N = kit N (sem caixa), SELLER_SKU vale; fora o _1, outro codigo, o encerrado e o do Rise", casados.map((c) => [c.itemId, c.produtoId, c.kit]), [["MLB1", "p1", 1], ["MLB2", "p1", 10], ["MLB7", "p1", 20]]);
+    conferir("casar: os campos da linha", casados[0], { itemId: "MLB1", produtoId: "p1", kit: 1, titulo: "Item MLB1", preco: 30, tipoAnuncio: "gold_special", freteGratis: false, vendidos: 2, status: "active", link: "https://produto.mercadolivre.com.br/MLB1" });
+
+    // Puro: a marca "duplicado" do popup (o Rise ja tem a mesma variante).
+    const doRise = [
+      { codigo: "ZZ-ML-AA", sku: "ZZ-ML-AA", tipoAnuncio: "gold_special", freteGratis: false, situacaoCanal: "ATIVA" },
+      { codigo: "ZZ-ML-AA_10", sku: "ZZ-ML-AA", tipoAnuncio: "gold_special", freteGratis: false, situacaoCanal: "ATIVA" },
+      { codigo: "ZZ-ML-AA_30", sku: "ZZ-ML-AA", tipoAnuncio: "gold_special", freteGratis: false, situacaoCanal: "ENCERRADA" },
+    ];
+    conferir(
+      "duplicado: mesmo tipo e frete (1 unidade) ou o mesmo kit N; o encerrado no Rise nao conta",
+      marcarDuplicados([{ id: "A", kit: null, tipoAnuncio: "gold_special", freteGratis: false }, { id: "B", kit: null, tipoAnuncio: "gold_special", freteGratis: true }, { id: "C", kit: 10 }, { id: "D", kit: 20 }, { id: "E", kit: 30 }], doRise).map((c) => [c.id, c.duplicado]),
+      [["A", true], ["B", false], ["C", true], ["D", false], ["E", false]],
+    );
+
+    // Banco: a leitura da conta inteira contra o ML falso (scan + bulk), so os produtos conferidos.
+    const conferido = await prisma.produto.create({ data: { sku: "ZZ-ML-AA", tituloBase: "ZZ AA", conferido: true, blingId: "1", precoVenda: 30, custo: 10, estoque: 5 } });
+    await prisma.produto.create({ data: { sku: "ZZ-ML-AB", tituloBase: "ZZ AB", conferido: false, precoVenda: 30, custo: 10 } });
+    await prisma.anuncio.create({ data: { produtoId: conferido.id, canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "ATIVA", idExterno: "MLB6", titulo: "ZZ AA", dados: { tipoAnuncio: "gold_special", envio: { freteGratis: false }, preco: 30 } } });
+    await prisma.anuncioForaDoRiseML.create({ data: { itemId: "MLB999", produtoId: conferido.id, titulo: "de uma verificacao antiga" } });
+    const mlConta = criarMLFalso({ meusItens: { "ZZ-ML-AA": [item("MLB1", "ZZ-ML-AA"), item("MLB6", "ZZ-ML-AA")], "ZZ-ML-AA_10": [item("MLB2", "ZZ-ML-AA_10", { price: 250, sold_quantity: 7 })], "ZZ-ML-AB": [item("MLB8", "ZZ-ML-AB")] } });
+    const verificado = await verificarAnunciosAntigosML({ ml: mlConta, esperar: async () => {} });
+    conferir("verificar: le a conta inteira e acha so os do conferido fora do Rise", [verificado.ok, verificado.lidos, verificado.foraDoRise, verificado.produtos], [true, 4, 2, 1]);
+    const linhas = await prisma.anuncioForaDoRiseML.findMany({ where: { produtoId: conferido.id }, orderBy: { itemId: "asc" } });
+    conferir("verificar: troca a tabela inteira (a linha antiga sai)", linhas.map((linha) => [linha.itemId, linha.kit, Number(linha.preco), linha.vendidos]), [["MLB1", 1, 30, 2], ["MLB2", 10, 250, 7]]);
+    conferir("verificar: zero escritas no ML", mlConta.escritas.length, 0);
+
+    // O "!" do icone do ML e o filtro "!" da lista de Produtos.
+    const estado = estadoDoIconeML([], { foraDoRise: linhas });
+    conferir("icone: '!' com o motivo", [estado.foraDoRise, temProblemaNoIconeML(estado), motivosDoProblemaML(estado)], [2, true, ["2 anúncios na conta fora do Rise"]]);
+    conferir("icone: um so, no singular; nenhum, sem '!'", [motivosDoProblemaML(estadoDoIconeML([], { foraDoRise: [linhas[0]] })), temProblemaNoIconeML(estadoDoIconeML([], { foraDoRise: [] }))], [["1 anúncio na conta fora do Rise"], false]);
+    const lido = await prisma.produto.findUnique({ where: { id: conferido.id }, include: INCLUDE_DOS_ICONES });
+    const icones = (await iconesDosProdutos([lido])).get(conferido.id);
+    conferir("lista de Produtos: o icone do ML conta os de fora e o filtro '!' acha o produto", [icones.iconeML.foraDoRise, temSeloDeAviso(icones)], [2, true]);
+
+    // Reaproveitar apaga a linha do MLB na hora.
+    const feito = await reaproveitarAnuncioML(conferido.id, "MLB1", { ml: mlConta });
+    conferir("reaproveitar: apaga a linha do MLB na hora, a outra fica", [feito.ok, (await prisma.anuncioForaDoRiseML.findMany({ select: { itemId: true } })).map((linha) => linha.itemId)], [true, ["MLB2"]]);
+  }
+
+  {
     console.log("\nTitulo no envio e o vinculo do Bling movido para a Rise_ML (anuncio reaproveitado)");
     await limpar();
     const { reaproveitarAnuncioML } = await import("../src/lib/canaisDeVenda/ml/reaproveitar.js");

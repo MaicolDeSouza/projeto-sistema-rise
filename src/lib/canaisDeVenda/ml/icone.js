@@ -42,7 +42,9 @@ const NOME_DA_PARTE = {
  * @param {{canal: string, status: string, situacaoCanal?: string, mudancas?: {partes: string[], naoConferido: boolean}}[]} anuncios
  *   os anuncios do produto, de todos os canais
  */
-export function estadoDoIconeML(anuncios) {
+// `foraDoRise`: as linhas de `AnuncioForaDoRiseML` do produto (botao "Verificar anuncios antigos", 09/11/2026), so na lista de
+// Produtos; o "!" pede o Reaproveitar (o ML nao aceita anuncio duplicado).
+export function estadoDoIconeML(anuncios, { foraDoRise = [] } = {}) {
   const doML = (Array.isArray(anuncios) ? anuncios : []).filter(ehDoML);
   const paraTras = doML.filter((anuncio) => estaPublicado(anuncio) && (anuncio.mudancas?.partes?.length ?? 0) > 0);
   const partes = new Set(paraTras.flatMap((anuncio) => anuncio.mudancas.partes));
@@ -54,6 +56,8 @@ export function estadoDoIconeML(anuncios) {
   const pendente = (anuncio) => reutilizadoPendente(anuncio.dados?.publicacao);
   const publicados = doML.filter((anuncio) => estaPublicado(anuncio) && !pendente(anuncio));
   return {
+    // So quando ha: o objeto do icone sem anuncio antigo fica igual ao de antes.
+    ...(Array.isArray(foraDoRise) && foraDoRise.length > 0 ? { foraDoRise: foraDoRise.length } : {}),
     publicado: publicados.length > 0,
     pausado: publicados.some((anuncio) => anuncio.situacaoCanal === "PAUSADA") && !publicados.some((anuncio) => anuncio.situacaoCanal === "ATIVA"),
     erro: doML.some((anuncio) => anuncio.status === "ERRO" || anuncio.status === "PUBLICANDO"),
@@ -102,7 +106,7 @@ function textoDoDesatualizado(partes) {
 
 /** O selo "!" do icone: a mesma condicao na lista de Produtos, na lista do ML e em cada linha do popup do produto. */
 export function temProblemaNoIconeML(estado) {
-  return Boolean(estado?.erro || estado?.reutilizado || estado?.desatualizado || estado?.precisaAgirNoML || estado?.estoqueDivergenteNoML || estado?.catalogoMudouNoML);
+  return Boolean(estado?.erro || estado?.foraDoRise > 0 || estado?.reutilizado || estado?.desatualizado || estado?.precisaAgirNoML || estado?.estoqueDivergenteNoML || estado?.catalogoMudouNoML);
 }
 
 /**
@@ -112,8 +116,12 @@ export function temProblemaNoIconeML(estado) {
 // O texto do reaproveitado ainda nao revisado, o mesmo no "!" do icone, no popup do produto e na lista do ML.
 const TEXTO_DO_REUTILIZADO = "reutilizado da conta, esperando a sua revisão";
 
-export function motivosDoProblemaML({ erro = false, reutilizado = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [], precisaAgirNoML: barrado = false, estadosNoML = [], estoqueDivergenteNoML = false, estoquesNoML = [], catalogoMudouNoML = false, catalogosNoML = [] } = {}) {
+// "2 anuncios na conta fora do Rise" (09/11/2026): o motivo do "!" de quem tem anuncio antigo para reaproveitar.
+const textoDoForaDoRise = (quantos) => `${quantos} ${quantos === 1 ? "anúncio" : "anúncios"} na conta fora do Rise`;
+
+export function motivosDoProblemaML({ foraDoRise = 0, erro = false, reutilizado = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [], precisaAgirNoML: barrado = false, estadosNoML = [], estoqueDivergenteNoML = false, estoquesNoML = [], catalogoMudouNoML = false, catalogosNoML = [] } = {}) {
   const motivos = [];
+  if (foraDoRise > 0) motivos.push(textoDoForaDoRise(foraDoRise));
   if (reutilizado) motivos.push(TEXTO_DO_REUTILIZADO);
   if (desatualizado) motivos.push(naoConferido ? "ainda não conferido com o produto" : textoDoDesatualizado(partesDesatualizadas));
   if (barrado) motivos.push(...estadosNoML.map((texto) => texto.charAt(0).toLowerCase() + texto.slice(1)));
@@ -123,7 +131,7 @@ export function motivosDoProblemaML({ erro = false, reutilizado = false, desatua
   return motivos;
 }
 
-export function rotuloDoIconeML({ publicado, pausado = false, erro, rascunho = false, reutilizado = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [], precisaAgirNoML: barrado = false, estadosNoML = [], estoqueDivergenteNoML = false, estoquesNoML = [], catalogoMudouNoML = false, catalogosNoML = [], catalogos = 0 }) {
+export function rotuloDoIconeML({ foraDoRise = 0, publicado, pausado = false, erro, rascunho = false, reutilizado = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [], precisaAgirNoML: barrado = false, estadosNoML = [], estoqueDivergenteNoML = false, estoquesNoML = [], catalogoMudouNoML = false, catalogosNoML = [], catalogos = 0 }) {
   const base = "Anúncio no Mercado Livre";
   const partes = [];
   if (publicado) partes.push(pausado ? "publicado, pausado (sem estoque)" : "publicado");
@@ -140,6 +148,7 @@ export function rotuloDoIconeML({ publicado, pausado = false, erro, rascunho = f
   if (estoqueDivergenteNoML) partes.push(...estoquesNoML.map(({ ml, bling }) => `estoque no ML ${ml}, no Bling ${bling}`));
   if (catalogoMudouNoML) partes.push(...catalogosNoML);
   if (erro) partes.push("com erro na publicação");
+  if (foraDoRise > 0) partes.push(textoDoForaDoRise(foraDoRise));
   if (!publicado && !erro && rascunho) partes.push("rascunho, ainda não publicado");
   return partes.length ? `${base}: ${partes.join(", ")}` : `${base}: sem anúncio`;
 }

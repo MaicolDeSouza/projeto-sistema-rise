@@ -184,5 +184,7 @@ export async function reaproveitarAnuncioML(produtoId, itemId, { ml }) {
   });
   // O anuncio reaproveitado entra com a conta do editor do preco de hoje (09/11/2026): as vendas desse produto ganham estimativa.
   await guardarContaDoEditorSemFalhar(criado.id, { ml, motivo: "reaproveitar" });
+  // Saiu da lista dos anuncios antigos fora do Rise (09/11/2026): o "!" da lista de Produtos apaga na hora.
+  await prisma.anuncioForaDoRiseML.deleteMany({ where: { itemId: mlb } });
   return { ok: true, anuncioId: criado.id };
 }

@@ -9,6 +9,8 @@ import LinkDeVolta from "@/components/ui/LinkDeVolta";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { listarAnunciosML } from "@/lib/canaisDeVenda/ml/banco";
+import { ultimaVerificacaoML } from "@/lib/canaisDeVenda/ml/anunciosAntigos";
+import BotaoVerificarAnunciosAntigos from "@/components/anuncios/ml/BotaoVerificarAnunciosAntigos";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Mercado Livre | Sistema Rise" };
@@ -34,8 +36,10 @@ export default async function MercadoLivrePage({ searchParams }) {
 
   let lista = null;
   let erro = null;
+  // A ultima "Verificar anuncios antigos" (09/11/2026), so para o `title` do botao: sem ela o botao funciona igual.
+  let ultima = null;
   try {
-    lista = await listarAnunciosML({ busca, pagina: textoDe(params?.pagina), ordenar, direcao });
+    [lista, ultima] = await Promise.all([listarAnunciosML({ busca, pagina: textoDe(params?.pagina), ordenar, direcao }), podeEditar ? ultimaVerificacaoML().catch(() => null) : null]);
   } catch (e) {
     erro = e;
   }
@@ -52,7 +56,9 @@ export default async function MercadoLivrePage({ searchParams }) {
         somenteLeitura={podeEditar ? null : "Seu acesso ao Mercado Livre é de leitura"}
         descricao="Anúncios criados a partir dos produtos Conferidos. A publicação no Mercado Livre entra numa próxima etapa."
         acao={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Varredura provisoria dos anuncios antigos da conta (09/11/2026): secundario, ao lado da acao principal. */}
+            {podeEditar && <BotaoVerificarAnunciosAntigos ultima={ultima} />}
             {podeEditar && (
             <Link href="/canais-de-venda/mercado-livre/novo" className={`${botao} bg-acento text-white hover:opacity-90`}>
               <Plus size={16} />

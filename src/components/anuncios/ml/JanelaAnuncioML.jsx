@@ -567,6 +567,12 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
                     <span className="shrink-0 text-xs text-suave">{rotuloDaVariante(candidato)}</span>
                     <span className="shrink-0 text-xs tabular-nums">{Number.isFinite(candidato.preco) ? MOEDA.format(candidato.preco) : ""}</span>
                     <span className="shrink-0 text-xs text-suave">{ESTADO_NO_ML[candidato.status] ?? candidato.status ?? ""}</span>
+                    {/* O Rise ja tem esta variante (09/11/2026): o ML nao aceita anuncio duplicado, o dono decide. */}
+                    {candidato.duplicado && (
+                      <span title="O Rise já tem esta variante; o Mercado Livre não aceita anúncio duplicado" className="shrink-0 rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-700">
+                        Duplicado
+                      </span>
+                    )}
                     <button
                       type="button"
                       disabled={ocupado !== null}

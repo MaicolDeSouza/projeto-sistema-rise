@@ -702,6 +702,12 @@ export function criarMLFalso(opcoes = {}) {
     const usuario = rota.match(/^\/users\/(\d+)$/);
     if (usuario) return vendedor(usuario[1]);
     if (/^\/users\/\d+\/items\/search$/.test(rota)) {
+      // A conta inteira (`search_type=scan`, botao "Verificar anuncios antigos", 09/11/2026): a 1a pagina traz todos os ids e o
+      // `scroll_id`; a pagina com o `scroll_id` vem vazia, que e o fim no ML real.
+      if (pedido.params.search_type === "scan") {
+        const todos = [...new Set(Object.values(estado.meusItens).flat().map((item) => item.id))];
+        return resposta(200, { results: pedido.params.scroll_id ? [] : todos, scroll_id: "scroll-falso", paging: { total: todos.length } });
+      }
       const meus = estado.meusItens[String(pedido.params.seller_sku ?? "")] ?? [];
       return resposta(200, { results: meus.map((item) => item.id), paging: { total: meus.length } });
     }
@@ -709,7 +715,8 @@ export function criarMLFalso(opcoes = {}) {
     // do item que responde; o que nao responde vem com `status_code` e `error`.
     if (rota === "/items/bulk") {
       const ids = String(pedido.params.ids ?? "").split(",").filter(Boolean);
-      return resposta(200, ids.map((id) => (itens.has(id) ? { body: structuredClone(itens.get(id)) } : { id, status_code: 404, error: { message: "Item not found" } })));
+      // Tambem os anuncios antigos do vendedor (`meusItens`), que a verificacao dos anuncios antigos le em lote (09/11/2026).
+      return resposta(200, ids.map((id) => (acharItem(id) ? { body: structuredClone(acharItem(id)) } : { id, status_code: 404, error: { message: "Item not found" } })));
     }
     const meuItem = rota.match(/^\/items\/([^/]+)$/);
     // Item criado pelo teste (o worker le o status e o available_quantity dos que esperam estoque).

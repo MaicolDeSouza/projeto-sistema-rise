@@ -6,7 +6,7 @@
  */
 
 import { INCLUDE_DO_ICONE_BLING, iconeBlingDoProduto } from "@/lib/blingSync/estado";
-import { estadoDoIconeML } from "@/lib/canaisDeVenda/ml/icone";
+import { estadoDoIconeML, temProblemaNoIconeML } from "@/lib/canaisDeVenda/ml/icone";
 import { mudancasDosAnunciosML } from "@/lib/canaisDeVenda/ml/banco";
 import { documentosDoProduto } from "@/lib/canaisDeVenda/li/banco";
 import { iconeLIDoProduto } from "@/lib/canaisDeVenda/li/estado";
@@ -30,6 +30,8 @@ export const INCLUDE_DOS_ICONES = {
       sincronizadoEm: true,
     },
   },
+  // O "!" do ML dos anuncios antigos da conta fora do Rise (botao "Verificar anuncios antigos", 09/11/2026).
+  anunciosForaDoRiseML: { select: { itemId: true, kit: true } },
   // Para o icone do Bling: os fornecedores (entram na assinatura dos campos), as fotos e quantos ajustes de estoque
   // ainda nao foram ao Bling.
   ...INCLUDE_DO_ICONE_BLING,
@@ -54,7 +56,8 @@ export function temSeloDeAviso({ pecasAlteradas, iconeBling, iconeLI, iconeML })
     pecasAlteradas > 0 ||
     Boolean(iconeBling?.divergente) ||
     Boolean(iconeLI?.divergente || iconeLI?.incompleto || iconeLI?.alertaNaLoja || iconeLI?.fotosMudaram) ||
-    Boolean(iconeML?.erro || iconeML?.desatualizado || iconeML?.precisaAgirNoML || iconeML?.estoqueDivergenteNoML || iconeML?.catalogoMudouNoML)
+    // A mesma conta do selo do icone do ML (antes era uma copia, e o "reutilizado" e os anuncios fora do Rise ficavam de fora).
+    temProblemaNoIconeML(iconeML)
   );
 }
 
@@ -97,7 +100,10 @@ export async function iconesDosProdutos(produtos) {
       {
         pecasAlteradas: alteracoesDosKits.get(produto.id)?.length ?? 0,
         iconeML: {
-          ...estadoDoIconeML(produto.anuncios.map((anuncio) => ({ ...anuncio, mudancas: mudancasML.get(anuncio.id) }))),
+          ...estadoDoIconeML(
+            produto.anuncios.map((anuncio) => ({ ...anuncio, mudancas: mudancasML.get(anuncio.id) })),
+            { foraDoRise: produto.anunciosForaDoRiseML ?? [] },
+          ),
           // O "P" da proposta de anuncio do ML (spec 2026-10-23): so o booleano vai a lista.
           proposta: produto.anuncios.some((anuncio) => anuncio.canal === "MERCADO_LIVRE" && Boolean(anuncio.dados?.proposta)),
         },
