@@ -49,6 +49,7 @@ export default function ComprovantesDePagamento({ pedidoId, inicial = [], podeEd
       const resposta = await excluirComprovanteAcao(pedidoId, alvo.id);
       if (resposta?.ok) {
         setLista(resposta.comprovantes);
+        setErro(null);
         setExcluindo(null);
       } else {
         setErro(resposta?.erro ?? "Não foi possível excluir.");

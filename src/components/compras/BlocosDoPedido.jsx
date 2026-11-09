@@ -145,6 +145,8 @@ export function BlocoPagamento({ formulario, editar, erros, aoMudar, totais = nu
           </Campo>
         )}
       </div>
+      {/* Os comprovantes de pagamento (09/11/2026), que valem em qualquer situacao do pedido. */}
+      {children}
     </SecaoDoAnuncio>
   );
 }
@@ -201,8 +203,6 @@ function FreteDoAliExpress({ aliexpress }) {
           ))}
         </div>
       )}
-      {/* Os comprovantes de pagamento (09/11/2026), que valem em qualquer situacao do pedido. */}
-      {children}
     </SecaoDoAnuncio>
   );
 }
