@@ -111,6 +111,8 @@ const LISTA = [
   acao("acao.pedidos.marcarSeparacao", "Marcar pedido em separação", "tela.pedidos"),
   acao("acao.pedidos.editarCustoDoFrete", "Digitar o custo real do frete (Bling)", "tela.pedidos"),
   acao("acao.pedidos.vincularCliente", "Vincular cliente ao pedido", "tela.pedidos"),
+  // "Aceitar divergência" do lucro com o código do Conferido (09/11/2026).
+  acao("acao.pedidos.aceitarDivergencia", "Aceitar a divergência do lucro de um pedido", "tela.pedidos"),
   acao("acao.pedidos.emitirNF", "Criar NF pelo pedido", "tela.pedidos", "Desligada pela trava NFE_EMISSAO."),
   acao("acao.pedidos.baixarNF", "Baixar NF e XML do pedido", "tela.pedidos"),
   tela("tela.estoque", "Estoque", "/estoque"),

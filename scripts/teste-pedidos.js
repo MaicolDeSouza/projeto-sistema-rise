@@ -30,11 +30,11 @@ const { normalizarPedidoBling, classificarLojaDoBling } = await import("../src/l
 const { statusDoPedido, statusDoEnvio, situacaoDoPedido, condicaoDaSituacao, SITUACOES } = await import("../src/lib/pedidos/status.js");
 const { clienteDoPedido } = await import("../src/lib/pedidos/cliente.js");
 const { custoCongeladoDoProduto, casarItens } = await import("../src/lib/pedidos/itens.js");
-const { parcelasDaEstimativa, parcelasDoReal, devolvido, lucroDivergente, lucroFechado, estimativaValida } = await import("../src/lib/pedidos/lucro.js");
+const { parcelasDaEstimativa, parcelasDoReal, devolvido, lucroDivergente, lucroFechado, estimativaValida, estimativaPelasContas, divergenciaAceitaVale } = await import("../src/lib/pedidos/lucro.js");
 const { resumoDoMercadoPago, conferirComMercadoPago } = await import("../src/lib/pedidos/mercadoPago.js");
 const { codigoVendido } = await import("../src/lib/pedidos/codigo.js");
 const { necessidadeDoPedido, calcularPecas, saldoSemCorte } = await import("../src/lib/pedidos/pecas.js");
-const { aplicarPedidoLido, listarPedidosDeVenda, lerPedidoDeVenda, marcarEmSeparacao, salvarCustoDoFreteManual, vincularCliente, espelharNoBling, criarClienteDoPedido, buscarClientesParaVincular, opcoesDasColunas, resumoDaLista, recalcularPecasDosPedidosAbertos, pedidosParaReconferir, pedidosParaConferirNoMercadoPago } = await import("../src/lib/pedidos/banco.js");
+const { aplicarPedidoLido, listarPedidosDeVenda, lerPedidoDeVenda, marcarEmSeparacao, salvarCustoDoFreteManual, vincularCliente, espelharNoBling, criarClienteDoPedido, buscarClientesParaVincular, opcoesDasColunas, resumoDaLista, recalcularPecasDosPedidosAbertos, pedidosParaReconferir, pedidosParaConferirNoMercadoPago, preencherEstimativasDoProduto, aceitarDivergenciaDoLucro } = await import("../src/lib/pedidos/banco.js");
 const { rodarLeituraDePedidos, reconferirPedidosPendentes, conferirMercadoPagoPendentes, lerPedidoDaOrigem: lerPedidoDaOrigemRC } = await import("../src/lib/pedidos/leitura.js");
 const { ROTINAS_DO_WORKER } = await import("../src/lib/saude/regras.js");
 const { RECURSOS } = await import("../src/lib/acessos/recursos.js");
@@ -93,6 +93,8 @@ async function limpar() {
   // A peca de um kit e a peca propria tem Restrict: saem antes dos produtos.
   await prisma.pecaPropriaDoProduto.deleteMany({ where: { OR: [{ produto: ZZ }, { componente: ZZ }] } });
   await prisma.produtoComponente.deleteMany({ where: { kit: ZZ } });
+  // As contas do editor dos produtos de teste (sem chave estrangeira: saem antes, pelo id).
+  await prisma.contaDoEditorML.deleteMany({ where: { produtoId: { in: (await prisma.produto.findMany({ where: ZZ, select: { id: true } })).map((p) => p.id) } } });
   await prisma.produto.deleteMany({ where: ZZ });
   await prisma.cliente.deleteMany({
     where: { OR: [{ documento: { in: DOCUMENTOS_DE_TESTE } }, { nome: { startsWith: "ZZ Ped " } }] },
@@ -495,9 +497,12 @@ try {
     nml.idExterno = nml.numero = "ZZ-PED-100";
     nml.itens[0].idNaOrigem = "MLBZZPED1";
     nml.itens[0].codigoNaOrigem = "ZZ-PED-A";
+    // A estimativa do ML e a conta do editor guardada (09/11/2026): uma conta do ZZ-PED-A, de antes da venda.
+    const produtoA = await prisma.produto.findUnique({ where: { sku: "ZZ-PED-A" }, select: { id: true } });
+    await prisma.contaDoEditorML.create({ data: { anuncioId: "zz-ped-anuncio", produtoId: produtoA.id, unidadesDoKit: 1, motivo: "publicar", preco: 59.9, percentual: 0.13, tarifaFixa: 0, frete: 19.05, custoDoKit: 10, criadoEm: new Date("2026-11-01T12:00:00Z") } });
     const a1 = await aplicarPedidoLido(nml, { cliente: mlFalso, agora });
     const g1 = await prisma.pedidoDeVenda.findUnique({ where: { id: a1.id }, include: { itens: true } });
-    conferir("cria o pedido completo", [a1.criado, g1.status, g1.statusDoEnvio, g1.itens.length, g1.clienteId !== null, g1.estimativa?.origem, g1.lucroReal !== null], [true, "ENVIADO", "EM_TRANSITO", 1, true, "editorML", true]);
+    conferir("cria o pedido completo", [a1.criado, g1.status, g1.statusDoEnvio, g1.itens.length, g1.clienteId !== null, g1.estimativa?.origem, g1.lucroReal !== null], [true, "ENVIADO", "EM_TRANSITO", 1, true, "contaDoEditor", true]);
     const a2 = await aplicarPedidoLido({ ...nml, totais: { ...nml.totais, totalProdutos: 999, total: 999 } }, { cliente: mlFalso, agora });
     const g2 = await prisma.pedidoDeVenda.findUnique({ where: { id: a1.id }, include: { itens: true } });
     conferir("segunda leitura atualiza sem duplicar e nao mexe na estimativa", [a2.criado, a2.id === a1.id, g2.itens.length, Number(g2.total), g2.estimativa.lucro === g1.estimativa.lucro, g2.avisos.includes("lucroDivergente")], [false, true, 1, 999, true, true]);
@@ -723,7 +728,7 @@ try {
     conferir(
       "recursos de pedidos",
       RECURSOS.filter((r) => r.id.startsWith("acao.pedidos.")).map((r) => r.id),
-      ["acao.pedidos.marcarSeparacao", "acao.pedidos.editarCustoDoFrete", "acao.pedidos.vincularCliente", "acao.pedidos.emitirNF", "acao.pedidos.baixarNF"],
+      ["acao.pedidos.marcarSeparacao", "acao.pedidos.editarCustoDoFrete", "acao.pedidos.vincularCliente", "acao.pedidos.aceitarDivergencia", "acao.pedidos.emitirNF", "acao.pedidos.baixarNF"],
     );
     conferir("acoes de pedidos ficam sob a tela de Pedidos", RECURSOS.filter((r) => r.id.startsWith("acao.pedidos.")).every((r) => r.pai === "tela.pedidos"), true);
     conferir("tipos de pagamento da LI", TIPOS_DE_PAGAMENTO_LI, ["pix", "boleto", "cartao_credito", "cartao_debito", "outro"]);
@@ -813,22 +818,50 @@ try {
       gravou = { erro: erro.message.slice(0, 80) };
     }
     const gLento = gravou?.id ? await prisma.pedidoDeVenda.findUnique({ where: { id: gravou.id } }) : null;
-    conferir("ML lento: o pedido grava com a estimativa do editor", [Boolean(gravou?.id), gLento?.estimativa?.origem], [true, "editorML"]);
+    conferir("ML lento: o pedido grava com a estimativa pela conta do editor (sem ler o ML)", [Boolean(gravou?.id), gLento?.estimativa?.origem], [true, "contaDoEditor"]);
 
-    // Venda de um anuncio que o Rise nao tem (medido na VPS em 04/11/2026, 14 de 15): a estimativa vazia nao pode
-    // ficar congelada; o aviso continua a cada leitura e, quando o anuncio passa a existir no Rise, ela e calculada.
-    const nsem = { ...nlento, idExterno: "ZZ-PED-131", numero: "ZZ-PED-131", itens: [{ ...nlento.itens[0], idNaOrigem: "MLBZZFORA" }] };
+    // Venda de um produto sem conta do editor (09/11/2026): a estimativa fica vazia ("—"), sem aviso, e e preenchida quando o
+    // produto e publicado (`preencherEstimativasDoProduto`, chamado depois de guardar a conta). Ate 09/11/2026 era a taxa do
+    // anuncio relida no dia da venda, e a venda sem rascunho no Rise ganhava o aviso `semEstimativa`.
+    const nsem = { ...nlento, idExterno: "ZZ-PED-131", numero: "ZZ-PED-131", itens: [{ ...nlento.itens[0], idNaOrigem: "MLBZZFORA", codigoNaOrigem: "ZZ-PED-B" }] };
     const s1 = await aplicarPedidoLido(nsem, { cliente: base, agora: new Date() });
-    const s2 = await aplicarPedidoLido(nsem, { cliente: base, agora: new Date() });
-    conferir("sem anuncio no Rise: o aviso sem estimativa continua na releitura", [s1.avisos.includes("semEstimativa"), s2.avisos.includes("semEstimativa")], [true, true]);
-    await prisma.anuncio.updateMany({ where: { canal: "MERCADO_LIVRE", idExterno: "MLBZZPED1" }, data: { idExterno: "MLBZZFORA" } });
-    try {
-      const s3 = await aplicarPedidoLido(nsem, { cliente: base, agora: new Date() });
-      const g3 = await prisma.pedidoDeVenda.findUnique({ where: { id: s3.id } });
-      conferir("anuncio que passou a existir: a estimativa vazia e calculada na releitura", [g3.estimativa?.origem, s3.avisos.includes("semEstimativa")], ["editorML", false]);
-    } finally {
-      await prisma.anuncio.updateMany({ where: { canal: "MERCADO_LIVRE", idExterno: "MLBZZFORA" }, data: { idExterno: "MLBZZPED1" } });
-    }
+    const gs1 = await prisma.pedidoDeVenda.findUnique({ where: { id: s1.id } });
+    conferir("sem conta do editor: estimativa vazia e sem aviso", [gs1.estimativa?.origem ?? null, gs1.lucroEstimado, s1.avisos.includes("semEstimativa")], [null, null, false]);
+    const produtoB = await prisma.produto.findUnique({ where: { sku: "ZZ-PED-B" }, select: { id: true } });
+    await prisma.contaDoEditorML.create({ data: { anuncioId: "zz-ped-anuncio-b", produtoId: produtoB.id, unidadesDoKit: 1, motivo: "publicar", preco: 40, percentual: 0.12, tarifaFixa: 0, frete: 6.85, custoDoKit: 7.5 } });
+    const preencheu = await preencherEstimativasDoProduto(produtoB.id, 1);
+    const gs2 = await prisma.pedidoDeVenda.findUnique({ where: { id: s1.id } });
+    conferir("publicou: a venda antiga (2 un.) ganha a estimativa pela conta (a 1a depois da venda)", [preencheu.preenchidos >= 1, gs2.estimativa?.origem, Number(gs2.estimativa?.receita)], [true, "contaDoEditor", 80]);
+    const s3 = await aplicarPedidoLido(nsem, { cliente: base, agora: new Date() });
+    conferir("a estimativa pela conta fica congelada na releitura", (await prisma.pedidoDeVenda.findUnique({ where: { id: s3.id } })).estimativa?.contaEm, gs2.estimativa?.contaEm);
+  }
+
+  console.log("\nConta do editor e aceite da divergencia");
+  {
+    const contaKit = { preco: 23.9, percentual: 0.12, tarifaFixa: 0, frete: 6.85, custoDoKit: 6.6, criadoEm: new Date("2026-11-01T12:00:00Z") };
+    const pelaConta = estimativaPelasContas({ itens: [{ quantidade: 40, quantidadeDoKit: 20 }], contas: [contaKit] });
+    conferir("conta por kit: 2 kits de 20 = 2 vezes o preco e o custo do kit", [pelaConta.receita, pelaConta.custo, pelaConta.origem, pelaConta.porKit], [47.8, 13.2, "contaDoEditor", true]);
+    conferir("conta: item sem conta deixa o pedido sem estimativa", estimativaPelasContas({ itens: [{ quantidade: 1 }, { quantidade: 1 }], contas: [contaKit, null] }), null);
+    conferir("aceite vale com os mesmos valores e cai quando um muda", [
+      divergenciaAceitaVale({ lucroEstimado: 10, lucroReal: 4, liquidoMP: 20 }, { lucroEstimado: 10, lucroReal: 4, liquidoMP: 20 }),
+      divergenciaAceitaVale({ lucroEstimado: 10, lucroReal: 4, liquidoMP: null }, { lucroEstimado: 10, lucroReal: 4.01, liquidoMP: null }),
+      divergenciaAceitaVale(null, { lucroEstimado: 10, lucroReal: 4, liquidoMP: null }),
+    ], [true, false, false]);
+
+    // O aceite no banco: apaga o "!" do lucro; a releitura com os mesmos valores nao acende; valor novo acende de novo.
+    const nAceite = normalizarPedidoML({ order: fx("ml-order"), billing: fx("ml-billing"), shipment: fx("ml-shipment"), custos: fx("ml-shipment-costs"), invoice: fx("ml-invoice") });
+    nAceite.idExterno = nAceite.numero = "ZZ-PED-140";
+    nAceite.itens[0].idNaOrigem = "MLBZZPED1";
+    nAceite.itens[0].codigoNaOrigem = "ZZ-PED-A";
+    const caro = { ...nAceite, totais: { ...nAceite.totais, totalProdutos: 999, total: 999 } };
+    const ap = await aplicarPedidoLido(caro, { agora: new Date() });
+    conferir("aceite: o pedido nasce com a divergencia do estimado", ap.avisos.includes("lucroDivergente"), true);
+    const aceito = await aceitarDivergenciaDoLucro(ap.id, "zz-dono");
+    const depois = await prisma.pedidoDeVenda.findUnique({ where: { id: ap.id } });
+    conferir("aceite: o ! sai e guarda quem aceitou", [aceito.ok, depois.avisos.includes("lucroDivergente"), depois.divergenciaAceita?.por], [true, false, "zz-dono"]);
+    conferir("aceite: pedido ja aceito recusa outro aceite", (await aceitarDivergenciaDoLucro(ap.id, "zz-dono")).ok, false);
+    conferir("aceite: releitura com os mesmos valores nao acende", (await aplicarPedidoLido(caro, { agora: new Date() })).avisos.includes("lucroDivergente"), false);
+    conferir("aceite: valor novo acende o ! de novo", (await aplicarPedidoLido({ ...nAceite, totais: { ...nAceite.totais, totalProdutos: 998, total: 998 } }, { agora: new Date() })).avisos.includes("lucroDivergente"), true);
   }
 
   console.log("\nFila");

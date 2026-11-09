@@ -2,14 +2,12 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { urlDe } from "@/lib/arquivos";
 import { config } from "@/lib/integracoes/config";
-import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
 import { clienteDoPedido } from "@/lib/pedidos/cliente";
 import { casarItens } from "@/lib/pedidos/itens";
 import { SITUACOES, condicaoDaSituacao, situacaoDoPedido, statusDoEnvio, statusDoPedido } from "@/lib/pedidos/status";
-import { devolvido, estimativaValida, lucroDivergente, lucroFechado, parcelasDaEstimativa, parcelasDoReal } from "@/lib/pedidos/lucro";
+import { devolvido, divergenciaAceitaVale, estimativaPelasContas, estimativaValida, lucroDivergente, lucroFechado, parcelasDaEstimativa, parcelasDoReal } from "@/lib/pedidos/lucro";
 import { codigoVendido } from "@/lib/pedidos/codigo";
 import { conferirComMercadoPago, mercadoPagoParaTela } from "@/lib/pedidos/mercadoPago";
-import { estimativaDoAnuncioML } from "@/lib/pedidos/estimativaML";
 import { calcularPecas } from "@/lib/pedidos/pecas";
 import { fimDoDiaEmSaoPaulo } from "@/lib/pedidos/despacho";
 
@@ -31,7 +29,7 @@ async function transacao(corpo) {
   for (let tentativa = 0; ; tentativa += 1) {
     try {
       // Folga de tempo: o padrao do Prisma (5 s) fecha a transacao de um pedido com muitos itens no meio da gravacao. A
-      // leitura do ML (a estimativa) fica FORA daqui, em `custosMLDaEstimativa`, para a rede nunca segurar a transacao.
+      // leitura do ML e do Mercado Pago fica FORA daqui (em `leitura.js`), para a rede nunca segurar a transacao.
       return await prisma.$transaction(corpo, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 10000, timeout: 20000 });
     } catch (erro) {
       if (erro?.code === "P2034" && tentativa === 0) continue;
@@ -85,25 +83,26 @@ async function taxasDoCanal(tx, origem) {
  * Recalcula o real, a estimativa (so quando ainda nao existe), o status, as pecas, o envio e os avisos de um pedido ja
  * gravado com itens. E o miolo de `aplicarPedidoLido` e das acoes que mudam uma entrada do calculo (frete manual).
  */
-async function recalcular(tx, pedido, { normalizado, custosMLLidos = null, taxas, agora, avisosDosItens = [], criado = false }) {
+async function recalcular(tx, pedido, { normalizado, taxas, agora, avisosDosItens = [], criado = false }) {
   const n = normalizado;
   const origem = pedido.origem;
   const itens = pedido.itens;
   const avisos = new Set(avisosDosItens);
 
-  // Estimativa: congelada na primeira leitura, nunca refeita. As taxas do ML vem lidas de antes da transacao.
-  // Estimativa sem `origem` e a vazia (o anuncio vendido nao estava no Rise): nao conta como calculada, entao e tentada
-  // de novo a cada leitura e o aviso `semEstimativa` continua (medido na VPS em 04/11/2026: o aviso sumia na releitura).
-  // A de kit feita antes de 09/11/2026 (o preco do kit vezes as unidades) nao vale e e refeita: `estimativaValida`.
-  let estimativa = estimativaValida(pedido.estimativa, itens) ? pedido.estimativa : null;
-  if (!estimativa) {
-    let custosML = null;
-    if (origem === "MERCADO_LIVRE") {
-      custosML = custosMLLidos ?? null;
-      if (!custosML) avisos.add("semEstimativa");
+  // Estimativa do ML (pedido do dono em 09/11/2026, Opcao 2): a CONTA DO EDITOR guardada no Publicar ou no envio de preco
+  // (`ContaDoEditorML`), a ultima antes da venda; achada, fica congelada. Sem conta, vazia ("—") e sem aviso: e tentada de
+  // novo a cada leitura e preenchida quando o produto e publicado (`preencherEstimativasDoProduto`). Ate 09/11/2026 era a
+  // taxa do anuncio relida no dia da venda, so com rascunho no Rise, e a venda sem rascunho ganhava o aviso `semEstimativa`.
+  // LI e Bling: o "Lucro na loja", congelado na primeira leitura (a de kit antiga e refeita: `estimativaValida`).
+  let estimativa;
+  if (origem === "MERCADO_LIVRE") {
+    estimativa = pedido.estimativa?.origem === "contaDoEditor" ? pedido.estimativa : await estimativaPelaContaDoEditor(tx, itens, pedido.dataDaVenda, agora);
+  } else {
+    estimativa = estimativaValida(pedido.estimativa, itens) ? pedido.estimativa : null;
+    if (!estimativa) {
+      estimativa = parcelasDaEstimativa({ origem, itens, totais: n.totais, custosML: null, taxas, calculadoEm: agora });
+      estimativa = { ...estimativa, calculadoEm: new Date(estimativa.calculadoEm).toISOString() };
     }
-    estimativa = parcelasDaEstimativa({ origem, itens, totais: n.totais, custosML, taxas, calculadoEm: agora });
-    estimativa = { ...estimativa, calculadoEm: new Date(estimativa.calculadoEm).toISOString() };
   }
 
   // Real: refeito ate o lucro fechar; a devolucao do ML reabre e zera (so o frete de retorno fica, como prejuizo).
@@ -162,6 +161,10 @@ async function recalcular(tx, pedido, { normalizado, custosMLLidos = null, taxas
   const carrinho = origem === "MERCADO_LIVRE" && resumoMP && packId ? (await tx.pedidoDeVenda.count({ where: { origem, packId } })) > 1 : false;
   const conferenciaMP = origem === "MERCADO_LIVRE" ? conferirComMercadoPago({ real, mercadoPago: resumoMP, status, carrinho }) : null;
   if (conferenciaMP?.estado === "diverge") avisos.add("lucroDiferenteDoMercadoPago");
+  // Divergencia aceita (Tarefa 7, 09/11/2026): apagada enquanto os valores forem os do aceite; mudou, o "!" volta.
+  if (divergenciaAceitaVale(pedido.divergenciaAceita, { lucroEstimado: estimativa?.lucro, lucroReal: real?.lucro, liquidoMP: conferenciaMP?.liquidoMP })) {
+    for (const chave of AVISOS_DE_DIVERGENCIA) avisos.delete(chave);
+  }
 
   const despacharAte = n.envio?.despacharAte ? new Date(n.envio.despacharAte) : null;
   const dados = {
@@ -182,24 +185,6 @@ async function recalcular(tx, pedido, { normalizado, custosMLLidos = null, taxas
   return { status, avisos: dados.avisos };
 }
 
-/**
- * As taxas do anuncio do ML para a estimativa (`{ percentual, tarifaFixa, frete }`), lidas FORA da transacao: so para
- * pedido do ML que ainda nao tem estimativa gravada; null quando nao ha anuncio casado ou o ML nao respondeu (aviso
- * `semEstimativa`). O casamento aqui e so leitura; quem grava os itens e a transacao.
- */
-async function custosMLDaEstimativa(n, cliente) {
-  if (n.origem !== "MERCADO_LIVRE" || !cliente) return null;
-  const gravado = await prisma.pedidoDeVenda.findUnique({
-    where: { origem_idExterno: { origem: n.origem, idExterno: String(n.idExterno) } },
-    select: { estimativa: true },
-  });
-  const { itens } = await casarItens(prisma, n);
-  if (estimativaValida(gravado?.estimativa, itens)) return null;
-  const casado = itens.find((item) => item.anuncioId);
-  if (!casado) return null;
-  const lida = await estimativaDoAnuncioML(cliente, { id: casado.anuncioId }, numero(casado.custoUnitarioCongelado)).catch(() => null);
-  return lida ? { percentual: lida.percentual, tarifaFixa: lida.tarifaFixa, frete: lida.frete } : null;
-}
 
 /**
  * Grava (ou atualiza) um pedido normalizado. Devolve `{ id, criado, status, avisos }`, ou `{ ignorado: true }` para
@@ -213,8 +198,6 @@ export async function aplicarPedidoLido(normalizado, { cliente = null, taxas = n
   if (Number.isNaN(dataDaVenda.getTime())) throw new Error(`Pedido ${n.idExterno} sem data da venda.`);
   if (dataDaVenda < config.pedidos.desde) return { ignorado: true };
 
-  // A estimativa do ML le o anuncio no ML (rede): so na primeira leitura do pedido, e antes de abrir a transacao.
-  const custosMLLidos = await custosMLDaEstimativa(n, cliente ?? (n.origem === "MERCADO_LIVRE" ? clienteML() : null));
 
   return transacao(async (tx) => {
     const chave = { origem_idExterno: { origem: n.origem, idExterno: String(n.idExterno) } };
@@ -267,7 +250,6 @@ export async function aplicarPedidoLido(normalizado, { cliente = null, taxas = n
     const pedido = await tx.pedidoDeVenda.findUnique({ where: { id: gravado.id }, include: { itens: { orderBy: { ordem: "asc" } } } });
     const resultado = await recalcular(tx, pedido, {
       normalizado: n,
-      custosMLLidos,
       taxas: taxas ?? (await taxasDoCanal(tx, n.origem)),
       agora,
       avisosDosItens: avisos,
@@ -777,4 +759,94 @@ function jsonEstavel(valor) {
   if (Array.isArray(valor)) return `[${valor.map(jsonEstavel).join(",")}]`;
   if (valor && typeof valor === "object") return `{${Object.keys(valor).sort().map((chave) => `${JSON.stringify(chave)}:${jsonEstavel(valor[chave])}`).join(",")}}`;
   return JSON.stringify(valor ?? null);
+}
+
+// ---- A conta do editor como estimativa (Tarefa 8) e o aceite da divergencia (Tarefa 7), 09/11/2026 ----
+
+/** Os avisos que o "Aceitar divergencia" apaga (os de lucro); os outros pedem correcao, nao aceite. */
+export const AVISOS_DE_DIVERGENCIA = ["lucroDivergente", "lucroDiferenteDoMercadoPago"];
+
+/**
+ * A conta do editor de cada item do pedido, pelo PRODUTO e pelo TAMANHO DO KIT (Opcao 1 do dono: a venda do 910207_20 usa a
+ * conta do "Kit de 20" do 910207, venha de que anuncio vier): a ultima guardada ate a data da venda; sem nenhuma antes, a
+ * primeira depois (a venda antiga ganha a conta de quando o produto foi publicado). Um item sem produto ou sem conta: null.
+ */
+async function contasDosItens(tx, itens, dataDaVenda) {
+  const linhas = Array.isArray(itens) ? itens : [];
+  if (linhas.length === 0) return null;
+  const contas = [];
+  for (const item of linhas) {
+    if (!item?.produtoId) return null;
+    const chave = { produtoId: item.produtoId, unidadesDoKit: Math.max(1, Number(item.quantidadeDoKit) || 1) };
+    const antes = await tx.contaDoEditorML.findFirst({ where: { ...chave, criadoEm: { lte: new Date(dataDaVenda) } }, orderBy: { criadoEm: "desc" } });
+    const conta = antes ?? (await tx.contaDoEditorML.findFirst({ where: chave, orderBy: { criadoEm: "asc" } }));
+    if (!conta) return null;
+    contas.push(conta);
+  }
+  return contas;
+}
+
+/** A estimativa do pedido do ML pela conta do editor; sem conta, a vazia (origem nula, "—" na tela). */
+async function estimativaPelaContaDoEditor(tx, itens, dataDaVenda, agora = new Date()) {
+  const calculadoEm = new Date(agora).toISOString();
+  const contas = await contasDosItens(tx, itens, dataDaVenda);
+  const calculada = contas ? estimativaPelasContas({ itens, contas, calculadoEm }) : null;
+  return calculada ?? { receita: 0, comissao: 0, tarifaFixa: 0, frete: 0, imposto: 0, custo: null, lucro: null, calculadoEm, origem: null };
+}
+
+/**
+ * Depois de guardar uma conta do editor (Publicar, Reaproveitar, envio de preco): as vendas do ML desse produto e desse
+ * tamanho de kit que ainda nao tem a estimativa pela conta ganham a estimativa agora, sem esperar a releitura (pedido do dono
+ * em 09/11/2026: "se eu publicar aquele produto a venda deve preencher o campo de estimativa"). A que ja tem nao muda. Refaz
+ * so o aviso de divergencia do estimado, com o aceite. Devolve quantas preencheu.
+ */
+export async function preencherEstimativasDoProduto(produtoId, unidadesDoKit = 1, { agora = new Date() } = {}) {
+  if (!produtoId) return { preenchidos: 0 };
+  const candidatos = await prisma.pedidoDeVenda.findMany({
+    where: { origem: "MERCADO_LIVRE", status: { not: "CANCELADO" }, itens: { some: { produtoId, quantidadeDoKit: Math.max(1, Number(unidadesDoKit) || 1) } } },
+    select: { id: true, estimativa: true },
+    take: 500,
+  });
+  let preenchidos = 0;
+  // Filtro em JS: o NOT sobre a chave do JSON nao casa com a estimativa nula (ver "NOT sobre chave ausente" no CLAUDE.md).
+  for (const { id } of candidatos.filter((p) => p.estimativa?.origem !== "contaDoEditor")) {
+    const mudou = await transacao(async (tx) => {
+      const pedido = await tx.pedidoDeVenda.findUnique({ where: { id }, include: { itens: { orderBy: { ordem: "asc" } } } });
+      if (!pedido || pedido.estimativa?.origem === "contaDoEditor") return false;
+      const estimativa = await estimativaPelaContaDoEditor(tx, pedido.itens, pedido.dataDaVenda, agora);
+      if (!estimativa.origem) return false;
+      const avisos = new Set((pedido.avisos ?? []).filter((chave) => chave !== "lucroDivergente" && chave !== "semEstimativa"));
+      if (pedido.status !== "DEVOLVIDO" && lucroDivergente(estimativa.lucro, pedido.real?.lucro)) avisos.add("lucroDivergente");
+      const liquidoMP = pedido.mercadoPago?.conferencia?.liquidoMP ?? null;
+      if (divergenciaAceitaVale(pedido.divergenciaAceita, { lucroEstimado: estimativa.lucro, lucroReal: pedido.real?.lucro, liquidoMP })) {
+        for (const chave of AVISOS_DE_DIVERGENCIA) avisos.delete(chave);
+      }
+      await tx.pedidoDeVenda.update({ where: { id }, data: { estimativa, lucroEstimado: estimativa.lucro ?? null, avisos: [...avisos] } });
+      return true;
+    });
+    if (mudou) preenchidos += 1;
+  }
+  return { preenchidos };
+}
+
+/**
+ * "Aceitar divergencia" (Tarefa 7, 09/11/2026, com o codigo do Conferido na tela): guarda quem, quando e os valores do
+ * momento, e apaga os avisos de divergencia do lucro. A releitura so os acende de novo se um dos valores mudar.
+ */
+export async function aceitarDivergenciaDoLucro(id, quem, { agora = new Date() } = {}) {
+  const pedido = await prisma.pedidoDeVenda.findUnique({ where: { id }, select: { avisos: true, lucroEstimado: true, lucroReal: true, mercadoPago: true } });
+  if (!pedido) return { ok: false, erro: "Pedido não encontrado." };
+  if (!(pedido.avisos ?? []).some((chave) => AVISOS_DE_DIVERGENCIA.includes(chave))) return { ok: false, erro: "Este pedido não tem divergência de lucro." };
+  const aceite = {
+    em: new Date(agora).toISOString(),
+    por: quem ?? null,
+    lucroEstimado: numero(pedido.lucroEstimado),
+    lucroReal: numero(pedido.lucroReal),
+    liquidoMP: pedido.mercadoPago?.conferencia?.liquidoMP ?? null,
+  };
+  await prisma.pedidoDeVenda.update({
+    where: { id },
+    data: { divergenciaAceita: aceite, avisos: pedido.avisos.filter((chave) => !AVISOS_DE_DIVERGENCIA.includes(chave)) },
+  });
+  return { ok: true };
 }

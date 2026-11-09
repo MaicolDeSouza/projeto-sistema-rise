@@ -17,6 +17,7 @@ import { lerCategoriaCompleta, textoDoErroML } from "./leitura";
 import { nomeDaFoto, montarPayloadML } from "./payload";
 import { causasDoML, corpoDaCriacao, situacaoDoItem, textoDaRecusaML } from "./respostas";
 import { validarRascunhoML } from "./validacao";
+import { guardarContaDoEditorSemFalhar } from "@/lib/canaisDeVenda/ml/contaDoEditor";
 
 /**
  * O Publicar do anuncio do Mercado Livre (fase 3, plano de 08/10/2026). Recebe `{ ml, bling }` por
@@ -201,6 +202,8 @@ export async function publicarAnuncioML(anuncioId, { ml, bling, recriar = false,
   // A etapa que estava andando leva o motivo (a pre-checagem, as travas ou a etapa que falhou).
   if (!resultado.ok) progresso.falhou(resultado.erro);
   progresso.fim();
+  // A conta do editor (09/11/2026): o que foi planejado na publicacao vira a estimativa dos pedidos. Nunca derruba o Publicar.
+  if (resultado.ok && !ate) await guardarContaDoEditorSemFalhar(anuncioId, { ml, motivo: "publicar" });
   return resultado;
 }
 

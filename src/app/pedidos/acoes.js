@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { negarSemAcesso, sessaoDeAcessos } from "@/lib/acessos/servidor";
 import { projetarClientesDaBusca } from "@/lib/pedidos/projecao";
 import {
+  aceitarDivergenciaDoLucro,
   buscarClientesParaVincular,
   criarClienteDoPedido,
   marcarEmSeparacao,
@@ -73,4 +74,17 @@ export async function buscarClientesAcao(texto) {
     const { pode } = await sessaoDeAcessos();
     return { ok: true, clientes: projetarClientesDaBusca(await buscarClientesParaVincular(String(texto ?? "").slice(0, 80)), pode) };
   });
+}
+
+/**
+ * "Aceitar divergência" do lucro (pedido do dono em 09/11/2026): o codigo do Conferido e pedido na tela; aqui vale o acesso
+ * da acao. Guarda quem aceitou (o login, ou "pc" no PC sem login) e os valores do momento.
+ */
+export async function aceitarDivergenciaAcao(id) {
+  const negado = await negarSemAcesso("acao.pedidos.aceitarDivergencia", "executar");
+  if (negado) return negado;
+  if (!ehId(id)) return INVALIDO;
+  const sessao = await sessaoDeAcessos();
+  const quem = sessao?.login ? String(sessao.login) : sessao?.ambiente === "pc" ? "pc" : null;
+  return protegendo(async () => revalidar(id, await aceitarDivergenciaDoLucro(id, quem)));
 }

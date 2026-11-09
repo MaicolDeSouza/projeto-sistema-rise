@@ -24,7 +24,9 @@ export async function generateMetadata({ params }) {
  * Um pedido de venda (spec 5.10). Nesta tela o operador ve primeiro o status, o cliente e os avisos do pedido; a acao
  * principal e marcar em separacao. O que ele pode fazer vem de Acessos (`acao.pedidos.*`), e o lucro so com `dado.custo`.
  */
-export default async function PedidoDeVendaPage({ params }) {
+export default async function PedidoDeVendaPage({ params, searchParams }) {
+  // A aba de abertura (09/11/2026): o nome do cliente na lista de Vendas abre "geral", o do produto abre "itens".
+  const abaInicial = (await searchParams)?.aba;
   const acesso = await exigirAcessoNaPagina("tela.pedidos", "ver");
   const { id } = await params;
   // Dado pessoal e custo saem no servidor para quem nao os ve (o que vai ao componente de cliente chega ao navegador).
@@ -35,6 +37,7 @@ export default async function PedidoDeVendaPage({ params }) {
     marcarSeparacao: acesso.pode("acao.pedidos.marcarSeparacao", "executar"),
     editarCustoDoFrete: acesso.pode("acao.pedidos.editarCustoDoFrete", "executar"),
     vincularCliente: acesso.pode("acao.pedidos.vincularCliente", "executar"),
+    aceitarDivergencia: acesso.pode("acao.pedidos.aceitarDivergencia", "executar"),
     baixarNF: acesso.pode("acao.pedidos.baixarNF", "executar"),
   };
 
@@ -60,7 +63,7 @@ export default async function PedidoDeVendaPage({ params }) {
           </span>
         }
       />
-      <PedidoDeVenda pedido={pedido} veCusto={acesso.pode("dado.custo", "ver")} pode={pode} nfeLigada={Boolean(config.travas.nfe)} />
+      <PedidoDeVenda pedido={pedido} veCusto={acesso.pode("dado.custo", "ver")} pode={pode} nfeLigada={Boolean(config.travas.nfe)} abaInicial={typeof abaInicial === "string" ? abaInicial : null} />
     </>
   );
 }

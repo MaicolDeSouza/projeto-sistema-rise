@@ -2716,6 +2716,10 @@ model PedidoDeVenda {
   /// liberacao, liberado, estornado, pagamentos, lidoEm, conferencia: { estado: "bate"|"diverge"|"sem", liquidoMP,
   /// liquidoRise, diferenca, motivo } }. Relido ate o dinheiro ser liberado.
   mercadoPago        Json?
+  /// O aceite da divergencia do lucro (pedido do dono em 09/11/2026, botao "Aceitar divergencia" com o codigo do Conferido):
+  /// { em, por, lucroEstimado, lucroReal, liquidoMP }. Enquanto os tres valores forem os do aceite, os avisos de divergencia
+  /// ficam apagados; mudou um deles (estorno, ajuste de frete), o "!" volta.
+  divergenciaAceita  Json?
   lucroEstimado      Decimal? @db.Decimal(12, 2)
   lucroReal          Decimal? @db.Decimal(12, 2)
   /// Fechado quando ENTREGUE/FINALIZADO com todas as parcelas reais; a devolucao do ML reabre.
@@ -2804,4 +2808,28 @@ model NotificacaoDePedido {
 
   @@index([processadaEm])
   @@index([origem, recurso])
+}
+
+/// A conta do editor do ML guardada no Publicar, no Reaproveitar e em cada envio de preco pelo Rise (pedido do dono em
+/// 09/11/2026: "quero saber se fizemos o calculo do custo errado comparando com o que recebemos"). A estimativa do pedido e
+/// esta conta (a ultima antes da venda; venda sem conta ganha a primeira quando o produto e publicado), ligada pelo produto
+/// e pelo tamanho do kit. Sem chave estrangeira: apagar o anuncio nao apaga o que foi planejado.
+model ContaDoEditorML {
+  id            String   @id @default(cuid())
+  anuncioId     String
+  /// O produto do anuncio (no kit do ML, o produto base) e as unidades por kit vendido (1 fora do kit).
+  produtoId     String
+  unidadesDoKit Int      @default(1)
+  /// "publicar" | "preco" | "reaproveitar"
+  motivo        String
+  preco         Decimal  @db.Decimal(12, 2)
+  /// Comissao em fracao (0,13 = 13%), tarifa fixa e frete do vendedor, como o editor le do ML.
+  percentual    Decimal  @db.Decimal(8, 6)
+  tarifaFixa    Decimal  @db.Decimal(12, 2)
+  frete         Decimal  @db.Decimal(12, 2)
+  /// O custo de um kit vendido no dia (o do produto ou a soma das pecas); nulo quando falta custo.
+  custoDoKit    Decimal? @db.Decimal(12, 4)
+  criadoEm      DateTime @default(now())
+
+  @@index([produtoId, unidadesDoKit, criadoEm])
 }

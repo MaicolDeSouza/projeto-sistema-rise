@@ -6,10 +6,12 @@ import { Loader, X } from "lucide-react";
 
 import { alternarConferido } from "@/app/produtos/acoes";
 import MarcaNaoAnunciar from "./MarcaNaoAnunciar";
+import { CODIGO_DE_CONFERENCIA } from "@/lib/codigoDeConferencia";
 
 // Provisorio, a pedido do dono: o codigo real vem depois. Fica no cliente de
 // proposito, e so um controle interno de conferencia, nao uma protecao.
-const CODIGO_PROVISORIO = "123";
+// O codigo mora em lib/codigoDeConferencia.js desde 09/11/2026 (o "Aceitar divergencia" do pedido usa o mesmo).
+const CODIGO_PROVISORIO = CODIGO_DE_CONFERENCIA;
 
 // Nomes das secoes da proposta automatica na pergunta do Conferido (os mesmos do quadro "Proposta" do cadastro).
 const NOMES_DAS_SECOES = {

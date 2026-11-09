@@ -5760,6 +5760,26 @@ Spec `docs/superpowers/specs/2026-11-04-modulo-pedidos-de-venda-design.md`, plan
   (`porKit` em `lucro.js`, marca `porKit: true`) e a estimativa de kit sem a marca é refeita na próxima leitura (`estimativaValida`).
   A coluna Qtd. de Vendas e a aba Itens mostram kits (as unidades na dica e embaixo), e o **código mostrado é o vendido** (`codigoVendido`, `lib/pedidos/codigo.js`: no kit, o do anúncio, 910207_20, com o produto base na dica da aba Itens; o filtro da coluna Código segue a mesma regra; o dono viu o 2000019308589680 com 910207). Testes no `teste:pedidos`.
 
+**Lista de Vendas e pedido, 8 tarefas do dono (09/11/2026, todas com a escolha dele):** (1) o kit mostra só "1x", sem o "N un."
+embaixo, na lista e na aba Itens ("Kit de N unidades" no `title`); (2) código e localização viraram uma linha embaixo do nome do
+produto, e as colunas Código e Local saíram COM os filtros delas (a busca do topo acha por código; o servidor ainda aceita
+`?codigo=`/`?local=` de link antigo); (3) coluna Cliente logo depois da foto (o cadastrado, senão o comprador; fora da aba Pedidos
+do cadastro do cliente, `ordenavel={false}`); (4) Data com a data em cima e a hora embaixo (`hora` em `formato.js`); (5) o lucro sem
+"~" e sempre o REAL (o estimado só sem real), com o "!" ao lado na divergência; (6) o nome do cliente abre o pedido em
+`?aba=geral` e o do produto em `?aba=itens` (a página passa `abaInicial` ao `PedidoDeVenda`); (7) o "!" ao lado do nome da aba
+de cada aviso (`ABA_DO_AVISO` em `textos.js`: Dados do cliente, Itens, Lucro, Nota fiscal) e, na aba Lucro, o botão "Aceitar
+divergência" (`AceitarDivergencia.jsx`, o mesmo código do Conferido, agora em `lib/codigoDeConferencia.js`; acesso novo
+`acao.pedidos.aceitarDivergencia`): `aceitarDivergenciaDoLucro` grava `PedidoDeVenda.divergenciaAceita` (quem, quando, lucro
+estimado, real e líquido do Mercado Pago) e apaga `lucroDivergente`/`lucroDiferenteDoMercadoPago`; o recálculo só os acende de novo
+se um dos três valores mudar (`divergenciaAceitaVale`); (8) **a estimativa do ML é a CONTA DO EDITOR guardada**
+(`ContaDoEditorML`, migration `20261109c_conta_do_editor_ml`; `guardarContaDoEditor` em `canaisDeVenda/ml/contaDoEditor.js`, no fim
+do Publicar, no Reaproveitar e no "Enviar mudanças" que mandou o preço): preço, comissão, tarifa fixa e frete lidos como o editor lê
+e o custo de um kit. O pedido usa a última conta antes da venda, ligada pelo PRODUTO e pelo TAMANHO DO KIT (Opção 1 do dono); sem
+nenhuma antes, a primeira depois. Achada, congela. Venda sem conta fica com "—" e SEM aviso (o `semEstimativa` não é mais gerado),
+e ganha a estimativa quando o produto é publicado (`preencherEstimativasDoProduto`, chamada depois de guardar a conta). A taxa do
+anúncio relida no dia da venda (`custosMLDaEstimativa`) saiu. LI e Bling seguem com o "Lucro na loja". Testes no `teste:pedidos`;
+o `teste:anuncios-ml` grava contas pelos três caminhos e as apaga no fim.
+
 **Tela "Vendas" (07/11/2026, pedido do dono):** o bloco e a lista se chamam **Vendas** (menu, título, acesso; a rota segue
 `/pedidos` e o recurso `tela.pedidos`). Período padrão de **1 mês com as duas pontas preenchidas** (`umMesAntes`; o "até" ficava em
 branco) e os atalhos **Hoje** e **7 dias** ao lado do calendário (o ativo marcado; clicar de novo volta ao mês). A coluna

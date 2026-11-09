@@ -8,7 +8,7 @@ import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import CabecalhoOrdenavel, { parametrosDaOrdenacao } from "@/components/ui/CabecalhoOrdenavel";
 import FotoComLupa from "@/components/ui/FotoComLupa";
 
-import { abreviarPagamento, abrirNoCanal, dataCompleta, diaEHora, linhasDoMercadoPago, linkNoBling, linkNoCanal, moedaComSinal, moeda } from "./formato";
+import { abreviarPagamento, abrirNoCanal, dataCompleta, diaMes, hora, linhasDoMercadoPago, linkNoBling, linkNoCanal, moedaComSinal, moeda } from "./formato";
 import CopiarCodigo from "./CopiarCodigo";
 import FiltroDaColuna from "./FiltroDaColuna";
 import IconeDoCanalDoPedido from "./IconeDoCanalDoPedido";
@@ -32,23 +32,25 @@ function CelulaDoLucro({ linha }) {
   // Venda cancelada nao tem lucro; a devolvida ja tem o real (so o frete de retorno, como prejuizo), e o estimado
   // mostraria um lucro que nao existe mais.
   if (linha.status === "CANCELADO") return <span className="text-suave" title="Venda cancelada">—</span>;
-  // Conferido no Mercado Pago (pedido do dono em 09/11/2026): o que foi creditado bate com a conta do Rise, entao o lucro
-  // real vale sem o "~", mesmo antes de entregar. Divergiu: fica com o "~" e o "!" acende.
+  // Sem "~" e sempre o lucro REAL (pedido do dono em 09/11/2026, Opcao 1): a comissao e o frete que o ML informou; o estimado
+  // so quando o real ainda nao existe (item sem custo). Divergencia (do estimado ou do Mercado Pago): o "!" ao lado.
   const mp = linha.mercadoPago ?? null;
   const conferido = mp?.estado === "bate" && linha.lucroReal !== null && linha.status !== "DEVOLVIDO";
-  const fechado = conferido || ((linha.lucroFechado || linha.status === "DEVOLVIDO") && linha.lucroReal !== null);
-  const valor = fechado ? linha.lucroReal : (linha.lucroEstimado ?? linha.lucroReal);
+  const temReal = linha.lucroReal !== null && linha.lucroReal !== undefined;
+  const valor = temReal ? linha.lucroReal : linha.lucroEstimado;
   const divergente = linha.avisos?.includes("lucroDivergente") || linha.avisos?.includes("lucroDiferenteDoMercadoPago");
   if (valor === null || valor === undefined) return <span className="text-suave">—</span>;
   const negativo = valor < 0;
   const titulo =
     linha.status === "DEVOLVIDO"
       ? "Devolvido: a venda saiu do balanço e o frete de retorno fica como prejuízo"
-      : conferido
-        ? "Lucro real"
-        : fechado
-          ? "Lucro real (fechado)"
-          : `Lucro estimado${linha.lucroReal !== null ? `; real até agora: ${moeda.format(linha.lucroReal)}` : ""}`;
+      : !temReal
+        ? "Lucro estimado (o real ainda não saiu: item sem custo)"
+        : conferido
+          ? "Lucro real"
+          : linha.lucroFechado
+            ? "Lucro real (fechado)"
+            : `Lucro real até agora${linha.lucroEstimado !== null && linha.lucroEstimado !== undefined ? `; estimado: ${moeda.format(linha.lucroEstimado)}` : ""}`;
   // A explicacao abre ao passar o mouse ou clicar no lucro (BolhaDeAjuda com o valor como gatilho), nunca fixa na tela.
   const dica = [titulo, linha.avisos?.includes("lucroDivergente") ? "O real está diferente do estimado." : null, ...linhasDoMercadoPago(mp)].filter(Boolean);
   const cor = negativo ? "text-red-600" : valor > 0 ? "text-emerald-700" : "text-suave";
@@ -67,9 +69,8 @@ function CelulaDoLucro({ linha }) {
             !
           </span>
         )}
-        {/* Verde quando deu lucro, vermelho quando deu prejuizo (pedido do dono em 04/11/2026); o "~" marca o estimado. */}
+        {/* Verde quando deu lucro, vermelho quando deu prejuizo (pedido do dono em 04/11/2026); sem "~" desde 09/11/2026. */}
         <span className={`font-medium ${cor}`}>
-          {fechado ? "" : "~"}
           {moedaComSinal(valor)}
         </span>
       </span>
@@ -94,7 +95,8 @@ const abreviarPedido = (numero) => {
  * A lista de Vendas, na ordem do dono (04/11/2026): Foto, Qtd. ("2x"), Descrição, Código, Local, Total, Lucro, Status,
  * Data, Pedido (abreviado; abre o pedido no canal, e o "Bling N" no Bling) e Canal. Desde 08/11/2026 (pedido do dono,
  * Opcao 1) a coluna Status mostra UM status, o pedido e o envio juntos (`situacaoDoPedido`), com o prazo de envio embaixo
- * quando ha; o status do canal, o servico e o rastreio ficam na dica. Codigo, Local e Status filtram por um menu de marcar
+ * quando ha; o status do canal, o servico e o rastreio ficam na dica. So o Status filtra por um menu de marcar (Codigo e Local
+ * viraram uma linha embaixo do nome, sem filtro, em 09/11/2026; Cliente entrou depois da foto)
  * (`FiltroDaColuna`). Linha-guia: o operador ve primeiro os pedidos que pedem acao (fundo ambar); a linha abre o pedido no Rise. Um
  * pedido com varios itens mostra o 1o e "e mais N". Ordenam: data, total, lucro e pedido (no banco, antes de paginar).
  *
@@ -130,6 +132,9 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
     );
   const fixo = (rotulo, className = "") => <th className={`px-2 py-2.5 font-medium ${className}`}>{rotulo}</th>;
   const filtravel = ordenavel && opcoes && filtros;
+  // A coluna Cliente (09/11/2026) so na lista de Vendas: na aba Pedidos do cadastro do cliente (`ordenavel={false}`) todos
+  // os pedidos sao do mesmo cliente.
+  const comCliente = ordenavel;
   const comoOpcoes = (valores, textos = null, cores = null) => valores.map((valor) => ({ valor, texto: textos?.[valor] ?? valor, cor: cores?.[valor] }));
   // A opcao marcada que saiu da lista (outro filtro a escondeu) continua no menu, para poder desmarcar.
   const comAtuais = (valores, atuais) => [...valores, ...atuais.filter((valor) => !valores.includes(valor))];
@@ -141,21 +146,21 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
           o mouse. */}
       {/* Largura minima: as colunas fixas somam ~56rem, e numa tela estreita a Descricao sumia (ficava com 0). Abaixo disso a
           tabela rola de lado e a Descricao guarda ~10rem. */}
-      <table className="w-full min-w-[66rem] table-fixed text-sm">
+      <table className="w-full min-w-[64rem] table-fixed text-sm">
         <colgroup>
           <col style={{ width: "3.25rem" }} />
+          {/* Cliente logo depois da foto (pedido do dono em 09/11/2026); fora da aba Pedidos do proprio cliente. */}
+          {comCliente && <col style={{ width: "9rem" }} />}
           <col style={{ width: "2.75rem" }} />
+          {/* Codigo e localizacao moram embaixo do nome desde 09/11/2026 (pedido do dono: "seriam 02 colunas a menos"). */}
           <col />
-          {/* Codigo e Local com folga para o rotulo e o funil do filtro (07/11/2026). */}
-          <col style={{ width: "6.25rem" }} />
-          <col style={{ width: "4.5rem" }} />
           {/* Total com 8rem: cabe ate "R$ 1.234,56 c/ frete" (05/11/2026); o que passar corta e abre ao passar o mouse. */}
           <col style={{ width: "8rem" }} />
           {veLucro && <col style={{ width: "5.75rem" }} />}
           {/* Status unico com o prazo embaixo (08/11/2026): cabe "Aguardando pagamento" e "Atrasado: era sex 07/11 até 16:30". */}
           <col style={{ width: "10.25rem" }} />
-          {/* Data inteira ("07/11 06:41"); com 6rem cortava a hora. */}
-          <col style={{ width: "6.5rem" }} />
+          {/* Data em cima e hora embaixo (09/11/2026). */}
+          <col style={{ width: "4.5rem" }} />
           <col style={{ width: "5.75rem" }} />
           <col style={{ width: "3.25rem" }} />
         </colgroup>
@@ -163,28 +168,9 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
           {/* Divisoria entre as colunas (pedido do dono em 04/11/2026: pareciam todas juntas). */}
           <tr className="divide-x divide-borda">
             {fixo(<span className="sr-only">Foto</span>, "w-px")}
+            {comCliente && fixo("Cliente")}
             {fixo("Qtd.", "w-px whitespace-nowrap text-right")}
             {fixo("Descrição")}
-            {filtravel ? (
-              <FiltroDaColuna
-                rotulo="Código"
-                className="whitespace-nowrap"
-                grupos={[{ parametro: "codigo", opcoes: comoOpcoes(comAtuais(opcoes.codigos ?? [], filtros.codigos)), atuais: filtros.codigos }]}
-                aoMudar={filtrar}
-              />
-            ) : (
-              fixo("Código", "w-px whitespace-nowrap")
-            )}
-            {filtravel ? (
-              <FiltroDaColuna
-                rotulo="Local"
-                className="whitespace-nowrap"
-                grupos={[{ parametro: "local", opcoes: comoOpcoes(comAtuais(opcoes.locais ?? [], filtros.locais)), atuais: filtros.locais }]}
-                aoMudar={filtrar}
-              />
-            ) : (
-              fixo(<span title="Localização no estoque">Local</span>, "w-px whitespace-nowrap")
-            )}
             {cabecalho("total", "Total", "w-px whitespace-nowrap")}
             {veLucro && cabecalho("lucro", "Lucro", "w-px whitespace-nowrap")}
             {filtravel ? (
@@ -237,34 +223,52 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
                     </span>
                   )}
                 </td>
+                {/* O cliente abre o pedido na aba Dados do cliente (pedido do dono em 09/11/2026). */}
+                {comCliente && (
+                  <td className="max-w-0 px-2 py-2">
+                    <Link
+                      href={`${href}?aba=geral`}
+                      title="Abrir o pedido na aba Dados do cliente"
+                      className="block truncate hover:text-acento hover:underline focus-visible:outline-2 focus-visible:outline-acento"
+                    >
+                      {linha.cliente?.nome ?? linha.nomeDoComprador ?? "—"}
+                    </Link>
+                  </td>
+                )}
+                {/* "1x" e o kit vendido; as unidades do kit ficam so na dica (pedido do dono em 09/11/2026: o "20 un." embaixo
+                    deixava confuso). */}
                 <td
                   className="whitespace-nowrap px-2 py-2 text-right font-medium tabular-nums"
                   title={linha.item?.unidadesPorKit > 1 ? `Kit de ${linha.item.unidadesPorKit} unidades` : undefined}
                 >
                   {linha.item?.quantidade ? `${linha.item.quantidade}x` : "—"}
-                  {/* As PECAS escritas embaixo no kit (pedido do dono em 09/11/2026: "10x" ao lado de "10x Conector" parecia 100
-                      unidades). "1x" e o kit vendido; "10 un." e o que sai do estoque e o que se separa. */}
-                  {linha.item?.unidadesPorKit > 1 && <span className="block text-xs font-normal text-suave">{linha.item.unidades} un.</span>}
                 </td>
                 <td className="max-w-0 px-2 py-2">
-                  {/* So o nome abre o pedido (pedido do dono em 09/11/2026): clicar no codigo, no local ou na linha nao navega,
-                      para dar para selecionar e copiar sem abrir a tela. */}
-                  <Link href={href} title="Abrir o pedido no Rise" className="block truncate hover:text-acento hover:underline focus-visible:outline-2 focus-visible:outline-acento">
+                  {/* So o nome abre o pedido, na aba Itens (pedido do dono em 09/11/2026); clicar no codigo ou na linha nao
+                      navega, para dar para selecionar e copiar. Codigo e localizacao embaixo do nome (duas colunas a menos). */}
+                  <Link
+                    href={`${href}?aba=itens`}
+                    title="Abrir o pedido na aba Itens"
+                    className="block truncate hover:text-acento hover:underline focus-visible:outline-2 focus-visible:outline-acento"
+                  >
                     {linha.item?.titulo ?? "—"}
                   </Link>
-                  {linha.quantidadeDeItens > 1 && <span className="block text-xs text-suave">e mais {linha.quantidadeDeItens - 1}</span>}
+                  <span className="flex min-w-0 items-center gap-1 text-xs text-suave">
+                    {linha.item?.sku ? (
+                      <>
+                        <span className="select-text font-mono">{linha.item.sku}</span>
+                        <CopiarCodigo codigo={linha.item.sku} />
+                      </>
+                    ) : null}
+                    {linha.item?.localizacao && (
+                      <span className="truncate" title="Localização no estoque">
+                        {linha.item?.sku ? "· " : ""}
+                        <span className="font-mono">{linha.item.localizacao}</span>
+                      </span>
+                    )}
+                    {linha.quantidadeDeItens > 1 && <span className="whitespace-nowrap">· e mais {linha.quantidadeDeItens - 1}</span>}
+                  </span>
                 </td>
-                <td className="whitespace-nowrap px-2 py-2 font-mono text-xs">
-                  {linha.item?.sku ? (
-                    <>
-                      <span className="select-text">{linha.item.sku}</span>
-                      <CopiarCodigo codigo={linha.item.sku} />
-                    </>
-                  ) : (
-                    <span className="font-sans text-suave">—</span>
-                  )}
-                </td>
-                <td className="truncate px-2 py-2 font-mono text-xs">{linha.item?.localizacao ?? ""}</td>
                 {/* Em cima o valor do anuncio (os produtos); embaixo, so quando o cliente pagou frete, o total com o frete
                     (pedido do dono em 04/11/2026). A forma de pagamento fica na dica (tem aba propria no pedido). */}
                 <td className="whitespace-nowrap px-2 py-2 text-left tabular-nums" title={pagamento ? `Pagamento: ${pagamento}` : undefined}>
@@ -295,8 +299,10 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
                     );
                   })()}
                 </td>
-                <td className="truncate px-2 py-2 tabular-nums text-suave" title={dataCompleta(linha.dataDaVenda)}>
-                  {diaEHora(linha.dataDaVenda)}
+                {/* Data em cima e hora embaixo (pedido do dono em 09/11/2026). */}
+                <td className="whitespace-nowrap px-2 py-2 tabular-nums" title={dataCompleta(linha.dataDaVenda)}>
+                  <span className="block">{diaMes(linha.dataDaVenda) || "—"}</span>
+                  <span className="block text-xs text-suave">{hora(linha.dataDaVenda)}</span>
                 </td>
                 <td className="truncate px-2 py-2 text-left font-mono text-xs font-semibold">
                   {noCanal ? (

@@ -13,6 +13,7 @@ import { contextoDosProdutos } from "./banco";
 import { etapasDoAnuncio } from "./etapas";
 import { rascunhoInicial } from "./rascunho";
 import { textoDaRecusaML } from "./respostas";
+import { guardarContaDoEditorSemFalhar } from "@/lib/canaisDeVenda/ml/contaDoEditor";
 
 const CANAL = "MERCADO_LIVRE";
 
@@ -181,5 +182,7 @@ export async function reaproveitarAnuncioML(produtoId, itemId, { ml }) {
     },
     select: { id: true },
   });
+  // O anuncio reaproveitado entra com a conta do editor do preco de hoje (09/11/2026): as vendas desse produto ganham estimativa.
+  await guardarContaDoEditorSemFalhar(criado.id, { ml, motivo: "reaproveitar" });
   return { ok: true, anuncioId: criado.id };
 }

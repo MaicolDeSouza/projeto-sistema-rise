@@ -65,6 +65,8 @@ function conferir(nome, obtido, esperado) {
 
 // O banco e o de verdade (compartilhado), entao so se apaga o que o teste criou.
 async function limpar() {
+  // As contas do editor que o Publicar, o Reaproveitar e o envio de preco gravam (09/11/2026; sem chave estrangeira).
+  await prisma.contaDoEditorML.deleteMany({ where: { produtoId: { in: (await prisma.produto.findMany({ where: { sku: { startsWith: "ZZ-ML-" } }, select: { id: true } })).map((p) => p.id) } } });
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-ML-" } } });
 }
 

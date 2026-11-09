@@ -229,3 +229,73 @@ export function lucroFechado({ status, real }) {
   if (status !== "ENTREGUE" && status !== "FINALIZADO") return false;
   return !Object.values(real?.fontes ?? {}).some((fonte) => fonte === "estimado");
 }
+
+/**
+ * A estimativa do pedido do ML pela CONTA DO EDITOR guardada (pedido do dono em 09/11/2026, Opcao 2: "quero saber se fizemos
+ * o calculo do custo errado comparando com o que recebemos"). `contas[i]` e a conta do item i (`ContaDoEditorML`: preco,
+ * percentual, tarifaFixa, frete e o custo de um kit), e cada linha conta por KIT vendido. Uma linha sem conta deixa o pedido
+ * sem estimativa (null): metade da conta pareceria lucro planejado.
+ */
+export function estimativaPelasContas({ itens, contas, calculadoEm = new Date() }) {
+  const linhas = lista(itens);
+  if (linhas.length === 0 || !Array.isArray(contas) || contas.length !== linhas.length || contas.some((conta) => !conta)) return null;
+  let receita = 0;
+  let comissao = 0;
+  let tarifaFixa = 0;
+  let frete = 0;
+  let imposto = 0;
+  let custo = 0;
+  let lucro = 0;
+  let semCusto = false;
+  for (const [indice, item] of linhas.entries()) {
+    const conta = contas[indice];
+    const { kits } = porKit(item);
+    const custoDoKit = numeroOuNulo(conta.custoDoKit);
+    const doKit = custosDoAnuncio({
+      preco: Number(conta.preco),
+      custo: custoDoKit,
+      percentual: Number(conta.percentual),
+      tarifaFixa: Number(conta.tarifaFixa),
+      frete: Number(conta.frete),
+    });
+    if (!doKit) return null;
+    receita += Number(conta.preco) * kits;
+    comissao += doKit.comissao * kits;
+    tarifaFixa += doKit.tarifaFixa * kits;
+    frete += doKit.frete * kits;
+    imposto += doKit.imposto * kits;
+    if (doKit.lucro === null || custoDoKit === null) semCusto = true;
+    else {
+      custo += custoDoKit * kits;
+      lucro += doKit.lucro * kits;
+    }
+  }
+  const datas = contas.map((conta) => new Date(conta.criadoEm).getTime()).filter(Number.isFinite);
+  return {
+    receita: dinheiro(receita),
+    comissao: dinheiro(comissao),
+    tarifaFixa: dinheiro(tarifaFixa),
+    frete: dinheiro(frete),
+    imposto: dinheiro(imposto),
+    custo: semCusto ? null : dinheiro(custo),
+    lucro: semCusto ? null : dinheiro(lucro),
+    calculadoEm,
+    origem: "contaDoEditor",
+    porKit: true,
+    contaEm: datas.length > 0 ? new Date(Math.max(...datas)).toISOString() : null,
+  };
+}
+
+/**
+ * O aceite da divergencia (Tarefa 7, 09/11/2026) ainda vale? Vale enquanto o lucro estimado, o real e o liquido do Mercado
+ * Pago forem os mesmos do momento do aceite (ao centavo); um deles mudou, e divergencia nova e o "!" volta.
+ */
+export function divergenciaAceitaVale(aceite, { lucroEstimado, lucroReal, liquidoMP }) {
+  if (!aceite) return false;
+  const igual = (a, b) => {
+    const x = numeroOuNulo(a);
+    const y = numeroOuNulo(b);
+    return x === null || y === null ? x === y : Math.round(x * 100) === Math.round(y * 100);
+  };
+  return igual(aceite.lucroEstimado, lucroEstimado) && igual(aceite.lucroReal, lucroReal) && igual(aceite.liquidoMP, liquidoMP);
+}

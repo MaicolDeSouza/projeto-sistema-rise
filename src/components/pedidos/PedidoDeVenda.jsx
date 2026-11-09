@@ -15,7 +15,7 @@ import AbaPagamento from "./AbaPagamento";
 import AbaPecas from "./AbaPecas";
 import JanelaVincularCliente from "./JanelaVincularCliente";
 import RodapeDoPedido from "./RodapeDoPedido";
-import { AVISOS_GRAVES, TEXTO_DO_AVISO } from "./textos";
+import { ABA_DO_AVISO, AVISOS_GRAVES, TEXTO_DO_AVISO } from "./textos";
 
 const semErro = () => false;
 
@@ -24,9 +24,11 @@ const semErro = () => false;
  * molde do cadastro de Cliente) e o rodape com a unica acao de estado. Peças so aparece com falta ou Aguardando peças;
  * Lucro so para quem ve custo.
  */
-export default function PedidoDeVenda({ pedido, veCusto, pode, nfeLigada }) {
+export default function PedidoDeVenda({ pedido, veCusto, pode, nfeLigada, abaInicial = null }) {
   const [vinculando, setVinculando] = useState(false);
   const mostrarPecas = pedido.status === "AGUARDANDO_PECAS" || Boolean(pedido.pecas?.falta);
+  // O "!" ao lado da aba onde mora cada aviso (pedido do dono em 09/11/2026); a faixa do topo continua dizendo qual e.
+  const abasComAviso = new Set((pedido.avisos ?? []).map((chave) => ABA_DO_AVISO[chave]).filter(Boolean));
   const abas = [
     { id: "geral", rotulo: "Dados do cliente" },
     { id: "itens", rotulo: `Itens (${pedido.itens.length})` },
@@ -37,8 +39,28 @@ export default function PedidoDeVenda({ pedido, veCusto, pode, nfeLigada }) {
     { id: "historico", rotulo: "Histórico" },
     // Lucro por ultimo (pedido do dono em 04/11/2026).
     veCusto && { id: "lucro", rotulo: "Lucro" },
-  ].filter(Boolean);
-  const [aba, setAba] = useState("geral");
+  ]
+    .filter(Boolean)
+    .map((item) =>
+      abasComAviso.has(item.id)
+        ? {
+            ...item,
+            rotulo: (
+              <>
+                {item.rotulo}
+                <span
+                  aria-label="Há aviso nesta aba"
+                  className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[9px] leading-none font-bold text-amber-950"
+                >
+                  !
+                </span>
+              </>
+            ),
+          }
+        : item,
+    );
+  // Abre na aba do link (`?aba=itens`), quando ela existe neste pedido; senao, Dados do cliente.
+  const [aba, setAba] = useState(() => (abas.some((item) => item.id === abaInicial) ? abaInicial : "geral"));
   const avisos = pedido.avisos ?? [];
 
   return (
@@ -83,7 +105,7 @@ export default function PedidoDeVenda({ pedido, veCusto, pode, nfeLigada }) {
         </Painel>
         {veCusto && (
           <Painel id="lucro" aba={aba}>
-            <AbaLucro pedido={pedido} />
+            <AbaLucro pedido={pedido} podeAceitar={Boolean(pode.aceitarDivergencia)} />
           </Painel>
         )}
         <Painel id="nf" aba={aba}>

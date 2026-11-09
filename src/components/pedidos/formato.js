@@ -101,3 +101,8 @@ export function linhasDoMercadoPago(mp) {
   if (mp.liberacao) linhas.push(mp.liberado ? `Dinheiro liberado em ${diaMes(mp.liberacao)}.` : `O dinheiro libera em ${diaMes(mp.liberacao)}.`);
   return linhas;
 }
+
+const HORA = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
+
+/** "07:07" no horario de Brasilia (a hora embaixo da data na lista de Vendas, 09/11/2026); "" sem data. */
+export const hora = (data) => (data ? HORA.format(new Date(data)) : "");

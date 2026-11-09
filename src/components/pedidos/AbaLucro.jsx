@@ -1,4 +1,5 @@
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
+import AceitarDivergencia from "./AceitarDivergencia";
 import { mercadoPagoParaTela } from "@/lib/pedidos/mercadoPago";
 
 import { diaMes, linhasDoMercadoPago, moeda, moedaComSinal, TEXTO_DA_FONTE } from "./formato";
@@ -31,7 +32,7 @@ function dataDaDevolucao(pedido) {
  * parcela, com a fonte de cada numero do real em cinza. Com divergencia, a parcela que mais pesou na diferenca fica em
  * ambar. Pedido devolvido no ML: a venda sai do balanco e so o frete de retorno fica, em vermelho, como prejuizo.
  */
-export default function AbaLucro({ pedido }) {
+export default function AbaLucro({ pedido, podeAceitar = false }) {
   // Sem estimativa de verdade (o anuncio do ML nao foi lido: `origem` nula), a coluna mostra "—", nunca R$ 0,00.
   const estimativa = pedido.estimativa?.origem ? pedido.estimativa : null;
   const real = pedido.real ?? null;
@@ -135,6 +136,12 @@ export default function AbaLucro({ pedido }) {
           </tbody>
         </table>
       </div>
+      {/* "Aceitar divergência" (09/11/2026): so com a divergencia do lucro acesa e o acesso da acao; pede o codigo do Conferido. */}
+      {podeAceitar && (pedido.avisos ?? []).some((chave) => chave === "lucroDivergente" || chave === "lucroDiferenteDoMercadoPago") && (
+        <div className="mt-4 flex max-w-2xl justify-end">
+          <AceitarDivergencia pedidoId={pedido.id} />
+        </div>
+      )}
     </div>
   );
 }

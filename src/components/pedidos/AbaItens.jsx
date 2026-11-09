@@ -95,10 +95,9 @@ export default function AbaItens({ pedido }) {
                   </span>
                 </span>
               </td>
-              {/* Em KITS vendidos (09/11/2026); as unidades do produto embaixo, quando e kit. */}
-              <td className="px-3 py-2.5 text-right tabular-nums">
+              {/* Em KITS vendidos (09/11/2026); as unidades do kit so na dica (o dono: o "20 un." embaixo deixava confuso). */}
+              <td className="px-3 py-2.5 text-right tabular-nums" title={item.quantidadeDoKit > 1 ? `Kit de ${item.quantidadeDoKit} unidades` : undefined}>
                 {item.quantidadeDoKit > 1 ? Math.round(item.quantidade / item.quantidadeDoKit) : item.quantidade}
-                {item.quantidadeDoKit > 1 && <span className="block text-xs text-suave">{item.quantidade} un.</span>}
               </td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">{moeda.format(item.precoUnitario ?? 0)}</td>
               <td className="whitespace-nowrap px-5 py-2.5 text-right tabular-nums">{moeda.format(item.total ?? 0)}</td>

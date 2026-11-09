@@ -10,6 +10,7 @@ import { nomeDaFoto, termosParaAtualizar } from "./payload";
 import { emAndamento, lerFotoDoDisco, tipoDaFoto } from "./publicar";
 import { textoDaRecusaML } from "./respostas";
 import { reutilizadoPendente } from "./rotulos";
+import { guardarContaDoEditorSemFalhar } from "@/lib/canaisDeVenda/ml/contaDoEditor";
 
 /**
  * "Enviar mudancas ao ML" (spec 2026-10-24): leva ao anuncio JA PUBLICADO o que mudou desde o ultimo envio: do produto,
@@ -71,6 +72,8 @@ async function enviarUmaVez(anuncioId, { ml, bling, moverBling, lerFoto, progres
   } else {
     const falha = await enviarPartes({ ml, lerFoto, progresso, anuncioId, itemId, codigo, rascunho, contexto, conteudo, atual, publicacao, partes, enviadas, avisos });
     if (falha) return falha;
+    // O preco mudou no ML: guarda a conta do editor nova (09/11/2026), a estimativa das vendas daqui para a frente.
+    if (partes.includes("preco")) await guardarContaDoEditorSemFalhar(anuncioId, { ml, motivo: "preco" });
   }
 
   // O reaproveitado da conta (dono, 09/11/2026): o envio que deu certo e o Publicar do editor, a revisao do dono; o selo

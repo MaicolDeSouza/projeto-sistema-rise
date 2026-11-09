@@ -22,7 +22,8 @@ export const TEXTO_DO_AVISO = {
   produtoForaDoRise: "Item que não está cadastrado no Rise.",
   produtoNaoConferido: "Item com produto não conferido.",
   semCusto: "Item sem custo: o lucro fica em aberto.",
-  semEstimativa: "Lucro estimado indisponível: o Rise não conseguiu ler as taxas do anúncio no Mercado Livre.",
+  // Nao e mais gerado desde 09/11/2026 (a estimativa do ML e a conta do editor guardada); fica para o pedido nao relido.
+  semEstimativa: "Sem estimativa: o produto ainda não foi publicado pelo Rise.",
   lucroDivergente: "Lucro real diferente do estimado.",
   // O detalhe (quanto o Mercado Pago creditou e quanto o Rise calculou) abre ao passar o mouse no lucro (09/11/2026).
   lucroDiferenteDoMercadoPago: "Lucro diferente do que o Mercado Pago creditou.",
@@ -41,3 +42,18 @@ export const AVISOS_GRAVES = new Set(["fraude", "nfACancelar"]);
 export function textoDosAvisos(avisos) {
   return (Array.isArray(avisos) ? avisos : []).map((chave) => TEXTO_DO_AVISO[chave] ?? chave).join("\n");
 }
+
+/**
+ * A aba do pedido onde cada aviso mora (pedido do dono em 09/11/2026: "!" ao lado da aba onde ha divergencia). Aviso fora
+ * desta lista (fraude, status desconhecido, espelho do Bling) fica so na faixa do topo.
+ */
+export const ABA_DO_AVISO = {
+  clienteSemDocumento: "geral",
+  documentoInvalido: "geral",
+  produtoForaDoRise: "itens",
+  produtoNaoConferido: "itens",
+  semCusto: "itens",
+  lucroDivergente: "lucro",
+  lucroDiferenteDoMercadoPago: "lucro",
+  nfACancelar: "nf",
+};
