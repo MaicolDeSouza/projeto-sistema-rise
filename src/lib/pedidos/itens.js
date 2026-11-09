@@ -70,6 +70,14 @@ function unidadesDoKit(anuncio) {
   return soma > 0 ? soma : 1;
 }
 
+/** "910207_20" -> { sku: "910207", unidades: 20 }; codigo sem o "_N" (N de 2 a 9999) devolve null. */
+function baseDoCodigoDeKit(codigo) {
+  const achou = /^(.+)_(\d{1,4})$/.exec(String(codigo ?? "").trim());
+  if (!achou) return null;
+  const unidades = Number(achou[2]);
+  return unidades >= 2 ? { sku: achou[1], unidades } : null;
+}
+
 /**
  * Casa cada item do pedido normalizado com o Produto (ML pelo anuncio MLB, LI pelo anuncio da loja, Bling pelo
  * blingId; todos caem no sku sem caixa) e congela o custo. Uma consulta de anuncios e uma de produtos por pedido.
@@ -92,6 +100,11 @@ export async function casarItens(tx, normalizado) {
   for (const anuncio of anuncios) if (!anuncioPorId.has(anuncio.idExterno)) anuncioPorId.set(anuncio.idExterno, anuncio);
 
   const skus = [...new Set(itens.map((item) => item?.codigoNaOrigem).filter(Boolean).map((s) => String(s).trim()))];
+  // O codigo do kit do ML e o do produto base mais "_N" (910207_20 = 20 do 910207): o produto base tambem entra na busca.
+  for (const sku of [...skus]) {
+    const base = baseDoCodigoDeKit(sku);
+    if (base && !skus.includes(base.sku)) skus.push(base.sku);
+  }
   const produtoIds = [...new Set(anuncios.map((a) => a.produtoId))];
   const condicoes = [];
   if (produtoIds.length > 0) condicoes.push({ id: { in: produtoIds } });
@@ -125,8 +138,19 @@ export async function casarItens(tx, normalizado) {
     let produto = anuncio ? (porId.get(anuncio.produtoId) ?? null) : null;
     if (!produto && origem === "BLING" && idNaOrigem) produto = porBlingId.get(idNaOrigem) ?? null;
     if (!produto && item?.codigoNaOrigem) produto = porSku.get(String(item.codigoNaOrigem).trim().toLowerCase()) ?? null;
+    // Ultimo recurso (pedido do dono em 09/11/2026: o 910207_20 vendido no ML ficava sem produto e sem lucro mesmo com o
+    // 910207 conferido e com custo): sem anuncio nem produto com esse codigo, "BASE_N" e o kit de N do produto BASE.
+    let unidadesDoCodigo = 1;
+    if (!produto && item?.codigoNaOrigem) {
+      const base = baseDoCodigoDeKit(item.codigoNaOrigem);
+      const doBase = base ? (porSku.get(base.sku.toLowerCase()) ?? null) : null;
+      if (doBase) {
+        produto = doBase;
+        unidadesDoCodigo = base.unidades;
+      }
+    }
 
-    const quantidadeDoKit = anuncio ? unidadesDoKit(anuncio) : 1;
+    const quantidadeDoKit = anuncio ? unidadesDoKit(anuncio) : unidadesDoCodigo;
     const { custo, origem: custoOrigem } = custoCongeladoDoProduto(produto);
     if (!produto) avisos.add("produtoForaDoRise");
     else {

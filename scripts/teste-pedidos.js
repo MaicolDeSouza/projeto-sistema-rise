@@ -371,6 +371,12 @@ try {
     const fora = await casarItens(prisma, { origem: "BLING", itens: [{ ordem: 0, idNaOrigem: "0", codigoNaOrigem: "NAO-EXISTE", titulo: "X", quantidade: 1, precoUnitario: 5, desconto: 0, total: 5, comissao: null }] });
     conferir("fora do Rise", [fora.itens[0].produtoId, fora.avisos], [null, ["produtoForaDoRise"]]);
     conferir("Bling nao avisa nao conferido", (await casarItens(prisma, { origem: "BLING", itens: [{ ordem: 0, idNaOrigem: b.blingId, codigoNaOrigem: "ZZ-PED-B", titulo: "B", quantidade: 1, precoUnitario: 5, desconto: 0, total: 5, comissao: null }] })).avisos, []);
+    // Codigo "BASE_N" sem anuncio nem produto proprio e o kit de N do produto BASE (09/11/2026, o 910207_20 do ML).
+    await prisma.produto.create({ data: { sku: "ZZ-PED-KB", tituloBase: "ZZ Ped KB", custo: 2, conferido: true } });
+    const kb = await casarItens(prisma, { origem: "MERCADO_LIVRE", itens: [{ ordem: 0, idNaOrigem: "MLBZZNAOEXISTE", codigoNaOrigem: "ZZ-PED-KB_20", titulo: "20x KB", quantidade: 1, precoUnitario: 23.9, desconto: 0, total: 23.9, comissao: null }] });
+    conferir("codigo BASE_N: produto base, 20 unidades e o custo da unidade", [kb.itens[0].produtoId !== null, kb.itens[0].quantidade, kb.itens[0].quantidadeDoKit, kb.itens[0].custoUnitarioCongelado, kb.avisos], [true, 20, 20, 2, []]);
+    conferir("codigo BASE_N sem o produto base continua fora do Rise", (await casarItens(prisma, { origem: "MERCADO_LIVRE", itens: [{ ordem: 0, idNaOrigem: "MLBZZ2", codigoNaOrigem: "ZZ-PED-NAO_20", titulo: "x", quantidade: 1, precoUnitario: 1, desconto: 0, total: 1, comissao: null }] })).avisos, ["produtoForaDoRise"]);
+    conferir("_1 e sufixo de letra nao viram kit", (await casarItens(prisma, { origem: "MERCADO_LIVRE", itens: [{ ordem: 0, idNaOrigem: "MLBZZ3", codigoNaOrigem: "ZZ-PED-KB_1", titulo: "x", quantidade: 1, precoUnitario: 1, desconto: 0, total: 1, comissao: null }] })).itens[0].produtoId, null);
   }
 
   console.log("\nLucro");

@@ -5733,6 +5733,9 @@ Spec `docs/superpowers/specs/2026-11-04-modulo-pedidos-de-venda-design.md`, plan
   `reconferirPedidosPendentes` (`leitura.js`, no fim de cada volta, até 40) relê da origem e refaz custo, aviso e lucro (o lucro fechado sem custo
   é reaberto). O custo congelado só é preenchido onde era vazio. O aviso "Sem estimativa" virou "Lucro estimado indisponível: o Rise não conseguiu
   ler as taxas do anúncio no Mercado Livre". Coluna Pedido de Vendas: "ML" antes do número; Total e Lucro alinhados à esquerda; **só o nome abre o pedido (a linha e o código não navegam) e o código tem o botão Copiar** (`CopiarCodigo`, também na aba Itens do pedido, onde o código deixou de abrir o produto). Teste em `teste:pedidos`.
+  **Item sem anúncio nem produto com o código casa pelo "BASE_N"** (09/11/2026, o dono: o 910207_20 vendido no ML seguia sem produto e sem lucro
+  com o 910207 conferido e com custo): `casarItens` (`lib/pedidos/itens.js`) lê `910207_20` como 20 unidades do produto `910207` (N de 2 a 9999,
+  só depois do anúncio, do blingId e do SKU exato), e o custo congelado é o da unidade. Código `_1` ou com sufixo de letra não vira kit.
 
 **Tela "Vendas" (07/11/2026, pedido do dono):** o bloco e a lista se chamam **Vendas** (menu, título, acesso; a rota segue
 `/pedidos` e o recurso `tela.pedidos`). Período padrão de **1 mês com as duas pontas preenchidas** (`umMesAntes`; o "até" ficava em
