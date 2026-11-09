@@ -4028,6 +4028,18 @@ try {
     conferir("reaproveitar kit: vira o kit de 20 do produto base", [feitoKit.ok, gravadoKit?.produtoId === produto.id, gravadoKit?.dados?.composicao?.codigo, gravadoKit?.dados?.composicao?.itens, gravadoKit?.idExterno, gravadoKit?.dados?.preco], [true, true, "ZZ-ML-RE_20", [{ produtoId: produto.id, quantidade: 20 }], "MLBKIT20", 299]);
     conferir("reaproveitar kit: etapas do kit feitas, atacado desligado, zero escritas", [gravadoKit?.dados?.publicacao?.feitas?.includes("kit_bling"), gravadoKit?.dados?.atacado, mlKit.escritas.length], [true, { faixas: [], ligado: false }, 0]);
     conferir("reaproveitar kit: abre como kit publicado", [(await carregarAnuncioML(feitoKit.anuncioId)).status, Boolean((await carregarAnuncioML(feitoKit.anuncioId)).rascunho?.composicao)], ["PUBLICADO", true]);
+
+    // As fotos do kit reaproveitado (910207_20, 09/11/2026): o ML tem as fotos antigas, que o Rise nao conhece. O "!" de fotos
+    // acende, e o primeiro Salvar nao as da por enviadas (senao o Enviar mudancas nunca as manda).
+    await prisma.produtoArquivo.create({ data: { produtoId: produto.id, tipo: "IMAGEM", papel: "FOTO", arquivo: "ZZ-ML-RE-a.jpg", ordem: 0, principal: true } });
+    const kitComFoto = { ...kit20, id: "MLBKIT30", seller_custom_field: "ZZ-ML-RE_30" };
+    const mlFoto = criarMLFalso({ meusItens: { "ZZ-ML-RE_30": [kitComFoto] } });
+    const feitoFoto = await reaproveitarAnuncioML(produto.id, "MLBKIT30", { ml: mlFoto });
+    const abertoFoto = await carregarAnuncioML(feitoFoto.anuncioId);
+    conferir("reaproveitar kit: o '!' de fotos acende (o ML tem fotos que o Rise nao mandou)", [feitoFoto.ok, abertoFoto.rascunho?.imagens?.length, abertoFoto.mudancas.partes.includes("fotos")], [true, 1, true]);
+    const { salvarPublicadoML: salvarKit } = await import("../src/lib/canaisDeVenda/ml/banco.js");
+    const salvoFoto = await salvarKit(feitoFoto.anuncioId, { preco: 299, atributos: abertoFoto.rascunho.atributos, imagens: abertoFoto.rascunho.imagens });
+    conferir("reaproveitar kit: depois do 1o Salvar o '!' de fotos continua", [salvoFoto.ok, (await carregarAnuncioML(feitoFoto.anuncioId)).mudancas.partes.includes("fotos")], [true, true]);
   }
 
   {

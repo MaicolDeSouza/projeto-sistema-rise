@@ -420,7 +420,9 @@ export async function salvarPublicadoML(anuncioId, entrada) {
       if (!enviado || !Object.hasOwn(enviado, "preco")) base.preco = precoDoAnuncio(anterior);
       if (!enviado || !Object.hasOwn(enviado, "ficha")) base.ficha = fichaDoAnuncio(anterior);
       if (!enviado || !Object.hasOwn(enviado, "prazo")) base.prazo = prazoDoAnuncio(anterior);
-      if (kit && produtos && (!enviado || enviado.fotos === null || enviado.fotos === undefined)) base.fotos = conteudoAtualDoAnuncio(anterior, produtos).fotos;
+      // Menos no kit REAPROVEITADO: o ML tem as fotos antigas do anuncio, que o Rise nunca mandou. Gravar a base aqui as dava
+      // por enviadas e o Enviar mudancas nao mandava nenhuma (910207_20, 09/11/2026: a 5a foto nunca chegou ao ML).
+      if (kit && produtos && !publicacao.reaproveitado && (!enviado || enviado.fotos === null || enviado.fotos === undefined)) base.fotos = conteudoAtualDoAnuncio(anterior, produtos).fotos;
       // O preco da loja (08/11/2026): o anuncio publicado antes da regra ganha a base de agora no primeiro Salvar.
       if (produtos && (!enviado || !Object.hasOwn(enviado, "precoDaLoja"))) base.precoDaLoja = precoDaLojaDoAnuncio(anterior, produtos);
       // O anuncio publicado antes do atacado nao tem faixas no ML: a base e "desligado", e o que o dono ligar aqui acende o "!".
