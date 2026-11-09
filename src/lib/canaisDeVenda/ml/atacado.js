@@ -1,7 +1,8 @@
 /**
- * Precos de atacado do Mercado Livre (PxQ, "Exclusivo negocios"; definicao 8 do dono em 08/11/2026): todo anuncio
- * novo nasce com as faixas 2/5/10/20 ligadas, e o % de cada faixa vem da recomendacao do ML na hora do envio (o dono
- * pode subir; abaixo do recomendado o ML recusa com 400). So quem compra com CNPJ ve.
+ * Precos de atacado do Mercado Livre (PxQ, "Exclusivo negocios"; definicao 8 do dono em 08/11/2026): o anuncio COM FRETE
+ * GRATIS nasce com as faixas 2/5/10/20 ligadas, e o % de cada faixa vem da recomendacao do ML na hora do envio (o dono
+ * pode subir; abaixo do recomendado o ML recusa com 400). So quem compra com CNPJ ve. Desde 09/11/2026 (dono) o anuncio
+ * SEM frete gratis nasce desligado (o ML nao sugere desconto sem ele) e o kit nunca tem atacado (`atacadoPermitido`).
  *
  * O que a API faz, medido na VPS em 08/11/2026 (Task 0, so leitura):
  * - `POST /prices-per-quantity/v1/recommendations` { item_id, range_item_quantities, price: { standard_amount, currency } }
@@ -14,10 +15,22 @@
 
 export const FAIXAS_PADRAO = [2, 5, 10, 20];
 
-/** O atacado de um rascunho novo: ligado, as quatro faixas, sem % (a recomendacao preenche no envio). */
+/** O atacado da variante com frete gratis: ligado, as quatro faixas, sem % (a recomendacao preenche no envio). */
 export function ATACADO_PADRAO() {
   return { ligado: true, faixas: FAIXAS_PADRAO.map((quantidade) => ({ quantidade, percentual: null })) };
 }
+
+/**
+ * Kit no ML NAO tem atacado (pedido do dono em 09/11/2026, ao ver o kit de 2 do 940502 no ar: "2 unidades R$ 75,57/un."
+ * dava a impressao de R$ 75 cada peca, quando a "unidade" do ML e o kit inteiro; e o kit ja e a oferta por quantidade).
+ * Vale para todo anuncio com composicao: o rascunho le, salva e publica desligado, e o kit que ja estava no ar com faixas
+ * acende o "!" do atacado, que o Enviar apaga no ML (lista vazia). O atacado continua no anuncio de 1 unidade.
+ */
+export function atacadoPermitido(rascunho) {
+  return !(Array.isArray(rascunho?.composicao?.itens) && rascunho.composicao.itens.length > 0);
+}
+
+export const ATACADO_DESLIGADO = () => ({ ligado: false, faixas: [] });
 
 const numero = (valor) => (Number.isFinite(Number(valor)) ? Number(valor) : null);
 

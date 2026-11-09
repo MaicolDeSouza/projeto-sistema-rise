@@ -393,7 +393,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 1225 asserções do anúncio do Mercado Livre (com a proposta do ML, o kit no ML, o preço pelo lucro da loja, o reaproveitar, o atacado com a espera da sugestão no Publicar e o popup do produto: o "!" de cada anúncio e a ordem fixa): composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 1241 asserções do anúncio do Mercado Livre (com a proposta do ML, o kit no ML, o preço pelo lucro da loja, o reaproveitar, o atacado com a espera da sugestão no Publicar, o kit sem atacado e o atacado desligado sem frete grátis e o popup do produto: o "!" de cada anúncio e a ordem fixa): composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # 420 asserções da sincronização Rise -> Loja Integrada (com o cadastro automático, o estoque acertado pelo Bling no Sincronizar e as categorias e o SEO que vêm do produto): slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio, ícone e as etapas do Cadastrar (LI falsa e Bling de mentira, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
@@ -3957,7 +3957,7 @@ ao ar e nenhuma escrita real foi feita no ML ou no Bling.**
   mudanças" ganhou a parte **`titulo`** (só no reaproveitado; com vendas o ML não muda, avisa e registra) e a pergunta "Mover o
   vínculo do Bling?" por anúncio (`moverVinculoParaRiseML` em `bling.js`: ML_4h `203593931` → Rise_ML `206326819`, cria antes de
   apagar, apaga também o registro antigo em `/anuncios`, idempotente).
-- **Preços de atacado** (`atacado.js`, `AtacadoDoML.jsx`): todo anúncio novo nasce com 2/5/10/20 ligados e o % vazio; o % vem da
+- **Preços de atacado** (`atacado.js`, `AtacadoDoML.jsx`): o anúncio novo COM FRETE GRÁTIS nasce com 2/5/10/20 ligados e o % vazio (sem frete grátis e no kit, desligado: ver "Quem tem atacado", 09/11/2026); o % vem da
   recomendação do ML (`POST /prices-per-quantity/v1/recommendations`), nunca abaixo dela. O Publicar ganhou a etapa **`atacado`**
   entre `ativar` e `gravar`: a falha NÃO derruba a publicação (aviso, etapa feita, `publicacao.atacado.erro`, "!" aceso). O
   envio grava com `POST /items/{id}/prices/price-per-quantity` e o header `X-Version` (409 relê e tenta uma vez) e lê de volta
@@ -4012,6 +4012,21 @@ ao ar e nenhuma escrita real foi feita no ML ou no Bling.**
   atacado; anúncio antigo que já tinha atacado no ML (ex.: 220204) abre desligado e o 1º Enviar com ele ligado sobrescreve as faixas.
 - Conferido na tela do PC (ZZ-TESTE-BLING, nada salvo): lista Reaproveitar, cartão de atacado (ligado, % digitado calcula o preço,
   % que cai mostra a mensagem, desligado deixa só o título).
+- **Quem tem atacado (dono, 09/11/2026), REGRA DE TODA SESSÃO:**
+  - **Kit no ML (todo anúncio com `composicao`) NUNCA tem atacado.** O dono viu o kit de 2 do 940502 no ar com "2 unidades R$ 75,57/un.":
+    a "unidade" do ML é o kit inteiro, o cliente lia R$ 75 por peça, e o kit já é a oferta por quantidade. `atacadoPermitido(rascunho)` em
+    `atacado.js`: o rascunho do kit LÊ desligado (`rascunhoDoAnuncio`), o Salvar (rascunho e publicado) grava desligado, o kit novo e o
+    "Kit de N" ligado no editor nascem desligados (`rascunhoInicial`, `aplicarComposicao`), o Publicar não manda faixa e o interruptor do
+    cartão trava com o motivo no `title`. O kit no ar com faixas (publicado antes) acende o "!" do atacado e o Enviar manda a lista vazia.
+  - **Sem frete grátis o atacado NASCE DESLIGADO** ("quando não tem frete grátis já nascer desligado"; as propostas dos solenoides saíram
+    ligadas sem frete e o Publicar dava erro). O rascunho novo nasce desligado (era ligado de 08/11 a 09/11/2026) e `rascunhoDaVariante`
+    (`faixas.js`, usada pela proposta do ML e pelo "Faltam") liga as 4 faixas só na variante com frete grátis, mantendo as que o dono já
+    tinha, e desliga na sem frete. O dono ainda pode ligar à mão num anúncio sem frete (o cartão não trava).
+  - **Feito na VPS no mesmo dia, por script (só a parte atacado, nada mais enviado):** 8 kits publicados com faixas no ML (120919_5 x2,
+    940502_2, 120920_5 x2, 940503_2, 120921_5 x2) receberam a lista vazia e a leitura de volta confirmou "nenhuma"; os 24 anúncios de kit
+    ficaram desligados no Rise. O único anúncio sem frete grátis ainda ligado é o 940503 de 1 unidade (MLB7962287982, ativo), que o ML
+    ACEITOU com faixas 1,28/6,17/10,6/12,85% (então o ML pode sugerir sem frete grátis, ao contrário do 204 medido no 120920): ficou como
+    está, decisão do dono.
 
 ### Editor do ML em cartões, aba Status, prazo e garantia (26/10/2026, SEM deploy)
 

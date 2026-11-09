@@ -14,6 +14,7 @@
 
 import { lucroLiquido } from "../../margem";
 import { custosDoAnuncio, LIMITE_DO_FRETE_GRATIS } from "./custos";
+import { ATACADO_DESLIGADO, ATACADO_PADRAO, atacadoPermitido } from "./atacado";
 
 const dinheiro = (valor) => Math.round((Number(valor) + Number.EPSILON) * 100) / 100;
 
@@ -99,12 +100,19 @@ export function ordenarAnunciosDoProduto(anuncios) {
   );
 }
 
-/** Copia do rascunho com o tipo de anuncio e o frete gratis da variante; o original fica como esta. */
+/**
+ * Copia do rascunho com o tipo de anuncio, o frete gratis e o atacado da variante; o original fica como esta.
+ * Atacado (dono, 09/11/2026): sem frete gratis nasce DESLIGADO (o ML nao sugere desconto e o Publicar dava erro); com frete
+ * gratis fica ligado, com as faixas que o rascunho ja tinha ou as 4 do padrao; kit nunca (`atacadoPermitido`).
+ */
 export function rascunhoDaVariante(rascunho, variante) {
+  const freteGratis = comFreteGratis(variante);
+  const comAtacado = freteGratis && atacadoPermitido(rascunho);
   return {
     ...rascunho,
     tipoAnuncio: tipoDaVariante(variante),
-    envio: { ...(rascunho?.envio ?? {}), freteGratis: comFreteGratis(variante) },
+    envio: { ...(rascunho?.envio ?? {}), freteGratis },
+    atacado: comAtacado ? (rascunho?.atacado?.ligado ? rascunho.atacado : ATACADO_PADRAO()) : ATACADO_DESLIGADO(),
   };
 }
 

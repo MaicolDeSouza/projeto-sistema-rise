@@ -3,6 +3,7 @@ import { urlDe } from "@/lib/arquivos";
 import { codigoDaComposicao, errosDaComposicao, estoqueDaComposicao, proximoCodigoDaFaixa } from "../composicao";
 import { custoDoProduto } from "../custo";
 import { conteudoAtualDoAnuncio, fichaDoAnuncio, mudancasDoAnuncio, prazoDoAnuncio, precoDaLojaDoAnuncio, precoDoAnuncio } from "./acompanhar";
+import { ATACADO_DESLIGADO, atacadoPermitido } from "./atacado";
 import { avisosDeVariosProdutos } from "./concorrentes";
 import { precisaAgirNoML, textoDoEstadoML } from "./estadoNoML";
 import { estadoDoIconeML, motivosDoProblemaML, rotuloDoIconeML, temProblemaNoIconeML } from "./icone";
@@ -149,7 +150,8 @@ export function rascunhoDoAnuncio(anuncio) {
     envio: { pesoKg: null, alturaCm: null, larguraCm: null, comprimentoCm: null, modo: "me2", logistica: "xd_drop_off", freteGratis: false, retirada: false, ...dados.envio },
     composicao: dados.composicao ?? null,
     // Anuncio gravado antes do campo (08/11/2026) abre com o atacado DESLIGADO (regra 3 da spec): ligar e decisao do dono.
-    atacado: dados.atacado ?? { ligado: false, faixas: [] },
+    // Kit sempre desligado (09/11/2026, `atacadoPermitido`): o kit no ar com faixas acende o "!" e o Enviar as apaga.
+    atacado: atacadoPermitido({ composicao: dados.composicao }) ? (dados.atacado ?? ATACADO_DESLIGADO()) : ATACADO_DESLIGADO(),
   };
 }
 
@@ -427,7 +429,7 @@ export async function salvarPublicadoML(anuncioId, entrada) {
 
       const novosDados = { ...dados, preco, publicacao: novaPublicacao };
       if (prazo.success && entrada?.prazoDisponibilidadeDias !== undefined) novosDados.prazoDisponibilidadeDias = prazo.data;
-      if (atacado.success && atacado.data !== undefined) novosDados.atacado = atacado.data;
+      if (atacado.success && atacado.data !== undefined) novosDados.atacado = kit ? ATACADO_DESLIGADO() : atacado.data;
       if (imagens.success) {
         novosDados.imagens = imagens.data;
         if (!kit) novosDados.fotosReordenadas = entrada?.fotosReordenadas === true;
@@ -519,6 +521,8 @@ export async function salvarRascunhoML(anuncioId, entrada) {
     // Kit: as fotos que existem agora foram vistas; so a que chegar depois entra sozinha (`fotosDoKitDoRise`, 28/10/2026).
     // O que a tela manda nesse campo nao vale.
     rascunho.fotosVistasEm = rascunho.composicao ? new Date().toISOString() : null;
+    // Kit nao tem atacado (09/11/2026, `atacadoPermitido`): o que a tela mandar ligado nao vale.
+    if (!atacadoPermitido(rascunho)) rascunho.atacado = ATACADO_DESLIGADO();
 
     const { produtoId, titulo, descricao, categoriaId, atributos, ...dados } = rascunho;
     const colunas = { produtoId, titulo, descricao, categoriaExternaId: categoriaId || null, atributos };

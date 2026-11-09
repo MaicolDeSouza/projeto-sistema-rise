@@ -20,7 +20,7 @@ import {
   unidadesDaComposicao,
 } from "../composicao";
 import { pesoEMedidasDoKit } from "../../composicao";
-import { ATACADO_PADRAO } from "./atacado";
+import { ATACADO_DESLIGADO } from "./atacado";
 import { fichaDaDescricao } from "./atributos";
 
 const texto = (valor) => String(valor ?? "").trim();
@@ -303,8 +303,10 @@ export function rascunhoInicial({ principal, produtosPorId, composicao }) {
       retirada: false,
     },
     composicao: null,
-    // Precos de atacado ligados por padrao (definicao 8 do dono, 08/11/2026); o % vem da recomendacao do ML no envio.
-    atacado: ATACADO_PADRAO(),
+    // Precos de atacado: o rascunho nasce sem frete gratis, entao nasce DESLIGADO (dono, 09/11/2026: "quando nao tem frete
+    // gratis ja nascer desligado"; sem frete gratis o ML nao sugere desconto e o Publicar dava erro). A variante com frete
+    // gratis liga as 4 faixas (`rascunhoDaVariante`); o % vem da recomendacao do ML no envio. De 08/11 a 09/11/2026 nascia ligado.
+    atacado: ATACADO_DESLIGADO(),
   };
   if (!composicao) return rascunho;
 
@@ -319,6 +321,8 @@ export function rascunhoInicial({ principal, produtosPorId, composicao }) {
     ...derivados,
     titulo: tituloDoKit(principal, itensDaComposicao(composicao)),
     envio: medidasDoKit({ ...rascunho.envio, pesoKg }, composicao, produtos),
+    // Kit nao tem atacado (dono, 09/11/2026: a "unidade" do ML e o kit inteiro e o "/un." enganava; `atacadoPermitido`).
+    atacado: ATACADO_DESLIGADO(),
   };
 }
 
@@ -366,5 +370,7 @@ export function aplicarComposicao(rascunho, composicao, produtosPorId) {
     produtoId: principalId,
     atributos: atributosSemGtin(rascunho.atributos),
     envio: medidasDoKit({ ...rascunho.envio, pesoKg }, composicao, produtosPorId, rascunho.composicao),
+    // Ligar o Kit de N desliga o atacado (09/11/2026, `atacadoPermitido`); desligar o kit nao religa: ligar e do dono.
+    atacado: ATACADO_DESLIGADO(),
   };
 }

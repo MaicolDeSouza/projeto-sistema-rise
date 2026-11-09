@@ -5,7 +5,7 @@ import { Percent } from "lucide-react";
 
 import { recomendacaoDeAtacadoMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
-import { FAIXAS_PADRAO, textoSemSugestaoDeAtacado } from "@/lib/canaisDeVenda/ml/atacado";
+import { FAIXAS_PADRAO, atacadoPermitido, textoSemSugestaoDeAtacado } from "@/lib/canaisDeVenda/ml/atacado";
 import { LIMITE_DO_FRETE_GRATIS } from "@/lib/canaisDeVenda/ml/custos";
 import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
 import { filtrarDecimal, lerDecimal, textoDecimal } from "./numeros";
@@ -13,19 +13,23 @@ import SecaoDoAnuncio from "./SecaoDoAnuncio";
 
 const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
+const MOTIVO_DO_KIT = "Kit não tem preço de atacado: no Mercado Livre a unidade é o kit inteiro e o desconto parece o preço de cada peça.";
+
 const AJUDA =
   "O % de cada faixa vem da recomendação do Mercado Livre na publicação; abaixo do recomendado o ML recusa. Só compradores com CNPJ veem esses preços. Faixa com a quantidade vazia sai ao salvar.";
 
 /** O interruptor do Rise (o mesmo desenho do "Ativo" do usuario e do bot do Telegram). */
-function Interruptor({ ligado, aoMudar, rotulo }) {
+function Interruptor({ ligado, aoMudar, rotulo, motivo = null }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={ligado}
       aria-label={rotulo}
+      disabled={Boolean(motivo)}
+      title={motivo ?? undefined}
       onClick={() => aoMudar(!ligado)}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition-[background-color] duration-150 focus-visible:ring-2 focus-visible:ring-acento focus-visible:ring-offset-2 focus-visible:outline-none ${ligado ? "bg-emerald-600" : "bg-slate-300"}`}
+      className={`relative h-6 w-11 shrink-0 rounded-full transition-[background-color] duration-150 focus-visible:ring-2 focus-visible:ring-acento focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${ligado ? "bg-emerald-600" : "bg-slate-300"}`}
     >
       <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-150 ${ligado ? "translate-x-5" : ""}`} />
     </button>
@@ -53,7 +57,9 @@ function faixasDe(linhas) {
  * ja existe no ML, "Recomendação do ML" preenche os % vazios ou abaixo do recomendado.
  */
 export default function AtacadoDoML({ rascunho, alterar, anuncioId = null, jaNoML = false, problemas }) {
-  const ligado = rascunho.atacado?.ligado === true;
+  // Kit nao tem atacado (dono, 09/11/2026): o servidor grava desligado; aqui o interruptor trava com o motivo (regra 8).
+  const motivoDoKit = atacadoPermitido(rascunho) ? null : MOTIVO_DO_KIT;
+  const ligado = !motivoDoKit && rascunho.atacado?.ligado === true;
   const preco = Number(rascunho.preco);
   const [ocupado, iniciar] = useTransition();
   const [erro, setErro] = useState(null);
@@ -124,7 +130,7 @@ export default function AtacadoDoML({ rascunho, alterar, anuncioId = null, jaNoM
       acao={
         <label className="flex items-center gap-2 text-xs text-suave">
           Oferecer preço de atacado
-          <Interruptor ligado={ligado} aoMudar={(valor) => mandar(linhas, valor)} rotulo="Oferecer preço de atacado" />
+          <Interruptor ligado={ligado} aoMudar={(valor) => mandar(linhas, valor)} rotulo="Oferecer preço de atacado" motivo={motivoDoKit} />
         </label>
       }
     >

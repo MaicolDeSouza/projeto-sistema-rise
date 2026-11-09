@@ -4,7 +4,7 @@ import { caminhoDe } from "@/lib/arquivos";
 import { prisma } from "@/lib/db";
 import { buscarNoBling } from "@/lib/blingSync/leitura";
 import { conteudoAtualDoAnuncio } from "./acompanhar";
-import { ESPERA_DA_SUGESTAO_MS, INTERVALO_DA_SUGESTAO_MS, atacadoDoEnvio, enviarAtacadoML, impressaoDoAtacado } from "./atacado";
+import { ESPERA_DA_SUGESTAO_MS, INTERVALO_DA_SUGESTAO_MS, atacadoDoEnvio, atacadoPermitido, enviarAtacadoML, impressaoDoAtacado } from "./atacado";
 import { LIMITE_DO_FRETE_GRATIS } from "./custos";
 import { carregarAnuncioML, gravarPublicacao, lerPublicacao } from "./banco";
 import { impressaoDoConteudo } from "./impressao";
@@ -490,7 +490,8 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto, p
       // fica feita (o Retomar nao a repete) e o "!" da parte `atacado` chama de volta. `enviado` guarda o que o ML tem de
       // fato (nada, quando falhou ou ficou desligado), para a impressao nunca dizer que foi enviado o que nao foi.
       const desligado = { ligado: false, faixas: [] };
-      if (!rascunho.atacado?.ligado) {
+      // Kit nunca manda faixa (09/11/2026, `atacadoPermitido`), mesmo com um rascunho antigo ligado.
+      if (!rascunho.atacado?.ligado || !atacadoPermitido(rascunho)) {
         await gravar({ atacado: { ligado: false, enviado: desligado, em: new Date().toISOString() } });
       } else {
         // Com frete gratis o ML sugere o desconto (a economia de frete repassada), mas o item recem-criado volta sem sugestao por

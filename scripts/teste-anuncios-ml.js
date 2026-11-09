@@ -2213,7 +2213,7 @@ try {
       // Caminho feliz
       const ml = criarMLFalso();
       const bf = c.novoBling();
-      const idSimples = await c.anuncioSimples(c.s1);
+      const idSimples = await c.anuncioSimples(c.s1, { atacado: { ligado: true, faixas: [2, 5, 10, 20].map((quantidade) => ({ quantidade, percentual: null })) } });
       // A proposta de anuncio (plano 2026-10-23, Tarefa 8) sai no Publicar que deu certo.
       const comProposta = async (id) => {
         const atual = await prisma.anuncio.findUnique({ where: { id }, select: { dados: true } });
@@ -2428,9 +2428,9 @@ try {
       const dadosDe = async (id) => (await prisma.anuncio.findUnique({ where: { id }, select: { dados: true } })).dados;
       const postsDeAtacado = (ml) => ml.escritas.filter((e) => e.metodo === "POST" && e.caminho.endsWith("/prices/price-per-quantity"));
 
-      // Caminho feliz: o rascunho novo nasce com o atacado ligado e o Publicar o envia depois de ativar.
+      // Caminho feliz: o rascunho com o atacado ligado (o novo nasce desligado desde 09/11/2026) e o Publicar o envia depois de ativar.
       const ml = criarMLFalso();
-      const id = await c.anuncioSimples(c.s1);
+      const id = await c.anuncioSimples(c.s1, { atacado: { ligado: true, faixas: [2, 5, 10, 20].map((quantidade) => ({ quantidade, percentual: null })) } });
       const r = await publicarAnuncioML(id, { ml, bling: c.novoBling(), lerFoto });
       const ordem = r.feitas.indexOf("atacado");
       conferir("publicar: ok, atacado entre ativar e gravar, 4 faixas no item", [r.ok, ordem === r.feitas.indexOf("ativar") + 1, r.feitas.indexOf("gravar") === ordem + 1, faixasNoML(ml, r.itemId)], [true, true, true, [[2, 0.82], [5, 5.5], [10, 9.86], [20, 12.27]]]);
@@ -2440,7 +2440,7 @@ try {
 
       // O ML recusa o atacado: a publicacao NAO cai, avisa, a etapa fica feita (o Retomar nao a repete) e o "!" chama de volta.
       const mlRecusa = criarMLFalso({ recusarAtacado: true });
-      const id2 = await c.anuncioSimples(c.s1);
+      const id2 = await c.anuncioSimples(c.s1, { atacado: { ligado: true, faixas: [2, 5, 10, 20].map((quantidade) => ({ quantidade, percentual: null })) } });
       const r2 = await publicarAnuncioML(id2, { ml: mlRecusa, bling: c.novoBling(), lerFoto });
       const dados2 = await dadosDe(id2);
       conferir("publicar com atacado recusado: ok, aviso, etapa feita e erro gravado", [r2.ok, r2.avisos?.some((aviso) => /atacado/i.test(aviso)), r2.feitas.includes("atacado"), typeof dados2.publicacao.atacado.erro, dados2.publicacao.enviado.atacado], [true, true, true, "string", { faixas: [], ligado: false }]);
@@ -2457,19 +2457,19 @@ try {
         return idDoAnuncio;
       };
       const mlAtrasado = criarMLFalso({ recomendacaoVazia: 2 });
-      const idAtrasado = await comFreteGratis(await c.anuncioSimples(c.s1));
+      const idAtrasado = await comFreteGratis(await c.anuncioSimples(c.s1, { atacado: { ligado: true, faixas: [2, 5, 10, 20].map((quantidade) => ({ quantidade, percentual: null })) } }));
       const dormidas = [];
       const rA = await publicarAnuncioML(idAtrasado, { ml: mlAtrasado, bling: c.novoBling(), lerFoto, dormir: async (ms) => { dormidas.push(ms); } });
       conferir("publicar com sugestao atrasada (frete gratis): espera na etapa e envia, sem aviso", [rA.ok, dormidas.length, faixasNoML(mlAtrasado, rA.itemId).length, rA.avisoDoAtacado ?? null], [true, 2, 4, null]);
       const mlNunca = criarMLFalso({ recomendacaoVazia: true });
-      const idNunca = await comFreteGratis(await c.anuncioSimples(c.s1));
+      const idNunca = await comFreteGratis(await c.anuncioSimples(c.s1, { atacado: { ligado: true, faixas: [2, 5, 10, 20].map((quantidade) => ({ quantidade, percentual: null })) } }));
       const dormidasNunca = [];
       const rN = await publicarAnuncioML(idNunca, { ml: mlNunca, bling: c.novoBling(), lerFoto, dormir: async (ms) => { dormidasNunca.push(ms); } });
       const etapasN = lerProgressoML(idNunca)?.etapas ?? [];
       conferir("publicar com sugestao que nao vem: publica; no popup o atacado falhou e o gravar ficou feito", [rN.ok, dormidasNunca.length, etapasN.find((e) => e.id === "atacado")?.estado, etapasN.find((e) => e.id === "gravar")?.estado, rN.feitas.includes("atacado")], [true, 9, "falhou", "feito", true]);
       conferir("publicar com sugestao que nao vem: o aviso diz o tempo e manda fazer a mao", [/90 segundos/.test(rN.avisoDoAtacado ?? ""), /Recomendação do ML/.test(rN.avisoDoAtacado ?? ""), /Sincronizar com o ML/.test(rN.avisoDoAtacado ?? "")], [true, true, true]);
       const mlSemFrete = criarMLFalso({ recomendacaoVazia: true });
-      const idSemFrete = await c.anuncioSimples(c.s1);
+      const idSemFrete = await c.anuncioSimples(c.s1, { atacado: { ligado: true, faixas: [2, 5, 10, 20].map((quantidade) => ({ quantidade, percentual: null })) } });
       const dormidasSemFrete = [];
       const rSF = await publicarAnuncioML(idSemFrete, { ml: mlSemFrete, bling: c.novoBling(), lerFoto, dormir: async (ms) => { dormidasSemFrete.push(ms); } });
       conferir("publicar sem frete gratis e sem sugestao: nao espera e o aviso explica por que", [rSF.ok, dormidasSemFrete.length, /sem frete grátis/i.test(rSF.avisoDoAtacado ?? "")], [true, 0, true]);
@@ -2501,6 +2501,21 @@ try {
       const e3 = await enviarMudancasML(id2, { ml: mlRecusa, bling: c.novoBling(), lerFoto });
       conferir("envio com atacado recusado: falha na parte atacado e o '!' continua", [e3.ok, e3.parte, (await carregarAnuncioML(id2)).mudancas.partes], [false, "atacado", ["atacado"]]);
 
+      // Kit sem atacado (dono, 09/11/2026): o kit publicado nao manda faixa nenhuma, e o kit que ja estava no ar com atacado
+      // (publicado antes da regra) acende o "!" e o Enviar manda a lista vazia, tirando as faixas do ML.
+      const mlKit = criarMLFalso();
+      const idKitAt = await c.anuncioDeKit("ZZ-ML-KITY", 2);
+      const rKit = await publicarAnuncioML(idKitAt, { ml: mlKit, bling: c.novoBling(), lerFoto });
+      conferir("kit: publica sem POST de atacado e sem '!'", [rKit.ok, postsDeAtacado(mlKit).length, (await dadosDe(idKitAt)).atacado.ligado, (await carregarAnuncioML(idKitAt)).mudancas.partes], [true, 0, false, []]);
+      // O kit como ficou no ar antes da regra: faixas no ML, na impressao e ligadas no rascunho.
+      const kitAntes = await dadosDe(idKitAt);
+      const faixasAntigas = { ligado: true, faixas: [{ quantidade: 2, percentual: 4 }, { quantidade: 5, percentual: 10 }] };
+      await prisma.anuncio.update({ where: { id: idKitAt }, data: { dados: { ...kitAntes, atacado: faixasAntigas, publicacao: { ...kitAntes.publicacao, enviado: { ...kitAntes.publicacao.enviado, atacado: { ligado: true, faixas: [[2, 4], [5, 10]] } } } } } });
+      mlKit.itens.get(rKit.itemId).price_per_quantity = [{ conditions: { min_purchase_unit: 2 }, percentage: 4 }];
+      conferir("kit publicado com atacado: o '!' acende o atacado", (await carregarAnuncioML(idKitAt)).mudancas.partes, ["atacado"]);
+      const eKit = await enviarMudancasML(idKitAt, { ml: mlKit, bling: c.novoBling(), lerFoto });
+      conferir("kit publicado com atacado: o Enviar manda [] e tudo fica desligado", [eKit.ok, postsDeAtacado(mlKit).at(-1)?.corpo, (await dadosDe(idKitAt)).publicacao.enviado.atacado, (await dadosDe(idKitAt)).atacado.ligado, (await carregarAnuncioML(idKitAt)).mudancas.partes], [true, { price_per_quantity: [] }, { faixas: [], ligado: false }, false, []]);
+
       // Validacao do atacado: quantidade repetida ou % que cai entre as faixas e problema da aba Preco; % vazio vem da recomendacao.
       const rascunhoBase = (await carregarAnuncioML(id)).rascunho;
       const doAtacado = (faixas, ligado = true) => validarRascunhoML({ ...rascunhoBase, atacado: { ligado, faixas } }, { produtos: {}, frases: [], codigoEmUso: null }).find((p) => p.campo === "atacado");
@@ -2518,6 +2533,9 @@ try {
       const seisFaixas = { ligado: true, faixas: [1, 2, 3, 4, 5, 6].map((quantidade) => ({ quantidade, percentual: null })) };
       await salvarPublicadoML(id, { preco: rascunhoBase.preco, atributos: rascunhoBase.atributos, atacado: seisFaixas });
       conferir("publicado: atacado invalido no Salvar fica como estava", (await dadosDe(id)).atacado.faixas.length, 2);
+      // O Salvar do kit publicado nao religa, mesmo que a tela mande ligado.
+      await salvarPublicadoML(idKitAt, { preco: (await dadosDe(idKitAt)).preco, atributos: (await prisma.anuncio.findUnique({ where: { id: idKitAt }, select: { atributos: true } })).atributos, atacado: faixasAntigas });
+      conferir("kit publicado: o Salvar nao religa o atacado", [(await dadosDe(idKitAt)).atacado.ligado, (await carregarAnuncioML(idKitAt)).mudancas.partes.includes("atacado")], [false, false]);
     }
 
     // Fase 3: as proximas tarefas entram aqui, dentro deste bloco.
@@ -3780,6 +3798,13 @@ try {
     conferir("rascunho da variante: liga o frete gratis e mantem o resto do envio", [comFrete.envio.freteGratis, comFrete.envio.modo, comFrete.tipoAnuncio], [true, "me2", "gold_special"]);
     conferir("rascunho da variante: premium sem frete", [rascunhoDaVariante(base, "premium_sem_frete").tipoAnuncio, rascunhoDaVariante(base, "premium_sem_frete").envio.freteGratis], ["gold_pro", false]);
     conferir("rascunho da variante: nao altera o original", [base.envio.freteGratis, base.tipoAnuncio], [false, "gold_special"]);
+    // Sem frete gratis o atacado nasce desligado (dono, 09/11/2026: "quando nao tem frete gratis ja nascer desligado"; o ML nao
+    // sugere desconto sem frete gratis e o Publicar dava erro). Com frete gratis, ligado; no kit, nunca.
+    const ligadoSemFrete = { ...base, atacado: { ligado: true, faixas: [{ quantidade: 2, percentual: null }] } };
+    conferir("variante sem frete: atacado desligado", [rascunhoDaVariante(ligadoSemFrete, "classico_sem_frete").atacado, rascunhoDaVariante(ligadoSemFrete, "premium_sem_frete").atacado], [{ ligado: false, faixas: [] }, { ligado: false, faixas: [] }]);
+    conferir("variante com frete gratis: atacado ligado com as 4 faixas", rascunhoDaVariante({ ...base, atacado: { ligado: false, faixas: [] } }, "classico_frete_gratis").atacado.faixas.map((f) => f.quantidade), [2, 5, 10, 20]);
+    conferir("variante com frete gratis mantem as faixas que o dono ja tinha", rascunhoDaVariante(ligadoSemFrete, "premium_frete_gratis").atacado, ligadoSemFrete.atacado);
+    conferir("variante de kit com frete gratis: atacado desligado", rascunhoDaVariante({ ...base, composicao: { itens: [{ produtoId: "a", quantidade: 5 }] } }, "classico_frete_gratis").atacado, { ligado: false, faixas: [] });
 
     const semFrete = await precoPelaFaixa({ lucro: 9.44, custo: 25, variante: "classico_sem_frete", taxas, frete });
     const lucroSem = lucroDe(semFrete.preco, 25, false);
@@ -4091,7 +4116,7 @@ try {
 
   {
     console.log("\nPreços de atacado (regras)");
-    const { ATACADO_PADRAO, FAIXAS_PADRAO, corpoDoAtacado, enviarAtacadoML, faixasComRecomendacao, faixasLidas, impressaoDoAtacado, lerRecomendacaoDeAtacado, lerVersaoDoItem, textoSemSugestaoDeAtacado } =
+    const { ATACADO_PADRAO, FAIXAS_PADRAO, atacadoPermitido, corpoDoAtacado, enviarAtacadoML, faixasComRecomendacao, faixasLidas, impressaoDoAtacado, lerRecomendacaoDeAtacado, lerVersaoDoItem, textoSemSugestaoDeAtacado } =
       await import("../src/lib/canaisDeVenda/ml/atacado.js");
     // O botao "Recomendação do ML" sem sugestao (pedido do dono em 09/11/2026: "o botao de recomendacao do ML para atacado nao esta
     // funcionando"): sem frete gratis o ML nunca sugere; com frete gratis, o anuncio recem-publicado ainda nao tem sugestao.
@@ -4156,8 +4181,18 @@ try {
     conferir("esquema: ausente passa", Esquema.shape.atacado.safeParse(undefined).success, true);
     conferir("banco: anuncio gravado antes abre desligado", rascunhoDoAnuncio({ produtoId: "x", dados: {} }).atacado, { ligado: false, faixas: [] });
     conferir("banco: o gravado volta igual", rascunhoDoAnuncio({ produtoId: "x", dados: { atacado: { ligado: true, faixas: [{ quantidade: 2, percentual: 1 }] } } }).atacado, { ligado: true, faixas: [{ quantidade: 2, percentual: 1 }] });
+    // Kit sem atacado (dono, 09/11/2026: no kit "2 unidades R$ 75/un." parecia o preco de cada peca; o kit ja e a oferta por quantidade).
+    const comKitLigado = { produtoId: "x", dados: { composicao: { itens: [{ produtoId: "x", quantidade: 2 }], codigo: "X_2", blingProdutoId: null }, atacado: ATACADO_PADRAO() } };
+    conferir("kit: o atacado gravado ligado abre desligado", rascunhoDoAnuncio(comKitLigado).atacado, { ligado: false, faixas: [] });
+    conferir("kit: atacadoPermitido so fora do kit", [atacadoPermitido({ composicao: null }), atacadoPermitido(rascunhoDoAnuncio(comKitLigado))], [true, false]);
+    {
+      const p = { id: "a", sku: "A1", tituloBase: "A", descricaoBase: "d", precoVenda: 10, estoque: 10, imagens: [] };
+      const virouKit = aplicarComposicao({ ...rascunhoInicial({ principal: p, produtosPorId: { a: p }, composicao: null }) }, { itens: [{ produtoId: "a", quantidade: 2 }], codigo: "", blingProdutoId: null }, { a: p });
+      const nasceKit = rascunhoInicial({ principal: p, produtosPorId: { a: p }, composicao: { itens: [{ produtoId: "a", quantidade: 2 }], codigo: "", blingProdutoId: null } });
+      conferir("kit: ligar o Kit de N no editor desliga o atacado, e o kit novo nasce desligado", [virouKit.atacado, nasceKit.atacado], [{ ligado: false, faixas: [] }, { ligado: false, faixas: [] }]);
+    }
     const rascunhoNovo = await novoRascunhoML((await prisma.produto.create({ data: { sku: "ZZ-ML-AT", tituloBase: "ZZ AT", descricaoBase: "d", conferido: true, precoVenda: 45.9 } })).id);
-    conferir("rascunho novo: atacado ligado com as 4 faixas", rascunhoNovo.rascunho?.atacado ?? rascunhoNovo.atacado, ATACADO_PADRAO());
+    conferir("rascunho novo: nasce sem frete gratis, entao com o atacado desligado (09/11/2026)", rascunhoNovo.rascunho?.atacado ?? rascunhoNovo.atacado, { ligado: false, faixas: [] });
 
     // O envio contra o ML falso: recomendacao, versao no header, gravacao e leitura de volta.
     const ml = criarMLFalso();
