@@ -24,6 +24,8 @@ export const TEXTO_DO_AVISO = {
   semCusto: "Item sem custo: o lucro fica em aberto.",
   semEstimativa: "Lucro estimado indisponível: o Rise não conseguiu ler as taxas do anúncio no Mercado Livre.",
   lucroDivergente: "Lucro real diferente do estimado.",
+  // O detalhe (quanto o Mercado Pago creditou e quanto o Rise calculou) abre ao passar o mouse no lucro (09/11/2026).
+  lucroDiferenteDoMercadoPago: "Lucro diferente do que o Mercado Pago creditou.",
   statusDesconhecido: "Situação nova no canal, que o Rise não conhece.",
   lojaDesconhecida: "Loja do Bling que o Rise não lê.",
   fraude: "Risco de fraude no ML: não envie.",

@@ -1,6 +1,7 @@
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
+import { mercadoPagoParaTela } from "@/lib/pedidos/mercadoPago";
 
-import { diaMes, moeda, moedaComSinal, TEXTO_DA_FONTE } from "./formato";
+import { diaMes, linhasDoMercadoPago, moeda, moedaComSinal, TEXTO_DA_FONTE } from "./formato";
 
 const PARCELAS = [
   { chave: "receita", rotulo: "Receita (produtos)", sinal: 1 },
@@ -53,6 +54,10 @@ export default function AbaLucro({ pedido }) {
 
   const lucroEstimado = valor(estimativa?.lucro);
   const lucroReal = valor(real?.lucro);
+  // O Mercado Pago (09/11/2026): a explicacao abre ao passar o mouse ou clicar no lucro real, nunca fixa na aba.
+  const mp = mercadoPagoParaTela(pedido.mercadoPago);
+  const conferido = mp?.estado === "bate" && !devolvido;
+  const divergeDoMP = mp?.estado === "diverge";
   const quando = devolvido ? dataDaDevolucao(pedido) : null;
 
   return (
@@ -87,7 +92,7 @@ export default function AbaLucro({ pedido }) {
                 Estimativa
                 {estimativa?.origem && <span className="block font-normal">{TEXTO_DA_FONTE[estimativa.origem] ?? estimativa.origem}</span>}
               </th>
-              <th className="w-44 py-2 pl-3 text-right font-medium">{pedido.lucroFechado ? "Real (fechado)" : "Real até agora"}</th>
+              <th className="w-44 py-2 pl-3 text-right font-medium">{pedido.lucroFechado ? "Real (fechado)" : conferido ? "Real (conferido)" : "Real até agora"}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-borda">
@@ -118,6 +123,10 @@ export default function AbaLucro({ pedido }) {
                   <span className="text-suave" title="Algum item está sem custo">
                     em aberto
                   </span>
+                ) : mp ? (
+                  <BolhaDeAjuda variante="inline" texto={linhasDoMercadoPago(mp).map((linha) => <span key={linha} className="block">{linha}</span>)}>
+                    <span className={`tabular-nums ${lucroReal < 0 ? "text-red-600" : divergente || divergeDoMP ? "text-amber-800" : ""}`}>{moedaComSinal(lucroReal)}</span>
+                  </BolhaDeAjuda>
                 ) : (
                   <span className={`tabular-nums ${lucroReal < 0 ? "text-red-600" : divergente ? "text-amber-800" : ""}`}>{moedaComSinal(lucroReal)}</span>
                 )}

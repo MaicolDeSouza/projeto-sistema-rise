@@ -1,4 +1,5 @@
 import { prazoDeDespachoML } from "./despacho";
+import { resumoDoMercadoPago } from "./mercadoPago";
 import { data, digitos, dinheiro, telefone, texto, vazio } from "./normalizado";
 
 /** O custo do frete do lado da loja (o `user_id` do vendedor) nos custos de um envio; null quando nao ha custos lidos. */
@@ -26,8 +27,10 @@ function custoDaLoja(custos, vendedorId) {
  * NAO e frete: e o valor do pedido (medido na VPS em 04/11/2026, uma fonte de R$ 49,70 saia com R$ 49,70 de frete).
  * Devolucao: retorno entregue ou tag `refunded`; o custo e o lado da loja nos custos do retorno (0 sem custos).
  */
-export function normalizarPedidoML({ order, billing = null, shipments = [], shipment = null, retorno = null, invoice = null, custos = null, custosDoRetorno = null, sla = null }) {
+export function normalizarPedidoML({ order, billing = null, shipments = [], shipment = null, retorno = null, invoice = null, custos = null, custosDoRetorno = null, sla = null, mercadoPago = null }) {
   const p = vazio();
+  // O que o Mercado Pago creditou (09/11/2026): null quando nao foi lido; a conferencia com o Real e do recalculo.
+  p.mercadoPago = mercadoPago ? resumoDoMercadoPago(mercadoPago) : null;
   p.origem = "MERCADO_LIVRE";
   p.canal = "MERCADO_LIVRE";
   p.idExterno = String(order.id);

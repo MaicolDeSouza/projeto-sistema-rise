@@ -2712,6 +2712,10 @@ model PedidoDeVenda {
   /// As mesmas parcelas com o que a origem informou, e `fontes` por parcela ("pedido" | "envio" | "etiqueta" | "config" |
   /// "manual" | "estimado"). Recalculado a cada leitura ate fechar.
   real               Json?
+  /// O que o Mercado Pago creditou (so ML, 09/11/2026; lib/pedidos/mercadoPago.js): { liquido, freteDoComprador, cobrancas,
+  /// liberacao, liberado, estornado, pagamentos, lidoEm, conferencia: { estado: "bate"|"diverge"|"sem", liquidoMP,
+  /// liquidoRise, diferenca, motivo } }. Relido ate o dinheiro ser liberado.
+  mercadoPago        Json?
   lucroEstimado      Decimal? @db.Decimal(12, 2)
   lucroReal          Decimal? @db.Decimal(12, 2)
   /// Fechado quando ENTREGUE/FINALIZADO com todas as parcelas reais; a devolucao do ML reabre.
@@ -2762,6 +2766,10 @@ model ItemDoPedidoDeVenda {
 
   titulo     String
   quantidade Int
+  /// Unidades do produto em cada kit vendido (o "Kit de 20" do anuncio do ML ou o "BASE_N" do codigo; 1 fora do kit). A
+  /// `quantidade` acima ja e em unidades do produto (estoque e pecas); a venda foi de quantidade / quantidadeDoKit kits
+  /// (09/11/2026: a estimativa multiplicava o preco do kit pelas 20 unidades e o 910207_20 deu R$ 243,60 de lucro).
+  quantidadeDoKit Int @default(1)
 
   precoUnitario Decimal  @db.Decimal(12, 2)
   desconto      Decimal  @db.Decimal(12, 2)

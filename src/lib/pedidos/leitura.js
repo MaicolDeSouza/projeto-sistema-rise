@@ -7,7 +7,7 @@ import { clienteBling } from "@/lib/blingSync/cliente";
 import { normalizarPedidoML } from "@/lib/pedidos/ml";
 import { normalizarPedidoLI } from "@/lib/pedidos/li";
 import { classificarLojaDoBling, normalizarPedidoBling } from "@/lib/pedidos/bling";
-import { aplicarPedidoLido, espelharNoBling, pedidosParaReconferir, reabrirLucroDoPedido } from "@/lib/pedidos/banco";
+import { adiarConferenciaDoMercadoPago, aplicarPedidoLido, espelharNoBling, pedidosParaConferirNoMercadoPago, pedidosParaReconferir, reabrirLucroDoPedido } from "@/lib/pedidos/banco";
 
 /**
  * A leitura dos pedidos por origem (spec 5.2): a rotina `pedidos` do worker, a cada 5 min, pede a cada origem so o que
@@ -99,7 +99,29 @@ async function lerPedidoML(ml, idExterno) {
   // qualquer falha deixa o pedido sem o prazo, nunca sem o pedido.
   const aPostar = ["pending", "handling", "ready_to_ship"].includes(String(shipment?.status ?? ""));
   const sla = aPostar && idDaIda ? await opcional(ml.get(`/shipments/${idDaIda}/sla`), `GET /shipments/${idDaIda}/sla`).catch(() => null) : null;
-  return normalizarPedidoML({ order, billing, shipments: lista, shipment, retorno, invoice, custos, custosDoRetorno, sla });
+  const mercadoPago = await lerMercadoPago(ml, order, idDaIda);
+  return normalizarPedidoML({ order, billing, shipments: lista, shipment, retorno, invoice, custos, custosDoRetorno, sla, mercadoPago });
+}
+
+/**
+ * Os pagamentos da venda no Mercado Pago e o do frete pago pelo comprador (achado pelo id do envio), com o token do ML
+ * (09/11/2026; ver lib/pedidos/mercadoPago.js). Falha aqui nunca derruba a leitura do pedido: sem o Mercado Pago, o
+ * pedido entra como antes e a conferencia tenta de novo depois.
+ */
+async function lerMercadoPago(ml, order, envioId) {
+  if (typeof ml?.mp !== "function") return null;
+  try {
+    const pagamentos = [];
+    for (const pagamento of Array.isArray(order?.payments) ? order.payments : []) {
+      if (!pagamento?.id) continue;
+      const lido = await opcional(ml.mp(`/v1/payments/${pagamento.id}`), `GET mercadopago /v1/payments/${pagamento.id}`);
+      if (lido) pagamentos.push(lido);
+    }
+    const busca = envioId ? await opcional(ml.mp("/v1/payments/search", { external_reference: String(envioId) }), `GET mercadopago /v1/payments/search?external_reference=${envioId}`) : null;
+    return { pagamentos, frete: Array.isArray(busca?.results) ? busca.results : [] };
+  } catch {
+    return null;
+  }
 }
 
 async function lerPedidoLI(li, idExterno) {
@@ -356,6 +378,8 @@ export async function rodarLeituraDePedidos({ ml = null, li = null, bling = null
   espelhos = pendentes.slice(-TETO_DE_ESPELHOS_PENDENTES);
 
   const reconferidos = await reconferirPedidosPendentes({ ...clientes, agora, taxas }).catch((erro) => ({ conferidos: 0, falhas: 1, erros: [erro?.message ?? String(erro)] }));
+  // O Mercado Pago (09/11/2026): os pedidos do ML sem o que foi creditado ou com o dinheiro ainda nao liberado.
+  const doMercadoPago = origens.includes("MERCADO_LIVRE") ? await conferirMercadoPagoPendentes({ ml: clientes.ml, agora, taxas }).catch((erro) => ({ conferidos: 0, falhas: 1, erros: [erro?.message ?? String(erro)] })) : { conferidos: 0, falhas: 0, erros: [] };
   const espelhosAusentes = await marcarEspelhosAusentes(agora);
   const erros = detalhes.length;
   await gravarMemoria({ cursores, espelhosPendentes: espelhos, ignoradosPorLoja: ignorados, lidos, criados, erros, ultimaVoltaEm: new Date(agora).toISOString() });
@@ -373,6 +397,8 @@ export async function rodarLeituraDePedidos({ ml = null, li = null, bling = null
     espelhosAusentes,
     reconferidos: reconferidos.conferidos,
     reconferirErros: reconferidos.erros,
+    mercadoPagoConferidos: doMercadoPago.conferidos,
+    mercadoPagoErros: doMercadoPago.erros,
     aviso: erros > 0 ? `${erros} falha(s)` : null,
     detalhes,
   };
@@ -514,6 +540,35 @@ export async function reconferirPedidosPendentes({ ml = null, li = null, bling =
     } catch (erro) {
       resultado.falhas += 1;
       if (resultado.erros.length < 5) resultado.erros.push(`${pedido.origem} ${pedido.idExterno}: ${erro?.message ?? erro}`);
+    }
+  }
+  return resultado;
+}
+
+/**
+ * Relê os pedidos do ML que ainda nao tem o Mercado Pago ou cujo dinheiro nao foi liberado (09/11/2026; ver
+ * `pedidosParaConferirNoMercadoPago`). A releitura e a do pedido inteiro, que ja traz o Mercado Pago e refaz a conferencia
+ * com o Real. Nunca lanca; os erros voltam no resultado para o log do worker.
+ */
+export async function conferirMercadoPagoPendentes({ ml = null, agora = new Date(), taxas = null, idsExternos = null } = {}) {
+  const resultado = { conferidos: 0, falhas: 0, erros: [] };
+  let lista;
+  try {
+    lista = await pedidosParaConferirNoMercadoPago({ agora, idsExternos });
+  } catch (erro) {
+    resultado.erros.push(`lista: ${erro?.message ?? erro}`);
+    return resultado;
+  }
+  const cliente = ml ?? clienteML();
+  for (const pedido of lista) {
+    try {
+      const normalizado = await lerPedidoDaOrigem(pedido.origem, pedido.idExterno, { ml: cliente });
+      await aplicarPedidoLido(normalizado, { cliente, taxas, agora });
+      resultado.conferidos += 1;
+    } catch (erro) {
+      resultado.falhas += 1;
+      if (resultado.erros.length < 5) resultado.erros.push(`${pedido.idExterno}: ${erro?.message ?? erro}`);
+      await adiarConferenciaDoMercadoPago(pedido.id, agora).catch(() => {});
     }
   }
   return resultado;

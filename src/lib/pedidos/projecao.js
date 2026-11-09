@@ -3,7 +3,7 @@
  * so escondido na tela; o que vai como propriedade de um componente de cliente chega inteiro ao navegador).
  *
  * - Sem `dado.pessoalDoCliente` (ver): sai o documento, o telefone, o e-mail e o endereco do comprador e do cliente.
- * - Sem `dado.custo` (ver): sai a estimativa, o real, os lucros e o custo congelado de cada item.
+ * - Sem `dado.custo` (ver): sai a estimativa, o real, os lucros, o Mercado Pago e o custo congelado de cada item.
  * - Sem `dado.localizacao` (ver): sai a localizacao do produto de cada item.
  *
  * Sem imports: `pode(id, nivel)` e o da sessao de Acessos.
@@ -26,7 +26,7 @@ export function projetarPedido(pedido, pode) {
     }
   }
   if (!veCusto) {
-    Object.assign(copia, { estimativa: null, real: null, lucroEstimado: null, lucroReal: null });
+    Object.assign(copia, { estimativa: null, real: null, lucroEstimado: null, lucroReal: null, mercadoPago: null });
     copia.itens = (copia.itens ?? []).map((item) => ({ ...item, custoUnitarioCongelado: null, custoOrigem: null }));
   }
   if (!veLocal) copia.itens = (copia.itens ?? []).map((item) => (item.produto ? { ...item, produto: { ...item.produto, localizacao: null } } : item));
@@ -39,7 +39,7 @@ export function projetarPedido(pedido, pode) {
  */
 export function projetarLinhaDaLista(linha, pode) {
   let copia = linha;
-  if (!pode("dado.custo", "ver")) copia = { ...copia, lucroEstimado: null, lucroReal: null };
+  if (!pode("dado.custo", "ver")) copia = { ...copia, lucroEstimado: null, lucroReal: null, mercadoPago: null };
   if (!pode("dado.localizacao", "ver") && copia.item) copia = { ...copia, item: { ...copia.item, localizacao: null } };
   return copia;
 }

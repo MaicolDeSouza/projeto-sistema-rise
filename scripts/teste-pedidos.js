@@ -30,10 +30,11 @@ const { normalizarPedidoBling, classificarLojaDoBling } = await import("../src/l
 const { statusDoPedido, statusDoEnvio, situacaoDoPedido, condicaoDaSituacao, SITUACOES } = await import("../src/lib/pedidos/status.js");
 const { clienteDoPedido } = await import("../src/lib/pedidos/cliente.js");
 const { custoCongeladoDoProduto, casarItens } = await import("../src/lib/pedidos/itens.js");
-const { parcelasDaEstimativa, parcelasDoReal, devolvido, lucroDivergente, lucroFechado } = await import("../src/lib/pedidos/lucro.js");
+const { parcelasDaEstimativa, parcelasDoReal, devolvido, lucroDivergente, lucroFechado, estimativaValida } = await import("../src/lib/pedidos/lucro.js");
+const { resumoDoMercadoPago, conferirComMercadoPago } = await import("../src/lib/pedidos/mercadoPago.js");
 const { necessidadeDoPedido, calcularPecas, saldoSemCorte } = await import("../src/lib/pedidos/pecas.js");
-const { aplicarPedidoLido, listarPedidosDeVenda, lerPedidoDeVenda, marcarEmSeparacao, salvarCustoDoFreteManual, vincularCliente, espelharNoBling, criarClienteDoPedido, buscarClientesParaVincular, opcoesDasColunas, resumoDaLista, recalcularPecasDosPedidosAbertos, pedidosParaReconferir } = await import("../src/lib/pedidos/banco.js");
-const { rodarLeituraDePedidos, reconferirPedidosPendentes, lerPedidoDaOrigem: lerPedidoDaOrigemRC } = await import("../src/lib/pedidos/leitura.js");
+const { aplicarPedidoLido, listarPedidosDeVenda, lerPedidoDeVenda, marcarEmSeparacao, salvarCustoDoFreteManual, vincularCliente, espelharNoBling, criarClienteDoPedido, buscarClientesParaVincular, opcoesDasColunas, resumoDaLista, recalcularPecasDosPedidosAbertos, pedidosParaReconferir, pedidosParaConferirNoMercadoPago } = await import("../src/lib/pedidos/banco.js");
+const { rodarLeituraDePedidos, reconferirPedidosPendentes, conferirMercadoPagoPendentes, lerPedidoDaOrigem: lerPedidoDaOrigemRC } = await import("../src/lib/pedidos/leitura.js");
 const { ROTINAS_DO_WORKER } = await import("../src/lib/saude/regras.js");
 const { RECURSOS } = await import("../src/lib/acessos/recursos.js");
 const { Prisma } = await import("@/generated/prisma/client");
@@ -562,6 +563,62 @@ try {
       await prisma.produto.update({ where: { sku: "ZZ-PED-B" }, data: { conferido: false } });
       await prisma.pedidoDeVenda.delete({ where: { id: rcML.id } });
     }
+    // Mercado Pago (09/11/2026): o liquido de cada venda do ML e a conferencia com o Real; a estimativa por kit vendido.
+    {
+      const pg = (nome, valor, de = "collector") => ({ name: nome, amounts: { original: valor, refunded: 0 }, accounts: { from: de, to: "x" } });
+      const vendaMP = { id: 1, status: "approved", transaction_details: { net_received_amount: 10.8 }, money_release_status: "pending", money_release_date: "2026-12-01T08:55:50.000-04:00", charges_details: [pg("mp_processing_fee", 0.03), pg("ml_sale_fee", 3.23), pg("shp_cross_docking", 13.14), pg("coupon_code", 5, "ml")] };
+      const freteMP = { id: 2, status: "approved", description: "marketplace_shipment", external_reference: "48405811180", transaction_details: { net_received_amount: 5.99 }, money_release_status: "pending", money_release_date: "2026-11-20T00:00:00.000-04:00" };
+      const recusado = { id: 3, status: "rejected", transaction_details: { net_received_amount: 0 } };
+      const resumo = resumoDoMercadoPago({ pagamentos: [vendaMP, recusado], frete: [freteMP] }, { agora });
+      conferir("MP: liquido da venda + frete do comprador, cobrancas da loja e liberacao (os numeros do 2000019290718804)", [resumo.liquido, resumo.freteDoComprador, resumo.cobrancas, resumo.liberacao, resumo.liberado, resumo.estornado, resumo.pagamentos], [16.79, 5.99, { comissao: 3.23, tarifaMP: 0.03, frete: 13.14, cupom: 0, outros: 0 }, "2026-12-01T08:55:50.000-04:00", false, false, 2]);
+      const realMedido = { receita: 27.2, comissao: 3.26, tarifaFixa: 0, frete: 7.15, fontes: { comissao: "pedido", frete: "envio" } };
+      conferir("MP: bate com receita - comissao - frete do Rise", conferirComMercadoPago({ real: realMedido, mercadoPago: resumo, status: "ENVIADO" }), { estado: "bate", liquidoMP: 16.79, liquidoRise: 16.79, diferenca: 0 });
+      conferir("MP: sem o pagamento do frete, diverge pelo frete", conferirComMercadoPago({ real: realMedido, mercadoPago: resumoDoMercadoPago({ pagamentos: [vendaMP] }), status: "ENVIADO" }).diferenca, -5.99);
+      conferir("MP: carrinho, frete estimado, estorno e devolvido nao comparam", [
+        conferirComMercadoPago({ real: realMedido, mercadoPago: resumo, status: "ENVIADO", carrinho: true }).estado,
+        conferirComMercadoPago({ real: { ...realMedido, fontes: { frete: "estimado" } }, mercadoPago: resumo, status: "PAGO" }).estado,
+        conferirComMercadoPago({ real: realMedido, mercadoPago: resumoDoMercadoPago({ pagamentos: [{ ...vendaMP, status: "refunded" }] }), status: "ENVIADO" }).estado,
+        conferirComMercadoPago({ real: realMedido, mercadoPago: resumo, status: "DEVOLVIDO" }).estado,
+      ], ["sem", "sem", "sem", "sem"]);
+      conferir("MP: so tentativa recusada ou nenhum pagamento", [conferirComMercadoPago({ real: realMedido, mercadoPago: resumoDoMercadoPago({ pagamentos: [recusado] }), status: "PAGO" }), resumoDoMercadoPago({})], [null, null]);
+
+      const kit = parcelasDaEstimativa({ origem: "MERCADO_LIVRE", itens: [{ quantidade: 20, quantidadeDoKit: 20, precoUnitario: 23.9, custoUnitarioCongelado: 0.33 }], totais: {}, custosML: { percentual: 0.12, tarifaFixa: 0, frete: 0 } });
+      conferir("kit: a estimativa e por kit vendido (receita do kit, custo das 20 unidades)", [kit.receita, kit.custo, kit.porKit, kit.lucro < kit.receita], [23.9, 6.6, true, true]);
+      conferir("kit: estimativa antiga de kit e refeita; a de item comum continua", [estimativaValida({ origem: "editorML" }, [{ quantidadeDoKit: 20 }]), estimativaValida({ origem: "editorML", porKit: true }, [{ quantidadeDoKit: 20 }]), estimativaValida({ origem: "editorML" }, [{ quantidadeDoKit: 1 }]), estimativaValida({ origem: null }, [])], [false, true, true, false]);
+
+      // O ciclo contra o ML falso: sem Mercado Pago, bate, diverge, falha mantem o guardado, a rotina rele ate liberar.
+      const pedidoMP = { ...fx("ml-order"), id: 2000000097, order_items: fx("ml-order").order_items.map((linha) => ({ ...linha, item: { ...linha.item, id: "MLBZZNAOHA2", seller_sku: "ZZ-PED-A", seller_custom_field: "ZZ-PED-A" } })) };
+      const opcoesMP = { pedidos: [pedidoMP], envios: [fx("ml-shipment")], custosDosEnvios: { 40000000001: fx("ml-shipment-costs") }, faturas: [fx("ml-invoice")], cobrancas: { 2000000097: fx("ml-billing") } };
+      const mlMP = criarMLFalso(opcoesMP);
+      const ler = async (ml) => aplicarPedidoLido(await lerPedidoDaOrigemRC("MERCADO_LIVRE", "2000000097", { ml }), { cliente: ml, agora });
+      const doBanco = (id) => prisma.pedidoDeVenda.findUnique({ where: { id } });
+      const ap1 = await ler(mlMP);
+      const g1MP = await doBanco(ap1.id);
+      conferir("MP: sem pagamento no Mercado Pago o pedido entra como antes", g1MP.mercadoPago, null);
+      const liquidoRise = Math.round((g1MP.real.receita - g1MP.real.comissao - g1MP.real.tarifaFixa - g1MP.real.frete) * 100) / 100;
+      const idDoPagamento = String(pedidoMP.payments[0].id);
+      mlMP.pagamentosMP.set(idDoPagamento, { id: Number(idDoPagamento), status: "approved", transaction_details: { net_received_amount: liquidoRise }, money_release_status: "pending", money_release_date: "2026-12-01T00:00:00.000-03:00", charges_details: [] });
+      await ler(mlMP);
+      const g2MP = await doBanco(ap1.id);
+      conferir("MP: bate com o Real e o aviso fica apagado", [g2MP.mercadoPago?.conferencia?.estado, g2MP.avisos.includes("lucroDiferenteDoMercadoPago")], ["bate", false]);
+      mlMP.pagamentosMP.get(idDoPagamento).transaction_details.net_received_amount = Math.round((liquidoRise - 5.99) * 100) / 100;
+      await ler(mlMP);
+      const g3MP = await doBanco(ap1.id);
+      conferir("MP: diverge e o aviso acende", [g3MP.mercadoPago?.conferencia?.estado, g3MP.mercadoPago?.conferencia?.diferenca, g3MP.avisos.includes("lucroDiferenteDoMercadoPago")], ["diverge", -5.99, true]);
+      await ler(criarMLFalso(opcoesMP));
+      conferir("MP: leitura sem o Mercado Pago mantem o que estava guardado", (await doBanco(ap1.id)).mercadoPago?.conferencia?.estado, "diverge");
+      mlMP.pagamentosMP.get(idDoPagamento).transaction_details.net_received_amount = liquidoRise;
+      const seteHorasAtras = new Date(Date.now() - 7 * 60 * 60 * 1000);
+      await prisma.pedidoDeVenda.update({ where: { id: ap1.id }, data: { atualizadoEm: seteHorasAtras } });
+      const volta = await conferirMercadoPagoPendentes({ ml: mlMP, agora: new Date(), idsExternos: ["2000000097"] });
+      conferir("MP: a rotina rele o pedido de dinheiro nao liberado", [volta.conferidos, volta.falhas, (await doBanco(ap1.id)).mercadoPago?.conferencia?.estado], [1, 0, "bate"]);
+      mlMP.pagamentosMP.get(idDoPagamento).money_release_status = "released";
+      await prisma.pedidoDeVenda.update({ where: { id: ap1.id }, data: { atualizadoEm: seteHorasAtras } });
+      await conferirMercadoPagoPendentes({ ml: mlMP, agora: new Date(), idsExternos: ["2000000097"] });
+      await prisma.pedidoDeVenda.update({ where: { id: ap1.id }, data: { atualizadoEm: seteHorasAtras } });
+      conferir("MP: liberado sai da fila", (await pedidosParaConferirNoMercadoPago({ agora: new Date(), idsExternos: ["2000000097"] })).length, 0);
+      await prisma.pedidoDeVenda.delete({ where: { id: ap1.id } });
+    }
     const semDoc = await aplicarPedidoLido({ ...nbling, idExterno: "ZZ-PED-105", numero: "ZZ-PED-105", comprador: { ...nbling.comprador, documento: null } }, { agora });
     const criado = await criarClienteDoPedido(semDoc.id);
     const gSemDoc = await prisma.pedidoDeVenda.findUnique({ where: { id: semDoc.id }, include: { cliente: true } });
@@ -705,7 +762,7 @@ try {
       [p2.estimativa, p2.real, p2.lucroEstimado, p2.lucroReal, p2.itens[0].custoUnitarioCongelado, p2.itens[0].custoOrigem, p2.itens[0].comissao, p2.documentoDoComprador],
       [null, null, null, null, null, null, 1, "12345678909"],
     );
-    conferir("projecao: a linha da lista sem custo perde o lucro", projetarLinhaDaLista({ id: "1", lucroEstimado: 3, lucroReal: 2, total: 9 }, semCusto), { id: "1", lucroEstimado: null, lucroReal: null, total: 9 });
+    conferir("projecao: a linha da lista sem custo perde o lucro", projetarLinhaDaLista({ id: "1", lucroEstimado: 3, lucroReal: 2, total: 9 }, semCusto), { id: "1", lucroEstimado: null, lucroReal: null, total: 9, mercadoPago: null });
     const semLocal = (id) => id !== "dado.localizacao";
     conferir(
       "projecao: a linha da lista sem localizacao perde a do item",

@@ -39,7 +39,11 @@ import { createPortal } from "react-dom";
  */
 const MARGEM = 6;
 
-export default function BolhaDeAjuda({ texto, variante = "canto", className = "" }) {
+/**
+ * `children` (09/11/2026, o lucro de Vendas): o proprio valor vira o gatilho no lugar do "i", para a explicacao abrir ao
+ * passar o mouse ou clicar no numero (o dono: "nao quero poluir a aba lucro com mensagens"). Sem `children`, o "i" de sempre.
+ */
+export default function BolhaDeAjuda({ texto, variante = "canto", className = "", children = null }) {
   // "inline-direita": igual a "inline", mas o texto abre alinhado pela DIREITA do icone (para a
   // esquerda). E a variante para icone que mora na borda direita de uma janela ou coluna (pedido
   // do dono em 21/09/2026).
@@ -93,23 +97,24 @@ export default function BolhaDeAjuda({ texto, variante = "canto", className = ""
     >
       <span
         ref={icone}
-        role="img"
-        aria-label="Ajuda"
+        role={children ? undefined : "img"}
+        aria-label={children ? undefined : "Ajuda"}
         tabIndex={0}
         onFocus={() => setAberto(true)}
         onBlur={() => setAberto(false)}
-        className="block h-4 w-4 cursor-help rounded-full text-acento shadow-md ring-2 ring-superficie"
+        className={children ? "cursor-help rounded focus-visible:outline-2 focus-visible:outline-acento" : "block h-4 w-4 cursor-help rounded-full text-acento shadow-md ring-2 ring-superficie"}
       >
+        {children}
         {/* O "i" e desenhado (SVG), e nao escrito como texto: e o de serifa e cauda
             curva do icone de informacao de referencia, e nao depende da fonte da
             pagina. O circulo usa a cor de destaque da loja (`currentColor` = `text-acento`). */}
-        <svg viewBox="0 0 550 550" aria-hidden="true" className="block h-full w-full">
+        {!children && <svg viewBox="0 0 550 550" aria-hidden="true" className="block h-full w-full">
           <circle cx="275" cy="275" r="275" fill="currentColor" />
           <g fill="#fff">
             <circle cx="307" cy="140" r="42" />
             <path d="M200 240C214 232 236 220 268 214C292 210 316 212 322 222C325 232 320 270 316 300C312 335 302 370 300 392C300 398 305 402 316 402C328 402 340 400 345 404C348 410 340 416 330 420C305 430 278 440 255 441C236 442 222 430 220 412C219 392 230 350 238 320C246 292 254 272 254 264C244 260 224 254 214 250C206 247 201 244 200 240Z" />
           </g>
-        </svg>
+        </svg>}
       </span>
       {aberto &&
         createPortal(

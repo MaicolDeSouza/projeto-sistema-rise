@@ -18,6 +18,8 @@ const SERVICO = "MERCADO_LIVRE";
 const URL_AUTORIZAR = "https://auth.mercadolivre.com.br/authorization";
 const URL_TOKEN = "https://api.mercadolibre.com/oauth/token";
 const API = "https://api.mercadolibre.com";
+// O Mercado Pago aceita o MESMO token do ML (medido em 09/11/2026: GET /v1/payments/{id} de uma venda deu 200).
+const API_MP = "https://api.mercadopago.com";
 
 const MAX_POR_SEGUNDO = 8;
 const MARGEM_RENOVACAO_MS = 5 * 60 * 1000;
@@ -116,11 +118,11 @@ export async function obterAccessToken() {
 
 // `headers` extras entram por cima do Authorization: o endpoint de envios exige `X-Api-Version: 2`
 // (Pedidos de venda, 04/11/2026), e a assinatura comum nao tinha como mandar.
-async function chamar(metodo, caminho, { params, corpo, tentativas, headers, comHeaders } = {}) {
+async function chamar(metodo, caminho, { params, corpo, tentativas, headers, comHeaders, base = API } = {}) {
   if (metodo !== "GET") exigirTravaLiberada(SERVICO);
 
   const token = await obterAccessToken();
-  const url = new URL(`${API}${caminho}`);
+  const url = new URL(`${base}${caminho}`);
 
   for (const [chave, valor] of Object.entries(params ?? {})) {
     if (valor !== undefined && valor !== null && valor !== "") {
@@ -144,6 +146,9 @@ async function chamar(metodo, caminho, { params, corpo, tentativas, headers, com
 // `comHeaders: true` devolve tambem os headers da resposta: a versao do item para o atacado (`X-Version`) so vem no
 // header `x-version` de GET /items/{id}/prices (medido em 08/11/2026), nunca no corpo.
 export const mlGet = (caminho, params, { headers, comHeaders } = {}) => chamar("GET", caminho, { params, headers, comHeaders });
+
+/** Leitura no Mercado Pago com o token do ML (o liquido de cada venda, 09/11/2026). So GET: nada se escreve la. */
+export const mpGet = (caminho, params) => chamar("GET", caminho, { params, base: API_MP });
 
 // Escrita: UMA tentativa so. Uma resposta perdida nao quer dizer que o ML nao recebeu, e repetir
 // a criacao de um anuncio criaria dois iguais no ar. Todas passam pela trava ML_PUBLICACAO em `chamar`.

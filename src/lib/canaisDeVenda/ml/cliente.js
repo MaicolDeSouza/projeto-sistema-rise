@@ -1,6 +1,6 @@
 import { exigirCodigoLiberado } from "@/lib/blingSync/cliente";
 import { config, exigirTravaLiberada } from "@/lib/integracoes/config";
-import { mlGet, mlPost, mlPut, mlUpload, obterUsuarioId } from "@/lib/integracoes/mercadolivre";
+import { mlGet, mlPost, mlPut, mlUpload, mpGet, obterUsuarioId } from "@/lib/integracoes/mercadolivre";
 
 /**
  * O contrato com o Mercado Livre que as leituras e a publicacao do canal ML recebem por parametro
@@ -20,6 +20,8 @@ import { mlGet, mlPost, mlPut, mlUpload, obterUsuarioId } from "@/lib/integracoe
 export function clienteML() {
   return {
     get: mlGet,
+    // O Mercado Pago (so leitura), com o mesmo token: o liquido das vendas nos Pedidos de venda (09/11/2026).
+    mp: mpGet,
     usuarioId: obterUsuarioId,
     post: mlPost,
     put: mlPut,

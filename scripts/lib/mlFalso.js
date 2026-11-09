@@ -620,6 +620,24 @@ export function criarMLFalso(opcoes = {}) {
     return null;
   }
 
+  // ---- Mercado Pago (09/11/2026): o liquido de cada venda, lido com o mesmo token do ML ----
+  // `pagamentosMP`: os pagamentos como o /v1/payments/{id} devolve (o da venda e o "marketplace_shipment" do frete, com
+  // `external_reference` = id do envio). Sem eles, tudo da 404 e a leitura do pedido segue como antes. Nao entra em `chamadas`,
+  // para nao mudar a contagem de GETs dos testes do ML.
+  const pagamentosMP = new Map((opcoes.pagamentosMP ?? []).map((p) => [String(p.id), structuredClone(p)]));
+  async function mp(caminho, params = {}) {
+    const partes = caminho.match(/^\/v1\/payments\/(\d+)$/);
+    if (partes) {
+      const pagamento = pagamentosMP.get(partes[1]);
+      return pagamento ? resposta(200, structuredClone(pagamento)) : naoAchou(`Payment ${partes[1]} not found`);
+    }
+    if (caminho === "/v1/payments/search") {
+      const lista = [...pagamentosMP.values()].filter((p) => !params?.external_reference || String(p.external_reference) === String(params.external_reference));
+      return resposta(200, { paging: { total: lista.length, limit: 30, offset: 0 }, results: structuredClone(lista) });
+    }
+    throw new Error(`Mercado Pago falso: GET ${caminho} nao suportado`);
+  }
+
   async function get(caminho, params, { headers } = {}) {
     const pedido = separar(caminho, params);
     // `headers` so entra no registro quando veio: os testes antigos comparam a chamada inteira.
@@ -734,6 +752,8 @@ export function criarMLFalso(opcoes = {}) {
 
   return {
     get,
+    mp,
+    pagamentosMP,
     usuarioId: async () => estado.usuarioId,
     post,
     put,

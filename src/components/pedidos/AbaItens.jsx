@@ -86,7 +86,11 @@ export default function AbaItens({ pedido }) {
                   </span>
                 </span>
               </td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{item.quantidade}</td>
+              {/* Em KITS vendidos (09/11/2026); as unidades do produto embaixo, quando e kit. */}
+              <td className="px-3 py-2.5 text-right tabular-nums">
+                {item.quantidadeDoKit > 1 ? Math.round(item.quantidade / item.quantidadeDoKit) : item.quantidade}
+                {item.quantidadeDoKit > 1 && <span className="block text-xs text-suave">{item.quantidade} un.</span>}
+              </td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">{moeda.format(item.precoUnitario ?? 0)}</td>
               <td className="whitespace-nowrap px-5 py-2.5 text-right tabular-nums">{moeda.format(item.total ?? 0)}</td>
             </tr>

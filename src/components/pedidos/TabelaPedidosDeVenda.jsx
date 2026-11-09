@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Package } from "lucide-react";
 
+import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import CabecalhoOrdenavel, { parametrosDaOrdenacao } from "@/components/ui/CabecalhoOrdenavel";
 import FotoComLupa from "@/components/ui/FotoComLupa";
 
-import { abreviarPagamento, abrirNoCanal, dataCompleta, diaEHora, linkNoBling, linkNoCanal, moedaComSinal, moeda } from "./formato";
+import { abreviarPagamento, abrirNoCanal, dataCompleta, diaEHora, linhasDoMercadoPago, linkNoBling, linkNoCanal, moedaComSinal, moeda } from "./formato";
 import CopiarCodigo from "./CopiarCodigo";
 import FiltroDaColuna from "./FiltroDaColuna";
 import IconeDoCanalDoPedido from "./IconeDoCanalDoPedido";
@@ -31,17 +32,25 @@ function CelulaDoLucro({ linha }) {
   // Venda cancelada nao tem lucro; a devolvida ja tem o real (so o frete de retorno, como prejuizo), e o estimado
   // mostraria um lucro que nao existe mais.
   if (linha.status === "CANCELADO") return <span className="text-suave" title="Venda cancelada">—</span>;
-  const fechado = (linha.lucroFechado || linha.status === "DEVOLVIDO") && linha.lucroReal !== null;
+  // Conferido no Mercado Pago (pedido do dono em 09/11/2026): o que foi creditado bate com a conta do Rise, entao o lucro
+  // real vale sem o "~", mesmo antes de entregar. Divergiu: fica com o "~" e o "!" acende.
+  const mp = linha.mercadoPago ?? null;
+  const conferido = mp?.estado === "bate" && linha.lucroReal !== null && linha.status !== "DEVOLVIDO";
+  const fechado = conferido || ((linha.lucroFechado || linha.status === "DEVOLVIDO") && linha.lucroReal !== null);
   const valor = fechado ? linha.lucroReal : (linha.lucroEstimado ?? linha.lucroReal);
-  const divergente = linha.avisos?.includes("lucroDivergente");
+  const divergente = linha.avisos?.includes("lucroDivergente") || linha.avisos?.includes("lucroDiferenteDoMercadoPago");
   if (valor === null || valor === undefined) return <span className="text-suave">—</span>;
   const negativo = valor < 0;
   const titulo =
     linha.status === "DEVOLVIDO"
       ? "Devolvido: a venda saiu do balanço e o frete de retorno fica como prejuízo"
-      : fechado
-        ? "Lucro real (fechado)"
-        : `Lucro estimado${linha.lucroReal !== null ? `; real até agora: ${moeda.format(linha.lucroReal)}` : ""}`;
+      : conferido
+        ? "Lucro real"
+        : fechado
+          ? "Lucro real (fechado)"
+          : `Lucro estimado${linha.lucroReal !== null ? `; real até agora: ${moeda.format(linha.lucroReal)}` : ""}`;
+  // A explicacao abre ao passar o mouse ou clicar no lucro (BolhaDeAjuda com o valor como gatilho), nunca fixa na tela.
+  const dica = [titulo, linha.avisos?.includes("lucroDivergente") ? "O real está diferente do estimado." : null, ...linhasDoMercadoPago(mp)].filter(Boolean);
   const cor = negativo ? "text-red-600" : valor > 0 ? "text-emerald-700" : "text-suave";
   // O % embaixo (pedido do dono em 05/11/2026) e o MARKUP da regra do Rise: lucro ÷ custo total, e o custo total e o que
   // sobra da receita (os produtos) depois do lucro: comissao, tarifa, frete, imposto e custo do produto. O devolvido saiu
@@ -50,7 +59,8 @@ function CelulaDoLucro({ linha }) {
   const custoTotal = receita - valor;
   const percentual = linha.status !== "DEVOLVIDO" && receita > 0 && custoTotal > 0 ? (valor / custoTotal) * 100 : null;
   return (
-    <span className="inline-flex flex-col items-start" title={divergente ? `${titulo}\nO real está diferente do estimado.` : titulo}>
+    <BolhaDeAjuda variante="inline" texto={dica.map((linhaDaDica) => <span key={linhaDaDica} className="block">{linhaDaDica}</span>)}>
+    <span className="inline-flex flex-col items-start">
       <span className="inline-flex items-center gap-1">
         {divergente && (
           <span aria-hidden="true" className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[9px] leading-none font-bold text-amber-950">
@@ -67,6 +77,7 @@ function CelulaDoLucro({ linha }) {
         <span className={`text-xs ${cor}`}>{percentual.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</span>
       )}
     </span>
+    </BolhaDeAjuda>
   );
 }
 
@@ -226,7 +237,12 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
                     </span>
                   )}
                 </td>
-                <td className="whitespace-nowrap px-2 py-2 text-right font-medium tabular-nums">{linha.item?.quantidade ? `${linha.item.quantidade}x` : "—"}</td>
+                <td
+                  className="whitespace-nowrap px-2 py-2 text-right font-medium tabular-nums"
+                  title={linha.item?.unidadesPorKit > 1 ? `Kit de ${linha.item.unidadesPorKit} unidades` : undefined}
+                >
+                  {linha.item?.quantidade ? `${linha.item.quantidade}x` : "—"}
+                </td>
                 <td className="max-w-0 px-2 py-2">
                   {/* So o nome abre o pedido (pedido do dono em 09/11/2026): clicar no codigo, no local ou na linha nao navega,
                       para dar para selecionar e copiar sem abrir a tela. */}

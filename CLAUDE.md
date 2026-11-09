@@ -5739,6 +5739,26 @@ Spec `docs/superpowers/specs/2026-11-04-modulo-pedidos-de-venda-design.md`, plan
   **A 1ª versão da releitura (deploys .88 e .89) chamava `lerPedidoDaOrigem` sem o número do pedido** e o erro sumia no `catch`: nenhum pedido
   foi relido (o dono viu o 120920 conferido e o pedido ainda "não conferido"). Corrigido; os erros da releitura vão para o log do worker
   ("reconferir falhou") e o `teste:pedidos` passa pela releitura inteira contra o ML falso (`idsExternos` restringe a lista no teste).
+  **Lucro conferido no Mercado Pago (09/11/2026, pedido do dono: "pegar de forma concreta o que sobrou da venda"; "se os valores
+  batem mostrar apenas o lucro sem o ~, se há divergência mostra com ~ e liga o !"; mensagem só ao passar o mouse ou clicar no
+  lucro).** A leitura do pedido do ML (`lerMercadoPago` em `leitura.js`) lê com o MESMO token do ML (`mpGet` em
+  `integracoes/mercadolivre.js`, `clienteML().mp`) o `GET api.mercadopago.com/v1/payments/{id}` de cada pagamento e o pagamento do
+  frete do comprador (`/v1/payments/search?external_reference=<id do envio>`, `description: "marketplace_shipment"`: o
+  `shp_cross_docking` da venda cobra o frete inteiro e o do comprador volta nesse 2º pagamento). `resumoDoMercadoPago` e
+  `conferirComMercadoPago` (`lib/pedidos/mercadoPago.js`, puras) guardam na coluna nova `PedidoDeVenda.mercadoPago` (migration
+  `20261109_mercado_pago_do_pedido`) o líquido, as cobranças da loja, a liberação e a conferência: líquido do Mercado Pago contra
+  receita − comissão − tarifa fixa − frete do Real, tolerância de 1 centavo. **Bate:** o lucro real aparece sem "~" na lista e a aba diz
+  "Real (conferido)". **Diverge:** "~", aviso `lucroDiferenteDoMercadoPago` (o "!") e o real em âmbar. **Não compara** (`estado:
+  "sem"`): estorno, cancelado, devolvido, frete ou comissão ainda estimados e carrinho com MAIS de um pedido (o ML põe `pack_id` até
+  na venda de um pedido só; conta-se `packId` no banco). O detalhe (creditado, a conta do Rise, a diferença, a liberação) é a
+  `BolhaDeAjuda` com o próprio valor como gatilho (prop `children` nova). Falha na leitura do Mercado Pago mantém o guardado.
+  **A releitura** (`conferirMercadoPagoPendentes`, no fim de cada volta, 10 por volta) pega os pedidos do ML sem o Mercado Pago ou de
+  dinheiro não liberado, no máximo um a cada 6 h por pedido (`atualizadoEm`), até 60 dias; o que falha é adiado. Medido em 3 pedidos
+  reais (2000019290718804, 2000019325604738, 2000019330097440): bate ao centavo. Sem `dado.custo`, o Mercado Pago sai da projeção.
+  **Kit (mesmo dia, o dono: o 910207_20 com R$ 243,60 de lucro numa venda de R$ 23,90):** a estimativa multiplicava o preço do kit
+  pelas 20 unidades. O item guarda `quantidadeDoKit` (migration `20261109b_kit_no_item_do_pedido`), a estimativa é por kit vendido
+  (`porKit` em `lucro.js`, marca `porKit: true`) e a estimativa de kit sem a marca é refeita na próxima leitura (`estimativaValida`).
+  A coluna Qtd. de Vendas e a aba Itens mostram kits (as unidades na dica e embaixo). Testes no `teste:pedidos`.
 
 **Tela "Vendas" (07/11/2026, pedido do dono):** o bloco e a lista se chamam **Vendas** (menu, título, acesso; a rota segue
 `/pedidos` e o recurso `tela.pedidos`). Período padrão de **1 mês com as duas pontas preenchidas** (`umMesAntes`; o "até" ficava em

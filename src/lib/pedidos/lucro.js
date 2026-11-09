@@ -55,24 +55,26 @@ export function parcelasDaEstimativa({ origem, itens, totais, custosML = null, t
     let lucro = 0;
     let semCusto = false;
     for (const item of linhas) {
-      const quantidade = Number(item?.quantidade ?? 0);
+      // Por KIT vendido (09/11/2026): a `quantidade` e em unidades do produto (20 no "Kit de 20"), e o preco e o do kit.
+      // Multiplicar o preco do kit pelas 20 unidades deu R$ 243,60 de lucro numa venda de R$ 23,90.
+      const { kits, custoDoKit } = porKit(item);
       const unitario = custosDoAnuncio({
         preco: item?.precoUnitario,
-        custo: item?.custoUnitarioCongelado,
+        custo: custoDoKit,
         percentual: custosML.percentual,
         tarifaFixa: custosML.tarifaFixa,
         frete: custosML.frete,
       });
       if (!unitario) continue;
-      receita += Number(item?.precoUnitario ?? 0) * quantidade;
-      comissao += unitario.comissao * quantidade;
-      tarifaFixa += unitario.tarifaFixa * quantidade;
-      frete += unitario.frete * quantidade;
-      imposto += unitario.imposto * quantidade;
+      receita += Number(item?.precoUnitario ?? 0) * kits;
+      comissao += unitario.comissao * kits;
+      tarifaFixa += unitario.tarifaFixa * kits;
+      frete += unitario.frete * kits;
+      imposto += unitario.imposto * kits;
       if (unitario.lucro === null) semCusto = true;
       else {
-        custo += Number(item.custoUnitarioCongelado) * quantidade;
-        lucro += unitario.lucro * quantidade;
+        custo += custoDoKit * kits;
+        lucro += unitario.lucro * kits;
       }
     }
     return {
@@ -85,6 +87,7 @@ export function parcelasDaEstimativa({ origem, itens, totais, custosML = null, t
       lucro: semCusto ? null : dinheiro(lucro),
       calculadoEm,
       origem: "editorML",
+      porKit: true,
     };
   }
 
@@ -96,9 +99,10 @@ export function parcelasDaEstimativa({ origem, itens, totais, custosML = null, t
   let lucro = 0;
   let semCusto = custo === null;
   for (const item of linhas) {
-    const porUnidade = lucroLiquido(Number(item?.precoUnitario), Number(item?.custoUnitarioCongelado));
-    if (porUnidade === null) semCusto = true;
-    else lucro += porUnidade * Number(item?.quantidade ?? 0);
+    const { kits, custoDoKit } = porKit(item);
+    const doKit = custoDoKit === null ? null : lucroLiquido(Number(item?.precoUnitario), custoDoKit);
+    if (doKit === null) semCusto = true;
+    else lucro += doKit * kits;
   }
   return {
     receita,
@@ -110,7 +114,29 @@ export function parcelasDaEstimativa({ origem, itens, totais, custosML = null, t
     lucro: semCusto ? null : dinheiro(lucro - frete),
     calculadoEm,
     origem: "lucroNaLoja",
+    porKit: true,
   };
+}
+
+/**
+ * Quantos kits a linha vendeu e o custo de um kit (09/11/2026). `quantidadeDoKit` 1 (ou ausente) e o item comum: um kit
+ * de uma unidade. Custo nulo continua nulo (o lucro fica em aberto).
+ */
+function porKit(item) {
+  const unidades = Math.max(1, Math.round(Number(item?.quantidadeDoKit ?? 1)) || 1);
+  const kits = Number(item?.quantidade ?? 0) / unidades;
+  const custo = item?.custoUnitarioCongelado;
+  return { kits, custoDoKit: custo === null || custo === undefined || custo === "" ? null : Number(custo) * unidades };
+}
+
+/**
+ * A estimativa gravada ainda vale? A de um pedido com kit feita antes de 09/11/2026 (sem `porKit`) multiplicava o preco do
+ * kit pelas unidades e e refeita na proxima leitura; o resto continua congelado como sempre.
+ */
+export function estimativaValida(estimativa, itens) {
+  if (!estimativa?.origem) return false;
+  const temKit = lista(itens).some((item) => Number(item?.quantidadeDoKit ?? 1) > 1);
+  return !temKit || estimativa.porKit === true;
 }
 
 /** A taxa de uma forma de pagamento nas Taxas do canal (lista `[{ tipo, percentual, fixa }]` ou objeto por tipo). */

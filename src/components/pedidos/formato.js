@@ -83,3 +83,21 @@ export function linkDoRastreio(pedido) {
 
 /** Dinheiro com o sinal de menos tipografico ("−R$ 22,50"), o mesmo das parcelas do lucro. */
 export const moedaComSinal = (valor) => (Number(valor) < 0 ? `−${moeda.format(-Number(valor))}` : moeda.format(Number(valor) || 0));
+
+/**
+ * As linhas da dica do lucro com o Mercado Pago (pedido do dono em 09/11/2026: a mensagem so ao passar o mouse ou clicar no
+ * lucro, nunca fixa na aba). `mp` e o de `mercadoPagoParaTela`: o que foi creditado, a diferenca para a conta do Rise e a
+ * liberacao do dinheiro. Sem `mp`, nenhuma linha.
+ */
+export function linhasDoMercadoPago(mp) {
+  if (!mp) return [];
+  const doFrete = mp.freteDoComprador > 0 ? `, com ${moeda.format(mp.freteDoComprador)} do frete pago pelo comprador` : "";
+  const linhas = [];
+  if (mp.estado === "bate") linhas.push(`Conferido no Mercado Pago: creditou ${moeda.format(mp.liquidoMP)}${doFrete}, igual à conta do Rise.`);
+  else if (mp.estado === "diverge")
+    linhas.push(`O Mercado Pago creditou ${moeda.format(mp.liquidoMP)}${doFrete}; a conta do Rise dá ${moeda.format(mp.liquidoRise)} (diferença de ${moedaComSinal(mp.diferenca)}).`);
+  else linhas.push(`O Mercado Pago creditou ${moeda.format(mp.liquidoMP)}${doFrete}.`);
+  linhas.push("O lucro é esse valor menos o imposto e o custo dos produtos.");
+  if (mp.liberacao) linhas.push(mp.liberado ? `Dinheiro liberado em ${diaMes(mp.liberacao)}.` : `O dinheiro libera em ${diaMes(mp.liberacao)}.`);
+  return linhas;
+}

@@ -6,7 +6,8 @@ import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
 import { clienteDoPedido } from "@/lib/pedidos/cliente";
 import { casarItens } from "@/lib/pedidos/itens";
 import { SITUACOES, condicaoDaSituacao, situacaoDoPedido, statusDoEnvio, statusDoPedido } from "@/lib/pedidos/status";
-import { devolvido, lucroDivergente, lucroFechado, parcelasDaEstimativa, parcelasDoReal } from "@/lib/pedidos/lucro";
+import { devolvido, estimativaValida, lucroDivergente, lucroFechado, parcelasDaEstimativa, parcelasDoReal } from "@/lib/pedidos/lucro";
+import { conferirComMercadoPago, mercadoPagoParaTela } from "@/lib/pedidos/mercadoPago";
 import { estimativaDoAnuncioML } from "@/lib/pedidos/estimativaML";
 import { calcularPecas } from "@/lib/pedidos/pecas";
 import { fimDoDiaEmSaoPaulo } from "@/lib/pedidos/despacho";
@@ -92,7 +93,8 @@ async function recalcular(tx, pedido, { normalizado, custosMLLidos = null, taxas
   // Estimativa: congelada na primeira leitura, nunca refeita. As taxas do ML vem lidas de antes da transacao.
   // Estimativa sem `origem` e a vazia (o anuncio vendido nao estava no Rise): nao conta como calculada, entao e tentada
   // de novo a cada leitura e o aviso `semEstimativa` continua (medido na VPS em 04/11/2026: o aviso sumia na releitura).
-  let estimativa = pedido.estimativa?.origem ? pedido.estimativa : null;
+  // A de kit feita antes de 09/11/2026 (o preco do kit vezes as unidades) nao vale e e refeita: `estimativaValida`.
+  let estimativa = estimativaValida(pedido.estimativa, itens) ? pedido.estimativa : null;
   if (!estimativa) {
     let custosML = null;
     if (origem === "MERCADO_LIVRE") {
@@ -151,6 +153,15 @@ async function recalcular(tx, pedido, { normalizado, custosMLLidos = null, taxas
   if (status === "DEVOLVIDO" && n.nf?.status === "authorized") avisos.add("nfACancelar");
   if (!pedido.clienteId) avisos.add("clienteSemDocumento");
 
+  // O Mercado Pago (so ML, 09/11/2026; lib/pedidos/mercadoPago.js): o lido agora ou, quando a leitura nao trouxe (falha, ou
+  // cliente sem `mp`), o guardado. Bate com o Real: o lucro sai sem "~"; diverge: fica com "~" e liga o "!".
+  const { conferencia: _conferenciaAntiga, ...guardadoMP } = pedido.mercadoPago ?? {};
+  const resumoMP = n.mercadoPago ?? (pedido.mercadoPago ? guardadoMP : null);
+  const packId = n.packId ?? pedido.packId ?? null;
+  const carrinho = origem === "MERCADO_LIVRE" && resumoMP && packId ? (await tx.pedidoDeVenda.count({ where: { origem, packId } })) > 1 : false;
+  const conferenciaMP = origem === "MERCADO_LIVRE" ? conferirComMercadoPago({ real, mercadoPago: resumoMP, status, carrinho }) : null;
+  if (conferenciaMP?.estado === "diverge") avisos.add("lucroDiferenteDoMercadoPago");
+
   const despacharAte = n.envio?.despacharAte ? new Date(n.envio.despacharAte) : null;
   const dados = {
     status,
@@ -161,6 +172,7 @@ async function recalcular(tx, pedido, { normalizado, custosMLLidos = null, taxas
     lucroEstimado: estimativa?.lucro ?? null,
     lucroReal: real?.lucro ?? null,
     lucroFechado: fechado,
+    mercadoPago: jsonOuNulo(resumoMP ? { ...resumoMP, conferencia: conferenciaMP } : null),
     pecas: jsonOuNulo(pecas),
     avisos: [...avisos],
     historico: unirHistorico(pedido.historico, n.historico),
@@ -180,8 +192,8 @@ async function custosMLDaEstimativa(n, cliente) {
     where: { origem_idExterno: { origem: n.origem, idExterno: String(n.idExterno) } },
     select: { estimativa: true },
   });
-  if (gravado?.estimativa?.origem) return null;
   const { itens } = await casarItens(prisma, n);
+  if (estimativaValida(gravado?.estimativa, itens)) return null;
   const casado = itens.find((item) => item.anuncioId);
   if (!casado) return null;
   const lida = await estimativaDoAnuncioML(cliente, { id: casado.anuncioId }, numero(casado.custoUnitarioCongelado)).catch(() => null);
@@ -239,6 +251,7 @@ export async function aplicarPedidoLido(normalizado, { cliente = null, taxas = n
         idNaOrigem: item.idNaOrigem === null || item.idNaOrigem === undefined ? null : String(item.idNaOrigem),
         titulo: item.titulo ?? "",
         quantidade: Math.max(0, Math.round(Number(item.quantidade ?? 0))),
+        quantidadeDoKit: Math.max(1, Math.round(Number(item.quantidadeDoKit ?? 1))),
         precoUnitario: item.precoUnitario ?? 0,
         desconto: item.desconto ?? 0,
         total: item.total ?? 0,
@@ -397,11 +410,13 @@ export async function listarPedidosDeVenda({ busca, desde, ate, canais, status, 
       lucroEstimado: numero(p.lucroEstimado),
       lucroReal: numero(p.lucroReal),
       lucroFechado: p.lucroFechado,
+      mercadoPago: mercadoPagoParaTela(p.mercadoPago),
       avisos: p.avisos,
       quantidadeDeItens: p._count.itens,
       doRise: doRise.has(p.id),
+      // Qtd. em KITS vendidos (09/11/2026): o "20x Chave" vendido uma vez e 1x, nao 20x (as 20 unidades ficam no estoque e nas pecas).
       item: primeiro
-        ? { titulo: primeiro.titulo, quantidade: primeiro.quantidade, sku: primeiro.produto?.sku ?? primeiro.codigoNaOrigem ?? null, localizacao: primeiro.produto?.localizacao ?? null, produtoId: primeiro.produtoId, foto: fotoDe(primeiro.produto) }
+        ? { titulo: primeiro.titulo, quantidade: Math.round(primeiro.quantidade / (primeiro.quantidadeDoKit || 1)), unidadesPorKit: primeiro.quantidadeDoKit ?? 1, sku: primeiro.produto?.sku ?? primeiro.codigoNaOrigem ?? null, localizacao: primeiro.produto?.localizacao ?? null, produtoId: primeiro.produtoId, foto: fotoDe(primeiro.produto) }
         : null,
     };
   });
@@ -702,4 +717,37 @@ export async function pedidosParaReconferir({ limite = 40, idsExternos = null } 
 /** Reabre o lucro de um pedido que fechou sem custo, para a releitura refazer o real (o fechado nunca se refaz). */
 export async function reabrirLucroDoPedido(id) {
   await prisma.pedidoDeVenda.update({ where: { id }, data: { lucroFechado: false } });
+}
+
+/** Releitura do Mercado Pago a cada 6 h por pedido, ate o dinheiro ser liberado. */
+const INTERVALO_DO_MERCADO_PAGO_MS = 6 * 60 * 60 * 1000;
+/** Venda mais velha que isso nao se confere mais (o Mercado Pago libera em ate ~30 dias). */
+const JANELA_DO_MERCADO_PAGO_MS = 60 * 24 * 60 * 60 * 1000;
+
+/**
+ * Pedidos do ML para reler o Mercado Pago (09/11/2026): os que ainda nao tem o que o Mercado Pago creditou e os de dinheiro
+ * ainda nao liberado (um estorno ou ajuste de frete muda o valor ate la). A rotina so le o que mudou no ML, e a liberacao do
+ * dinheiro nao muda o pedido. Os mais antigos primeiro, um pedido no maximo a cada 6 h (`atualizadoEm`).
+ */
+export async function pedidosParaConferirNoMercadoPago({ limite = 10, agora = new Date(), idsExternos = null } = {}) {
+  const instante = new Date(agora).getTime();
+  return prisma.pedidoDeVenda.findMany({
+    where: {
+      origem: "MERCADO_LIVRE",
+      status: { not: "CANCELADO" },
+      dataDaVenda: { gte: new Date(instante - JANELA_DO_MERCADO_PAGO_MS) },
+      atualizadoEm: { lt: new Date(instante - INTERVALO_DO_MERCADO_PAGO_MS) },
+      OR: [{ mercadoPago: { equals: Prisma.DbNull } }, { mercadoPago: { path: ["liberado"], equals: false } }],
+      // So o teste restringe: a rotina olha todos.
+      ...(Array.isArray(idsExternos) ? { idExterno: { in: idsExternos.map(String) } } : {}),
+    },
+    orderBy: [{ atualizadoEm: "asc" }, { id: "asc" }],
+    take: limite,
+    select: { id: true, origem: true, idExterno: true },
+  });
+}
+
+/** Marca o pedido como visto agora, para uma releitura que falhou nao voltar na frente da fila a cada volta. */
+export async function adiarConferenciaDoMercadoPago(id, agora = new Date()) {
+  await prisma.pedidoDeVenda.update({ where: { id }, data: { atualizadoEm: new Date(agora) } });
 }
