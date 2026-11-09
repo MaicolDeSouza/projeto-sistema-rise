@@ -24,6 +24,9 @@ import JanelaExcluirAnuncioML from "./JanelaExcluirAnuncioML";
 import JanelaReaproveitarML from "./JanelaReaproveitarML";
 
 const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+// O preco e as vendas de cada linha (pedido do dono em 09/11/2026); sem o dado, nada aparece (regra 4 do padrao visual).
+const textoDoPreco = (preco) => (preco !== null && preco !== undefined && Number.isFinite(Number(preco)) ? MOEDA.format(Number(preco)) : "");
+const textoDasVendas = (vendidos) => (Number.isFinite(vendidos) ? `${vendidos} ${vendidos === 1 ? "venda" : "vendas"}` : "");
 // "Clássico + frete grátis", "Premium + frete grátis"...: o tipo e o frete (ligado, ou obrigatorio pelo preco >= 79) num texto so.
 const rotuloDaVariante = (anuncio) => {
   const variante = varianteDoRascunho({ tipoAnuncio: anuncio?.tipoAnuncio, envio: { freteGratis: anuncio?.freteGratis }, preco: anuncio?.preco });
@@ -492,6 +495,8 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
                       </span>
                       {/* A variante em texto (pedido do dono em 08/11/2026: "fique claro se e classico + frete, premium + frete"). */}
                       <span className="shrink-0 text-xs text-suave">{rotuloDaVariante(anuncio)}</span>
+                      <span className="shrink-0 text-xs tabular-nums">{textoDoPreco(anuncio.preco)}</span>
+                      {Number.isFinite(anuncio.vendidos) && <span className="shrink-0 text-xs tabular-nums text-suave">{textoDasVendas(anuncio.vendidos)}</span>}
                       {/* O "!" do anuncio com problema (pedido do dono em 09/11/2026): o mesmo selo do icone da lista, com o motivo
                           ao passar o mouse; clicar na linha abre o editor, onde a aba Divergencias mostra o que fazer. */}
                       {anuncio.alerta && (
@@ -566,6 +571,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
                     </span>
                     <span className="shrink-0 text-xs text-suave">{rotuloDaVariante(candidato)}</span>
                     <span className="shrink-0 text-xs tabular-nums">{Number.isFinite(candidato.preco) ? MOEDA.format(candidato.preco) : ""}</span>
+                    {Number.isFinite(candidato.vendidos) && <span className="shrink-0 text-xs tabular-nums text-suave">{textoDasVendas(candidato.vendidos)}</span>}
                     <span className="shrink-0 text-xs text-suave">{ESTADO_NO_ML[candidato.status] ?? candidato.status ?? ""}</span>
                     {/* O Rise ja tem esta variante (09/11/2026): o ML nao aceita anuncio duplicado, o dono decide. */}
                     {candidato.duplicado && (

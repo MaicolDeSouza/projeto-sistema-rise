@@ -902,7 +902,7 @@ try {
         const lista = await listarAnunciosML({ busca: "zz-ml" });
         conferir("lista traz os anuncios de teste", lista.total >= 6, true);
         conferir("lista: acha pelo SKU sem diferenciar caixa, so do Mercado Livre", [lista.total, lista.linhas.length, lista.pagina, lista.totalPaginas], [totalDeTeste, totalDeTeste, 1, 1]);
-        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["aguardandoEstoque", "atualizadoEm", "avisosML", "codigo", "estadoML", "estadoMLPedeAcao", "estoque", "fotoUrl", "freteGratis", "icone", "id", "idExterno", "linkDoAnuncio", "linkDoPainel", "preco", "produtoId", "rankingML", "reutilizado", "situacaoCanal", "sku", "status", "tipoAnuncio", "titulo", "urlExterna"]);
+        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["aguardandoEstoque", "atualizadoEm", "avisosML", "codigo", "estadoML", "estadoMLPedeAcao", "estoque", "fotoUrl", "freteGratis", "icone", "id", "idExterno", "linkDoAnuncio", "linkDoPainel", "preco", "produtoId", "rankingML", "reutilizado", "situacaoCanal", "sku", "status", "tipoAnuncio", "titulo", "urlExterna", "vendidos"]);
         // As colunas que ordenam (28/10/2026): no servidor, antes de paginar; o vazio vai para o fim nas duas direcoes.
         const porPreco = (direcao) => listarAnunciosML({ busca: "zz-ml", ordenar: "preco", direcao }).then((r) => r.linhas.map((l) => l.preco));
         const [subindo, descendo] = [await porPreco("asc"), await porPreco("desc")];
@@ -4144,9 +4144,15 @@ try {
     // Banco: a leitura da conta inteira contra o ML falso (scan + bulk), so os produtos conferidos.
     const conferido = await prisma.produto.create({ data: { sku: "ZZ-ML-AA", tituloBase: "ZZ AA", conferido: true, blingId: "1", precoVenda: 30, custo: 10, estoque: 5 } });
     await prisma.produto.create({ data: { sku: "ZZ-ML-AB", tituloBase: "ZZ AB", conferido: false, precoVenda: 30, custo: 10 } });
-    await prisma.anuncio.create({ data: { produtoId: conferido.id, canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "ATIVA", idExterno: "MLB6", titulo: "ZZ AA", dados: { tipoAnuncio: "gold_special", envio: { freteGratis: false }, preco: 30 } } });
+    await prisma.anuncio.create({ data: { produtoId: conferido.id, canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "ATIVA", idExterno: "MLB6", titulo: "ZZ AA", dados: { tipoAnuncio: "gold_special", envio: { freteGratis: false }, preco: 30, publicacao: { estadoML: { status: "active", vendidos: 7 } } } } });
+    // O preco e as vendas em cada linha do popup do produto (pedido do dono em 09/11/2026); as vendas sao as da releitura do ML.
+    const { anunciosMLDoProduto } = await import("../src/lib/canaisDeVenda/ml/banco.js");
+    conferir("popup: a linha do anuncio traz o preco e as vendas lidas do ML", (await anunciosMLDoProduto(conferido.id)).map((linha) => [linha.preco, linha.vendidos]), [[30, 7]]);
     await prisma.anuncioForaDoRiseML.create({ data: { itemId: "MLB999", produtoId: conferido.id, titulo: "de uma verificacao antiga" } });
     const mlConta = criarMLFalso({ meusItens: { "ZZ-ML-AA": [item("MLB1", "ZZ-ML-AA"), item("MLB6", "ZZ-ML-AA")], "ZZ-ML-AA_10": [item("MLB2", "ZZ-ML-AA_10", { price: 250, sold_quantity: 7 })], "ZZ-ML-AB": [item("MLB8", "ZZ-ML-AB")] } });
+    // A verificacao troca a tabela INTEIRA: as linhas de produtos reais (fora os ZZ-) sao guardadas e voltam no fim do bloco,
+    // porque o teste so pode mexer nos dados ZZ- (a primeira versao apagou as do PC).
+    const deOutros = await prisma.anuncioForaDoRiseML.findMany({ where: { NOT: { produto: { sku: { startsWith: "ZZ-" } } } } });
     const verificado = await verificarAnunciosAntigosML({ ml: mlConta, esperar: async () => {} });
     conferir("verificar: le a conta inteira e acha so os do conferido fora do Rise", [verificado.ok, verificado.lidos, verificado.foraDoRise, verificado.produtos], [true, 4, 2, 1]);
     const linhas = await prisma.anuncioForaDoRiseML.findMany({ where: { produtoId: conferido.id }, orderBy: { itemId: "asc" } });
@@ -4177,6 +4183,8 @@ try {
     conferir("popup: igual ao que esta gravado nao mexe", await sincronizarForaDoRiseDoProduto(conferido.id, [novo]), false);
     const naoConferido = await prisma.produto.findUnique({ where: { sku: "ZZ-ML-AB" }, select: { id: true } });
     conferir("popup: produto nao conferido nao ganha linha", [await sincronizarForaDoRiseDoProduto(naoConferido.id, [novo]), await prisma.anuncioForaDoRiseML.count({ where: { produtoId: naoConferido.id } })], [false, 0]);
+    await prisma.anuncioForaDoRiseML.createMany({ data: deOutros, skipDuplicates: true });
+    conferir("verificar: as linhas dos produtos reais voltaram", await prisma.anuncioForaDoRiseML.count({ where: { itemId: { in: deOutros.map((linha) => linha.itemId) } } }), deOutros.length);
   }
 
   {

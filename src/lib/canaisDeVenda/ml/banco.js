@@ -629,6 +629,9 @@ function linhaDoAnuncio(anuncio) {
     // O estado no ML relido de hora em hora pelo worker (`relerEstadoML.js`), em portugues, e se o dono precisa agir.
     estadoML: anuncio.status === "PUBLICADO" ? textoDoEstadoML(anuncio.dados?.publicacao?.estadoML) : null,
     estadoMLPedeAcao: anuncio.status === "PUBLICADO" && precisaAgirNoML(anuncio.dados?.publicacao?.estadoML),
+    // As vendas no ML (pedido do dono em 09/11/2026: "a quantidade de vendas e preco do anuncio em cada card"): as da releitura
+    // de hora em hora; o reaproveitado ainda nao relido usa as do dia em que veio da conta.
+    vendidos: anuncio.dados?.publicacao?.estadoML?.vendidos ?? anuncio.dados?.publicacao?.reaproveitado?.vendidos ?? null,
     urlExterna: anuncio.urlExterna ?? null,
   };
 }
