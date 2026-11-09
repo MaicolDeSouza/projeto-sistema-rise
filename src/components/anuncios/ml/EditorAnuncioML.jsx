@@ -145,6 +145,11 @@ export default function EditorAnuncioML({
   const [pergunta, setPergunta] = useState(null);
   // "Mover o vinculo do Bling?" do anuncio reaproveitado (08/11/2026): `{ de, codigo, itemId }` devolvido pelo envio.
   const [perguntaDoBling, setPerguntaDoBling] = useState(null);
+  // A pergunta do Bling vem ANTES do envio (dono, 09/11/2026: "no momento que eu publico um anuncio reutilizavel ele finaliza e
+  // ja fecha, nem chega mostrar a opcao de mover"): o Publicar tira o "!" e, com a lista de Produtos filtrada por ele, a linha
+  // sumia levando o popup antes da pergunta. A resposta vai no mesmo envio e nao e feita de novo.
+  const respondeuBling = useRef(false);
+  const moverEscolhido = useRef(false);
   // Id do anuncio novo salvo antes do Publicar: o `aoSalvar` (troca de endereco) espera a janela do Publicar fechar.
   const trocaPendente = useRef(null);
   const [carregandoCategoria, iniciarLeituraDaCategoria] = useTransition();
@@ -346,8 +351,12 @@ export default function EditorAnuncioML({
     else publicarComEtapas(idAtual);
   }
   function pedirEnvio() {
+    if (publicado && publicacao?.reaproveitado && !publicacao.reaproveitado.blingMovidoEm && !respondeuBling.current) {
+      setPerguntaDoBling({ antes: true, de: null, itemId: infoDoML.idExterno ?? publicacao?.itemId ?? "" });
+      return;
+    }
     if (alterado) salvarEContinuar("enviar");
-    else enviarMudancas();
+    else enviarMudancas(moverEscolhido.current);
   }
   function salvarEContinuar(depois = pergunta) {
     setPergunta(null);
@@ -356,7 +365,7 @@ export default function EditorAnuncioML({
       if (!resultado.ok) return;
       if (depois === "publicar") publicarComEtapas(resultado.id ?? idAtual);
       else if (depois === "voltar") voltar();
-      else enviarMudancas();
+      else enviarMudancas(moverEscolhido.current);
     });
   }
 
@@ -465,7 +474,7 @@ export default function EditorAnuncioML({
           : atual,
       );
       // O anuncio reaproveitado pede, uma vez, o OK para o vinculo do Bling sair da loja antiga (definicao do dono: por anuncio).
-      if (resultado?.ok && resultado.pedeBling) setPerguntaDoBling(resultado.pedeBling);
+      if (resultado?.ok && resultado.pedeBling && !respondeuBling.current) setPerguntaDoBling(resultado.pedeBling);
     });
   }
 
@@ -842,19 +851,39 @@ export default function EditorAnuncioML({
           Mover o vínculo do Bling?
         </p>
         <p className="mt-1 text-sm text-suave">
-          {perguntaDoBling.de === "ML_4h"
-            ? `O anúncio ${perguntaDoBling.itemId} sai da loja ML_4h e entra na Rise_ML.`
-            : `O anúncio ${perguntaDoBling.itemId} entra na loja Rise_ML do Bling.`}
+          {perguntaDoBling.antes
+            ? `O anúncio ${perguntaDoBling.itemId} sai da loja antiga do ML no Bling e entra na Rise_ML, junto com o envio.`
+            : perguntaDoBling.de === "ML_4h"
+              ? `O anúncio ${perguntaDoBling.itemId} sai da loja ML_4h e entra na Rise_ML.`
+              : `O anúncio ${perguntaDoBling.itemId} entra na loja Rise_ML do Bling.`}
         </p>
         <div className="mt-4 flex justify-end gap-2">
-          <button type="button" autoFocus onClick={() => setPerguntaDoBling(null)} className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo">
+          <button
+            type="button"
+            autoFocus
+            onClick={() => {
+              const antes = perguntaDoBling.antes;
+              setPerguntaDoBling(null);
+              // Antes do envio, "Agora nao" segue com o envio sem mover; depois dele, so fecha.
+              if (antes) {
+                respondeuBling.current = true;
+                moverEscolhido.current = false;
+                pedirEnvio();
+              }
+            }}
+            className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo"
+          >
             Agora não
           </button>
           <button
             type="button"
             onClick={() => {
+              const antes = perguntaDoBling.antes;
               setPerguntaDoBling(null);
-              enviarMudancas(true);
+              respondeuBling.current = true;
+              moverEscolhido.current = true;
+              if (antes) pedirEnvio();
+              else enviarMudancas(true);
             }}
             className="rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
           >

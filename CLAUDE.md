@@ -4012,6 +4012,12 @@ ao ar e nenhuma escrita real foi feita no ML ou no Bling.**
   `sku`, não encerrado) ou na conta (`kit`), não pede mais o anúncio de 1 unidade: `variantesDoProduto` devolve `faltam: []`. O
   kit continua sem virar variante existente e sem puxar a faixa (o `naConta` agora chega com os kits e eles são separados lá
   dentro). Caso: o 900907 e o 192002, só com kits de 10, mostravam "Faltam: Clássico sem frete".
+- **A pergunta "Mover o vínculo do Bling?" vem ANTES do envio (pedido do dono em 09/11/2026: "no momento que eu publico um
+  anuncio reutilizavel ele finaliza e ja fecha, nem chega mostrar a opçao de mover"):** com a lista de Produtos filtrada pelo
+  "!", o Publicar do reutilizado tirava o "!", a linha sumia e levava o popup antes da pergunta (o 192002 ficou com o vínculo
+  na ML_4h). Agora o `pedirEnvio` do `EditorAnuncioML` pergunta primeiro quando o reaproveitado ainda não foi movido, e a
+  resposta (`moverEscolhido`) vai no mesmo `enviarMudancas`; "Agora não" segue sem mover, clicar fora cancela, e a pergunta
+  não volta depois do envio (`respondeuBling`). Conferido na tela do PC com um reaproveitado de teste (nada enviado).
 - **"Reutilizado" até o Publicar (pedido do dono em 09/11/2026, Opção 1):** "sempre que é reutilizado um anuncio ele ja fica
   marcado publicado, mas ele deveria ficar apenas publicado apos a minha revisao e publicacao. Antes disso deveria ficar apenas com
   a tag Reutilizado. e se tem anuncio reutilizado e ainda nao pressionei o publicar deve ficar com !". No banco o anúncio
