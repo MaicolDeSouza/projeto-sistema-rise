@@ -3476,7 +3476,7 @@ try {
         const resultado = await sincronizarProduto(produto.id, falso, depsDe(falso));
         const envios = patchesDeFotos(falso);
         conferir("Bling com a primeira: ok e 2 enviadas (acrescentar)", [resultado.ok, resultado.fotos], [true, { acao: "acrescentar", enviadas: 2 }]);
-        conferir("Bling com a primeira: so os 2 links que faltam (nao confia na desduplicacao do Bling)", [envios.length, linksDe(envios[0])], [1, [urlDe("ZZ-BS-FOTO", 1), urlDe("ZZ-BS-FOTO", 3)]]);
+        conferir("Bling com a primeira: UM PATCH com a lista INTEIRA do Rise na ordem (o Bling troca a lista pela enviada)", [envios.length, linksDe(envios[0])], [1, ORDEM.map((n) => urlDe("ZZ-BS-FOTO", n))]);
         conferir("Bling com a primeira: ficou com as 3 na ordem do Rise", conteudosNoBling(falso), ORDEM.map((n) => conteudoDe(n).toString()));
       }
 

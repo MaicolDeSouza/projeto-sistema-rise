@@ -291,6 +291,8 @@ async function prepararFotos(produto, bling, dependencias) {
   return {
     acao: plano.acao,
     enviar: plano.enviar.map((indice) => fotosRise[indice].url),
+    // A lista inteira do PATCH no acrescentar (o Bling troca as fotos pela lista enviada, `planoDasFotos`).
+    lista: (plano.lista ?? plano.enviar).map((indice) => fotosRise[indice].url),
     jaTem: doBling.length,
     videoUrl: String(bling?.midia?.video?.url ?? ""),
   };
@@ -299,7 +301,7 @@ async function prepararFotos(produto, bling, dependencias) {
 /**
  * Executa o plano de `prepararFotos` no produto do Bling.
  *
- * - `acrescentar`: manda so as que faltam e espera o Bling baixar.
+ * - `acrescentar`: manda a lista inteira na ordem do Rise (o Bling troca as fotos pela lista) e espera o Bling baixar.
  * - `substituir`: manda a lista VAZIA (e a unica forma de tirar foto), espera o Bling apagar de verdade e so
  *   entao manda as do Rise. Se ele nao terminar de apagar em 60 s, para: nada novo foi enviado e o proximo
  *   Sincronizar recomeca (o estado do Bling e o que decide o plano, nao uma lembranca nossa).
@@ -325,8 +327,11 @@ async function executarFotos(cliente, idNoBling, plano, dependencias) {
     jaTem = 0;
   }
 
-  await escrever(() => cliente.patch(`/produtos/${idNoBling}`, montarCorpoDeFotos(plano.videoUrl, plano.enviar)), "o envio das fotos");
-  const esperadas = jaTem + plano.enviar.length;
+  // No acrescentar vai a lista INTEIRA (as que o Bling ja tem, que sao o comeco dela, e as que faltam): mandar so as
+  // que faltam apagou 4 das 5 fotos do 910207 em 09/11/2026, e a conferencia esperou 60 s por 5 que nunca chegavam.
+  const links = plano.acao === "acrescentar" ? (plano.lista ?? plano.enviar) : plano.enviar;
+  await escrever(() => cliente.patch(`/produtos/${idNoBling}`, montarCorpoDeFotos(plano.videoUrl, links)), "o envio das fotos");
+  const esperadas = plano.acao === "acrescentar" ? links.length : jaTem + plano.enviar.length;
   const conferido = await aguardarFotos(cliente, idNoBling, esperadas, esperar);
   return {
     acao: plano.acao,

@@ -25,7 +25,8 @@ import { createHash } from "node:crypto";
  *
  * FOTOS (medido no Bling real em 14/10/2026, produto de teste): o PATCH com `midia.imagens.imagensURL` responde
  * 200 e o Bling baixa EM SEGUNDO PLANO (o falso aplica depois de `fotosAposLeituras` leituras do produto);
- * uma lista ACRESCENTA as fotos que ele ainda nao tem (a mesma origem de novo nao duplica); a lista VAZIA
+ * uma lista TROCA as fotos pelas da lista (em 14/10 parecia acrescentar; no 910207 em 09/11/2026 o Bling com 4 fotos
+ * recebeu 1 link e ficou com 1), e a mesma origem repetida na lista entra uma vez so; a lista VAZIA
  * apaga TODAS; PATCH sem `midia` nao mexe nas fotos. O arquivo guardado e identico ao enviado: o teste dos
  * bytes de cada origem em `bytesDasOrigens` e os recebe de volta por `falso.bytesDaFoto(linkDoS3)`.
  *
@@ -406,7 +407,9 @@ export function criarBlingFalso(opcoes = {}) {
         imagens.internas = [];
         origens.length = 0;
       } else {
-        imagens.internas ??= [];
+        // A lista TROCA as fotos do produto (medido no 910207 em 09/11/2026: o Bling tinha 4, recebeu 1 link e ficou com 1).
+        imagens.internas = [];
+        origens.length = 0;
         for (const origem of passo.links) {
           if (origens.includes(origem)) continue;
           origens.push(origem);

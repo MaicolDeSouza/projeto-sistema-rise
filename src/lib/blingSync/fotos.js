@@ -199,8 +199,9 @@ export async function md5DasFotosDoBling(fotos, { bytesDoBling = bytesDaFotoDoBl
  *
  * - `nenhuma`: ja estao iguais, ou o Rise nao tem foto (foto vazia no Rise nunca apaga a do Bling, a mesma
  *   regra dos campos);
- * - `acrescentar`: o Bling nao tem foto, ou tem so as primeiras do Rise na mesma ordem: manda so as que
- *   faltam (`enviar`, indices em `fotosDoRise`). Nunca se confia na desduplicacao do Bling: so vai o que falta;
+ * - `acrescentar`: o Bling nao tem foto, ou tem so as primeiras do Rise na mesma ordem: faltam as de `enviar`
+ *   (indices em `fotosDoRise`), e o PATCH leva a `lista` inteira na ordem, porque a lista do Bling TROCA as fotos
+ *   (medido no 910207 em 09/11/2026; em 14/10 parecia somar). Como as do Bling sao o comeco da lista, nada sai;
  * - `substituir`: o Bling tem foto que o Rise nao tem, ou a ordem difere (a primeira e a principal): como o
  *   Bling so tira foto com lista vazia, apaga todas e manda as do Rise inteiras.
  *
@@ -234,7 +235,9 @@ export function planoDasFotos(md5Rise, md5Bling) {
 
   const prefixo = md5Bling.length <= alvo.length && md5Bling.every((md5, posicao) => md5 === alvo[posicao]);
   if (prefixo && md5Bling.length === alvo.length) return { acao: "nenhuma", enviar: [], porContagem: false };
-  if (prefixo) return { acao: "acrescentar", enviar: indices.slice(md5Bling.length), porContagem: false };
+  // `enviar` sao as que faltam (o que o popup conta); `lista` e a lista INTEIRA que vai no PATCH, porque o Bling troca
+  // as fotos pela lista enviada (910207, 09/11/2026: tinha 4, recebeu so a 5a e ficou com 1).
+  if (prefixo) return { acao: "acrescentar", enviar: indices.slice(md5Bling.length), lista: indices, porContagem: false };
   return { acao: "substituir", enviar: indices, porContagem: false };
 }
 
