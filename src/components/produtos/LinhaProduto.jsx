@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Copy, EllipsisVertical, ImageOff, Trash2 } from "lucide-react";
 
 import { CANAIS } from "@/lib/canais";
@@ -146,6 +147,13 @@ export default function LinhaProduto({
     setMenuAberto(true);
   }
   const [janelaML, setJanelaML] = useState(false);
+  // A lista se atualiza so quando o popup do ML fecha (pedido do dono em 09/11/2026: "a tela dos passos nao vai mais fechar
+  // sozinha?"): as acoes do ML nao revalidam /produtos, senao a linha que perde o "!" sumia da lista filtrada no meio do envio.
+  const router = useRouter();
+  const fecharJanelaML = () => {
+    setJanelaML(false);
+    router.refresh();
+  };
   const [janelaBling, setJanelaBling] = useState(false);
   const [janelaLI, setJanelaLI] = useState(false);
   const [janelaShopee, setJanelaShopee] = useState(false);
@@ -379,7 +387,7 @@ export default function LinhaProduto({
         {editando === "estoque" && <PopupEstoque produto={produto} aoFechar={fecharEdicao} />}
         {/* Com anuncio ja publicado no ML o "Nao anunciar no ML" nao tem efeito (pedido do dono em 28/10/2026): some, e so
             fica o "Voltar a anunciar" se o produto ainda estiver marcado. */}
-        {janelaML && <JanelaAnuncioML produtoId={produto.id} naoAnunciar={acessos.editar && (naoML || !(iconeML.publicado || iconeML.reutilizado)) ? naoML : undefined} aoFechar={() => setJanelaML(false)} />}
+        {janelaML && <JanelaAnuncioML produtoId={produto.id} naoAnunciar={acessos.editar && (naoML || !(iconeML.publicado || iconeML.reutilizado)) ? naoML : undefined} aoFechar={fecharJanelaML} />}
         {janelaBling && <JanelaBling produto={produto} aoFechar={() => setJanelaBling(false)} />}
         {/* O pop-up de diferencas virou a aba Divergencias do editor (07/10/2026): o icone abre o editor. */}
         {janelaLI && <JanelaAnuncioLI produtoId={produto.id} naoAnunciar={acessos.editar ? naoLI : undefined} aoFechar={() => setJanelaLI(false)} />}

@@ -4018,6 +4018,10 @@ ao ar e nenhuma escrita real foi feita no ML ou no Bling.**
   na ML_4h). Agora o `pedirEnvio` do `EditorAnuncioML` pergunta primeiro quando o reaproveitado ainda não foi movido, e a
   resposta (`moverEscolhido`) vai no mesmo `enviarMudancas`; "Agora não" segue sem mover, clicar fora cancela, e a pergunta
   não volta depois do envio (`respondeuBling`). Conferido na tela do PC com um reaproveitado de teste (nada enviado).
+  **E a lista de Produtos só se atualiza quando o popup do ML fecha** (pedido do dono no mesmo dia: "a tela dos passos não vai
+  mais fechar sozinha?"): as ações do ML (`acoes.js`: `revalidando`, publicar, enviar mudanças, excluir, catálogo visto e a
+  leitura da conta) não revalidam mais `/produtos`; o `LinhaProduto` faz `router.refresh()` ao fechar o popup. Conferido no PC:
+  a contagem "fora do Rise" da linha mudou só depois de fechar.
 - **"Reutilizado" até o Publicar (pedido do dono em 09/11/2026, Opção 1):** "sempre que é reutilizado um anuncio ele ja fica
   marcado publicado, mas ele deveria ficar apenas publicado apos a minha revisao e publicacao. Antes disso deveria ficar apenas com
   a tag Reutilizado. e se tem anuncio reutilizado e ainda nao pressionei o publicar deve ficar com !". No banco o anúncio

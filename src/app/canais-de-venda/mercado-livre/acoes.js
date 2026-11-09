@@ -95,13 +95,13 @@ async function protegendo(trabalho) {
 }
 
 /**
- * Acao que grava. A lista do canal e a de Produtos (o icone do canal na linha do produto
- * sai dos anuncios) mostram o que acabou de mudar.
+ * Acao que grava. A lista do canal mostra o que acabou de mudar. A lista de Produtos NAO e revalidada aqui (09/11/2026, pedido
+ * do dono): com ela filtrada pelo "!", o envio que tirava o "!" fazia a linha sumir levando o popup do ML e a tela dos passos.
+ * O popup atualiza a lista quando fecha (`LinhaProduto`, `router.refresh`).
  */
 function revalidando(resultado) {
   if (resultado.ok) {
     revalidatePath("/canais-de-venda/mercado-livre");
-    revalidatePath("/produtos");
   }
   return resultado;
 }
@@ -170,7 +170,7 @@ export async function anunciosDoSkuMLAcao(produtoId) {
     const candidatos = marcarDuplicados(candidatosParaReaproveitar(naConta.itens, { idsDoRise, sku: produto.sku }), doRise);
     // A leitura ao vivo acerta o "!" dos anuncios antigos deste produto (09/11/2026: o anuncio excluido no ML ficava com o "!"
     // ate a proxima verificacao). Falhar aqui nao derruba o popup.
-    if (await sincronizarForaDoRiseDoProduto(produtoId, candidatos).catch(() => false)) revalidatePath("/produtos");
+    await sincronizarForaDoRiseDoProduto(produtoId, candidatos).catch(() => false);
     // As variantes contando o que a conta ja tem fora do Rise (08/11/2026): o "Faltam" do popup nao pede o que ja esta no ar.
     // O kit nao conta como a variante de 1 unidade.
     return { ok: true, sku: produto.sku, candidatos, variantes: variantesDoProduto({ precoVenda: produto.precoVenda, anuncios: doRise, naConta: candidatos }) };
@@ -242,7 +242,7 @@ export async function marcarCatalogoVistoMLAcao(id) {
   if (negado) return negado;
   if (!ehId(id)) return PEDIDO_INVALIDO;
   const marcou = await marcarCatalogoVistoML(id);
-  if (marcou) revalidatePath("/produtos");
+  // A lista de Produtos se atualiza quando o popup do ML fecha (09/11/2026).
   return { ok: true, marcou };
 }
 
@@ -515,7 +515,6 @@ export async function publicarAnuncioMLAcao(anuncioId, { recriar = false } = {})
   return protegendo(async () => {
     const resultado = await publicarAnuncioML(anuncioId, { ...clientes(), recriar: recriar === true });
     revalidatePath("/canais-de-venda/mercado-livre");
-    revalidatePath("/produtos");
     return resultado;
   });
 }
@@ -561,7 +560,6 @@ export async function enviarMudancasMLAcao(anuncioId, { moverBling = false } = {
   return protegendo(async () => {
     const resultado = await enviarMudancasML(anuncioId, { ml: clienteML(), bling: clienteBling(), moverBling: moverBling === true });
     revalidatePath("/canais-de-venda/mercado-livre");
-    revalidatePath("/produtos");
     return resultado;
   });
 }
@@ -612,7 +610,6 @@ export async function excluirAnuncioMLAcao(anuncioId) {
     const resultado = await excluirAnuncioML(anuncioId, clientes());
     // Revalida sempre: mesmo a exclusao que parou no meio mudou o anuncio no ML ou no Bling.
     revalidatePath("/canais-de-venda/mercado-livre");
-    revalidatePath("/produtos");
     return resultado;
   });
 }
