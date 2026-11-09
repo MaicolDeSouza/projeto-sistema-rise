@@ -9,6 +9,7 @@ import { lerCategoriaCompleta } from "./leitura";
 import { nomeDaFoto, termosParaAtualizar } from "./payload";
 import { emAndamento, lerFotoDoDisco, tipoDaFoto } from "./publicar";
 import { textoDaRecusaML } from "./respostas";
+import { reutilizadoPendente } from "./rotulos";
 
 /**
  * "Enviar mudancas ao ML" (spec 2026-10-24): leva ao anuncio JA PUBLICADO o que mudou desde o ultimo envio: do produto,
@@ -72,8 +73,16 @@ async function enviarUmaVez(anuncioId, { ml, bling, moverBling, lerFoto, progres
     if (falha) return falha;
   }
 
+  // O reaproveitado da conta (dono, 09/11/2026): o envio que deu certo e o Publicar do editor, a revisao do dono; o selo
+  // "Reutilizado" e o "!" saem. O Mover do Bling, logo abaixo, e outra pergunta e nao segura a revisao.
+  let reaproveitado = publicacao.reaproveitado;
+  if (reutilizadoPendente(publicacao)) {
+    reaproveitado = { ...reaproveitado, revisadoEm: new Date().toISOString() };
+    await gravarPublicacao(anuncioId, { reaproveitado });
+  }
+
   // O vinculo do Bling do anuncio reaproveitado, uma vez so: pede a confirmacao do dono e, com ela, move.
-  const pendente = Boolean(publicacao.reaproveitado) && !publicacao.reaproveitado.blingMovidoEm;
+  const pendente = Boolean(reaproveitado) && !reaproveitado.blingMovidoEm;
   const dadosDoBling = { preco: rascunho.preco, titulo: rascunho.titulo, tipoAnuncio: rascunho.tipoAnuncio };
   const pronto = (extra = {}) => ({ ok: true, enviadas, ...(avisos.length ? { avisos } : {}), ...extra });
   if (!pendente) {
@@ -89,7 +98,7 @@ async function enviarUmaVez(anuncioId, { ml, bling, moverBling, lerFoto, progres
   progresso.andando("bling");
   const movido = await moverVinculoParaRiseML(bling, codigo, itemId, dadosDoBling);
   if (!movido.ok) return { ok: false, enviadas, parte: "bling", erro: movido.erro ?? "O Bling não concluiu a mudança do vínculo." };
-  await gravarPublicacao(anuncioId, { reaproveitado: { ...publicacao.reaproveitado, blingMovidoEm: new Date().toISOString() } });
+  await gravarPublicacao(anuncioId, { reaproveitado: { ...reaproveitado, blingMovidoEm: new Date().toISOString() } });
   progresso.feita("bling", movido.de === "ML_4h" ? "movido da ML_4h para a Rise_ML" : "registrado na Rise_ML");
   return pronto({ bling: movido });
 }

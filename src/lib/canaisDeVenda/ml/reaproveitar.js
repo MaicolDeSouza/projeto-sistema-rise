@@ -148,7 +148,8 @@ export async function reaproveitarAnuncioML(produtoId, itemId, { ml }) {
     fotos: {},
     feitas: etapasDoAnuncio({ kit }),
     criadoCom: null,
-    reaproveitado: { em: agora, blingMovidoEm: null },
+    // `revisadoEm` (dono, 09/11/2026): "Reutilizado", com o "!", ate o Publicar do editor carimbar (`reutilizadoPendente`).
+    reaproveitado: { em: agora, blingMovidoEm: null, revisadoEm: null },
     // So as partes do anuncio: sem as do produto a impressao e "nao conferida" e o editor acende descricao, fotos e pacote.
     // `precoDaLoja: null` acende o "preco da loja mudou" de cara: o preco do ML veio de antes da regra do lucro da loja, e
     // a parte `preco` nao serve para isso (compara o preco do editor com o do ML, que sao o mesmo numero aqui).

@@ -15,7 +15,7 @@ import { etapasComOResultado, etapasIniciais, lerAndamentoNoServidor, mesclarEta
 import { etapasDoEnvioML } from "@/lib/canaisDeVenda/ml/etapasDoEnvio";
 import { NOMES_DAS_PARTES, textoDasPartes } from "@/lib/canaisDeVenda/ml/acompanhar";
 import { divergenciasDoAnuncioML } from "@/lib/canaisDeVenda/ml/divergencias";
-import { AGUARDANDO_BLING, AGUARDANDO_ESTOQUE, STATUS_ML, linkDoAnuncioML, linkDoPainelML } from "@/lib/canaisDeVenda/ml/rotulos";
+import { AGUARDANDO_BLING, AGUARDANDO_ESTOQUE, REUTILIZADO, STATUS_ML, linkDoAnuncioML, linkDoPainelML, reutilizadoPendente } from "@/lib/canaisDeVenda/ml/rotulos";
 import { ABAS_ML, validarRascunhoML } from "@/lib/canaisDeVenda/ml/validacao";
 import AbaDescricao from "./AbaDescricao";
 import AbaDivergenciasML from "./AbaDivergenciasML";
@@ -190,6 +190,9 @@ export default function EditorAnuncioML({
   // Publicado nao se edita aqui (o servidor recusa o Salvar): a tela nem finge que edita.
   const publicado = statusAtual === "PUBLICADO";
   const publicacao = infoDoML.publicacao ?? null;
+  // Reaproveitado da conta e ainda nao revisado (dono, 09/11/2026): selo "Reutilizado" e o botao vira "Publicar" (o envio
+  // que da certo carimba a revisao no servidor, `atualizar.js`).
+  const reutilizado = publicado && reutilizadoPendente(publicacao);
   // Durante a publicacao, e depois que o item ja existe no ML (pausado), o rascunho nao muda mais:
   // so "Retomar publicacao" segue dali (o servidor tambem recusa o Salvar).
   const presoNaPublicacao = statusAtual === "PUBLICANDO" || Boolean(publicacao?.itemId);
@@ -447,7 +450,14 @@ export default function EditorAnuncioML({
               aviso: resultado?.ok && resultado.avisos?.length ? resultado.avisos.join(" ") : null,
               resumo: resultado?.ok
                 ? {
-                    titulo: enviadas.length > 0 ? "Enviado ao Mercado Livre:" : resultado.bling ? "Vínculo do Bling na loja Rise_ML." : "Nada a enviar: o anúncio já estava igual ao produto.",
+                    titulo:
+                      enviadas.length > 0
+                        ? "Enviado ao Mercado Livre:"
+                        : resultado.bling
+                          ? "Vínculo do Bling na loja Rise_ML."
+                          : reutilizado
+                            ? "Publicado: o anúncio já estava igual ao produto."
+                            : "Nada a enviar: o anúncio já estava igual ao produto.",
                     linhas: [...enviadas.map((parte) => NOMES_DAS_PARTES[parte] ?? parte), ...(resultado.bling ? ["vínculo do Bling movido para a Rise_ML"] : [])],
                   }
                 : null,
@@ -510,17 +520,24 @@ export default function EditorAnuncioML({
     });
   }
 
+  // O reaproveitado ainda nao revisado publica (o mesmo envio, que carimba a revisao); o resto sincroniza.
+  const rotuloDoEnvio = reutilizado ? (enviandoMudancas ? "Publicando..." : "Publicar") : enviandoMudancas ? "Sincronizando..." : "Sincronizar com o ML";
+  const tituloDoEnvio = reutilizado
+    ? "Manda ao Mercado Livre o que tem \"!\" e marca o anúncio como publicado"
+    : temMudancas
+      ? `Manda ao Mercado Livre o que mudou: ${textoDasPartes(mudancas.partes)}`
+      : "Confere o anúncio com o produto e manda ao Mercado Livre o que mudou";
   // O mesmo botao na faixa das mudancas e na aba Divergencias.
-  const botaoDeEnviar = temMudancas && (
+  const botaoDeEnviar = (temMudancas || reutilizado) && (
     <button
       type="button"
       onClick={pedirEnvio}
       disabled={enviandoMudancas || salvando || !acessos.publicar}
-      title={!acessos.publicar ? "Seu acesso não permite enviar ao Mercado Livre." : `Manda ao Mercado Livre: ${textoDasPartes(mudancas.partes)}`}
+      title={!acessos.publicar ? "Seu acesso não permite enviar ao Mercado Livre." : tituloDoEnvio}
       className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-1.5 text-sm font-medium text-white transition-opacity duration-150 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
     >
       {enviandoMudancas && <Loader size={14} className="animate-spin" />}
-      {enviandoMudancas ? "Sincronizando..." : "Sincronizar com o ML"}
+      {rotuloDoEnvio}
     </button>
   );
 
@@ -532,9 +549,11 @@ export default function EditorAnuncioML({
   const rotuloDoStatus =
     statusAtual === "PUBLICANDO" && publicacao?.etapaComErro === "kit_bling"
       ? AGUARDANDO_BLING
-      : statusAtual === "PUBLICADO" && publicacao?.aguardandoEstoque
-        ? AGUARDANDO_ESTOQUE
-        : (STATUS_ML[statusAtual] ?? (idAtual ? STATUS_ML.RASCUNHO : { rotulo: "Novo", tom: "neutro" }));
+      : reutilizado
+        ? REUTILIZADO
+        : statusAtual === "PUBLICADO" && publicacao?.aguardandoEstoque
+          ? AGUARDANDO_ESTOQUE
+          : (STATUS_ML[statusAtual] ?? (idAtual ? STATUS_ML.RASCUNHO : { rotulo: "Novo", tom: "neutro" }));
 
   const aviso = mensagem && (
     <div
@@ -688,11 +707,11 @@ export default function EditorAnuncioML({
             // Sempre ativo no publicado, como o "Sincronizar com a LI" (pedido do dono em 26/10/2026): abre o popup de etapas
             // mesmo sem mudanca, que termina em "Nada a enviar" (antes o botao ficava cinza e o popup nunca aparecia).
             disabled={salvando || enviandoMudancas}
-            title={temMudancas ? `Manda ao Mercado Livre o que mudou: ${textoDasPartes(mudancas.partes)}` : "Confere o anúncio com o produto e manda ao Mercado Livre o que mudou"}
+            title={tituloDoEnvio}
             className={CLASSE_DA_ACAO}
           >
             {enviandoMudancas && <Loader size={16} className="animate-spin" />}
-            {enviandoMudancas ? "Sincronizando..." : "Sincronizar com o ML"}
+            {rotuloDoEnvio}
           </button>
         )}
       </div>
@@ -728,10 +747,16 @@ export default function EditorAnuncioML({
   );
 
   // O produto mudou depois de publicar: uma linha, uma acao (a regra do padrao visual: aviso so do que pede acao).
-  const faixaDasMudancas = temMudancas && (
+  const faixaDasMudancas = (temMudancas || reutilizado) && (
     <div role="status" className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span>{mudancas.naoConferido ? "Ainda não conferido com o produto." : `Mudou depois de publicar, falta enviar ao ML: ${textoDasPartes(mudancas.partes)}.`}</span>
+        <span>
+          {reutilizado
+            ? "Reutilizado da conta: revise e clique em Publicar."
+            : mudancas.naoConferido
+              ? "Ainda não conferido com o produto."
+              : `Mudou depois de publicar, falta enviar ao ML: ${textoDasPartes(mudancas.partes)}.`}
+        </span>
         {botaoDeEnviar}
       </div>
       {erroDasMudancas && (

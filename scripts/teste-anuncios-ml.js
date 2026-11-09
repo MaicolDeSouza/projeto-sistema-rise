@@ -561,16 +561,16 @@ try {
 
     // Regra do dono em 24/10/2026: verde = publicado (ativo ou pausado sem estoque); "!" = so erro ou publicacao parada.
     const ml = (status, situacaoCanal) => ({ canal: "MERCADO_LIVRE", status, situacaoCanal });
-    conferir("icone: sem anuncio", estadoDoIconeML([]), { publicado: false, pausado: false, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [], catalogos: 0 });
-    conferir("icone: publicado e ativo, sem selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA")]), { publicado: true, pausado: false, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [], catalogos: 0 });
-    conferir("icone: publicado e pausado (sem estoque) continua verde e sem selo", estadoDoIconeML([ml("PUBLICADO", "PAUSADA")]), { publicado: true, pausado: true, erro: false, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [], catalogos: 0 });
-    conferir("icone: rascunho nao acende nada", estadoDoIconeML([ml("RASCUNHO")]), { publicado: false, pausado: false, erro: false, rascunho: true, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [], catalogos: 0 });
+    conferir("icone: sem anuncio", estadoDoIconeML([]), { publicado: false, pausado: false, erro: false, rascunho: false, reutilizado: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [], catalogos: 0 });
+    conferir("icone: publicado e ativo, sem selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA")]), { publicado: true, pausado: false, erro: false, rascunho: false, reutilizado: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [], catalogos: 0 });
+    conferir("icone: publicado e pausado (sem estoque) continua verde e sem selo", estadoDoIconeML([ml("PUBLICADO", "PAUSADA")]), { publicado: true, pausado: true, erro: false, rascunho: false, reutilizado: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [], catalogos: 0 });
+    conferir("icone: rascunho nao acende nada", estadoDoIconeML([ml("RASCUNHO")]), { publicado: false, pausado: false, erro: false, rascunho: true, reutilizado: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [], catalogos: 0 });
     for (const status of ["ERRO", "PUBLICANDO"]) {
       conferir(`icone: ${status} poe o selo`, estadoDoIconeML([ml(status, "PAUSADA")]).erro, true);
     }
     conferir("icone: encerrado nao e verde", estadoDoIconeML([ml("PUBLICADO", "ENCERRADA")]).publicado, false);
     conferir("icone: ativo e pausado juntos nao dizem pausado", estadoDoIconeML([ml("PUBLICADO", "ATIVA"), ml("PUBLICADO", "PAUSADA")]).pausado, false);
-    conferir("icone: publicado e outro com erro: verde com selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA"), ml("ERRO")]), { publicado: true, pausado: false, erro: true, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [], catalogos: 0 });
+    conferir("icone: publicado e outro com erro: verde com selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA"), ml("ERRO")]), { publicado: true, pausado: false, erro: true, rascunho: false, reutilizado: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [], catalogos: 0 });
     conferir("icone: anuncio de outro canal nao conta", estadoDoIconeML([{ canal: "BLING", status: "ERRO" }, { canal: "LOJA_INTEGRADA", status: "PUBLICADO", situacaoCanal: "ATIVA" }]).publicado, false);
     conferir("icone: lista invalida", estadoDoIconeML(undefined).erro, false);
     // O "!" de cada anuncio no popup do produto (pedido do dono em 09/11/2026: "mostra ! no icone do ML, porem no popup nao
@@ -586,6 +586,30 @@ try {
     conferir("rotulo do icone: pausado sem estoque", rotuloDoIconeML({ publicado: true, pausado: true, erro: false }), "Anúncio no Mercado Livre: publicado, pausado (sem estoque)");
     conferir("rotulo do icone: com erro", rotuloDoIconeML({ publicado: false, erro: true }), "Anúncio no Mercado Livre: com erro na publicação");
     conferir("rotulo do icone: rascunho", rotuloDoIconeML({ publicado: false, erro: false, rascunho: true }), "Anúncio no Mercado Livre: rascunho, ainda não publicado");
+    {
+      // Reutilizado (dono, 09/11/2026): o anuncio reaproveitado da conta fica "Reutilizado", sem o verde e com o "!", ate o
+      // dono revisar e clicar Publicar no editor. No banco ele continua PUBLICADO.
+      const { reutilizadoPendente, seloDoAnuncioML: seloML } = await import("../src/lib/canaisDeVenda/ml/rotulos.js");
+      const REVISADO = "2026-11-09T10:00:00.000Z";
+      const reutilizado = (revisadoEm) => ({ ...ml("PUBLICADO", "PAUSADA"), dados: { publicacao: { reaproveitado: { em: "2026-11-09T09:00:00.000Z", blingMovidoEm: null, ...(revisadoEm === undefined ? {} : { revisadoEm }) } } } });
+      conferir(
+        "reutilizado: pendente sem revisadoEm (os de antes da regra nao tem a chave) ou com null; revisado nao",
+        [reutilizadoPendente(reutilizado().dados.publicacao), reutilizadoPendente(reutilizado(null).dados.publicacao), reutilizadoPendente(reutilizado(REVISADO).dados.publicacao), reutilizadoPendente({}), reutilizadoPendente(null)],
+        [true, true, false, false, false],
+      );
+      conferir(
+        "reutilizado: o selo e Reutilizado ate o Publicar, depois Publicado; encerrado continua Encerrado",
+        [seloML(reutilizado(null)).rotulo, seloML({ status: "PUBLICADO", reutilizado: true }).rotulo, seloML(reutilizado(REVISADO)).rotulo, seloML({ ...reutilizado(null), situacaoCanal: "ENCERRADA" }).rotulo],
+        ["Reutilizado", "Reutilizado", "Publicado", "Encerrado"],
+      );
+      const so = estadoDoIconeML([reutilizado(null)]);
+      conferir("reutilizado: o icone nao fica verde, ganha o '!' e o motivo", [so.publicado, so.reutilizado, temProblemaNoIconeML(so), motivosDoProblemaML(so)[0]], [false, true, true, "reutilizado da conta, esperando a sua revisão"]);
+      const comOutro = estadoDoIconeML([reutilizado(null), ml("PUBLICADO", "ATIVA")]);
+      conferir("reutilizado: com outro publicado o icone fica verde e com o '!'", [comOutro.publicado, comOutro.reutilizado, temProblemaNoIconeML(comOutro)], [true, true, true]);
+      const revisado = estadoDoIconeML([reutilizado(REVISADO)]);
+      conferir("reutilizado: depois do Publicar e verde, sem '!'", [revisado.publicado, revisado.reutilizado, temProblemaNoIconeML(revisado)], [true, false, false]);
+      conferir("rotulo do icone: reutilizado", rotuloDoIconeML({ publicado: false, erro: false, reutilizado: true }), "Anúncio no Mercado Livre: reutilizado da conta, esperando a sua revisão");
+    }
     {
       // O Excluir confere no canal se o anuncio "publicado" ainda existe (Opcao 2 do dono em 24/10/2026).
       const { situacaoNoCanal } = await import("../src/lib/canaisDeVenda/anuncioNoCanal.js");
@@ -876,7 +900,7 @@ try {
         const lista = await listarAnunciosML({ busca: "zz-ml" });
         conferir("lista traz os anuncios de teste", lista.total >= 6, true);
         conferir("lista: acha pelo SKU sem diferenciar caixa, so do Mercado Livre", [lista.total, lista.linhas.length, lista.pagina, lista.totalPaginas], [totalDeTeste, totalDeTeste, 1, 1]);
-        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["aguardandoEstoque", "atualizadoEm", "avisosML", "codigo", "estadoML", "estadoMLPedeAcao", "estoque", "fotoUrl", "freteGratis", "icone", "id", "idExterno", "linkDoAnuncio", "linkDoPainel", "preco", "produtoId", "rankingML", "situacaoCanal", "sku", "status", "tipoAnuncio", "titulo", "urlExterna"]);
+        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["aguardandoEstoque", "atualizadoEm", "avisosML", "codigo", "estadoML", "estadoMLPedeAcao", "estoque", "fotoUrl", "freteGratis", "icone", "id", "idExterno", "linkDoAnuncio", "linkDoPainel", "preco", "produtoId", "rankingML", "reutilizado", "situacaoCanal", "sku", "status", "tipoAnuncio", "titulo", "urlExterna"]);
         // As colunas que ordenam (28/10/2026): no servidor, antes de paginar; o vazio vai para o fim nas duas direcoes.
         const porPreco = (direcao) => listarAnunciosML({ busca: "zz-ml", ordenar: "preco", direcao }).then((r) => r.linhas.map((l) => l.preco));
         const [subindo, descendo] = [await porPreco("asc"), await porPreco("desc")];
@@ -3721,6 +3745,24 @@ try {
     const estado = (extra = {}) => ({ status: "active", subStatus: [], estoque: 5, estoqueBling: 5, estoqueDiferenteSeguidas: 0, ...extra });
     conferir("rascunho nao tem divergencia", divergenciasDoAnuncioML({ publicado: false, publicacao: { estadoML: estado({ status: "under_review" }) } }), []);
     conferir("publicado em dia: nenhuma", divergenciasDoAnuncioML({ publicado: true, publicacao: { estadoML: estado() }, mudancas: { partes: [], naoConferido: false } }), []);
+    // Reutilizado (dono, 09/11/2026): um item so, com o Publicar, com ou sem partes por enviar; revisado volta ao de sempre.
+    const pendente = { reaproveitado: { em: "2026-11-09T09:00:00.000Z", blingMovidoEm: null, revisadoEm: null } };
+    conferir(
+      "reutilizado: divergencia com o Publicar, em dia ou com partes",
+      [
+        divergenciasDoAnuncioML({ publicado: true, publicacao: { ...pendente, estadoML: estado() }, mudancas: { partes: [], naoConferido: false } }),
+        divergenciasDoAnuncioML({ publicado: true, publicacao: { ...pendente, estadoML: estado() }, mudancas: { partes: ["descricao", "fotos"], naoConferido: true } }).map((item) => item.titulo),
+      ],
+      [
+        [{ id: "envio", titulo: "Reutilizado da conta, esperando a sua revisão", detalhe: "O Publicar manda o que está no Rise e marca o anúncio como publicado.", acao: "enviar" }],
+        ["Reutilizado da conta, esperando a sua revisão: falta enviar descrição e fotos"],
+      ],
+    );
+    conferir(
+      "reutilizado e revisado: so as mudancas, como sempre",
+      divergenciasDoAnuncioML({ publicado: true, publicacao: { reaproveitado: { ...pendente.reaproveitado, revisadoEm: "2026-11-09T10:00:00.000Z" }, estadoML: estado() }, mudancas: { partes: [], naoConferido: false } }),
+      [],
+    );
     const todas = divergenciasDoAnuncioML({
       publicado: true,
       mudancas: { partes: ["descricao", "preco"], naoConferido: false },
@@ -4122,14 +4164,27 @@ try {
     conferir("reaproveitar: atacado desligado e sem '!' de atacado", [(await prisma.anuncio.findUnique({ where: { id: comVendas.anuncioId }, select: { dados: true } })).dados.atacado, (await carregarAnuncioML(comVendas.anuncioId)).mudancas.partes.includes("atacado")], [{ faixas: [], ligado: false }, false]);
     conferir("envio: so o titulo mudou", await soOTitulo(comVendas.anuncioId, "PLACA NOVA COM VENDAS"), ["titulo"]);
     const putsDeTitulo = () => ml.escritas.filter((e) => e.metodo === "PUT" && /^\/items\/MLB[^/]+$/.test(e.caminho) && (e.corpo?.family_name || e.corpo?.title));
+    // Reutilizado (dono, 09/11/2026): nasce esperando a revisao; so o envio que da certo (o Publicar do editor) carimba.
+    const { seloDoAnuncioML: seloDaLinha } = await import("../src/lib/canaisDeVenda/ml/rotulos.js");
+    const { anunciosMLDoProduto } = await import("../src/lib/canaisDeVenda/ml/banco.js");
+    const reaproveitadoDe = async (id) => (await prisma.anuncio.findUnique({ where: { id }, select: { dados: true } })).dados.publicacao.reaproveitado;
+    const linhaDe = async (id) => (await anunciosMLDoProduto(produto.id)).find((linha) => linha.id === id);
+    conferir("reutilizado: nasce esperando a revisao (revisadoEm null), a linha diz e o selo e Reutilizado", [(await reaproveitadoDe(comVendas.anuncioId)).revisadoEm, (await linhaDe(comVendas.anuncioId)).reutilizado, seloDaLinha(await linhaDe(comVendas.anuncioId)).rotulo], [null, true, "Reutilizado"]);
+    const fechadoNoML = criarMLFalso({ meusItens: { "ZZ-ML-TI": [item("MLBANTIGO1", { status: "closed" })] } });
+    const falhou = await enviarMudancasML(comVendas.anuncioId, { ml: fechadoNoML, bling });
+    conferir("reutilizado: o envio que falha nao carimba a revisao", [falhou.ok, (await reaproveitadoDe(comVendas.anuncioId)).revisadoEm], [false, null]);
     const semMover = await enviarMudancasML(comVendas.anuncioId, { ml, bling });
     conferir("envio com vendas: titulo registrado sem PUT, com aviso, e pede o Bling", [semMover.ok, semMover.enviadas, putsDeTitulo().length, (semMover.avisos ?? []).some((a) => /título/.test(a)), semMover.pedeBling], [true, ["titulo"], 0, true, { de: "ML_4h", codigo: "ZZ-ML-TI", itemId: "MLBANTIGO1" }]);
     conferir("envio com vendas: o titulo nao acende de novo", (await carregarAnuncioML(comVendas.anuncioId)).mudancas.partes, []);
     conferir("envio sem Mover: o Bling ficou como estava", lojaDe(bling, "MLBANTIGO1"), ["203593931"]);
+    // O envio deu certo (o Bling fica para a pergunta "Mover?"): a revisao esta feita e o anuncio passa a Publicado.
+    const revisadoNoEnvio = (await reaproveitadoDe(comVendas.anuncioId)).revisadoEm;
+    conferir("reutilizado: o envio que deu certo carimba a revisao, sem mexer no Bling movido, e vira Publicado", [typeof revisadoNoEnvio, (await reaproveitadoDe(comVendas.anuncioId)).blingMovidoEm, (await linhaDe(comVendas.anuncioId)).reutilizado, seloDaLinha(await linhaDe(comVendas.anuncioId)).rotulo], ["string", null, false, "Publicado"]);
     const movendo = await enviarMudancasML(comVendas.anuncioId, { ml, bling, moverBling: true });
     conferir("envio com Mover: nada a enviar, o Bling e movido e registrado", [movendo.ok, movendo.enviadas, movendo.bling?.ok, movendo.bling?.de, movendo.pedeBling ?? null, lojaDe(bling, "MLBANTIGO1"), registrosDe(bling, "MLBANTIGO1")], [true, [], true, "ML_4h", null, [LOJA_ML_NO_BLING], [LOJA_ML_NO_BLING]]);
     const pubMovida = (await prisma.anuncio.findUnique({ where: { id: comVendas.anuncioId } })).dados.publicacao;
     conferir("envio com Mover: blingMovidoEm gravado", typeof pubMovida.reaproveitado.blingMovidoEm, "string");
+    conferir("reutilizado: o Mover do Bling nao apaga a revisao carimbada antes", [pubMovida.reaproveitado.revisadoEm, pubMovida.reaproveitado.em], [revisadoNoEnvio, (await reaproveitadoDe(comVendas.anuncioId)).em]);
     const deNovo = await enviarMudancasML(comVendas.anuncioId, { ml, bling });
     conferir("envio depois de movido: nao pede mais o Bling", [deNovo.ok, deNovo.pedeBling ?? null, deNovo.bling ?? null], [true, null, null]);
 

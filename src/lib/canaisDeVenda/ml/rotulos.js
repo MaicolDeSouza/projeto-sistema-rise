@@ -39,8 +39,23 @@ export const AGUARDANDO_ESTOQUE = { rotulo: "Pausado: aguardando estoque", tom: 
 /// Encerrado no ML pela exclusao de um anuncio com vendas (Opcao 1 do dono em 28/10/2026): fica no Rise so como historico.
 export const ENCERRADO = { rotulo: "Encerrado", tom: "neutro" };
 
+/// Reaproveitado da conta e ainda nao revisado (pedido do dono em 09/11/2026: "deveria ficar apenas publicado apos a minha
+/// revisao e publicacao. Antes disso deveria ficar apenas com a tag Reutilizado"). No banco continua PUBLICADO: o anuncio ja
+/// esta no ML, e estoque, monitor, exclusao e releitura seguem valendo para ele.
+export const REUTILIZADO = { rotulo: "Reutilizado", tom: "alerta" };
+
+/**
+ * Puro. O anuncio reaproveitado espera a revisao do dono enquanto `reaproveitado.revisadoEm` estiver vazio: o Publicar do
+ * editor (o envio que deu certo) carimba a data. Os reaproveitados de antes da regra nao tem a chave e ficam pendentes.
+ */
+export function reutilizadoPendente(publicacao) {
+  return Boolean(publicacao?.reaproveitado) && !publicacao.reaproveitado.revisadoEm;
+}
+
 export function seloDoAnuncioML(anuncio) {
   if (anuncio?.situacaoCanal === "ENCERRADA") return ENCERRADO;
+  // A linha da lista traz `reutilizado` pronto (`linhaDoAnuncio`); o anuncio inteiro traz a publicacao.
+  if (anuncio?.status === "PUBLICADO" && (anuncio.reutilizado ?? reutilizadoPendente(anuncio.dados?.publicacao))) return REUTILIZADO;
   if (anuncio?.status === "PUBLICADO" && anuncio?.aguardandoEstoque) return AGUARDANDO_ESTOQUE;
   return STATUS_ML[anuncio?.status] ?? STATUS_ML.RASCUNHO;
 }

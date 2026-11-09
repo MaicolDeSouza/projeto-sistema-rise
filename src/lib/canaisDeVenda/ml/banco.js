@@ -8,7 +8,7 @@ import { avisosDeVariosProdutos } from "./concorrentes";
 import { precisaAgirNoML, textoDoEstadoML } from "./estadoNoML";
 import { estadoDoIconeML, motivosDoProblemaML, rotuloDoIconeML, temProblemaNoIconeML } from "./icone";
 import { impressaoDoConteudo } from "./impressao";
-import { linkDoAnuncioML, linkDoPainelML } from "./rotulos";
+import { linkDoAnuncioML, linkDoPainelML, reutilizadoPendente } from "./rotulos";
 import { montarRanking } from "./ranking";
 import { catalogosDeVariosProdutos } from "./referencias";
 import { RascunhoMLSchema } from "./esquema";
@@ -621,6 +621,8 @@ function linhaDoAnuncio(anuncio) {
     situacaoCanal: anuncio.situacaoCanal ?? null,
     // Publicado sem estoque, pausado ate o worker o ativar (Opcao 2 do dono em 24/10/2026): o selo diz isso.
     aguardandoEstoque: anuncio.dados?.publicacao?.aguardandoEstoque === true,
+    // Reaproveitado da conta e ainda nao revisado (dono, 09/11/2026): o selo diz "Reutilizado" ate o Publicar do editor.
+    reutilizado: anuncio.status === "PUBLICADO" && reutilizadoPendente(anuncio.dados?.publicacao),
     atualizadoEm: anuncio.atualizadoEm,
     // O anuncio no ML (MLB e link), depois que a publicacao o criou.
     idExterno: anuncio.idExterno ?? null,

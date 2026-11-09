@@ -1,5 +1,6 @@
 import { textoDasPartes } from "./acompanhar";
 import { LEITURAS_PARA_DIVERGIR, avisoDeCatalogoPendente, precisaAgirNoML, textoDoAvisoDeCatalogo, textoDoCatalogo, textoDoEstadoML } from "./estadoNoML";
+import { reutilizadoPendente } from "./rotulos";
 
 /**
  * As divergencias do anuncio PUBLICADO no ML, na ordem da aba Divergencias (pedido do dono em 25/10/2026: "deve ser
@@ -14,7 +15,17 @@ export function divergenciasDoAnuncioML({ publicado, publicacao, mudancas } = {}
   if (!publicado) return [];
   const estado = publicacao?.estadoML ?? null;
   const itens = [];
-  if ((mudancas?.partes?.length ?? 0) > 0) {
+  // O reaproveitado da conta ainda nao revisado (dono, 09/11/2026): um item so, o do Publicar, que manda as partes e carimba.
+  if (reutilizadoPendente(publicacao)) {
+    const partes = mudancas?.partes ?? [];
+    const titulo = "Reutilizado da conta, esperando a sua revisão";
+    itens.push({
+      id: "envio",
+      titulo: partes.length > 0 ? `${titulo}: falta enviar ${textoDasPartes(partes)}` : titulo,
+      detalhe: "O Publicar manda o que está no Rise e marca o anúncio como publicado.",
+      acao: "enviar",
+    });
+  } else if ((mudancas?.partes?.length ?? 0) > 0) {
     itens.push({
       id: "envio",
       titulo: mudancas.naoConferido ? "Ainda não conferido com o produto" : `Falta enviar ao ML: ${textoDasPartes(mudancas.partes)}`,

@@ -12,6 +12,8 @@
  */
 
 import { LEITURAS_PARA_DIVERGIR, avisoDeCatalogoPendente, precisaAgirNoML, textoDoAvisoDeCatalogo, textoDoEstadoML } from "./estadoNoML";
+// `rotulos.js` tambem nao tem imports: a regra do "Reutilizado" e a mesma do selo da lista.
+import { reutilizadoPendente } from "./rotulos";
 
 const ehDoML = (anuncio) => anuncio?.canal === "MERCADO_LIVRE";
 const SITUACOES_PUBLICADAS = new Set(["ATIVA", "PAUSADA"]);
@@ -47,11 +49,16 @@ export function estadoDoIconeML(anuncios) {
   const barrados = doML.filter(barradoNoML);
   const comEstoqueDiferente = doML.filter((anuncio) => estaPublicado(anuncio) && (anuncio.dados?.publicacao?.estadoML?.estoqueDiferenteSeguidas ?? 0) >= LEITURAS_PARA_DIVERGIR);
   const comCatalogoNovo = doML.filter((anuncio) => estaPublicado(anuncio) && avisoDeCatalogoPendente(anuncio.dados?.publicacao?.estadoML));
+  // O reaproveitado da conta ainda nao revisado (dono, 09/11/2026) nao acende o verde: fica "Reutilizado", com o "!", ate o
+  // Publicar do editor. A situacao no canal pode nem ter sido lida ainda (o Reaproveitar nao a grava), por isso o status basta.
+  const pendente = (anuncio) => reutilizadoPendente(anuncio.dados?.publicacao);
+  const publicados = doML.filter((anuncio) => estaPublicado(anuncio) && !pendente(anuncio));
   return {
-    publicado: doML.some(estaPublicado),
-    pausado: doML.some((anuncio) => estaPublicado(anuncio) && anuncio.situacaoCanal === "PAUSADA") && !doML.some((anuncio) => estaPublicado(anuncio) && anuncio.situacaoCanal === "ATIVA"),
+    publicado: publicados.length > 0,
+    pausado: publicados.some((anuncio) => anuncio.situacaoCanal === "PAUSADA") && !publicados.some((anuncio) => anuncio.situacaoCanal === "ATIVA"),
     erro: doML.some((anuncio) => anuncio.status === "ERRO" || anuncio.status === "PUBLICANDO"),
     rascunho: doML.some((anuncio) => anuncio.status === "RASCUNHO" || anuncio.status === "VALIDADO"),
+    reutilizado: doML.some((anuncio) => anuncio.status === "PUBLICADO" && anuncio.situacaoCanal !== "ENCERRADA" && pendente(anuncio)),
     desatualizado: paraTras.length > 0,
     naoConferido: paraTras.some((anuncio) => anuncio.mudancas.naoConferido),
     partesDesatualizadas: ORDEM_DAS_PARTES.filter((parte) => partes.has(parte)),
@@ -95,15 +102,19 @@ function textoDoDesatualizado(partes) {
 
 /** O selo "!" do icone: a mesma condicao na lista de Produtos, na lista do ML e em cada linha do popup do produto. */
 export function temProblemaNoIconeML(estado) {
-  return Boolean(estado?.erro || estado?.desatualizado || estado?.precisaAgirNoML || estado?.estoqueDivergenteNoML || estado?.catalogoMudouNoML);
+  return Boolean(estado?.erro || estado?.reutilizado || estado?.desatualizado || estado?.precisaAgirNoML || estado?.estoqueDivergenteNoML || estado?.catalogoMudouNoML);
 }
 
 /**
  * Por que o "!" acendeu, em texto, um motivo por item (pedido do dono em 09/11/2026: o popup do produto mostra o "!" no anuncio
  * com problema). A mesma ordem e as mesmas palavras do `rotuloDoIconeML`.
  */
-export function motivosDoProblemaML({ erro = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [], precisaAgirNoML: barrado = false, estadosNoML = [], estoqueDivergenteNoML = false, estoquesNoML = [], catalogoMudouNoML = false, catalogosNoML = [] } = {}) {
+// O texto do reaproveitado ainda nao revisado, o mesmo no "!" do icone, no popup do produto e na lista do ML.
+const TEXTO_DO_REUTILIZADO = "reutilizado da conta, esperando a sua revisão";
+
+export function motivosDoProblemaML({ erro = false, reutilizado = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [], precisaAgirNoML: barrado = false, estadosNoML = [], estoqueDivergenteNoML = false, estoquesNoML = [], catalogoMudouNoML = false, catalogosNoML = [] } = {}) {
   const motivos = [];
+  if (reutilizado) motivos.push(TEXTO_DO_REUTILIZADO);
   if (desatualizado) motivos.push(naoConferido ? "ainda não conferido com o produto" : textoDoDesatualizado(partesDesatualizadas));
   if (barrado) motivos.push(...estadosNoML.map((texto) => texto.charAt(0).toLowerCase() + texto.slice(1)));
   if (estoqueDivergenteNoML) motivos.push(...estoquesNoML.map(({ ml, bling }) => `estoque no ML ${ml}, no Bling ${bling}`));
@@ -112,10 +123,11 @@ export function motivosDoProblemaML({ erro = false, desatualizado = false, naoCo
   return motivos;
 }
 
-export function rotuloDoIconeML({ publicado, pausado = false, erro, rascunho = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [], precisaAgirNoML: barrado = false, estadosNoML = [], estoqueDivergenteNoML = false, estoquesNoML = [], catalogoMudouNoML = false, catalogosNoML = [], catalogos = 0 }) {
+export function rotuloDoIconeML({ publicado, pausado = false, erro, rascunho = false, reutilizado = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [], precisaAgirNoML: barrado = false, estadosNoML = [], estoqueDivergenteNoML = false, estoquesNoML = [], catalogoMudouNoML = false, catalogosNoML = [], catalogos = 0 }) {
   const base = "Anúncio no Mercado Livre";
   const partes = [];
   if (publicado) partes.push(pausado ? "publicado, pausado (sem estoque)" : "publicado");
+  if (reutilizado) partes.push(TEXTO_DO_REUTILIZADO);
   if (catalogos > 0) partes.push(`em ${catalogos} ${catalogos === 1 ? "catálogo" : "catálogos"}`);
   if (desatualizado) {
     partes.push(
