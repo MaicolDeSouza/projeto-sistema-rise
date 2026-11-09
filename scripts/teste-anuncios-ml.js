@@ -4077,8 +4077,12 @@ try {
 
   {
     console.log("\nPreços de atacado (regras)");
-    const { ATACADO_PADRAO, FAIXAS_PADRAO, corpoDoAtacado, enviarAtacadoML, faixasComRecomendacao, faixasLidas, impressaoDoAtacado, lerRecomendacaoDeAtacado, lerVersaoDoItem } =
+    const { ATACADO_PADRAO, FAIXAS_PADRAO, corpoDoAtacado, enviarAtacadoML, faixasComRecomendacao, faixasLidas, impressaoDoAtacado, lerRecomendacaoDeAtacado, lerVersaoDoItem, textoSemSugestaoDeAtacado } =
       await import("../src/lib/canaisDeVenda/ml/atacado.js");
+    // O botao "Recomendação do ML" sem sugestao (pedido do dono em 09/11/2026: "o botao de recomendacao do ML para atacado nao esta
+    // funcionando"): sem frete gratis o ML nunca sugere; com frete gratis, o anuncio recem-publicado ainda nao tem sugestao.
+    conferir("botao sem sugestao: sem frete gratis explica que o ML nao sugere e manda digitar", [/Sem frete grátis/.test(textoSemSugestaoDeAtacado({ comFreteGratis: false })), /digite/.test(textoSemSugestaoDeAtacado({ comFreteGratis: false }))], [true, true]);
+    conferir("botao sem sugestao: com frete gratis pede para tentar de novo", /tente de novo/.test(textoSemSugestaoDeAtacado({ comFreteGratis: true })), true);
     const { mlPost } = await import("../src/lib/integracoes/mercadolivre.js");
     const { criarMLFalso } = await import("./lib/mlFalso.js");
     const { RascunhoMLSchema: Esquema } = await import("../src/lib/canaisDeVenda/ml/esquema.js");

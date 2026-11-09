@@ -5,7 +5,8 @@ import { Percent } from "lucide-react";
 
 import { recomendacaoDeAtacadoMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
-import { FAIXAS_PADRAO } from "@/lib/canaisDeVenda/ml/atacado";
+import { FAIXAS_PADRAO, textoSemSugestaoDeAtacado } from "@/lib/canaisDeVenda/ml/atacado";
+import { LIMITE_DO_FRETE_GRATIS } from "@/lib/canaisDeVenda/ml/custos";
 import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
 import { filtrarDecimal, lerDecimal, textoDecimal } from "./numeros";
 import SecaoDoAnuncio from "./SecaoDoAnuncio";
@@ -56,6 +57,8 @@ export default function AtacadoDoML({ rascunho, alterar, anuncioId = null, jaNoM
   const preco = Number(rascunho.preco);
   const [ocupado, iniciar] = useTransition();
   const [erro, setErro] = useState(null);
+  // O recado de quando o ML nao sugere nada (09/11/2026): ambar, porque nao e falha do Rise nem do ML.
+  const [nota, setNota] = useState(null);
 
   // Estado derivado do rascunho: se ele mudou por fora (recarregou do servidor, os % gravados pelo envio), as linhas se refazem;
   // o que a propria tela acabou de mandar nao conta como mudanca (senao a linha em edicao se refaria a cada tecla).
@@ -80,6 +83,7 @@ export default function AtacadoDoML({ rascunho, alterar, anuncioId = null, jaNoM
 
   function recomendar() {
     setErro(null);
+    setNota(null);
     const quantidades = faixasDe(linhas).map((faixa) => faixa.quantidade);
     iniciar(async () => {
       let resposta;
@@ -90,6 +94,11 @@ export default function AtacadoDoML({ rascunho, alterar, anuncioId = null, jaNoM
       }
       if (!resposta?.ok) {
         setErro(resposta?.erro ?? "Não foi possível ler a recomendação.");
+        return;
+      }
+      // Sem nenhuma sugestao (o ML responde 204 ao anuncio sem frete gratis): diz por que, em vez de nao fazer nada.
+      if (!resposta.recomendacoes.some((r) => Number(r.discount_percentage) > 0)) {
+        setNota(textoSemSugestaoDeAtacado({ comFreteGratis: Boolean(rascunho.envio?.freteGratis) || preco >= LIMITE_DO_FRETE_GRATIS }));
         return;
       }
       const recomendado = new Map(resposta.recomendacoes.map((r) => [Number(r.quantity), Number(r.discount_percentage)]));
@@ -152,6 +161,7 @@ export default function AtacadoDoML({ rascunho, alterar, anuncioId = null, jaNoM
             {ocupado ? "Lendo…" : "Recomendação do ML"}
           </button>
           {erro && <p className="mt-1 text-[11px] text-red-600">{erro}</p>}
+          {nota && <p role="status" className="mt-1 max-w-md text-[11px] text-amber-700">{nota}</p>}
         </div>
       )}
     </SecaoDoAnuncio>

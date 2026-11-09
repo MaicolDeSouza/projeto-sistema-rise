@@ -132,6 +132,17 @@ export const INTERVALO_DA_SUGESTAO_MS = 10 * 1000;
 const esperar = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
+ * O recado do botao "Recomendação do ML" quando o ML nao sugere nada (pedido do dono em 09/11/2026: "o botao de recomendacao do
+ * ML para atacado nao esta funcionando"; ele ficava calado). Sem frete gratis o ML nunca sugere: a sugestao e a economia de frete
+ * do vendedor repassada (204 medido nos anuncios sem frete do 120920). Com frete gratis, o anuncio recem-publicado ainda nao tem.
+ */
+export function textoSemSugestaoDeAtacado({ comFreteGratis }) {
+  return comFreteGratis
+    ? "O Mercado Livre ainda não sugeriu desconto para este anúncio. Anúncio recém-publicado leva cerca de 1 minuto: tente de novo."
+    : "Sem frete grátis o Mercado Livre não sugere desconto de atacado (a sugestão é a economia de frete repassada). Se quiser oferecer, digite o desconto de cada faixa.";
+}
+
+/**
  * Envia o atacado do rascunho ao anuncio e le de volta o que ficou. Nunca lanca: `{ ok, faixas, erro, motivo? }`.
  * O chamador ja passou pelas travas (`exigirEscrita`) e pelo resto da publicacao.
  *
