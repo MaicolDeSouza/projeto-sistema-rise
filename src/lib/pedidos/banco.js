@@ -723,6 +723,8 @@ export async function reabrirLucroDoPedido(id) {
 
 /** Releitura do Mercado Pago a cada 6 h por pedido, ate o dinheiro ser liberado. */
 const INTERVALO_DO_MERCADO_PAGO_MS = 6 * 60 * 60 * 1000;
+/** A 1a leitura do Mercado Pago (venda que ainda nao tem) nao espera as 6 h: so 15 min, para uma falha nao repetir a cada volta. */
+const PRIMEIRA_LEITURA_DO_MERCADO_PAGO_MS = 15 * 60 * 1000;
 /** Venda mais velha que isso nao se confere mais (o Mercado Pago libera em ate ~30 dias). */
 const JANELA_DO_MERCADO_PAGO_MS = 60 * 24 * 60 * 60 * 1000;
 
@@ -738,8 +740,12 @@ export async function pedidosParaConferirNoMercadoPago({ limite = 10, agora = ne
       origem: "MERCADO_LIVRE",
       status: { not: "CANCELADO" },
       dataDaVenda: { gte: new Date(instante - JANELA_DO_MERCADO_PAGO_MS) },
-      atualizadoEm: { lt: new Date(instante - INTERVALO_DO_MERCADO_PAGO_MS) },
-      OR: [{ mercadoPago: { equals: Prisma.DbNull } }, { mercadoPago: { path: ["liberado"], equals: false } }],
+      // Sem o Mercado Pago ainda: na proxima volta (o dono, 09/11/2026: a venda lida antes do deploy esperava 6 h). Ja lida e
+      // com o dinheiro nao liberado: a cada 6 h.
+      OR: [
+        { mercadoPago: { equals: Prisma.DbNull }, atualizadoEm: { lt: new Date(instante - PRIMEIRA_LEITURA_DO_MERCADO_PAGO_MS) } },
+        { mercadoPago: { path: ["liberado"], equals: false }, atualizadoEm: { lt: new Date(instante - INTERVALO_DO_MERCADO_PAGO_MS) } },
+      ],
       // So o teste restringe: a rotina olha todos.
       ...(Array.isArray(idsExternos) ? { idExterno: { in: idsExternos.map(String) } } : {}),
     },
@@ -752,4 +758,15 @@ export async function pedidosParaConferirNoMercadoPago({ limite = 10, agora = ne
 /** Marca o pedido como visto agora, para uma releitura que falhou nao voltar na frente da fila a cada volta. */
 export async function adiarConferenciaDoMercadoPago(id, agora = new Date()) {
   await prisma.pedidoDeVenda.update({ where: { id }, data: { atualizadoEm: new Date(agora) } });
+}
+
+/**
+ * A leitura do Mercado Pago falhou (permissao, fora do ar): marca o pedido que ainda nao tinha nada, para a proxima tentativa
+ * ser em 6 h e nao a cada volta. O liquido fica nulo (a tela nao mostra nada) e a proxima leitura boa substitui a marca.
+ */
+export async function marcarFalhaDoMercadoPago(id, erro, agora = new Date()) {
+  await prisma.pedidoDeVenda.updateMany({
+    where: { id, mercadoPago: { equals: Prisma.DbNull } },
+    data: { mercadoPago: { liquido: null, liberado: false, erro: String(erro).slice(0, 300), lidoEm: new Date(agora).toISOString() } },
+  });
 }

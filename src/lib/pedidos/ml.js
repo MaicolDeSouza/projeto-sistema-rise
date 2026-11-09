@@ -31,6 +31,7 @@ export function normalizarPedidoML({ order, billing = null, shipments = [], ship
   const p = vazio();
   // O que o Mercado Pago creditou (09/11/2026): null quando nao foi lido; a conferencia com o Real e do recalculo.
   p.mercadoPago = mercadoPago ? resumoDoMercadoPago(mercadoPago) : null;
+  p.mercadoPagoErro = mercadoPago?.erro ?? null;
   p.origem = "MERCADO_LIVRE";
   p.canal = "MERCADO_LIVRE";
   p.idExterno = String(order.id);

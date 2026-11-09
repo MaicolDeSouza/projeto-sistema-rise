@@ -40,6 +40,7 @@ export function vazio() {
     pagamento: [],
     // O que o Mercado Pago creditou (so ML, 09/11/2026; ver mercadoPago.js).
     mercadoPago: null,
+    mercadoPagoErro: null,
     envio: {
       tipo: null,
       servico: null,

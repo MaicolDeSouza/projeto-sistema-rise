@@ -7,7 +7,7 @@ import { clienteBling } from "@/lib/blingSync/cliente";
 import { normalizarPedidoML } from "@/lib/pedidos/ml";
 import { normalizarPedidoLI } from "@/lib/pedidos/li";
 import { classificarLojaDoBling, normalizarPedidoBling } from "@/lib/pedidos/bling";
-import { adiarConferenciaDoMercadoPago, aplicarPedidoLido, espelharNoBling, pedidosParaConferirNoMercadoPago, pedidosParaReconferir, reabrirLucroDoPedido } from "@/lib/pedidos/banco";
+import { adiarConferenciaDoMercadoPago, aplicarPedidoLido, espelharNoBling, marcarFalhaDoMercadoPago, pedidosParaConferirNoMercadoPago, pedidosParaReconferir, reabrirLucroDoPedido } from "@/lib/pedidos/banco";
 
 /**
  * A leitura dos pedidos por origem (spec 5.2): a rotina `pedidos` do worker, a cada 5 min, pede a cada origem so o que
@@ -118,9 +118,14 @@ async function lerMercadoPago(ml, order, envioId) {
       if (lido) pagamentos.push(lido);
     }
     const busca = envioId ? await opcional(ml.mp("/v1/payments/search", { external_reference: String(envioId) }), `GET mercadopago /v1/payments/search?external_reference=${envioId}`) : null;
-    return { pagamentos, frete: Array.isArray(busca?.results) ? busca.results : [] };
-  } catch {
-    return null;
+    const frete = Array.isArray(busca?.results) ? busca.results : [];
+    // A venda tem pagamento e o Mercado Pago nao achou nenhum (404): falha, nao "venda sem pagamento".
+    const esperados = (Array.isArray(order?.payments) ? order.payments : []).filter((p) => p?.id).length;
+    if (esperados > 0 && pagamentos.length === 0) return { pagamentos, frete, erro: `nenhum dos ${esperados} pagamento(s) achado no Mercado Pago (404)` };
+    return { pagamentos, frete };
+  } catch (erro) {
+    // A falha aparece no log do worker (conferirMercadoPagoPendentes); o pedido segue sem o Mercado Pago.
+    return { pagamentos: [], frete: [], erro: erro?.message ?? String(erro) };
   }
 }
 
@@ -550,11 +555,11 @@ export async function reconferirPedidosPendentes({ ml = null, li = null, bling =
  * `pedidosParaConferirNoMercadoPago`). A releitura e a do pedido inteiro, que ja traz o Mercado Pago e refaz a conferencia
  * com o Real. Nunca lanca; os erros voltam no resultado para o log do worker.
  */
-export async function conferirMercadoPagoPendentes({ ml = null, agora = new Date(), taxas = null, idsExternos = null } = {}) {
+export async function conferirMercadoPagoPendentes({ ml = null, agora = new Date(), taxas = null, idsExternos = null, limite = 10 } = {}) {
   const resultado = { conferidos: 0, falhas: 0, erros: [] };
   let lista;
   try {
-    lista = await pedidosParaConferirNoMercadoPago({ agora, idsExternos });
+    lista = await pedidosParaConferirNoMercadoPago({ agora, idsExternos, limite });
   } catch (erro) {
     resultado.erros.push(`lista: ${erro?.message ?? erro}`);
     return resultado;
@@ -564,6 +569,13 @@ export async function conferirMercadoPagoPendentes({ ml = null, agora = new Date
     try {
       const normalizado = await lerPedidoDaOrigem(pedido.origem, pedido.idExterno, { ml: cliente });
       await aplicarPedidoLido(normalizado, { cliente, taxas, agora });
+      // O pedido foi relido, mas o Mercado Pago nao respondeu: vai para o log e a proxima tentativa e em 6 h.
+      if (normalizado.mercadoPagoErro) {
+        await marcarFalhaDoMercadoPago(pedido.id, normalizado.mercadoPagoErro, agora);
+        resultado.falhas += 1;
+        if (resultado.erros.length < 5) resultado.erros.push(`${pedido.idExterno}: ${normalizado.mercadoPagoErro}`);
+        continue;
+      }
       resultado.conferidos += 1;
     } catch (erro) {
       resultado.falhas += 1;
