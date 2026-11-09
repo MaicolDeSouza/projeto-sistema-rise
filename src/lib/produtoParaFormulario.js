@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { precoDeOutraLista } from "@/lib/coleta/impostos";
 import { urlDe } from "@/lib/arquivos";
 import { lerPecasDoKit, mudancasDosKits, pecaParaTela } from "@/lib/composicaoBanco";
 import { lerPecasDoProduto } from "@/lib/producao/pecas";
@@ -136,7 +137,7 @@ export async function carregarProdutoParaFormulario(id) {
             : { fonteId: vinculo.fornecedor.fonteId, codigo: { equals: vinculo.codigo, mode: "insensitive" } },
         ),
       },
-      select: { fonteId: true, codigo: true, nome: true, precoComImpostos: true, precoNormal: true, precoPromocional: true },
+      select: { fonteId: true, codigo: true, nome: true, precoComImpostos: true, precoNormal: true, precoReserva: true, precoMontagem: true, impostos: true, precoPromocional: true },
       orderBy: { vistoEm: "desc" },
     });
     for (const vinculo of comFonte) {
@@ -146,7 +147,10 @@ export async function carregarProdutoParaFormulario(id) {
           ? item.codigo === "N/A" && item.nome === vinculo.descricao
           : item.codigo?.toLowerCase() === vinculo.codigo.toLowerCase()),
       );
-      const custo = achado?.precoComImpostos ?? achado?.precoNormal ?? achado?.precoPromocional ?? null;
+      // Quem so esta na reserva ou na montagem (Fortek, 09/11/2026) segue o preco dessa lista, antes do promocional.
+      const doBanco = (valor) => (valor === null || valor === undefined ? null : Number(valor));
+      const outraLista = achado ? precoDeOutraLista({ reserva: doBanco(achado.precoReserva), montagem: doBanco(achado.precoMontagem) }, achado.impostos) : null;
+      const custo = achado?.precoComImpostos ?? achado?.precoNormal ?? outraLista ?? achado?.precoPromocional ?? null;
       if (custo !== null) custoDaVarredura.set(vinculo.id, Number(custo));
     }
   }

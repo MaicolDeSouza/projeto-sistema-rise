@@ -115,8 +115,24 @@ export function custoDoFornecedor(precos, impostos) {
     numero(precos?.comImpostos) ??
     precoComImpostos(numero(precos?.normal), impostos) ??
     numero(precos?.normal) ??
+    precoDeOutraLista(precos, impostos) ??
     numero(precos?.promotional)
   );
+}
+
+/**
+ * O preco de quem nao esta na Pronta Entrega e so aparece na Lista de Reserva (a chegar) ou na de Montagem (Fortek,
+ * 09/11/2026: o 64-997, so "em montagem: 280", mostrava R$ 10,54 no Scraper e a lupa trazia o preco VAZIO). Vale quando
+ * nao ha preco de pronta entrega, com os impostos por cima (a Fortek cobra o IPI por fora, como na pronta entrega). Fica
+ * antes do promocional: reserva e montagem sao o preco normal de outra lista, nao desconto. Sem nenhum dos dois, null.
+ *
+ * @param {{ reserva?: number|null, montagem?: number|null }} precos
+ * @param {{ nome: string, percentual: number }[]} [impostos]
+ */
+export function precoDeOutraLista(precos, impostos) {
+  const numero = (valor) => (typeof valor === "number" && Number.isFinite(valor) ? valor : null);
+  const bruto = numero(precos?.reserva) ?? numero(precos?.montagem);
+  return bruto === null ? null : (precoComImpostos(bruto, impostos) ?? bruto);
 }
 
 /** "IPI 2%" ou "IPI 2% + ICMS 18%", para a tela dizer o que entrou na conta. */

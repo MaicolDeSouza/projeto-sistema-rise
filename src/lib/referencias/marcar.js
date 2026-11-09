@@ -96,7 +96,14 @@ export async function marcarReferencias(sku, plano) {
       continue;
     }
     const preco = custoDoFornecedor(
-      { comImpostos: numero(coletado.precoComImpostos), normal: numero(coletado.precoNormal), promotional: numero(coletado.precoPromocional) },
+      {
+        comImpostos: numero(coletado.precoComImpostos),
+        normal: numero(coletado.precoNormal),
+        // Fortek: quem so esta a chegar (reserva) ou em montagem tem so esse preco (09/11/2026).
+        reserva: numero(coletado.precoReserva),
+        montagem: numero(coletado.precoMontagem),
+        promotional: numero(coletado.precoPromocional),
+      },
       coletado.impostos,
     );
     const criada = await prisma.produtoFornecedor.create({

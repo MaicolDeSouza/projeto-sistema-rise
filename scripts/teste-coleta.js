@@ -546,7 +546,7 @@ try {
 // ---------------------------------------------------------------------------
 // LISTA SEM CODIGO (NexMind, 06/11/2026, pedido do dono: o custo dos vinculos segue a lista pelo nome). Vinculo sem
 // codigo casa com o item SEM codigo ("N/A") da mesma fonte de NOME IGUAL; item com codigo e nome diferente nao contam.
-await prisma.produto.deleteMany({ where: { sku: { in: ["ZZ-NOME-1", "ZZ-NOME-2", "ZZ-NOME-3"] } } });
+await prisma.produto.deleteMany({ where: { sku: { in: ["ZZ-NOME-1", "ZZ-NOME-2", "ZZ-NOME-3", "ZZ-NOME-4"] } } });
 await prisma.fornecedor.deleteMany({ where: { nome: "ZZ Fornecedor Sem Codigo" } });
 try {
   const fonteNome = await prisma.fonteColeta.create({
@@ -596,8 +596,26 @@ try {
   conferir("sem codigo: a aba Fornecedores abre com o custo da lista", [linhaNaTela?.precoFornecedor, linhaNaTela?.precoCusto], [13.2, 13.2]);
   const outroNaTela = (await carregarProdutoParaFormulario(outroNome.prod.id)).fornecedores[0];
   conferir("sem codigo: nome fora da lista abre com o gravado", outroNaTela?.precoFornecedor, 1);
+
+  // FORTEK (09/11/2026): item SO EM MONTAGEM (sem preco de pronta entrega) segue o preco da lista de montagem COM o IPI,
+  // na varredura, no Salvar do produto e na aba (a lupa e o Scraper mostravam R$ 10,54 e o vinculo ficava sem custo).
+  const montagem = await vincular("ZZ-NOME-4", "Peca so em montagem");
+  await prisma.produtoFornecedor.update({ where: { id: montagem.vinculo.id }, data: { codigo: "ZZ-M1" } });
+  const soMontagem = {
+    ...produto({ code: "ZZ-M1", name: "Peca so em montagem", normal: null }),
+    prices: { normal: null, promotional: null, comImpostos: null, montagem: 9.9 },
+    taxes: [{ nome: "IPI", percentual: 6.5 }],
+  };
+  await gravarColeta({ fonte: fonteNome, produtos: [...lista, soMontagem], origem: "arquivo" });
+  conferir("montagem: a varredura traz o preco da lista de montagem com o IPI (9,90 + 6,5% = 10,54)", await custoDe(montagem), [10.54, 10.54]);
+  await prisma.produtoFornecedor.update({ where: { id: montagem.vinculo.id }, data: { precoFornecedor: 1, precoCusto: 1 } });
+  conferir("montagem: o Salvar do produto acerta pelo mesmo preco", await atualizarCustosDoProduto(montagem.prod.id), 1);
+  conferir("montagem: depois do Salvar", await custoDe(montagem), [10.54, 10.54]);
+  await prisma.produtoFornecedor.update({ where: { id: montagem.vinculo.id }, data: { precoFornecedor: 2, precoCusto: 2 } });
+  const montagemNaTela = (await carregarProdutoParaFormulario(montagem.prod.id)).fornecedores.find((item) => item.id === montagem.vinculo.id);
+  conferir("montagem: a aba Fornecedores abre com o preco da lista de montagem", montagemNaTela?.precoFornecedor, 10.54);
 } finally {
-  await prisma.produto.deleteMany({ where: { sku: { in: ["ZZ-NOME-1", "ZZ-NOME-2", "ZZ-NOME-3"] } } });
+  await prisma.produto.deleteMany({ where: { sku: { in: ["ZZ-NOME-1", "ZZ-NOME-2", "ZZ-NOME-3", "ZZ-NOME-4"] } } });
   await prisma.fornecedor.deleteMany({ where: { nome: "ZZ Fornecedor Sem Codigo" } });
 }
 

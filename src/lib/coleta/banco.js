@@ -342,6 +342,19 @@ async function produtosEmDiaDaFonte(fonteId) {
 }
 
 /**
+ * O custo da varredura em SQL, a mesma ordem de `custoDoFornecedor`: o preco com impostos gravado, o normal (pronta
+ * entrega) e, na falta dele, o da Lista de Reserva ou de Montagem COM os impostos por cima (Fortek, 09/11/2026: o item que
+ * so esta em montagem ficava sem custo na lupa e na aba), e so entao o promocional. Alias `p` = "ProdutoColetado". A soma das
+ * aliquotas ignora o que nao e numero, para uma ficha estranha nunca derrubar o UPDATE inteiro.
+ */
+const CUSTO_DA_VARREDURA = Prisma.sql`COALESCE(p."precoComImpostos", p."precoNormal",
+  ROUND(COALESCE(p."precoReserva", p."precoMontagem") * (1 + COALESCE((
+    SELECT SUM(CASE WHEN jsonb_typeof(e->'percentual') = 'number' THEN (e->>'percentual')::numeric ELSE 0 END)
+      FROM jsonb_array_elements(CASE WHEN jsonb_typeof(p."impostos") = 'array' THEN p."impostos" ELSE '[]'::jsonb END) AS e
+  ), 0) / 100), 2),
+  p."precoPromocional")`;
+
+/**
  * O CUSTO DO FORNECEDOR SEGUE A VARREDURA (pedido do dono em 23/10/2026, Opcao 1; ate ali o custo do vinculo era um
  * numero fixo, gravado quando o fornecedor entrava no produto). Ao fechar a coleta de uma fonte, todo vinculo
  * produto-fornecedor cujo Fornecedor esta ligado a esta fonte e cujo CODIGO existe na lista dela passa a ter o custo da
@@ -366,14 +379,14 @@ export async function atualizarCustosDosVinculos(tx, fonteId) {
            "atualizadoEm" = (NOW() AT TIME ZONE 'UTC')
       FROM (
         SELECT DISTINCT ON (v2.id) v2.id,
-               COALESCE(p."precoComImpostos", p."precoNormal", p."precoPromocional") AS custo
+               ${CUSTO_DA_VARREDURA} AS custo
           FROM "ProdutoFornecedor" v2
           JOIN "Fornecedor" f ON f.id = v2."fornecedorId"
           JOIN "ProdutoColetado" p ON p."fonteId" = f."fonteId" AND (
                  (upper(COALESCE(v2.codigo, '')) NOT IN ('', 'N/A') AND lower(p.codigo) = lower(v2.codigo))
               OR (upper(COALESCE(v2.codigo, '')) IN ('', 'N/A') AND p.codigo = 'N/A' AND p.nome = v2.descricao))
          WHERE f."fonteId" = ${fonteId}
-           AND COALESCE(p."precoComImpostos", p."precoNormal", p."precoPromocional") IS NOT NULL
+           AND ${CUSTO_DA_VARREDURA} IS NOT NULL
          ORDER BY v2.id, p."vistoEm" DESC
       ) alvo
      WHERE v.id = alvo.id AND v."precoCusto" IS DISTINCT FROM ROUND(alvo.custo / v.fator + COALESCE(v."adicionaisValor", 0), 4)
@@ -398,14 +411,14 @@ export async function atualizarCustosDoProduto(produtoId, cliente = prisma) {
            "atualizadoEm" = (NOW() AT TIME ZONE 'UTC')
       FROM (
         SELECT DISTINCT ON (v2.id) v2.id,
-               COALESCE(p."precoComImpostos", p."precoNormal", p."precoPromocional") AS custo
+               ${CUSTO_DA_VARREDURA} AS custo
           FROM "ProdutoFornecedor" v2
           JOIN "Fornecedor" f ON f.id = v2."fornecedorId"
           JOIN "ProdutoColetado" p ON p."fonteId" = f."fonteId" AND (
                  (upper(COALESCE(v2.codigo, '')) NOT IN ('', 'N/A') AND lower(p.codigo) = lower(v2.codigo))
               OR (upper(COALESCE(v2.codigo, '')) IN ('', 'N/A') AND p.codigo = 'N/A' AND p.nome = v2.descricao))
          WHERE v2."produtoId" = ${produtoId}
-           AND COALESCE(p."precoComImpostos", p."precoNormal", p."precoPromocional") IS NOT NULL
+           AND ${CUSTO_DA_VARREDURA} IS NOT NULL
          ORDER BY v2.id, p."vistoEm" DESC
       ) alvo
      WHERE v.id = alvo.id AND (v."precoFornecedor" IS DISTINCT FROM alvo.custo OR v."precoCusto" IS DISTINCT FROM ROUND(alvo.custo / v.fator + COALESCE(v."adicionaisValor", 0), 4))`;

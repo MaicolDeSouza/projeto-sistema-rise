@@ -3801,6 +3801,15 @@ console.log("\n— Magazord (Proesi) —");
   conferir("custo: sem imposto, o normal", custoDoFornecedor({ normal: 31.9 }, []), 31.9);
   conferir("custo: sem normal, o promocional", custoDoFornecedor({ promotional: 30 }), 30);
   conferir("custo: sem preco nenhum, null", custoDoFornecedor({}), null);
+  // Fortek (09/11/2026): quem so esta na reserva ou na montagem segue o preco dessa lista, com o IPI, antes do promocional.
+  const ipiFortek = [{ nome: "IPI", percentual: 6.5 }];
+  conferir("custo: so em montagem, o preco da montagem com o IPI (9,90 + 6,5% = 10,54)", custoDoFornecedor({ montagem: 9.9 }, ipiFortek), 10.54);
+  conferir("custo: so em montagem e sem imposto, o preco da montagem", custoDoFornecedor({ montagem: 9.9 }, []), 9.9);
+  conferir("custo: so na reserva, o preco da reserva com o IPI", custoDoFornecedor({ reserva: 10 }, ipiFortek), 10.65);
+  conferir("custo: reserva vem antes da montagem", custoDoFornecedor({ reserva: 10, montagem: 20 }, []), 10);
+  conferir("custo: a pronta entrega vence a montagem", custoDoFornecedor({ normal: 31.9, montagem: 9.9 }, []), 31.9);
+  conferir("custo: o com impostos gravado vence a montagem", custoDoFornecedor({ comImpostos: 32.54, montagem: 9.9 }, ipiFortek), 32.54);
+  conferir("custo: montagem vem antes do promocional", custoDoFornecedor({ montagem: 9.9, promotional: 5 }, []), 9.9);
 }
 
 // ---------------------------------------------------------------- lista em dolar (NexMind, 04/11/2026)

@@ -1507,6 +1507,14 @@ sem sessão (medido sem cookie: 1.997 na Pronta Entrega, 4 na Lista de Reserva, 
   só com `listasDoPortalBenser`) e o que saiu de todas as listas (`conciliar({ zerarAusentes })`; continua marcado ausente).
   **Só a Fortek:** os outros fornecedores seguem com o ausente a null ("ausente não é zero"), porque a lista deles é arquivo
   que pode chegar pela metade; a da Fortek é o portal lido pelo Rise.
+- **Custo de quem só está em montagem ou na reserva (09/11/2026, o dono: o 64-997 mostrava R$ 10,54 no Scraper e a lupa trazia o
+  preço vazio):** `custoDoFornecedor` (`lib/coleta/impostos.js`) só olhava com impostos, normal e promocional. Agora, sem preço
+  de pronta entrega, vale o da Lista de Reserva e depois o da Montagem, **com o IPI por cima** (`precoDeOutraLista`), antes do
+  promocional. A mesma ordem em todo lugar que decide o custo: a lupa (`buscaPorPalavras`), o MCP (`marcar.js`), a aba
+  Fornecedores (`produtoParaFormulario.js`) e o SQL que segue a varredura (`CUSTO_DA_VARREDURA` em `coleta/banco.js`, no
+  fechamento da coleta e no Salvar). Pronta entrega e o "com impostos" gravado continuam vencendo. Testes: `teste:extracao`
+  (função pura) e `teste:coleta` (varredura, Salvar e aba). **O vínculo que já existia com preço vazio se acerta no próximo
+  Salvar do produto ou na próxima varredura da Fortek.**
 - **Primeira varredura (PC, 01/11/2026):** 2.218 produtos (239 novos, 22 ausentes: os itens das listas antigas que não estão
   mais no portal).
 
