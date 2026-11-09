@@ -160,13 +160,15 @@ export async function anunciosDoSkuMLAcao(produtoId) {
   return protegendo(async () => {
     const produto = (await contextoDosProdutos([produtoId]))[produtoId];
     if (!produto) return { ok: false, erro: "Produto não encontrado." };
-    const naConta = await anunciosDoSkuNaConta(clienteML(), produto.sku);
+    // Com os kits do codigo (`{sku}_{N}`, 09/11/2026): a busca tambem pesquisa pelo nome, para a quantidade fora da lista.
+    const naConta = await anunciosDoSkuNaConta(clienteML(), produto.sku, { titulo: produto.tituloBase });
     if (!naConta.ok) return naConta;
     const doRise = await anunciosMLDoProduto(produtoId);
     const idsDoRise = new Set(doRise.map((anuncio) => anuncio.idExterno).filter(Boolean));
-    const candidatos = candidatosParaReaproveitar(naConta.itens, { idsDoRise });
+    const candidatos = candidatosParaReaproveitar(naConta.itens, { idsDoRise, sku: produto.sku });
     // As variantes contando o que a conta ja tem fora do Rise (08/11/2026): o "Faltam" do popup nao pede o que ja esta no ar.
-    return { ok: true, sku: produto.sku, candidatos, variantes: variantesDoProduto({ precoVenda: produto.precoVenda, anuncios: doRise, naConta: candidatos }) };
+    // O kit nao conta como a variante de 1 unidade.
+    return { ok: true, sku: produto.sku, candidatos, variantes: variantesDoProduto({ precoVenda: produto.precoVenda, anuncios: doRise, naConta: candidatos.filter((c) => !c.kit) }) };
   });
 }
 

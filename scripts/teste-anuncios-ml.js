@@ -3299,6 +3299,10 @@ try {
     // para controle de estoque"): o anuncio do PROPRIO produto com o Kit de 10, sem produto novo no Rise.
     const barra = await criarPronto("ZZ-ML-PA8", { tituloBase: "BARRA ZZ 1X15", custo: 0.5, precoVenda: 1.5, estoque: 205, pesoKg: 0.001, alturaCm: 1.16, larguraCm: 0.23, comprimentoCm: 3.85 });
     const lidaKitML = await lerParaPropostaML(ml(), "ZZ-ML-PA8", { quantidade: 10 });
+    // A leitura do kit tambem olha a conta (dono, 09/11/2026): o kit antigo codigo_N aparece com a quantidade e o aviso.
+    const kitAntigoPA8 = { id: "MLB5558020", title: "20x Barra ZZ 1x15", price: 24.9, listing_type_id: "gold_special", shipping: { free_shipping: false }, sold_quantity: 10, status: "paused", seller_custom_field: "ZZ-ML-PA8_20", permalink: "https://produto.mercadolivre.com.br/MLB5558020" };
+    const lidaKitConta = await lerParaPropostaML(ml({ meusItens: { "ZZ-ML-PA8_20": [kitAntigoPA8] } }), "ZZ-ML-PA8", { quantidade: 10 });
+    conferir("kit no ML: a leitura mostra o kit antigo da conta com a quantidade", [lidaKitConta.anunciosNaConta.map((c) => [c.id, c.kit, c.variante]), lidaKitConta.avisos.some((aviso) => /MLB5558020/.test(aviso) && /kit de 20/.test(aviso))], [[["MLB5558020", 20, "Clássico sem frete (kit de 20)"]], true]);
     conferir(
       "kit no ML: a leitura dá o custo das 10, o código e o título de partida, e libera o título",
       [lidaKitML.produto.composicao, lidaKitML.produto.custo, lidaKitML.produto.kit],
@@ -3983,7 +3987,11 @@ try {
     // Puro: tira os do Rise e os encerrados; ativo primeiro, depois quem vendeu mais.
     const candidatos = candidatosParaReaproveitar([semVenda, fechado, doRise, itemAntigo], { idsDoRise: new Set(["MLBDORISE"]) });
     conferir("candidatos: sem os do Rise e sem closed, ativo primeiro", candidatos.map((c) => c.id), ["MLBANTIGO1", "MLBSEMVENDA"]);
-    conferir("candidatos: os campos da linha", Object.keys(candidatos[0]).sort(), ["catalogo", "categoriaId", "freteGratis", "id", "link", "preco", "status", "tipoAnuncio", "titulo", "vendidos"]);
+    conferir("candidatos: os campos da linha", Object.keys(candidatos[0]).sort(), ["catalogo", "categoriaId", "freteGratis", "id", "kit", "link", "preco", "status", "tipoAnuncio", "titulo", "vendidos"]);
+    // Kits do codigo na conta (dono, 09/11/2026: o 910207 tinha o kit 20x com o codigo 910207_20 e a proposta nao achou).
+    const { kitDoCodigo } = await import("../src/lib/canaisDeVenda/ml/reaproveitar.js");
+    conferir("kitDoCodigo: o proprio codigo e 1, codigo_N e N, o resto nao e do produto", ["910207", "910207_20", " 910207_5 ", "9102070", "910207-20", "910207_1", "910207_x", "", null].map((c) => kitDoCodigo(c, "910207")), [1, 20, 5, null, null, null, null, null, null]);
+    conferir("candidatos: kit lido do codigo do item (seller_custom_field ou SELLER_SKU)", candidatosParaReaproveitar([itemAntigo, { ...itemAntigo, id: "MLBK20", seller_custom_field: "ZZ-ML-RE_20" }, { ...itemAntigo, id: "MLBK5", seller_custom_field: null, attributes: [{ id: "SELLER_SKU", value_name: "ZZ-ML-RE_5" }] }], { idsDoRise: new Set(), sku: "ZZ-ML-RE" }).map((c) => [c.id, c.kit]), [["MLBANTIGO1", null], ["MLBK20", 20], ["MLBK5", 5]]);
     conferir("candidatos: valores lidos do item", [candidatos[0].titulo, candidatos[0].preco, candidatos[0].tipoAnuncio, candidatos[0].freteGratis, candidatos[0].vendidos, candidatos[0].catalogo, candidatos[0].link], ["Placa ZZ RE antiga", 39.9, "gold_special", false, 3, false, "https://produto.mercadolivre.com.br/MLBANTIGO1"]);
 
     const produto = await prisma.produto.create({ data: { sku: "ZZ-ML-RE", tituloBase: "ZZ RE", descricaoBase: "Descricao do Rise", conferido: true, blingId: "1", pesoKg: 0.05, alturaCm: 2, larguraCm: 6, comprimentoCm: 7, estoque: 10, precoVenda: 45.9, custo: 20 } });
@@ -4009,6 +4017,17 @@ try {
     conferir("reaproveitar: abre com '!' em descricao e no preco da loja (nada do produto conferido)", [aberto.status, aberto.mudancas.naoConferido, aberto.mudancas.partes.includes("descricao"), aberto.mudancas.partes.includes("precoDaLoja"), aberto.mudancas.partes.includes("preco")], ["PUBLICADO", true, true, true, false]);
     conferir("reaproveitar: o mesmo item de novo recusa", /já está no Rise/.test(String((await reaproveitarAnuncioML(produto.id, "MLBANTIGO1", { ml })).erro)), true);
     conferir("reaproveitar: continua um so anuncio", await prisma.anuncio.count({ where: { produtoId: produto.id } }), 1);
+
+    // O kit do codigo (codigo_N): a busca o acha pelos codigos de kit e o Reaproveitar o adota como kit do produto base.
+    const kit20 = { ...itemAntigo, id: "MLBKIT20", title: "20x Placa ZZ RE", price: 299, sold_quantity: 10, status: "paused", seller_custom_field: "ZZ-ML-RE_20", permalink: "https://produto.mercadolivre.com.br/MLBKIT20" };
+    const mlKit = criarMLFalso({ meusItens: { "ZZ-ML-RE": [itemAntigo], "ZZ-ML-RE_20": [kit20] } });
+    const comKits = await anunciosDoSkuNaConta(mlKit, "ZZ-ML-RE");
+    conferir("anuncios do SKU na conta: acha tambem o kit codigo_N", [comKits.ok, comKits.itens.map((i) => i.id).sort()], [true, ["MLBANTIGO1", "MLBKIT20"]]);
+    const feitoKit = await reaproveitarAnuncioML(produto.id, "MLBKIT20", { ml: mlKit });
+    const gravadoKit = feitoKit.ok ? await prisma.anuncio.findUnique({ where: { id: feitoKit.anuncioId } }) : null;
+    conferir("reaproveitar kit: vira o kit de 20 do produto base", [feitoKit.ok, gravadoKit?.produtoId === produto.id, gravadoKit?.dados?.composicao?.codigo, gravadoKit?.dados?.composicao?.itens, gravadoKit?.idExterno, gravadoKit?.dados?.preco], [true, true, "ZZ-ML-RE_20", [{ produtoId: produto.id, quantidade: 20 }], "MLBKIT20", 299]);
+    conferir("reaproveitar kit: etapas do kit feitas, atacado desligado, zero escritas", [gravadoKit?.dados?.publicacao?.feitas?.includes("kit_bling"), gravadoKit?.dados?.atacado, mlKit.escritas.length], [true, { faixas: [], ligado: false }, 0]);
+    conferir("reaproveitar kit: abre como kit publicado", [(await carregarAnuncioML(feitoKit.anuncioId)).status, Boolean((await carregarAnuncioML(feitoKit.anuncioId)).rascunho?.composicao)], ["PUBLICADO", true]);
   }
 
   {

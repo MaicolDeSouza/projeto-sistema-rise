@@ -17,10 +17,36 @@ import { textoDaRecusaML } from "./respostas";
 const CANAL = "MERCADO_LIVRE";
 
 /**
+ * Os kits do codigo na conta (dono, 09/11/2026: o 910207 tinha o kit "20x" com o codigo 910207_20 e a proposta nao achou,
+ * porque a busca do ML por `seller_sku` so devolve o codigo EXATO). O kit no ML do Rise usa `{sku}_{N}` (`codigoDaComposicao`),
+ * e os antigos da conta seguem o mesmo padrao: a busca pede estas quantidades, e a pesquisa pelo titulo pega a que ficar fora.
+ */
+export const QUANTIDADES_DE_KIT = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50, 100];
+
+/** Puro. 1 quando o codigo do anuncio e o do produto, N quando e `{sku}_{N}` (N >= 2), null quando e de outro produto. */
+export function kitDoCodigo(codigoDoAnuncio, sku) {
+  const codigo = String(codigoDoAnuncio ?? "").trim().toUpperCase();
+  const base = String(sku ?? "").trim().toUpperCase();
+  if (!codigo || !base) return null;
+  if (codigo === base) return 1;
+  if (!codigo.startsWith(`${base}_`)) return null;
+  const resto = codigo.slice(base.length + 1);
+  const quantidade = /^\d{1,4}$/.test(resto) ? Number(resto) : NaN;
+  return Number.isInteger(quantidade) && quantidade >= 2 ? quantidade : null;
+}
+
+/** O codigo do vendedor no item: `seller_custom_field`, ou o atributo SELLER_SKU (o modelo User Products guarda la). */
+export function codigoDoItem(item) {
+  const campo = String(item?.seller_custom_field ?? "").trim();
+  if (campo) return campo;
+  return String((item?.attributes ?? []).find((atributo) => atributo?.id === "SELLER_SKU")?.value_name ?? "").trim();
+}
+
+/**
  * Puro. Os itens do SKU que o Rise pode adotar: fora os que ja sao do Rise e os encerrados (`closed`, que o ML nao reabre).
  * Ordem: ativo primeiro, depois quem vendeu mais, para o mais provavel ficar no topo da lista.
  */
-export function candidatosParaReaproveitar(itens, { idsDoRise }) {
+export function candidatosParaReaproveitar(itens, { idsDoRise, sku = null }) {
   const peso = (item) => (item.status === "active" ? 0 : 1);
   return (Array.isArray(itens) ? itens : [])
     .filter((item) => item && item.id && item.status !== "closed" && !idsDoRise?.has?.(item.id))
@@ -36,21 +62,44 @@ export function candidatosParaReaproveitar(itens, { idsDoRise }) {
       status: item.status ?? null,
       link: item.permalink ?? null,
       categoriaId: item.category_id ?? null,
+      // A quantidade do kit pelo codigo (`{sku}_{N}`); null no anuncio de 1 unidade (ou sem o sku para comparar).
+      kit: (() => {
+        const quantidade = sku ? kitDoCodigo(codigoDoItem(item), sku) : null;
+        return quantidade && quantidade >= 2 ? quantidade : null;
+      })(),
     }));
 }
 
-/** Os anuncios do SKU na conta, lidos um a um (a busca so devolve ids), como `outrosAnunciosDoAnuncio`. Nunca lanca. */
-export async function anunciosDoSkuNaConta(ml, sku) {
+/**
+ * Os anuncios do SKU na conta, lidos um a um (a busca so devolve ids), como `outrosAnunciosDoAnuncio`. Nunca lanca.
+ * Desde 09/11/2026 traz tambem os KITS do codigo (`{sku}_{N}`): a busca do codigo exato decide (falhou, erro); as dos codigos
+ * de kit e a pesquisa pelo `titulo` (para a quantidade fora da lista) so somam, e a falha delas e ignorada. So fica o item cujo
+ * codigo e o do produto ou `{sku}_{N}` (`kitDoCodigo`): a pesquisa pelo titulo traz produtos parecidos.
+ */
+export async function anunciosDoSkuNaConta(ml, sku, { titulo = "" } = {}) {
   const codigo = String(sku ?? "").trim();
   if (!codigo) return { ok: false, erro: "O produto está sem código (SKU)." };
   try {
     const eu = await ml.usuarioId();
-    const busca = await ml.get(`/users/${encodeURIComponent(String(eu))}/items/search`, { seller_sku: codigo, limit: 50 });
+    const caminho = `/users/${encodeURIComponent(String(eu))}/items/search`;
+    const busca = await ml.get(caminho, { seller_sku: codigo, limit: 50 });
     if (!busca?.ok) return { ok: false, erro: textoDaRecusaML(busca, `a busca dos anúncios do SKU ${codigo}`) };
+    const ids = new Set(busca.dados?.results ?? []);
+    const extras = QUANTIDADES_DE_KIT.map((quantidade) => ({ seller_sku: `${codigo}_${quantidade}`, limit: 50 }));
+    const pesquisa = String(titulo ?? "").trim().slice(0, 60);
+    if (pesquisa) extras.push({ q: pesquisa, limit: 50 });
+    for (const filtro of extras) {
+      try {
+        const achou = await ml.get(caminho, filtro);
+        if (achou?.ok) for (const id of achou.dados?.results ?? []) ids.add(id);
+      } catch {
+        // A busca extra so soma: a do codigo exato ja respondeu.
+      }
+    }
     const itens = [];
-    for (const id of busca.dados?.results ?? []) {
+    for (const id of ids) {
       const lido = await ml.get(`/items/${encodeURIComponent(String(id))}`);
-      if (lido?.ok) itens.push(lido.dados);
+      if (lido?.ok && kitDoCodigo(codigoDoItem(lido.dados), codigo) !== null) itens.push(lido.dados);
     }
     return { ok: true, itens };
   } catch (erro) {
@@ -78,11 +127,16 @@ export async function reaproveitarAnuncioML(produtoId, itemId, { ml }) {
     return { ok: false, erro: `Falha ao falar com o Mercado Livre: ${erro?.message ?? erro}` };
   }
   if (item.status === "closed") return { ok: false, erro: `O anúncio ${mlb} está encerrado no ML e não pode ser reaproveitado.` };
-  if (String(item.seller_custom_field ?? "") !== String(principal.sku ?? "")) {
-    return { ok: false, erro: `O anúncio ${mlb} é do SKU "${item.seller_custom_field ?? ""}", não de ${principal.sku}.` };
-  }
+  // O codigo do produto (1 unidade) ou `{sku}_{N}` (o kit de N, desde 09/11/2026); outro codigo recusa.
+  const doItem = codigoDoItem(item);
+  const quantidade = kitDoCodigo(doItem, principal.sku);
+  if (quantidade === null) return { ok: false, erro: `O anúncio ${mlb} é do SKU "${doItem}", não de ${principal.sku}.` };
+  const kit = quantidade >= 2;
+  // O kit vira o Kit de N do produto base (o kit no ML do Rise), com o codigo do anuncio; o produto do kit no Bling e lido
+  // pelo codigo no "Mover" do Enviar mudancas, como no simples.
+  const composicao = kit ? { itens: [{ produtoId, quantidade }], codigo: `${principal.sku}_${quantidade}`, blingProdutoId: null } : null;
 
-  const base = rascunhoInicial({ principal, produtosPorId: produtos, composicao: null });
+  const base = rascunhoInicial({ principal, produtosPorId: produtos, composicao });
   const { produtoId: _produtoId, titulo: _titulo, descricao, atributos, categoriaId: _categoriaId, atacado: _atacado, ...dados } = base;
   const preco = Number(item.price);
   const agora = new Date().toISOString();
@@ -92,7 +146,7 @@ export async function reaproveitarAnuncioML(produtoId, itemId, { ml }) {
     statusML: item.status ?? null,
     incerta: false,
     fotos: {},
-    feitas: etapasDoAnuncio({ kit: false }),
+    feitas: etapasDoAnuncio({ kit }),
     criadoCom: null,
     reaproveitado: { em: agora, blingMovidoEm: null },
     // So as partes do anuncio: sem as do produto a impressao e "nao conferida" e o editor acende descricao, fotos e pacote.

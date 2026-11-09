@@ -24,7 +24,9 @@
 // reaproveitar?").
 import { REGRAS_DAS_VARIANTES } from "@/lib/canaisDeVenda/ml/faixas";
 
-export const VERSAO_ROTEIRO_ML = "10";
+// "11" em 09/11/2026: anunciosNaConta traz tambem os kits do codigo ({sku}_{N}, campo kit), inclusive na leitura do kit, e o
+// reaproveitar aceita o kit (pedido do dono: o 910207 tinha o kit 20x e a proposta nao achou).
+export const VERSAO_ROTEIRO_ML = "11";
 
 export const ROTEIRO_ML = `ROTEIRO DA PROPOSTA DE ANÚNCIO DO MERCADO LIVRE (Rise / 4hobby), versão ${VERSAO_ROTEIRO_ML}
 
@@ -53,6 +55,10 @@ CAMINHO (nesta ordem)
    b) Não reaproveite anúncio de outro produto, nem uma segunda cópia da mesma variante: liste esses ao dono no chat.
    c) Diga ao dono, ANTES de gravar a proposta, o que reaproveitou, o que já estava no Rise e quais variantes ainda faltam.
    d) Se todas as variantes que a faixa pede já existem no Rise, NÃO grave proposta: diga isso e pare.
+   e) KITS NA CONTA: anunciosNaConta traz também os kits do código ({sku}_{N}, campo "kit" com o N e "(kit de N)" na variante),
+      na leitura de 1 unidade e na do kit. Kit não conta como o anúncio de 1 unidade. Pedido de kit de N: se a conta já tem o kit
+      da MESMA quantidade, reaproveite-o (reaproveitarAnuncioML vira o Kit de N do produto base) em vez de gravar proposta; kit
+      de outra quantidade, liste ao dono e pergunte antes. Na proposta de 1 unidade, diga ao dono os kits que a conta já tem.
 KIT NO ML: quando o dono pede o anúncio em kit ("anúncio com 10 peças", "kit de 10"), o kit é montado no EDITOR do ML,
    no anúncio do PRÓPRIO produto base, que controla o estoque. Nunca crie nem peça um produto kit novo no Rise. Passe
    quantidade N em lerParaPropostaML e em gravarPropostaML: o Rise cria (ou atualiza) o Clássico do produto com o Kit de N

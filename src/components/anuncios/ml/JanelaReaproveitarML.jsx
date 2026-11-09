@@ -83,6 +83,8 @@ export default function JanelaReaproveitarML({ sku, candidatos, ocupado = null, 
                     {ROTULO_DO_TIPO_ML[anuncio.tipoAnuncio] ?? anuncio.tipoAnuncio ?? ""}
                     {anuncio.freteGratis && <span className="ml-1.5 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-800">Frete grátis</span>}
                     {anuncio.catalogo && <span className="ml-1.5 rounded bg-sky-50 px-1.5 py-0.5 text-[10px] text-sky-800">Catálogo</span>}
+                    {/* O kit do codigo ({sku}_{N}, 09/11/2026): reaproveitado, vira o Kit de N do produto base. */}
+                    {anuncio.kit && <span className="ml-1.5 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-800">Kit de {anuncio.kit}</span>}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{Number.isFinite(anuncio.preco) ? MOEDA.format(anuncio.preco) : ""}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{anuncio.vendidos}</td>

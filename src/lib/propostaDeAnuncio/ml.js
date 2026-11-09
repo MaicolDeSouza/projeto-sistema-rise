@@ -99,7 +99,7 @@ export async function lerParaPropostaML(cliente, sku, { quantidade } = {}) {
   const meusCatalogos = await catalogosDosMeusAnuncios(cliente, sku).catch(() => []);
   // O que ja existe do produto, ANTES de propor (pedido do dono em 08/11/2026: "consultar no ML primeiro se tem anuncio daquele
   // produto e reaproveitar"): os anuncios do codigo na conta fora do Rise e os que o Rise ja tem, com a variante em texto.
-  const anunciosNaConta = kit ? [] : await anunciosForaDoRise(cliente, produto, avisos);
+  const anunciosNaConta = await anunciosForaDoRise(cliente, produto, avisos);
   const anunciosNoRise = await anunciosDoProdutoNoRise(produto.id);
 
   return {
@@ -239,7 +239,7 @@ export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, quan
 
   // Os anuncios do codigo que a conta do ML ja tem e o Rise nao (pedido do dono em 08/11/2026: "Esse item ja tem produto
   // publicado no ML e nao fui informado"). So leitura; o aviso vem primeiro, para o dono reaproveitar em vez de publicar outro.
-  const anunciosNaConta = kit ? [] : await anunciosForaDoRise(cliente, produto, avisos);
+  const anunciosNaConta = await anunciosForaDoRise(cliente, produto, avisos);
 
   const existente = await classicoEmRascunho(produto.id, kit);
   let base;
@@ -371,27 +371,31 @@ async function propostaDoPremium(cliente, { produto, kit, rascunhoDoClassico, cu
 
 /**
  * Os anuncios do SKU na conta do ML que nao sao do Rise, com um aviso que lista cada um (MLB, tipo, frete, preco, vendas).
- * Conta que nao responde vira aviso, nunca erro: a proposta segue.
+ * Conta que nao responde vira aviso, nunca erro: a proposta segue. Desde 09/11/2026 vem tambem os KITS do codigo (`{sku}_{N}`,
+ * campo `kit`), tambem na leitura do kit no ML: o dono reaproveita o kit da mesma quantidade em vez de publicar outro.
  */
 async function anunciosForaDoRise(cliente, produto, avisos) {
-  const lidos = await anunciosDoSkuNaConta(cliente, produto.sku);
+  const lidos = await anunciosDoSkuNaConta(cliente, produto.sku, { titulo: produto.tituloBase });
   if (!lidos.ok) {
     avisos.push(`Não foi possível conferir se a conta do Mercado Livre já tem anúncio deste código: ${lidos.erro}`);
     return [];
   }
   const doRise = await prisma.anuncio.findMany({ where: { canal: CANAL, produtoId: produto.id, idExterno: { not: null } }, select: { idExterno: true } });
-  const candidatos = candidatosParaReaproveitar(lidos.itens, { idsDoRise: new Set(doRise.map((anuncio) => anuncio.idExterno)) });
+  const candidatos = candidatosParaReaproveitar(lidos.itens, { idsDoRise: new Set(doRise.map((anuncio) => anuncio.idExterno)), sku: produto.sku });
   if (candidatos.length > 0) {
     const reais = (valor) => Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
     const linhas = candidatos.map((c) =>
-      [c.id, ROTULO_DO_TIPO_ML[c.tipoAnuncio] ?? c.tipoAnuncio, c.freteGratis ? "frete grátis" : "sem frete", Number.isFinite(c.preco) ? reais(c.preco) : null, `${c.vendidos} venda(s)`, c.status]
+      [c.id, c.kit ? `kit de ${c.kit}` : null, ROTULO_DO_TIPO_ML[c.tipoAnuncio] ?? c.tipoAnuncio, c.freteGratis ? "frete grátis" : "sem frete", Number.isFinite(c.preco) ? reais(c.preco) : null, `${c.vendidos} venda(s)`, c.status]
         .filter(Boolean)
         .join(", "),
     );
     avisos.unshift(`A conta do Mercado Livre já tem ${candidatos.length === 1 ? "um anúncio" : `${candidatos.length} anúncios`} deste código fora do Rise: ${linhas.join("; ")}. Reaproveite (reaproveitarAnuncioML, ou no popup do produto) em vez de publicar outro igual.`);
   }
   // A variante em texto ("Clássico + frete grátis"), para a IA e o dono lerem sem decodificar tipo e frete.
-  return candidatos.map((candidato) => ({ ...candidato, variante: rotuloDaVariante(candidato.tipoAnuncio, candidato.freteGratis, candidato.preco) }));
+  return candidatos.map((candidato) => ({
+    ...candidato,
+    variante: `${rotuloDaVariante(candidato.tipoAnuncio, candidato.freteGratis, candidato.preco)}${candidato.kit ? ` (kit de ${candidato.kit})` : ""}`,
+  }));
 }
 
 /**
