@@ -1,12 +1,15 @@
 import { prisma } from "@/lib/db";
 import { buscarNoBling } from "@/lib/blingSync/leitura";
-import { LOJA_ML_NO_BLING, anuncioNoBlingML } from "./bling";
+import { LOJA_ML_ANTIGA_NO_BLING, LOJA_ML_NO_BLING, LOJA_MERCADOSHOPS_NO_BLING, anuncioNoBlingML } from "./bling";
 import { textoDoErroML } from "./leitura";
 import { textoDaRecusaML } from "./respostas";
 
 /**
- * Excluir o anuncio do Mercado Livre pelo Rise (Opcao 1 do dono em 28/10/2026: "sem venda, excluir; com venda, encerrar e
- * manter no Rise como encerrado"). A ordem e a que o dono pediu, ML -> Bling -> Rise, e cada passo le antes de escrever,
+ * Excluir o anuncio do Mercado Livre pelo Rise. Desde 09/11/2026 (Opcao 1 do dono, "excluir de vez") COM ou sem venda o item
+ * e encerrado e apagado no ML, sai de todas as lojas do ML no Bling e sai do Rise; as vendas ficam nos pedidos. Se o ML recusar
+ * apagar o anuncio com venda (nunca medido), ele fica encerrado la e Encerrado no Rise, com o aviso. De 28/10 a 09/11/2026 era
+ * "sem venda, excluir; com venda, encerrar e manter no Rise como encerrado", e o texto abaixo descreve a regra antiga onde fala
+ * de "com venda". A ordem e a que o dono pediu, ML -> Bling -> Rise, e cada passo le antes de escrever,
  * entao repetir depois de uma falha continua de onde parou (o item ja encerrado nao e encerrado de novo, o registro do
  * Bling que ja saiu nao e apagado de novo).
  *
@@ -52,12 +55,14 @@ async function itemNoML(ml, itemId) {
   }
   if (resposta?.status === 404) return { existe: false, status: null, vendas: 0 };
   if (!resposta?.ok) return { erro: textoDaRecusaML(resposta, `a leitura do anúncio ${itemId}`) };
-  return { existe: true, status: resposta.dados?.status ?? null, vendas: Number(resposta.dados?.sold_quantity) || 0, apagado: resposta.dados?.deleted === true };
+  // Ja apagado: o ML ainda responde o item, encerrado com o `sub_status` "deleted" (medido no MLB5334128834 em 09/11/2026).
+  const apagado = resposta.dados?.deleted === true || (Array.isArray(resposta.dados?.sub_status) && resposta.dados.sub_status.includes("deleted"));
+  return { existe: true, status: resposta.dados?.status ?? null, vendas: Number(resposta.dados?.sold_quantity) || 0, apagado };
 }
 
 /**
- * O que vai acontecer, para a pergunta da tela (so le). `destino`: "rascunho" (so o Rise), "apagar" (sem venda) ou
- * "encerrar" (com venda). `jaEncerrado`: com venda e ja encerrado no Rise, nao ha mais nada a fazer.
+ * O que vai acontecer, para a pergunta da tela (so le). `destino`: "rascunho" (so o Rise) ou "apagar" (com ou sem venda,
+ * desde 09/11/2026); `vendas` vai para a pergunta, porque o anuncio com venda some do ML e do Rise (as vendas ficam nos pedidos).
  */
 export async function conferirExclusaoML(anuncioId, { ml }) {
   const lido = await lerAnuncio(anuncioId);
@@ -71,13 +76,24 @@ export async function conferirExclusaoML(anuncioId, { ml }) {
 
   const noML = await itemNoML(ml, itemId);
   if (noML.erro) return { ok: false, ...base, erro: noML.erro };
-  const vendas = Math.max(noML.vendas, anuncio.temVendas ? 1 : 0);
-  const destino = vendas > 0 ? "encerrar" : "apagar";
-  const jaEncerrado = destino === "encerrar" && anuncio.situacaoCanal === "ENCERRADA" && (!noML.existe || noML.status === "closed");
-  return { ok: true, ...base, destino, vendas: noML.vendas, existeNoML: noML.existe, statusML: noML.status, jaEncerrado };
+  // Com venda tambem se apaga (Opcao 1 do dono em 09/11/2026: "excluir de vez"; de 28/10 a 09/11 so encerrava e ficava no Rise).
+  return { ok: true, ...base, destino: "apagar", vendas: noML.vendas, comVendas: Math.max(noML.vendas, anuncio.temVendas ? 1 : 0) > 0, existeNoML: noML.existe, statusML: noML.status, apagadoNoML: Boolean(noML.apagado) };
 }
 
-/** Tira o anuncio do Bling: o registro em /anuncios e, se for o ultimo do produto na loja, o vinculo. Nunca lanca. */
+// As lojas do ML ATIVAS no Bling onde um anuncio pode estar registrado (09/11/2026: o MLB6529880486, reaproveitado e excluido
+// pelo Rise, ficou na ML_4h porque so a Rise_ML era limpa). A Rise_ML e a do Rise; a ML_4h e a MercadoShops guardam os anuncios
+// de antes (o reaproveitado mora la ate o "Mover"). As outras lojas do ML no Bling estao inativas.
+const LOJAS_DO_ML_NO_BLING = [
+  { id: LOJA_ML_NO_BLING, nome: null },
+  { id: LOJA_ML_ANTIGA_NO_BLING, nome: "ML_4h" },
+  { id: LOJA_MERCADOSHOPS_NO_BLING, nome: "MercadoShops" },
+];
+
+/**
+ * Tira o anuncio do Bling em TODAS as lojas do ML: o registro em /anuncios e, se for o ultimo do produto na loja, o vinculo.
+ * Na Rise_ML sai qualquer vinculo do produto (ele guarda o MLB do primeiro anuncio); nas lojas antigas, so o vinculo que aponta
+ * para este MLB (o produto pode ter outro anuncio antigo la). Nunca lanca.
+ */
 async function tirarDoBling(bling, codigo, itemId) {
   const feito = [];
   let busca;
@@ -89,45 +105,53 @@ async function tirarDoBling(bling, codigo, itemId) {
   if (busca.situacao === "nao_existe") return { ok: true, feito: [`Bling: o produto ${codigo} não está lá, nada a tirar`] };
   if (busca.situacao !== "existe") return { ok: false, erro: `Bling: o código ${codigo} aparece mais de uma vez; deixe só um e tente de novo.`, feito };
 
-  const registro = await anuncioNoBlingML(bling, busca.id, itemId);
-  if (registro.situacao === "erro") return { ok: false, erro: registro.erro, feito };
-  if (registro.situacao === "registrado") {
-    let resposta;
-    try {
-      resposta = await bling.delete(`/anuncios/${registro.id}`, { tipoIntegracao: TIPO_DE_INTEGRACAO, idLoja: Number(LOJA_ML_NO_BLING) });
-    } catch (erro) {
-      return { ok: false, erro: `Bling: falha ao tirar o anúncio ${itemId}: ${textoDe(erro)}. Confira no Bling e tente de novo.`, feito };
-    }
-    if (!resposta?.ok) return { ok: false, erro: `Bling: o anúncio ${itemId} não saiu (HTTP ${resposta?.status ?? "sem status"}).`, feito };
-    feito.push(`Bling: anúncio ${itemId} retirado`);
-  }
-
-  // O vinculo do produto com a loja do ML: so sai se aponta para este MLB e o produto nao tem mais anuncio na loja.
   let vinculos;
-  let restantes;
   try {
     vinculos = await bling.get("/produtos/lojas", { idProduto: busca.id });
-    restantes = await bling.get("/anuncios", { tipoIntegracao: TIPO_DE_INTEGRACAO, idLoja: Number(LOJA_ML_NO_BLING), idProduto: busca.id });
   } catch (erro) {
     return { ok: false, erro: `Bling: não foi possível ler o vínculo do produto ${codigo}: ${textoDe(erro)}`, feito };
   }
-  if (!vinculos?.ok || !restantes?.ok) return { ok: false, erro: `Bling: não foi possível ler o vínculo do produto ${codigo}.`, feito };
-  // O vinculo guarda o MLB do PRIMEIRO anuncio: com outro anuncio ainda registrado ele fica (serve a esse), e sem nenhum sai
-  // qualquer vinculo do produto nesta loja, aponte para qual MLB apontar (senao ficaria ligado a um anuncio que nao existe).
-  const daLoja = (vinculos.dados?.data ?? []).filter((item) => String(item?.loja?.id) === LOJA_ML_NO_BLING);
-  const outros = (restantes.dados?.data ?? []).filter((item) => String(item?.anuncioLoja?.id ?? "").trim() !== itemId);
-  if (outros.length > 0) {
-    if (daLoja.length > 0) feito.push(`Bling: vínculo do produto ${codigo} mantido (ele tem outro anúncio no ML)`);
-  } else {
+  if (!vinculos?.ok) return { ok: false, erro: `Bling: não foi possível ler o vínculo do produto ${codigo}.`, feito };
+
+  for (const loja of LOJAS_DO_ML_NO_BLING) {
+    const naLoja = loja.nome ? ` (loja ${loja.nome})` : "";
+    const registro = await anuncioNoBlingML(bling, busca.id, itemId, { loja: loja.id });
+    if (registro.situacao === "erro") return { ok: false, erro: registro.erro, feito };
+    if (registro.situacao === "registrado") {
+      let resposta;
+      try {
+        resposta = await bling.delete(`/anuncios/${registro.id}`, { tipoIntegracao: TIPO_DE_INTEGRACAO, idLoja: Number(loja.id) });
+      } catch (erro) {
+        return { ok: false, erro: `Bling: falha ao tirar o anúncio ${itemId}${naLoja}: ${textoDe(erro)}. Confira no Bling e tente de novo.`, feito };
+      }
+      if (!resposta?.ok) return { ok: false, erro: `Bling: o anúncio ${itemId}${naLoja} não saiu (HTTP ${resposta?.status ?? "sem status"}).`, feito };
+      feito.push(`Bling: anúncio ${itemId} retirado${naLoja}`);
+    }
+
+    // O vinculo do produto com a loja: com outro anuncio ainda registrado nela, fica (serve a esse).
+    const daLoja = (vinculos.dados?.data ?? []).filter((item) => String(item?.loja?.id) === loja.id && (!loja.nome || String(item?.codigo ?? "").trim() === itemId));
+    if (daLoja.length === 0) continue;
+    let restantes;
+    try {
+      restantes = await bling.get("/anuncios", { tipoIntegracao: TIPO_DE_INTEGRACAO, idLoja: Number(loja.id), idProduto: busca.id });
+    } catch (erro) {
+      return { ok: false, erro: `Bling: não foi possível ler os anúncios do produto ${codigo}${naLoja}: ${textoDe(erro)}`, feito };
+    }
+    if (!restantes?.ok) return { ok: false, erro: `Bling: não foi possível ler os anúncios do produto ${codigo}${naLoja}.`, feito };
+    const outros = (restantes.dados?.data ?? []).filter((item) => String(item?.anuncioLoja?.id ?? "").trim() !== itemId);
+    if (outros.length > 0) {
+      feito.push(`Bling: vínculo do produto ${codigo} mantido${naLoja} (ele tem outro anúncio no ML)`);
+      continue;
+    }
     for (const vinculo of daLoja) {
       let resposta;
       try {
         resposta = await bling.delete(`/produtos/lojas/${vinculo.id}`);
       } catch (erro) {
-        return { ok: false, erro: `Bling: falha ao tirar o vínculo do produto ${codigo}: ${textoDe(erro)}. Confira no Bling e tente de novo.`, feito };
+        return { ok: false, erro: `Bling: falha ao tirar o vínculo do produto ${codigo}${naLoja}: ${textoDe(erro)}. Confira no Bling e tente de novo.`, feito };
       }
-      if (!resposta?.ok) return { ok: false, erro: `Bling: o vínculo do produto ${codigo} não saiu (HTTP ${resposta?.status ?? "sem status"}).`, feito };
-      feito.push(`Bling: vínculo do produto ${codigo} com a loja do ML retirado`);
+      if (!resposta?.ok) return { ok: false, erro: `Bling: o vínculo do produto ${codigo}${naLoja} não saiu (HTTP ${resposta?.status ?? "sem status"}).`, feito };
+      feito.push(`Bling: vínculo do produto ${codigo} com a loja do ML retirado${naLoja}`);
     }
   }
   if (feito.length === 0) feito.push("Bling: o anúncio já não estava lá");
@@ -141,7 +165,9 @@ async function tirarDoBling(bling, codigo, itemId) {
 export async function excluirAnuncioML(anuncioId, { ml, bling }) {
   const conferido = await conferirExclusaoML(anuncioId, { ml });
   if (!conferido.ok) return { ok: false, feito: [], erro: conferido.erro };
-  const { destino, itemId, codigo } = conferido;
+  const { itemId, codigo } = conferido;
+  // `destino` vira "encerrar" so se o ML recusar apagar o anuncio com venda (nunca medido): ai ele fica Encerrado no Rise.
+  let destino = conferido.destino;
   const feito = [];
   const falhar = (erro) => ({ ok: false, destino, feito, erro });
 
@@ -149,7 +175,6 @@ export async function excluirAnuncioML(anuncioId, { ml, bling }) {
     await prisma.anuncio.delete({ where: { id: anuncioId } });
     return { ok: true, destino, feito: ["Rise: rascunho excluído"] };
   }
-  if (conferido.jaEncerrado) return { ok: true, destino, feito: ["Já estava encerrado no Mercado Livre e no Rise"] };
 
   try {
     ml.exigirEscrita(codigo);
@@ -158,8 +183,10 @@ export async function excluirAnuncioML(anuncioId, { ml, bling }) {
     return falhar(textoDe(erro));
   }
 
-  // 1. Mercado Livre: encerrar (com e sem venda) e, sem venda, apagar.
-  if (conferido.existeNoML) {
+  // 1. Mercado Livre: encerrar e apagar (com e sem venda, 09/11/2026). Ja apagado la, nada a escrever.
+  if (conferido.existeNoML && conferido.apagadoNoML) {
+    feito.push(`Mercado Livre: o anúncio ${itemId} já estava excluído`);
+  } else if (conferido.existeNoML) {
     if (conferido.statusML !== "closed") {
       let resposta;
       try {
@@ -170,16 +197,20 @@ export async function excluirAnuncioML(anuncioId, { ml, bling }) {
       if (!resposta?.ok) return falhar(textoDaRecusaML(resposta, `o encerramento do anúncio ${itemId}`));
       feito.push(`Mercado Livre: anúncio ${itemId} encerrado`);
     }
-    if (destino === "apagar") {
-      let resposta;
-      try {
-        resposta = await ml.put(`/items/${itemId}`, { deleted: "true" });
-      } catch (erro) {
-        return falhar(`O anúncio ${itemId} foi encerrado, mas não foi possível apagá-lo no Mercado Livre: ${textoDoErroML(erro)}`);
-      }
-      if (!resposta?.ok) return falhar(textoDaRecusaML(resposta, `a exclusão do anúncio ${itemId}`));
-      feito.push(`Mercado Livre: anúncio ${itemId} excluído`);
+    let resposta;
+    let falha = null;
+    try {
+      resposta = await ml.put(`/items/${itemId}`, { deleted: "true" });
+      if (!resposta?.ok) falha = textoDaRecusaML(resposta, `a exclusão do anúncio ${itemId}`);
+    } catch (erro) {
+      falha = `O anúncio ${itemId} foi encerrado, mas não foi possível apagá-lo no Mercado Livre: ${textoDoErroML(erro)}`;
     }
+    if (!falha) feito.push(`Mercado Livre: anúncio ${itemId} excluído`);
+    else if (conferido.comVendas) {
+      // Com venda, a recusa do ML nao para a exclusao: ele fica encerrado la, sai do Bling e fica Encerrado no Rise.
+      destino = "encerrar";
+      feito.push(`Mercado Livre: não deixou excluir o anúncio ${itemId} (tem vendas); ficou encerrado. ${falha}`);
+    } else return falhar(falha);
   } else {
     feito.push(`Mercado Livre: o anúncio ${itemId} já não existe lá`);
   }
@@ -204,7 +235,7 @@ export async function excluirAnuncioML(anuncioId, { ml, bling }) {
         dados: { ...(atual?.dados ?? {}), publicacao: { ...publicacao, statusML: "closed", encerradoEm: new Date().toISOString(), estadoML: { ...(publicacao.estadoML ?? {}), status: "closed" } } },
       },
     });
-    feito.push("Rise: anúncio mantido como Encerrado (tem vendas)");
+    feito.push("Rise: anúncio mantido como Encerrado (o ML não deixou excluir)");
   }
   return { ok: true, destino, feito };
 }

@@ -23,11 +23,13 @@ async function chamar(acao, argumento) {
   }
 }
 
+// Com venda tambem se exclui de vez (Opcao 1 do dono em 09/11/2026); "encerrar" so volta quando o ML recusa apagar.
 const O_QUE_ACONTECE = {
   rascunho: "Ainda não está no Mercado Livre: só o rascunho do Rise é excluído.",
-  apagar: "Sem vendas: o anúncio é encerrado e apagado no Mercado Livre, sai do Bling e sai do Rise.",
-  encerrar: "Com vendas: o anúncio é encerrado no Mercado Livre (não volta mais), sai do Bling e fica no Rise como Encerrado.",
+  apagar: "O anúncio é encerrado e apagado no Mercado Livre, sai do Bling (de todas as lojas do ML) e sai do Rise.",
+  encerrar: "O Mercado Livre não deixou excluir: o anúncio ficou encerrado lá e fica no Rise como Encerrado.",
 };
+const COM_VENDAS = " As vendas continuam nos pedidos.";
 const ROTULO_DO_BOTAO = { rascunho: "Excluir", apagar: "Excluir", encerrar: "Encerrar" };
 const TITULO_DO_FIM = { rascunho: "Rascunho excluído", apagar: "Anúncio excluído", encerrar: "Anúncio encerrado" };
 
@@ -82,7 +84,7 @@ export default function JanelaExcluirAnuncioML({ anuncioId, aoFechar, aoConcluir
   }
 
   const destino = conferido?.destino;
-  const pronto = conferido?.ok && !conferido.jaEncerrado;
+  const pronto = Boolean(conferido?.ok);
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 p-4 text-left font-normal normal-case" {...propsDoFundo(() => !executando && aoFechar())}>
@@ -115,7 +117,12 @@ export default function JanelaExcluirAnuncioML({ anuncioId, aoFechar, aoConcluir
           </dl>
         )}
 
-        {conferido?.ok && <p className="mt-3 text-sm">{conferido.jaEncerrado ? "Já está encerrado no Mercado Livre e fica no Rise como Encerrado (tem vendas)." : O_QUE_ACONTECE[destino]}</p>}
+        {conferido?.ok && (
+          <p className="mt-3 text-sm">
+            {O_QUE_ACONTECE[destino]}
+            {conferido.comVendas ? COM_VENDAS : ""}
+          </p>
+        )}
 
         {conferido && !conferido.ok && (
           <p role="alert" className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">

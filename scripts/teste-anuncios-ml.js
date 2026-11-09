@@ -2034,19 +2034,42 @@ try {
       conferir("excluir: sem venda sai do Rise", [r.ok, r.destino, await prisma.anuncio.count({ where: { id: semVenda } })], [true, "apagar", 0]);
       conferir("excluir: o que foi feito vem na resposta", r.feito.some((linha) => linha.includes("vínculo") && linha.includes("mantido")), true);
 
-      // Com venda: so encerra no ML, sai do Bling e fica no Rise como Encerrado. Repetir nao escreve de novo.
+      // Com venda (dono, 09/11/2026, Opcao 1 "excluir de vez"; ate ali so encerrava e ficava no Rise): encerra e apaga no ML
+      // (as vendas ficam nos pedidos), sai do Bling e sai do Rise.
       ml.itens.get(pub2.itemId).sold_quantity = 3;
       const conferido = await conferirExclusaoML(comVenda, { ml });
-      conferir("excluir: com venda o destino e encerrar", [conferido.destino, conferido.vendas], ["encerrar", 3]);
+      conferir("excluir: com venda o destino tambem e apagar, com as vendas para a pergunta", [conferido.destino, conferido.vendas], ["apagar", 3]);
       const inicio2 = ml.escritas.length;
       const r2 = await excluirAnuncioML(comVenda, { ml, bling: bf });
-      const guardado = await prisma.anuncio.findUnique({ where: { id: comVenda }, select: { status: true, situacaoCanal: true, temVendas: true } });
-      conferir("excluir: com venda so encerra no ML", corposDesde(ml, inicio2), ['{"status":"closed"}']);
+      conferir("excluir: com venda encerra e apaga no ML", corposDesde(ml, inicio2), ['{"status":"closed"}', '{"deleted":"true"}']);
       conferir("excluir: com venda sai do Bling, e sem anuncio nenhum o vinculo sai tambem", [await registrosNoBling(), await vinculosNoBling()], [[], []]);
-      conferir("excluir: com venda fica no Rise como Encerrado", [r2.ok, r2.destino, guardado], [true, "encerrar", { status: "PUBLICADO", situacaoCanal: "ENCERRADA", temVendas: true }]);
+      conferir("excluir: com venda sai do Rise", [r2.ok, r2.destino, await prisma.anuncio.count({ where: { id: comVenda } })], [true, "apagar", 0]);
+
+      // O ML que recusa apagar o anuncio com venda (nunca medido): fica encerrado no ML e no Rise, com o aviso.
+      const mlRecusa = criarMLFalso({ recusarApagar: true });
+      const bf3 = c.novoBling();
+      const terceiro = await c.anuncioSimples(c.s1);
+      const pub3 = await publicarAnuncioML(terceiro, { ml: mlRecusa, bling: bf3, lerFoto });
+      mlRecusa.itens.get(pub3.itemId).sold_quantity = 2;
+      const r3 = await excluirAnuncioML(terceiro, { ml: mlRecusa, bling: bf3 });
+      const guardado = await prisma.anuncio.findUnique({ where: { id: terceiro }, select: { status: true, situacaoCanal: true, temVendas: true } });
+      conferir("excluir: ML recusa apagar o com venda: fica Encerrado no Rise, com o aviso", [r3.ok, r3.destino, guardado, r3.feito.some((linha) => linha.includes("não deixou excluir"))], [true, "encerrar", { status: "PUBLICADO", situacaoCanal: "ENCERRADA", temVendas: true }, true]);
       conferir("excluir: o selo do encerrado", seloDoAnuncioML(guardado).rotulo, "Encerrado");
-      const repetido = await excluirAnuncioML(comVenda, { ml, bling: bf });
-      conferir("excluir: repetir o encerrado nao escreve de novo", [repetido.ok, (await conferirExclusaoML(comVenda, { ml })).jaEncerrado, ml.escritas.length - inicio2], [true, true, 1]);
+
+      // Anuncio reaproveitado que nao passou pelo Mover (dono, 09/11/2026: o MLB6529880486 ficou na loja ML_4h do Bling): o
+      // Excluir limpa todas as lojas do ML; na loja antiga sai so o vinculo que aponta para este MLB.
+      const { reaproveitarAnuncioML } = await import("../src/lib/canaisDeVenda/ml/reaproveitar.js");
+      const velho = { id: "MLB900000001", title: "ZZ S1 antigo", price: 40, status: "active", sold_quantity: 5, listing_type_id: "gold_special", shipping: { free_shipping: false }, seller_custom_field: "ZZ-ML-S1", attributes: [], category_id: "MLB99779", permalink: "https://produto.mercadolivre.com.br/MLB900000001" };
+      const mlVelho = criarMLFalso({ meusItens: { "ZZ-ML-S1": [velho] } });
+      const bfVelho = c.novoBling({
+        vinculosDeLoja: [{ codigo: "MLB900000001", produto: { id: 501 }, loja: { id: 203593931 } }, { codigo: "MLB900000002", produto: { id: 501 }, loja: { id: 203593931 } }],
+        anuncios: [{ produto: { id: 501 }, loja: { id: 203593931 }, anuncioLoja: { id: "MLB900000001" }, nome: "ZZ S1 antigo" }],
+      });
+      const reaproveitado = await reaproveitarAnuncioML(c.s1.id, "MLB900000001", { ml: mlVelho });
+      const r4 = await excluirAnuncioML(reaproveitado.anuncioId, { ml: mlVelho, bling: bfVelho });
+      const naLojaAntiga = (await bfVelho.get("/anuncios", { tipoIntegracao: "MercadoLivre", idLoja: 203593931 })).dados.data.map((registro) => registro.anuncioLoja.id);
+      const vinculosAntigos = (await bfVelho.get("/produtos/lojas", {})).dados.data.filter((vinculo) => vinculo.loja.id === 203593931).map((vinculo) => vinculo.codigo);
+      conferir("excluir: reaproveitado limpa a loja ML_4h (registro e o vinculo deste MLB; o de outro MLB fica) e sai do Rise", [r4.ok, naLojaAntiga, vinculosAntigos, await prisma.anuncio.count({ where: { id: reaproveitado.anuncioId } })], [true, [], ["MLB900000002"], 0]);
     }
 
     {

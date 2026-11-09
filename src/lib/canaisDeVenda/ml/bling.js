@@ -20,6 +20,9 @@ export const LOJA_ML_NO_BLING = "206326819";
 /// A loja antiga do ML no Bling ("ML_4h"), onde moram os ~830 anuncios de antes do Rise. So e lida e esvaziada aqui: o
 /// anuncio reaproveitado da conta (08/11/2026) sai dela e entra na Rise_ML, com o OK do dono por anuncio.
 export const LOJA_ML_ANTIGA_NO_BLING = "203593931";
+/// A loja "MercadoShops" do Bling (ativa; tipo MercadoShopsML), onde ainda ha vinculos de anuncios antigos do ML (o 900808_10
+/// estava ligado la, medido em 09/11/2026). O Excluir tambem a limpa.
+export const LOJA_MERCADOSHOPS_NO_BLING = "203901506";
 
 /// O nome do Bling tem no maximo 120 caracteres (o mesmo limite da sincronizacao do produto).
 const LIMITE_DO_NOME = 120;
@@ -111,9 +114,10 @@ const TIPO_DE_INTEGRACAO = "MercadoLivre";
  * E esse registro, um por MLB, que a tela de produto do Bling lista em "Anuncios ja exportados".
  * @returns {Promise<{ situacao: "registrado"|"nao_registrado"|"erro", id?, titulo?, preco?, erro? }>}
  */
-export async function anuncioNoBlingML(bling, idProduto, itemId) {
+// `loja` (09/11/2026): o Excluir procura tambem nas lojas antigas do ML (ML_4h, MercadoShops); o padrao continua a Rise_ML.
+export async function anuncioNoBlingML(bling, idProduto, itemId, { loja = LOJA_ML_NO_BLING } = {}) {
   try {
-    const resposta = await bling.get("/anuncios", { tipoIntegracao: TIPO_DE_INTEGRACAO, idLoja: Number(LOJA_ML_NO_BLING), idProduto });
+    const resposta = await bling.get("/anuncios", { tipoIntegracao: TIPO_DE_INTEGRACAO, idLoja: Number(loja), idProduto });
     if (!resposta?.ok || !Array.isArray(resposta.dados?.data)) {
       return { situacao: "erro", erro: `Não foi possível ler os anúncios do produto no Bling (HTTP ${resposta?.status ?? "?"}).` };
     }
