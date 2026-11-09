@@ -7,6 +7,7 @@ import TravaDaRolagem from "@/components/ui/TravaDaRolagem";
 import { blocos } from "@/lib/blocos";
 import { blocosOcultos } from "@/lib/acessos/resolucao";
 import { sessaoDeAcessos } from "@/lib/acessos/servidor";
+import { chaveDaSessao, lerOrdemDosCartoes } from "@/lib/ordemDosCartoes/banco";
 import { sessaoDoRise } from "@/lib/sessao";
 import "./globals.css";
 
@@ -30,6 +31,8 @@ export default async function RootLayout({ children }) {
   // Todo bloco que a pessoa nao ve some do menu (lancamento 2). O Painel nunca some: e a tela inicial de todos, e
   // mostra o aviso quando nada esta liberado.
   const hrefsOcultos = blocosOcultos(acesso.permissoes, blocos.map((bloco) => bloco.href).filter((href) => href !== "/"));
+  // A ordem dos botoes do menu que a pessoa arrumou (09/11/2026, por usuario; sem ordem salva, a do Rise).
+  const ordemDoMenu = await lerOrdemDosCartoes(chaveDaSessao(acesso), "menu");
 
   return (
     <html
@@ -38,7 +41,7 @@ export default async function RootLayout({ children }) {
     >
       <body className="min-h-full">
         <div className="flex min-h-screen flex-col lg:flex-row">
-          <Sidebar sessao={sessao} hrefsOcultos={hrefsOcultos} />
+          <Sidebar sessao={sessao} hrefsOcultos={hrefsOcultos} ordemSalva={ordemDoMenu} />
           <main className="min-w-0 flex-1 px-4 py-6 lg:px-8 lg:py-8">
             {children}
           </main>

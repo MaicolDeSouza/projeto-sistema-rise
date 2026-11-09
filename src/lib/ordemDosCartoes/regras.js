@@ -3,8 +3,11 @@
  * segurando e arrastando, e a ordem fica salva por pessoa). Sem imports: usadas pela tela e pelo servidor.
  */
 
-/** As paginas de cartoes que guardam ordem; outra pagina e recusada no servidor. */
-export const PAGINAS_COM_CARTOES = ["painel", "cadastros", "canais-de-venda", "compras", "configuracoes", "estoque", "ferramentas", "indicadores"];
+/**
+ * As paginas de cartoes que guardam ordem; outra pagina e recusada no servidor. "menu" nao e pagina: e a ordem dos
+ * botoes do menu lateral (pedido do dono em 09/11/2026), guardada na mesma tabela, por pessoa, com o href do bloco como id.
+ */
+export const PAGINAS_COM_CARTOES = ["painel", "cadastros", "canais-de-venda", "compras", "configuracoes", "estoque", "ferramentas", "indicadores", "menu"];
 
 const TETO_DE_CARTOES = 60;
 const TETO_DO_ID = 200;

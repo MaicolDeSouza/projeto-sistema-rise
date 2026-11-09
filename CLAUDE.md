@@ -201,6 +201,13 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
   (`src/app/acoes-cartoes.js`). Já usam: Painel (Blocos do sistema), Cadastros, Canais de Venda, Compras, Configurações,
   Estoque, Ferramentas e Indicadores. **Página nova de cartões usa `<GradeDeCartoes pagina="..." className="grid ...">`** e
   põe a página em `PAGINAS_COM_CARTOES` e no mapa de recursos da ação. Cartão novo entra no fim da ordem salva.
+  **O menu lateral também troca de lugar (pedido do dono em 09/11/2026: "mesma dinâmica dos cards", por usuário):** segurar
+  0,4 s um botão do menu pega ele (azul do acento com brilho, os outros esmaecem; ao soltar volta tudo às cores de sempre) e
+  passar por cima de outro troca. O gesto saiu do `GradeArrastavel` para o hook `useOrdemArrastavel` (`src/components/ui/`),
+  que os cartões e o `Sidebar` usam; a ordem é a página `menu` da mesma tabela `OrdemDosCartoes` (id = href do bloco, lida no
+  `layout.jsx`, acesso pelo `tela.painel`). Desligado enquanto a pesquisa do menu filtra; "Ordem padrão" aparece no fim do menu
+  só com a ordem mudada; bloco novo ou liberado depois entra no fim. **Conferido no PC com eventos simulados** (a tela de
+  verdade, com o dedo e o mouse, não foi vista). Regras puras testadas no `teste:navegacao`.
 - **Lista longa:** paginada, 100 por página, filtro por parâmetro repetido (`?fonte=A&fonte=B`), e
   nenhuma marcada quer dizer todas (Mercados).
 - **Lista de produtos (Produtos e Scraper), padrão desde 23/10/2026 (pedido do dono):**

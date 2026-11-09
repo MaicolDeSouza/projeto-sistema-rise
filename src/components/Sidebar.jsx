@@ -4,8 +4,9 @@ import { useMemo, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, Menu, Monitor, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
+import { LogOut, Menu, Monitor, PanelLeftClose, PanelLeftOpen, RotateCcw, Search, X } from "lucide-react";
 
+import useOrdemArrastavel from "@/components/ui/useOrdemArrastavel";
 import { blocosDoMenu, ehRotaAtiva } from "@/lib/blocos";
 import { normalizar } from "@/lib/texto";
 import { inicialDoNome } from "@/lib/sessao";
@@ -100,8 +101,11 @@ function Usuario({ sessao, recolhida }) {
 /**
  * `hrefsOcultos`: os blocos que a pessoa nao ve (Acessos), calculados no servidor pelo layout. Esconder aqui e so o
  * menu: cada pagina confere de novo e responde 404.
+ *
+ * `ordemSalva`: os hrefs na ordem que a pessoa arrumou (pedido do dono em 09/11/2026: segurar 0,4 s um botao e arrastar,
+ * a mesma dinamica dos cartoes; salva por usuario, pagina "menu"). Bloco novo entra no fim; sem ordem salva vale a do Rise.
  */
-export default function Sidebar({ sessao = null, hrefsOcultos = [] }) {
+export default function Sidebar({ sessao = null, hrefsOcultos = [], ordemSalva = null }) {
   const pathname = usePathname();
 
   const recolhida = useSyncExternalStore(
@@ -127,10 +131,23 @@ export default function Sidebar({ sessao = null, hrefsOcultos = [] }) {
     setEscolhas((atual) => ({ ...atual, [href]: valor }));
   }
 
+  // A ordem dos botoes: o gesto de segurar e arrastar e o mesmo dos cartoes (`useOrdemArrastavel`). Desligado enquanto a
+  // pesquisa mostra so uma parte do menu, senao a ordem gravada perderia os botoes escondidos pelo filtro.
+  const idsPadrao = useMemo(
+    () => blocosDoMenu.filter((bloco) => !hrefsOcultos.includes(bloco.href)).map((bloco) => bloco.href),
+    [hrefsOcultos],
+  );
+  const { ordem, pego, erro, mudada, container, propsDoContainer, propsDoItem, voltarAoPadrao } = useOrdemArrastavel({
+    pagina: "menu",
+    idsPadrao,
+    ordemSalva,
+    desligado: Boolean(busca),
+  });
+
   // Bloco aparece se o proprio nome casa (com todos os filhos) ou se algum filho
   // casar (so com os que casaram): quem procura "marcas" acha Cadastros > Marcas.
   const blocosFiltrados = useMemo(() => {
-    const visiveis = blocosDoMenu.filter((bloco) => !hrefsOcultos.includes(bloco.href));
+    const visiveis = ordem.map((href) => blocosDoMenu.find((bloco) => bloco.href === href)).filter(Boolean);
     const termo = normalizar(busca);
     if (!termo) return visiveis;
 
@@ -141,7 +158,7 @@ export default function Sidebar({ sessao = null, hrefsOcultos = [] }) {
       );
       return filhos.length > 0 ? [{ ...bloco, filhos }] : [];
     });
-  }, [busca, hrefsOcultos]);
+  }, [busca, ordem]);
 
   return (
     <>
@@ -247,28 +264,45 @@ export default function Sidebar({ sessao = null, hrefsOcultos = [] }) {
           duas regras: `scrollbar-width` e o pseudo-elemento cobrem navegadores
           diferentes.
         */}
-        <nav className="flex-1 space-y-1 overflow-y-auto px-2 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <nav
+          ref={container}
+          {...propsDoContainer}
+          className={`flex-1 space-y-1 overflow-y-auto px-2 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${pego ? "cursor-grabbing select-none" : ""}`}
+        >
           {blocosFiltrados.map((bloco) => {
             const ativo = ehRotaAtiva(pathname, bloco.href, bloco.rotasExtras);
 
             return (
-              <SidebarItem
+              // O botao segurado ganha cor e brilho (azul do acento sobre o fundo escuro) e os outros esmaecem; ao soltar,
+              // `pego` volta a null e tudo volta as cores de sempre.
+              <div
                 key={bloco.href}
-                bloco={bloco}
-                ativo={ativo}
-                recolhida={recolhida}
-                pathname={pathname}
-                // Pesquisando, a cascata abre sozinha para mostrar o que casou.
-                aberto={Boolean(busca) || (escolhas[bloco.href] ?? ativo)}
-                aoAlternar={() =>
-                  definirCascata(bloco.href, !(escolhas[bloco.href] ?? ativo))
-                }
-                aoNavegar={(peloBloco) => {
-                  setAberta(false);
-                  // Ir ao bloco pelo nome reabre a cascata que ele tenha fechado.
-                  if (peloBloco && bloco.filhos) definirCascata(bloco.href, true);
-                }}
-              />
+                {...propsDoItem(bloco.href)}
+                className={`relative rounded-md transition-[transform,box-shadow,opacity,background-color] duration-150 ${
+                  pego === bloco.href
+                    ? "z-10 scale-[1.03] bg-acento/35 shadow-lg shadow-black/50 ring-2 ring-acento"
+                    : pego
+                      ? "opacity-60"
+                      : ""
+                }`}
+              >
+                <SidebarItem
+                  bloco={bloco}
+                  ativo={ativo}
+                  recolhida={recolhida}
+                  pathname={pathname}
+                  // Pesquisando, a cascata abre sozinha para mostrar o que casou.
+                  aberto={Boolean(busca) || (escolhas[bloco.href] ?? ativo)}
+                  aoAlternar={() =>
+                    definirCascata(bloco.href, !(escolhas[bloco.href] ?? ativo))
+                  }
+                  aoNavegar={(peloBloco) => {
+                    setAberta(false);
+                    // Ir ao bloco pelo nome reabre a cascata que ele tenha fechado.
+                    if (peloBloco && bloco.filhos) definirCascata(bloco.href, true);
+                  }}
+                />
+              </div>
             );
           })}
 
@@ -276,6 +310,23 @@ export default function Sidebar({ sessao = null, hrefsOcultos = [] }) {
             <p className="px-3 py-6 text-center text-xs text-menu-texto/60">
               Nenhum bloco encontrado.
             </p>
+          )}
+
+          {/* So aparece com a ordem mudada (ou se a gravacao falhou), como o "Ordem padrão" dos cartoes. */}
+          {!recolhida && !busca && (mudada || erro) && (
+            <div className="pt-1">
+              {erro && <p className="px-3 pb-1 text-[11px] text-amber-300">{erro}</p>}
+              {mudada && (
+                <button
+                  type="button"
+                  onClick={voltarAoPadrao}
+                  title="Volta os botões do menu à ordem do Rise"
+                  className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] text-menu-texto/70 hover:bg-menu-hover hover:text-white"
+                >
+                  <RotateCcw size={12} /> Ordem padrão
+                </button>
+              )}
+            </div>
           )}
         </nav>
 

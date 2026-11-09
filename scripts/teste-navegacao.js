@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 
 import { enderecoDaLista, listaComParametros, ultimaListaValida } from "../src/lib/ultimaListaDeProdutos.js";
-import { CANAIS_DO_FILTRO, condicoesDoFiltroDeCanais, estadosDoCanal, filtroDeCanaisDaUrl, passaNosCalculados, proximoValorDoFiltro, temFiltroCalculado } from "../src/lib/filtroDeCanais.js";
+import { aplicarOrdem, ehOrdemPadrao, moverPara, validarOrdem } from "../src/lib/ordemDosCartoes/regras.js";
+import { CANAIS_DO_FILTRO,condicoesDoFiltroDeCanais, estadosDoCanal, filtroDeCanaisDaUrl, passaNosCalculados, proximoValorDoFiltro, temFiltroCalculado } from "../src/lib/filtroDeCanais.js";
 
 /**
  * Voltar do produto para a lista de Produtos como ela estava (pedido do dono em 20/10/2026: a pesquisa sumia ao
@@ -50,5 +51,15 @@ conferir("filtro: 'sem aviso' fica com quem nao tem", passaNosCalculados({ div: 
 conferir("filtro: catalogo e aviso valem juntos", !passaNosCalculados({ ml: "catalogo", div: "sim" }, { catalogo: true, aviso: false }) && passaNosCalculados({ ml: "catalogo", div: "sim" }, { catalogo: true, aviso: true }));
 conferir("filtro: 'em proposta' do Rise fica com o P do icone R", passaNosCalculados({ rise: "proposta" }, { propostaDoProduto: true }) && !passaNosCalculados({ rise: "proposta" }, { propostaDoProduto: false, propostaDoML: true }));
 conferir("filtro: 'em proposta' do ML fica com o P do icone do ML", passaNosCalculados({ ml: "proposta" }, { propostaDoML: true }) && !passaNosCalculados({ ml: "proposta" }, { propostaDoML: false, propostaDoProduto: true }));
+
+// A ordem dos cartoes e dos botoes do menu lateral (07/11/2026 e 09/11/2026): regras puras, a mesma para os dois.
+const BOTOES = ["/", "/indicadores", "/cadastros", "/compras", "/estoque"];
+conferir("ordem: sem ordem salva vale a do Rise", JSON.stringify(aplicarOrdem(BOTOES, null)) === JSON.stringify(BOTOES) && JSON.stringify(aplicarOrdem(BOTOES, [])) === JSON.stringify(BOTOES));
+conferir("ordem: a salva vale, o que sumiu sai e o botao novo entra no fim", JSON.stringify(aplicarOrdem(BOTOES, ["/estoque", "/sumiu", "/", "/estoque"])) === JSON.stringify(["/estoque", "/", "/indicadores", "/cadastros", "/compras"]));
+conferir("ordem: arrastar o ultimo para o primeiro lugar", JSON.stringify(moverPara(BOTOES, "/compras", "/")) === JSON.stringify(["/compras", "/", "/indicadores", "/cadastros", "/estoque"]));
+conferir("ordem: soltar no proprio lugar nao muda nada", moverPara(BOTOES, "/cadastros", "/cadastros") === BOTOES && moverPara(BOTOES, "/x", "/") === BOTOES);
+conferir("ordem: a padrao nao precisa ser guardada", ehOrdemPadrao(BOTOES, BOTOES) && !ehOrdemPadrao(moverPara(BOTOES, "/compras", "/"), BOTOES));
+conferir("ordem: o menu e uma pagina que guarda ordem, e pagina qualquer nao", validarOrdem("menu", BOTOES).ok && validarOrdem("painel", BOTOES).ok && !validarOrdem("outra", BOTOES).ok);
+conferir("ordem: lista vazia volta ao padrao, repetido vira um so, id invalido e recusado", validarOrdem("menu", []).ordem.length === 0 && validarOrdem("menu", ["/a", "/a"]).ordem.length === 1 && !validarOrdem("menu", [1]).ok && !validarOrdem("menu", "x").ok);
 
 console.log(`\n${contagem} asserções ok`);

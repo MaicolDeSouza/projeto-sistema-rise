@@ -13,6 +13,8 @@ const RECURSO_DA_PAGINA = {
   estoque: "tela.estoque",
   ferramentas: "tela.ferramentas",
   indicadores: "tela.indicadores",
+  // A ordem dos botoes do menu lateral (09/11/2026): o menu aparece em todas as telas, entao basta ver o Painel.
+  menu: "tela.painel",
 };
 
 /**
