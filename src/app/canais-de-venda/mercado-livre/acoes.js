@@ -39,7 +39,7 @@ import { preencherFicha, sugerirCategoria, sugerirTitulos } from "@/lib/canaisDe
 import { lucroDaLojaDoRascunho, ordenarAnunciosDoProduto, VARIANTES, varianteDoRascunho, variantesDoProduto } from "@/lib/canaisDeVenda/ml/faixas";
 import { clonarVarianteML } from "@/lib/canaisDeVenda/ml/variantes";
 import { anunciosDoSkuNaConta, candidatosParaReaproveitar, reaproveitarAnuncioML } from "@/lib/canaisDeVenda/ml/reaproveitar";
-import { marcarDuplicados, verificarAnunciosAntigosML } from "@/lib/canaisDeVenda/ml/anunciosAntigos";
+import { marcarDuplicados, sincronizarForaDoRiseDoProduto, verificarAnunciosAntigosML } from "@/lib/canaisDeVenda/ml/anunciosAntigos";
 import { lerCategoria, lerCategoriaCompleta, lerCustosDoAnuncio, precoPelaFaixaNoML, precoPorMargemNoML, textoDoErroML } from "@/lib/canaisDeVenda/ml/leitura";
 import {
   anunciosMLDoProduto,
@@ -168,6 +168,9 @@ export async function anunciosDoSkuMLAcao(produtoId) {
     const idsDoRise = new Set(doRise.map((anuncio) => anuncio.idExterno).filter(Boolean));
     // "duplicado" (09/11/2026): o Rise ja tem a mesma variante, e o ML nao aceita anuncio duplicado; o dono decide na linha.
     const candidatos = marcarDuplicados(candidatosParaReaproveitar(naConta.itens, { idsDoRise, sku: produto.sku }), doRise);
+    // A leitura ao vivo acerta o "!" dos anuncios antigos deste produto (09/11/2026: o anuncio excluido no ML ficava com o "!"
+    // ate a proxima verificacao). Falhar aqui nao derruba o popup.
+    if (await sincronizarForaDoRiseDoProduto(produtoId, candidatos).catch(() => false)) revalidatePath("/produtos");
     // As variantes contando o que a conta ja tem fora do Rise (08/11/2026): o "Faltam" do popup nao pede o que ja esta no ar.
     // O kit nao conta como a variante de 1 unidade.
     return { ok: true, sku: produto.sku, candidatos, variantes: variantesDoProduto({ precoVenda: produto.precoVenda, anuncios: doRise, naConta: candidatos.filter((c) => !c.kit) }) };

@@ -135,6 +135,43 @@ export async function verificarAnunciosAntigosML({ ml = null, esperar = esperarP
   }
 }
 
+/**
+ * O popup do produto le a conta AO VIVO (`anunciosDoSkuMLAcao`) e acerta as linhas deste produto com o que leu (pedido do dono
+ * em 09/11/2026: "Eu exclui manualmente o anuncio pelo ML e o rise nao encontra mais, porem ainda fica com !"): o anuncio que
+ * sumiu da conta sai, o que apareceu entra. So do produto conferido, a mesma regra da verificacao. Devolve se mudou algo (a
+ * acao entao revalida a lista de Produtos, para o "!" acompanhar).
+ * @param {object[]} candidatos os de `candidatosParaReaproveitar` (`id`, `titulo`, `preco`, `kit` null no de 1 unidade...)
+ */
+export async function sincronizarForaDoRiseDoProduto(produtoId, candidatos, { agora = new Date() } = {}) {
+  const produto = await prisma.produto.findUnique({ where: { id: produtoId }, select: { conferido: true } });
+  if (!produto?.conferido) return false;
+  const novas = (Array.isArray(candidatos) ? candidatos : [])
+    .filter((candidato) => candidato?.id && candidato.status !== "closed")
+    .map((candidato) => {
+      const preco = Number(candidato.preco);
+      return {
+        itemId: String(candidato.id),
+        produtoId,
+        kit: candidato.kit ?? 1,
+        titulo: String(candidato.titulo ?? ""),
+        preco: Number.isFinite(preco) ? preco : null,
+        tipoAnuncio: candidato.tipoAnuncio ?? null,
+        freteGratis: Boolean(candidato.freteGratis),
+        vendidos: Number(candidato.vendidos ?? 0),
+        status: candidato.status ?? null,
+        link: candidato.link ?? null,
+      };
+    });
+  const atuais = await prisma.anuncioForaDoRiseML.findMany({ where: { produtoId } });
+  const chave = (linha) => [linha.itemId, linha.kit, linha.preco === null ? "" : Number(linha.preco), linha.tipoAnuncio, linha.freteGratis, linha.vendidos, linha.status].join("|");
+  if (atuais.length === novas.length && atuais.map(chave).sort().join("\n") === novas.map(chave).sort().join("\n")) return false;
+  await prisma.$transaction([
+    prisma.anuncioForaDoRiseML.deleteMany({ where: { OR: [{ produtoId }, { itemId: { in: novas.map((linha) => linha.itemId) } }] } }),
+    prisma.anuncioForaDoRiseML.createMany({ data: novas.map((linha) => ({ ...linha, lidoEm: agora })) }),
+  ]);
+  return true;
+}
+
 /** A ultima verificacao, para o `title` do botao: quando foi e quantos ficaram. `null` sem nenhuma linha gravada. */
 export async function ultimaVerificacaoML() {
   const [total, ultima, produtos] = await Promise.all([

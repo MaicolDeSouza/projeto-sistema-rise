@@ -4141,6 +4141,19 @@ try {
     // Reaproveitar apaga a linha do MLB na hora.
     const feito = await reaproveitarAnuncioML(conferido.id, "MLB1", { ml: mlConta });
     conferir("reaproveitar: apaga a linha do MLB na hora, a outra fica", [feito.ok, (await prisma.anuncioForaDoRiseML.findMany({ select: { itemId: true } })).map((linha) => linha.itemId)], [true, ["MLB2"]]);
+
+    // O popup do produto le a conta ao vivo e acerta as linhas DESTE produto (dono, 09/11/2026: "Eu exclui manualmente o anuncio
+    // pelo ML e o rise nao encontra mais, porem ainda fica com !"): o que sumiu sai, o que apareceu entra; so do conferido.
+    const { sincronizarForaDoRiseDoProduto } = await import("../src/lib/canaisDeVenda/ml/anunciosAntigos.js");
+    const sumiu = await sincronizarForaDoRiseDoProduto(conferido.id, []);
+    conferir("popup: o anuncio que sumiu da conta sai da tabela (e diz que mudou)", [sumiu, await prisma.anuncioForaDoRiseML.count({ where: { produtoId: conferido.id } })], [true, 0]);
+    const novo = { id: "MLB3", titulo: "Item MLB3", preco: 31, tipoAnuncio: "gold_pro", freteGratis: true, vendidos: 4, status: "paused", link: "https://produto.mercadolivre.com.br/MLB3", kit: 5 };
+    const entrou = await sincronizarForaDoRiseDoProduto(conferido.id, [novo]);
+    const gravada = await prisma.anuncioForaDoRiseML.findMany({ where: { produtoId: conferido.id } });
+    conferir("popup: o que apareceu entra com o kit", [entrou, gravada.map((linha) => [linha.itemId, linha.kit, Number(linha.preco), linha.tipoAnuncio, linha.freteGratis, linha.vendidos, linha.status])], [true, [["MLB3", 5, 31, "gold_pro", true, 4, "paused"]]]);
+    conferir("popup: igual ao que esta gravado nao mexe", await sincronizarForaDoRiseDoProduto(conferido.id, [novo]), false);
+    const naoConferido = await prisma.produto.findUnique({ where: { sku: "ZZ-ML-AB" }, select: { id: true } });
+    conferir("popup: produto nao conferido nao ganha linha", [await sincronizarForaDoRiseDoProduto(naoConferido.id, [novo]), await prisma.anuncioForaDoRiseML.count({ where: { produtoId: naoConferido.id } })], [false, 0]);
   }
 
   {
