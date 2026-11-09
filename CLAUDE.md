@@ -4415,7 +4415,9 @@ fotos públicas do 100101; o produto de teste ficou sem foto no fim):
 - O `PATCH` responde **200 na hora** e o Bling baixa **em segundo plano** (alguns segundos): a leitura logo depois
   ainda mostra a lista antiga. A primeira medição ficou inconclusiva por isso (a lista vazia só apagou depois de
   eu ler); a segunda esperou o número de fotos estabilizar.
-- Uma lista de links **ACRESCENTA** as fotos que ele ainda não tem (`[U1,U2]` e depois `[U3]` = 3 fotos). **Não troca.**
+- ~~Uma lista de links **ACRESCENTA** as fotos que ele ainda não tem (`[U1,U2]` e depois `[U3]` = 3 fotos).~~ **ERRADO
+  (09/11/2026): a lista TROCA as fotos pela enviada.** No 910207 o Bling tinha as 4 primeiras do Rise, recebeu só o link
+  da 5ª e ficou com 1 foto (lido duas vezes, com um minuto de intervalo). A medição de 14/10 não se repetiu.
 - **A mesma foto de novo não duplica** (`[U3]` outra vez e `[U1,U3]` depois: continuou 3).
 - **Lista VAZIA apaga TODAS** as fotos, e é a única forma de tirar uma pelo API.
 - `PATCH` **sem `midia`** não mexe nas fotos.
@@ -4428,8 +4430,9 @@ fotos públicas do 100101; o produto de teste ficou sem foto no fim):
 
 **O que o Sincronizar faz** (`planoDasFotos`, comparando o md5 do conteúdo e a ORDEM, porque a primeira é a principal):
 - fotos já iguais: **nada**;
-- o Bling não tem foto, ou tem só as primeiras do Rise na mesma ordem: **acrescenta só as que faltam** (nunca se
-  confia na desduplicação do Bling: só vai o que falta);
+- o Bling não tem foto, ou tem só as primeiras do Rise na mesma ordem: **acrescenta** (desde 09/11/2026, `7736212`, o
+  PATCH leva a lista INTEIRA do Rise na ordem, `plano.lista`, e a conferência espera esse total; mandar só as que faltavam
+  apagou as outras do 910207 e prendia o "Enviar as fotos" por 60 s). O popup continua contando só as que faltam;
 - o Bling tem foto que o Rise não tem, ou a ordem difere: **troca**: manda a lista **vazia**, espera o Bling apagar
   de verdade (confere a cada 3 s, até 60 s) e só então manda as do Rise. É o único caso em que o envio apaga algo lá,
   e a janela diz "O Sincronizar troca as fotos do Bling pelas do Rise";
