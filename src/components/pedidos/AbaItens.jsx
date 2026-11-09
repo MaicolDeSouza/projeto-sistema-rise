@@ -2,6 +2,7 @@ import { Package } from "lucide-react";
 
 import FotoComLupa from "@/components/ui/FotoComLupa";
 
+import CopiarCodigo from "./CopiarCodigo";
 import { moeda } from "./formato";
 
 /** O "R" do Rise na linha do item: verde quando o produto esta Conferido, fosco quando nao, cinza quando nao existe no Rise. */
@@ -75,21 +76,11 @@ export default function AbaItens({ pedido }) {
                         Local: <span className="font-mono font-medium text-texto">{item.produto.localizacao}</span>
                       </span>
                     )}
-                    <span className="mt-0.5 flex items-center gap-1.5 text-xs text-suave">
+                    {/* O codigo nao abre mais o produto (pedido do dono em 09/11/2026): so o nome abre; o codigo se seleciona e tem o botao Copiar. */}
+                    <span className="group mt-0.5 flex items-center gap-1 text-xs text-suave">
                       <IconeDoRise item={item} />
-                      {item.produto ? (
-                        <a
-                          href={`/produtos/${item.produto.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          title="Abrir o produto em outra aba"
-                          className="font-mono hover:text-acento hover:underline"
-                        >
-                          {item.produto.sku}
-                        </a>
-                      ) : (
-                        <span className="font-mono">{item.codigoNaOrigem ?? "sem código"}</span>
-                      )}
+                      <span className="ml-0.5 select-text font-mono">{item.produto ? item.produto.sku : (item.codigoNaOrigem ?? "sem código")}</span>
+                      {(item.produto?.sku ?? item.codigoNaOrigem) && <CopiarCodigo codigo={item.produto?.sku ?? item.codigoNaOrigem} />}
                       {item.produto && item.codigoNaOrigem && item.codigoNaOrigem !== item.produto.sku && <span title="Código no canal">({item.codigoNaOrigem})</span>}
                     </span>
                   </span>

@@ -5729,7 +5729,7 @@ Spec `docs/superpowers/specs/2026-11-04-modulo-pedidos-de-venda-design.md`, plan
   banco e acha o pedido com `semCusto`, `produtoNaoConferido`, `produtoForaDoRise` ou `semEstimativa` (esta só nos 30 dias) que já melhorou, e
   `reconferirPedidosPendentes` (`leitura.js`, no fim de cada volta, até 40) relê da origem e refaz custo, aviso e lucro (o lucro fechado sem custo
   é reaberto). O custo congelado só é preenchido onde era vazio. O aviso "Sem estimativa" virou "Lucro estimado indisponível: o Rise não conseguiu
-  ler as taxas do anúncio no Mercado Livre". Coluna Pedido de Vendas: "ML" antes do número. Teste em `teste:pedidos`.
+  ler as taxas do anúncio no Mercado Livre". Coluna Pedido de Vendas: "ML" antes do número; Total e Lucro alinhados à esquerda; **só o nome abre o pedido (a linha e o código não navegam) e o código tem o botão Copiar** (`CopiarCodigo`, também na aba Itens do pedido, onde o código deixou de abrir o produto). Teste em `teste:pedidos`.
 
 **Tela "Vendas" (07/11/2026, pedido do dono):** o bloco e a lista se chamam **Vendas** (menu, título, acesso; a rota segue
 `/pedidos` e o recurso `tela.pedidos`). Período padrão de **1 mês com as duas pontas preenchidas** (`umMesAntes`; o "até" ficava em

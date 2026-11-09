@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Package } from "lucide-react";
 
@@ -7,6 +8,7 @@ import CabecalhoOrdenavel, { parametrosDaOrdenacao } from "@/components/ui/Cabec
 import FotoComLupa from "@/components/ui/FotoComLupa";
 
 import { abreviarPagamento, abrirNoCanal, dataCompleta, diaEHora, linkNoBling, linkNoCanal, moedaComSinal, moeda } from "./formato";
+import CopiarCodigo from "./CopiarCodigo";
 import FiltroDaColuna from "./FiltroDaColuna";
 import IconeDoCanalDoPedido from "./IconeDoCanalDoPedido";
 import { COR_DA_SITUACAO, TEXTO_DA_SITUACAO, TEXTO_DO_STATUS, TEXTO_DO_STATUS_DO_ENVIO, situacaoDoPedido } from "./textos";
@@ -48,7 +50,7 @@ function CelulaDoLucro({ linha }) {
   const custoTotal = receita - valor;
   const percentual = linha.status !== "DEVOLVIDO" && receita > 0 && custoTotal > 0 ? (valor / custoTotal) * 100 : null;
   return (
-    <span className="inline-flex flex-col items-end" title={divergente ? `${titulo}\nO real está diferente do estimado.` : titulo}>
+    <span className="inline-flex flex-col items-start" title={divergente ? `${titulo}\nO real está diferente do estimado.` : titulo}>
       <span className="inline-flex items-center gap-1">
         {divergente && (
           <span aria-hidden="true" className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[9px] leading-none font-bold text-amber-950">
@@ -172,8 +174,8 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
             ) : (
               fixo(<span title="Localização no estoque">Local</span>, "w-px whitespace-nowrap")
             )}
-            {cabecalho("total", "Total", "w-px whitespace-nowrap text-right [&_button]:justify-end")}
-            {veLucro && cabecalho("lucro", "Lucro", "w-px whitespace-nowrap text-right [&_button]:justify-end")}
+            {cabecalho("total", "Total", "w-px whitespace-nowrap")}
+            {veLucro && cabecalho("lucro", "Lucro", "w-px whitespace-nowrap")}
             {filtravel ? (
               <FiltroDaColuna
                 rotulo="Status"
@@ -213,9 +215,7 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
             return (
               <tr
                 key={linha.id}
-                onClick={() => router.push(href)}
-                title="Abrir o pedido no Rise"
-                className={`cursor-pointer divide-x divide-borda transition-colors ${pedeAcao ? "bg-amber-50 hover:bg-amber-100/70" : "hover:bg-fundo/60"}`}
+                className={`group divide-x divide-borda transition-colors ${pedeAcao ? "bg-amber-50 hover:bg-amber-100/70" : "hover:bg-fundo/60"}`}
               >
                 <td className="px-2 py-2">
                   {linha.item?.foto ? (
@@ -228,19 +228,32 @@ export default function TabelaPedidosDeVenda({ linhas, ordenar, direcao, veLucro
                 </td>
                 <td className="whitespace-nowrap px-2 py-2 text-right font-medium tabular-nums">{linha.item?.quantidade ? `${linha.item.quantidade}x` : "—"}</td>
                 <td className="max-w-0 px-2 py-2">
-                  <span className="block truncate">{linha.item?.titulo ?? "—"}</span>
+                  {/* So o nome abre o pedido (pedido do dono em 09/11/2026): clicar no codigo, no local ou na linha nao navega,
+                      para dar para selecionar e copiar sem abrir a tela. */}
+                  <Link href={href} title="Abrir o pedido no Rise" className="block truncate hover:text-acento hover:underline focus-visible:outline-2 focus-visible:outline-acento">
+                    {linha.item?.titulo ?? "—"}
+                  </Link>
                   {linha.quantidadeDeItens > 1 && <span className="block text-xs text-suave">e mais {linha.quantidadeDeItens - 1}</span>}
                 </td>
-                <td className="truncate px-2 py-2 font-mono text-xs">{linha.item?.sku ?? <span className="font-sans text-suave">—</span>}</td>
+                <td className="whitespace-nowrap px-2 py-2 font-mono text-xs">
+                  {linha.item?.sku ? (
+                    <>
+                      <span className="select-text">{linha.item.sku}</span>
+                      <CopiarCodigo codigo={linha.item.sku} />
+                    </>
+                  ) : (
+                    <span className="font-sans text-suave">—</span>
+                  )}
+                </td>
                 <td className="truncate px-2 py-2 font-mono text-xs">{linha.item?.localizacao ?? ""}</td>
                 {/* Em cima o valor do anuncio (os produtos); embaixo, so quando o cliente pagou frete, o total com o frete
                     (pedido do dono em 04/11/2026). A forma de pagamento fica na dica (tem aba propria no pedido). */}
-                <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums" title={pagamento ? `Pagamento: ${pagamento}` : undefined}>
+                <td className="whitespace-nowrap px-2 py-2 text-left tabular-nums" title={pagamento ? `Pagamento: ${pagamento}` : undefined}>
                   {moeda.format(linha.totalProdutos ?? linha.total ?? 0)}
                   {Number(linha.freteCobrado) > 0 && <span className="block truncate text-xs text-suave">{moeda.format(linha.total ?? 0)} c/ frete</span>}
                 </td>
                 {veLucro && (
-                  <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">
+                  <td className="whitespace-nowrap px-2 py-2 text-left tabular-nums">
                     <CelulaDoLucro linha={linha} />
                   </td>
                 )}
