@@ -1520,6 +1520,9 @@ sem sessão (medido sem cookie: 1.997 na Pronta Entrega, 4 na Lista de Reserva, 
   fechamento da coleta e no Salvar). Pronta entrega e o "com impostos" gravado continuam vencendo. Testes: `teste:extracao`
   (função pura) e `teste:coleta` (varredura, Salvar e aba). **O vínculo que já existia com preço vazio se acerta no próximo
   Salvar do produto ou na próxima varredura da Fortek.**
+  **A lupa do código e a busca por nome da janela do fornecedor** (`buscarItemColetadoPorCodigo` e `buscarItemColetadoPorNome`, `produtos/acoes.js`)
+  também usam `custoDoFornecedor` (`custoDoItemColetado`): o dono em 09/11/2026 clicou na lupa do 64-997 e o preço seguiu vazio, porque as duas
+  tinham a conta própria (com impostos, normal, promocional) e ficaram de fora da correção. Conferido no PC: a lupa traz R$ 10,54.
 - **Primeira varredura (PC, 01/11/2026):** 2.218 produtos (239 novos, 22 ausentes: os itens das listas antigas que não estão
   mais no portal).
 

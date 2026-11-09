@@ -12,6 +12,7 @@ import { prisma } from "@/lib/db";
 import { estoqueDosFornecedores } from "@/lib/estoqueDoFornecedor";
 import { buscarProdutoPorCodigo } from "@/lib/buscaPorCodigo";
 import { buscarReferencias } from "@/lib/buscaPorPalavras";
+import { custoDoFornecedor } from "@/lib/coleta/impostos";
 import {
   descricoesDasPecas,
   documentosDasPecas,
@@ -197,6 +198,21 @@ export async function detalhesDasReferencias(ids) {
   }
 }
 
+/** O custo de um produto coletado de FORNECEDOR pela regra unica (`custoDoFornecedor`), a partir da linha do banco (Decimal). */
+function custoDoItemColetado(item) {
+  const numero = (valor) => (valor == null ? null : Number(valor));
+  return custoDoFornecedor(
+    {
+      comImpostos: numero(item.precoComImpostos),
+      normal: numero(item.precoNormal),
+      promotional: numero(item.precoPromocional),
+      reserva: numero(item.precoReserva),
+      montagem: numero(item.precoMontagem),
+    },
+    Array.isArray(item.impostos) ? item.impostos : [],
+  );
+}
+
 /** Busca leve para vincular um item coletado pela coluna Codigo. */
 export async function buscarItemColetadoPorCodigo(codigoBruto, tipo) {
   const negado =
@@ -215,6 +231,7 @@ export async function buscarItemColetadoPorCodigo(codigoBruto, tipo) {
       select: {
         id: true, nome: true, codigo: true, url: true,
         precoNormal: true, precoPromocional: true, precoComImpostos: true,
+        precoReserva: true, precoMontagem: true, impostos: true,
         fonte: { select: { nome: true, tipo: true } },
       },
       orderBy: { vistoEm: "desc" },
@@ -225,10 +242,10 @@ export async function buscarItemColetadoPorCodigo(codigoBruto, tipo) {
       id: item.id, fonte: item.fonte.nome, tipo: item.fonte.tipo,
       nome: item.nome, codigo: item.codigo, url: item.url,
       // FORNECEDOR: o custo COM imposto, que e o que se paga (pedido do dono em 23/10/2026: "ja deve vir com o valor
-      // com imposto"). Concorrente: o preco normal de vitrine.
-      preco: item.fonte.tipo === "FORNECEDOR"
-        ? numero(item.precoComImpostos) ?? numero(item.precoNormal) ?? numero(item.precoPromocional)
-        : numero(item.precoNormal),
+      // com imposto"), pela MESMA regra do resto do sistema (`custoDoFornecedor`: com impostos, normal, preco da reserva
+      // ou da montagem com o IPI, promocional; o dono em 09/11/2026: o 64-997, so em montagem, vinha vazio). Concorrente:
+      // o preco normal de vitrine.
+      preco: item.fonte.tipo === "FORNECEDOR" ? custoDoItemColetado(item) : numero(item.precoNormal),
     })) };
   } catch (erro) {
     return { ok: false, erro: erro.message };
@@ -273,6 +290,7 @@ export async function buscarItemColetadoPorNome(textoBruto, fornecedorBruto) {
       select: {
         id: true, nome: true, codigo: true, url: true, miniatura: true, ausenteDesde: true,
         precoNormal: true, precoPromocional: true, precoComImpostos: true, precoOriginal: true,
+        precoReserva: true, precoMontagem: true, impostos: true,
         fonte: { select: { nome: true } },
       },
       // O que ainda esta na lista do fornecedor vem antes do que saiu dela.
@@ -287,7 +305,7 @@ export async function buscarItemColetadoPorNome(textoBruto, fornecedorBruto) {
         id: item.id, fonte: item.fonte.nome, nome: item.nome, codigo: item.codigo, url: item.url,
         temFoto: Boolean(item.miniatura),
         foraDaLista: item.ausenteDesde !== null,
-        preco: numero(item.precoComImpostos) ?? numero(item.precoNormal) ?? numero(item.precoPromocional),
+        preco: custoDoItemColetado(item),
         // Lista em dolar (NexMind): o valor de origem, para a janela mostrar "US$ 3,96" embaixo dos reais.
         precoOriginal: item.precoOriginal ?? null,
       })),
