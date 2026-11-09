@@ -173,7 +173,7 @@ export async function anunciosDoSkuMLAcao(produtoId) {
     if (await sincronizarForaDoRiseDoProduto(produtoId, candidatos).catch(() => false)) revalidatePath("/produtos");
     // As variantes contando o que a conta ja tem fora do Rise (08/11/2026): o "Faltam" do popup nao pede o que ja esta no ar.
     // O kit nao conta como a variante de 1 unidade.
-    return { ok: true, sku: produto.sku, candidatos, variantes: variantesDoProduto({ precoVenda: produto.precoVenda, anuncios: doRise, naConta: candidatos.filter((c) => !c.kit) }) };
+    return { ok: true, sku: produto.sku, candidatos, variantes: variantesDoProduto({ precoVenda: produto.precoVenda, anuncios: doRise, naConta: candidatos }) };
   });
 }
 

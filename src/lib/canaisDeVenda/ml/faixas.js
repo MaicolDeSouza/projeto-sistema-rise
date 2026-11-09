@@ -207,11 +207,17 @@ async function resolver({ pedido, custo, freteDaVariante, taxas, frete }) {
  * `tipoAnuncio`, `freteGratis`, `preco`, `status`; os encerrados ja sairam). Contam como existentes: o "Faltam" nao pede o que
  * ja esta no ar, so precisa ser reaproveitado.
  */
-export function variantesDoProduto({ precoVenda, anuncios, naConta = [] }) {
+export function variantesDoProduto({ precoVenda, anuncios, naConta: todosNaConta = [] }) {
+  // Kit basta (pedido do dono em 09/11/2026: "Sim, kit basta"): o produto com kit ativo no Rise (`codigo` != `sku`) ou na conta
+  // (`kit`) nao pede o anuncio de 1 unidade; o "Faltam" fica vazio. O kit nunca vira variante existente nem puxa a faixa.
+  const naConta = (todosNaConta ?? []).filter((anuncio) => anuncio && !anuncio.kit);
+  const temKit =
+    (anuncios ?? []).some((anuncio) => anuncio && String(anuncio.codigo ?? "") !== String(anuncio.sku ?? "") && anuncio.situacaoCanal !== "ENCERRADA") ||
+    (todosNaConta ?? []).some((anuncio) => anuncio?.kit && anuncio.status !== "closed");
   // A faixa pelo MAIOR entre o preco da loja e o dos Classicos do produto que ja existem (no Rise ou na conta): o preco no ML
   // passa do da loja, e o Premium e "a partir de R$ 150 no ML" (08/11/2026).
   const doProduto = (anuncios ?? []).filter((anuncio) => anuncio && String(anuncio.codigo ?? "") === String(anuncio.sku ?? "") && anuncio.situacaoCanal !== "ENCERRADA");
-  const precosDosClassicos = [...doProduto, ...(naConta ?? [])]
+  const precosDosClassicos = [...doProduto, ...naConta]
     .filter((anuncio) => anuncio && anuncio.tipoAnuncio !== "gold_pro" && anuncio.status !== "closed")
     .map((anuncio) => Number(anuncio.preco))
     .filter((preco) => preco > 0);
@@ -223,12 +229,12 @@ export function variantesDoProduto({ precoVenda, anuncios, naConta = [] }) {
     const variante = varianteDoRascunho({ tipoAnuncio: anuncio.tipoAnuncio, envio: { freteGratis: anuncio.freteGratis }, preco: anuncio.preco });
     if (!existentes.includes(variante)) existentes.push(variante);
   }
-  for (const anuncio of naConta ?? []) {
-    if (!anuncio || anuncio.status === "closed") continue;
+  for (const anuncio of naConta) {
+    if (anuncio.status === "closed") continue;
     const variante = varianteDoRascunho({ tipoAnuncio: anuncio.tipoAnuncio, envio: { freteGratis: anuncio.freteGratis }, preco: anuncio.preco });
     if (!existentes.includes(variante)) existentes.push(variante);
   }
-  return { esperadas, existentes, faltam: esperadas.filter((variante) => !existentes.includes(variante)) };
+  return { esperadas, existentes, faltam: temKit ? [] : esperadas.filter((variante) => !existentes.includes(variante)) };
 }
 
 /** Lucro de uma unidade do kit (6.8 da spec): lucro do anuncio dividido pelas unidades. `null` sem lucro ou sem unidades. */
