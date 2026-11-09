@@ -580,7 +580,7 @@ export async function conferirMercadoPagoPendentes({ ml = null, agora = new Date
     } catch (erro) {
       resultado.falhas += 1;
       if (resultado.erros.length < 5) resultado.erros.push(`${pedido.idExterno}: ${erro?.message ?? erro}`);
-      await adiarConferenciaDoMercadoPago(pedido.id, agora).catch(() => {});
+      await adiarConferenciaDoMercadoPago(pedido.id, agora, erro?.message ?? String(erro)).catch(() => {});
     }
   }
   return resultado;

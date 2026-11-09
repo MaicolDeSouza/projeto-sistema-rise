@@ -461,6 +461,9 @@ try {
       (await prisma.pedidoDeVenda.findMany({ where: { id: { in: [ultima.id, segunda.id] } }, orderBy: { dataDaVenda: "asc" }, select: { status: true } })).map((p) => p.status),
       ["PAGO", "AGUARDANDO_PECAS"],
     );
+    // Sem mudanca, nada e regravado (09/11/2026: o JSONB reordenava as chaves das pecas e os pedidos pagos eram regravados a
+    // cada leitura de estoque, o que travava a fila do Mercado Pago na VPS).
+    conferir("recalculo das pecas sem mudanca nao regrava nada", (await recalcularPecasDosPedidosAbertos()).mudados, 0);
 
     // Busca pelo nome do produto e pelo codigo/nome das PECAS, e os filtros das colunas Codigo e Local (pedido do dono em
     // 07/11/2026). O titulo do item ("x") nao tem nada disso: so acha pelo produto do Rise.
@@ -598,17 +601,18 @@ try {
       const g1MP = await doBanco(ap1.id);
       conferir("MP: sem pagamento no Mercado Pago o pedido entra como antes", g1MP.mercadoPago, null);
       // A 1a leitura nao espera 6 h (09/11/2026: a venda lida antes do deploy ficava para tras); a falha vai ao log e espera 6 h.
-      const vinteMinutosAtras = new Date(Date.now() - 20 * 60 * 1000);
       const naFila = async () => (await pedidosParaConferirNoMercadoPago({ agora: new Date(), idsExternos: ["2000000097"] })).length;
+      // A fila e pela data da ultima leitura do Mercado Pago, nao pelo `atualizadoEm` (que o recalculo das pecas mexia a cada
+      // 15 min e travava a fila na VPS): mexer no pedido nao tira ele da fila.
       await prisma.pedidoDeVenda.update({ where: { id: ap1.id }, data: { atualizadoEm: new Date() } });
-      conferir("MP: sem o Mercado Pago e lido agora, espera 15 min", await naFila(), 0);
-      await prisma.pedidoDeVenda.update({ where: { id: ap1.id }, data: { atualizadoEm: vinteMinutosAtras } });
-      conferir("MP: sem o Mercado Pago, entra na proxima volta (nao espera 6 h)", await naFila(), 1);
+      conferir("MP: sem o Mercado Pago entra na proxima volta, mesmo com o pedido mexido agora", await naFila(), 1);
+      const envelhecerMP = (id) => prisma.$executeRaw`UPDATE "PedidoDeVenda" SET "mercadoPago" = "mercadoPago" || jsonb_build_object('lidoEm', ${new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString()}::text) WHERE id = ${id}`;
       const falhou = await conferirMercadoPagoPendentes({ ml: mlMP, agora: new Date(), idsExternos: ["2000000097"] });
       const marcado = (await doBanco(ap1.id)).mercadoPago;
       conferir("MP: pagamento que o Mercado Pago nao acha vai ao log e marca o pedido", [falhou.falhas, /404/.test(falhou.erros[0] ?? ""), marcado?.liberado, marcado?.liquido, Boolean(marcado?.erro)], [1, true, false, null, true]);
-      await prisma.pedidoDeVenda.update({ where: { id: ap1.id }, data: { atualizadoEm: vinteMinutosAtras } });
       conferir("MP: o marcado com falha so volta em 6 h", await naFila(), 0);
+      await envelhecerMP(ap1.id);
+      conferir("MP: o marcado com falha volta depois de 6 h", await naFila(), 1);
       const liquidoRise = Math.round((g1MP.real.receita - g1MP.real.comissao - g1MP.real.tarifaFixa - g1MP.real.frete) * 100) / 100;
       const idDoPagamento = String(pedidoMP.payments[0].id);
       mlMP.pagamentosMP.set(idDoPagamento, { id: Number(idDoPagamento), status: "approved", transaction_details: { net_received_amount: liquidoRise }, money_release_status: "pending", money_release_date: "2026-12-01T00:00:00.000-03:00", charges_details: [] });
@@ -622,14 +626,13 @@ try {
       await ler(criarMLFalso(opcoesMP));
       conferir("MP: leitura sem o Mercado Pago mantem o que estava guardado", (await doBanco(ap1.id)).mercadoPago?.conferencia?.estado, "diverge");
       mlMP.pagamentosMP.get(idDoPagamento).transaction_details.net_received_amount = liquidoRise;
-      const seteHorasAtras = new Date(Date.now() - 7 * 60 * 60 * 1000);
-      await prisma.pedidoDeVenda.update({ where: { id: ap1.id }, data: { atualizadoEm: seteHorasAtras } });
+      await envelhecerMP(ap1.id);
       const volta = await conferirMercadoPagoPendentes({ ml: mlMP, agora: new Date(), idsExternos: ["2000000097"] });
       conferir("MP: a rotina rele o pedido de dinheiro nao liberado", [volta.conferidos, volta.falhas, (await doBanco(ap1.id)).mercadoPago?.conferencia?.estado], [1, 0, "bate"]);
       mlMP.pagamentosMP.get(idDoPagamento).money_release_status = "released";
-      await prisma.pedidoDeVenda.update({ where: { id: ap1.id }, data: { atualizadoEm: seteHorasAtras } });
+      await envelhecerMP(ap1.id);
       await conferirMercadoPagoPendentes({ ml: mlMP, agora: new Date(), idsExternos: ["2000000097"] });
-      await prisma.pedidoDeVenda.update({ where: { id: ap1.id }, data: { atualizadoEm: seteHorasAtras } });
+      await envelhecerMP(ap1.id);
       conferir("MP: liberado sai da fila", (await pedidosParaConferirNoMercadoPago({ agora: new Date(), idsExternos: ["2000000097"] })).length, 0);
       await prisma.pedidoDeVenda.delete({ where: { id: ap1.id } });
     }

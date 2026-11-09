@@ -554,7 +554,9 @@ export async function recalcularPecasDosPedidosAbertos() {
       if (!pedido || !STATUS_QUE_SEPARAM.has(pedido.status)) return false;
       const pecas = await calcularPecas(tx, pedido);
       const status = pecas.falta ? "AGUARDANDO_PECAS" : pedido.emSeparacao ? "EM_SEPARACAO" : "PAGO";
-      if (status === pedido.status && JSON.stringify(pecas) === JSON.stringify(pedido.pecas ?? null)) return false;
+      // Comparacao sem a ordem das chaves (09/11/2026): o JSONB devolve as chaves em outra ordem, o `JSON.stringify` dava
+      // "mudou" sempre e os 19 pedidos pagos eram regravados a cada leitura de estoque, e o `atualizadoEm` nunca parava.
+      if (status === pedido.status && jsonEstavel(pecas) === jsonEstavel(pedido.pecas ?? null)) return false;
       await tx.pedidoDeVenda.update({ where: { id }, data: { status, pecas } });
       return true;
     });
@@ -723,50 +725,56 @@ export async function reabrirLucroDoPedido(id) {
 
 /** Releitura do Mercado Pago a cada 6 h por pedido, ate o dinheiro ser liberado. */
 const INTERVALO_DO_MERCADO_PAGO_MS = 6 * 60 * 60 * 1000;
-/** A 1a leitura do Mercado Pago (venda que ainda nao tem) nao espera as 6 h: so 15 min, para uma falha nao repetir a cada volta. */
-const PRIMEIRA_LEITURA_DO_MERCADO_PAGO_MS = 15 * 60 * 1000;
 /** Venda mais velha que isso nao se confere mais (o Mercado Pago libera em ate ~30 dias). */
 const JANELA_DO_MERCADO_PAGO_MS = 60 * 24 * 60 * 60 * 1000;
 
 /**
  * Pedidos do ML para reler o Mercado Pago (09/11/2026): os que ainda nao tem o que o Mercado Pago creditou e os de dinheiro
  * ainda nao liberado (um estorno ou ajuste de frete muda o valor ate la). A rotina so le o que mudou no ML, e a liberacao do
- * dinheiro nao muda o pedido. Os mais antigos primeiro, um pedido no maximo a cada 6 h (`atualizadoEm`).
+ * dinheiro nao muda o pedido. Os mais antigos primeiro, um pedido no maximo a cada 6 h (`mercadoPago.lidoEm`).
  */
 export async function pedidosParaConferirNoMercadoPago({ limite = 10, agora = new Date(), idsExternos = null } = {}) {
   const instante = new Date(agora).getTime();
-  return prisma.pedidoDeVenda.findMany({
-    where: {
-      origem: "MERCADO_LIVRE",
-      status: { not: "CANCELADO" },
-      dataDaVenda: { gte: new Date(instante - JANELA_DO_MERCADO_PAGO_MS) },
-      // Sem o Mercado Pago ainda: na proxima volta (o dono, 09/11/2026: a venda lida antes do deploy esperava 6 h). Ja lida e
-      // com o dinheiro nao liberado: a cada 6 h.
-      OR: [
-        { mercadoPago: { equals: Prisma.DbNull }, atualizadoEm: { lt: new Date(instante - PRIMEIRA_LEITURA_DO_MERCADO_PAGO_MS) } },
-        { mercadoPago: { path: ["liberado"], equals: false }, atualizadoEm: { lt: new Date(instante - INTERVALO_DO_MERCADO_PAGO_MS) } },
-      ],
-      // So o teste restringe: a rotina olha todos.
-      ...(Array.isArray(idsExternos) ? { idExterno: { in: idsExternos.map(String) } } : {}),
-    },
-    orderBy: [{ atualizadoEm: "asc" }, { id: "asc" }],
-    take: limite,
-    select: { id: true, origem: true, idExterno: true },
-  });
-}
-
-/** Marca o pedido como visto agora, para uma releitura que falhou nao voltar na frente da fila a cada volta. */
-export async function adiarConferenciaDoMercadoPago(id, agora = new Date()) {
-  await prisma.pedidoDeVenda.update({ where: { id }, data: { atualizadoEm: new Date(agora) } });
+  // A fila e pela data da ULTIMA LEITURA do Mercado Pago (`mercadoPago.lidoEm`), e nao pelo `atualizadoEm` (09/11/2026, VPS):
+  // o recalculo das pecas regravava os pedidos pagos a cada 15 min e os 12 sem o Mercado Pago nunca ficavam "parados" o
+  // bastante para entrar. Sem o Mercado Pago (nunca lido): na proxima volta. Lido e com o dinheiro nao liberado (ou com a
+  // marca de falha): a cada 6 h. O `lidoEm` e ISO em UTC, entao a comparacao de texto e a de data.
+  const seisHorasAtras = new Date(instante - INTERVALO_DO_MERCADO_PAGO_MS).toISOString();
+  const soEstes = Array.isArray(idsExternos) ? Prisma.sql`AND "idExterno" IN (${Prisma.join(idsExternos.map(String))})` : Prisma.empty;
+  return prisma.$queryRaw`
+    SELECT id, origem::text AS origem, "idExterno"
+    FROM "PedidoDeVenda"
+    WHERE origem = 'MERCADO_LIVRE'
+      AND status <> 'CANCELADO'
+      AND "dataDaVenda" >= ${new Date(instante - JANELA_DO_MERCADO_PAGO_MS)}
+      AND ("mercadoPago" IS NULL
+        OR (COALESCE("mercadoPago"->>'liberado', 'false') <> 'true' AND COALESCE("mercadoPago"->>'lidoEm', '') < ${seisHorasAtras}))
+      ${soEstes}
+    ORDER BY ("mercadoPago" IS NULL) DESC, COALESCE("mercadoPago"->>'lidoEm', '') ASC, id ASC
+    LIMIT ${limite}`;
 }
 
 /**
- * A leitura do Mercado Pago falhou (permissao, fora do ar): marca o pedido que ainda nao tinha nada, para a proxima tentativa
- * ser em 6 h e nao a cada volta. O liquido fica nulo (a tela nao mostra nada) e a proxima leitura boa substitui a marca.
+ * A releitura falhou (o pedido no ML ou o Mercado Pago): grava a tentativa em `mercadoPago.lidoEm`, para a proxima ser em 6 h e
+ * nao a cada volta. Pedido sem nada ganha a marca com o liquido nulo (a tela nao mostra nada); o que ja tinha o Mercado Pago so
+ * ganha a data e o erro. A proxima leitura boa substitui tudo. SQL cru: so mexe no JSON, nao no `atualizadoEm`.
  */
 export async function marcarFalhaDoMercadoPago(id, erro, agora = new Date()) {
-  await prisma.pedidoDeVenda.updateMany({
-    where: { id, mercadoPago: { equals: Prisma.DbNull } },
-    data: { mercadoPago: { liquido: null, liberado: false, erro: String(erro).slice(0, 300), lidoEm: new Date(agora).toISOString() } },
-  });
+  const marca = JSON.stringify({ erro: String(erro).slice(0, 300), lidoEm: new Date(agora).toISOString() });
+  await prisma.$executeRaw`
+    UPDATE "PedidoDeVenda"
+    SET "mercadoPago" = COALESCE("mercadoPago", '{"liquido": null, "liberado": false}'::jsonb) || ${marca}::jsonb
+    WHERE id = ${id}`;
+}
+
+/** A releitura do pedido falhou antes do Mercado Pago (o ML nao respondeu): a mesma marca, para nao voltar a cada volta. */
+export async function adiarConferenciaDoMercadoPago(id, agora = new Date(), erro = "releitura do pedido falhou") {
+  await marcarFalhaDoMercadoPago(id, erro, agora);
+}
+
+/** JSON com as chaves em ordem (a do JSONB nao e a de quem gravou): compara dois valores pelo conteudo. */
+function jsonEstavel(valor) {
+  if (Array.isArray(valor)) return `[${valor.map(jsonEstavel).join(",")}]`;
+  if (valor && typeof valor === "object") return `{${Object.keys(valor).sort().map((chave) => `${JSON.stringify(chave)}:${jsonEstavel(valor[chave])}`).join(",")}}`;
+  return JSON.stringify(valor ?? null);
 }
