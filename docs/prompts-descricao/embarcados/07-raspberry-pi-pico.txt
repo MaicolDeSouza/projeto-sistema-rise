@@ -4,13 +4,23 @@ Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use info
 
 PARÁGRAFOS
 
-Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 330 caracteres, o segundo até 550.
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 330 caracteres, o segundo até 550. Varie o foco e a ordem dos fatos entre as opções.
+
+ESTILO DOS PARÁGRAFOS (regra da loja, igual em todos os prompts)
+Quem lê precisa entender na primeira leitura, como nas descrições da Smartkits: palavras do dia a dia, frases inteiras e um raciocínio só do começo ao fim do parágrafo.
+- Toda frase começa pelo sujeito (o nome do produto, “o módulo”, “essa força”) e o verbo, nunca por um trecho solto (“Ligado, o eletroímã...”, “Baseada no chip, a placa...”).
+- Cada frase continua a anterior, retomando o que ela terminou, e cada recurso vem com o porquê na mesma frase (“porque”, “então”, “já que”, “por isso”).
+- O primeiro parágrafo é uma frase só. No segundo, frases de 15 a 30 palavras, nem telegrama nem frase cheia de vírgulas.
+- Dentro do parágrafo, nada de ponto e vírgula, dois-pontos ou travessão colando ideias.
+- “possui”, “oferece”, “permite”, “dispensa” (nunca “tem”) e “você” quando couber.
+Assim não: “Ligou, prende; desligou, solta. Só prende depois de encostar: não puxa de longe.” Assim sim: “O eletroímã prende a peça só enquanto está ligado e só depois de encostar nela, porque não atrai o metal de longe como um ímã comum.”
+Antes de responder, releia cada opção: toda frase começa pelo sujeito, continua a anterior, traz o porquê e não tem “;” nem “:”? Corrija o que falhar.
 
 Primeiro parágrafo, UMA frase, na fórmula da loja: “A Placa <nome completo> é uma placa microcontroladora baseada no <chip> com <núcleos e arquitetura>, indicada para <3 ou 4 aplicações: prototipagem, robótica, automação, IoT, ensino de programação>, oferecendo <o diferencial: PIO programável, programação em MicroPython, Wi-Fi na versão W, tamanho reduzido>.” Só o que estiver confirmado.
 
-Segundo parágrafo: o porquê de ela ser boa, em 3 ou 4 frases. Comece pelo coração (“Equipada com o RP2040...”) e, a cada recurso citado, diga o que ele permite ou dispensa: os GPIO multifuncionais e as entradas analógicas (o que se liga nela); o PIO (cria interfaces que o chip não tem, como WS2812 ou VGA); a gravação pela USB arrastando o arquivo, sem gravador; o nível lógico de 3,3V (o que pede conversor); os pinos soldados ou não e as bordas casteladas (soldar direto numa placa) quando confirmados. Feche com MicroPython e C/C++ ou com “é a escolha ideal para quem...”. Acessórios só quando confirmados.
+Segundo parágrafo: o porquê de ela ser boa, em 3 ou 4 frases. Comece pelo coração (“A placa é equipada com o RP2040...”) e, a cada recurso citado, diga o que ele permite ou dispensa: os GPIO multifuncionais e as entradas analógicas (o que se liga nela); o PIO (cria interfaces que o chip não tem, como WS2812 ou VGA); a gravação pela USB arrastando o arquivo, sem gravador; o nível lógico de 3,3V (o que pede conversor); os pinos soldados ou não e as bordas casteladas (soldar direto numa placa) quando confirmados. Feche com MicroPython e C/C++ ou com “é a escolha ideal para quem...”. Acessórios só quando confirmados.
 
-Fale com o comprador: “possui”, não “tem”; “você” quando couber. Ao voltar a falar da placa, use o nome dela ou “a placa”, nunca “ela” no início da frase. Tom: o da Smartkits (explica e ensina, sem vender), sem copiar. Varie o foco e a ordem dos fatos entre as opções, não só os sinônimos. Evite elogios vazios, repetir o título inteiro ou enumerar especificações. Não mencione valores desconhecidos ou divergentes.
+Ao voltar a falar do produto, use o nome dela ou “a placa” como sujeito. Evite elogios vazios, repetir o título inteiro ou enumerar especificações. Não mencione valores desconhecidos ou divergentes.
 
 PADRONIZAÇÃO DOS NOMES
 

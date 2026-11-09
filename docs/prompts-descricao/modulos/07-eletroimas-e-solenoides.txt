@@ -7,20 +7,28 @@ Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use info
 
 PARÁGRAFOS
 
-Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 200 caracteres, o segundo até 350.
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 330 caracteres, o segundo até 550. Varie o foco e a ordem dos fatos entre as opções.
 
-Escreva como se explicasse para uma criança: quem lê pode nunca ter usado um eletroímã. Frases curtas, de no máximo 15 palavras, com UMA ideia cada. Palavras do dia a dia. Nada de frase comprida presa por vírgulas. Termo técnico sai ou é trocado por um simples: êmbolo = a haste que se mexe; carga indutiva, flyback e bobina ficam de fora.
+ESTILO DOS PARÁGRAFOS (regra da loja, igual em todos os prompts)
+Quem lê precisa entender na primeira leitura, como nas descrições da Smartkits: palavras do dia a dia, frases inteiras e um raciocínio só do começo ao fim do parágrafo.
+- Toda frase começa pelo sujeito (o nome do produto, “o módulo”, “essa força”) e o verbo, nunca por um trecho solto (“Ligado, o eletroímã...”, “Baseada no chip, a placa...”).
+- Cada frase continua a anterior, retomando o que ela terminou, e cada recurso vem com o porquê na mesma frase (“porque”, “então”, “já que”, “por isso”).
+- O primeiro parágrafo é uma frase só. No segundo, frases de 15 a 30 palavras, nem telegrama nem frase cheia de vírgulas.
+- Dentro do parágrafo, nada de ponto e vírgula, dois-pontos ou travessão colando ideias.
+- “possui”, “oferece”, “permite”, “dispensa” (nunca “tem”) e “você” quando couber.
+Assim não: “Ligou, prende; desligou, solta. Só prende depois de encostar: não puxa de longe.” Assim sim: “O eletroímã prende a peça só enquanto está ligado e só depois de encostar nela, porque não atrai o metal de longe como um ímã comum.”
+Antes de responder, releia cada opção: toda frase começa pelo sujeito, continua a anterior, traz o porquê e não tem “;” nem “:”? Corrija o que falhar.
 
-Primeiro parágrafo, DUAS frases curtas: o que ele é e o que ele faz.
-- Eletroímã de retenção: “Este é um eletroímã de retenção de <tensão>, com força de retenção de <força>. Ligado, o eletroímã prende peças de ferro e aço.”
-- Atuador: “Este é um solenoide atuador de <tensão>. Quando liga, a haste é puxada com força de <força>.”
+Primeiro parágrafo, UMA frase: o que ele é, o que faz e para que é indicado.
+- Eletroímã de retenção: “O <nome do produto> de <tensão> é um eletroímã de retenção que prende peças de ferro e aço enquanto está ligado e as solta quando a energia é cortada, indicado para travas, garras, fixadores e projetos de automação com Arduino.”
+- Atuador: “O <nome do produto> de <tensão> é um solenoide atuador linear que movimenta a haste com força de <força> quando é ligado, indicado para travas, trincos e mecanismos de automação com Arduino.”
 
-Segundo parágrafo, 3 a 5 frases curtas, uma para cada fato confirmado, dizendo o que ele faz na prática:
-- Eletroímã de retenção: ligou, prende; desligou, solta. Só prende depois de encostar: não puxa de longe. A força de retenção, em kg e N, é a força para arrancar uma peça plana e limpa encostada nele: “Os 15kg (150N) são a força para arrancar uma peça plana e limpa.” Para pendurar uma peça, conte com 5 a 10 vezes menos, com “algo em torno de” e a conta, sem dois-pontos: “Para pendurar uma peça, conte com 5 a 10 vezes menos, algo em torno de 1,5kg a 3kg.” Abaixo de 1kg a conta vai em gramas (3kg = algo em torno de 300g a 600g; 5kg = algo em torno de 500g a 1kg).
-- Atuador: a haste anda <curso> quando liga; a mola devolve a haste quando desliga (só com fonte); deve ficar ligado só por pouco tempo (só com fonte).
-- Os dois: para ligar no Arduino ou ESP32, use um módulo relé ou um transistor.
+Segundo parágrafo, 3 ou 4 frases, uma para cada fato confirmado, dizendo o que ele faz na prática e por quê:
+- Eletroímã de retenção: a força de retenção, em kg e N, é medida com a peça encostada na face, porque o eletroímã não atrai o metal de longe; essa força é o esforço para arrancar uma chapa plana e limpa, então uma peça pendurada deve pesar de 5 a 10 vezes menos, com “algo em torno de” e a conta (abaixo de 1kg, em gramas: 3kg = algo em torno de 300g a 600g; 5kg = algo em torno de 500g a 1kg). Exemplo: “A força de retenção de 15kg (150N) é medida com a peça encostada na face do eletroímã, porque ele não atrai o metal de longe como um ímã comum. Essa força é o esforço para arrancar uma chapa plana e limpa, por isso uma peça pendurada deve pesar de 5 a 10 vezes menos, algo em torno de 1,5kg a 3kg conforme o material.”
+- Atuador: a haste anda <curso> quando liga; a mola devolve a haste quando desliga (só com fonte); o solenoide deve ficar ligado só por pouco tempo, porque esquenta (só com fonte).
+- Os dois: o acionamento pelo Arduino ou pelo ESP32 é feito com um módulo relé ou um transistor, já que o eletroímã funciona com <tensão> e o pino da placa só fornece 5V ou 3,3V.
 
-Fale com o comprador: “possui”, não “tem”; “você” quando couber. Ao voltar a falar do produto, use “o eletroímã” ou “o solenoide”, nunca “ele” no início da frase. Tom: explica, sem vender. Sem elogios vazios (“alta performance”, “construção robusta”, “versatilidade”, “ideal para qualquer projeto”), sem repetir o título inteiro e sem enumerar especificações.
+Palavras do dia a dia: quem lê pode nunca ter usado um eletroímã. Termo técnico sai ou é trocado por um simples: êmbolo = a haste que se mexe; carga indutiva, flyback e bobina ficam de fora. Ao voltar a falar do produto, use “o eletroímã” ou “o solenoide” como sujeito. Sem elogios vazios (“alta performance”, “construção robusta”, “versatilidade”, “ideal para qualquer projeto”), sem repetir o título inteiro e sem enumerar especificações.
 
 PADRONIZAÇÃO DOS NOMES
 

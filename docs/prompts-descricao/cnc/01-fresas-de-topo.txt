@@ -4,19 +4,28 @@ Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use info
 
 PARÁGRAFOS
 
-Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 200 caracteres, o segundo até 350.
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 330 caracteres, o segundo até 550. Varie o foco e a ordem dos fatos entre as opções.
 
-Escreva como se explicasse para uma criança: quem lê pode nunca ter usado uma fresa. Frases curtas, de no máximo 15 palavras, com UMA ideia cada. Palavras do dia a dia. Nada de frase comprida presa por vírgulas. Termo técnico sai ou é trocado por um simples, com uma exceção: escreva sempre “cavaco” (o resíduo do corte), nunca “raspas”, “aparas” ou “pó” (decisão do dono). Trocas: spindle = motor da máquina; usinar = cortar; router CNC = máquina CNC; pinça = a peça da máquina que segura a fresa. As lojas de fresa escrevem assim: “Fresa de 1 corte com afiação especial para plásticos. Este tipo de fresa gera menos aquecimento no material para evitar o derretimento.”
+ESTILO DOS PARÁGRAFOS (regra da loja, igual em todos os prompts)
+Quem lê precisa entender na primeira leitura, como nas descrições da Smartkits: palavras do dia a dia, frases inteiras e um raciocínio só do começo ao fim do parágrafo.
+- Toda frase começa pelo sujeito (o nome do produto, “o módulo”, “essa força”) e o verbo, nunca por um trecho solto (“Ligado, o eletroímã...”, “Baseada no chip, a placa...”).
+- Cada frase continua a anterior, retomando o que ela terminou, e cada recurso vem com o porquê na mesma frase (“porque”, “então”, “já que”, “por isso”).
+- O primeiro parágrafo é uma frase só. No segundo, frases de 15 a 30 palavras, nem telegrama nem frase cheia de vírgulas.
+- Dentro do parágrafo, nada de ponto e vírgula, dois-pontos ou travessão colando ideias.
+- “possui”, “oferece”, “permite”, “dispensa” (nunca “tem”) e “você” quando couber.
+Assim não: “Ligou, prende; desligou, solta. Só prende depois de encostar: não puxa de longe.” Assim sim: “O eletroímã prende a peça só enquanto está ligado e só depois de encostar nela, porque não atrai o metal de longe como um ímã comum.”
+Antes de responder, releia cada opção: toda frase começa pelo sujeito, continua a anterior, traz o porquê e não tem “;” nem “:”? Corrija o que falhar.
 
-Primeiro parágrafo, DUAS frases curtas: o que ela é e o que ela corta. Modelo: “Esta é uma fresa de <número de cortes> em <tipo de corte> para máquina CNC. A fresa corta <os materiais confirmados>.” Só o que estiver confirmado.
+Primeiro parágrafo, UMA frase: “A <nome do produto> é uma fresa de topo de <número de cortes> em <tipo de corte> e <material> para máquina CNC, indicada para <recortar peças / abrir canais / gravar> em <os materiais confirmados>.” Só o que estiver confirmado.
 
-Segundo parágrafo, 3 ou 4 frases curtas, uma para cada recurso confirmado, dizendo o que ele faz na prática:
+Segundo parágrafo, 3 ou 4 frases, uma para cada recurso confirmado, dizendo o que ele faz na prática e por quê:
 - o número de cortes: 1 corte deixa muito espaço para o cavaco sair, então o material esquenta pouco e o plástico não derrete; 2 ou mais cortes deixam a borda mais lisa em madeira e MDF;
-- o sentido do corte: up puxa o cavaco para cima e para fora do corte; down empurra o cavaco para baixo e deixa a face de cima lisa, sem rebarba; up e down deixa as duas faces lisas; reto não puxa nem empurra;
-- o comprimento de corte: a parte que corta tem <comprimento de corte>, e a fresa corta até essa profundidade;
-- a haste: a haste de <diâmetro da haste> encaixa na pinça de <a mesma medida> da máquina.
+- o sentido do corte: up puxa o cavaco para cima e para fora do canal, o que deixa o caminho da fresa livre; down empurra o cavaco para baixo e deixa a face de cima lisa, sem rebarba; up e down deixa as duas faces lisas; reto não puxa nem empurra;
+- o diâmetro e o comprimento de corte: a fresa abre um canal da largura do diâmetro de corte, com até <comprimento de corte> de profundidade;
+- a haste: a haste de <diâmetro da haste> encaixa direto na pinça de mesma medida da máquina, sem adaptador.
+Exemplo: “O corte único deixa bastante espaço para o cavaco sair, então o material esquenta pouco e o acrílico não derrete durante o corte.”
 
-Fale com o comprador: “possui”, não “tem”; “você” quando couber. Ao voltar a falar do produto, use “a fresa”, nunca “ela” no início da frase. Tom: explica, sem vender. Sem elogios vazios (“altíssima precisão”, “acabamento perfeito”, “a melhor do mercado”, “longa vida útil”), sem repetir o título inteiro e sem enumerar especificações.
+Palavras do dia a dia: quem lê pode nunca ter usado uma fresa. Escreva sempre “cavaco” (o resíduo do corte), nunca “raspas”, “aparas” ou “pó” (decisão do dono). Trocas: spindle = motor da máquina; usinar = cortar; router CNC = máquina CNC; pinça = a peça da máquina que segura a fresa. Ao voltar a falar do produto, use “a fresa” como sujeito. Sem elogios vazios (“altíssima precisão”, “acabamento perfeito”, “a melhor do mercado”, “longa vida útil”), sem repetir o título inteiro e sem enumerar especificações.
 
 PADRONIZAÇÃO DOS NOMES
 

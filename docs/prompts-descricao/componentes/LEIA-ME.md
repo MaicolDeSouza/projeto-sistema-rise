@@ -20,3 +20,5 @@
 Segue as regras dos prompts de Embarcados (ver `../embarcados/LEIA-ME.md`): campo sem dado confirmado sai da descrição,
 nomes padronizados por campo, "possui" em vez de "tem" e " / " entre informações distintas no mesmo valor. Diferença: aqui
 Cor e os materiais entram nas características, porque decidem a compra de um borne.
+
+- **09/11/2026:** a seção PARÁGRAFOS de todos os prompts desta pasta passou a trazer o bloco ESTILO DOS PARÁGRAFOS (regras comuns em `../LEIA-ME.md`, pedido do dono: o texto não fluía); o conteúdo de cada parágrafo continua o mesmo.

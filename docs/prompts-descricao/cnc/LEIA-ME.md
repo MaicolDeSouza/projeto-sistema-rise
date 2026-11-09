@@ -22,3 +22,5 @@
 Segue as regras dos prompts de Embarcados e de Componentes (ver `../embarcados/LEIA-ME.md` e
 `../componentes/LEIA-ME.md`): campo sem dado confirmado sai da descrição, nomes padronizados por campo, "possui" em vez
 de "tem" e " / " entre informações distintas no mesmo valor.
+
+- **09/11/2026:** a seção PARÁGRAFOS de todos os prompts desta pasta passou a trazer o bloco ESTILO DOS PARÁGRAFOS (regras comuns em `../LEIA-ME.md`, pedido do dono: o texto não fluía); o conteúdo de cada parágrafo continua o mesmo. Nas fresas saíram as frases de no máximo 15 palavras, e o tamanho voltou ao da loja (330 e 550).

@@ -4,13 +4,23 @@ Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use info
 
 PARÁGRAFOS
 
-Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Simples e direto: diga o que a fonte faz e para que serve, sem propaganda. Tamanho, contando espaços: o primeiro até 200 caracteres, o segundo até 300.
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Simples e direto: diga o que a fonte faz e para que serve, sem propaganda. Tamanho, contando espaços: o primeiro até 200 caracteres, o segundo até 300. Varie o foco e a ordem dos fatos entre as opções.
+
+ESTILO DOS PARÁGRAFOS (regra da loja, igual em todos os prompts)
+Quem lê precisa entender na primeira leitura, como nas descrições da Smartkits: palavras do dia a dia, frases inteiras e um raciocínio só do começo ao fim do parágrafo.
+- Toda frase começa pelo sujeito (o nome do produto, “o módulo”, “essa força”) e o verbo, nunca por um trecho solto (“Ligado, o eletroímã...”, “Baseada no chip, a placa...”).
+- Cada frase continua a anterior, retomando o que ela terminou, e cada recurso vem com o porquê na mesma frase (“porque”, “então”, “já que”, “por isso”).
+- O primeiro parágrafo é uma frase só. No segundo, frases de 15 a 30 palavras, nem telegrama nem frase cheia de vírgulas.
+- Dentro do parágrafo, nada de ponto e vírgula, dois-pontos ou travessão colando ideias.
+- “possui”, “oferece”, “permite”, “dispensa” (nunca “tem”) e “você” quando couber.
+Assim não: “Ligou, prende; desligou, solta. Só prende depois de encostar: não puxa de longe.” Assim sim: “O eletroímã prende a peça só enquanto está ligado e só depois de encostar nela, porque não atrai o metal de longe como um ímã comum.”
+Antes de responder, releia cada opção: toda frase começa pelo sujeito, continua a anterior, traz o porquê e não tem “;” nem “:”? Corrija o que falhar.
 
 Primeiro parágrafo, UMA frase: “A Mini Fonte <fabricante> <modelo> converte a tensão da rede, de <entrada>, em <saída> com até <potência>, num módulo <encapsulado para soldar na placa de circuito impresso / aberto, sem invólucro>.” Só o que estiver confirmado.
 
 Segundo parágrafo, uma ou duas frases práticas, só com recursos confirmados: a corrente contínua que a fonte entrega, a entrada que aceita 127V e 220V sem chave (só quando a faixa de entrada cobre 100 a 240VAC), a isolação entre a rede e a saída, a proteção contra curto-circuito com retorno automático e o uso típico: alimentar ESP32, Arduino, relés e sensores direto da rede, dentro de caixas de automação.
 
-Fale com o comprador: “possui”, não “tem”. Ao voltar a falar do produto, use “a fonte”, nunca “ela” no início da frase. Varie a ordem dos fatos entre as opções. Sem elogios vazios (“excelente”, “alta qualidade”, “ideal para qualquer projeto”) e sem repetir o título inteiro.
+Ao voltar a falar do produto, use “a fonte” como sujeito. Sem elogios vazios (“excelente”, “alta qualidade”, “ideal para qualquer projeto”) e sem repetir o título inteiro.
 
 PADRONIZAÇÃO DOS NOMES
 

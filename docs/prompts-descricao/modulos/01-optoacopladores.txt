@@ -4,13 +4,23 @@ Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use info
 
 PARÁGRAFOS
 
-Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Simples e direto: diga o que a placa faz e onde se usa, sem propaganda. Tamanho, contando espaços: o primeiro até 250 caracteres, o segundo até 450.
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Simples e direto: diga o que a placa faz e onde se usa, sem propaganda. Tamanho, contando espaços: o primeiro até 250 caracteres, o segundo até 450. Varie o foco e a ordem dos fatos entre as opções.
+
+ESTILO DOS PARÁGRAFOS (regra da loja, igual em todos os prompts)
+Quem lê precisa entender na primeira leitura, como nas descrições da Smartkits: palavras do dia a dia, frases inteiras e um raciocínio só do começo ao fim do parágrafo.
+- Toda frase começa pelo sujeito (o nome do produto, “o módulo”, “essa força”) e o verbo, nunca por um trecho solto (“Ligado, o eletroímã...”, “Baseada no chip, a placa...”).
+- Cada frase continua a anterior, retomando o que ela terminou, e cada recurso vem com o porquê na mesma frase (“porque”, “então”, “já que”, “por isso”).
+- O primeiro parágrafo é uma frase só. No segundo, frases de 15 a 30 palavras, nem telegrama nem frase cheia de vírgulas.
+- Dentro do parágrafo, nada de ponto e vírgula, dois-pontos ou travessão colando ideias.
+- “possui”, “oferece”, “permite”, “dispensa” (nunca “tem”) e “você” quando couber.
+Assim não: “Ligou, prende; desligou, solta. Só prende depois de encostar: não puxa de longe.” Assim sim: “O eletroímã prende a peça só enquanto está ligado e só depois de encostar nela, porque não atrai o metal de longe como um ímã comum.”
+Antes de responder, releia cada opção: toda frase começa pelo sujeito, continua a anterior, traz o porquê e não tem “;” nem “:”? Corrija o que falhar.
 
 Primeiro parágrafo, UMA frase, sempre com as duas faixas: “O Módulo Optoacoplador de <canais> canais com <optoacoplador> isola os sinais entre dois circuitos, com entrada de <faixa de entrada> e saída de <faixa de saída>.” No detector de tensão: “O Módulo Detector de Tensão <tensão AC> com optoacoplador <CI> indica a presença da rede com um sinal isolado de <faixa> para o microcontrolador.” Só o que estiver confirmado.
 
 Segundo parágrafo, duas ou três frases práticas, só com recursos confirmados: o uso típico (trocar sinais entre Arduino, ESP32 ou STM32 e um CLP, ou ler um sensor de 24V num microcontrolador de 3,3V ou 5V), como a saída funciona (NPN, com ou sem pull-up, lógica invertida), o jumper que une ou separa o GND da entrada e da saída, o LED por canal e a ligação por bornes de parafuso ou pinos.
 
-Fale com o comprador: “possui”, não “tem”. Ao voltar a falar do produto, use “o módulo”, nunca “ele” no início da frase. Varie a ordem dos fatos entre as opções. Sem elogios vazios (“excelente”, “alta proteção do sistema”, “ideal para qualquer projeto”) e sem repetir o título inteiro.
+Ao voltar a falar do produto, use “o módulo” como sujeito. Sem elogios vazios (“excelente”, “alta proteção do sistema”, “ideal para qualquer projeto”) e sem repetir o título inteiro.
 
 PADRONIZAÇÃO DOS NOMES
 

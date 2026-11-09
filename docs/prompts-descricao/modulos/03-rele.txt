@@ -4,13 +4,23 @@ Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use info
 
 PARÁGRAFOS
 
-Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 330 caracteres, o segundo até 550.
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 330 caracteres, o segundo até 550. Varie o foco e a ordem dos fatos entre as opções.
+
+ESTILO DOS PARÁGRAFOS (regra da loja, igual em todos os prompts)
+Quem lê precisa entender na primeira leitura, como nas descrições da Smartkits: palavras do dia a dia, frases inteiras e um raciocínio só do começo ao fim do parágrafo.
+- Toda frase começa pelo sujeito (o nome do produto, “o módulo”, “essa força”) e o verbo, nunca por um trecho solto (“Ligado, o eletroímã...”, “Baseada no chip, a placa...”).
+- Cada frase continua a anterior, retomando o que ela terminou, e cada recurso vem com o porquê na mesma frase (“porque”, “então”, “já que”, “por isso”).
+- O primeiro parágrafo é uma frase só. No segundo, frases de 15 a 30 palavras, nem telegrama nem frase cheia de vírgulas.
+- Dentro do parágrafo, nada de ponto e vírgula, dois-pontos ou travessão colando ideias.
+- “possui”, “oferece”, “permite”, “dispensa” (nunca “tem”) e “você” quando couber.
+Assim não: “Ligou, prende; desligou, solta. Só prende depois de encostar: não puxa de longe.” Assim sim: “O eletroímã prende a peça só enquanto está ligado e só depois de encostar nela, porque não atrai o metal de longe como um ímã comum.”
+Antes de responder, releia cada opção: toda frase começa pelo sujeito, continua a anterior, traz o porquê e não tem “;” nem “:”? Corrija o que falhar.
 
 Primeiro parágrafo, UMA frase, na fórmula da loja: “O Módulo Relé <tensão> <N> Canais <com optoacoplador / de estado sólido / Wi-Fi> é uma placa de acionamento com <N relés de 10A / N saídas SSR de 2A>, indicada para <3 ou 4 aplicações: automação residencial, controle de lâmpadas, bombas, ventiladores, portões, irrigação>, que oferece <o diferencial: isolação por optoacoplador, acionamento silencioso sem contato mecânico, controle pela rede Wi-Fi>.” Só o que estiver confirmado.
 
 Segundo parágrafo: o porquê de ele ser bom, em 3 ou 4 frases. Comece por como ele funciona (“O Módulo Relé recebe o sinal de 5V e aciona cada relé em nível lógico baixo...”) e, a cada recurso citado, diga o que ele permite ou dispensa: o optoacoplador (separa o controle da parte de potência); o jumper JD-VCC (alimentar os relés por uma fonte separada); os contatos NA, NF e Comum (ligar ou desligar a carga quando o relé aciona); o LED por canal (ver o estado sem medir); o SSR (comuta sem ruído e sem desgaste, só em corrente alternada); o Wi-Fi do ESP-01 (comandar pelo celular ou pela rede). Diga com que placas funciona só quando a fonte confirmar o nível de sinal (ver REGRAS ESPECÍFICAS). Feche com um uso típico ou com “é a escolha ideal para quem...”.
 
-Fale com o comprador: “possui”, não “tem”; “você” quando couber. Ao voltar a falar do produto, use o nome dele ou “o módulo”, nunca “ele” no início da frase. Tom: o da Smartkits (explica e ensina, sem vender), sem copiar. Varie o foco e a ordem dos fatos entre as opções, não só os sinônimos. Evite elogios vazios (“alta qualidade”, “máxima segurança”, “controla qualquer aparelho”), repetir o título inteiro ou enumerar especificações. Não mencione valores desconhecidos ou divergentes. Não prometa ligar motores, compressores ou chuveiros pela corrente máxima do relé: carga indutiva ou de partida alta só entra no texto se a fonte disser.
+Ao voltar a falar do produto, use o nome dele ou “o módulo” como sujeito. Evite elogios vazios (“alta qualidade”, “máxima segurança”, “controla qualquer aparelho”), repetir o título inteiro ou enumerar especificações. Não mencione valores desconhecidos ou divergentes. Não prometa ligar motores, compressores ou chuveiros pela corrente máxima do relé: carga indutiva ou de partida alta só entra no texto se a fonte disser.
 
 PADRONIZAÇÃO DOS NOMES
 

@@ -78,3 +78,5 @@ Esta entrega altera somente documentos de prompt. Não modifica a integração, 
 - O sistema atualmente pode usar medidas de referências semelhantes como reserva. Esses prompts pedem medidas do mesmo produto/variante; o uso automático de reserva também precisa ser alinhado para não preencher uma pendência com medidas de outro produto.
 
 Antes de uso em produção, comparar algumas respostas de cada subfamília, incluindo um produto com dados completos, um com dados faltantes e um com divergências. Não há promessa de economia percentual ou de qualidade equivalente sem essa comparação.
+
+- **09/11/2026:** a seção PARÁGRAFOS de todos os prompts desta pasta passou a trazer o bloco ESTILO DOS PARÁGRAFOS (regras comuns em `../LEIA-ME.md`, pedido do dono: o texto não fluía); o conteúdo de cada parágrafo continua o mesmo. ESP32 LoRa, STM32 e Raspberry Pi passaram a 330 e 550, com o 1º parágrafo numa frase só.

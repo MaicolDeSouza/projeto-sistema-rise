@@ -1,6 +1,16 @@
 Escreva a descrição de uma placa ESP32 com LoRa em português brasileiro, no JSON exigido pelo Rise: paragrafos, caracteristicas, itensInclusos, pesoGramas, dimensoesMm e decisoes. Os textos devem ser puros, sem Markdown, negrito, asteriscos, #, emojis ou links.
 
-paragrafos: exatamente 2 grupos com 3 opções diferentes cada, até 230 caracteres por opção, contando espaços. Primeiro grupo: comece pelo nome do produto como sujeito; explique o que é, destaque chip do rádio, frequência da variante ou SoC e termine com a tensão de operação/alimentação, se confirmada e identificada corretamente. Segundo grupo: explique compatibilidade prática, programação, requisitos e acessórios confirmados. Use frases completas, verbo e tom acessível e técnico. Varie foco e ordem dos fatos; evite só trocar sinônimos, repetir o título inteiro, enumerar especificações ou usar elogios comerciais. Não mencione dados desconhecidos ou divergentes.
+paragrafos: exatamente 2 grupos com 3 opções diferentes cada, contando espaços: o primeiro até 330 caracteres, o segundo até 550. Primeiro grupo: UMA frase que começa pelo nome do produto como sujeito; explique o que é, destaque chip do rádio, frequência da variante ou SoC e termine com a tensão de operação/alimentação, se confirmada e identificada corretamente. Segundo grupo: 3 ou 4 frases sobre compatibilidade prática, programação, requisitos e acessórios confirmados, cada recurso com o que ele permite ou dispensa. Varie foco e ordem dos fatos; evite só trocar sinônimos, repetir o título inteiro, enumerar especificações ou usar elogios comerciais. Não mencione dados desconhecidos ou divergentes.
+
+ESTILO DOS PARÁGRAFOS (regra da loja, igual em todos os prompts)
+Quem lê precisa entender na primeira leitura, como nas descrições da Smartkits: palavras do dia a dia, frases inteiras e um raciocínio só do começo ao fim do parágrafo.
+- Toda frase começa pelo sujeito (o nome do produto, “o módulo”, “essa força”) e o verbo, nunca por um trecho solto (“Ligado, o eletroímã...”, “Baseada no chip, a placa...”).
+- Cada frase continua a anterior, retomando o que ela terminou, e cada recurso vem com o porquê na mesma frase (“porque”, “então”, “já que”, “por isso”).
+- O primeiro parágrafo é uma frase só. No segundo, frases de 15 a 30 palavras, nem telegrama nem frase cheia de vírgulas.
+- Dentro do parágrafo, nada de ponto e vírgula, dois-pontos ou travessão colando ideias.
+- “possui”, “oferece”, “permite”, “dispensa” (nunca “tem”) e “você” quando couber.
+Assim não: “Ligou, prende; desligou, solta. Só prende depois de encostar: não puxa de longe.” Assim sim: “O eletroímã prende a peça só enquanto está ligado e só depois de encostar nela, porque não atrai o metal de longe como um ímã comum.”
+Antes de responder, releia cada opção: toda frase começa pelo sujeito, continua a anterior, traz o porquê e não tem “;” nem “:”? Corrija o que falhar.
 
 caracteristicas: cada item contém nome, valor e referencias. Exibição: Campo: valor. Sempre liste os campos principais abaixo, na ordem. Se um valor não estiver confirmado, use "?" e referencias: []. Campos condicionais só entram quando aplicáveis ao modelo; se aplicáveis e sem valor, use "?". Ausência confirmada pode ser "Não possui". Não deduza ausência pela falta de informação. Evite duplicar propriedades. Use Tensão e Corrente; números colados às unidades: 3,3V, 8MB, 240MHz, 915MHz, 22dBm. Diferencie bytes de bits, alimentação de nível lógico e corrente contínua de limite absoluto.
 

@@ -1819,6 +1819,30 @@ console.log("\n— Descricao: o prompt de escrita editavel na janela —");
   conferir("padrao nao traz dados de produto", PROMPT_DESCRICAO_PADRAO.includes("Referências:\n"), false);
   conferir("padrao cabe no teto", PROMPT_DESCRICAO_PADRAO.length <= MAXIMO_PROMPT_DESCRICAO, true);
 
+  // O estilo dos paragrafos (pedido do dono em 09/11/2026): o MESMO bloco no padrao, no roteiro da proposta e em todo
+  // prompt de docs/prompts-descricao/. Prompt novo sem o bloco, ou que volte a pedir frase telegrafica, quebra aqui.
+  {
+    const { ESTILO_DOS_PARAGRAFOS: ESTILO } = await import("../src/lib/ia/estiloDosParagrafos.js");
+    const { ROTEIRO } = await import("../src/lib/proposta/roteiro.js");
+    const { readdirSync, readFileSync, statSync } = await import("node:fs");
+    const pasta = new URL("../docs/prompts-descricao/", import.meta.url);
+    const prompts = readdirSync(pasta)
+      .filter((d) => statSync(new URL(`${d}/`, pasta)).isDirectory())
+      .flatMap((d) => readdirSync(new URL(`${d}/`, pasta)).filter((a) => a.endsWith(".txt")).map((a) => ({
+        nome: `${d}/${a}`, texto: readFileSync(new URL(`${d}/${a}`, pasta), "utf8").replace(/\r\n/g, "\n").trim(),
+      })));
+    conferir("estilo: a biblioteca tem os prompts", prompts.length >= 21, true);
+    conferir("estilo: todo prompt traz o bloco igual", prompts.filter((p) => !p.texto.includes(ESTILO)).map((p) => p.nome), []);
+    conferir("estilo: nenhum prompt pede frase telegrafica",
+      prompts.filter((p) => /no máximo 15 palavras|como se explicasse para uma criança|frases curtas[,:]/i.test(p.texto)).map((p) => p.nome), []);
+    conferir("estilo: todo prompt cabe no teto da tela", prompts.filter((p) => p.texto.length > MAXIMO_PROMPT_DESCRICAO).map((p) => p.nome), []);
+    conferir("estilo: o padrao do sistema e o roteiro da proposta trazem o bloco", [PROMPT_DESCRICAO_PADRAO.includes(ESTILO), ROTEIRO.includes(ESTILO)], [true, true]);
+    // O exemplo "assim sim" segue a propria regra: comeca pelo sujeito, sem ";" nem ":" e com 15 a 30 palavras.
+    const assimSim = ESTILO.match(/Assim sim: “([^”]+)”/)?.[1] ?? "";
+    const palavras = assimSim.split(/\s+/).length;
+    conferir("estilo: o exemplo bom segue o proprio bloco", [/^O /.test(assimSim), /[;:]/.test(assimSim), palavras >= 15 && palavras <= 30], [true, false, true]);
+  }
+
   // limparPromptDaDescricao: o que vem da tela.
   conferir("tira espaco das pontas", limparPromptDaDescricao("  Escreva curto.  \n"), { ok: true, texto: "Escreva curto." });
   conferir("vazio e recusado", limparPromptDaDescricao("   ").ok, false);

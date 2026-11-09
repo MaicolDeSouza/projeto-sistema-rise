@@ -16,7 +16,12 @@
 // fabricante, um modelo descritivo curto no padrao dos que o dono conferiu.
 // "17" em 07/11/2026: as Correcoes da descricao (spec 2026-11-07): lerParaProposta devolve em "correcoes" o que o dono
 // ensinou ("escreva 5V, nunca 5 V"), e a descricao ja nasce seguindo; o Rise aplica as TROCAs no texto gravado de todo jeito.
-export const VERSAO_DO_ROTEIRO = "17";
+// "18" em 09/11/2026: o ESTILO dos paragrafos e o bloco unico de `estiloDosParagrafos.js` (pedido do dono: "nao fica fluido
+// no mesmo raciocinio ... tenho que ler 2 a 3 vezes"), e vale mesmo quando o prompt escolhido nao o traz; o prompt decide
+// so o tamanho e o conteudo de cada paragrafo.
+import { ESTILO_DOS_PARAGRAFOS } from "../ia/estiloDosParagrafos";
+
+export const VERSAO_DO_ROTEIRO = "18";
 
 export const ROTEIRO = `ROTEIRO DA PROPOSTA DE PRODUTO (Rise / 4hobby), versão ${VERSAO_DO_ROTEIRO}
 
@@ -55,10 +60,13 @@ REGRAS QUE VALEM SEMPRE
 
 1. DESCRIÇÃO (primeiro: alimenta o resto)
 - Siga o prompt escolhido (o texto vem em lerParaProposta). Fonte: todos os concorrentes e fornecedores vinculados.
-- Formato da loja: título em MAIÚSCULAS; 2 parágrafos, sem linha em branco entre eles, com o TAMANHO e o estilo que a
-  seção PARÁGRAFOS do prompt descreve. O prompt vence este roteiro (ex.: o de bornes pede o 1º com UMA frase de até 200
-  caracteres e o 2º com 1 ou 2 frases, até 300). Só quando o prompt não diz o tamanho: o 1º é UMA frase de até 330
-  caracteres e o 2º tem 3 ou 4 frases, até 550 (o estilo da Smartkits);
+- Formato da loja: título em MAIÚSCULAS; 2 parágrafos, sem linha em branco entre eles, com o TAMANHO e o conteúdo que a
+  seção PARÁGRAFOS do prompt descreve. O prompt vence este roteiro no tamanho (ex.: o de bornes pede o 1º com UMA frase
+  de até 200 caracteres e o 2º com 1 ou 2 frases, até 300). Só quando o prompt não diz o tamanho: o 1º é UMA frase de até
+  330 caracteres e o 2º tem 3 ou 4 frases, até 550. O ESTILO é sempre o bloco abaixo, o mesmo de todos os prompts, mesmo
+  que o prompt escolhido não o traga; antes de gravar, releia cada frase com ele:
+${ESTILO_DOS_PARAGRAFOS}
+- Formato da loja, continuação:
   "Especificações técnicas:" com "- Nome: valor;" (as duas últimas: "- Dimensões(CxLxA): 43x18x19mm;" e "- Peso: 7g;",
   com os valores dos campos do produto ou os da seção campos, que são obrigatórios: as duas linhas sempre entram); "Itens inclusos: (Cod:SKU)" com "- 01 ITEM;"; "Garantia:" com
   "- Garantia Legal de 90 dias (contra defeitos de fabricação);". Quebra de linha \\r\\n.

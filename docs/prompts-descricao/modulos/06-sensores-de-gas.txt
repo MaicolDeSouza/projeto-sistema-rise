@@ -4,13 +4,23 @@ Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use info
 
 PARÁGRAFOS
 
-Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 330 caracteres, o segundo até 550.
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 330 caracteres, o segundo até 550. Varie o foco e a ordem dos fatos entre as opções.
+
+ESTILO DOS PARÁGRAFOS (regra da loja, igual em todos os prompts)
+Quem lê precisa entender na primeira leitura, como nas descrições da Smartkits: palavras do dia a dia, frases inteiras e um raciocínio só do começo ao fim do parágrafo.
+- Toda frase começa pelo sujeito (o nome do produto, “o módulo”, “essa força”) e o verbo, nunca por um trecho solto (“Ligado, o eletroímã...”, “Baseada no chip, a placa...”).
+- Cada frase continua a anterior, retomando o que ela terminou, e cada recurso vem com o porquê na mesma frase (“porque”, “então”, “já que”, “por isso”).
+- O primeiro parágrafo é uma frase só. No segundo, frases de 15 a 30 palavras, nem telegrama nem frase cheia de vírgulas.
+- Dentro do parágrafo, nada de ponto e vírgula, dois-pontos ou travessão colando ideias.
+- “possui”, “oferece”, “permite”, “dispensa” (nunca “tem”) e “você” quando couber.
+Assim não: “Ligou, prende; desligou, solta. Só prende depois de encostar: não puxa de longe.” Assim sim: “O eletroímã prende a peça só enquanto está ligado e só depois de encostar nela, porque não atrai o metal de longe como um ímã comum.”
+Antes de responder, releia cada opção: toda frase começa pelo sujeito, continua a anterior, traz o porquê e não tem “;” nem “:”? Corrija o que falhar.
 
 Primeiro parágrafo, UMA frase, na fórmula da loja: “O Sensor de Gás <MQ-x> <gás principal> é um módulo de detecção com o sensor semicondutor <MQ-x> e comparador <LM393>, indicado para <3 ou 4 aplicações do gás dele: alarmes de vazamento de GLP, bafômetros experimentais, monitoramento da qualidade do ar, exaustão automática>, que oferece <o diferencial: saída analógica para acompanhar a variação e saída digital com limite ajustável>.” Só o que estiver confirmado.
 
 Segundo parágrafo: o porquê de ele ser bom, em 3 ou 4 frases. Comece por como ele funciona (“O Sensor de Gás MQ-x possui um elemento aquecido cuja resistência muda com a concentração do gás...”) e, a cada recurso citado, diga o que ele permite ou dispensa: a saída analógica (acompanhar a variação da concentração no conversor AD do microcontrolador); a saída digital com o trimpot (acionar um alarme, um relé ou um exaustor quando passar do limite, sem programar a comparação); os LEDs (ver a alimentação e o disparo sem medir). Diga com que placas funciona só quando a fonte confirmar (ver REGRAS ESPECÍFICAS). Feche com um uso típico ou com “é a escolha ideal para quem...”.
 
-Fale com o comprador: “possui”, não “tem”; “você” quando couber. Ao voltar a falar do produto, use o nome dele ou “o módulo”, nunca “ele” no início da frase. Tom: o da Smartkits (explica e ensina, sem vender), sem copiar. Varie o foco e a ordem dos fatos entre as opções, não só os sinônimos. Evite elogios vazios (“alta precisão”, “máxima segurança”, “resposta instantânea”), repetir o título inteiro ou enumerar especificações. Não mencione valores desconhecidos ou divergentes.
+Ao voltar a falar do produto, use o nome dele ou “o módulo” como sujeito. Evite elogios vazios (“alta precisão”, “máxima segurança”, “resposta instantânea”), repetir o título inteiro ou enumerar especificações. Não mencione valores desconhecidos ou divergentes.
 
 O módulo é para projetos, protótipos e ensino: nunca o apresente como equipamento de segurança, detector certificado ou proteção da sua casa e da sua família (as próprias lojas avisam que ele não serve para segurança humana ou patrimonial). Escreva “projetos de alarme e monitoramento”, nunca “garante a sua segurança”.
 

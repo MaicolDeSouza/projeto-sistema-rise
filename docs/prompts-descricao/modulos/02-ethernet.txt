@@ -4,13 +4,23 @@ Textos puros: sem negrito, asteriscos, títulos com #, emojis ou links. Use info
 
 PARÁGRAFOS
 
-Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 330 caracteres, o segundo até 550.
+Gere exatamente dois grupos, na ordem [primeiro parágrafo, segundo parágrafo], com três opções diferentes cada. Tamanho, contando espaços: o primeiro até 330 caracteres, o segundo até 550. Varie o foco e a ordem dos fatos entre as opções.
+
+ESTILO DOS PARÁGRAFOS (regra da loja, igual em todos os prompts)
+Quem lê precisa entender na primeira leitura, como nas descrições da Smartkits: palavras do dia a dia, frases inteiras e um raciocínio só do começo ao fim do parágrafo.
+- Toda frase começa pelo sujeito (o nome do produto, “o módulo”, “essa força”) e o verbo, nunca por um trecho solto (“Ligado, o eletroímã...”, “Baseada no chip, a placa...”).
+- Cada frase continua a anterior, retomando o que ela terminou, e cada recurso vem com o porquê na mesma frase (“porque”, “então”, “já que”, “por isso”).
+- O primeiro parágrafo é uma frase só. No segundo, frases de 15 a 30 palavras, nem telegrama nem frase cheia de vírgulas.
+- Dentro do parágrafo, nada de ponto e vírgula, dois-pontos ou travessão colando ideias.
+- “possui”, “oferece”, “permite”, “dispensa” (nunca “tem”) e “você” quando couber.
+Assim não: “Ligou, prende; desligou, solta. Só prende depois de encostar: não puxa de longe.” Assim sim: “O eletroímã prende a peça só enquanto está ligado e só depois de encostar nela, porque não atrai o metal de longe como um ímã comum.”
+Antes de responder, releia cada opção: toda frase começa pelo sujeito, continua a anterior, traz o porquê e não tem “;” nem “:”? Corrija o que falhar.
 
 Primeiro parágrafo, UMA frase, na fórmula da loja: “O <Módulo ou Shield> Ethernet <chip> é <uma placa de rede cabeada / um shield> que conecta <o Arduino, o ESP32 ou outro microcontrolador> à rede local e à internet pelo cabo RJ45, indicado para <3 ou 4 aplicações: automação residencial, servidor web embarcado, monitoramento remoto, IoT cabeada>, oferecendo <o diferencial: pilha TCP/IP no chip, 10/100Mbps, slot microSD, encaixe direto no Nano>.” Só o que estiver confirmado.
 
-Segundo parágrafo: o porquê de ele ser bom, em 3 ou 4 frases. Comece pelo coração (“Baseado no controlador ENC28J60 da Microchip...”, “Equipado com o chip W5100 da WIZnet...”) e, a cada recurso citado, diga o que ele permite ou dispensa: a interface SPI (poucos pinos do microcontrolador); a pilha TCP/IP no chip do W5100/W5500 (o microcontrolador não precisa montar os pacotes) ou a pilha feita pela biblioteca no ENC28J60 (EtherCard, UIPEthernet); a conexão cabeada (estável onde o Wi-Fi falha); o encaixe do shield (sem jumpers nem protoboard); o slot microSD; a alimentação e o nível lógico (o que aceita sem conversor). Feche com as bibliotecas ou com “é a escolha ideal para quem...”. Acessórios só quando confirmados.
+Segundo parágrafo: o porquê de ele ser bom, em 3 ou 4 frases. Comece pelo coração (“O módulo é baseado no controlador ENC28J60 da Microchip...”, “O shield é equipado com o chip W5100 da WIZnet...”) e, a cada recurso citado, diga o que ele permite ou dispensa: a interface SPI (poucos pinos do microcontrolador); a pilha TCP/IP no chip do W5100/W5500 (o microcontrolador não precisa montar os pacotes) ou a pilha feita pela biblioteca no ENC28J60 (EtherCard, UIPEthernet); a conexão cabeada (estável onde o Wi-Fi falha); o encaixe do shield (sem jumpers nem protoboard); o slot microSD; a alimentação e o nível lógico (o que aceita sem conversor). Feche com as bibliotecas ou com “é a escolha ideal para quem...”. Acessórios só quando confirmados.
 
-Fale com o comprador: “possui”, não “tem”; “você” quando couber. Ao voltar a falar do produto, use o nome dele, “o módulo” ou “o shield”, nunca “ele” no início da frase. Tom: o da Smartkits (explica e ensina, sem vender), sem copiar. Varie o foco e a ordem dos fatos entre as opções, não só os sinônimos. Evite elogios vazios (“alta performance”, “excelente estabilidade”, “de qualquer parte do mundo”), repetir o título inteiro ou enumerar especificações. Não mencione valores desconhecidos ou divergentes.
+Ao voltar a falar do produto, use o nome dele, “o módulo” ou “o shield” como sujeito. Evite elogios vazios (“alta performance”, “excelente estabilidade”, “de qualquer parte do mundo”), repetir o título inteiro ou enumerar especificações. Não mencione valores desconhecidos ou divergentes.
 
 PADRONIZAÇÃO DOS NOMES
 

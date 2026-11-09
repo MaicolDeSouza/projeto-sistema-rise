@@ -67,6 +67,17 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
   **O título da descrição e o 1º item incluso acompanham o Nome** (`acompanharTituloNaDescricao`): desde 03/11/2026 o título
   (1ª linha em maiúsculas) acompanha sempre, e o item quando é o Nome de antes ou o título antigo da descrição (sem acento,
   "*SKU" ou "(Cód. …)" na comparação); a proposta que aplica Nome e descrição juntos também passa por aqui.
+- **Estilo dos parágrafos da descrição = um bloco só, igual em todo prompt** (pedido do dono em 09/11/2026: "não fica fluido no
+  mesmo raciocínio ... tenho que ler 2 a 3 vezes", com a Smartkits como referência). O bloco "ESTILO DOS PARÁGRAFOS" mora em
+  `src/lib/ia/estiloDosParagrafos.js` (ordem direta começando pelo sujeito, cada frase continuando a anterior com o porquê,
+  frases de 15 a 30 palavras, sem ";" nem ":" dentro do parágrafo, um "assim não / assim sim" e a releitura antes de
+  responder) e entra **igual** na seção PARÁGRAFOS de todo prompt de `docs/prompts-descricao/`, no `PROMPT_DESCRICAO_PADRAO` e
+  no roteiro da proposta (v18, que o manda seguir mesmo quando o prompt não o traz). **Prompt novo copia o bloco e escreve só
+  o tamanho e o conteúdo de cada parágrafo; nunca redefine o estilo nem pede "frases curtas de no máximo N palavras"** (foi
+  essa regra, nas fresas e nos eletroímãs, que deixou o texto picado). O `teste:extracao` falha se um arquivo da pasta não
+  trouxer o bloco igual, voltar a pedir frase telegráfica ou passar do teto da tela (`MAXIMO_PROMPT_DESCRICAO`, 16.000 desde
+  09/11/2026). O prompt da biblioteca da VPS é cópia do arquivo: mudou o bloco, regrave a biblioteca. Regras comuns e molde de
+  prompt novo em `docs/prompts-descricao/LEIA-ME.md`.
 - **% de lucro = MARKUP sobre o custo, nunca margem sobre o preço** (pedido do dono em 24/10/2026: "custo R$ 50 com 100%
   = R$ 100"). Cadastro de Produto e edição rápida: `(preço − custo) ÷ custo`, sem o imposto (`calcularMarkup` em
   `lib/margem.js`; o R$ continua líquido). Mercado Livre: o lucro ÷ o CUSTO TOTAL (fornecedor + comissão + tarifa +
@@ -349,7 +360,7 @@ tem a segunda trava no mesmo molde desde 08/10/2026: `ML_PUBLICACAO_CODIGOS` (li
 ```bash
 npm run dev                       # https://localhost:3000 (banco: servico postgresql-x64-17)
 npm run diagnostico               # testa as integrações pela linha de comando
-npm run teste:extracao            # 909 asserções da extração, do site em moeda estrangeira (com Adafruit, SparkFun, Waveshare e o ritmo próprio dela), da página Shopify pelo ProductJson (Teknimas), do EAN interno, da conciliação, das medidas, das opções de parágrafo da descrição, do Nome que a descrição acompanha, das regras puras das Correções da descrição, da ordem da aba Concorrentes e da lista do "$" e do cabeçalho de download de arquivo, SEM rede
+npm run teste:extracao            # 915 asserções (com a guarda do estilo dos parágrafos dos prompts) da extração, do site em moeda estrangeira (com Adafruit, SparkFun, Waveshare e o ritmo próprio dela), da página Shopify pelo ProductJson (Teknimas), do EAN interno, da conciliação, das medidas, das opções de parágrafo da descrição, do Nome que a descrição acompanha, das regras puras das Correções da descrição, da ordem da aba Concorrentes e da lista do "$" e do cabeçalho de download de arquivo, SEM rede
 npm run teste:svg                 # 60 asserções do conversor de imagem para SVG (Ferramentas), SEM rede e SEM banco
 npm run teste:cotacao             # 86 asserções da cotação do dólar (Ferramentas): datas, leitura do PTAX e do boletim, gráfico. SEM rede e SEM banco
 npm run teste:versao              # 26 asserções da versão no pé do menu (VPS: DD.MM.AAAA.NN, a data do deploy em São Paulo e o número do deploy, mostrada como "DD.MM.AAAA (build NN) - commit"; PC: "dev" + hora do último commit, "+" se há alteração não commitada; o commit curto aparece ao lado nos dois). SEM rede e SEM banco
@@ -395,7 +406,7 @@ npm run teste:analise-fornecedor  # 73 asserções do modelo padrão da análise
 node scripts/importar-licencas.js --lightburn=<xlsx> --mach3=<xlsx> --pasta=<pasta> --pdf=<pdf> --simular   # importação das planilhas antigas de licenças e da pasta do Mach3 (uma vez; idempotente); --confirmo grava
 npm run teste:saude               # 68 asserções da Saúde do Rise: regras (rotinas, worker, disco, backup, memória, banco, integrações, orçamento, varreduras, PC, healthchecks), o aviso do Telegram, a gravação em RotinaDoWorker e a coleta nos modos PC e VPS. Postgres local, SEM rede; só escreve zz-saude-*
 npm run teste:acessos             # 207 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição, as projeções do lançamento 2 (Painel, lista de Produtos, Cadastros, canais, Scraper, Indicadores), "Ver como", Histórico e o guarda estático de src/app (sem lista de exceções). Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
-npm run teste:proposta            # 338 asserções da proposta automática de produto (com as seções de categorias e SEO da loja e as Correções da descrição no banco): regras de preço/medidas/NCM, validação do plano, gravação por seção (fotos padronizadas em proposta/), aplicar ao formulário, Salvar marcando aplicadas, fotos para a reserva, Conferido com pergunta e o script de verdade (Postgres local, SEM rede; só escreve produtos ZZ-PROP-* e as pastas deles)
+npm run teste:proposta            # 339 asserções da proposta automática de produto (com as seções de categorias e SEO da loja e as Correções da descrição no banco): regras de preço/medidas/NCM, validação do plano, gravação por seção (fotos padronizadas em proposta/), aplicar ao formulário, Salvar marcando aplicadas, fotos para a reserva, Conferido com pergunta e o script de verdade (Postgres local, SEM rede; só escreve produtos ZZ-PROP-* e as pastas deles)
 npm run acessos:admin -- <login>  # torna um login Administrador do Rise (cria ou reativa e liga à função). Na VPS, por SSH, dentro do contêiner do app
 npm run ia:pc                     # NO PC: abre o túnel SSH reverso do LM Studio (127.0.0.1:1234) até a VPS e o religa sozinho se cair; o estado vai para `dados/ia-pc.estado.json` (cartão "Servidor VPS"). Ctrl+C encerra. Ver "Rise AI (Entrega 1)"
 npm run medir:lmstudio -- --modelo=<id>   # mede o modelo carregado no LM Studio com um prompt do tamanho do Rise AI: tempo até o primeiro token, tokens/s e o efeito do cache do prefixo (2 rodadas). Só fala com o LM Studio

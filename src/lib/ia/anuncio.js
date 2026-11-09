@@ -15,6 +15,7 @@ import { idDaCaracteristica, identificarDivergencias, lojasDaCaracteristica, loj
 import { compactarUnidades, formatarLinhaTecnica, maiusculaNoValor, normalizarTerminologiaEletrica } from "./revisaoDescricao";
 import { aplicarCorrecoes, instrucoesComCorrecoes } from "./correcoes";
 import { lerCorrecoesAtivas, somarUsos } from "./correcoesBanco";
+import { ESTILO_DOS_PARAGRAFOS } from "./estiloDosParagrafos";
 import { criarFetchDaOpenAI } from "./gptComoAnthropic";
 import { ehModeloGpt } from "./modelosDaDescricao";
 
@@ -947,11 +948,12 @@ export const PROMPT_DESCRICAO_PADRAO =
   "compatibilidade (Arduino, ESP32, Raspberry Pi) e o que acompanha, quando confirmados; feche " +
   "com um uso típico ou com \"é a escolha ideal para quem...\". Memória, clock e outros números " +
   "só quando são o diferencial; o resto fica nas especificações.\n" +
-  "  Fale com o comprador: frases completas, com verbo (\"possui\", \"oferece\", \"permite\", " +
-  "\"dispensa\"; nunca \"tem\"), \"você\" quando couber, tom que explica e ensina sem vender: " +
-  "nada de \"incrível\", \"de alta qualidade\", \"a solução perfeita\". Ao voltar a falar do " +
-  "produto, use o nome dele, nunca \"ele\" ou \"ela\" sozinho no início da frase. Não repita o " +
-  "título nem enumere especificações.\n" +
+  "  Tom que explica e ensina sem vender: nada de \"incrível\", \"de alta qualidade\", \"a solução " +
+  "perfeita\". Ao voltar a falar do produto, use o nome dele como sujeito. Não repita o título " +
+  "nem enumere especificações.\n" +
+  // O estilo e o mesmo bloco de todos os prompts da biblioteca (pedido do dono em 09/11/2026), sem recuo: o
+  // teste:extracao confere que ele esta aqui igual.
+  ESTILO_DOS_PARAGRAFOS + "\n" +
   "- caracteristicas: as especificações técnicas que as referências confirmam, cada uma com " +
   "nome curto e valor (ex.: nome \"Voltagem de Operação\", valor \"5V\"). Da mais importante para " +
   "a menos importante. Não repita a mesma especificação com nomes diferentes. Para cada campo " +
@@ -991,8 +993,10 @@ export const PROMPT_DESCRICAO_PADRAO =
 
 /// Teto do prompt editado. O padrao tem cerca de 4.500 caracteres; o teto deixa espaco para acrescentar. Era 12.000;
 /// subiu para 14.000 em 25/10/2026, quando a secao PARAGRAFOS no estilo da Smartkits nao coube nos prompts do Arduino e
-/// do ESP32 (os dois estavam a menos de 30 caracteres do teto).
-export const MAXIMO_PROMPT_DESCRICAO = 14000;
+/// do ESP32 (os dois estavam a menos de 30 caracteres do teto). Subiu para 16.000 em 09/11/2026: o bloco do estilo dos
+/// paragrafos (`estiloDosParagrafos.js`, 1.247 caracteres) entrou em todos os prompts e deixou o de Sensores de Gas a 48
+/// caracteres dos 14.000; sem folga, o dono nao conseguiria acrescentar nada pela tela.
+export const MAXIMO_PROMPT_DESCRICAO = 16000;
 
 /**
  * Confere o prompt que veio da tela: texto, nao vazio e dentro do teto.
