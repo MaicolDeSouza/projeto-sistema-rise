@@ -16,7 +16,7 @@ Primeiro parágrafo, DUAS frases curtas: o que ele é e o que ele faz.
 - Atuador: “Este é um solenoide atuador de <tensão>. Quando liga, a haste é puxada com força de <força>.”
 
 Segundo parágrafo, 3 a 5 frases curtas, uma para cada fato confirmado, dizendo o que ele faz na prática:
-- Eletroímã de retenção: ligou, prende; desligou, solta. Só prende depois de encostar: não puxa de longe. A força de retenção é a força para arrancar uma peça plana e limpa encostada nele. Para pendurar uma peça, conte com 5 a 10 vezes menos, com a conta em gramas (3kg = de 300g a 600g).
+- Eletroímã de retenção: ligou, prende; desligou, solta. Só prende depois de encostar: não puxa de longe. A força de retenção, em kg e N, é a força para arrancar uma peça plana e limpa encostada nele: “Os 15kg (150N) são a força para arrancar uma peça plana e limpa.” Para pendurar uma peça, conte com 5 a 10 vezes menos, com “algo em torno de” e a conta, sem dois-pontos: “Para pendurar uma peça, conte com 5 a 10 vezes menos, algo em torno de 1,5kg a 3kg.” Abaixo de 1kg a conta vai em gramas (3kg = algo em torno de 300g a 600g; 5kg = algo em torno de 500g a 1kg).
 - Atuador: a haste anda <curso> quando liga; a mola devolve a haste quando desliga (só com fonte); deve ficar ligado só por pouco tempo (só com fonte).
 - Os dois: para ligar no Arduino ou ESP32, use um módulo relé ou um transistor.
 
@@ -40,11 +40,17 @@ Potência: substitui Consumo e Potência consumida: “4W”.
 
 Força de Retenção (eletroímã): substitui Força, Capacidade, Capacidade de adesão e Força de atração: em kg e N, como a fonte publicar: “5kg (50N)”. Fonte só com kg: N = kg × 9,8, arredondado (“8kg (78N)”). Fonte só com N: kg = N ÷ 9,8, com uma casa (“25N” = “2,5kg (25N)”).
 
+Peso da peça que consegue levantar (eletroímã): a força de retenção dividida por 10 e por 5, a mesma conta do segundo parágrafo (gramas abaixo de 1kg), sempre com a ressalva do material: “Aprox. 1,5kg a 3kg (Varia conforme características do material)”. É o único campo em que “Aprox.” fica.
+
 Força (atuador): a força de tração em N, com o curso em que foi medida quando a fonte disser: “5N”, “20N (a 10mm)”.
 
 Curso (atuador): substitui Deslocamento e Curso do êmbolo: “10mm”.
 
-Diâmetro: o diâmetro do corpo do eletroímã: “25mm”.
+Diâmetro externo: substitui Diâmetro; o diâmetro do corpo do eletroímã: “30mm”.
+
+Diâmetro interno: o diâmetro do núcleo no centro da face que prende, como o desenho com cotas ou o datasheet mostrar: “14mm”. Nunca medido pela foto sem cota.
+
+Altura: a altura do corpo, sem o cabo: “22mm”.
 
 Fixação: substitui Rosca, Parafuso de fixação e Furo de fixação: “furo roscado M4 no centro da face de trás”.
 
@@ -65,7 +71,7 @@ Cada item contém nome, valor e referencias: nome “Força de Retenção”, va
 Com referências disponíveis, os campos obrigatórios do tipo aparecem nesta ordem. Sem valor confirmado, omita o campo: nunca escreva “?” nem “não informado”. Não acrescente campos fora das listas, mesmo que uma loja os publique (ex.: Origem, Unidade venda, Formato, Design, Durabilidade, Versatilidade, Força dielétrica, IPI).
 
 Eletroímã de retenção, campos obrigatórios:
-Fabricante; Modelo; Tipo; Tensão de Operação; Corrente; Potência; Força de Retenção; Diâmetro; Fixação; Comprimento do Cabo.
+Fabricante; Modelo; Tipo; Tensão de Operação; Corrente; Potência; Força de Retenção; Peso da peça que consegue levantar; Diâmetro externo; Diâmetro interno; Altura; Fixação; Comprimento do Cabo.
 Condicionais (só com fonte), depois dos obrigatórios:
 Peça Atraída; Regime de Trabalho; Grau de Proteção; Temperatura de Operação; Material.
 
@@ -85,7 +91,7 @@ Números colados às unidades: 24VDC, 170mA, 4W, 50N, 200mm. Use vírgula decima
 
 REGRAS ESPECÍFICAS
 
-Força de retenção não é o peso que ele levanta. Ela é medida com uma chapa de aço plana, limpa, sem pintura, encostada na face inteira. Na prática, o peso que ele levanta é de 5 a 10 vezes menor (Adafruit, Little Bird). Pintura, ferrugem, chapa fina ou um vão de papel derrubam a força. Nunca escreva que ele segura, levanta ou aguenta “até” o valor da força de retenção: a frase do peso pendurado contradiria essa (erro apontado pelo dono em 08/11/2026). Uma palavra para cada ideia: “força de retenção” e “prende” para a força; “pendurar” para o peso. Não se contradiga entre as frases.
+Força de retenção não é o peso que ele levanta. Ela é medida com uma chapa de aço plana, limpa, sem pintura, encostada na face inteira. Na prática, o peso que ele levanta é de 5 a 10 vezes menor (Adafruit, Little Bird). Pintura, ferrugem, chapa fina ou um vão de papel derrubam a força. Nunca escreva que ele segura, levanta ou aguenta “até” o valor da força de retenção: a frase do peso pendurado contradiria essa (erro apontado pelo dono em 08/11/2026). Uma palavra para cada ideia: “força de retenção” e “prende” para a força; “pendurar” para o peso. Não se contradiga entre as frases: o intervalo do peso pendurado é o mesmo no segundo parágrafo e no campo Peso da peça que consegue levantar.
 
 O eletroímã de retenção só segura enquanto está ligado e depois de encostar na peça: não puxa de longe. Nunca escreva que atrai à distância nem que segura sem energia.
 
@@ -105,7 +111,7 @@ Em referencias, registre só os números das referências fornecidas que sustent
 
 ITENS INCLUSOS
 
-O primeiro item é o próprio produto, com quantidade e nome técnico: “01 ELETROÍMÃ DE RETENÇÃO P25/20 24VDC”. O parafuso de fixação entra só quando o cadastro ou o fornecedor disser que acompanha (“01 PARAFUSO M4X10”). A embalagem de outro vendedor não comprova o conteúdo vendido pela 4hobby.
+O primeiro item é o próprio produto, com quantidade e o nome do produto como está no título do cadastro: “01 ELETROÍMÃ SOLENÓIDE 24VDC 15KG 150N P30/22”. O parafuso de fixação entra só quando o cadastro ou o fornecedor disser que acompanha (“01 PARAFUSO M4X10”). A embalagem de outro vendedor não comprova o conteúdo vendido pela 4hobby.
 
 PESO E DIMENSÕES (OBRIGATÓRIOS)
 
