@@ -32,6 +32,7 @@ const { clienteDoPedido } = await import("../src/lib/pedidos/cliente.js");
 const { custoCongeladoDoProduto, casarItens } = await import("../src/lib/pedidos/itens.js");
 const { parcelasDaEstimativa, parcelasDoReal, devolvido, lucroDivergente, lucroFechado, estimativaValida } = await import("../src/lib/pedidos/lucro.js");
 const { resumoDoMercadoPago, conferirComMercadoPago } = await import("../src/lib/pedidos/mercadoPago.js");
+const { codigoVendido } = await import("../src/lib/pedidos/codigo.js");
 const { necessidadeDoPedido, calcularPecas, saldoSemCorte } = await import("../src/lib/pedidos/pecas.js");
 const { aplicarPedidoLido, listarPedidosDeVenda, lerPedidoDeVenda, marcarEmSeparacao, salvarCustoDoFreteManual, vincularCliente, espelharNoBling, criarClienteDoPedido, buscarClientesParaVincular, opcoesDasColunas, resumoDaLista, recalcularPecasDosPedidosAbertos, pedidosParaReconferir, pedidosParaConferirNoMercadoPago } = await import("../src/lib/pedidos/banco.js");
 const { rodarLeituraDePedidos, reconferirPedidosPendentes, conferirMercadoPagoPendentes, lerPedidoDaOrigem: lerPedidoDaOrigemRC } = await import("../src/lib/pedidos/leitura.js");
@@ -585,6 +586,7 @@ try {
       const kit = parcelasDaEstimativa({ origem: "MERCADO_LIVRE", itens: [{ quantidade: 20, quantidadeDoKit: 20, precoUnitario: 23.9, custoUnitarioCongelado: 0.33 }], totais: {}, custosML: { percentual: 0.12, tarifaFixa: 0, frete: 0 } });
       conferir("kit: a estimativa e por kit vendido (receita do kit, custo das 20 unidades)", [kit.receita, kit.custo, kit.porKit, kit.lucro < kit.receita], [23.9, 6.6, true, true]);
       conferir("kit: estimativa antiga de kit e refeita; a de item comum continua", [estimativaValida({ origem: "editorML" }, [{ quantidadeDoKit: 20 }]), estimativaValida({ origem: "editorML", porKit: true }, [{ quantidadeDoKit: 20 }]), estimativaValida({ origem: "editorML" }, [{ quantidadeDoKit: 1 }]), estimativaValida({ origem: null }, [])], [false, true, true, false]);
+      conferir("kit: o codigo mostrado e o vendido (910207_20), nao o do produto base", [codigoVendido({ sku: "910207", codigoNaOrigem: "910207_20", quantidadeDoKit: 20 }), codigoVendido({ sku: "910207", codigoNaOrigem: null, quantidadeDoKit: 20 }), codigoVendido({ sku: "120920", codigoNaOrigem: "120920", quantidadeDoKit: 1 }), codigoVendido({ sku: null, codigoNaOrigem: "ZZ-1" })], ["910207_20", "910207_20", "120920", "ZZ-1"]);
 
       // O ciclo contra o ML falso: sem Mercado Pago, bate, diverge, falha mantem o guardado, a rotina rele ate liberar.
       const pedidoMP = { ...fx("ml-order"), id: 2000000097, order_items: fx("ml-order").order_items.map((linha) => ({ ...linha, item: { ...linha.item, id: "MLBZZNAOHA2", seller_sku: "ZZ-PED-A", seller_custom_field: "ZZ-PED-A" } })) };

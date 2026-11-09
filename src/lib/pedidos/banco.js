@@ -7,6 +7,7 @@ import { clienteDoPedido } from "@/lib/pedidos/cliente";
 import { casarItens } from "@/lib/pedidos/itens";
 import { SITUACOES, condicaoDaSituacao, situacaoDoPedido, statusDoEnvio, statusDoPedido } from "@/lib/pedidos/status";
 import { devolvido, estimativaValida, lucroDivergente, lucroFechado, parcelasDaEstimativa, parcelasDoReal } from "@/lib/pedidos/lucro";
+import { codigoVendido } from "@/lib/pedidos/codigo";
 import { conferirComMercadoPago, mercadoPagoParaTela } from "@/lib/pedidos/mercadoPago";
 import { estimativaDoAnuncioML } from "@/lib/pedidos/estimativaML";
 import { calcularPecas } from "@/lib/pedidos/pecas";
@@ -320,7 +321,8 @@ function filtroDaLista({ busca, desde, ate, canais, status, envio, situacoes, co
   // Filtro das colunas Codigo e Local (pedido do dono em 07/11/2026): vale QUALQUER item do pedido, nao so o 1o que a
   // linha mostra. O codigo e o SKU do produto do Rise ou, sem produto, o codigo que veio do canal.
   if (Array.isArray(codigos) && codigos.length > 0) {
-    e.push({ itens: { some: { OR: [{ produto: { sku: { in: codigos } } }, { produtoId: null, codigoNaOrigem: { in: codigos } }] } } });
+    // O codigo VENDIDO (`codigoVendido`, 09/11/2026): o kit pelo codigo do anuncio (910207_20), o resto pelo SKU do produto.
+    e.push({ itens: { some: { OR: [{ quantidadeDoKit: 1, produto: { sku: { in: codigos } } }, { quantidadeDoKit: { gt: 1 }, codigoNaOrigem: { in: codigos } }, { produtoId: null, codigoNaOrigem: { in: codigos } }] } } });
   }
   if (Array.isArray(locais) && locais.length > 0) e.push({ itens: { some: { produto: { localizacao: { in: locais } } } } });
   if (soComAviso) where.avisos = { isEmpty: false };
@@ -416,7 +418,7 @@ export async function listarPedidosDeVenda({ busca, desde, ate, canais, status, 
       doRise: doRise.has(p.id),
       // Qtd. em KITS vendidos (09/11/2026): o "20x Chave" vendido uma vez e 1x, nao 20x (as 20 unidades ficam no estoque e nas pecas).
       item: primeiro
-        ? { titulo: primeiro.titulo, quantidade: Math.round(primeiro.quantidade / (primeiro.quantidadeDoKit || 1)), unidadesPorKit: primeiro.quantidadeDoKit ?? 1, sku: primeiro.produto?.sku ?? primeiro.codigoNaOrigem ?? null, localizacao: primeiro.produto?.localizacao ?? null, produtoId: primeiro.produtoId, foto: fotoDe(primeiro.produto) }
+        ? { titulo: primeiro.titulo, quantidade: Math.round(primeiro.quantidade / (primeiro.quantidadeDoKit || 1)), unidadesPorKit: primeiro.quantidadeDoKit ?? 1, sku: codigoVendido({ sku: primeiro.produto?.sku, codigoNaOrigem: primeiro.codigoNaOrigem, quantidadeDoKit: primeiro.quantidadeDoKit }), localizacao: primeiro.produto?.localizacao ?? null, produtoId: primeiro.produtoId, foto: fotoDe(primeiro.produto) }
         : null,
     };
   });
@@ -438,7 +440,7 @@ export async function opcoesDasColunas(filtro = {}) {
     // Codigo e Local (07/11/2026): os valores dos itens dos pedidos da lista, sem o filtro da propria coluna.
     prisma.itemDoPedidoDeVenda.findMany({
       where: { pedido: filtroDaLista({ ...filtro, codigos: undefined }) },
-      select: { codigoNaOrigem: true, produto: { select: { sku: true } } },
+      select: { codigoNaOrigem: true, quantidadeDoKit: true, produto: { select: { sku: true } } },
     }),
     prisma.itemDoPedidoDeVenda.findMany({
       where: { pedido: filtroDaLista({ ...filtro, locais: undefined }), produto: { localizacao: { not: null } } },
@@ -453,7 +455,7 @@ export async function opcoesDasColunas(filtro = {}) {
     status: ORDEM_DO_STATUS.filter((v) => status.has(v)),
     envio: ORDEM_DO_ENVIO.filter((v) => envio.has(v)),
     situacoes: SITUACOES.filter((v) => situacoes.has(v)),
-    codigos: ordenados(itensPorCodigo.map((i) => i.produto?.sku ?? i.codigoNaOrigem)),
+    codigos: ordenados(itensPorCodigo.map((i) => codigoVendido({ sku: i.produto?.sku, codigoNaOrigem: i.codigoNaOrigem, quantidadeDoKit: i.quantidadeDoKit }))),
     locais: ordenados(itensPorLocal.map((i) => i.produto?.localizacao)),
   };
 }

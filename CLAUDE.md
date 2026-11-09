@@ -5758,7 +5758,7 @@ Spec `docs/superpowers/specs/2026-11-04-modulo-pedidos-de-venda-design.md`, plan
   **Kit (mesmo dia, o dono: o 910207_20 com R$ 243,60 de lucro numa venda de R$ 23,90):** a estimativa multiplicava o preço do kit
   pelas 20 unidades. O item guarda `quantidadeDoKit` (migration `20261109b_kit_no_item_do_pedido`), a estimativa é por kit vendido
   (`porKit` em `lucro.js`, marca `porKit: true`) e a estimativa de kit sem a marca é refeita na próxima leitura (`estimativaValida`).
-  A coluna Qtd. de Vendas e a aba Itens mostram kits (as unidades na dica e embaixo). Testes no `teste:pedidos`.
+  A coluna Qtd. de Vendas e a aba Itens mostram kits (as unidades na dica e embaixo), e o **código mostrado é o vendido** (`codigoVendido`, `lib/pedidos/codigo.js`: no kit, o do anúncio, 910207_20, com o produto base na dica da aba Itens; o filtro da coluna Código segue a mesma regra; o dono viu o 2000019308589680 com 910207). Testes no `teste:pedidos`.
 
 **Tela "Vendas" (07/11/2026, pedido do dono):** o bloco e a lista se chamam **Vendas** (menu, título, acesso; a rota segue
 `/pedidos` e o recurso `tela.pedidos`). Período padrão de **1 mês com as duas pontas preenchidas** (`umMesAntes`; o "até" ficava em

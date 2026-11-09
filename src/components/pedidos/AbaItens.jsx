@@ -1,6 +1,7 @@
 import { Package } from "lucide-react";
 
 import FotoComLupa from "@/components/ui/FotoComLupa";
+import { codigoVendido } from "@/lib/pedidos/codigo";
 
 import CopiarCodigo from "./CopiarCodigo";
 import { moeda } from "./formato";
@@ -79,9 +80,17 @@ export default function AbaItens({ pedido }) {
                     {/* O codigo nao abre mais o produto (pedido do dono em 09/11/2026): so o nome abre; o codigo se seleciona e tem o botao Copiar. */}
                     <span className="group mt-0.5 flex items-center gap-1 text-xs text-suave">
                       <IconeDoRise item={item} />
-                      <span className="ml-0.5 select-text font-mono">{item.produto ? item.produto.sku : (item.codigoNaOrigem ?? "sem código")}</span>
-                      {(item.produto?.sku ?? item.codigoNaOrigem) && <CopiarCodigo codigo={item.produto?.sku ?? item.codigoNaOrigem} />}
-                      {item.produto && item.codigoNaOrigem && item.codigoNaOrigem !== item.produto.sku && <span title="Código no canal">({item.codigoNaOrigem})</span>}
+                      {/* O codigo VENDIDO (09/11/2026): no kit do ML, o do anuncio (910207_20), com o produto base na dica. */}
+                      <span
+                        className="ml-0.5 select-text font-mono"
+                        title={item.produto && item.quantidadeDoKit > 1 ? `Kit de ${item.quantidadeDoKit} do ${item.produto.sku}` : undefined}
+                      >
+                        {codigoVendido({ sku: item.produto?.sku, codigoNaOrigem: item.codigoNaOrigem, quantidadeDoKit: item.quantidadeDoKit }) ?? "sem código"}
+                      </span>
+                      {codigoVendido({ sku: item.produto?.sku, codigoNaOrigem: item.codigoNaOrigem, quantidadeDoKit: item.quantidadeDoKit }) && (
+                        <CopiarCodigo codigo={codigoVendido({ sku: item.produto?.sku, codigoNaOrigem: item.codigoNaOrigem, quantidadeDoKit: item.quantidadeDoKit })} />
+                      )}
+                      {item.produto && !(item.quantidadeDoKit > 1) && item.codigoNaOrigem && item.codigoNaOrigem !== item.produto.sku && <span title="Código no canal">({item.codigoNaOrigem})</span>}
                     </span>
                   </span>
                 </span>
