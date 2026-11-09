@@ -355,7 +355,7 @@ export async function rodarLeituraDePedidos({ ml = null, li = null, bling = null
   }
   espelhos = pendentes.slice(-TETO_DE_ESPELHOS_PENDENTES);
 
-  const reconferidos = await reconferirPedidosPendentes({ ...clientes, agora, taxas }).catch(() => ({ conferidos: 0, falhas: 0 }));
+  const reconferidos = await reconferirPedidosPendentes({ ...clientes, agora, taxas }).catch((erro) => ({ conferidos: 0, falhas: 1, erros: [erro?.message ?? String(erro)] }));
   const espelhosAusentes = await marcarEspelhosAusentes(agora);
   const erros = detalhes.length;
   await gravarMemoria({ cursores, espelhosPendentes: espelhos, ignoradosPorLoja: ignorados, lidos, criados, erros, ultimaVoltaEm: new Date(agora).toISOString() });
@@ -372,6 +372,7 @@ export async function rodarLeituraDePedidos({ ml = null, li = null, bling = null
     espelhosPendentes: espelhos.length,
     espelhosAusentes,
     reconferidos: reconferidos.conferidos,
+    reconferirErros: reconferidos.erros,
     aviso: erros > 0 ? `${erros} falha(s)` : null,
     detalhes,
   };
@@ -493,18 +494,26 @@ export async function processarNotificacoes({ ml = null, li = null, bling = null
  * anuncio mudou no Rise depois (pedido do dono em 09/11/2026). Sem isso o pedido antigo nunca saia do aviso: a rotina so
  * le o que mudou na origem. Nunca lanca; uma falha deixa o pedido para a proxima volta.
  */
-export async function reconferirPedidosPendentes({ ml = null, li = null, bling = null, agora = new Date(), taxas = null } = {}) {
-  const resultado = { conferidos: 0, falhas: 0 };
-  const lista = await pedidosParaReconferir().catch(() => []);
+export async function reconferirPedidosPendentes({ ml = null, li = null, bling = null, agora = new Date(), taxas = null, idsExternos = null } = {}) {
+  const resultado = { conferidos: 0, falhas: 0, erros: [] };
+  let lista;
+  try {
+    lista = await pedidosParaReconferir({ idsExternos });
+  } catch (erro) {
+    resultado.erros.push(`lista: ${erro?.message ?? erro}`);
+    return resultado;
+  }
   for (const pedido of lista) {
     try {
-      // O lucro fechado sem custo nunca se refaz sozinho; aqui ele ainda esta em aberto de verdade.
+      // A versao de 09/11/2026 chamava a leitura sem o numero do pedido e o erro sumia no catch: nenhum pedido era relido.
+      const normalizado = await lerPedidoDaOrigem(pedido.origem, pedido.idExterno, { ml, li, bling });
+      // O lucro fechado sem custo nunca se refaz sozinho; aqui ele ainda esta em aberto de verdade (so depois de ler a origem).
       if (pedido.semCusto) await reabrirLucroDoPedido(pedido.id);
-      const normalizado = await lerPedidoDaOrigem(pedido.origem, { ml, li, bling });
       await aplicarPedidoLido(normalizado, { cliente: ml ?? clienteML(), taxas, agora });
       resultado.conferidos += 1;
-    } catch {
+    } catch (erro) {
       resultado.falhas += 1;
+      if (resultado.erros.length < 5) resultado.erros.push(`${pedido.origem} ${pedido.idExterno}: ${erro?.message ?? erro}`);
     }
   }
   return resultado;

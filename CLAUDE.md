@@ -5736,6 +5736,9 @@ Spec `docs/superpowers/specs/2026-11-04-modulo-pedidos-de-venda-design.md`, plan
   **Item sem anúncio nem produto com o código casa pelo "BASE_N"** (09/11/2026, o dono: o 910207_20 vendido no ML seguia sem produto e sem lucro
   com o 910207 conferido e com custo): `casarItens` (`lib/pedidos/itens.js`) lê `910207_20` como 20 unidades do produto `910207` (N de 2 a 9999,
   só depois do anúncio, do blingId e do SKU exato), e o custo congelado é o da unidade. Código `_1` ou com sufixo de letra não vira kit.
+  **A 1ª versão da releitura (deploys .88 e .89) chamava `lerPedidoDaOrigem` sem o número do pedido** e o erro sumia no `catch`: nenhum pedido
+  foi relido (o dono viu o 120920 conferido e o pedido ainda "não conferido"). Corrigido; os erros da releitura vão para o log do worker
+  ("reconferir falhou") e o `teste:pedidos` passa pela releitura inteira contra o ML falso (`idsExternos` restringe a lista no teste).
 
 **Tela "Vendas" (07/11/2026, pedido do dono):** o bloco e a lista se chamam **Vendas** (menu, título, acesso; a rota segue
 `/pedidos` e o recurso `tela.pedidos`). Período padrão de **1 mês com as duas pontas preenchidas** (`umMesAntes`; o "até" ficava em

@@ -671,9 +671,13 @@ export async function espelharNoBling(origem, numeroNaLoja, { blingPedidoId, bli
  * com o produto. Aqui o casamento e refeito so no banco (sem rede) e devolve `{ origem, idExterno }` de quem mudaria: o
  * produto agora esta conferido, o item agora tem custo, ou o anuncio vendido agora existe no Rise (estimativa de novo).
  */
-export async function pedidosParaReconferir({ limite = 40 } = {}) {
+export async function pedidosParaReconferir({ limite = 40, idsExternos = null } = {}) {
   const candidatos = await prisma.pedidoDeVenda.findMany({
-    where: { avisos: { hasSome: ["semCusto", "produtoNaoConferido", "semEstimativa", "produtoForaDoRise"] } },
+    where: {
+      avisos: { hasSome: ["semCusto", "produtoNaoConferido", "semEstimativa", "produtoForaDoRise"] },
+      // So o teste restringe: a rotina olha todos.
+      ...(Array.isArray(idsExternos) ? { idExterno: { in: idsExternos.map(String) } } : {}),
+    },
     orderBy: [{ dataDaVenda: "desc" }, { id: "asc" }],
     take: 300,
     select: { id: true, origem: true, idExterno: true, avisos: true, dataDaVenda: true, itens: { orderBy: { ordem: "asc" }, select: { idNaOrigem: true, codigoNaOrigem: true, quantidade: true } } },

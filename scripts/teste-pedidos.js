@@ -33,7 +33,7 @@ const { custoCongeladoDoProduto, casarItens } = await import("../src/lib/pedidos
 const { parcelasDaEstimativa, parcelasDoReal, devolvido, lucroDivergente, lucroFechado } = await import("../src/lib/pedidos/lucro.js");
 const { necessidadeDoPedido, calcularPecas, saldoSemCorte } = await import("../src/lib/pedidos/pecas.js");
 const { aplicarPedidoLido, listarPedidosDeVenda, lerPedidoDeVenda, marcarEmSeparacao, salvarCustoDoFreteManual, vincularCliente, espelharNoBling, criarClienteDoPedido, buscarClientesParaVincular, opcoesDasColunas, resumoDaLista, recalcularPecasDosPedidosAbertos, pedidosParaReconferir } = await import("../src/lib/pedidos/banco.js");
-const { rodarLeituraDePedidos } = await import("../src/lib/pedidos/leitura.js");
+const { rodarLeituraDePedidos, reconferirPedidosPendentes, lerPedidoDaOrigem: lerPedidoDaOrigemRC } = await import("../src/lib/pedidos/leitura.js");
 const { ROTINAS_DO_WORKER } = await import("../src/lib/saude/regras.js");
 const { RECURSOS } = await import("../src/lib/acessos/recursos.js");
 const { Prisma } = await import("@/generated/prisma/client");
@@ -546,6 +546,22 @@ try {
     const rc2 = await aplicarPedidoLido(nrc, { agora });
     const itemRC = (await prisma.pedidoDeVenda.findUnique({ where: { id: rc1.id }, include: { itens: true } })).itens[0];
     conferir("reconferir: custo preenchido e aviso some", [Number(itemRC.custoUnitarioCongelado), rc2.avisos.includes("semCusto")], [5, false]);
+    // Reconferir de ponta a ponta (09/11/2026: a 1a versao chamava a leitura sem o numero do pedido e nada era relido).
+    {
+      const pedidoML = { ...fx("ml-order"), id: 2000000099, order_items: fx("ml-order").order_items.map((linha) => ({ ...linha, item: { ...linha.item, id: "MLBZZNAOHA", seller_sku: "ZZ-PED-B", seller_custom_field: "ZZ-PED-B" } })) };
+      const mlRC = criarMLFalso({ pedidos: [pedidoML], envios: [fx("ml-shipment")], custosDosEnvios: { 40000000001: fx("ml-shipment-costs") }, faturas: [fx("ml-invoice")], cobrancas: { 2000000099: fx("ml-billing") } });
+      const { li: liRC, bling: blingRC } = falsos();
+      await prisma.produto.update({ where: { sku: "ZZ-PED-B" }, data: { conferido: false } });
+      const lidoRC = await lerPedidoDaOrigemRC("MERCADO_LIVRE", "2000000099", { ml: mlRC });
+      const rcML = await aplicarPedidoLido(lidoRC, { cliente: mlRC, agora });
+      conferir("reconferir ML: nasce com o produto nao conferido", rcML.avisos.includes("produtoNaoConferido"), true);
+      await prisma.produto.update({ where: { sku: "ZZ-PED-B" }, data: { conferido: true } });
+      const volta = await reconferirPedidosPendentes({ ml: mlRC, li: liRC, bling: blingRC, agora, idsExternos: ["2000000099"] });
+      const depoisRC = await prisma.pedidoDeVenda.findUnique({ where: { id: rcML.id } });
+      conferir("reconferir ML: rele da origem e o aviso some", [volta.conferidos, volta.falhas, depoisRC.avisos.includes("produtoNaoConferido")], [1, 0, false]);
+      await prisma.produto.update({ where: { sku: "ZZ-PED-B" }, data: { conferido: false } });
+      await prisma.pedidoDeVenda.delete({ where: { id: rcML.id } });
+    }
     const semDoc = await aplicarPedidoLido({ ...nbling, idExterno: "ZZ-PED-105", numero: "ZZ-PED-105", comprador: { ...nbling.comprador, documento: null } }, { agora });
     const criado = await criarClienteDoPedido(semDoc.id);
     const gSemDoc = await prisma.pedidoDeVenda.findUnique({ where: { id: semDoc.id }, include: { cliente: true } });
