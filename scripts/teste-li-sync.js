@@ -1117,6 +1117,9 @@ try {
       const mescladas = mesclarEtapas(iniciais, [{ id: "permissao", estado: "feito", detalhe: null }, { id: "ler", estado: "feito", detalhe: null }]);
       conferir("mesclar: entre uma etapa e a outra a primeira que falta fica andando", mescladas.map((e) => e.estado), ["feito", "feito", "andando", "espera", "espera", "espera", "espera"]);
       conferir("fechar com sucesso: tudo concluido menos a conferencia, que e da tela", etapasComOResultado(mescladas, { ok: true }).map((e) => e.estado), ["feito", "feito", "feito", "feito", "feito", "feito", "espera"]);
+      // Uma etapa que falhou sem derrubar o envio (o atacado do Publicar do ML, 09/11/2026) continua falhou no fim com sucesso.
+      const comUmaFalha = [{ id: "a", estado: "feito", detalhe: null }, { id: "b", estado: "falhou", detalhe: "sem sugestão" }, { id: "c", estado: "andando", detalhe: null }];
+      conferir("fechar com sucesso: a etapa que o servidor marcou como falha fica falhou, com o motivo", etapasComOResultado(comUmaFalha, { ok: true }).map((e) => [e.estado, e.detalhe]), [["feito", null], ["falhou", "sem sugestão"], ["feito", null]]);
       conferir("fechar com falha sem marca do servidor: a que andava falha com o erro", etapasComOResultado(mescladas, { ok: false, erro: "Deu ruim" }).map((e) => [e.estado, e.detalhe]), [["feito", null], ["feito", null], ["falhou", "Deu ruim"], ["espera", null], ["espera", null], ["espera", null], ["espera", null]]);
     }
     conferir("cadastro incompleto: o Sincronizar nao ativa o produto", [parou.etapa, sincDoIncompleto.alterados.some((a) => a.campo === "ativo"), li6.produtos().at(-1).ativo], ["estoque", false, false]);

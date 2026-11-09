@@ -35,9 +35,12 @@ export function iniciarProgressoML(anuncioId, ids = null) {
 
   const etapa = (id) => item.etapas.find((candidata) => candidata.id === id);
   return {
-    andando(id) {
+    /// `detalhe`: o que a etapa esta esperando (o atacado do Publicar: "aguardando a sugestão do ML (20 s de 90 s)", 09/11/2026).
+    andando(id, detalhe = null) {
       const alvo = etapa(id);
-      if (alvo) alvo.estado = "andando";
+      if (!alvo) return;
+      alvo.estado = "andando";
+      alvo.detalhe = detalhe;
     },
     feita(id, detalhe = null) {
       const alvo = etapa(id);

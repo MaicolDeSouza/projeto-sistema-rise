@@ -373,6 +373,12 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
     carregarLista({ tipo: "ok", texto: resultado?.destino === "encerrar" ? "Anúncio encerrado no Mercado Livre." : "Anúncio excluído." });
   }
 
+  // O "Voltar" do editor (09/11/2026): a lista de todos os anuncios do produto, relida, sem recado.
+  function voltarParaLista() {
+    setFase("carregando");
+    carregarLista(null);
+  }
+
   function tentarDeNovo() {
     setFase("carregando");
     iniciar(notaDaLista.current);
@@ -399,6 +405,9 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
         aoFechar={aoFechar}
         aoClonar={abrirClone}
         aoExcluido={aoExcluido}
+        // "Voltar" a lista (pedido do dono em 09/11/2026): com mais de um anuncio, ou no anuncio novo/clonado de um produto que ja
+        // tem anuncio. A lista e relida: o "!" e a situacao de cada linha podem ter mudado no editor.
+        aoVoltar={anuncios.length > 1 || (!editor.anuncioId && anuncios.length > 0) ? voltarParaLista : null}
       />
     );
   }
@@ -483,6 +492,18 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
                       </span>
                       {/* A variante em texto (pedido do dono em 08/11/2026: "fique claro se e classico + frete, premium + frete"). */}
                       <span className="shrink-0 text-xs text-suave">{rotuloDaVariante(anuncio)}</span>
+                      {/* O "!" do anuncio com problema (pedido do dono em 09/11/2026): o mesmo selo do icone da lista, com o motivo
+                          ao passar o mouse; clicar na linha abre o editor, onde a aba Divergencias mostra o que fazer. */}
+                      {anuncio.alerta && (
+                        <span
+                          role="img"
+                          title={anuncio.alerta}
+                          aria-label={`Precisa de atenção: ${anuncio.alerta}`}
+                          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-400 text-xs leading-none font-bold text-amber-950"
+                        >
+                          !
+                        </span>
+                      )}
                       <Badge tom={situacao.tom}>{situacao.rotulo}</Badge>
                     </button>
                     {acessos?.editar !== false && (

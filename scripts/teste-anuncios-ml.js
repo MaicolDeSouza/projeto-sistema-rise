@@ -36,8 +36,8 @@ const { montarDescricaoML } = await import("../src/lib/canaisDeVenda/ml/descrica
 const { rascunhoInicial, aplicarComposicao, descricaoDoRise, medidasDoKit } = await import("../src/lib/canaisDeVenda/ml/rascunho.js");
 const { ABAS_ML, validarRascunhoML, medidasFaltando } = await import("../src/lib/canaisDeVenda/ml/validacao.js");
 const { montarPayloadML, nomeDaFoto, eanDoKit } = await import("../src/lib/canaisDeVenda/ml/payload.js");
-const { estadoDoIconeML, rotuloDoIconeML } = await import("../src/lib/canaisDeVenda/ml/icone.js");
-const { RascunhoMLSchema, LIMITES_ML } = await import("../src/lib/canaisDeVenda/ml/esquema.js");
+const { estadoDoIconeML, motivosDoProblemaML, rotuloDoIconeML, temProblemaNoIconeML } = await import("../src/lib/canaisDeVenda/ml/icone.js");
+const{ RascunhoMLSchema, LIMITES_ML } = await import("../src/lib/canaisDeVenda/ml/esquema.js");
 const {
   contextoDosProdutos,
   buscarProdutoParaAnuncio,
@@ -573,6 +573,14 @@ try {
     conferir("icone: publicado e outro com erro: verde com selo", estadoDoIconeML([ml("PUBLICADO", "ATIVA"), ml("ERRO")]), { publicado: true, pausado: false, erro: true, rascunho: false, desatualizado: false, naoConferido: false, partesDesatualizadas: [], precisaAgirNoML: false, estoqueDivergenteNoML: false, estoquesNoML: [], estadosNoML: [], catalogoMudouNoML: false, catalogosNoML: [], catalogos: 0 });
     conferir("icone: anuncio de outro canal nao conta", estadoDoIconeML([{ canal: "BLING", status: "ERRO" }, { canal: "LOJA_INTEGRADA", status: "PUBLICADO", situacaoCanal: "ATIVA" }]).publicado, false);
     conferir("icone: lista invalida", estadoDoIconeML(undefined).erro, false);
+    // O "!" de cada anuncio no popup do produto (pedido do dono em 09/11/2026: "mostra ! no icone do ML, porem no popup nao
+    // mostra"): a mesma regra do icone, com o motivo em texto.
+    const comPartes = (partes) => estadoDoIconeML([{ ...ml("PUBLICADO", "ATIVA"), mudancas: { partes, naoConferido: false } }]);
+    conferir("problema do icone: publicado em dia nao tem", [temProblemaNoIconeML(estadoDoIconeML([ml("PUBLICADO", "ATIVA")])), motivosDoProblemaML(estadoDoIconeML([ml("PUBLICADO", "ATIVA")]))], [false, []]);
+    conferir("problema do icone: erro na publicacao", [temProblemaNoIconeML(estadoDoIconeML([ml("ERRO")])), motivosDoProblemaML(estadoDoIconeML([ml("ERRO")]))], [true, ["com erro na publicação"]]);
+    conferir("problema do icone: atacado e prazo alterados tem nome", motivosDoProblemaML(comPartes(["prazo", "atacado"])), ["desatualizado: prazo e atacado alterados, falta enviar ao ML"]);
+    conferir("problema do icone: descricao e titulo mudaram no produto", motivosDoProblemaML(comPartes(["descricao", "titulo"])), ["desatualizado: título e descrição mudaram no produto"]);
+    conferir("problema do icone: catalogo e estoque viram texto", motivosDoProblemaML({ catalogoMudouNoML: true, catalogosNoML: ["entrou no catálogo X"], estoqueDivergenteNoML: true, estoquesNoML: [{ ml: 3, bling: 5 }] }), ["estoque no ML 3, no Bling 5", "entrou no catálogo X"]);
     conferir("rotulo do icone: sem anuncio", rotuloDoIconeML({ publicado: false, erro: false }), "Anúncio no Mercado Livre: sem anúncio");
     conferir("rotulo do icone: publicado", rotuloDoIconeML({ publicado: true, erro: false }), "Anúncio no Mercado Livre: publicado");
     conferir("rotulo do icone: pausado sem estoque", rotuloDoIconeML({ publicado: true, pausado: true, erro: false }), "Anúncio no Mercado Livre: publicado, pausado (sem estoque)");
@@ -2423,6 +2431,34 @@ try {
       const dados2 = await dadosDe(id2);
       conferir("publicar com atacado recusado: ok, aviso, etapa feita e erro gravado", [r2.ok, r2.avisos?.some((aviso) => /atacado/i.test(aviso)), r2.feitas.includes("atacado"), typeof dados2.publicacao.atacado.erro, dados2.publicacao.enviado.atacado], [true, true, true, "string", { faixas: [], ligado: false }]);
       conferir("publicar com atacado recusado: o '!' acende so o atacado", (await carregarAnuncioML(id2)).mudancas.partes, ["atacado"]);
+      const doPopup = await anunciosMLDoProduto(c.s1.id);
+      conferir("popup do produto: o anuncio com o atacado pendente traz o motivo do '!', o em dia nao traz", [doPopup.find((a) => a.id === id2)?.alerta, doPopup.find((a) => a.id === id)?.alerta ?? null], ["desatualizado: atacado alterado, falta enviar ao ML", null]);
+
+      // A sugestao que demora (pedido do dono em 09/11/2026: "pode ficar parado naquele popup com as etapas, se demorar mais de
+      // xxxx segundos ai apresenta falha e me fala para fazer manualmente"). Com frete gratis o Publicar espera na etapa.
+      const { lerProgressoML } = await import("../src/lib/canaisDeVenda/ml/progresso.js");
+      const comFreteGratis = async (idDoAnuncio) => {
+        const atual = await dadosDe(idDoAnuncio);
+        await prisma.anuncio.update({ where: { id: idDoAnuncio }, data: { dados: { ...atual, envio: { ...atual.envio, freteGratis: true } } } });
+        return idDoAnuncio;
+      };
+      const mlAtrasado = criarMLFalso({ recomendacaoVazia: 2 });
+      const idAtrasado = await comFreteGratis(await c.anuncioSimples(c.s1));
+      const dormidas = [];
+      const rA = await publicarAnuncioML(idAtrasado, { ml: mlAtrasado, bling: c.novoBling(), lerFoto, dormir: async (ms) => { dormidas.push(ms); } });
+      conferir("publicar com sugestao atrasada (frete gratis): espera na etapa e envia, sem aviso", [rA.ok, dormidas.length, faixasNoML(mlAtrasado, rA.itemId).length, rA.avisoDoAtacado ?? null], [true, 2, 4, null]);
+      const mlNunca = criarMLFalso({ recomendacaoVazia: true });
+      const idNunca = await comFreteGratis(await c.anuncioSimples(c.s1));
+      const dormidasNunca = [];
+      const rN = await publicarAnuncioML(idNunca, { ml: mlNunca, bling: c.novoBling(), lerFoto, dormir: async (ms) => { dormidasNunca.push(ms); } });
+      const etapasN = lerProgressoML(idNunca)?.etapas ?? [];
+      conferir("publicar com sugestao que nao vem: publica; no popup o atacado falhou e o gravar ficou feito", [rN.ok, dormidasNunca.length, etapasN.find((e) => e.id === "atacado")?.estado, etapasN.find((e) => e.id === "gravar")?.estado, rN.feitas.includes("atacado")], [true, 9, "falhou", "feito", true]);
+      conferir("publicar com sugestao que nao vem: o aviso diz o tempo e manda fazer a mao", [/90 segundos/.test(rN.avisoDoAtacado ?? ""), /Recomendação do ML/.test(rN.avisoDoAtacado ?? ""), /Sincronizar com o ML/.test(rN.avisoDoAtacado ?? "")], [true, true, true]);
+      const mlSemFrete = criarMLFalso({ recomendacaoVazia: true });
+      const idSemFrete = await c.anuncioSimples(c.s1);
+      const dormidasSemFrete = [];
+      const rSF = await publicarAnuncioML(idSemFrete, { ml: mlSemFrete, bling: c.novoBling(), lerFoto, dormir: async (ms) => { dormidasSemFrete.push(ms); } });
+      conferir("publicar sem frete gratis e sem sugestao: nao espera e o aviso explica por que", [rSF.ok, dormidasSemFrete.length, /sem frete grátis/i.test(rSF.avisoDoAtacado ?? "")], [true, 0, true]);
 
       // Desligado no rascunho: nada vai ao ML, e a etapa fica feita.
       const idOff = await c.anuncioSimples(c.s1, { atacado: { ligado: false, faixas: [] } });
@@ -3691,7 +3727,18 @@ try {
 
   {
     console.log("\nFaixas e preco pelo lucro da loja (regras puras)");
-    const { variantesEsperadas, varianteDoRascunho, rascunhoDaVariante, precoPelaFaixa, lucroPorUnidade, NOME_DA_VARIANTE } = await import("../src/lib/canaisDeVenda/ml/faixas.js");
+    const { variantesEsperadas, varianteDoRascunho, rascunhoDaVariante, precoPelaFaixa, lucroPorUnidade, NOME_DA_VARIANTE, ordenarAnunciosDoProduto } = await import("../src/lib/canaisDeVenda/ml/faixas.js");
+    // A ordem fixa do popup (pedido do dono em 09/11/2026): Classico sem frete, Premium sem frete, Classico com frete, Premium
+    // com frete, e depois os kits, do menor para o maior, na mesma ordem.
+    const linha = (id, codigo, tipoAnuncio, freteGratis, preco = 30) => ({ id, codigo, sku: "120920", tipoAnuncio, freteGratis, preco });
+    const embaralhados = [
+      linha("k5p", "120920_5", "gold_pro", true, 176), linha("bcs", "120920", "gold_special", false), linha("k5c", "120920_5", "gold_special", true, 169.9),
+      linha("bpf", "120920", "gold_pro", true), linha("bcf", "120920", "gold_special", true), linha("bps", "120920", "gold_pro", false),
+      linha("k10", "120920_10", "gold_special", true, 330), linha("k2", "120920_2", "gold_special", true, 80),
+    ];
+    conferir("ordem do popup: base nas 4 variantes e depois os kits do menor ao maior", ordenarAnunciosDoProduto(embaralhados).map((a) => a.id), ["bcs", "bps", "bcf", "bpf", "k2", "k5c", "k5p", "k10"]);
+    conferir("ordem do popup: preco a partir de 79 conta como frete gratis", ordenarAnunciosDoProduto([linha("b", "120920", "gold_special", false, 99), linha("a", "120920", "gold_pro", false, 50)]).map((a) => a.id), ["a", "b"]);
+    conferir("ordem do popup: nao muda a lista recebida", embaralhados[0].id, "k5p");
     const { custosDoAnuncio } = await import("../src/lib/canaisDeVenda/ml/custos.js");
     // Taxas fixas do teste: 13% de comissao e R$ 6,50 de tarifa abaixo de R$ 79 (sem tarifa a partir dali); frete do
     // vendedor R$ 13 sem frete gratis (o reduzido, que perto de R$ 79 chega a isso) e R$ 19,05 com frete gratis.
@@ -4131,6 +4178,24 @@ try {
     const idSemDesconto = (await semDesconto.post("/items", { family_name: "ZZ AT", price: 45.9, category_id: "MLB99779" })).dados.id;
     const resSemDesconto = await enviarAtacadoML(semDesconto, { itemId: idSemDesconto, preco: 45.9, atacado: ATACADO_PADRAO() });
     conferir("recomendacao sem nenhum desconto: erro claro e nada gravado", [resSemDesconto.ok, /recomend/i.test(resSemDesconto.erro ?? ""), semDesconto.escritas.some((e) => e.caminho.endsWith("/price-per-quantity"))], [false, true, false]);
+    conferir("recomendacao sem nenhum desconto e sem espera: o motivo e a falta de sugestao", resSemDesconto.motivo, "sem_recomendacao");
+    // A sugestao atrasada (09/11/2026, o Premium do kit do 120920 voltou sem sugestao logo depois de criado): com espera, o envio
+    // rele a cada intervalo ate o limite. `dormir` falso: o teste nao espera de verdade.
+    const atrasado = criarMLFalso({ recomendacaoVazia: 2 });
+    atrasado.exigirEscrita("ZZ-ML-AT");
+    const idAtrasado = (await atrasado.post("/items", { family_name: "ZZ AT", price: 45.9, category_id: "MLB99779" })).dados.id;
+    const esperas = [];
+    const andamentos = [];
+    const resAtrasado = await enviarAtacadoML(atrasado, { itemId: idAtrasado, preco: 45.9, atacado: ATACADO_PADRAO() }, {
+      esperaMs: 90000, intervaloMs: 10000, dormir: async (ms) => { esperas.push(ms); }, aoEsperar: (segundos, limite) => andamentos.push([segundos, limite]),
+    });
+    conferir("sugestao atrasada: espera 2 vezes, avisa o andamento e envia as 4 faixas", [resAtrasado.ok, esperas, andamentos, resAtrasado.faixas.length], [true, [10000, 10000], [[10, 90], [20, 90]], 4]);
+    const nunca = criarMLFalso({ recomendacaoVazia: true });
+    nunca.exigirEscrita("ZZ-ML-AT");
+    const idNunca = (await nunca.post("/items", { family_name: "ZZ AT", price: 45.9, category_id: "MLB99779" })).dados.id;
+    const esperasNunca = [];
+    const resNunca = await enviarAtacadoML(nunca, { itemId: idNunca, preco: 45.9, atacado: ATACADO_PADRAO() }, { esperaMs: 90000, intervaloMs: 10000, dormir: async (ms) => { esperasNunca.push(ms); } });
+    conferir("sugestao que nao vem: espera ate o limite (9 vezes de 10 s), nao grava e devolve o motivo", [resNunca.ok, esperasNunca.length, resNunca.motivo, nunca.escritas.some((e) => e.caminho.endsWith("/price-per-quantity"))], [false, 9, "sem_recomendacao", false]);
     const escondido = criarMLFalso({ esconderAtacado: true });
     escondido.exigirEscrita("ZZ-ML-AT");
     const idEscondido = (await escondido.post("/items", { family_name: "ZZ AT", price: 45.9, category_id: "MLB99779" })).dados.id;

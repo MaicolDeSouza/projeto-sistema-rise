@@ -202,6 +202,9 @@ function separar(caminho, params) {
  *   categorias, as taxas e as tendencias padrao).
  */
 export function criarMLFalso(opcoes = {}) {
+  let leiturasDaRecomendacao = 0;
+  const recomendacaoVaziaAgora = () =>
+    opcoes.recomendacaoVazia === true || (typeof opcoes.recomendacaoVazia === "number" && leiturasDaRecomendacao++ < opcoes.recomendacaoVazia);
   const estado = structuredClone({
     categorias: { ...PADROES.categorias, ...(opcoes.categorias ?? {}) },
     descoberta: { ...PADROES.descoberta, ...(opcoes.descoberta ?? {}) },
@@ -385,7 +388,9 @@ export function criarMLFalso(opcoes = {}) {
       return resposta(200, {
         item_id: corpo.item_id,
         // O formato real (medido em 08/11/2026 no 100101): o % vem em `discount.percentage`, junto de `amount`, `profit` e `shipping`.
-        recommendations: opcoes.recomendacaoVazia
+        // `recomendacaoVazia`: true = nunca sugere (anuncio sem frete gratis); um numero N = as N primeiras leituras voltam
+        // vazias e depois vem a sugestao (o item recem-criado, medido no Premium do kit do 120920 em 09/11/2026).
+        recommendations: recomendacaoVaziaAgora()
           ? []
           : (corpo?.range_item_quantities ?? []).map((quantity) => {
               const percentage = tabela[quantity] ?? 0;

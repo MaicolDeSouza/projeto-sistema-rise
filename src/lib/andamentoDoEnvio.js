@@ -26,7 +26,8 @@ export function mesclarEtapas(etapas, doServidor) {
 /// que o servidor marcou como falha leva o motivo; sem marca (a acao foi recusada antes de comecar, ou caiu por fora), a que
 /// estava andando falha.
 export function etapasComOResultado(etapas, resultado) {
-  if (resultado.ok === true) return etapas.map((etapa) => (etapa.id === "conferir" ? etapa : { ...etapa, estado: "feito" }));
+  // Deu certo, mas uma etapa pode ter falhado sem derrubar o envio (o atacado do Publicar do ML, 09/11/2026): ela fica falhou.
+  if (resultado.ok === true) return etapas.map((etapa) => (etapa.id === "conferir" || etapa.estado === "falhou" ? etapa : { ...etapa, estado: "feito" }));
   if (etapas.some((etapa) => etapa.estado === "falhou")) {
     return etapas.map((etapa) => (etapa.estado === "falhou" && !etapa.detalhe ? { ...etapa, detalhe: resultado.erro ?? "O envio não foi concluído." } : etapa));
   }

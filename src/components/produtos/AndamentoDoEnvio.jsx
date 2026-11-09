@@ -102,7 +102,7 @@ export default function AndamentoDoEnvio({ canal = "bling", tipo, sku, etapas, f
               <div className={`flex items-center gap-3 text-base ${etapa.estado === "espera" ? "text-suave" : "text-texto"}`}>
                 <IconeDaEtapa estado={etapa.estado} />
                 <span className="min-w-0 flex-1">{etapa.rotulo}</span>
-                {etapa.estado === "feito" && etapa.detalhe && <span className="shrink-0 text-sm text-suave">{etapa.detalhe}</span>}
+                {(etapa.estado === "feito" || etapa.estado === "andando") && etapa.detalhe && <span className="shrink-0 text-sm text-suave tabular-nums">{etapa.detalhe}</span>}
               </div>
               {etapa.estado === "falhou" && etapa.detalhe && (
                 <p role="alert" className="mt-1 max-h-32 overflow-y-auto pl-8 text-sm text-red-700">

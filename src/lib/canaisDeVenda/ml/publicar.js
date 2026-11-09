@@ -4,7 +4,8 @@ import { caminhoDe } from "@/lib/arquivos";
 import { prisma } from "@/lib/db";
 import { buscarNoBling } from "@/lib/blingSync/leitura";
 import { conteudoAtualDoAnuncio } from "./acompanhar";
-import { atacadoDoEnvio, enviarAtacadoML, impressaoDoAtacado } from "./atacado";
+import { ESPERA_DA_SUGESTAO_MS, INTERVALO_DA_SUGESTAO_MS, atacadoDoEnvio, enviarAtacadoML, impressaoDoAtacado } from "./atacado";
+import { LIMITE_DO_FRETE_GRATIS } from "./custos";
 import { carregarAnuncioML, gravarPublicacao, lerPublicacao } from "./banco";
 import { impressaoDoConteudo } from "./impressao";
 import { conferirKitNoBling, criarKitNoBling, registrarAnuncioNoBlingML, vincularNoBlingML, vinculoNoBlingML } from "./bling";
@@ -180,8 +181,9 @@ async function fiscalDoPrincipal(produtoId) {
  * @param {boolean} [opcoes.recriar] o dono conferiu no ML que a criacao incerta nao chegou la.
  * @param {"validar"|null} [opcoes.ate] "validar" para depois do validador (o "Validar no ML").
  * @param {(sku: string, arquivo: string) => Promise<Buffer>} [opcoes.lerFoto] injetavel no teste.
+ * @param {(ms: number) => Promise<void>} [opcoes.dormir] a espera da sugestao de atacado; injetavel no teste.
  */
-export async function publicarAnuncioML(anuncioId, { ml, bling, recriar = false, ate = null, lerFoto = lerFotoDoDisco } = {}) {
+export async function publicarAnuncioML(anuncioId, { ml, bling, recriar = false, ate = null, lerFoto = lerFotoDoDisco, dormir } = {}) {
   if (emAndamento.has(anuncioId)) return { ok: false, etapa: null, feitas: [], erro: "Publicação em andamento." };
   emAndamento.add(anuncioId);
   // O andamento etapa por etapa para o popup do editor (pedido do dono em 27/10/2026: "igual a LI, mostrando as etapas"),
@@ -189,7 +191,7 @@ export async function publicarAnuncioML(anuncioId, { ml, bling, recriar = false,
   const progresso = ate === "validar" ? SEM_PROGRESSO : iniciarProgressoML(anuncioId, ["preparar", "atualizar", ...ETAPAS]);
   let resultado;
   try {
-    resultado = await publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto, progresso });
+    resultado = await publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto, progresso, dormir });
   } catch (erro) {
     console.error("[ml publicar]", erro);
     resultado = { ok: false, etapa: null, feitas: [], erro: `Não foi possível publicar: ${textoDe(erro)}` };
@@ -200,6 +202,27 @@ export async function publicarAnuncioML(anuncioId, { ml, bling, recriar = false,
   if (!resultado.ok) progresso.falhou(resultado.erro);
   progresso.fim();
   return resultado;
+}
+
+/**
+ * O que o popup do Publicar diz quando o atacado nao foi (pedido do dono em 09/11/2026: "apresenta falha e me fala para fazer
+ * manualmente"): `curto` vai na etapa, `aviso` no fim, com o caminho a mao.
+ */
+function falhaDoAtacado(envio, { comFreteGratis }) {
+  const segundos = Math.round(ESPERA_DA_SUGESTAO_MS / 1000);
+  if (envio.motivo === "sem_recomendacao" && comFreteGratis) {
+    return {
+      curto: `sem sugestão do ML em ${segundos} s`,
+      aviso: `Os preços de atacado não foram enviados: o Mercado Livre não devolveu a sugestão de desconto em ${segundos} segundos. Faça à mão: abra o anúncio, clique em "Recomendação do ML" na aba Preço e custos, salve e use "Sincronizar com o ML".`,
+    };
+  }
+  if (envio.motivo === "sem_recomendacao") {
+    return {
+      curto: "sem frete grátis, o ML não sugere desconto",
+      aviso: 'Os preços de atacado não foram enviados: sem frete grátis o Mercado Livre não sugere desconto de atacado. Se quiser oferecer, digite o desconto de cada faixa na aba Preço e custos, salve e use "Sincronizar com o ML"; se não, desligue o atacado.',
+    };
+  }
+  return { curto: "recusado pelo Mercado Livre", aviso: `Os preços de atacado não foram enviados: ${envio.erro} Tente de novo pelo "Sincronizar com o ML".` };
 }
 
 /// O "Validar no ML" nao mostra andamento: as marcas viram nada.
@@ -215,7 +238,7 @@ export function validarNoML(anuncioId, clientes) {
   return publicarAnuncioML(anuncioId, { ...clientes, ate: "validar" });
 }
 
-async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto, progresso = SEM_PROGRESSO }) {
+async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto, progresso = SEM_PROGRESSO, dormir }) {
   const soValidar = ate === "validar";
   progresso.andando("preparar");
   const preparado = await prepararInterno(anuncioId, { ml, bling });
@@ -268,6 +291,8 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto, p
   const ids = Array.isArray(rascunho.imagens) ? rascunho.imagens : [];
   const corpo = () => corpoDaCriacao(payload.item, ids.map((id) => pub.fotos?.[id]));
   let avisos = [];
+  // O recado do atacado que nao foi (o popup do editor o mostra no fim, 09/11/2026); null quando foi ou estava desligado.
+  let avisoDoAtacado = null;
 
   // Retomar com o item JA criado no ML (pedido do dono em 27/10/2026, Opcao 1): o editor deixa mexer de novo no que o ML
   // aceita trocar, e aqui vai so o que mudou desde a criacao (preco, ficha, fotos, peso e medidas), antes das etapas que
@@ -468,13 +493,29 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto, p
       if (!rascunho.atacado?.ligado) {
         await gravar({ atacado: { ligado: false, enviado: desligado, em: new Date().toISOString() } });
       } else {
-        const enviadoAtacado = await enviarAtacadoML(ml, { itemId: pub.itemId, preco: rascunho.preco, atacado: rascunho.atacado });
+        // Com frete gratis o ML sugere o desconto (a economia de frete repassada), mas o item recem-criado volta sem sugestao por
+        // alguns segundos: o popup espera nesta etapa mostrando o tempo (pedido do dono em 09/11/2026). Sem frete gratis o ML
+        // nunca sugere (medido em 09/11/2026: 204 nos anuncios de R$ 27,20 e R$ 37,90 do 120920), entao nao ha o que esperar.
+        const comFreteGratis = Boolean(rascunho.envio?.freteGratis) || Number(rascunho.preco) >= LIMITE_DO_FRETE_GRATIS;
+        const espera = comFreteGratis
+          ? {
+              esperaMs: ESPERA_DA_SUGESTAO_MS,
+              intervaloMs: INTERVALO_DA_SUGESTAO_MS,
+              ...(dormir ? { dormir } : {}),
+              aoEsperar: (segundos, limite) => progresso.andando(etapa, `aguardando a sugestão do ML (${segundos} s de ${limite} s)`),
+            }
+          : {};
+        const enviadoAtacado = await enviarAtacadoML(ml, { itemId: pub.itemId, preco: rascunho.preco, atacado: rascunho.atacado }, espera);
         if (enviadoAtacado.ok) {
           const noRascunho = atacadoDoEnvio(rascunho.atacado, enviadoAtacado.faixas);
           await gravar({ atacado: { faixas: enviadoAtacado.faixas, enviado: impressaoDoAtacado(noRascunho), em: new Date().toISOString() } }, {}, { atacado: noRascunho });
         } else {
-          avisos = [...avisos, `O anúncio foi publicado, mas os preços de atacado não foram enviados: ${enviadoAtacado.erro} Use Enviar mudanças para tentar de novo.`];
+          const falha = falhaDoAtacado(enviadoAtacado, { comFreteGratis });
+          avisoDoAtacado = falha.aviso;
+          avisos = [...avisos, falha.aviso];
           await gravar({ atacado: { erro: enviadoAtacado.erro, enviado: desligado, em: new Date().toISOString() } });
+          // A etapa fica FALHOU no popup, mas a publicacao segue ate o "gravar": o anuncio ja esta no ar.
+          progresso.falhou(falha.curto);
         }
       }
     } else if (etapa === "gravar") {
@@ -490,10 +531,11 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto, p
         { apagarProposta: true },
       );
       progresso.feita(etapa);
-      return { ok: true, etapa, feitas: pub.feitas, itemId: pub.itemId, permalink: pub.permalink, ...(avisos.length ? { avisos } : {}) };
+      return { ok: true, etapa, feitas: pub.feitas, itemId: pub.itemId, permalink: pub.permalink, ...(avisos.length ? { avisos } : {}), ...(avisoDoAtacado ? { avisoDoAtacado } : {}) };
     }
     await marcar(etapa);
-    progresso.feita(etapa);
+    // O atacado que falhou fica FALHOU no popup (a etapa entra em `feitas`: o Retomar nao a repete).
+    if (!(etapa === "atacado" && avisoDoAtacado)) progresso.feita(etapa);
   }
   return { ok: true, etapa: null, feitas: pub.feitas ?? [], itemId: pub.itemId, permalink: pub.permalink };
 }

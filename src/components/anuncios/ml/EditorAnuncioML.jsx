@@ -4,7 +4,7 @@ import { FaixaDaProposta } from "@/components/anuncios/PropostaDoAnuncio";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Copy, ExternalLink, Loader, Trash2, X } from "lucide-react";
+import { ArrowLeft, Copy, ExternalLink, Loader, Trash2, X } from "lucide-react";
 
 import { abrirAnuncioML, enviarMudancasMLAcao, lerCategoriaML, marcarCatalogoVistoMLAcao, publicarAnuncioMLAcao, salvarAnuncioML, salvarPresoMLAcao, salvarPublicadoMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { etapasDoPopupDoPublicar } from "@/lib/canaisDeVenda/ml/etapas";
@@ -113,6 +113,9 @@ export default function EditorAnuncioML({
   aoExcluido,
   // Aviso ja na abertura (08/11/2026, a variante criada sem categoria ou sem custo): `{ tipo, texto }`, como os da tela.
   mensagemInicial = null,
+  // "Voltar" a lista de anuncios do produto (pedido do dono em 09/11/2026: "caso tenha mais de 1 anuncio criar botao de voltar,
+  // que faz voltar ao pop de todos os anuncios. Caso tenha alguma alteracao perguntar se deseja salvar antes"). Sem ele, nao ha botao.
+  aoVoltar = null,
 }) {
   const [excluindo, setExcluindo] = useState(false);
   const [rascunho, setRascunho] = useState(rascunhoInicial);
@@ -312,6 +315,17 @@ export default function EditorAnuncioML({
     aoFechar?.();
   }
 
+  // Volta a lista do produto; com alteracao nao salva, pergunta antes ("Salvar antes de voltar?").
+  function voltar() {
+    trocaPendente.current = null;
+    aoVoltar?.();
+  }
+  function pedirVoltar() {
+    if (salvando) return;
+    if (alterado && !somenteLeitura) setPergunta("voltar");
+    else voltar();
+  }
+
   function salvarEFechar() {
     if (!alterado) return fechar();
     iniciarSalvamento(async () => {
@@ -338,6 +352,7 @@ export default function EditorAnuncioML({
       const resultado = await gravar({ adiarAoSalvar: true });
       if (!resultado.ok) return;
       if (depois === "publicar") publicarComEtapas(resultado.id ?? idAtual);
+      else if (depois === "voltar") voltar();
       else enviarMudancas();
     });
   }
@@ -484,6 +499,9 @@ export default function EditorAnuncioML({
               fim: resultado?.ok ? "ok" : "falhou",
               // Os avisos do validador ("User has not mode me1"...) nao pedem acao: o fim fica so com o recado e os botoes.
               resumo: resultado?.ok ? { titulo: "Anúncio publicado e ativo no Mercado Livre.", linhas: [] } : null,
+              // O atacado que nao foi pede acao (pedido do dono em 09/11/2026: "apresenta falha e me fala para fazer
+              // manualmente"): a etapa fica em vermelho e o recado ambar diz o caminho a mao.
+              aviso: resultado?.ok ? (resultado.avisoDoAtacado ?? null) : null,
               // Criacao sem resposta do ML: o "Voltar a janela" abre a janela de antes, com o "Criar de novo".
               incerta: Boolean(resultado?.incerta),
             }
@@ -630,6 +648,18 @@ export default function EditorAnuncioML({
         )}
       </div>
       <div className="flex items-center gap-2">
+        {/* "Voltar" a lista dos anuncios do produto (09/11/2026): so na janela aberta pela lista com mais de um anuncio. */}
+        {aoVoltar && (
+          <button
+            type="button"
+            onClick={pedirVoltar}
+            disabled={salvando || enviandoMudancas}
+            title="Volta à lista de anúncios deste produto"
+            className="inline-flex items-center gap-2 rounded-md border border-borda px-4 py-2.5 text-base hover:bg-fundo disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <ArrowLeft size={16} /> Voltar
+          </button>
+        )}
         {/* Sem permissao de editar nao ha o que salvar: o botao e so "Fechar" (na pagina, volta a lista). */}
         <button
           type="button"
@@ -747,16 +777,33 @@ export default function EditorAnuncioML({
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4 text-left font-normal normal-case" {...propsDoFundo(() => setPergunta(null))}>
       <section role="alertdialog" aria-modal="true" aria-labelledby="ml-pergunta-titulo" className="w-full max-w-md rounded-lg border border-borda bg-superficie p-4 shadow-2xl">
         <p id="ml-pergunta-titulo" className="text-sm font-semibold">
-          Salvar antes de {pergunta === "publicar" ? "publicar" : "enviar"}?
+          Salvar antes de {pergunta === "publicar" ? "publicar" : pergunta === "voltar" ? "voltar" : "enviar"}?
         </p>
-        <p className="mt-1 text-sm text-suave">{pergunta === "publicar" ? "A publicação" : "O envio"} leva o anúncio salvo. As alterações da tela precisam ser salvas antes.</p>
+        <p className="mt-1 text-sm text-suave">
+          {pergunta === "voltar"
+            ? "As alterações deste anúncio ainda não foram salvas."
+            : `${pergunta === "publicar" ? "A publicação" : "O envio"} leva o anúncio salvo. As alterações da tela precisam ser salvas antes.`}
+        </p>
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" autoFocus onClick={() => setPergunta(null)} className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo">
             Cancelar
           </button>
-          <button type="button" onClick={salvarEContinuar} className="rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90">
-            {pergunta === "publicar" ? "Salvar e publicar" : "Salvar e enviar"}
+          <button type="button" onClick={() => salvarEContinuar()} className="rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90">
+            {pergunta === "publicar" ? "Salvar e publicar" : pergunta === "voltar" ? "Salvar e voltar" : "Salvar e enviar"}
           </button>
+          {/* O destrutivo por ultimo (padrao visual, regra 9): volta e perde o que foi digitado. */}
+          {pergunta === "voltar" && (
+            <button
+              type="button"
+              onClick={() => {
+                setPergunta(null);
+                voltar();
+              }}
+              className="rounded border border-red-200 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50"
+            >
+              Voltar sem salvar
+            </button>
+          )}
         </div>
       </section>
     </div>

@@ -123,24 +123,43 @@ export async function lerVersaoDoItem(ml, itemId) {
   return versao === null || versao === undefined ? null : String(versao);
 }
 
+/// Quanto o Publicar espera a sugestao do ML num anuncio recem-criado, e de quanto em quanto rele (pedido do dono em 09/11/2026:
+/// "pode ficar parado naquele popup com as etapas, se demorar mais de xxxx segundos ai apresenta falha e me fala para fazer
+/// manualmente"). Medido no Premium do kit do 120920: a sugestao veio vazia no Publicar e estava la menos de 1 minuto depois.
+export const ESPERA_DA_SUGESTAO_MS = 90 * 1000;
+export const INTERVALO_DA_SUGESTAO_MS = 10 * 1000;
+
+const esperar = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 /**
- * Envia o atacado do rascunho ao anuncio e le de volta o que ficou. Nunca lanca: `{ ok, faixas, erro }`.
+ * Envia o atacado do rascunho ao anuncio e le de volta o que ficou. Nunca lanca: `{ ok, faixas, erro, motivo? }`.
  * O chamador ja passou pelas travas (`exigirEscrita`) e pelo resto da publicacao.
+ *
+ * `espera.esperaMs` (so o Publicar, com frete gratis): sem desconto para mandar, rele a sugestao a cada `intervaloMs` ate o
+ * limite, avisando o andamento em `aoEsperar(segundos, limite)`; `dormir` e injetavel no teste. Sem espera (o padrao, o
+ * "Sincronizar com o ML"), le uma vez. `motivo: "sem_recomendacao"` quando nada tinha desconto: e o que o Publicar explica.
  */
-export async function enviarAtacadoML(ml, { itemId, preco, atacado }) {
+export async function enviarAtacadoML(ml, { itemId, preco, atacado }, { esperaMs = 0, intervaloMs = INTERVALO_DA_SUGESTAO_MS, dormir = esperar, aoEsperar = null } = {}) {
   try {
     const ligado = atacado?.ligado === true;
     let faixas = [];
     if (ligado) {
       const quantidades = [...new Set((atacado.faixas ?? []).map((f) => Number(f.quantidade)).filter((q) => Number.isInteger(q) && q >= 1))].sort((a, b) => a - b);
-      const recomendacoes = quantidades.length > 0 ? await lerRecomendacaoDeAtacado(ml, { itemId, preco, quantidades }) : [];
-      faixas = faixasComRecomendacao(atacado.faixas, recomendacoes);
+      const sugeridas = async () => faixasComRecomendacao(atacado.faixas, quantidades.length > 0 ? await lerRecomendacaoDeAtacado(ml, { itemId, preco, quantidades }) : []);
+      faixas = await sugeridas();
+      // O item recem-criado volta sem sugestao por alguns segundos (o ML responde 204, sem corpo): rele ate o limite.
+      for (let esperado = 0; corpoDoAtacado(faixas).price_per_quantity.length === 0 && esperado < esperaMs; ) {
+        esperado += intervaloMs;
+        aoEsperar?.(Math.round(esperado / 1000), Math.round(esperaMs / 1000));
+        await dormir(intervaloMs);
+        faixas = await sugeridas();
+      }
     }
     const corpo = corpoDoAtacado(faixas, { ligado });
     // Ligado e sem nenhuma faixa com desconto (a recomendacao veio vazia ou zerada): mandar a lista vazia daria "ok" em silencio
     // e o anuncio ficaria sem atacado com a tela dizendo que foi enviado.
     if (ligado && corpo.price_per_quantity.length === 0) {
-      return { ok: false, faixas: [], erro: "O Mercado Livre não recomendou desconto para nenhuma faixa: os preços de atacado não foram enviados." };
+      return { ok: false, faixas: [], erro: "O Mercado Livre não recomendou desconto para nenhuma faixa: os preços de atacado não foram enviados.", motivo: "sem_recomendacao" };
     }
 
     const enviar = async () => {

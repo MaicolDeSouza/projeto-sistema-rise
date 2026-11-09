@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Copy, ExternalLink, Handshake, ImageOff, LayoutList, Trash2 } from "lucide-react";
+import { temProblemaNoIconeML } from "@/lib/canaisDeVenda/ml/icone";
 
 import CabecalhoOrdenavel, { parametrosDaOrdenacao } from "@/components/ui/CabecalhoOrdenavel";
 import EmptyState from "@/components/ui/EmptyState";
@@ -74,7 +75,7 @@ function Concorrencia({ linha }) {
 /** O mesmo icone da coluna Canais de Produtos, so deste anuncio: colorido publicado, "!" em problema, "C" em catalogo. */
 function IconeML({ linha }) {
   const estado = linha.icone ?? {};
-  const problema = estado.erro || estado.desatualizado || estado.precisaAgirNoML || estado.estoqueDivergenteNoML || estado.catalogoMudouNoML;
+  const problema = temProblemaNoIconeML(estado);
   return (
     <Link
       href={enderecoDe(linha)}

@@ -36,7 +36,7 @@ import {
 } from "@/lib/canaisDeVenda/ml/concorrentes";
 import { LIMITES_ML, RascunhoMLSchema } from "@/lib/canaisDeVenda/ml/esquema";
 import { preencherFicha, sugerirCategoria, sugerirTitulos } from "@/lib/canaisDeVenda/ml/inteligencia";
-import { lucroDaLojaDoRascunho, VARIANTES, varianteDoRascunho, variantesDoProduto } from "@/lib/canaisDeVenda/ml/faixas";
+import { lucroDaLojaDoRascunho, ordenarAnunciosDoProduto, VARIANTES, varianteDoRascunho, variantesDoProduto } from "@/lib/canaisDeVenda/ml/faixas";
 import { clonarVarianteML } from "@/lib/canaisDeVenda/ml/variantes";
 import { anunciosDoSkuNaConta, candidatosParaReaproveitar, reaproveitarAnuncioML } from "@/lib/canaisDeVenda/ml/reaproveitar";
 import { lerCategoria, lerCategoriaCompleta, lerCustosDoAnuncio, precoPelaFaixaNoML, precoPorMargemNoML, textoDoErroML } from "@/lib/canaisDeVenda/ml/leitura";
@@ -198,7 +198,8 @@ export async function listarAnunciosDoProdutoML(produtoId) {
     const acessos = acessosDoEditorML(pode);
     const linhas = acessos.concorrentes ? anuncios : anuncios.map((anuncio) => ({ ...anuncio, avisosML: [] }));
     // As variantes pelas faixas (08/11/2026): o que o produto deve ter no ML pelo preco da loja, e o que ainda falta.
-    return { ok: true, produto: { id, sku, tituloBase, conferido }, anuncios: linhas, acessos, variantes: variantesDoProduto({ precoVenda, anuncios }) };
+    // A ordem fixa das linhas (pedido do dono em 09/11/2026): base nas 4 variantes, depois os kits (`ordenarAnunciosDoProduto`).
+    return { ok: true, produto: { id, sku, tituloBase, conferido }, anuncios: ordenarAnunciosDoProduto(linhas), acessos, variantes: variantesDoProduto({ precoVenda, anuncios }) };
   });
 }
 

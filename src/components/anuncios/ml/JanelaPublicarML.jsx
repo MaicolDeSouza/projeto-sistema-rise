@@ -72,7 +72,11 @@ export default function JanelaPublicarML({ anuncioId, rotuloDoBotao, aoFechar })
         lidos = { ok: false, erro: "Não foi possível falar com o servidor." };
       }
       const diferentes = lidos?.ok ? lidos.outros.filter((outro) => !outro.igual) : [];
-      if (lidos?.ok && diferentes.length === 0) aoFechar(true);
+      // O atacado que nao foi (09/11/2026) segura a janela aberta com o recado: fechando sozinha, ninguem o leria.
+      if (lidos?.ok && diferentes.length === 0) {
+        if (feito.avisoDoAtacado) setResultado(feito);
+        else aoFechar(true);
+      }
       else setOutros(lidos?.ok ? { preco: lidos.preco, lista: diferentes } : { erro: lidos?.erro ?? "Não foi possível ler os outros anúncios." });
     });
   }

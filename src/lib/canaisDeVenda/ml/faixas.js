@@ -77,6 +77,28 @@ export function varianteDoRascunho(rascunho) {
   return `${premium ? "premium" : "classico"}_${freteGratis ? "frete_gratis" : "sem_frete"}`;
 }
 
+/// A ordem das variantes no popup do produto (pedido do dono em 09/11/2026): primeiro sem frete, Classico antes do Premium.
+const ORDEM_NO_POPUP = ["classico_sem_frete", "premium_sem_frete", "classico_frete_gratis", "premium_frete_gratis"];
+
+/**
+ * A ordem fixa dos anuncios de um produto no popup "Anúncios do Mercado Livre" (pedido do dono em 09/11/2026: "os cards devem
+ * ser fixos na ordem, classico sem frete, premium sem frete, classico com frete, premium com frete e depois os kits mantendo a
+ * mesma dinamica"). Primeiro os do produto base (`codigo` = `sku`), depois os kits no ML pelo N do codigo `{sku}_{N}`, do menor
+ * ao maior; outro codigo (produto com composicao) por ultimo. Dentro do grupo, a variante; empate fica na ordem recebida.
+ * Devolve uma lista nova: a recebida nao muda.
+ */
+export function ordenarAnunciosDoProduto(anuncios) {
+  const grupo = (anuncio) => {
+    if (!anuncio?.codigo || anuncio.codigo === anuncio.sku) return 1;
+    const kit = String(anuncio.codigo).match(/_(\d+)$/);
+    return kit ? Number(kit[1]) : Number.MAX_SAFE_INTEGER;
+  };
+  const posicao = (anuncio) => ORDEM_NO_POPUP.indexOf(varianteDoRascunho({ tipoAnuncio: anuncio?.tipoAnuncio, envio: { freteGratis: anuncio?.freteGratis }, preco: anuncio?.preco }));
+  return [...(Array.isArray(anuncios) ? anuncios : [])].sort(
+    (a, b) => grupo(a) - grupo(b) || String(a.codigo ?? "").localeCompare(String(b.codigo ?? "")) || posicao(a) - posicao(b),
+  );
+}
+
 /** Copia do rascunho com o tipo de anuncio e o frete gratis da variante; o original fica como esta. */
 export function rascunhoDaVariante(rascunho, variante) {
   return {

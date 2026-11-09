@@ -19,9 +19,20 @@ const SITUACOES_PUBLICADAS = new Set(["ATIVA", "PAUSADA"]);
 const barradoNoML = (anuncio) => anuncio.status === "PUBLICADO" && anuncio.situacaoCanal !== "ENCERRADA" && precisaAgirNoML(anuncio.dados?.publicacao?.estadoML);
 const estaPublicado = (anuncio) => anuncio.status === "PUBLICADO" && (SITUACOES_PUBLICADAS.has(anuncio.situacaoCanal) || barradoNoML(anuncio));
 
-// A mesma ordem de `PARTES` (acompanhar.js); copiada porque este arquivo nao tem imports (a lista e cliente).
-const ORDEM_DAS_PARTES = ["descricao", "fotos", "pacote", "preco", "ficha"];
-const NOME_DA_PARTE = { descricao: "descrição", fotos: "fotos", pacote: "peso e medidas", preco: "preço", ficha: "ficha técnica" };
+// A mesma ordem de `PARTES_DO_ENVIO_ML` (etapasDoEnvio.js); copiada porque este arquivo nao tem imports (a lista e cliente).
+// Titulo, preco da loja, prazo e atacado entraram em 09/11/2026: o "!" ja acendia por eles, mas o texto saia sem o nome.
+const ORDEM_DAS_PARTES = ["titulo", "descricao", "fotos", "pacote", "precoDaLoja", "preco", "ficha", "prazo", "atacado"];
+const NOME_DA_PARTE = {
+  titulo: "título",
+  descricao: "descrição",
+  fotos: "fotos",
+  pacote: "peso e medidas",
+  precoDaLoja: "preço da loja",
+  preco: "preço",
+  ficha: "ficha técnica",
+  prazo: "prazo",
+  atacado: "atacado",
+};
 
 /**
  * `anuncio.mudancas` (`{ partes, naoConferido }`) e posto pelo servidor (`mudancasDosAnunciosML`): anuncio publicado que
@@ -73,13 +84,32 @@ function listaDePartes(partes) {
 // "descricao mudou no produto; preco e ficha tecnica alterados, falta enviar ao ML": as partes do produto mudam no cadastro,
 // as do anuncio (preco e ficha, 24/10/2026) foram editadas nele e so falta mandar.
 function textoDoDesatualizado(partes) {
-  const doAnuncio = new Set(["preco", "ficha"]);
+  const doAnuncio = new Set(["preco", "ficha", "prazo", "atacado"]);
   const doProduto = (partes ?? []).filter((parte) => !doAnuncio.has(parte));
   const noAnuncio = (partes ?? []).filter((parte) => doAnuncio.has(parte));
   const trechos = [];
   if (doProduto.length) trechos.push(`${listaDePartes(doProduto)} ${doProduto.length > 1 ? "mudaram" : "mudou"} no produto`);
   if (noAnuncio.length) trechos.push(`${listaDePartes(noAnuncio)} ${noAnuncio.length > 1 ? "alterados" : "alterado"}, falta enviar ao ML`);
   return `desatualizado: ${trechos.join("; ")}`;
+}
+
+/** O selo "!" do icone: a mesma condicao na lista de Produtos, na lista do ML e em cada linha do popup do produto. */
+export function temProblemaNoIconeML(estado) {
+  return Boolean(estado?.erro || estado?.desatualizado || estado?.precisaAgirNoML || estado?.estoqueDivergenteNoML || estado?.catalogoMudouNoML);
+}
+
+/**
+ * Por que o "!" acendeu, em texto, um motivo por item (pedido do dono em 09/11/2026: o popup do produto mostra o "!" no anuncio
+ * com problema). A mesma ordem e as mesmas palavras do `rotuloDoIconeML`.
+ */
+export function motivosDoProblemaML({ erro = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [], precisaAgirNoML: barrado = false, estadosNoML = [], estoqueDivergenteNoML = false, estoquesNoML = [], catalogoMudouNoML = false, catalogosNoML = [] } = {}) {
+  const motivos = [];
+  if (desatualizado) motivos.push(naoConferido ? "ainda não conferido com o produto" : textoDoDesatualizado(partesDesatualizadas));
+  if (barrado) motivos.push(...estadosNoML.map((texto) => texto.charAt(0).toLowerCase() + texto.slice(1)));
+  if (estoqueDivergenteNoML) motivos.push(...estoquesNoML.map(({ ml, bling }) => `estoque no ML ${ml}, no Bling ${bling}`));
+  if (catalogoMudouNoML) motivos.push(...catalogosNoML);
+  if (erro) motivos.push("com erro na publicação");
+  return motivos;
 }
 
 export function rotuloDoIconeML({ publicado, pausado = false, erro, rascunho = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [], precisaAgirNoML: barrado = false, estadosNoML = [], estoqueDivergenteNoML = false, estoquesNoML = [], catalogoMudouNoML = false, catalogosNoML = [], catalogos = 0 }) {

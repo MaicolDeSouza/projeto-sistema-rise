@@ -5,7 +5,7 @@ import { custoDoProduto } from "../custo";
 import { conteudoAtualDoAnuncio, fichaDoAnuncio, mudancasDoAnuncio, prazoDoAnuncio, precoDaLojaDoAnuncio, precoDoAnuncio } from "./acompanhar";
 import { avisosDeVariosProdutos } from "./concorrentes";
 import { precisaAgirNoML, textoDoEstadoML } from "./estadoNoML";
-import { estadoDoIconeML, rotuloDoIconeML } from "./icone";
+import { estadoDoIconeML, motivosDoProblemaML, rotuloDoIconeML, temProblemaNoIconeML } from "./icone";
 import { impressaoDoConteudo } from "./impressao";
 import { linkDoAnuncioML, linkDoPainelML } from "./rotulos";
 import { montarRanking } from "./ranking";
@@ -630,7 +630,14 @@ export async function anunciosMLDoProduto(produtoId) {
   // `where: { produtoId: undefined }` o Prisma le como "sem filtro": listaria todos os anuncios.
   if (typeof produtoId !== "string" || produtoId === "") return [];
   const anuncios = await prisma.anuncio.findMany({ where: { canal: CANAL, produtoId }, orderBy: { atualizadoEm: "desc" }, select: DADOS_DA_LINHA });
-  return comAvisos(anuncios.map(linhaDoAnuncio));
+  // O "!" de cada anuncio no popup do produto (pedido do dono em 09/11/2026: "mostra ! no icone do ML, porem no popup nao
+  // mostra"): a mesma regra do icone da lista, so deste anuncio, com o motivo em texto; `null` quando esta em dia.
+  const [linhas, mudancas] = await Promise.all([comAvisos(anuncios.map(linhaDoAnuncio)), mudancasDosAnunciosML(anuncios)]);
+  const porId = new Map(anuncios.map((anuncio) => [anuncio.id, anuncio]));
+  return linhas.map((linha) => {
+    const estado = estadoDoIconeML([{ ...porId.get(linha.id), mudancas: mudancas.get(linha.id) }]);
+    return { ...linha, alerta: temProblemaNoIconeML(estado) ? motivosDoProblemaML(estado).join("; ") || "Precisa de atenção." : null };
+  });
 }
 
 /**
