@@ -4,7 +4,7 @@ import { completarFichaPelaDescricao, problemasDosAtributos } from "@/lib/canais
 import { contextoDosProdutos, carregarAnuncioML, novoRascunhoML, salvarRascunhoML } from "@/lib/canaisDeVenda/ml/banco";
 import { catalogosDosMeusAnuncios, lerPrimeiroDoCatalogo, sugerirCatalogos } from "@/lib/canaisDeVenda/ml/catalogo";
 import { eanDoKit } from "@/lib/canaisDeVenda/ml/eanDoKit";
-import { rascunhoDaVariante } from "@/lib/canaisDeVenda/ml/faixas";
+import { LIMITE_DO_PREMIUM, ROTULO_DA_VARIANTE, rascunhoDaVariante, varianteDoRascunho } from "@/lib/canaisDeVenda/ml/faixas";
 import { anunciosDoSkuNaConta, candidatosParaReaproveitar } from "@/lib/canaisDeVenda/ml/reaproveitar";
 import { ROTULO_DO_TIPO_ML } from "@/lib/canaisDeVenda/ml/rotulos";
 import { sugerirCategoria } from "@/lib/canaisDeVenda/ml/inteligencia";
@@ -26,6 +26,7 @@ import { exigirProdutoPronto } from "./situacao";
 
 const CANAL = "MERCADO_LIVRE";
 const CLASSICO = "gold_special";
+const PREMIUM = "gold_pro";
 export const MAXIMO_DE_CATALOGOS = 10;
 export const MINIMO_DE_ANUNCIOS = 5;
 const MAXIMO_DE_LINKS = 5;
@@ -142,8 +143,13 @@ function mesmoFormato(composicao, kit) {
  * atualizar em vez de criar outro.
  */
 async function classicoEmRascunho(produtoId, kit) {
+  return rascunhoEmAberto(produtoId, kit, CLASSICO);
+}
+
+/** O rascunho ainda nao publicado do produto, do `tipo` (Classico ou Premium) e do mesmo formato. */
+async function rascunhoEmAberto(produtoId, kit, tipo) {
   const anuncios = await prisma.anuncio.findMany({ where: { canal: CANAL, produtoId, status: { notIn: ["PUBLICADO", "PUBLICANDO"] } }, orderBy: { criadoEm: "desc" }, select: { id: true, dados: true } });
-  return anuncios.find((anuncio) => (anuncio.dados?.tipoAnuncio ?? CLASSICO) === CLASSICO && mesmoFormato(anuncio.dados?.composicao, kit) && !anuncio.dados?.publicacao?.itemId) ?? null;
+  return anuncios.find((anuncio) => (anuncio.dados?.tipoAnuncio ?? CLASSICO) === tipo && mesmoFormato(anuncio.dados?.composicao, kit) && !anuncio.dados?.publicacao?.itemId) ?? null;
 }
 
 /** Le o 1o de cada catalogo pedido; fica so o de 5 ou mais anuncios. 401/429 param a leitura (a cota acabou). */
@@ -267,26 +273,93 @@ export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, quan
     if (problema.campo !== "GTIN") avisos.push(`Ficha: ${problema.problema}`);
   }
 
-  const salvo = await salvarRascunhoML(existente?.id ?? null, segunda.rascunho);
-  if (!salvo.ok) throw new ErroDeFerramenta(`O rascunho do Mercado Livre não foi gravado: ${salvo.erro}`);
-
   const campos = [...primeira.campos, ...segunda.campos];
   const sugestoes = { ...primeira.sugestoes, ...segunda.sugestoes };
-  const proposta = montarProposta({
-    versaoDoRoteiro: VERSAO_ROTEIRO_ML,
+  const valores = { ...primeira.valores, ...segunda.valores };
+  const doPreco = (lido) => ({ valor: lido.valor, variante: lido.variante, freteGratis: lido.freteGratis, lucro: lido.lucro, lucroNaLoja: lido.lucroNaLoja, precoNaLoja: lido.precoNaLoja, markup: lido.markup, posicao: lido.posicao, total: lido.total, teto: lido.teto });
+
+  // O Classico da variante que ja esta no Rise publicado (reaproveitado da conta ou publicado antes) nao ganha outro: a proposta
+  // avisa e cuida so do que falta (pedido do dono em 08/11/2026: consultar o ML primeiro e reaproveitar).
+  const jaPublicado = preco.variante ? await publicadoDaVariante(produto.id, kit, preco.variante) : null;
+  let anuncioId = null;
+  let propostaDoClassico = null;
+  if (jaPublicado) {
+    avisos.unshift(`O ${ROTULO_DA_VARIANTE[preco.variante] ?? preco.variante} deste produto já está no Rise (${jaPublicado.idExterno ?? jaPublicado.id}): a proposta não criou outro.`);
+  } else {
+    const salvo = await salvarRascunhoML(existente?.id ?? null, segunda.rascunho);
+    if (!salvo.ok) throw new ErroDeFerramenta(`O rascunho do Mercado Livre não foi gravado: ${salvo.erro}`);
+    anuncioId = salvo.id;
+  }
+
+  // O Premium (decisao do dono em 08/11/2026): com o Classico a R$ 150 ou mais, o Premium com frete gratis vem junto, com o
+  // preco do mesmo lucro (a comissao do Premium e maior), no rascunho Premium do produto (gravar de novo atualiza o mesmo).
+  const premium =
+    preco.valor !== null && preco.valor >= LIMITE_DO_PREMIUM
+      ? await propostaDoPremium(cliente, { produto, kit, rascunhoDoClassico: segunda.rascunho, custo: custoDoAnuncio(produto, kit), precoNaLoja: precoNaLojaDoAnuncio(produto, kit), precos: precosDoRanking, campos, sugestoes, valores, relatorio, aceitos, links, avisos, doPreco })
+      : null;
+
+  if (anuncioId) {
+    propostaDoClassico = montarProposta({ versaoDoRoteiro: VERSAO_ROTEIRO_ML, campos, sugestoes, valores, relatorio, extras: { avisos, catalogosSugeridos: aceitos, links, preco: doPreco(preco) } });
+    await gravarProposta(anuncioId, propostaDoClassico);
+  }
+  return {
+    anuncioId,
+    anunciosNaConta,
+    titulo: tituloLimpo,
+    kit: kit ? { quantidade: kit.itens[0].quantidade, codigo: kit.codigo } : null,
     campos,
     sugestoes,
-    valores: { ...primeira.valores, ...segunda.valores },
+    preco: propostaDoClassico?.preco ?? doPreco(preco),
+    ...(premium ? { premium } : {}),
+    catalogosSugeridos: aceitos,
+    avisos,
+  };
+}
+
+/** O anuncio do produto, do mesmo formato, que ja esta no ML (publicado, publicando ou com item criado) na `variante`. */
+async function publicadoDaVariante(produtoId, kit, variante) {
+  const anuncios = await prisma.anuncio.findMany({ where: { canal: CANAL, produtoId }, select: { id: true, status: true, idExterno: true, situacaoCanal: true, dados: true } });
+  return (
+    anuncios.find((anuncio) => {
+      const noML = ["PUBLICADO", "PUBLICANDO"].includes(anuncio.status) || Boolean(anuncio.dados?.publicacao?.itemId);
+      if (!noML || anuncio.situacaoCanal === "ENCERRADA" || !mesmoFormato(anuncio.dados?.composicao, kit)) return false;
+      return varianteDoRascunho({ tipoAnuncio: anuncio.dados?.tipoAnuncio, envio: anuncio.dados?.envio, preco: anuncio.dados?.preco }) === variante;
+    }) ?? null
+  );
+}
+
+/**
+ * O Premium com frete gratis da proposta: o rascunho do Classico com o tipo Premium e o preco do mesmo lucro, gravado no
+ * Premium em rascunho do produto (ou num novo), com a mesma proposta (categoria, ficha, catalogos) e o preco dele. Ja publicado
+ * na variante: so o aviso. Sem preco calculavel: aviso e nada gravado.
+ */
+async function propostaDoPremium(cliente, { produto, kit, rascunhoDoClassico, custo, precoNaLoja, precos, campos, sugestoes, valores, relatorio, aceitos, links, avisos, doPreco }) {
+  const variante = "premium_frete_gratis";
+  const jaPublicado = await publicadoDaVariante(produto.id, kit, variante);
+  if (jaPublicado) {
+    avisos.push(`O Premium + frete grátis deste produto já está no Rise (${jaPublicado.idExterno ?? jaPublicado.id}): a proposta não criou outro.`);
+    return null;
+  }
+  const base = rascunhoDaVariante(rascunhoDoClassico, variante);
+  const lido = await precoDaPropostaML(cliente, base, { custo, precoNaLoja, precos });
+  if (lido.valor === null) {
+    avisos.push(`O preço do Premium não foi calculado: ${lido.avisos.join(" ") || "sem taxas do Mercado Livre"}`);
+    return null;
+  }
+  const emAberto = await rascunhoEmAberto(produto.id, kit, PREMIUM);
+  const aplicado = aplicarProposta(base, { preco: lido.valor }, emAberto ? {} : { vazio: () => true });
+  const salvo = await salvarRascunhoML(emAberto?.id ?? null, aplicado.rascunho);
+  if (!salvo.ok) throw new ErroDeFerramenta(`O rascunho Premium do Mercado Livre não foi gravado: ${salvo.erro}`);
+  const proposta = montarProposta({
+    versaoDoRoteiro: VERSAO_ROTEIRO_ML,
+    campos: [...new Set([...campos, ...aplicado.campos])],
+    sugestoes: { ...sugestoes, ...aplicado.sugestoes },
+    valores: { ...valores, ...aplicado.valores },
     relatorio,
-    extras: {
-      avisos,
-      catalogosSugeridos: aceitos,
-      links,
-      preco: { valor: preco.valor, variante: preco.variante, freteGratis: preco.freteGratis, lucro: preco.lucro, lucroNaLoja: preco.lucroNaLoja, precoNaLoja: preco.precoNaLoja, markup: preco.markup, posicao: preco.posicao, total: preco.total, teto: preco.teto },
-    },
+    extras: { avisos: lido.avisos, catalogosSugeridos: aceitos, links, preco: doPreco(lido) },
   });
   await gravarProposta(salvo.id, proposta);
-  return { anuncioId: salvo.id, anunciosNaConta, titulo: tituloLimpo, kit: kit ? { quantidade: kit.itens[0].quantidade, codigo: kit.codigo } : null, campos, sugestoes, preco: proposta.preco, catalogosSugeridos: aceitos, avisos };
+  return { anuncioId: salvo.id, preco: proposta.preco };
 }
 
 /**

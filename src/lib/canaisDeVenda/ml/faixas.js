@@ -34,12 +34,40 @@ const TIPO_DA_VARIANTE = { classico: "gold_special", premium: "gold_pro" };
 const comFreteGratis = (variante) => String(variante).endsWith("_frete_gratis");
 const tipoDaVariante = (variante) => (String(variante).startsWith("premium") ? TIPO_DA_VARIANTE.premium : TIPO_DA_VARIANTE.classico);
 
-/** Quais variantes o produto deve ter, pelo preco SEM frete (o da loja ou o calculado). Sem preco, nenhuma. */
+/** A partir deste preco no ML o produto ganha tambem o Premium com frete gratis (decisao do dono em 08/11/2026, noite). */
+export const LIMITE_DO_PREMIUM = 150;
+
+/** O nome curto da variante nas listas (pedido do dono: "fique claro se e classico + frete, premium + frete"). */
+export const ROTULO_DA_VARIANTE = {
+  classico_sem_frete: "Clássico sem frete",
+  classico_frete_gratis: "Clássico + frete grátis",
+  premium_sem_frete: "Premium sem frete",
+  premium_frete_gratis: "Premium + frete grátis",
+};
+
+/**
+ * As regras das variantes em texto, uma por linha: a bolha "i" do popup de anuncios e o roteiro da proposta (a IA pelo MCP)
+ * leem daqui, para as duas nunca dizerem coisas diferentes.
+ */
+export const REGRAS_DAS_VARIANTES = [
+  "Preço no ML abaixo de R$ 72: um anúncio, Clássico sem frete.",
+  "De R$ 72 a R$ 78,99: sobe para R$ 79, Clássico + frete grátis (o frete grátis é obrigatório a partir de R$ 79).",
+  "De R$ 79 a R$ 149,99: um anúncio, Clássico + frete grátis.",
+  "A partir de R$ 150: dois anúncios, Clássico + frete grátis e Premium + frete grátis.",
+  "O preço de cada anúncio deixa no ML o mesmo lucro em R$ que o produto deixa na loja.",
+  "Kit: a faixa vale pelo preço do anúncio do kit, e o lucro é o da loja vezes a quantidade.",
+];
+
+/**
+ * Quais variantes o produto deve ter, pelo preco no ML (o da loja, o calculado, ou o maior Classico ja feito). Sem preco,
+ * nenhuma. Abaixo de R$ 72 so o Classico sem frete (o dono tirou o com frete gratis em 08/11/2026, noite); de 72 a 149,99 so o
+ * com frete gratis; de 150 em diante tambem o Premium com frete gratis.
+ */
 export function variantesEsperadas(precoSemFrete) {
   const preco = Number(precoSemFrete);
   if (!(preco > 0)) return [];
-  // Abaixo de R$ 72 so o Classico sem frete (o dono tirou o com frete gratis em 08/11/2026, noite); de 72 em diante, so o com frete gratis.
-  return preco < LIMITE_DA_SEGUNDA_VARIANTE ? ["classico_sem_frete"] : ["classico_frete_gratis"];
+  if (preco < LIMITE_DA_SEGUNDA_VARIANTE) return ["classico_sem_frete"];
+  return preco < LIMITE_DO_PREMIUM ? ["classico_frete_gratis"] : ["classico_frete_gratis", "premium_frete_gratis"];
 }
 
 /** A variante de um rascunho: tipo de anuncio + frete gratis (ligado ou obrigatorio pelo preco). */
@@ -150,7 +178,14 @@ async function resolver({ pedido, custo, freteDaVariante, taxas, frete }) {
  * ja esta no ar, so precisa ser reaproveitado.
  */
 export function variantesDoProduto({ precoVenda, anuncios, naConta = [] }) {
-  const esperadas = variantesEsperadas(precoVenda);
+  // A faixa pelo MAIOR entre o preco da loja e o dos Classicos do produto que ja existem (no Rise ou na conta): o preco no ML
+  // passa do da loja, e o Premium e "a partir de R$ 150 no ML" (08/11/2026).
+  const doProduto = (anuncios ?? []).filter((anuncio) => anuncio && String(anuncio.codigo ?? "") === String(anuncio.sku ?? "") && anuncio.situacaoCanal !== "ENCERRADA");
+  const precosDosClassicos = [...doProduto, ...(naConta ?? [])]
+    .filter((anuncio) => anuncio && anuncio.tipoAnuncio !== "gold_pro" && anuncio.status !== "closed")
+    .map((anuncio) => Number(anuncio.preco))
+    .filter((preco) => preco > 0);
+  const esperadas = variantesEsperadas(Math.max(Number(precoVenda) || 0, ...precosDosClassicos) || precoVenda);
   const existentes = [];
   for (const anuncio of anuncios ?? []) {
     if (!anuncio || anuncio.situacaoCanal === "ENCERRADA") continue;

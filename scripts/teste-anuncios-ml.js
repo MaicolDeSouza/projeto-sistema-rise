@@ -3154,6 +3154,26 @@ try {
     const comPiso = await gravarPropostaML(ml(), "ZZ-ML-PA9", { categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] });
     const anuncioComPiso = await prisma.anuncio.findUnique({ where: { id: comPiso.anuncioId } });
     conferir("variante: entre 72 e 79 o rascunho sobe para R$ 79 com frete gratis e avisa", [comPiso.preco.valor, comPiso.preco.variante, anuncioComPiso.dados.preco, anuncioComPiso.dados.envio.freteGratis, anuncioComPiso.dados.tipoAnuncio, comPiso.avisos.some((aviso) => /R\$ 79/.test(aviso.replace(/ /g, " ")))], [79, "classico_frete_gratis", 79, true, "gold_special", true]);
+    // Premium (decisao do dono em 08/11/2026): com o Classico a R$ 150 ou mais, a proposta grava TAMBEM o Premium com frete gratis,
+    // com o preco do mesmo lucro (a comissao do Premium e maior). Gravar de novo atualiza os mesmos dois rascunhos.
+    await criarPronto("ZZ-ML-PA11", { precoVenda: 180 });
+    const comPremium = await gravarPropostaML(ml(), "ZZ-ML-PA11", { categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] });
+    const premium = comPremium.premium?.anuncioId ? await prisma.anuncio.findUnique({ where: { id: comPremium.premium.anuncioId } }) : null;
+    conferir("premium: Classico a 150 ou mais grava tambem o Premium com frete gratis e preco maior", [comPremium.preco.valor >= 150, comPremium.preco.variante, premium?.dados?.tipoAnuncio, premium?.dados?.envio?.freteGratis, premium?.dados?.preco > comPremium.preco.valor, Boolean(premium?.dados?.proposta), comPremium.premium?.preco?.variante], [true, "classico_frete_gratis", "gold_pro", true, true, true, "premium_frete_gratis"]);
+    await gravarPropostaML(ml(), "ZZ-ML-PA11", { categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] });
+    const produtoPA11 = await prisma.produto.findFirst({ where: { sku: "ZZ-ML-PA11" }, select: { id: true } });
+    const rascunhosPA11 = await prisma.anuncio.findMany({ where: { produtoId: produtoPA11.id, canal: "MERCADO_LIVRE" }, select: { dados: true } });
+    conferir("premium: gravar de novo nao duplica (um Classico e um Premium)", rascunhosPA11.map((anuncio) => anuncio.dados.tipoAnuncio).sort(), ["gold_pro", "gold_special"]);
+    conferir("premium: abaixo de 150 nao grava Premium", [gravada.premium ?? null], [null]);
+
+    // O Classico da variante ja esta no Rise publicado (reaproveitado ou publicado antes): a proposta nao cria outro Classico, avisa
+    // e cuida so do que falta (aqui, o Premium).
+    const classicoPA11 = (await prisma.anuncio.findMany({ where: { produtoId: produtoPA11.id, canal: "MERCADO_LIVRE" } })).find((anuncio) => anuncio.dados.tipoAnuncio === "gold_special");
+    await prisma.anuncio.update({ where: { id: classicoPA11.id }, data: { status: "PUBLICADO", idExterno: "MLB5550099", dados: { ...classicoPA11.dados, publicacao: { itemId: "MLB5550099" } } } });
+    const soPremium = await gravarPropostaML(ml(), "ZZ-ML-PA11", { categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] });
+    const depois = await prisma.anuncio.findMany({ where: { produtoId: produtoPA11.id, canal: "MERCADO_LIVRE" }, select: { dados: true, status: true } });
+    conferir("ja publicado na variante: nao cria outro Classico, avisa e atualiza o Premium", [soPremium.anuncioId, soPremium.avisos.some((aviso) => /MLB5550099/.test(aviso) && /já/.test(aviso)), depois.length, Boolean(soPremium.premium?.anuncioId)], [null, true, 2, true]);
+
     // A conta ja tem anuncio do codigo fora do Rise: a proposta avisa (com o MLB) e devolve a lista, para o dono reaproveitar
     // em vez de publicar outro igual.
     await criarPronto("ZZ-ML-PA10");
@@ -3671,6 +3691,12 @@ try {
     conferir("abaixo de 72: so o sem frete", [variantesEsperadas(71.99), variantesEsperadas(18.9)], [["classico_sem_frete"], ["classico_sem_frete"]]);
     conferir("de 72 em diante: so a com frete gratis", [variantesEsperadas(72), variantesEsperadas(78.99), variantesEsperadas(79)], [["classico_frete_gratis"], ["classico_frete_gratis"], ["classico_frete_gratis"]]);
     conferir("sem preco: nenhuma", [variantesEsperadas(null), variantesEsperadas(0)], [[], []]);
+    // Premium (decisao do dono em 08/11/2026, "pode seguir dessa forma"): a partir de R$ 150 no ML, o Classico com frete gratis E
+    // o Premium com frete gratis; abaixo de 150, nunca Premium.
+    conferir("de 150 em diante: Classico e Premium com frete gratis", [variantesEsperadas(149.99), variantesEsperadas(150), variantesEsperadas(320)], [["classico_frete_gratis"], ["classico_frete_gratis", "premium_frete_gratis"], ["classico_frete_gratis", "premium_frete_gratis"]]);
+    const { ROTULO_DA_VARIANTE, REGRAS_DAS_VARIANTES, LIMITE_DO_PREMIUM } = await import("../src/lib/canaisDeVenda/ml/faixas.js");
+    conferir("rotulos curtos das variantes", [ROTULO_DA_VARIANTE.classico_sem_frete, ROTULO_DA_VARIANTE.classico_frete_gratis, ROTULO_DA_VARIANTE.premium_frete_gratis], ["Clássico sem frete", "Clássico + frete grátis", "Premium + frete grátis"]);
+    conferir("as regras em texto citam os tres limites", [LIMITE_DO_PREMIUM, REGRAS_DAS_VARIANTES.some((linha) => /72/.test(linha)), REGRAS_DAS_VARIANTES.some((linha) => /79/.test(linha)), REGRAS_DAS_VARIANTES.some((linha) => /150/.test(linha) && /Premium/.test(linha))], [150, true, true, true]);
     conferir("nome das variantes", NOME_DA_VARIANTE.classico_frete_gratis, "Clássico com frete grátis");
     conferir("variante do rascunho: classico sem frete", varianteDoRascunho({ tipoAnuncio: "gold_special", envio: { freteGratis: false }, preco: 45.9 }), "classico_sem_frete");
     conferir("variante do rascunho: preco >= 79 e frete gratis mesmo desligado", varianteDoRascunho({ tipoAnuncio: "gold_special", envio: { freteGratis: false }, preco: 89.9 }), "classico_frete_gratis");
@@ -3807,11 +3833,17 @@ try {
     conferir("a partir de 79: so o com frete gratis, e o preco >= 79 conta como ele", variantesDoProduto({ precoVenda: 89.9, anuncios: [linha({ preco: 89.99 })] }), { esperadas: ["classico_frete_gratis"], existentes: ["classico_frete_gratis"], faltam: [] });
     conferir("kit na lista e anuncio encerrado nao contam", variantesDoProduto({ precoVenda: 45.9, anuncios: [linha({ codigo: "A_10" }), linha({ freteGratis: true, situacaoCanal: "ENCERRADA" })] }), { esperadas: ["classico_sem_frete"], existentes: [], faltam: ["classico_sem_frete"] });
     conferir("rascunho conta como existente (vai virar anuncio)", variantesDoProduto({ precoVenda: 45.9, anuncios: [linha({ status: "RASCUNHO", situacaoCanal: null })] }).existentes, ["classico_sem_frete"]);
-    conferir("sem preco de venda: nada esperado", variantesDoProduto({ precoVenda: null, anuncios: [linha()] }), { esperadas: [], existentes: ["classico_sem_frete"], faltam: [] });
+    // Sem preco na loja, a faixa sai do Classico que ja existe (08/11/2026); sem nenhum preco, nada esperado.
+    conferir("sem preco de venda: a faixa pelo Classico existente", variantesDoProduto({ precoVenda: null, anuncios: [linha()] }), { esperadas: ["classico_sem_frete"], existentes: ["classico_sem_frete"], faltam: [] });
+    conferir("sem preco nenhum: nada esperado", variantesDoProduto({ precoVenda: null, anuncios: [] }), { esperadas: [], existentes: [], faltam: [] });
     // Os anuncios que a conta do ML ja tem do SKU, fora do Rise (pedido do dono em 08/11/2026: "se ja tem anuncio o mesmo ja deve
     // ser carregado no card junto com as outras variantes"): contam como existentes, para o "Faltam" nao pedir o que ja existe.
     conferir("anuncio da conta fora do Rise conta como existente", variantesDoProduto({ precoVenda: 89.9, anuncios: [], naConta: [{ tipoAnuncio: "gold_special", freteGratis: true, preco: 95, status: "active" }] }), { esperadas: ["classico_frete_gratis"], existentes: ["classico_frete_gratis"], faltam: [] });
     conferir("anuncio da conta sem frete abaixo de 72 cobre a variante", variantesDoProduto({ precoVenda: 45.9, anuncios: [], naConta: [{ tipoAnuncio: "gold_special", freteGratis: false, preco: 39.9, status: "paused" }] }).faltam, []);
+    // A faixa usa o MAIOR entre o preco da loja e o dos Classicos ja feitos: o preco no ML passa do da loja, e o Premium e
+    // "a partir de R$ 150 no ML".
+    conferir("Classico do produto a R$ 159 no ML (loja a 139): falta o Premium", variantesDoProduto({ precoVenda: 139, anuncios: [linha({ freteGratis: true, preco: 159 })] }).faltam, ["premium_frete_gratis"]);
+    conferir("com Classico e Premium acima de 150: nada falta", variantesDoProduto({ precoVenda: 139, anuncios: [linha({ freteGratis: true, preco: 159 }), linha({ tipoAnuncio: "gold_pro", freteGratis: true, preco: 169 })] }).faltam, []);
     conferir("premium existente nao cobre o classico", variantesDoProduto({ precoVenda: 45.9, anuncios: [linha({ tipoAnuncio: "gold_pro" })] }).faltam, ["classico_sem_frete"]);
 
     // A linha do anuncio traz o frete gratis e o SKU do produto base (o kit tem outro codigo).
