@@ -607,6 +607,25 @@ try {
     await banco.salvarPedido(pedido.pedidoId, { removerProposta: true });
     lido = await banco.lerPedido(pedido.pedidoId);
     conferir("remover apaga linha e arquivo", [lido.propostaArquivo, existsSync(caminho)], [null, false]);
+
+    // Comprovantes de pagamento (09/11/2026): varios por pedido, anexados e excluidos na hora, em qualquer situacao.
+    console.log("\nComprovantes de pagamento");
+    conferir("comprovante que nao e PDF/JPG/PNG recusado", (await banco.anexarComprovante(pedido.pedidoId, falso, "zz")).ok, false);
+    conferir("comprovante de pedido que nao existe recusado", (await banco.anexarComprovante("naoexiste000", pdf, "zz")).ok, false);
+    const png = new File([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0])], "pix entrada.png", { type: "image/png" });
+    const c1 = await banco.anexarComprovante(pedido.pedidoId, pdf, "zz-dono");
+    const c2 = await banco.anexarComprovante(pedido.pedidoId, png, "zz-dono");
+    conferir("dois comprovantes, na ordem, com quem anexou", [c1.ok, c2.ok, c2.comprovantes.map((c) => c.nomeOriginal), c2.comprovantes[0].enviadoPor], [true, true, ["Orçamento 123.pdf", "pix entrada.png"], "zz-dono"]);
+    const linhaDoPrimeiro = await prisma.comprovanteDePagamentoCompra.findUnique({ where: { id: c2.comprovantes[0].id } });
+    const caminhoDoPrimeiro = arquivos.caminhoDoComprovante(pedido.pedidoId, linhaDoPrimeiro.arquivo);
+    conferir("comprovante no disco e na leitura do pedido", [existsSync(caminhoDoPrimeiro), (await banco.lerPedido(pedido.pedidoId)).comprovantes.length], [true, 2]);
+    // O pagamento vem depois de enviado: anexar vale com o pedido fora do rascunho.
+    await prisma.pedidoDeCompra.update({ where: { id: pedido.pedidoId }, data: { status: "ENVIADO" } });
+    conferir("anexar com o pedido enviado", (await banco.anexarComprovante(pedido.pedidoId, png, "zz-dono")).comprovantes.length, 3);
+    const semPrimeiro = await banco.excluirComprovante(pedido.pedidoId, c2.comprovantes[0].id);
+    conferir("excluir tira a linha e o arquivo", [semPrimeiro.ok, semPrimeiro.comprovantes.length, existsSync(caminhoDoPrimeiro)], [true, 2, false]);
+    conferir("excluir de outro pedido recusa", (await banco.excluirComprovante("naoexiste000", c2.comprovantes[1].id)).ok, false);
+    conferir("caminho fora do formato recusado", (() => { try { arquivos.caminhoDoComprovante(pedido.pedidoId, "../x.pdf"); return true; } catch { return false; } })(), false);
     await arquivos.apagarPastaDoPedido(pedido.pedidoId);
   }
 

@@ -5488,6 +5488,13 @@ entrega: Em 10 dias (17/11) · PC-0002" (envio + prazo; "Amanhã", "Hoje", "Atra
 vários), com os estoques nos canais embaixo (`estoqueVirtualDosProdutos` em `lib/compras/estoqueVirtual.js`; só com o
 estoque exato).
 
+
+**Comprovantes de pagamento (09/11/2026, pedido do dono: "fazer upload do comprovante de pagamento"; Opção: vários arquivos):** no
+bloco Pagamento do editor do pedido de compra, `ComprovantesDePagamento.jsx` anexa (vários de uma vez) e exclui (com a janela que
+mostra o nome) NA HORA, sem o Salvar e em qualquer situação do pedido, porque o pagamento costuma vir depois de enviado. Tabela
+`ComprovanteDePagamentoCompra` (migration `20261109e`, apaga junto com o pedido), arquivo em `dados/compras/<id>/comprovantes/` com
+nome gerado e formato conferido pelos BYTES (PDF, JPG, PNG, até 20 MB; `guardarComprovante` em `lib/compras/arquivos.js`), download
+em `/api/compras/<id>/comprovantes/<comprovanteId>` (login e `tela.compras.pedidos` ver). Testes no `teste:compras`.
 Pedido do dono (ditado em partes, com prints do pedido de compra do Bling). Spec `docs/superpowers/specs/2026-10-26-modulo-compras-design.md`,
 plano `docs/superpowers/plans/2026-10-26-modulo-compras.md` (12 tarefas, inline). **Pronto e testado no PC, SEM DEPLOY** (leva a migration
 `20261026_compras`, só aditiva, que semeia os Dados da empresa).

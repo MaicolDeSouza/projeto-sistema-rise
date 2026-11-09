@@ -2,12 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 
-import { negarSemAcesso, negarSemAcessos, podeAgora } from "@/lib/acessos/servidor";
+import { negarSemAcesso, negarSemAcessos, podeAgora, sessaoDeAcessos } from "@/lib/acessos/servidor";
 import { guardarPropostaTemporaria } from "@/lib/compras/arquivos";
 import { casarManual, desfazerCasamento } from "@/lib/compras/aliexpress/casamento";
 import { reenviarAoVirtual } from "@/lib/compras/aliexpress/importacao";
 import { desfazerUltimoLancamento, lancarEstoqueDoItem, reenviarPendentes } from "@/lib/compras/lancamento";
 import {
+  anexarComprovante,
+  excluirComprovante,
   adicionarAoPedido,
   adicionarItem,
   buscarItensParaPedido,
@@ -217,4 +219,41 @@ export async function reenviarAoVirtualAcao(linhaId) {
   if (!resultado.ok) return resultado;
   revalidar();
   return { ...resultado, pedido: await pedidoDaLinha(linhaId) };
+}
+
+// ---------------------------------------------------------------------------
+// Comprovantes de pagamento (pedido do dono em 09/11/2026): anexados e excluidos na hora, em qualquer situacao do pedido
+// ---------------------------------------------------------------------------
+
+async function quemEsta() {
+  const sessao = await sessaoDeAcessos().catch(() => null);
+  return sessao?.login ? String(sessao.login) : sessao?.ambiente === "pc" ? "pc" : null;
+}
+
+/** Anexa UM comprovante (a tela manda um por vez); devolve a lista atualizada. */
+export async function anexarComprovanteAcao(formData) {
+  const negado = await negarSemAcesso("tela.compras.pedidos", "editar");
+  if (negado) return negado;
+  try {
+    const resultado = await anexarComprovante(String(formData?.get("pedidoId") ?? ""), formData?.get("arquivo"), await quemEsta());
+    if (resultado.ok) revalidar();
+    return resultado;
+  } catch (erro) {
+    console.error("[compras] comprovante:", erro);
+    return { ok: false, erro: "Não foi possível anexar o comprovante." };
+  }
+}
+
+/** Exclui um comprovante (a tela confirma antes, com o nome); devolve a lista atualizada. */
+export async function excluirComprovanteAcao(pedidoId, comprovanteId) {
+  const negado = await negarSemAcesso("tela.compras.pedidos", "editar");
+  if (negado) return negado;
+  try {
+    const resultado = await excluirComprovante(String(pedidoId ?? ""), String(comprovanteId ?? ""));
+    if (resultado.ok) revalidar();
+    return resultado;
+  } catch (erro) {
+    console.error("[compras] comprovante:", erro);
+    return { ok: false, erro: "Não foi possível excluir o comprovante." };
+  }
 }

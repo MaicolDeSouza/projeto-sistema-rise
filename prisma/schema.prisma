@@ -2359,6 +2359,8 @@ model PedidoDeCompra {
 
   itens      ItemDoPedidoDeCompra[]
   aliexpress PedidoAliExpress?
+  /// Comprovantes de pagamento anexados (09/11/2026), em qualquer situacao do pedido.
+  comprovantes ComprovanteDePagamentoCompra[]
 
   @@index([status])
   @@index([fornecedorId, status])
@@ -2855,4 +2857,21 @@ model ContaDoEditorML {
   criadoEm      DateTime @default(now())
 
   @@index([produtoId, unidadesDoKit, criadoEm])
+}
+
+/// Comprovante de pagamento de um pedido de compra (pedido do dono em 09/11/2026: "fazer upload do comprovante de pagamento"):
+/// varios por pedido (entrada e saldo, parcelas), PDF, JPG ou PNG conferidos pelos bytes, anexados e excluidos na hora, em
+/// qualquer situacao do pedido (o pagamento costuma vir depois de enviado). O arquivo mora em
+/// dados/compras/<pedidoId>/comprovantes/<arquivo> (nome gerado); o nome real volta no download.
+model ComprovanteDePagamentoCompra {
+  id           String         @id @default(cuid())
+  pedidoId     String
+  pedido       PedidoDeCompra @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  arquivo      String
+  nomeOriginal String?
+  /// O login de quem anexou ("pc" no PC sem login).
+  enviadoPor   String?
+  enviadoEm    DateTime       @default(now())
+
+  @@index([pedidoId])
 }

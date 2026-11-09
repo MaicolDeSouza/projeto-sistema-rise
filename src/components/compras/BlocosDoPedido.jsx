@@ -106,7 +106,7 @@ function Opcoes({ nome, opcoes, valor, disabled, aoMudar }) {
   );
 }
 
-export function BlocoPagamento({ formulario, editar, erros, aoMudar, totais = null, editarEntrada = false }) {
+export function BlocoPagamento({ formulario, editar, erros, aoMudar, totais = null, editarEntrada = false, children = null }) {
   const pix = formulario.formaPagamento === "PIX";
   return (
     <SecaoDoAnuncio titulo="Pagamento" ajuda="Entrada: o valor que já foi pago ao fazer o pedido. Pode ser lançada depois de enviado.">
@@ -201,6 +201,8 @@ function FreteDoAliExpress({ aliexpress }) {
           ))}
         </div>
       )}
+      {/* Os comprovantes de pagamento (09/11/2026), que valem em qualquer situacao do pedido. */}
+      {children}
     </SecaoDoAnuncio>
   );
 }

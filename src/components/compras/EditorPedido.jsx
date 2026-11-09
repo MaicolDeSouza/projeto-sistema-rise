@@ -12,6 +12,7 @@ import { faltaLancar } from "@/lib/compras/regras";
 import { lerListaDaTela } from "@/lib/ultimaListaDaTela";
 import { AvisosAliExpress, ResumoAliExpress } from "./AliExpressDoPedido";
 import BlocoItens from "./BlocoItens";
+import ComprovantesDePagamento from "./ComprovantesDePagamento";
 import { BlocoFrete, BlocoObservacoes, BlocoPagamento, BlocoProposta, BlocoTotais } from "./BlocosDoPedido";
 import { entradaDoFormulario, formularioDoPedido, totaisDoFormulario } from "./formato";
 import Pergunta from "./Pergunta";
@@ -316,7 +317,9 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
         {veCusto && <BlocoTotais formulario={formulario} totais={totais} editar={rascunho} erros={erros} aoMudar={mudar} />}
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <BlocoPagamento formulario={formulario} editar={rascunho} erros={erros} aoMudar={mudar} totais={veCusto ? totais : null} editarEntrada={!fechado} />
+          <BlocoPagamento formulario={formulario} editar={rascunho} erros={erros} aoMudar={mudar} totais={veCusto ? totais : null} editarEntrada={!fechado}>
+            <ComprovantesDePagamento pedidoId={pedido.id} inicial={pedido.comprovantes ?? []} podeEditar={podeEditar} />
+          </BlocoPagamento>
           <BlocoFrete formulario={formulario} transportadoras={transportadoras} editar={!fechado} aoMudar={mudar} aliexpress={pedido.aliexpress} />
           <BlocoProposta formulario={formulario} editar={!fechado} aoMudar={mudar}>
             {extras.arquivoDaProposta?.({ pedido, editar: !fechado, formulario, mudar })}

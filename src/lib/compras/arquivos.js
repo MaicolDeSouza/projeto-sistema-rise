@@ -75,3 +75,34 @@ export async function apagarPastaDoPedido(pedidoId) {
   if (!ID_DO_PEDIDO.test(pedidoId ?? "")) return;
   await rm(path.join(RAIZ_COMPRAS, pedidoId), { recursive: true, force: true });
 }
+
+// ---- Comprovantes de pagamento (09/11/2026) ----
+// Direto na pasta do pedido, sem lote temporario: o comprovante e anexado e excluido na hora, em qualquer situacao do pedido
+// (a proposta so vale no Salvar porque faz parte da edicao; o comprovante chega depois do pedido enviado).
+
+const PASTA_DOS_COMPROVANTES = "comprovantes";
+
+export function caminhoDoComprovante(pedidoId, nome) {
+  if (!ID_DO_PEDIDO.test(pedidoId ?? "") || !NOME_GERADO.test(nome ?? "")) throw new Error("Caminho de comprovante inválido.");
+  return path.join(RAIZ_COMPRAS, pedidoId, PASTA_DOS_COMPROVANTES, nome);
+}
+
+/** Grava um comprovante na pasta do pedido; o formato e conferido pelos BYTES (PDF, JPG ou PNG, ate 20 MB). */
+export async function guardarComprovante(pedidoId, arquivo) {
+  if (!ID_DO_PEDIDO.test(pedidoId ?? "")) return { ok: false, erro: "Pedido inválido." };
+  if (!arquivo || typeof arquivo.arrayBuffer !== "function" || !arquivo.size) return { ok: false, erro: "Nenhum arquivo enviado." };
+  if (arquivo.size > TAMANHO_MAXIMO) return { ok: false, erro: `O arquivo tem ${(arquivo.size / 1024 / 1024).toFixed(1)} MB; o limite é 20 MB.` };
+  const bytes = Buffer.from(await arquivo.arrayBuffer());
+  const formato = ASSINATURAS.find((assinatura) => assinatura.confere(bytes));
+  if (!formato) return { ok: false, erro: "Envie o comprovante em PDF, JPG ou PNG." };
+  const nome = `${randomUUID().replaceAll("-", "")}${formato.extensao}`;
+  const destino = caminhoDoComprovante(pedidoId, nome);
+  await mkdir(path.dirname(destino), { recursive: true });
+  await writeFile(destino, bytes);
+  return { ok: true, nome, nomeOriginal: String(arquivo.name ?? "").slice(0, 200) || null };
+}
+
+export async function apagarComprovanteDoDisco(pedidoId, nome) {
+  if (!nome) return;
+  await rm(caminhoDoComprovante(pedidoId, nome), { force: true });
+}

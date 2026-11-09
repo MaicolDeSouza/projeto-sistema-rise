@@ -19,7 +19,7 @@ import {
 } from "@/lib/compras/regras";
 import { conferirPedido } from "@/lib/compras/esquema";
 import { alertasDoPedido, avisosDoPedido, diasAte, entregaPeloRastreio, faseDoPedido, prazoDoPedido, previsaoEmDatas } from "@/lib/compras/aliexpress/regras";
-import { apagarPastaDoPedido, apagarPropostaDoPedido, moverPropostaParaPedido } from "@/lib/compras/arquivos";
+import { apagarComprovanteDoDisco, apagarPastaDoPedido, apagarPropostaDoPedido, guardarComprovante, moverPropostaParaPedido } from "@/lib/compras/arquivos";
 
 /**
  * Banco do modulo Compras (spec 2026-10-26-modulo-compras-design.md). Sem conferencia de acesso: quem chama (as
@@ -451,6 +451,7 @@ function pedidoParaTela(pedido) {
     propostaNumero: pedido.propostaNumero,
     propostaArquivo: pedido.propostaArquivo,
     propostaNomeOriginal: pedido.propostaNomeOriginal,
+    comprovantes: (pedido.comprovantes ?? []).map((c) => ({ id: c.id, nomeOriginal: c.nomeOriginal, enviadoEm: c.enviadoEm, enviadoPor: c.enviadoPor })),
     observacoes: pedido.observacoes,
     enviadoEm: pedido.enviadoEm,
     finalizadoEm: pedido.finalizadoEm,
@@ -594,6 +595,8 @@ const INCLUIR_NO_PEDIDO = {
     select: { id: true, nome: true, cnpj: true, contato: true, telefone: true, email: true, prazoEntregaDias: true, condicoesPagamento: true, moedaLista: true, fatorImportacao: true },
   },
   transportadora: { select: { id: true, nome: true, nomeFantasia: true, urlRastreamento: true } },
+  // Comprovantes de pagamento (09/11/2026), do mais antigo ao mais novo.
+  comprovantes: { orderBy: { enviadoEm: "asc" }, select: { id: true, nomeOriginal: true, enviadoEm: true, enviadoPor: true } },
   itens: {
     orderBy: { ordem: "asc" },
     include: {
@@ -1000,4 +1003,47 @@ export async function mudarStatus(id, para) {
   } catch (erro) {
     return { ok: false, erro: `Não foi possível mudar a situação: ${erro.message}` };
   }
+}
+
+// ---- Comprovantes de pagamento (pedido do dono em 09/11/2026) ----
+
+/** A lista de comprovantes do pedido, para a tela (do mais antigo ao mais novo). */
+async function comprovantesDoPedido(pedidoId) {
+  return prisma.comprovanteDePagamentoCompra.findMany({
+    where: { pedidoId },
+    orderBy: { enviadoEm: "asc" },
+    select: { id: true, nomeOriginal: true, enviadoEm: true, enviadoPor: true },
+  });
+}
+
+/**
+ * Anexa um comprovante ao pedido, em qualquer situacao (o pagamento costuma vir depois de enviado). Grava o arquivo e depois
+ * a linha; se a linha falhar, o arquivo sai. Devolve a lista atualizada.
+ */
+export async function anexarComprovante(pedidoId, arquivo, quem = null) {
+  const pedido = await prisma.pedidoDeCompra.findUnique({ where: { id: String(pedidoId ?? "") }, select: { id: true } });
+  if (!pedido) return { ok: false, erro: "Pedido não encontrado." };
+  const guardado = await guardarComprovante(pedido.id, arquivo);
+  if (!guardado.ok) return guardado;
+  try {
+    await prisma.comprovanteDePagamentoCompra.create({
+      data: { pedidoId: pedido.id, arquivo: guardado.nome, nomeOriginal: guardado.nomeOriginal, enviadoPor: quem },
+    });
+  } catch (erro) {
+    await apagarComprovanteDoDisco(pedido.id, guardado.nome).catch(() => {});
+    throw erro;
+  }
+  return { ok: true, comprovantes: await comprovantesDoPedido(pedido.id) };
+}
+
+/** Exclui um comprovante do pedido (a linha e o arquivo). Devolve a lista atualizada. */
+export async function excluirComprovante(pedidoId, comprovanteId) {
+  const comprovante = await prisma.comprovanteDePagamentoCompra.findFirst({
+    where: { id: String(comprovanteId ?? ""), pedidoId: String(pedidoId ?? "") },
+    select: { id: true, pedidoId: true, arquivo: true },
+  });
+  if (!comprovante) return { ok: false, erro: "Comprovante não encontrado." };
+  await prisma.comprovanteDePagamentoCompra.delete({ where: { id: comprovante.id } });
+  await apagarComprovanteDoDisco(comprovante.pedidoId, comprovante.arquivo).catch((erro) => console.error("[compras] comprovante não apagado do disco:", erro.message));
+  return { ok: true, comprovantes: await comprovantesDoPedido(comprovante.pedidoId) };
 }
