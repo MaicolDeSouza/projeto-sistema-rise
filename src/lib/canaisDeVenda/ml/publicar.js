@@ -163,7 +163,8 @@ export const tipoDaFoto = (arquivo) => (/\.png$/i.test(String(arquivo)) ? "image
 const textoDe = (erro) => erro?.message ?? String(erro);
 
 /// O NCM, o CEST e a origem do produto principal, so os digitos (o formato que o Bling recebe do Rise).
-async function fiscalDoPrincipal(produtoId) {
+// Exportada (09/11/2026): o Mover do kit reaproveitado cria o kit no Bling com a mesma parte fiscal (`atualizar.js`).
+export async function fiscalDoPrincipal(produtoId) {
   const produto = await prisma.produto.findUnique({ where: { id: produtoId }, select: { ncm: true, cest: true, origem: true } });
   const digitos = (valor) => String(valor ?? "").replace(/\D/g, "") || null;
   return { ncm: digitos(produto?.ncm), cest: digitos(produto?.cest), origem: produto?.origem ?? null };

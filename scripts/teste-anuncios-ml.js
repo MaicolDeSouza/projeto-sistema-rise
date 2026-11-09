@@ -4253,6 +4253,23 @@ try {
 
       const travado = criarBlingFalso({ produtos: produtosDoBling, ...antigoNoBling, codigosLiberados: ["outro"] });
       conferir("mover: travado nao escreve", [(await moverVinculoParaRiseML(travado, "ZZ-ML-TI", "MLBANTIGO1", { preco: 39.9, titulo: "x", tipoAnuncio: "gold_special" })).ok, travado.chamadas.filter((c) => c.metodo !== "GET" && c.metodo !== "exigirEscrita").length], [false, 0]);
+
+      // Kit reaproveitado cujo kit nao existe no Bling (dono, 09/11/2026: o Mover do 100219_5 parou em "nao esta entre os
+      // produtos ativos do Bling"): o Mover cria o kit (N x a peca, como o Publicar) e entao liga o anuncio na Rise_ML.
+      const kit = { itens: [{ sku: "ZZ-ML-TI", quantidade: 5 }], envio: {}, principal: { ncm: "84733049", cest: null, origem: 0 } };
+      const semKit = criarBlingFalso({ produtos: produtosDoBling });
+      const soLer = await moverVinculoParaRiseML(semKit, "ZZ-ML-TI_5", "MLB900000005", { preco: 150, titulo: "5x Placa ZZ TI", tipoAnuncio: "gold_special", somenteLer: true, kit });
+      conferir("mover kit: so ler nao cria nada e avisa que vai criar o kit", [soLer.ok, soLer.criarKit, semKit.chamadas.filter((c) => c.metodo === "POST").length], [true, true, 0]);
+      const kitMovido = await moverVinculoParaRiseML(semKit, "ZZ-ML-TI_5", "MLB900000005", { preco: 150, titulo: "5x Placa ZZ TI", tipoAnuncio: "gold_special", kit });
+      const kitNoBling = [...semKit.estado.produtos.values()].find((p) => p.codigo === "ZZ-ML-TI_5");
+      conferir(
+        "mover kit: cria o kit (5 x a peca) e liga o anuncio na Rise_ML",
+        [kitMovido.ok, Boolean(kitMovido.kitCriado), kitNoBling?.formato, (kitNoBling?.estrutura?.componentes ?? []).map((c) => [Number(c.produto.id), Number(c.quantidade)]), lojaDe(semKit, "MLB900000005")],
+        [true, true, "E", [[201, 5]], [LOJA_ML_NO_BLING]],
+      );
+      const semKitSemPeca = criarBlingFalso({ produtos: [] });
+      const semPeca = await moverVinculoParaRiseML(semKitSemPeca, "ZZ-ML-TI_5", "MLB900000005", { preco: 150, titulo: "x", tipoAnuncio: "gold_special", kit });
+      conferir("mover kit: sem a peca no Bling recusa sem escrever", [semPeca.ok, /ZZ-ML-TI/.test(semPeca.erro ?? ""), semKitSemPeca.chamadas.filter((c) => c.metodo === "POST").length], [false, true, 0]);
     }
 
     // O envio de verdade: o anuncio reaproveitado com vendas pula o titulo (aviso) e pede para mover o Bling; o Mover move.

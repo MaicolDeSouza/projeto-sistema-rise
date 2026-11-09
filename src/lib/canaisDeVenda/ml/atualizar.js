@@ -7,7 +7,7 @@ import { iniciarProgressoML } from "./progresso";
 import { impressaoDoConteudo } from "./impressao";
 import { lerCategoriaCompleta } from "./leitura";
 import { nomeDaFoto, termosParaAtualizar } from "./payload";
-import { emAndamento, lerFotoDoDisco, tipoDaFoto } from "./publicar";
+import { emAndamento, fiscalDoPrincipal, lerFotoDoDisco, tipoDaFoto } from "./publicar";
 import { textoDaRecusaML } from "./respostas";
 import { reutilizadoPendente } from "./rotulos";
 import { guardarContaDoEditorSemFalhar } from "@/lib/canaisDeVenda/ml/contaDoEditor";
@@ -87,6 +87,14 @@ async function enviarUmaVez(anuncioId, { ml, bling, moverBling, lerFoto, progres
   // O vinculo do Bling do anuncio reaproveitado, uma vez so: pede a confirmacao do dono e, com ela, move.
   const pendente = Boolean(reaproveitado) && !reaproveitado.blingMovidoEm;
   const dadosDoBling = { preco: rascunho.preco, titulo: rascunho.titulo, tipoAnuncio: rascunho.tipoAnuncio };
+  // O kit reaproveitado (09/11/2026): sem o kit no Bling, o Mover o cria como o Publicar (as pecas, o frete e a parte fiscal).
+  if (pendente && rascunho.composicao) {
+    dadosDoBling.kit = {
+      itens: (rascunho.composicao.itens ?? []).map((item) => ({ sku: contexto.produtos[item.produtoId]?.sku, quantidade: Number(item.quantidade) })),
+      envio: rascunho.envio ?? {},
+      principal: await fiscalDoPrincipal(principal?.id ?? rascunho.produtoId),
+    };
+  }
   const pronto = (extra = {}) => ({ ok: true, enviadas, ...(avisos.length ? { avisos } : {}), ...extra });
   if (!pendente) {
     progresso.feita("bling", "não se aplica");
@@ -101,8 +109,14 @@ async function enviarUmaVez(anuncioId, { ml, bling, moverBling, lerFoto, progres
   progresso.andando("bling");
   const movido = await moverVinculoParaRiseML(bling, codigo, itemId, dadosDoBling);
   if (!movido.ok) return { ok: false, enviadas, parte: "bling", erro: movido.erro ?? "O Bling não concluiu a mudança do vínculo." };
-  await gravarPublicacao(anuncioId, { reaproveitado: { ...reaproveitado, blingMovidoEm: new Date().toISOString() } });
-  progresso.feita("bling", movido.de === "ML_4h" ? "movido da ML_4h para a Rise_ML" : "registrado na Rise_ML");
+  await gravarPublicacao(
+    anuncioId,
+    { reaproveitado: { ...reaproveitado, blingMovidoEm: new Date().toISOString() }, ...(movido.kitCriado ? { blingKitId: movido.kitCriado } : {}) },
+    {},
+    movido.kitCriado ? { blingProdutoId: String(movido.kitCriado) } : {},
+  );
+  const comKit = movido.kitCriado ? ` (kit ${codigo} criado no Bling)` : "";
+  progresso.feita("bling", `${movido.de === "ML_4h" ? "movido da ML_4h para a Rise_ML" : "registrado na Rise_ML"}${comKit}`);
   return pronto({ bling: movido });
 }
 

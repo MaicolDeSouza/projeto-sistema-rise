@@ -186,7 +186,10 @@ export async function registrarAnuncioNoBlingML(bling, { codigo, idProduto, item
  * nao havia vinculo nenhum. Nunca lanca.
  * @returns {Promise<{ ok: boolean, de: "ML_4h"|"Rise_ML"|"nenhuma"|null, criado: boolean, apagado: boolean, registrado: boolean, erro?: string }>}
  */
-export async function moverVinculoParaRiseML(bling, codigo, itemId, { preco, titulo, tipoAnuncio, somenteLer = false }) {
+// `kit` (09/11/2026, o Mover do 100219_5 parou em "nao esta entre os produtos ativos do Bling"): o kit reaproveitado nunca passou
+// pela etapa `kit_bling` do Publicar; sem o kit no Bling, o Mover o cria como o Publicar (N x as pecas) e segue. `{ itens: [{ sku,
+// quantidade }], envio, principal }`; no `somenteLer`, so avisa (`criarKit`).
+export async function moverVinculoParaRiseML(bling, codigo, itemId, { preco, titulo, tipoAnuncio, somenteLer = false, kit = null }) {
   const mlb = String(itemId ?? "").trim();
   const estado = { de: null, criado: false, apagado: false, registrado: false };
   const falhar = (erro) => ({ ok: false, ...estado, erro });
@@ -195,7 +198,14 @@ export async function moverVinculoParaRiseML(bling, codigo, itemId, { preco, tit
   let registroAntigo;
   let naRise;
   try {
-    const busca = await buscarNoBling(bling, codigo);
+    let busca = await buscarNoBling(bling, codigo);
+    if (busca.situacao === "nao_existe" && kit) {
+      if (somenteLer) return { ok: true, ...estado, de: "nenhuma", criarKit: true };
+      const criado = await criarKitNoBling(bling, { codigo, titulo, preco, envio: kit.envio ?? {}, principal: kit.principal ?? {}, itens: kit.itens ?? [] });
+      if (!criado.ok) return falhar(`O kit ${codigo} não existe no Bling e não foi possível criá-lo: ${criado.erro}`);
+      estado.kitCriado = criado.id;
+      busca = await buscarNoBling(bling, codigo);
+    }
     if (busca.situacao === "nao_existe") return falhar(`O produto ${codigo} não está entre os produtos ativos do Bling: não há a que vincular o anúncio.`);
     if (busca.situacao === "duplicado") return falhar(`O código ${codigo} aparece mais de uma vez no Bling: deixe só um.`);
     idProduto = busca.id;
