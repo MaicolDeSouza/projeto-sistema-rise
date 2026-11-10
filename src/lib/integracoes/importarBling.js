@@ -55,7 +55,8 @@ function mapearProduto(bling) {
     marca: textoOuNull(bling.marca)?.toLocaleUpperCase("pt-BR") ?? null,
     ean: textoOuNull(bling.gtin),
     precoVenda: positivoOuNull(bling.preco),
-    estoque: Math.max(0, Math.trunc(Number(estoque.saldoVirtualTotal) || 0)),
+    // Igual ao Bling, negativo incluso (pedido do dono em 09/11/2026; ver `estoqueDoRise`).
+    estoque: Math.trunc(Number(estoque.saldoVirtualTotal) || 0),
     localizacao: textoOuNull(estoque.localizacao),
     estoqueMinimo: positivoOuNull(estoque.minimo),
     estoqueMaximo: positivoOuNull(estoque.maximo),

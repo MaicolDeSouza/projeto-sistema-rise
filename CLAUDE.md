@@ -4378,8 +4378,12 @@ real de 05/10/2026").
   neste deposito" quando é preciso escolher). **Com as travas fechadas os botões continuam na tela**, e ao
   clicar o motivo da recusa aparece em vermelho: nunca um botão que some sem dizer por quê.
 - **`blingSaldo` é o saldo VIRTUAL do Bling** (o que desconta reservas, como o importador sempre leu) e **pode
-  ser negativo**. O `estoque` do Rise é esse saldo mais os ajustes pendentes; saldo negativo no Bling deixa o
-  `estoque` do Rise em 0 e guarda o negativo em `blingSaldo`.
+  ser negativo**. O `estoque` do Rise é esse saldo mais os ajustes pendentes. **Desde 09/11/2026 o negativo fica
+  negativo no Rise também** (pedido do dono: "mostrar o estoque do rise igual ao bling, se está -1, deve mostrar -1 no rise
+  também"; -1 é venda que saiu sem estoque, e o 0 escondia isso; eram 30+ produtos assim, o 170109 entre eles): `estoqueDoRise`
+  não corta mais em 0, nem a importação do Bling. Quem manda estoque a um canal corta do seu lado (ML em `ml/rascunho.js`, LI
+  em `acertarEstoqueLI`, peça de kit em `composicao.js`, a prévia do bloco Anúncios), e o Compras passa a sugerir comprar
+  também o que foi vendido sem ter. Até ali, saldo negativo deixava o `estoque` em 0 e guardava o negativo só em `blingSaldo`.
 
 ### O que nunca entra no corpo (`corpo.js`)
 

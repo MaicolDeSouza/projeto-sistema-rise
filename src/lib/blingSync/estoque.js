@@ -16,13 +16,14 @@ function quantidadeSegura(valor) {
  * NA ORDEM RECEBIDA (entrada soma, saida tira, balanco define o saldo). Quem le do banco
  * entrega a lista ordenada por `criadoEm`; ordenar nao e daqui.
  *
- * O saldo do Bling e virtual (com reservas) e pode vir negativo, e o meio da conta tambem
- * (saida maior que o saldo, seguida de uma entrada): por isso so se corta em 0 NO FIM.
- * Cortar a cada passo apagaria o que a entrada seguinte devolve.
+ * O saldo do Bling e virtual (com reservas) e pode vir negativo, e o resultado TAMBEM (pedido do dono em 09/11/2026:
+ * "mostrar o estoque do rise igual ao bling, se esta -1, deve mostrar -1 no rise tambem"; -1 e uma venda que saiu sem
+ * estoque, e o 0 escondia isso). Ate ali se cortava em 0 no fim. Quem manda estoque a um canal corta do seu lado (o ML
+ * em `canaisDeVenda/ml/rascunho.js`, a LI em `acertarEstoqueLI`, a peca do kit em `composicao.js`).
  *
  * @param {number} blingSaldo saldo virtual do Bling, cru.
  * @param {{tipo: "ENTRADA"|"SAIDA"|"BALANCO", quantidade: number}[]} pendentes
- * @returns {number} nunca menos que 0.
+ * @returns {number} pode ser negativo, como o do Bling.
  */
 export function estoqueDoRise(blingSaldo, pendentes) {
   let saldo = quantidadeSegura(blingSaldo);
@@ -32,5 +33,5 @@ export function estoqueDoRise(blingSaldo, pendentes) {
     else if (movimento?.tipo === "SAIDA") saldo -= quantidade;
     else if (movimento?.tipo === "BALANCO") saldo = quantidade;
   }
-  return Math.max(saldo, 0);
+  return saldo;
 }

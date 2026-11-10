@@ -155,7 +155,8 @@ export function montarPayload(produto, anuncio) {
       title: titulo.slice(0, LIMITE_TITULO),
       category_id: anuncio?.categoriaExternaId ?? null,
       family_name: nomeFamilia(produto, anuncio),
-      available_quantity: Number(produto?.estoque ?? 0),
+      // O estoque do Rise pode ser negativo desde 09/11/2026 (igual ao Bling); o ML so aceita 0 ou mais.
+      available_quantity: Math.max(0, Number(produto?.estoque ?? 0)),
       currency_id: "BRL",
       listing_type_id: anuncio?.atributos?.listing_type_id ?? "gold_special",
       condition: "new",

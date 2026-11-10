@@ -629,7 +629,8 @@ try {
     conferir("estoque: sem pendentes e o saldo do Bling", estoqueDoRise(10, []), 10);
     conferir("estoque: a entrada soma", estoqueDoRise(10, [entrada(3)]), 13);
     conferir("estoque: entrada e saida, na ordem", estoqueDoRise(10, [entrada(3), saida(1)]), 12);
-    conferir("estoque: saida maior que o saldo nao deixa menos que 0", estoqueDoRise(10, [saida(20)]), 0);
+    // Desde 09/11/2026 (dono: "mostrar o estoque do rise igual ao bling, se esta -1, deve mostrar -1 no rise tambem") nao ha corte em 0.
+    conferir("estoque: saida maior que o saldo fica negativo, como no Bling", estoqueDoRise(10, [saida(20)]), -10);
     conferir("estoque: o balanco define o saldo, e o que vem depois parte dele", estoqueDoRise(10, [entrada(3), balanco(7), saida(2)]), 5);
     // A ordem importa: o balanco no fim apaga o que veio antes, no comeco ele e o ponto de partida.
     conferir("estoque: a mesma lista em outra ordem da outro resultado", [estoqueDoRise(10, [balanco(7), entrada(3), saida(2)]), estoqueDoRise(10, [entrada(3), saida(2), balanco(7)])], [8, 7]);
@@ -637,8 +638,8 @@ try {
 
     // Emenda 6: o saldo virtual do Bling pode ser negativo (reservas). Os pendentes se aplicam
     // sobre o valor cru e so no fim se corta em 0: cortar antes esconderia a entrada.
-    conferir("estoque: saldo negativo do Bling, sem pendentes, da 0", estoqueDoRise(-8, []), 0);
-    conferir("estoque: saldo negativo + entrada (-8 + 3 = -5) da 0: o corte e so no fim", estoqueDoRise(-8, [entrada(3)]), 0);
+    conferir("estoque: saldo negativo do Bling, sem pendentes, fica igual ao Bling", estoqueDoRise(-8, []), -8);
+    conferir("estoque: saldo negativo + entrada (-8 + 3 = -5)", estoqueDoRise(-8, [entrada(3)]), -5);
     conferir("estoque: saldo negativo + entradas que passam do zero (-8 + 12 = 4)", estoqueDoRise(-8, [entrada(12)]), 4);
     conferir("estoque: saldo negativo, balanco define o saldo", estoqueDoRise(-8, [balanco(5)]), 5);
     conferir("estoque: o meio da conta pode ficar negativo (10 - 20 + 15 = 5, e nao 0 + 15)", estoqueDoRise(10, [saida(20), entrada(15)]), 5);
@@ -2730,7 +2731,7 @@ try {
       );
       conferir("so leitura: nenhuma outra chamada, nenhum exigirEscrita e nenhuma escrita", [falso.chamadas.length, falso.escritasExigidas, escritasDe(falso).length], [2, [], 0]);
       conferir("[SAIDA 2] pendente e saldo 10 no Bling: blingSaldo 10 e estoque 8", await lerS("ZZ-BS-S001"), [10, 8]);
-      conferir("saldo -8 no Bling: blingSaldo -8 e estoque 0", await lerS("ZZ-BS-S002"), [-8, 0]);
+      conferir("saldo -8 no Bling: blingSaldo -8 e estoque -8 (igual ao Bling, dono em 09/11/2026)", await lerS("ZZ-BS-S002"), [-8, -8]);
       conferir("codigo que nao existe no Bling: estoque mantido e blingSaldo continua nulo", await lerS("ZZ-BS-S003"), [null, 7]);
       conferir("produto inativo no Bling (codigos[] nao o resolve): estoque mantido", await lerS("ZZ-BS-S004"), [null, 7]);
       conferir("codigo em outra caixa no Bling: casa sem diferenciar caixa", await lerS("ZZ-BS-S005"), [5, 5]);
