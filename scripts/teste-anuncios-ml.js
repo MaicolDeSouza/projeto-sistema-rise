@@ -2156,6 +2156,14 @@ try {
         const rRegra = await enviarMudancasML(id, { ml: mlRegra, lerFoto });
         conferir("enviar: aviso de regra do ML na ficha vira falha com o motivo", [rRegra.ok, rRegra.parte, /troca o valor sozinho/.test(rRegra.erro), /BRAND/.test(rRegra.erro), rRegra.erro.includes(`mandou ${marca}`), /exige EXIGIDA PELO ML/.test(rRegra.erro)], [false, "ficha", true, true, true, true]);
       }
+      // O ML avisa sobre o ANUNCIO inteiro em qualquer PUT de atributos (09/11/2026: o envio do peso e medidas do 900309 parou
+      // com o aviso do UNITS_PER_PACK, que nao foi mandado): so conta o aviso de atributo que o envio levou.
+      {
+        const { atributosQueOMLTroca } = await import("../src/lib/canaisDeVenda/ml/atualizar.js");
+        const resposta = { ok: true, dados: { attributes: [{ id: "UNITS_PER_PACK", name: "Quantidade de conectores" }], warnings: [{ code: "update.item.attribute.business_conditional.value_name", message: "Attribute [UNITS_PER_PACK] to be modified - values [(null,25)] should be [(null,1)]" }] } };
+        conferir("aviso do ML: atributo que o envio nao levou nao para o envio", atributosQueOMLTroca(resposta, [{ id: "SELLER_PACKAGE_HEIGHT", value_name: "2 cm" }]), null);
+        conferir("aviso do ML: atributo que o envio levou para com o motivo", /Quantidade de conectores \(UNITS_PER_PACK\): o Rise mandou 25 e o ML exige 1/.test(atributosQueOMLTroca(resposta, [{ id: "UNITS_PER_PACK", value_name: "25" }]) ?? ""), true);
+      }
 
       await prisma.produto.update({ where: { id: c.s1.id }, data: { descricaoBase: "Descricao nova do S1" } });
       let novas = desde();

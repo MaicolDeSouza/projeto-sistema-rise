@@ -36,9 +36,16 @@ const textoDe = (erro) => erro?.message ?? String(erro);
  * responde 200, grava o valor e avisa em `warnings` (`code` "...business_conditional...", `message` "Attribute
  * [UNITS_PER_PACK] to be modified - values [(null,25)] should be [(null,1)]"); depois troca sozinho pelo valor dele (o 25 do
  * Publicar das 06:51 virou 1 as 07:07). Sem olhar o aviso, o Rise dava a ficha por enviada. Devolve o texto da falha ou null.
+ *
+ * So conta o aviso de atributo que ESTE envio levou (`enviados`): o ML avisa sobre o anuncio inteiro em qualquer PUT de
+ * atributos, e o envio do peso e medidas do 900309 parou com o aviso do UNITS_PER_PACK, que so a ficha manda (09/11/2026).
  */
-export function atributosQueOMLTroca(resposta) {
-  const avisos = Array.isArray(resposta?.dados?.warnings) ? resposta.dados.warnings : [];
+export function atributosQueOMLTroca(resposta, enviados = []) {
+  const levados = new Set((Array.isArray(enviados) ? enviados : []).map((atributo) => String(atributo?.id ?? "")));
+  const avisos = (Array.isArray(resposta?.dados?.warnings) ? resposta.dados.warnings : []).filter((aviso) => {
+    const id = String(aviso?.message ?? "").match(/Attribute \[([^\]]+)\]/)?.[1];
+    return id ? levados.has(id) : false;
+  });
   const nomes = new Map((Array.isArray(resposta?.dados?.attributes) ? resposta.dados.attributes : []).map((atributo) => [atributo?.id, atributo?.name]));
   const textos = avisos
     .filter((aviso) => /business_conditional/.test(String(aviso?.code ?? "")))
@@ -284,7 +291,7 @@ async function enviarPartes({ ml, lerFoto, progresso, anuncioId, itemId, codigo,
         return falhar(parte, `Falha ao enviar o peso e as medidas: ${textoDe(erro)}`);
       }
       if (!resposta?.ok) return falhar(parte, textoDaRecusaML(resposta, "o peso e as medidas"));
-      const regra = atributosQueOMLTroca(resposta);
+      const regra = atributosQueOMLTroca(resposta, attributes);
       if (regra) return falhar(parte, regra);
     } else if (parte === "preco") {
       // Num PUT so dele. Medido no 100107 em 24/10/2026 (MLB7881142312, conta sem automatizacao de precos): 200 e o
@@ -316,7 +323,7 @@ async function enviarPartes({ ml, lerFoto, progresso, anuncioId, itemId, codigo,
         return falhar(parte, `Falha ao enviar a ficha técnica: ${textoDe(erro)}`);
       }
       if (!resposta?.ok) return falhar(parte, textoDaRecusaML(resposta, "a ficha técnica"));
-      const regra = atributosQueOMLTroca(resposta);
+      const regra = atributosQueOMLTroca(resposta, conteudo.ficha);
       if (regra) return falhar(parte, regra);
     } else if (parte === "atacado") {
       // Recomendacao do ML -> POST com X-Version -> leitura de volta. Desligar manda a lista vazia. Os % que o ML gravou
