@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { gravarPublicacao } from "./banco";
 import { clienteML } from "./cliente";
 import { seguirCatalogoDosAnuncios } from "./concorrentes";
-import { catalogoDoItem, estadoDoItem, estadoMudou, seguidasComDiferenca, situacaoDoEstado } from "./estadoNoML";
+import { ETIQUETA_DE_PENALIDADE, catalogoDoItem, estadoDoItem, estadoMudou, seguidasComDiferenca, situacaoDoEstado } from "./estadoNoML";
 
 /**
  * Releitura do estado dos anuncios no ML (pedido do dono em 24/10/2026, opcao 1): o worker, de hora em hora, le o
@@ -21,7 +21,26 @@ const POR_LOTE = 20;
 const ESPERA_ENTRE_LOTES_MS = 300;
 const PARA_A_RODADA = new Set([401, 429]);
 // O catalogo (25/10/2026): o `catalog_product_id` do item e os anuncios de catalogo ligados a ele (`item_relations`).
-const CAMPOS = "body.id,body.status,body.sub_status,body.available_quantity,body.sold_quantity,body.catalog_product_id,body.catalog_listing,body.item_relations";
+// As etiquetas (09/11/2026): a penalidade de moderacao (`moderation_penalty`) so aparece ali, com o `sub_status` vazio.
+const CAMPOS = "body.id,body.status,body.sub_status,body.available_quantity,body.sold_quantity,body.catalog_product_id,body.catalog_listing,body.item_relations,body.tags";
+
+/**
+ * O motivo da penalidade do ML (09/11/2026, medido no MLB5310914312: "Não tem vendas há muito tempo."), a infracao mais
+ * recente do item. Uma leitura so quando a etiqueta aparece (o motivo gravado e reaproveitado). Falha devolve null: o texto
+ * fica "penalidade do ML" e a proxima hora tenta de novo.
+ */
+async function motivoDaPenalidade(cliente, itemId) {
+  try {
+    const eu = await cliente.usuarioId();
+    const resposta = await cliente.get(`/moderations/infractions/${encodeURIComponent(String(eu))}`, { related_item_id: itemId });
+    if (!resposta?.ok) return null;
+    const infracoes = Array.isArray(resposta.dados?.infractions) ? resposta.dados.infractions : [];
+    const recente = [...infracoes].sort((a, b) => String(b?.date_created ?? "").localeCompare(String(a?.date_created ?? "")))[0];
+    return typeof recente?.reason === "string" && recente.reason.trim() ? recente.reason.trim() : null;
+  } catch {
+    return null;
+  }
+}
 const CAMPOS_DOS_LIGADOS = "body.id,body.status,body.catalog_listing,body.catalog_product_id";
 
 // Codigos por chamada de saldos no Bling (o mesmo lote de `saldos.js`: o limite e o tamanho da URL).
@@ -138,6 +157,10 @@ export async function relerEstadosML({ ml, bling, agora = new Date(), anuncioIds
       }
       const novo = estadoDoItem(item);
       const anterior = anuncio.dados?.publicacao?.estadoML ?? null;
+      // A penalidade do ML: o motivo ja gravado vale enquanto a etiqueta continuar; sem ele, le a infracao (uma vez).
+      const penalizado = novo.etiquetas.includes(ETIQUETA_DE_PENALIDADE);
+      const motivo = penalizado ? (anterior?.motivo ?? (await motivoDaPenalidade(cliente, anuncio.idExterno))) : null;
+      if (motivo) novo.motivo = motivo;
       const situacao = situacaoDoEstado(novo.status);
       // Estoque x Bling (25/10/2026): o saldo do produto do anuncio, ou, no kit montado no editor, o do KIT no Bling (lido
       // acima). Conta as leituras SEGUIDAS com diferenca; o "!" vem com 2.

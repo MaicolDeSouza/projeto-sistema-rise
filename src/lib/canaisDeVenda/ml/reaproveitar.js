@@ -86,7 +86,9 @@ export async function anunciosDoSkuNaConta(ml, sku, { titulo = "" } = {}) {
     const busca = await ml.get(caminho, { seller_sku: codigo, limit: 50 });
     if (!busca?.ok) return { ok: false, erro: textoDaRecusaML(busca, `a busca dos anúncios do SKU ${codigo}`) };
     const ids = new Set(busca.dados?.results ?? []);
-    const extras = QUANTIDADES_DE_KIT.map((quantidade) => ({ seller_sku: `${codigo}_${quantidade}`, limit: 50 }));
+    // `sku=` acha o anuncio antigo que so tem o codigo do vendedor (`seller_custom_field`, sem o atributo SELLER_SKU), que a
+    // `seller_sku=` nao acha (09/11/2026: o MLB5298650152 do 100202 nao aparecia no popup para reaproveitar).
+    const extras = [{ sku: codigo, limit: 50 }, ...QUANTIDADES_DE_KIT.map((quantidade) => ({ seller_sku: `${codigo}_${quantidade}`, limit: 50 }))];
     const pesquisa = String(titulo ?? "").trim().slice(0, 60);
     if (pesquisa) extras.push({ q: pesquisa, limit: 50 });
     for (const filtro of extras) {

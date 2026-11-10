@@ -136,6 +136,24 @@ export async function verificarAnunciosAntigosML({ ml = null, esperar = esperarP
 }
 
 /**
+ * Completa a leitura ao vivo do popup do produto com as linhas que a verificacao da conta gravou (09/11/2026: o 100202 tinha o
+ * anuncio antigo so com o codigo do vendedor, que a busca por SKU nao acha, e o popup ficava sem ele enquanto o "!" acendia). Cada
+ * linha gravada que a leitura nao trouxe e lida no ML na hora: volta se o anuncio ainda existe, nao esta encerrado e nao e do Rise.
+ * Falha de leitura de uma linha so a deixa de fora. Devolve os itens lidos do ML, no mesmo formato de `anunciosDoSkuNaConta`.
+ */
+export async function completarComLinhasGravadas(ml, produtoId, itens, { idsDoRise = new Set() } = {}) {
+  const linhas = await prisma.anuncioForaDoRiseML.findMany({ where: { produtoId }, select: { itemId: true } });
+  const jaTem = new Set((itens ?? []).map((item) => String(item.id)));
+  const extras = [];
+  for (const { itemId } of linhas) {
+    if (jaTem.has(itemId) || idsDoRise.has(itemId)) continue;
+    const lido = await ml.get(`/items/${encodeURIComponent(itemId)}`).catch(() => null);
+    if (lido?.ok && lido.dados?.status !== "closed") extras.push(lido.dados);
+  }
+  return [...(itens ?? []), ...extras];
+}
+
+/**
  * O popup do produto le a conta AO VIVO (`anunciosDoSkuMLAcao`) e acerta as linhas deste produto com o que leu (pedido do dono
  * em 09/11/2026: "Eu exclui manualmente o anuncio pelo ML e o rise nao encontra mais, porem ainda fica com !"): o anuncio que
  * sumiu da conta sai, o que apareceu entra. So do produto conferido, a mesma regra da verificacao. Devolve se mudou algo (a

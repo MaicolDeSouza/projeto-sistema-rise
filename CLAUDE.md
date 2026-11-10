@@ -403,7 +403,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 1286 asserções do anúncio do Mercado Livre (com os anúncios antigos fora do Rise e o botão que os verifica, a proposta do ML, o kit no ML, o preço pelo lucro da loja, o reaproveitar (com os kits do código na conta, as fotos do kit reaproveitado, que o 1º Salvar não dá por enviadas, e o selo "Reutilizado" com o "!" até o Publicar), o atacado com a espera da sugestão no Publicar, o kit sem atacado e o atacado desligado sem frete grátis e o popup do produto: o "!" de cada anúncio e a ordem fixa): composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 1303 asserções do anúncio do Mercado Livre (com os anúncios antigos fora do Rise e o botão que os verifica, a proposta do ML, o kit no ML, o preço pelo lucro da loja, o reaproveitar (com os kits do código na conta, as fotos do kit reaproveitado, que o 1º Salvar não dá por enviadas, e o selo "Reutilizado" com o "!" até o Publicar), o atacado com a espera da sugestão no Publicar, o kit sem atacado e o atacado desligado sem frete grátis e o popup do produto: o "!" de cada anúncio e a ordem fixa): composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # 420 asserções da sincronização Rise -> Loja Integrada (com o cadastro automático, o estoque acertado pelo Bling no Sincronizar e as categorias e o SEO que vêm do produto): slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio, ícone e as etapas do Cadastrar (LI falsa e Bling de mentira, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
@@ -3873,6 +3873,20 @@ publicou, os 1.007 antigos da conta ficam de fora):**
   hh:mm") e no ícone do ML da lista de Produtos, que ganha o "!" (`precisaAgirNoML` em `estadoDoIconeML`; o anúncio
   barrado continua contando como publicado). Corrigido junto: `ORDEM_DAS_PARTES` do ícone não tinha preço e ficha, e o
   texto do "!" desses dois saía vazio.
+- **O selo da coluna Situação é o estado NO ML** (pedido do dono em 09/11/2026: "por que o rise está mostrando publicado ao
+  invés de inativo (conforme está no ML)... é através dele que vou saber se algum anúncio está com problema"). Até ali o selo
+  do publicado dizia sempre "Publicado" (o estado do Rise). Agora `seloDoEstadoML` (`estadoNoML.js`): "Ativo" verde,
+  "Pausado" e "Pausado: sem estoque" âmbar, vermelho o que pede ação ("Inativo: ...", "Em revisão: ..."), "Encerrado"; sem
+  leitura ainda, "Publicado". Na lista (`seloML` em `linhaDoAnuncio`), no popup do produto e na ordenação por Situação.
+  "Reutilizado" e "Pausado: aguardando estoque" continuam vindo antes. A linha vermelha embaixo só aparece quando diz outra
+  coisa que o selo.
+- **Penalidade de moderação = "Inativo" do painel do ML** (medido no MLB5310914312, do 100219_5): `status` paused com
+  `sub_status` VAZIO e a etiqueta `moderation_penalty` (só nos `tags`); o Rise chamava de "Pausado no ML", sem "!". A
+  releitura pede `body.tags` e grava `estadoML.etiquetas` (só as que importam) e `estadoML.motivo`, a infração mais recente
+  de `GET /moderations/infractions/{vendedor}?related_item_id=` (a do 100219_5: "Não tem vendas há muito tempo.", de
+  09/03/2026, remédio "Inativo para revisar: verifique se está atualizado e reative"), lida uma vez quando a etiqueta
+  aparece. Texto "Inativo: não tem vendas há muito tempo" e `precisaAgirNoML` verdadeiro (o "!" no ícone de Produtos).
+  `/items/{id}/health` responde 404 para `buy_it_now`. Em 09/11/2026 só esse anúncio tinha a etiqueta entre os 93.
 - **Catálogo do anúncio no ML (25/10/2026, pedido do dono, Opção 1):** o dono tirou o 100108 do catálogo e o Rise continuava
   dizendo "catálogo do anúncio". **O Rise não lia se o anúncio está num catálogo:** "catálogo do anúncio" no ranking era o
   catálogo ACOMPANHADO (`Produto.mlCatalogoId`), e "Você (este anúncio)" é só o preço dele. Medido no MLB5458577821 depois de
@@ -4002,7 +4016,11 @@ ao ar e nenhuma escrita real foi feita no ML ou no Bling.**
   daquele produto (`sincronizarForaDoRiseDoProduto`: o anúncio excluído no ML sai, o novo entra, e a lista de Produtos é
   revalidada; antes o "!" ficava até a próxima verificação, caso do 100110). No popup do produto, a lista ao vivo "Na conta do Mercado Livre,
   fora do Rise" marca **Duplicado** (`marcarDuplicados`) quando o Rise já tem a variante (o mesmo kit N, ou o mesmo tipo e frete;
-  rascunho conta, encerrado não). Código fora do padrão `{sku}_{N}` (o 900808_10 do 900908) não é achado. Desenho em
+  rascunho conta, encerrado não). Código fora do padrão `{sku}_{N}` (o 900808_10 do 900908) não é achado. **Anúncio antigo só
+  com o código do vendedor** (09/11/2026, o MLB5298650152 do 100202, achado pela verificação e ausente do popup): a busca
+  `seller_sku=` não acha o item que tem só o `seller_custom_field` (sem o atributo SELLER_SKU); `anunciosDoSkuNaConta` também
+  busca `sku=` (o código do vendedor), e o popup completa a leitura ao vivo com as linhas gravadas pela verificação
+  (`completarComLinhasGravadas`: cada uma é relida no ML e só volta se não está encerrada nem é do Rise). Desenho em
   `docs/superpowers/specs/2026-11-09-anuncios-antigos-ml-design.md`. O teste guarda e devolve as linhas dos produtos reais (a
   verificação troca a tabela inteira).
 - **Preço e vendas em cada linha do popup do produto (pedido do dono em 09/11/2026):** as linhas do Rise mostram o preço e as

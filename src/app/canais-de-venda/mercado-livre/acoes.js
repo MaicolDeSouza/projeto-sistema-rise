@@ -39,7 +39,7 @@ import { preencherFicha, sugerirCategoria, sugerirTitulos } from "@/lib/canaisDe
 import { lucroDaLojaDoRascunho, ordenarAnunciosDoProduto, VARIANTES, varianteDoRascunho, variantesDoProduto } from "@/lib/canaisDeVenda/ml/faixas";
 import { clonarVarianteML } from "@/lib/canaisDeVenda/ml/variantes";
 import { anunciosDoSkuNaConta, candidatosParaReaproveitar, reaproveitarAnuncioML } from "@/lib/canaisDeVenda/ml/reaproveitar";
-import { marcarDuplicados, sincronizarForaDoRiseDoProduto, verificarAnunciosAntigosML } from "@/lib/canaisDeVenda/ml/anunciosAntigos";
+import { completarComLinhasGravadas, marcarDuplicados, sincronizarForaDoRiseDoProduto, verificarAnunciosAntigosML } from "@/lib/canaisDeVenda/ml/anunciosAntigos";
 import { lerCategoria, lerCategoriaCompleta, lerCustosDoAnuncio, precoPelaFaixaNoML, precoPorMargemNoML, textoDoErroML } from "@/lib/canaisDeVenda/ml/leitura";
 import {
   anunciosMLDoProduto,
@@ -167,7 +167,9 @@ export async function anunciosDoSkuMLAcao(produtoId) {
     const doRise = await anunciosMLDoProduto(produtoId);
     const idsDoRise = new Set(doRise.map((anuncio) => anuncio.idExterno).filter(Boolean));
     // "duplicado" (09/11/2026): o Rise ja tem a mesma variante, e o ML nao aceita anuncio duplicado; o dono decide na linha.
-    const candidatos = marcarDuplicados(candidatosParaReaproveitar(naConta.itens, { idsDoRise, sku: produto.sku }), doRise);
+    // Com as linhas da verificacao da conta (09/11/2026): o anuncio que a busca por SKU nao acha, mas a verificacao achou, tambem entra.
+    const itens = await completarComLinhasGravadas(clienteML(), produtoId, naConta.itens, { idsDoRise }).catch(() => naConta.itens);
+    const candidatos = marcarDuplicados(candidatosParaReaproveitar(itens, { idsDoRise, sku: produto.sku }), doRise);
     // A leitura ao vivo acerta o "!" dos anuncios antigos deste produto (09/11/2026: o anuncio excluido no ML ficava com o "!"
     // ate a proxima verificacao). Falhar aqui nao derruba o popup.
     await sincronizarForaDoRiseDoProduto(produtoId, candidatos).catch(() => false);

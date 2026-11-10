@@ -3,6 +3,7 @@
  * porque a lista e componente de servidor e nao pode importar valor de um arquivo de cliente; e uma
  * copia por tela divergiria no dia em que um texto mudasse.
  */
+import { seloDoEstadoML } from "./estadoNoML";
 
 export const STATUS_ML = {
   RASCUNHO: { rotulo: "Rascunho", tom: "neutro" },
@@ -57,6 +58,12 @@ export function seloDoAnuncioML(anuncio) {
   // A linha da lista traz `reutilizado` pronto (`linhaDoAnuncio`); o anuncio inteiro traz a publicacao.
   if (anuncio?.status === "PUBLICADO" && (anuncio.reutilizado ?? reutilizadoPendente(anuncio.dados?.publicacao))) return REUTILIZADO;
   if (anuncio?.status === "PUBLICADO" && anuncio?.aguardandoEstoque) return AGUARDANDO_ESTOQUE;
+  // Publicado: o estado NO ML relido de hora em hora (pedido do dono em 09/11/2026: o 100219_5, inativo no ML, aparecia
+  // "Publicado"). A linha da lista traz `seloML` pronto; o anuncio inteiro traz a publicacao. Sem leitura fica "Publicado".
+  if (anuncio?.status === "PUBLICADO") {
+    const doML = anuncio.seloML ?? seloDoEstadoML(anuncio.dados?.publicacao?.estadoML);
+    if (doML) return doML;
+  }
   return STATUS_ML[anuncio?.status] ?? STATUS_ML.RASCUNHO;
 }
 

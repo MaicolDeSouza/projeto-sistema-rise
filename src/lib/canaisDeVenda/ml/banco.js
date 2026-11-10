@@ -5,10 +5,10 @@ import { custoDoProduto } from "../custo";
 import { conteudoAtualDoAnuncio, fichaDoAnuncio, mudancasDoAnuncio, prazoDoAnuncio, precoDaLojaDoAnuncio, precoDoAnuncio } from "./acompanhar";
 import { ATACADO_DESLIGADO, atacadoPermitido } from "./atacado";
 import { avisosDeVariosProdutos } from "./concorrentes";
-import { precisaAgirNoML, textoDoEstadoML } from "./estadoNoML";
+import { precisaAgirNoML, seloDoEstadoML, textoDoEstadoML } from "./estadoNoML";
 import { estadoDoIconeML, motivosDoProblemaML, rotuloDoIconeML, temProblemaNoIconeML } from "./icone";
 import { impressaoDoConteudo } from "./impressao";
-import { linkDoAnuncioML, linkDoPainelML, reutilizadoPendente } from "./rotulos";
+import { linkDoAnuncioML, linkDoPainelML, reutilizadoPendente, seloDoAnuncioML } from "./rotulos";
 import { montarRanking } from "./ranking";
 import { catalogosDeVariosProdutos } from "./referencias";
 import { RascunhoMLSchema } from "./esquema";
@@ -629,6 +629,8 @@ function linhaDoAnuncio(anuncio) {
     // O estado no ML relido de hora em hora pelo worker (`relerEstadoML.js`), em portugues, e se o dono precisa agir.
     estadoML: anuncio.status === "PUBLICADO" ? textoDoEstadoML(anuncio.dados?.publicacao?.estadoML) : null,
     estadoMLPedeAcao: anuncio.status === "PUBLICADO" && precisaAgirNoML(anuncio.dados?.publicacao?.estadoML),
+    // O selo da coluna Situacao com o estado no ML (09/11/2026): a linha e o que o cliente recebe, sem o `dados` inteiro.
+    seloML: anuncio.status === "PUBLICADO" ? seloDoEstadoML(anuncio.dados?.publicacao?.estadoML) : null,
     // As vendas no ML (pedido do dono em 09/11/2026: "a quantidade de vendas e preco do anuncio em cada card"): as da releitura
     // de hora em hora; o reaproveitado ainda nao relido usa as do dia em que veio da conta.
     vendidos: anuncio.dados?.publicacao?.estadoML?.vendidos ?? anuncio.dados?.publicacao?.reaproveitado?.vendidos ?? null,
@@ -664,7 +666,8 @@ const ORDEM_DA_LISTA_ML = {
   preco: (linha) => (typeof linha.preco === "number" ? linha.preco : null),
   estoque: (linha) => (typeof linha.estoque === "number" ? linha.estoque : null),
   tipo: (linha) => String(linha.tipoAnuncio ?? ""),
-  situacao: (linha) => String(linha.status ?? ""),
+  // O texto do selo (09/11/2026): o estado no ML, para "Inativo" e "Pausado" ficarem juntos ao ordenar.
+  situacao: (linha) => seloDoAnuncioML(linha).rotulo,
 };
 
 // O estoque do anuncio como o Rise o manda ao ML: o do produto, ou o que as pecas montam no kit (negativo conta zero).

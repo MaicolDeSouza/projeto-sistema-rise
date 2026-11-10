@@ -221,6 +221,12 @@ export function criarMLFalso(opcoes = {}) {
     vendedores: { ...VENDEDORES_PADRAO, ...(opcoes.vendedores ?? {}) },
     // Os anuncios do vendedor por SKU, para `/users/{id}/items/search?seller_sku=` e o `/items/{id}` deles.
     meusItens: opcoes.meusItens ?? {},
+    // Anuncios antigos que so tem o `seller_custom_field` (sem o atributo SELLER_SKU): so a busca `sku=` os acha, nao a
+    // `seller_sku=` (medido no MLB5298650152 do 100202 em 09/11/2026).
+    porCustomField: opcoes.porCustomField ?? {},
+    // As infracoes de moderacao por MLB (`/moderations/infractions/{vendedor}?related_item_id=`, medido em 09/11/2026 no
+    // MLB5310914312: `{ infractions: [{ reason, remedy, date_created, ... }] }`).
+    infracoes: opcoes.infracoes ?? {},
     // Os mais vendidos por categoria (`/highlights`, 23/10/2026): { MLB99779: [{ id, type, position }] }.
     destaques: opcoes.destaques ?? {},
   });
@@ -340,8 +346,9 @@ export function criarMLFalso(opcoes = {}) {
   // ---- Dados fiscais (05/11/2026): o SKU com os dados e o vinculo SKU -> anuncio, nos formatos medidos na conta ----
   const fiscais = new Map(Object.entries(structuredClone(opcoes.fiscais ?? {})));
   const ligacoes = new Map(Object.entries(opcoes.ligacoesFiscais ?? {}));
-  const existeItem = (id) => itens.has(id) || Object.values(estado.meusItens).flat().some((item) => item.id === id);
-  const acharItem = (id) => itens.get(id) ?? Object.values(estado.meusItens).flat().find((item) => item.id === id) ?? null;
+  const todosMeus = () => [...Object.values(estado.meusItens).flat(), ...Object.values(estado.porCustomField).flat()];
+  const existeItem = (id) => itens.has(id) || todosMeus().some((item) => item.id === id);
+  const acharItem = (id) => itens.get(id) ?? todosMeus().find((item) => item.id === id) ?? null;
 
   function rotasFiscaisGet(rota) {
     let partes = rota.match(/^\/items\/fiscal_information\/([^/]+)$/);
@@ -703,14 +710,23 @@ export function criarMLFalso(opcoes = {}) {
         ? resposta(200, { id, name: c.nome, domain_id: c.dominio, permalink: `https://www.mercadolivre.com.br/p/${id}`, attributes: structuredClone(c.atributos ?? []), pictures: (c.fotos ?? []).map((url) => ({ url })) })
         : naoAchou(`Product ${id} not found`);
     }
+    if (/^\/moderations\/infractions\/\d+$/.test(rota)) {
+      const doItem = estado.infracoes[String(pedido.params.related_item_id ?? "")] ?? [];
+      return resposta(200, { infractions: structuredClone(doItem), paging: { offset: 0, limit: 20, total: doItem.length } });
+    }
     const usuario = rota.match(/^\/users\/(\d+)$/);
     if (usuario) return vendedor(usuario[1]);
     if (/^\/users\/\d+\/items\/search$/.test(rota)) {
       // A conta inteira (`search_type=scan`, botao "Verificar anuncios antigos", 09/11/2026): a 1a pagina traz todos os ids e o
       // `scroll_id`; a pagina com o `scroll_id` vem vazia, que e o fim no ML real.
       if (pedido.params.search_type === "scan") {
-        const todos = [...new Set(Object.values(estado.meusItens).flat().map((item) => item.id))];
+        const todos = [...new Set(todosMeus().map((item) => item.id))];
         return resposta(200, { results: pedido.params.scroll_id ? [] : todos, scroll_id: "scroll-falso", paging: { total: todos.length } });
+      }
+      // `sku=` (o codigo do vendedor, `seller_custom_field`): acha o que a `seller_sku=` nao acha.
+      if (pedido.params.sku !== undefined) {
+        const doCodigo = estado.porCustomField[String(pedido.params.sku)] ?? [];
+        return resposta(200, { results: doCodigo.map((item) => item.id), paging: { total: doCodigo.length } });
       }
       const meus = estado.meusItens[String(pedido.params.seller_sku ?? "")] ?? [];
       return resposta(200, { results: meus.map((item) => item.id), paging: { total: meus.length } });
@@ -726,7 +742,7 @@ export function criarMLFalso(opcoes = {}) {
     // Item criado pelo teste (o worker le o status e o available_quantity dos que esperam estoque).
     if (meuItem && itens.has(decodeURIComponent(meuItem[1]))) return resposta(200, structuredClone(itens.get(decodeURIComponent(meuItem[1]))));
     if (meuItem && !itens.has(decodeURIComponent(meuItem[1]))) {
-      const achado = Object.values(estado.meusItens).flat().find((item) => item.id === decodeURIComponent(meuItem[1]));
+      const achado = todosMeus().find((item) => item.id === decodeURIComponent(meuItem[1]));
       if (achado) return resposta(200, structuredClone(achado));
     }
 

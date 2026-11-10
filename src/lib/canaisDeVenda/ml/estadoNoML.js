@@ -28,6 +28,19 @@ const ESTADOS = { active: "Ativo", paused: "Pausado", under_review: "Em revisão
 const STATUS_QUE_PEDEM_ACAO = new Set(["under_review", "inactive", "payment_required"]);
 const MOTIVOS_QUE_PEDEM_ACAO = new Set(["waiting_for_patch", "forbidden", "suspended", "held", "freezed"]);
 
+/// A etiqueta do ML que diz que ELE inativou o anuncio (medido em 09/11/2026 no MLB5310914312, do 100219_5): `status` paused,
+/// `sub_status` vazio, e o painel do ML mostra "Inativo". O motivo vem da infracao (`/moderations/infractions`), lido pela
+/// releitura de hora em hora so quando a etiqueta aparece. Sem ela, o Rise chamava de "Pausado" (pausado pelo dono).
+export const ETIQUETA_DE_PENALIDADE = "moderation_penalty";
+const ETIQUETAS_QUE_IMPORTAM = new Set([ETIQUETA_DE_PENALIDADE]);
+const penalizado = (estado) => (estado?.etiquetas ?? []).includes(ETIQUETA_DE_PENALIDADE) && estado?.status !== "active" && estado?.status !== "closed";
+
+// "Não tem vendas há muito tempo." vira "não tem vendas há muito tempo", para caber depois de "Inativo: ".
+const motivoEmTexto = (motivo) => {
+  const texto = String(motivo ?? "").trim().replace(/[.\s]+$/, "");
+  return texto ? texto.charAt(0).toLowerCase() + texto.slice(1) : "";
+};
+
 /** O `status` do ML no enum `SituacaoCanal` do Rise (o mesmo de `situacaoDoItem`). */
 export function situacaoDoEstado(status) {
   return SITUACOES[status] ?? "DESCONHECIDA";
@@ -40,6 +53,8 @@ export function estadoDoItem(item) {
     subStatus: Array.isArray(item?.sub_status) ? item.sub_status.map(String) : [],
     estoque: Number.isFinite(Number(item?.available_quantity)) ? Number(item.available_quantity) : null,
     vendidos: Number.isFinite(Number(item?.sold_quantity)) ? Number(item.sold_quantity) : null,
+    // So as etiquetas que mudam o estado (a penalidade); as demais (cart_eligible, immediate_payment) mudam sem dizer nada.
+    etiquetas: (Array.isArray(item?.tags) ? item.tags.map(String) : []).filter((etiqueta) => ETIQUETAS_QUE_IMPORTAM.has(etiqueta)).sort(),
   };
 }
 
@@ -50,13 +65,18 @@ export function estadoMudou(anterior, novo) {
     anterior.status !== novo.status ||
     anterior.estoque !== novo.estoque ||
     anterior.vendidos !== novo.vendidos ||
-    JSON.stringify([...(anterior.subStatus ?? [])].sort()) !== JSON.stringify([...(novo.subStatus ?? [])].sort())
+    JSON.stringify([...(anterior.subStatus ?? [])].sort()) !== JSON.stringify([...(novo.subStatus ?? [])].sort()) ||
+    JSON.stringify([...(anterior.etiquetas ?? [])].sort()) !== JSON.stringify([...(novo.etiquetas ?? [])].sort())
   );
 }
 
-/** "Ativo no ML", "Pausado: sem estoque", "Em revisão: precisa corrigir", "No ML: <status que o Rise nao conhece>". */
+/**
+ * "Ativo no ML", "Pausado: sem estoque", "Em revisão: precisa corrigir", "Inativo: não tem vendas há muito tempo" (a
+ * penalidade do ML, com o motivo da infracao), "No ML: <status que o Rise nao conhece>".
+ */
 export function textoDoEstadoML(estado) {
   if (!estado?.status) return null;
+  if (penalizado(estado)) return `Inativo: ${motivoEmTexto(estado.motivo) || "penalidade do ML"}`;
   const nome = ESTADOS[estado.status];
   if (!nome) return `No ML: ${estado.status}`;
   const motivo = MOTIVOS.find(([codigo]) => (estado.subStatus ?? []).includes(codigo))?.[1];
@@ -166,5 +186,20 @@ export function catalogoParaAcompanhar(acompanhadoId, catalogos) {
 export function precisaAgirNoML(estado) {
   if (!estado?.status) return false;
   if (estado.status === "closed") return false;
-  return STATUS_QUE_PEDEM_ACAO.has(estado.status) || (estado.subStatus ?? []).some((motivo) => MOTIVOS_QUE_PEDEM_ACAO.has(motivo));
+  return penalizado(estado) || STATUS_QUE_PEDEM_ACAO.has(estado.status) || (estado.subStatus ?? []).some((motivo) => MOTIVOS_QUE_PEDEM_ACAO.has(motivo));
+}
+
+/**
+ * O selo da coluna Situacao do anuncio publicado, com o estado NO ML (pedido do dono em 09/11/2026: "preciso que esse status
+ * seja o mais correto possivel, pois e atraves dele que vou saber se algum anuncio esta com problema"): "Ativo" verde,
+ * "Pausado" e "Pausado: sem estoque" ambar, e vermelho tudo o que pede a mao do dono (inativo pela penalidade, em revisao).
+ * `null` sem leitura (o anuncio recem-publicado ainda nao relido fica "Publicado").
+ */
+export function seloDoEstadoML(estado) {
+  if (!estado?.status) return null;
+  if (estado.status === "closed") return { rotulo: "Encerrado", tom: "neutro" };
+  if (precisaAgirNoML(estado)) return { rotulo: textoDoEstadoML(estado), tom: "erro" };
+  if (estado.status === "active") return { rotulo: "Ativo", tom: "sucesso" };
+  if (estado.status === "paused") return { rotulo: (estado.subStatus ?? []).includes("out_of_stock") ? "Pausado: sem estoque" : "Pausado", tom: "alerta" };
+  return { rotulo: textoDoEstadoML(estado), tom: "alerta" };
 }

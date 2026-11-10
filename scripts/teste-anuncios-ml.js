@@ -902,7 +902,7 @@ try {
         const lista = await listarAnunciosML({ busca: "zz-ml" });
         conferir("lista traz os anuncios de teste", lista.total >= 6, true);
         conferir("lista: acha pelo SKU sem diferenciar caixa, so do Mercado Livre", [lista.total, lista.linhas.length, lista.pagina, lista.totalPaginas], [totalDeTeste, totalDeTeste, 1, 1]);
-        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["aguardandoEstoque", "atualizadoEm", "avisosML", "codigo", "estadoML", "estadoMLPedeAcao", "estoque", "fotoUrl", "freteGratis", "icone", "id", "idExterno", "linkDoAnuncio", "linkDoPainel", "preco", "produtoId", "rankingML", "reutilizado", "situacaoCanal", "sku", "status", "tipoAnuncio", "titulo", "urlExterna", "vendidos"]);
+        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["aguardandoEstoque", "atualizadoEm", "avisosML", "codigo", "estadoML", "estadoMLPedeAcao", "estoque", "fotoUrl", "freteGratis", "icone", "id", "idExterno", "linkDoAnuncio", "linkDoPainel", "preco", "produtoId", "rankingML", "reutilizado", "seloML", "situacaoCanal", "sku", "status", "tipoAnuncio", "titulo", "urlExterna", "vendidos"]);
         // As colunas que ordenam (28/10/2026): no servidor, antes de paginar; o vazio vai para o fim nas duas direcoes.
         const porPreco = (direcao) => listarAnunciosML({ busca: "zz-ml", ordenar: "preco", direcao }).then((r) => r.linhas.map((l) => l.preco));
         const [subindo, descendo] = [await porPreco("asc"), await porPreco("desc")];
@@ -3554,6 +3554,38 @@ try {
     conferir("texto: inativo", textoDoEstadoML({ status: "inactive", subStatus: [] }), "Inativo no ML");
     conferir("texto: encerrado", textoDoEstadoML({ status: "closed", subStatus: [] }), "Encerrado no ML");
     conferir("texto: desconhecido mostra o do ML", textoDoEstadoML({ status: "algo_novo", subStatus: [] }), "No ML: algo_novo");
+    // Penalidade de moderacao (dono, 09/11/2026: o 100219_5 aparecia "Publicado" no Rise e "Inativo" no ML): o ML pausa com o
+    // `sub_status` vazio e so a etiqueta `moderation_penalty` diz que foi ele; o motivo vem da infracao.
+    const { seloDoEstadoML, estadoDoItem, estadoMudou } = await import("../src/lib/canaisDeVenda/ml/estadoNoML.js");
+    const penalizado = { status: "paused", subStatus: [], etiquetas: ["moderation_penalty"] };
+    conferir("texto: penalidade do ML sem motivo", textoDoEstadoML(penalizado), "Inativo: penalidade do ML");
+    conferir("texto: penalidade do ML com o motivo da infracao", textoDoEstadoML({ ...penalizado, motivo: "Não tem vendas há muito tempo." }), "Inativo: não tem vendas há muito tempo");
+    conferir("precisa agir: penalidade do ML", precisaAgirNoML(penalizado), true);
+    conferir("estado do item: so as etiquetas que importam", estadoDoItem({ status: "paused", sub_status: [], tags: ["cart_eligible", "moderation_penalty", "immediate_payment"] }).etiquetas, ["moderation_penalty"]);
+    conferir("estado mudou: etiqueta nova conta", estadoMudou({ status: "paused", subStatus: [], estoque: 7, vendidos: 0, etiquetas: [] }, { status: "paused", subStatus: [], estoque: 7, vendidos: 0, etiquetas: ["moderation_penalty"] }), true);
+    conferir(
+      "selo do estado no ML: ativo, pausado, sem estoque, inativo pela penalidade, em revisao e sem leitura",
+      [
+        seloDoEstadoML({ status: "active", subStatus: [] }),
+        seloDoEstadoML({ status: "paused", subStatus: [] }),
+        seloDoEstadoML({ status: "paused", subStatus: ["out_of_stock"] }),
+        seloDoEstadoML({ ...penalizado, motivo: "Não tem vendas há muito tempo." }),
+        seloDoEstadoML({ status: "under_review", subStatus: ["waiting_for_patch"] }),
+        seloDoEstadoML(null),
+      ],
+      [
+        { rotulo: "Ativo", tom: "sucesso" },
+        { rotulo: "Pausado", tom: "alerta" },
+        { rotulo: "Pausado: sem estoque", tom: "alerta" },
+        { rotulo: "Inativo: não tem vendas há muito tempo", tom: "erro" },
+        { rotulo: "Em revisão: precisa corrigir", tom: "erro" },
+        null,
+      ],
+    );
+    const { seloDoAnuncioML: seloDaLinha } = await import("../src/lib/canaisDeVenda/ml/rotulos.js");
+    conferir("selo da lista: publicado mostra o estado do ML", seloDaLinha({ status: "PUBLICADO", situacaoCanal: "PAUSADA", dados: { publicacao: { estadoML: penalizado } } }).rotulo, "Inativo: penalidade do ML");
+    conferir("selo da lista: publicado ainda nao relido fica Publicado", seloDaLinha({ status: "PUBLICADO", situacaoCanal: "ATIVA", dados: { publicacao: {} } }).rotulo, "Publicado");
+    conferir("selo da lista: a linha pronta traz o selo do ML", seloDaLinha({ status: "PUBLICADO", situacaoCanal: "ATIVA", seloML: { rotulo: "Ativo", tom: "sucesso" } }).rotulo, "Ativo");
     conferir(
       "precisa agir: revisao, inativo e pausado por moderacao sim; sem estoque, ativo e encerrado nao",
       [
@@ -3594,6 +3626,22 @@ try {
     conferir("releitura: em revisao grava o estado e a situacao DESCONHECIDA", [e1.situacao, e1.estado.status, e1.estado.subStatus, e1.estado.estoque, e1.estado.vendidos, e1.estado.desde], ["DESCONHECIDA", "under_review", ["waiting_for_patch"], 3, 2, "2026-10-24T15:00:00.000Z"]);
     conferir("releitura: pausado sem estoque vira PAUSADA", [e2.situacao, e2.estado.status], ["PAUSADA", "paused"]);
     conferir("releitura: o que nao respondeu fica como estava", (await lido(a3)).estado, null);
+
+    // Penalidade de moderacao: a releitura guarda a etiqueta e le o motivo da infracao UMA vez (so quando a etiqueta aparece).
+    const aPen = await publicado("MLB910009");
+    const mlPen = criarMLFalso({ infracoes: { MLB910009: [{ reason: "Não tem vendas há muito tempo.", date_created: "2026-03-09T03:15:08.205-0400" }] } });
+    mlPen.itens.set("MLB910009", { id: "MLB910009", status: "paused", sub_status: [], tags: ["cart_eligible", "moderation_penalty"], available_quantity: 7, sold_quantity: 0 });
+    await relerEstadosML({ ml: mlPen, agora, anuncioIds: [aPen.id] });
+    const ePen = (await lido(aPen)).estado;
+    conferir("releitura: penalidade grava a etiqueta e o motivo", [ePen.etiquetas, ePen.motivo, (await lido(aPen)).situacao], [["moderation_penalty"], "Não tem vendas há muito tempo.", "PAUSADA"]);
+    const infracoesLidas = () => mlPen.chamadas.filter((c) => /^\/moderations\/infractions\//.test(c.caminho)).length;
+    await relerEstadosML({ ml: mlPen, agora: new Date("2026-10-24T16:00:00Z"), anuncioIds: [aPen.id] });
+    conferir("releitura: o motivo nao e relido a cada hora", [infracoesLidas(), (await lido(aPen)).estado.motivo], [1, "Não tem vendas há muito tempo."]);
+    mlPen.itens.set("MLB910009", { id: "MLB910009", status: "active", sub_status: [], tags: ["cart_eligible"], available_quantity: 7, sold_quantity: 0 });
+    await relerEstadosML({ ml: mlPen, agora: new Date("2026-10-24T17:00:00Z"), anuncioIds: [aPen.id] });
+    const eReativado = (await lido(aPen)).estado;
+    conferir("releitura: reativado perde a etiqueta e o motivo", [eReativado.etiquetas, eReativado.motivo ?? null, precisaAgirNoML(eReativado)], [[], null, false]);
+    await prisma.anuncio.delete({ where: { id: aPen.id } });
 
     // Sem mudanca no ML: nao reescreve (a lista de anuncios ordena pelo atualizadoEm).
     const r2 = await relerEstadosML({ ml, agora: new Date("2026-10-24T16:00:00Z"), anuncioIds: ids });
@@ -4188,6 +4236,23 @@ try {
     conferir("popup: igual ao que esta gravado nao mexe", await sincronizarForaDoRiseDoProduto(conferido.id, [novo]), false);
     const naoConferido = await prisma.produto.findUnique({ where: { sku: "ZZ-ML-AB" }, select: { id: true } });
     conferir("popup: produto nao conferido nao ganha linha", [await sincronizarForaDoRiseDoProduto(naoConferido.id, [novo]), await prisma.anuncioForaDoRiseML.count({ where: { produtoId: naoConferido.id } })], [false, 0]);
+    // Anuncio antigo so com o codigo do vendedor (dono, 09/11/2026: o 100202 nao aparecia no popup para reaproveitar): a busca por
+    // SKU nao o acha e o popup apagava a linha da verificacao. A busca por `sku=` o acha, e a linha gravada o completa.
+    const { anunciosDoSkuNaConta: buscarNaConta } = await import("../src/lib/canaisDeVenda/ml/reaproveitar.js");
+    const { completarComLinhasGravadas } = await import("../src/lib/canaisDeVenda/ml/anunciosAntigos.js");
+    const soCodigo = item("MLB5298650152", "ZZ-ML-AA", { title: "Modulo Ethernet antigo" });
+    const mlCodigo = criarMLFalso({ meusItens: { "ZZ-ML-AA": [item("MLB6", "ZZ-ML-AA")] }, porCustomField: { "ZZ-ML-AA": [soCodigo] } });
+    conferir("popup: a busca tambem acha o anuncio que so tem o codigo do vendedor", (await buscarNaConta(mlCodigo, "ZZ-ML-AA")).itens.map((i) => i.id).sort(), ["MLB5298650152", "MLB6"]);
+    await prisma.anuncioForaDoRiseML.deleteMany({ where: { produtoId: conferido.id } });
+    await prisma.anuncioForaDoRiseML.create({ data: { itemId: "MLB5298650152", produtoId: conferido.id, titulo: "Modulo Ethernet antigo", preco: 30 } });
+    const ja = await completarComLinhasGravadas(criarMLFalso({ porCustomField: { "ZZ-ML-AA": [soCodigo] } }), conferido.id, [item("MLB6", "ZZ-ML-AA")], { idsDoRise: new Set(["MLB6"]) });
+    conferir("popup: a linha gravada completa a leitura que nao a achou", ja.map((i) => i.id).sort(), ["MLB5298650152", "MLB6"]);
+    const jaAchado = await completarComLinhasGravadas(criarMLFalso({ porCustomField: { "ZZ-ML-AA": [soCodigo] } }), conferido.id, [soCodigo], { idsDoRise: new Set() });
+    conferir("popup: o que a leitura ja achou nao repete", jaAchado.map((i) => i.id), ["MLB5298650152"]);
+    const encerrado = criarMLFalso({ porCustomField: { "ZZ-ML-AA": [{ ...soCodigo, status: "closed" }] } });
+    conferir("popup: linha gravada de anuncio encerrado no ML nao volta", (await completarComLinhasGravadas(encerrado, conferido.id, [], { idsDoRise: new Set() })).length, 0);
+    conferir("popup: linha gravada de anuncio que ja e do Rise nao volta", (await completarComLinhasGravadas(criarMLFalso({ porCustomField: { "ZZ-ML-AA": [soCodigo] } }), conferido.id, [], { idsDoRise: new Set(["MLB5298650152"]) })).length, 0);
+    await prisma.anuncioForaDoRiseML.deleteMany({ where: { produtoId: conferido.id } });
     await prisma.anuncioForaDoRiseML.createMany({ data: deOutros, skipDuplicates: true });
     conferir("verificar: as linhas dos produtos reais voltaram", await prisma.anuncioForaDoRiseML.count({ where: { itemId: { in: deOutros.map((linha) => linha.itemId) } } }), deOutros.length);
   }

@@ -46,7 +46,8 @@ function Situacao({ linha }) {
         <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${COR_DO_TOM[selo.tom] ?? COR_DO_TOM.neutro}`} />
         {selo.rotulo}
       </span>
-      {linha.estadoMLPedeAcao && <span className="pl-3.5 text-xs font-medium whitespace-nowrap text-red-700">{linha.estadoML}</span>}
+      {/* O selo ja mostra o estado do ML (09/11/2026): a linha vermelha so aparece quando diz outra coisa (o Reutilizado barrado). */}
+      {linha.estadoMLPedeAcao && linha.estadoML !== selo.rotulo && <span className="pl-3.5 text-xs font-medium whitespace-nowrap text-red-700">{linha.estadoML}</span>}
     </div>
   );
 }
