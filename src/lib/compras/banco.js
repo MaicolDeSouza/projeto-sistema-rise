@@ -453,6 +453,7 @@ function pedidoParaTela(pedido) {
     propostaNomeOriginal: pedido.propostaNomeOriginal,
     comprovantes: (pedido.comprovantes ?? []).map((c) => ({ id: c.id, nomeOriginal: c.nomeOriginal, enviadoEm: c.enviadoEm, enviadoPor: c.enviadoPor })),
     observacoes: pedido.observacoes,
+    observacoesFornecedor: pedido.observacoesFornecedor,
     enviadoEm: pedido.enviadoEm,
     finalizadoEm: pedido.finalizadoEm,
     canceladoEm: pedido.canceladoEm,
@@ -472,7 +473,6 @@ function pedidoParaTela(pedido) {
             entregueEm: pedido.aliexpress.entregueEm ?? entregaPeloRastreio(pedido.aliexpress.pacotes),
             canceladoNoAliExpressEm: pedido.aliexpress.canceladoNoAliExpressEm,
             faltaLancar: ["ENVIADO", "PARCIAL"].includes(pedido.status) ? itens.reduce((soma, item) => soma + faltaLancar(item), 0) : 0,
-    observacoesFornecedor: pedido.observacoesFornecedor,
             virtualErros: pedido.aliexpress.linhas.filter((linha) => linha.virtualErro).length,
           }),
         ]
@@ -884,6 +884,7 @@ export async function salvarPedido(id, entrada) {
       definir("rastreio", dados.rastreio);
       definir("propostaNumero", dados.propostaNumero);
       definir("observacoes", dados.observacoes);
+      definir("observacoesFornecedor", dados.observacoesFornecedor);
       // A entrada pode ser paga depois de o pedido sair: muda ate o pedido fechar.
       if (dados.entrada !== undefined) pedido.entrada = dados.entrada ?? 0;
       // A forma e as parcelas tambem (pedido do dono em 10/11/2026: o pedido saiu do rascunho sem a forma marcada e o
@@ -906,7 +907,6 @@ export async function salvarPedido(id, entrada) {
       if (dados.itens) {
         const atuais = await tx.itemDoPedidoDeCompra.findMany({ where: { pedidoId: id }, select: { id: true } });
         const recebidos = new Map(dados.itens.map((item, indice) => [item.id, { ...item, ordem: indice }]));
-      definir("observacoesFornecedor", dados.observacoesFornecedor);
         for (const atual of atuais) {
           const item = recebidos.get(atual.id);
           if (!item) {
