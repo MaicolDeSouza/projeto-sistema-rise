@@ -109,7 +109,7 @@ function Opcoes({ nome, opcoes, valor, disabled, aoMudar }) {
 export function BlocoPagamento({ formulario, editar, erros, aoMudar, totais = null, editarEntrada = false, children = null }) {
   const pix = formulario.formaPagamento === "PIX";
   return (
-    <SecaoDoAnuncio titulo="Pagamento" ajuda="Entrada: o valor que já foi pago ao fazer o pedido. Pode ser lançada depois de enviado.">
+    <SecaoDoAnuncio titulo="Pagamento" ajuda="Entrada: o valor que já foi pago ao fazer o pedido. Forma, parcelas e entrada podem ser lançadas depois de enviado, até o pedido ser finalizado.">
       <div className="flex flex-wrap items-start gap-4">
         <div>
           <span className="mb-1 block text-xs font-medium text-suave">Forma</span>

@@ -472,6 +472,19 @@ try {
     lidoEntrada = await banco.lerPedido(comEntrada.pedidoId);
     conferir("entrada muda depois de enviado; falta pagar nao fica negativo", [lidoEntrada.entrada, lidoEntrada.totais.faltaPagar], [100, 0]);
 
+    // Forma e parcelas tambem mudam ate o pedido fechar (pedido do dono em 10/11/2026: o pedido saiu do rascunho sem a
+    // forma marcada e o pagamento so se definiu depois do envio). Frete e desconto continuam so do rascunho.
+    await banco.salvarPedido(comEntrada.pedidoId, { formaPagamento: "BOLETO", parcelas: "3" });
+    lidoEntrada = await banco.lerPedido(comEntrada.pedidoId);
+    conferir("forma e parcelas mudam depois de enviado", [lidoEntrada.formaPagamento, lidoEntrada.parcelas], ["BOLETO", 3]);
+    await banco.salvarPedido(comEntrada.pedidoId, { formaPagamento: "PIX", parcelas: "5" });
+    lidoEntrada = await banco.lerPedido(comEntrada.pedidoId);
+    conferir("pix depois de enviado tambem forca 1 parcela", [lidoEntrada.formaPagamento, lidoEntrada.parcelas], ["PIX", 1]);
+    await banco.salvarPedido(comEntrada.pedidoId, { frete: "99", desconto: "10%" });
+    lidoEntrada = await banco.lerPedido(comEntrada.pedidoId);
+    conferir("frete e desconto continuam so do rascunho", [lidoEntrada.frete, lidoEntrada.descontoValor, lidoEntrada.formaPagamento], [0, 0, "PIX"]);
+    conferir("finalizado nao muda a forma", (await banco.salvarPedido(criado.pedidoId, { formaPagamento: "CARTAO" })).ok, false);
+
     // Excluir (pedido do dono em 26/10/2026): so rascunho e cancelado; enviado pede cancelar antes.
     conferir("excluir pedido enviado recusa", (await banco.excluirPedido(comEntrada.pedidoId)).ok, false);
     const paraExcluir = await banco.criarPedido((await criarFornecedor("ZZ Compra Excluir")).id);

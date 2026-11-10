@@ -319,7 +319,8 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
         {veCusto && <BlocoTotais formulario={formulario} totais={totais} editar={rascunho} erros={erros} aoMudar={mudar} />}
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <BlocoPagamento formulario={formulario} editar={rascunho} erros={erros} aoMudar={mudar} totais={veCusto ? totais : null} editarEntrada={!fechado}>
+          {/* O pagamento inteiro (forma, parcelas e entrada) muda ate o pedido fechar: costuma se definir depois do envio. */}
+          <BlocoPagamento formulario={formulario} editar={!fechado} erros={erros} aoMudar={mudar} totais={veCusto ? totais : null} editarEntrada={!fechado}>
             <ComprovantesDePagamento pedidoId={pedido.id} inicial={pedido.comprovantes ?? []} podeEditar={podeEditar} />
           </BlocoPagamento>
           <BlocoFrete formulario={formulario} transportadoras={transportadoras} editar={!fechado} aoMudar={mudar} aliexpress={pedido.aliexpress} />

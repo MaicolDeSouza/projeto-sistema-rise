@@ -5639,7 +5639,10 @@ plano `docs/superpowers/plans/2026-10-26-modulo-compras.md` (12 tarefas, inline)
   adiciona (sem botão "Adicionar"). A coluna "Chegada" só aparece depois de enviado. Totais em uma linha: Impostos (IPI calculado e ICMS ST), Frete, Desconto, Preço dos
   produtos e o Total num verde suave; "Nº de itens" e "Soma das qtdes" saíram (pedido do dono). **Entrada** no Pagamento (coluna
   `PedidoDeCompra.entrada`, migration `20261026b_compras_entrada`): o que já foi pago ao fazer o pedido, muda até o pedido fechar, mostra
-  "Falta pagar" (`totaisDoPedido` devolve `entrada` e `faltaPagar`) e vai no PDF como "Entrada paga". O campo **Frete** (transportadora,
+  "Falta pagar" (`totaisDoPedido` devolve `entrada` e `faltaPagar`) e vai no PDF como "Entrada paga". **Desde 10/11/2026 a Forma e as
+  Parcelas também mudam até o pedido fechar** (pedido do dono: um pedido saiu do rascunho sem a forma marcada e ficou sem como
+  preencher; "Sim, liberar"): `salvarPedido` grava as duas fora do `if (rascunho)` e o `BlocoPagamento` recebe `editar={!fechado}`;
+  desconto, frete e ICMS ST continuam só do rascunho, e o PDF, montado na hora, passa a trazer a condição nova. O campo **Frete** (transportadora,
   CIF/FOB) saiu do PDF; o valor do frete continua nos totais. **Lixeira** na lista de pedidos (nível excluir da tela): só Rascunho e
   Cancelado (`PODE_EXCLUIR`); enviado pede cancelar antes, parcial e finalizado guardam o histórico do estoque lançado.
 - **Pendências menores:** excluir produto ou fornecedor que está num pedido cai no erro de chave estrangeira com mensagem genérica.

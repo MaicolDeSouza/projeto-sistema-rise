@@ -839,8 +839,9 @@ export async function buscarItensParaPedido(pedidoId, texto) {
 
 /**
  * Salvar o pedido. Em RASCUNHO grava tudo (os itens que nao vieram saem; a ordem e a da lista). Depois de ENVIADO o
- * PDF ja foi ao fornecedor: so prazo dos itens, frete, rastreio, proposta e observacoes mudam, e o resto recebido e
- * ignorado. Fechado (finalizado, cancelado) recusa.
+ * PDF ja foi ao fornecedor: so prazo dos itens, frete, rastreio, proposta, observacoes e o pagamento (entrada, forma e
+ * parcelas, que costumam se definir depois do envio) mudam, e o resto recebido e ignorado. Fechado (finalizado,
+ * cancelado) recusa.
  */
 export async function salvarPedido(id, entrada) {
   const conferido = conferirPedido(entrada);
@@ -885,6 +886,11 @@ export async function salvarPedido(id, entrada) {
       definir("observacoes", dados.observacoes);
       // A entrada pode ser paga depois de o pedido sair: muda ate o pedido fechar.
       if (dados.entrada !== undefined) pedido.entrada = dados.entrada ?? 0;
+      // A forma e as parcelas tambem (pedido do dono em 10/11/2026: o pedido saiu do rascunho sem a forma marcada e o
+      // pagamento so se definiu depois do envio). O PDF e montado na hora, entao passa a trazer a condicao nova.
+      definir("formaPagamento", dados.formaPagamento);
+      if (dados.formaPagamento === "PIX") pedido.parcelas = 1;
+      else if (dados.parcelas !== undefined) pedido.parcelas = dados.parcelas ?? 1;
       if (rascunho) {
         if (dados.icmsSt !== undefined) pedido.icmsSt = dados.icmsSt ?? 0;
         if (dados.frete !== undefined) pedido.frete = dados.frete ?? 0;
@@ -892,9 +898,6 @@ export async function salvarPedido(id, entrada) {
           pedido.descontoTipo = desconto.valor ? desconto.tipo : null;
           pedido.descontoValor = desconto.valor;
         }
-        definir("formaPagamento", dados.formaPagamento);
-        if (dados.formaPagamento === "PIX") pedido.parcelas = 1;
-        else if (dados.parcelas !== undefined) pedido.parcelas = dados.parcelas ?? 1;
       }
       // Transportadora do cadastro tira o texto livre.
       if (pedido.transportadoraId) pedido.transportadoraNome = null;
