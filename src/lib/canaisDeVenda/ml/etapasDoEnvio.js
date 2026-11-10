@@ -19,7 +19,10 @@ export const ETAPAS_DO_ENVIO_ML = [
   { id: "prazo", rotulo: "Enviar o prazo de disponibilidade" },
   // Os precos de atacado (08/11/2026): so aparece no anuncio cuja impressao ja tem o atacado.
   { id: "atacado", rotulo: "Enviar os preços de atacado" },
-  // O vinculo do Bling do anuncio reaproveitado (08/11/2026): sai da loja ML_4h e entra na Rise_ML, com o OK do dono.
+  // O Publicar do reutilizado (09/11/2026, "como se fosse produto novo"): os dados fiscais e o estoque do Rise no ML.
+  { id: "fiscal", rotulo: "Enviar os dados fiscais" },
+  { id: "estoque", rotulo: "Acertar o estoque no ML" },
+  // O vinculo do Bling do anuncio reaproveitado (08/11/2026): sai da loja antiga e entra na Rise_ML (sem pergunta desde 09/11).
   { id: "bling", rotulo: "Mover o vínculo no Bling" },
   { id: "conferir", rotulo: "Conferir o resultado no ML" },
 ];
@@ -31,6 +34,9 @@ export const PARTES_DO_ENVIO_ML = ["titulo", "descricao", "fotos", "pacote", "pr
  * As etapas que o popup mostra para um anuncio: `titulo` so quando a impressao tem o titulo (anuncio reaproveitado), `atacado`
  * so quando ela tem o atacado e `bling` so com o vinculo ainda por mover. Nos demais anuncios as duas nao aparecem (regra 4 do padrao visual: so o que tem dado).
  */
-export function etapasDoEnvioML({ comTitulo = false, comBling = false, comAtacado = false } = {}) {
-  return ETAPAS_DO_ENVIO_ML.filter((etapa) => (etapa.id !== "titulo" || comTitulo) && (etapa.id !== "bling" || comBling) && (etapa.id !== "atacado" || comAtacado));
+export function etapasDoEnvioML({ comTitulo = false, comBling = false, comAtacado = false, comReutilizado = false } = {}) {
+  const doReutilizado = new Set(["fiscal", "estoque"]);
+  return ETAPAS_DO_ENVIO_ML.filter(
+    (etapa) => (etapa.id !== "titulo" || comTitulo) && (etapa.id !== "bling" || comBling) && (etapa.id !== "atacado" || comAtacado) && (!doReutilizado.has(etapa.id) || comReutilizado),
+  );
 }

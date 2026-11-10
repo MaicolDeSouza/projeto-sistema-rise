@@ -1,4 +1,5 @@
-import { conteudoAtualDoAnuncio, mudancasDoAnuncio } from "./acompanhar";
+import { conteudoAtualDoAnuncio, mudancasDoAnuncio, temParaMandar } from "./acompanhar";
+import { garantirFiscalNoML, planoFiscalDoRascunho } from "./fiscalNoML";
 import { carregarAnuncioML, gravarPublicacao } from "./banco";
 import { atacadoDoEnvio, enviarAtacadoML, impressaoDoAtacado } from "./atacado";
 import { moverVinculoParaRiseML } from "./bling";
@@ -19,27 +20,30 @@ import { guardarContaDoEditorSemFalhar } from "@/lib/canaisDeVenda/ml/contaDoEdi
  * ML por parametro, uma volta so, nenhuma escrita repete sozinha, e cada parte que deu certo e gravada na impressao na hora
  * (uma falha no meio deixa o "!" so no que faltou). Para na primeira parte que falha.
  *
- * O anuncio reaproveitado tem uma etapa a mais, depois das partes: mover o vinculo do Bling da loja ML_4h para a Rise_ML
- * (`bling`). Ela so roda com `moverBling` (o dono confirma por anuncio, no popup do editor); sem ele o resultado traz
- * `pedeBling` e a etapa fica para a proxima chamada. Depois de movida (`reaproveitado.blingMovidoEm`), nunca mais.
+ * O anuncio reaproveitado tem etapas a mais, depois das partes. No Publicar dele (ainda "Reutilizado", 09/11/2026: "como se
+ * fosse produto novo"): todas as partes da tela, os dados fiscais e o estoque do Rise. E, enquanto nao foi movido, o vinculo
+ * do Bling sai da loja antiga e entra na Rise_ML, SEM pergunta (dono, 09/11/2026; ate ali o popup pedia o OK, `moverBling`).
+ * Depois de movido (`reaproveitado.blingMovidoEm`), nunca mais. A revisao e carimbada por ultimo.
  *
  * Medir no ML real antes do primeiro uso: nenhuma das tres escritas (PUT da descricao, de `pictures` e de `attributes`)
  * foi mandada a um item publicado da conta (User Products).
  */
 
 const textoDe = (erro) => erro?.message ?? String(erro);
+// As partes da tela que o Publicar do reutilizado sempre manda (o titulo, o preco da loja e o atacado seguem as regras deles).
+const PARTES_DA_TELA = ["descricao", "fotos", "pacote", "preco", "ficha", "prazo"];
 
 /**
  * @returns {Promise<{ ok: boolean, enviadas: string[], avisos?: string[], erro?: string, parte?: string,
  *   pedeBling?: { de: string|null, codigo: string, itemId: string }, bling?: object }>}
  */
-export async function enviarMudancasML(anuncioId, { ml, bling = null, moverBling = false, lerFoto = lerFotoDoDisco } = {}) {
+export async function enviarMudancasML(anuncioId, { ml, bling = null, lerFoto = lerFotoDoDisco } = {}) {
   if (emAndamento.has(anuncioId)) return { ok: false, enviadas: [], erro: "Envio em andamento." };
   emAndamento.add(anuncioId);
   // O andamento do popup do editor (26/10/2026): cada etapa marcada aqui, lida pela rota `/api/mercado-livre/progresso`.
   const progresso = iniciarProgressoML(anuncioId);
   try {
-    const resultado = await enviarUmaVez(anuncioId, { ml, bling, moverBling, lerFoto, progresso });
+    const resultado = await enviarUmaVez(anuncioId, { ml, bling, lerFoto, progresso });
     if (!resultado.ok) progresso.falhou(resultado.erro ?? "O envio não foi concluído.");
     return resultado;
   } catch (erro) {
@@ -52,7 +56,7 @@ export async function enviarMudancasML(anuncioId, { ml, bling = null, moverBling
   }
 }
 
-async function enviarUmaVez(anuncioId, { ml, bling, moverBling, lerFoto, progresso }) {
+async function enviarUmaVez(anuncioId, { ml, bling, lerFoto, progresso }) {
   const carregado = await carregarAnuncioML(anuncioId);
   if (!carregado.ok) return { ok: false, enviadas: [], erro: carregado.erro };
   const { rascunho, contexto, publicacao } = carregado;
@@ -61,7 +65,11 @@ async function enviarUmaVez(anuncioId, { ml, bling, moverBling, lerFoto, progres
 
   const conteudo = conteudoAtualDoAnuncio(rascunho, contexto.produtos);
   const atual = impressaoDoConteudo(conteudo);
-  const { partes } = mudancasDoAnuncio(publicacao.enviado ?? null, atual);
+  const { partes: mudaram } = mudancasDoAnuncio(publicacao.enviado ?? null, atual);
+  // O Publicar do reutilizado (dono, 09/11/2026: "quero que mova todos os dados da tela do ML para o anuncio reaproveitado,
+  // inclusive dados fiscais e estoque do bling"): todas as partes da tela que o anuncio tem, nao so as do "!", como num novo.
+  const revisar = reutilizadoPendente(publicacao);
+  const partes = revisar ? PARTES_DO_ENVIO_ML.filter((parte) => mudaram.includes(parte) || (PARTES_DA_TELA.includes(parte) && temParaMandar(atual, parte))) : mudaram;
   const principal = contexto.produtos[rascunho.produtoId];
   const codigo = String(rascunho.composicao ? rascunho.composicao.codigo : principal?.sku ?? "").trim();
   const enviadas = [];
@@ -76,48 +84,71 @@ async function enviarUmaVez(anuncioId, { ml, bling, moverBling, lerFoto, progres
     if (partes.includes("preco")) await guardarContaDoEditorSemFalhar(anuncioId, { ml, motivo: "preco" });
   }
 
-  // O reaproveitado da conta (dono, 09/11/2026): o envio que deu certo e o Publicar do editor, a revisao do dono; o selo
-  // "Reutilizado" e o "!" saem. O Mover do Bling, logo abaixo, e outra pergunta e nao segura a revisao.
+  const pronto = (extra = {}) => ({ ok: true, enviadas, ...(avisos.length ? { avisos } : {}), ...extra });
   let reaproveitado = publicacao.reaproveitado;
-  if (reutilizadoPendente(publicacao)) {
+
+  // O Publicar do reutilizado, como num anuncio novo (09/11/2026): os dados fiscais (o SKU e o vinculo dele ao anuncio) e o
+  // estoque do Rise no ML (no kit, o estoque do produto / N). Falhou, para antes do Bling e da revisao: o "!" fica.
+  if (revisar) {
+    try {
+      ml.exigirEscrita(codigo);
+    } catch (erro) {
+      return { ok: false, enviadas, parte: "fiscal", erro: textoDe(erro) };
+    }
+    progresso.andando("fiscal");
+    const fiscal = await garantirFiscalNoML(ml, await planoFiscalDoRascunho(rascunho), { itemId });
+    if (!fiscal.ok) return { ok: false, enviadas, parte: "fiscal", erro: `Dados fiscais: ${fiscal.erro}` };
+    if (fiscal.podeFaturar === false) avisos.push(`O Mercado Livre ainda não marcou o anúncio ${itemId} como apto a faturar: confira em Faturamento no ML.`);
+    progresso.feita("fiscal", fiscal.feitos.length ? fiscal.feitos.join(" ") : "já estavam no ML");
+
+    progresso.andando("estoque");
+    const estoque = Math.max(0, Math.floor(Number(rascunho.estoque ?? 0)) || 0);
+    const lido = await ml.get(`/items/${itemId}`);
+    const noML = lido?.ok ? Number(lido.dados?.available_quantity) : Number.NaN;
+    if (noML === estoque) progresso.feita("estoque", "já estava certo");
+    else {
+      let resposta;
+      try {
+        resposta = await ml.put(`/items/${itemId}`, { available_quantity: estoque });
+      } catch (erro) {
+        return { ok: false, enviadas, parte: "estoque", erro: `Falha ao acertar o estoque do anúncio ${itemId}: ${textoDe(erro)}` };
+      }
+      if (!resposta?.ok) return { ok: false, enviadas, parte: "estoque", erro: textoDaRecusaML(resposta, `o estoque do anúncio ${itemId}`) };
+      progresso.feita("estoque", `${Number.isFinite(noML) ? noML : "?"} → ${estoque}`);
+    }
+  }
+
+  // O vinculo do Bling do anuncio reaproveitado, uma vez so e SEM pergunta (dono, 09/11/2026: "nao precisa perguntar se deseja
+  // mover para bling, todo produto reaproveitado ja muda para o Rise_ml no bling").
+  let movido = null;
+  if (reaproveitado && !reaproveitado.blingMovidoEm) {
+    if (!bling) return { ok: false, enviadas, parte: "bling", erro: "Sem cliente do Bling para mover o vínculo." };
+    const dadosDoBling = { preco: rascunho.preco, titulo: rascunho.titulo, tipoAnuncio: rascunho.tipoAnuncio };
+    // O kit reaproveitado: sem o kit no Bling, o Mover o cria como o Publicar (as pecas, o frete e a parte fiscal).
+    if (rascunho.composicao) {
+      dadosDoBling.kit = {
+        itens: (rascunho.composicao.itens ?? []).map((item) => ({ sku: contexto.produtos[item.produtoId]?.sku, quantidade: Number(item.quantidade) })),
+        envio: rascunho.envio ?? {},
+        principal: await fiscalDoPrincipal(principal?.id ?? rascunho.produtoId),
+      };
+    }
+    progresso.andando("bling");
+    movido = await moverVinculoParaRiseML(bling, codigo, itemId, dadosDoBling);
+    if (!movido.ok) return { ok: false, enviadas, parte: "bling", erro: movido.erro ?? "O Bling não concluiu a mudança do vínculo." };
+    reaproveitado = { ...reaproveitado, blingMovidoEm: new Date().toISOString() };
+    await gravarPublicacao(anuncioId, { reaproveitado, ...(movido.kitCriado ? { blingKitId: movido.kitCriado } : {}) }, {}, movido.kitCriado ? { blingProdutoId: String(movido.kitCriado) } : {});
+    const comKit = movido.kitCriado ? ` (kit ${codigo} criado no Bling)` : "";
+    progresso.feita("bling", `${movido.de === "ML_4h" ? "movido da ML_4h para a Rise_ML" : "registrado na Rise_ML"}${comKit}`);
+  } else {
+    progresso.feita("bling", "não se aplica");
+  }
+
+  // A revisao do dono (o Publicar do editor) e carimbada por ULTIMO: o selo "Reutilizado" e o "!" saem so com tudo feito.
+  if (revisar) {
     reaproveitado = { ...reaproveitado, revisadoEm: new Date().toISOString() };
     await gravarPublicacao(anuncioId, { reaproveitado });
   }
-
-  // O vinculo do Bling do anuncio reaproveitado, uma vez so: pede a confirmacao do dono e, com ela, move.
-  const pendente = Boolean(reaproveitado) && !reaproveitado.blingMovidoEm;
-  const dadosDoBling = { preco: rascunho.preco, titulo: rascunho.titulo, tipoAnuncio: rascunho.tipoAnuncio };
-  // O kit reaproveitado (09/11/2026): sem o kit no Bling, o Mover o cria como o Publicar (as pecas, o frete e a parte fiscal).
-  if (pendente && rascunho.composicao) {
-    dadosDoBling.kit = {
-      itens: (rascunho.composicao.itens ?? []).map((item) => ({ sku: contexto.produtos[item.produtoId]?.sku, quantidade: Number(item.quantidade) })),
-      envio: rascunho.envio ?? {},
-      principal: await fiscalDoPrincipal(principal?.id ?? rascunho.produtoId),
-    };
-  }
-  const pronto = (extra = {}) => ({ ok: true, enviadas, ...(avisos.length ? { avisos } : {}), ...extra });
-  if (!pendente) {
-    progresso.feita("bling", "não se aplica");
-    return pronto();
-  }
-  if (!moverBling) {
-    // So le, para o popup dizer de onde o anuncio sai; a etapa fica esperando a confirmacao.
-    const lido = bling ? await moverVinculoParaRiseML(bling, codigo, itemId, { ...dadosDoBling, somenteLer: true }) : null;
-    return pronto({ pedeBling: { de: lido?.ok ? lido.de : null, codigo, itemId } });
-  }
-  if (!bling) return { ok: false, enviadas, parte: "bling", erro: "Sem cliente do Bling para mover o vínculo." };
-  progresso.andando("bling");
-  const movido = await moverVinculoParaRiseML(bling, codigo, itemId, dadosDoBling);
-  if (!movido.ok) return { ok: false, enviadas, parte: "bling", erro: movido.erro ?? "O Bling não concluiu a mudança do vínculo." };
-  await gravarPublicacao(
-    anuncioId,
-    { reaproveitado: { ...reaproveitado, blingMovidoEm: new Date().toISOString() }, ...(movido.kitCriado ? { blingKitId: movido.kitCriado } : {}) },
-    {},
-    movido.kitCriado ? { blingProdutoId: String(movido.kitCriado) } : {},
-  );
-  const comKit = movido.kitCriado ? ` (kit ${codigo} criado no Bling)` : "";
-  progresso.feita("bling", `${movido.de === "ML_4h" ? "movido da ML_4h para a Rise_ML" : "registrado na Rise_ML"}${comKit}`);
-  return pronto({ bling: movido });
+  return pronto(movido ? { bling: movido } : {});
 }
 
 /** As partes que mudaram, uma a uma. Devolve o resultado de falha, ou `null` quando todas foram. */

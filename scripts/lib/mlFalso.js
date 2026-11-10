@@ -489,7 +489,7 @@ export function criarMLFalso(opcoes = {}) {
     // A descricao de um anuncio ja publicado (o "Enviar mudancas ao ML", spec 2026-10-24).
     const daDescricao = rota.match(/^\/items\/([^/]+)\/description$/);
     if (daDescricao) {
-      const item = itens.get(daDescricao[1]);
+      const item = acharItem(daDescricao[1]);
       if (!item) return naoAchou(`Item ${daDescricao[1]} not found`);
       item.descricao = corpo?.plain_text ?? null;
       return resposta(200, { text: "", plain_text: item.descricao });

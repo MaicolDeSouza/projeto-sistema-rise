@@ -145,9 +145,9 @@ export default function EditorAnuncioML({
   const [pergunta, setPergunta] = useState(null);
   // "Mover o vinculo do Bling?" do anuncio reaproveitado (08/11/2026): `{ de, codigo, itemId }` devolvido pelo envio.
   const [perguntaDoBling, setPerguntaDoBling] = useState(null);
-  // A pergunta do Bling vem ANTES do envio (dono, 09/11/2026: "no momento que eu publico um anuncio reutilizavel ele finaliza e
-  // ja fecha, nem chega mostrar a opcao de mover"): o Publicar tira o "!" e, com a lista de Produtos filtrada por ele, a linha
-  // sumia levando o popup antes da pergunta. A resposta vai no mesmo envio e nao e feita de novo.
+  // Desde 09/11/2026 o Bling do reaproveitado muda para a Rise_ML sem pergunta (dono: "nao precisa perguntar se deseja mover
+  // para bling"): o servidor nao devolve mais `pedeBling`. A caixa abaixo so aparece se um servidor antigo ainda pedir; os refs
+  // seguram a resposta dela para o envio seguinte.
   const respondeuBling = useRef(false);
   const moverEscolhido = useRef(false);
   // Id do anuncio novo salvo antes do Publicar: o `aoSalvar` (troca de endereco) espera a janela do Publicar fechar.
@@ -351,10 +351,6 @@ export default function EditorAnuncioML({
     else publicarComEtapas(idAtual);
   }
   function pedirEnvio() {
-    if (publicado && publicacao?.reaproveitado && !publicacao.reaproveitado.blingMovidoEm && !respondeuBling.current) {
-      setPerguntaDoBling({ antes: true, de: null, itemId: infoDoML.idExterno ?? publicacao?.itemId ?? "" });
-      return;
-    }
     if (alterado) salvarEContinuar("enviar");
     else enviarMudancas(moverEscolhido.current);
   }
@@ -423,6 +419,8 @@ export default function EditorAnuncioML({
       comTitulo: Boolean(publicacao?.enviado) && Object.hasOwn(publicacao.enviado, "titulo"),
       comAtacado: Boolean(publicacao?.enviado) && Object.hasOwn(publicacao.enviado, "atacado"),
       comBling: Boolean(publicacao?.reaproveitado) && !publicacao.reaproveitado.blingMovidoEm,
+      // O Publicar do reutilizado manda tambem os dados fiscais e o estoque (09/11/2026).
+      comReutilizado: reutilizado,
     });
     setAndamento({ etapas: etapasIniciais(etapas), fim: null, resumo: null, aviso: null });
     iniciarEnvioDasMudancas(async () => {

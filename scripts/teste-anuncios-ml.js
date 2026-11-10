@@ -2175,7 +2175,7 @@ try {
         conferir(
           "enviar: andamento do popup",
           [andamento.terminou, estado, /Fotos recusadas/.test(andamento.etapas.find((etapa) => etapa.id === "fotos").detalhe)],
-          [true, { permissao: "feito", ler: "feito", titulo: "feito", descricao: "feito", fotos: "falhou", pacote: "feito", precoDaLoja: "feito", preco: "feito", ficha: "feito", prazo: "feito", atacado: "feito", bling: "espera" }, true],
+          [true, { permissao: "feito", ler: "feito", titulo: "feito", descricao: "feito", fotos: "falhou", pacote: "feito", precoDaLoja: "feito", preco: "feito", ficha: "feito", prazo: "feito", atacado: "feito", fiscal: "espera", estoque: "espera", bling: "espera" }, true],
         );
       }
 
@@ -4212,7 +4212,8 @@ try {
     conferir("titulo: impressao com outro titulo acende", mudancasDoAnuncio({ ...base, titulo: "VELHO" }, { ...base, titulo: "NOVO" }).partes, ["titulo"]);
     conferir("titulo: conteudo atual leva o titulo do rascunho", conteudoAtualDoAnuncio({ produtoId: "x", titulo: "T", preco: 1, atributos: {}, composicao: null, envio: {} }, {}).titulo, "T");
     conferir("titulo: a impressao guarda o titulo", impressaoDoConteudo({ titulo: "T" }).titulo, "T");
-    conferir("etapas: titulo e bling", [ETAPAS_DO_ENVIO_ML.map((e) => e.id), PARTES_DO_ENVIO_ML], [["permissao", "ler", "titulo", "descricao", "fotos", "pacote", "precoDaLoja", "preco", "ficha", "prazo", "atacado", "bling", "conferir"], ["titulo", "descricao", "fotos", "pacote", "precoDaLoja", "preco", "ficha", "prazo", "atacado"]]);
+    conferir("etapas: titulo, fiscal, estoque e bling", [ETAPAS_DO_ENVIO_ML.map((e) => e.id), PARTES_DO_ENVIO_ML], [["permissao", "ler", "titulo", "descricao", "fotos", "pacote", "precoDaLoja", "preco", "ficha", "prazo", "atacado", "fiscal", "estoque", "bling", "conferir"], ["titulo", "descricao", "fotos", "pacote", "precoDaLoja", "preco", "ficha", "prazo", "atacado"]]);
+    conferir("etapas do popup: fiscal e estoque so no Publicar do reutilizado", [etapasDoEnvioML({}).some((e) => e.id === "fiscal" || e.id === "estoque"), etapasDoEnvioML({ comReutilizado: true }).filter((e) => e.id === "fiscal" || e.id === "estoque").map((e) => e.id)], [false, ["fiscal", "estoque"]]);
     conferir("etapas do popup: atacado so quando a impressao o tem", [etapasDoEnvioML({}).some((e) => e.id === "atacado"), etapasDoEnvioML({ comAtacado: true }).some((e) => e.id === "atacado")], [false, true]);
     conferir("etapas do popup: titulo e bling so quando se aplicam", [etapasDoEnvioML({ comTitulo: false, comBling: false }).map((e) => e.id).filter((id) => id === "titulo" || id === "bling"), etapasDoEnvioML({ comTitulo: true, comBling: true }).map((e) => e.id).filter((id) => id === "titulo" || id === "bling")], [[], ["titulo", "bling"]]);
     conferir("loja antiga do ML no Bling", LOJA_ML_ANTIGA_NO_BLING, "203593931");
@@ -4273,7 +4274,7 @@ try {
     }
 
     // O envio de verdade: o anuncio reaproveitado com vendas pula o titulo (aviso) e pede para mover o Bling; o Mover move.
-    const produto = await prisma.produto.create({ data: { sku: "ZZ-ML-TI", tituloBase: "ZZ TI", descricaoBase: "Descricao", conferido: true, blingId: "201", pesoKg: 0.05, alturaCm: 2, larguraCm: 6, comprimentoCm: 7, estoque: 10, precoVenda: 45.9, custo: 20 } });
+    const produto = await prisma.produto.create({ data: { sku: "ZZ-ML-TI", tituloBase: "ZZ TI", descricaoBase: "Descricao", conferido: true, blingId: "201", pesoKg: 0.05, alturaCm: 2, larguraCm: 6, comprimentoCm: 7, estoque: 10, precoVenda: 45.9, custo: 20, ncm: "8473.30.49", origem: 0 } });
     const ml = criarMLFalso({ meusItens: { "ZZ-ML-TI": [item("MLBANTIGO1"), item("MLBANTIGO2", { sold_quantity: 0 })] } });
     const bling = criarBlingFalso({ produtos: produtosDoBling, ...antigoNoBling });
     // So o titulo muda: a impressao passa a ser a de agora, com o titulo do ML.
@@ -4298,31 +4299,38 @@ try {
     const fechadoNoML = criarMLFalso({ meusItens: { "ZZ-ML-TI": [item("MLBANTIGO1", { status: "closed" })] } });
     const falhou = await enviarMudancasML(comVendas.anuncioId, { ml: fechadoNoML, bling });
     conferir("reutilizado: o envio que falha nao carimba a revisao", [falhou.ok, (await reaproveitadoDe(comVendas.anuncioId)).revisadoEm], [false, null]);
-    const semMover = await enviarMudancasML(comVendas.anuncioId, { ml, bling });
-    conferir("envio com vendas: titulo registrado sem PUT, com aviso, e pede o Bling", [semMover.ok, semMover.enviadas, putsDeTitulo().length, (semMover.avisos ?? []).some((a) => /título/.test(a)), semMover.pedeBling], [true, ["titulo"], 0, true, { de: "ML_4h", codigo: "ZZ-ML-TI", itemId: "MLBANTIGO1" }]);
-    conferir("envio com vendas: o titulo nao acende de novo", (await carregarAnuncioML(comVendas.anuncioId)).mudancas.partes, []);
-    conferir("envio sem Mover: o Bling ficou como estava", lojaDe(bling, "MLBANTIGO1"), ["203593931"]);
-    // O envio deu certo (o Bling fica para a pergunta "Mover?"): a revisao esta feita e o anuncio passa a Publicado.
-    const revisadoNoEnvio = (await reaproveitadoDe(comVendas.anuncioId)).revisadoEm;
-    conferir("reutilizado: o envio que deu certo carimba a revisao, sem mexer no Bling movido, e vira Publicado", [typeof revisadoNoEnvio, (await reaproveitadoDe(comVendas.anuncioId)).blingMovidoEm, (await linhaDe(comVendas.anuncioId)).reutilizado, seloDaLinha(await linhaDe(comVendas.anuncioId)).rotulo], ["string", null, false, "Publicado"]);
-    const movendo = await enviarMudancasML(comVendas.anuncioId, { ml, bling, moverBling: true });
-    conferir("envio com Mover: nada a enviar, o Bling e movido e registrado", [movendo.ok, movendo.enviadas, movendo.bling?.ok, movendo.bling?.de, movendo.pedeBling ?? null, lojaDe(bling, "MLBANTIGO1"), registrosDe(bling, "MLBANTIGO1")], [true, [], true, "ML_4h", null, [LOJA_ML_NO_BLING], [LOJA_ML_NO_BLING]]);
-    const pubMovida = (await prisma.anuncio.findUnique({ where: { id: comVendas.anuncioId } })).dados.publicacao;
-    conferir("envio com Mover: blingMovidoEm gravado", typeof pubMovida.reaproveitado.blingMovidoEm, "string");
-    conferir("reutilizado: o Mover do Bling nao apaga a revisao carimbada antes", [pubMovida.reaproveitado.revisadoEm, pubMovida.reaproveitado.em], [revisadoNoEnvio, (await reaproveitadoDe(comVendas.anuncioId)).em]);
+    // O Publicar do reutilizado (dono, 09/11/2026: "quero que mova todos os dados da tela do ML para o anuncio reaproveitado,
+    // inclusive dados fiscais e estoque do bling. nao precisa perguntar se deseja mover para bling"): todas as partes da tela, os
+    // dados fiscais, o estoque do Rise e o Bling na Rise_ML, sem pergunta; a revisao e carimbada so no fim.
+    const escritasAntes = ml.escritas.length;
+    const publicado = await enviarMudancasML(comVendas.anuncioId, { ml, bling });
+    const escritas = ml.escritas.slice(escritasAntes);
+    conferir("Publicar do reutilizado: manda todas as partes da tela, nao so as do '!'", [publicado.ok, ["descricao", "pacote", "preco"].every((parte) => publicado.enviadas.includes(parte))], [true, true]);
+    conferir("Publicar do reutilizado: titulo com vendas so registra, com aviso", [putsDeTitulo().length, (publicado.avisos ?? []).some((a) => /título/.test(a))], [0, true]);
+    conferir("Publicar do reutilizado: os dados fiscais do SKU vao e o SKU e ligado ao anuncio", (await ml.get("/items/MLBANTIGO1/fiscal_information/detail")).dados?.sku?.sku, "ZZ-ML-TI");
+    conferir("Publicar do reutilizado: o estoque do ML vira o do Rise", escritas.filter((e) => e.metodo === "PUT" && e.caminho === "/items/MLBANTIGO1" && e.corpo?.available_quantity !== undefined).map((e) => e.corpo.available_quantity), [10]);
+    conferir("Publicar do reutilizado: o Bling vai para a Rise_ML sem perguntar", [publicado.pedeBling ?? null, publicado.bling?.de, lojaDe(bling, "MLBANTIGO1"), registrosDe(bling, "MLBANTIGO1")], [null, "ML_4h", [LOJA_ML_NO_BLING], [LOJA_ML_NO_BLING]]);
+    const depois = await reaproveitadoDe(comVendas.anuncioId);
+    conferir("Publicar do reutilizado: revisado e movido, vira Publicado", [typeof depois.revisadoEm, typeof depois.blingMovidoEm, (await linhaDe(comVendas.anuncioId)).reutilizado, seloDaLinha(await linhaDe(comVendas.anuncioId)).rotulo], ["string", "string", false, "Publicado"]);
+    conferir("depois do Publicar: nada acende de novo", (await carregarAnuncioML(comVendas.anuncioId)).mudancas.partes, []);
     const deNovo = await enviarMudancasML(comVendas.anuncioId, { ml, bling });
-    conferir("envio depois de movido: nao pede mais o Bling", [deNovo.ok, deNovo.pedeBling ?? null, deNovo.bling ?? null], [true, null, null]);
+    conferir("envio depois de publicado: so o que mudou (nada), sem fiscal, estoque nem Bling", [deNovo.ok, deNovo.enviadas, deNovo.bling ?? null], [true, [], null]);
+
+    // O fiscal que falha (produto sem NCM) para o Publicar antes do Bling e da revisao: o "!" fica.
+    const semNcm = await prisma.produto.create({ data: { sku: "ZZ-ML-TN", tituloBase: "ZZ TN", descricaoBase: "Descricao", conferido: true, blingId: "202", pesoKg: 0.05, alturaCm: 2, larguraCm: 6, comprimentoCm: 7, estoque: 4, precoVenda: 45.9, custo: 20 } });
+    const mlSemNcm = criarMLFalso({ meusItens: { "ZZ-ML-TN": [item("MLB900000077", { seller_custom_field: "ZZ-ML-TN" })] } });
+    const reapSemNcm = await reaproveitarAnuncioML(semNcm.id, "MLB900000077", { ml: mlSemNcm });
+    const falhouFiscal = await enviarMudancasML(reapSemNcm.anuncioId, { ml: mlSemNcm, bling });
+    conferir("Publicar do reutilizado: fiscal recusado para antes do Bling e nao carimba a revisao", [falhouFiscal.ok, falhouFiscal.parte, (await reaproveitadoDe(reapSemNcm.anuncioId)).revisadoEm, (await reaproveitadoDe(reapSemNcm.anuncioId)).blingMovidoEm], [false, "fiscal", null, null]);
 
     const semVendas = await reaproveitarAnuncioML(produto.id, "MLBANTIGO2", { ml });
     conferir("envio sem vendas: so o titulo mudou", await soOTitulo(semVendas.anuncioId, "PLACA NOVA SEM VENDAS"), ["titulo"]);
     const enviado = await enviarMudancasML(semVendas.anuncioId, { ml, bling });
-    conferir("envio sem vendas: PUT com family_name e o Bling so registra", [enviado.ok, enviado.enviadas, putsDeTitulo().map((e) => [e.caminho, e.corpo]), enviado.avisos ?? [], enviado.pedeBling?.de], [true, ["titulo"], [["/items/MLBANTIGO2", { family_name: "PLACA NOVA SEM VENDAS" }]], [], "ML_4h"]);
+    conferir("Publicar sem vendas: PUT com family_name, o registro antigo sai e a Rise_ML registra", [enviado.ok, putsDeTitulo().map((e) => [e.caminho, e.corpo]), enviado.bling?.de, registrosDe(bling, "MLBANTIGO2")], [true, [["/items/MLBANTIGO2", { family_name: "PLACA NOVA SEM VENDAS" }]], "ML_4h", [LOJA_ML_NO_BLING]]);
     const semFamily = criarMLFalso({ meusItens: { "ZZ-ML-TI": [item("MLBANTIGO2", { sold_quantity: 0, family_name: undefined })] } });
     await soOTitulo(semVendas.anuncioId, "PLACA NOVA SEM FAMILY");
     const porTitle = await enviarMudancasML(semVendas.anuncioId, { ml: semFamily, bling });
     conferir("envio sem vendas e sem family_name: PUT com title", [porTitle.ok, semFamily.escritas.filter((e) => e.metodo === "PUT").map((e) => e.corpo)], [true, [{ title: "PLACA NOVA SEM FAMILY" }]]);
-    const soRegistra = await enviarMudancasML(semVendas.anuncioId, { ml, bling, moverBling: true });
-    conferir("envio sem vendas com Mover: o registro antigo sai e a Rise_ML registra", [soRegistra.ok, soRegistra.bling?.de, soRegistra.bling?.criado, soRegistra.bling?.apagado, registrosDe(bling, "MLBANTIGO2"), lojaDe(bling, "MLBANTIGO1")], [true, "ML_4h", false, true, [LOJA_ML_NO_BLING], [LOJA_ML_NO_BLING]]);
   }
 
   {

@@ -123,7 +123,8 @@ const iguais = (a, b) => JSON.stringify(comChavesEmOrdem(a ?? null)) === JSON.st
 
 // Parte que o produto nao tem como mandar (descricao ou pacote nulos, kit, ou nenhuma foto validada) nunca entra:
 // o envio nunca manda `pictures: []`, e o "!" nao pode acender dizendo que o anuncio "mudou" para nada.
-function temParaMandar(atual, parte) {
+// Exportada (09/11/2026): o Publicar do reutilizado manda todas as partes que o anuncio tem (`atualizar.js`).
+export function temParaMandar(atual, parte) {
   const valor = atual?.[parte];
   if (valor === null || valor === undefined) return false;
   if (parte === "prazo") return true;
