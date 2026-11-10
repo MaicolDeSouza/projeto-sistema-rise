@@ -89,14 +89,17 @@ export default function AndamentoDoEnvio({ canal = "bling", tipo, sku, etapas, f
         aria-modal="true"
         aria-labelledby="andamento-do-envio-titulo"
         aria-busy={!fim}
-        className={`w-full ${larga ? "max-w-xl" : "max-w-md"} rounded-lg border border-borda bg-superficie p-6 shadow-2xl`}
+        // Altura limitada a tela, com so o meio rolando (pedido do dono em 09/11/2026: "a barra de fechar some"): com as 14
+        // etapas do envio ao ML o rodape com o botao saia da tela e nao havia como fechar.
+        className={`flex max-h-full w-full flex-col ${larga ? "max-w-xl" : "max-w-md"} rounded-lg border border-borda bg-superficie p-6 shadow-2xl`}
       >
         <p id="andamento-do-envio-titulo" className={`text-lg font-semibold ${corDoTitulo}`}>
           {titulo}
         </p>
         <p className="mt-0.5 font-mono text-sm text-suave">{sku}</p>
 
-        <ol className="mt-5 space-y-3" aria-live="polite">
+        <div className="-mx-1 mt-5 min-h-0 flex-1 overflow-y-auto px-1">
+        <ol className="space-y-3" aria-live="polite">
           {etapas.map((etapa) => (
             <li key={etapa.id}>
               <div className={`flex items-center gap-3 text-base ${etapa.estado === "espera" ? "text-suave" : "text-texto"}`}>
@@ -127,8 +130,9 @@ export default function AndamentoDoEnvio({ canal = "bling", tipo, sku, etapas, f
         )}
 
         {fim === "ok" && aviso && <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{aviso}</p>}
+        </div>
 
-        <div className="mt-5 flex justify-end">
+        <div className="mt-5 flex shrink-0 justify-end">
           {fim === "ok" && acoesDoFim}
           {fim === "ok" && !acoesDoFim && (
             <button ref={botao} type="button" onClick={aoFechar} className="min-w-28 rounded-md bg-acento px-5 py-2.5 text-base font-medium text-white hover:opacity-90">

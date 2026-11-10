@@ -447,7 +447,6 @@ export default function EditorAnuncioML({
       });
       if (!resultado?.ok) setErroDasMudancas(resultado?.parte ? `${NOMES_DAS_PARTES[resultado.parte]}: ${resultado.erro}` : (resultado?.erro ?? "Não foi possível enviar."));
       await relerDoML();
-      const enviadas = resultado?.enviadas ?? [];
       setAndamento((atual) =>
         atual
           ? {
@@ -455,19 +454,9 @@ export default function EditorAnuncioML({
               etapas: resultado?.ok ? atual.etapas.map((etapa) => (etapa.id === "conferir" ? { ...etapa, estado: "feito" } : etapa)) : atual.etapas,
               fim: resultado?.ok ? "ok" : "falhou",
               aviso: resultado?.ok && resultado.avisos?.length ? resultado.avisos.join(" ") : null,
-              resumo: resultado?.ok
-                ? {
-                    titulo:
-                      enviadas.length > 0
-                        ? "Enviado ao Mercado Livre:"
-                        : resultado.bling
-                          ? "Vínculo do Bling na loja Rise_ML."
-                          : reutilizado
-                            ? "Publicado: o anúncio já estava igual ao produto."
-                            : "Nada a enviar: o anúncio já estava igual ao produto.",
-                    linhas: [...enviadas.map((parte) => NOMES_DAS_PARTES[parte] ?? parte), ...(resultado.bling ? ["vínculo do Bling movido para a Rise_ML"] : [])],
-                  }
-                : null,
+              // Sem o resumo "Enviado ao Mercado Livre:" (pedido do dono em 09/11/2026: "Não precisa mostrar essa parte"): as
+              // etapas ja dizem o que foi, e com o envio de tudo a lista repetia quase todas.
+              resumo: null,
             }
           : atual,
       );
