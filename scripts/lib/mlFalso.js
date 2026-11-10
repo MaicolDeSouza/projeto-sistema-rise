@@ -511,7 +511,17 @@ export function criarMLFalso(opcoes = {}) {
     }
     if (!item) return naoAchou(`Item ${partes[1]} not found`);
     Object.assign(item, corpo ?? {});
-    return resposta(200, structuredClone(item));
+    // `regrasDeAtributo` ({ UNITS_PER_PACK: "1" }): a regra de negocio do ML (medida em 09/11/2026 no MLB5340689634): responde
+    // 200 com o aviso em `warnings` e depois troca o valor pelo exigido (aqui, na hora).
+    const regras = opcoes.regrasDeAtributo ?? {};
+    const avisos = [];
+    for (const atributo of Array.isArray(corpo?.attributes) ? corpo.attributes : []) {
+      const exigido = regras[atributo?.id];
+      if (exigido === undefined || String(atributo.value_name) === String(exigido)) continue;
+      avisos.push({ department: "structured-data", cause_id: 2510, code: "update.item.attribute.business_conditional.value_name", message: `Attribute [${atributo.id}] to be modified - values [(null,${atributo.value_name})] should be [(null,${exigido})]`, references: ["item.attributes[0].values"] });
+      atributo.value_name = String(exigido);
+    }
+    return resposta(200, { ...structuredClone(item), ...(avisos.length ? { warnings: avisos } : {}) });
   }
 
   async function upload(caminho, { bytes, nome, tipo } = {}) {

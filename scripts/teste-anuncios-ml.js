@@ -2133,31 +2133,53 @@ try {
         return () => ml.escritas.slice(inicio).map((escrita) => `${escrita.metodo} ${escrita.caminho.replace(itemId, "MLB")}`);
       };
 
-      conferir("enviar: sem mudancas nao escreve", await enviarMudancasML(id, { ml, lerFoto }), { ok: true, enviadas: [] });
+      // "Mandar tudo sempre" (dono, 09/11/2026: "Haviamos combinado de sempre atualizar tudo ao publicar"): sem "!" o envio manda
+      // a tela inteira de novo, sem subir de novo as fotos que ja estao no ML.
+      {
+        const inicio = ml.escritas.length;
+        const r0 = await enviarMudancasML(id, { ml, lerFoto });
+        const feitas = ml.escritas.slice(inicio).map((escrita) => `${escrita.metodo} ${escrita.caminho.replace(itemId, "MLB")}`);
+        conferir("enviar: sem '!' manda a tela inteira de novo, sem subir foto", [r0.ok, ["descricao", "fotos", "pacote", "preco", "prazo"].every((parte) => r0.enviadas.includes(parte)), feitas.some((feita) => feita.startsWith("POST /pictures"))], [true, true, false]);
+      }
+      // O que o ML mudou do lado dele volta ao do Rise no envio seguinte (a ficha do 900309 ficou diferente no ML).
+      {
+        const noML = ml.itens.get(itemId);
+        noML.attributes = (noML.attributes ?? []).map((atributo) => (atributo.id === "BRAND" ? { ...atributo, value_name: "MUDADO NO ML" } : atributo));
+        await enviarMudancasML(id, { ml, lerFoto });
+        conferir("enviar: o que o ML mudou volta ao do Rise", ml.itens.get(itemId).attributes.find((atributo) => atributo.id === "BRAND")?.value_name !== "MUDADO NO ML", true);
+      }
+      // A regra de negocio do ML (UNITS_PER_PACK do 900309: 200 com aviso, e o ML troca o valor sozinho): a ficha falha com o motivo.
+      {
+        const marca = ml.itens.get(itemId).attributes.find((atributo) => atributo.id === "BRAND")?.value_name;
+        const mlRegra = criarMLFalso({ regrasDeAtributo: { BRAND: "EXIGIDA PELO ML" } });
+        mlRegra.itens.set(itemId, structuredClone(ml.itens.get(itemId)));
+        const rRegra = await enviarMudancasML(id, { ml: mlRegra, lerFoto });
+        conferir("enviar: aviso de regra do ML na ficha vira falha com o motivo", [rRegra.ok, rRegra.parte, /troca o valor sozinho/.test(rRegra.erro), /BRAND/.test(rRegra.erro), rRegra.erro.includes(`mandou ${marca}`), /exige EXIGIDA PELO ML/.test(rRegra.erro)], [false, "ficha", true, true, true, true]);
+      }
 
       await prisma.produto.update({ where: { id: c.s1.id }, data: { descricaoBase: "Descricao nova do S1" } });
       let novas = desde();
       let r = await enviarMudancasML(id, { ml, lerFoto });
-      conferir("enviar: descricao", [r.ok, r.enviadas, novas()], [true, ["descricao"], ["PUT /items/MLB/description"]]);
+      conferir("enviar: descricao", [r.ok, r.enviadas.includes("descricao"), novas().includes("PUT /items/MLB/description")], [true, true, true]);
       conferir("enviar: o texto novo chegou ao ML", ml.itens.get(itemId).descricao.startsWith("Descricao nova do S1"), true);
       conferir("enviar: depois, nada mais mudou", await mudancasDe(id), { partes: [], naoConferido: false });
 
       await prisma.produtoArquivo.create({ data: { produtoId: c.s1.id, tipo: "IMAGEM", papel: "FOTO", arquivo: "ZZ-ML-S1-n.jpg", ordem: 5 } });
       novas = desde();
       r = await enviarMudancasML(id, { ml, lerFoto });
-      conferir("enviar: foto nova sobe so ela e manda a lista inteira", [r.enviadas, novas(), ml.itens.get(itemId).pictures.length], [["fotos"], ["POST /pictures/items/upload", "PUT /items/MLB"], 3]);
+      conferir("enviar: foto nova sobe so ela e manda a lista inteira", [r.enviadas.includes("fotos"), novas().filter((feita) => feita === "POST /pictures/items/upload").length, ml.itens.get(itemId).pictures.length], [true, 1, 3]);
 
       await prisma.produto.update({ where: { id: c.s1.id }, data: { pesoKg: 0.08 } });
       novas = desde();
       r = await enviarMudancasML(id, { ml, lerFoto });
-      const pacote = ml.escritas.at(-1).corpo.attributes.map((atributo) => `${atributo.id}=${atributo.value_name}`);
-      conferir("enviar: peso e medidas", [r.enviadas, novas(), pacote], [["pacote"], ["PUT /items/MLB"], ["SELLER_PACKAGE_HEIGHT=2 cm", "SELLER_PACKAGE_WIDTH=6 cm", "SELLER_PACKAGE_LENGTH=7 cm", "SELLER_PACKAGE_WEIGHT=80 g"]]);
+      const pacote = ml.escritas.filter((escrita) => (escrita.corpo?.attributes ?? []).some((atributo) => atributo.id.startsWith("SELLER_PACKAGE"))).at(-1).corpo.attributes.map((atributo) => `${atributo.id}=${atributo.value_name}`);
+      conferir("enviar: peso e medidas", [r.enviadas.includes("pacote"), novas().length > 0, pacote], [true, true, ["SELLER_PACKAGE_HEIGHT=2 cm", "SELLER_PACKAGE_WIDTH=6 cm", "SELLER_PACKAGE_LENGTH=7 cm", "SELLER_PACKAGE_WEIGHT=80 g"]]);
 
       // Anuncio publicado antes de 24/10/2026: sem impressao, manda as tres e passa a ter impressao.
       const atual = (await prisma.anuncio.findUnique({ where: { id }, select: { dados: true } })).dados;
       await prisma.anuncio.update({ where: { id }, data: { dados: { ...atual, publicacao: { ...atual.publicacao, enviado: undefined } } } });
       r = await enviarMudancasML(id, { ml, lerFoto });
-      conferir("enviar: nao conferido manda as tres", [r.enviadas, await mudancasDe(id)], [["descricao", "fotos", "pacote"], { partes: [], naoConferido: false }]);
+      conferir("enviar: nao conferido manda as tres", [["descricao", "fotos", "pacote"].every((parte) => r.enviadas.includes(parte)), await mudancasDe(id)], [true, { partes: [], naoConferido: false }]);
 
       // Falha no meio: a descricao fica gravada, as fotos nao, e o resto nao e tentado.
       await prisma.produto.update({ where: { id: c.s1.id }, data: { descricaoBase: "Descricao terceira" } });
@@ -2174,8 +2196,8 @@ try {
         const estado = Object.fromEntries(andamento.etapas.map((etapa) => [etapa.id, etapa.estado]));
         conferir(
           "enviar: andamento do popup",
-          [andamento.terminou, estado, /Fotos recusadas/.test(andamento.etapas.find((etapa) => etapa.id === "fotos").detalhe)],
-          [true, { permissao: "feito", ler: "feito", titulo: "feito", descricao: "feito", fotos: "falhou", pacote: "feito", precoDaLoja: "feito", preco: "feito", ficha: "feito", prazo: "feito", atacado: "feito", fiscal: "espera", estoque: "espera", bling: "espera" }, true],
+          [andamento.terminou, [estado.permissao, estado.ler, estado.titulo, estado.descricao, estado.fotos, estado.pacote, estado.preco, estado.fiscal, estado.estoque, estado.bling], /Fotos recusadas/.test(andamento.etapas.find((etapa) => etapa.id === "fotos").detalhe)],
+          [true, ["feito", "feito", "feito", "feito", "falhou", "espera", "espera", "espera", "espera", "espera"], true],
         );
       }
 
@@ -2230,7 +2252,11 @@ try {
       const desde = ml.escritas.length;
       const r2 = await enviarMudancasML(id, { ml, lerFoto });
       const novas = ml.escritas.slice(desde).map((e) => [`${e.metodo} ${e.caminho.replace(itemId, "MLB")}`, Object.keys(e.corpo ?? {}).join(",")]);
-      conferir("enviar: preco num PUT so dele, ficha em outro", [r2.ok, r2.enviadas, novas], [true, ["preco", "ficha"], [["PUT /items/MLB", "price"], ["PUT /items/MLB", "attributes"]]]);
+      conferir(
+        "enviar: preco num PUT so dele, ficha em outro",
+        [r2.ok, ["preco", "ficha"].every((parte) => r2.enviadas.includes(parte)), novas.filter(([, chaves]) => chaves.split(",").includes("price")), novas.some(([rota, chaves]) => rota === "PUT /items/MLB" && chaves === "attributes")],
+        [true, true, [["PUT /items/MLB", "price"]], true],
+      );
       conferir("enviar: o ML ficou com o preco e a marca novos", [ml.itens.get(itemId).price, ml.itens.get(itemId).attributes.find((a) => a.id === "BRAND")?.value_name], [45.5, "OUTRA"]);
       conferir("enviar: depois, nada mudou", await mudancasDe(id), { partes: [], naoConferido: false });
 
@@ -2535,7 +2561,7 @@ try {
       await prisma.anuncio.update({ where: { id }, data: { dados: { ...antes, atacado: { ...antes.atacado, faixas } } } });
       conferir("envio: o % editado acende so o atacado", (await carregarAnuncioML(id)).mudancas.partes, ["atacado"]);
       const e1 = await enviarMudancasML(id, { ml, bling: c.novoBling(), lerFoto });
-      conferir("envio: POST novo com 5% na faixa de 2 e a impressao nova", [e1.ok, e1.enviadas, faixasNoML(ml, r.itemId)[0], (await carregarAnuncioML(id)).mudancas.partes], [true, ["atacado"], [2, 5], []]);
+      conferir("envio: POST novo com 5% na faixa de 2 e a impressao nova", [e1.ok, e1.enviadas.includes("atacado"), faixasNoML(ml, r.itemId)[0], (await carregarAnuncioML(id)).mudancas.partes], [true, true, [2, 5], []]);
 
       // Desligar manda a lista vazia e a impressao fica desligada.
       const meio = await dadosDe(id);
@@ -4021,12 +4047,13 @@ try {
     const lerFoto = async () => Buffer.from("jpg");
     const publicado = await publicarAnuncioML(salvo.id, { ml, bling, lerFoto });
     conferir("publicado: a impressao nasce com o preco da loja", [publicado.ok, (await carregarAnuncioML(salvo.id)).publicacao.enviado.precoDaLoja], [true, 45.9]);
-    conferir("publicado: sem mudancas nao escreve", await enviarMudancasML(salvo.id, { ml, lerFoto }), { ok: true, enviadas: [] });
+    const semMudanca = await enviarMudancasML(salvo.id, { ml, lerFoto });
+    conferir("publicado: sem '!' manda a tela de novo, sem o preco da loja", [semMudanca.ok, semMudanca.enviadas.includes("precoDaLoja")], [true, false]);
     await prisma.produto.update({ where: { id: produto.id }, data: { precoVenda: 52.9 } });
     const inicio = ml.escritas.length;
     const r = await enviarMudancasML(salvo.id, { ml, lerFoto });
-    conferir("preco da loja mudou: o Enviar so registra, nenhum PUT no ML", [r.ok, r.enviadas, ml.escritas.length - inicio, (await carregarAnuncioML(salvo.id)).publicacao.enviado.precoDaLoja], [true, ["precoDaLoja"], 0, 52.9]);
-    conferir("preco da loja: depois, nada mais mudou", await enviarMudancasML(salvo.id, { ml, lerFoto }), { ok: true, enviadas: [] });
+    conferir("preco da loja mudou: o Enviar so registra, o preco da loja nao vai ao ML", [r.ok, r.enviadas.includes("precoDaLoja"), ml.escritas.slice(inicio).some((escrita) => escrita.corpo?.price === 52.9), (await carregarAnuncioML(salvo.id)).publicacao.enviado.precoDaLoja], [true, true, false, 52.9]);
+    conferir("preco da loja: depois, nada mais acende", (await carregarAnuncioML(salvo.id)).mudancas.partes, []);
     // Anuncio publicado antes desta regra (impressao sem a chave): o primeiro Salvar grava a base de agora, e o "!" so acende pelo
     // que mudar daqui em diante.
     {
@@ -4034,7 +4061,7 @@ try {
       const { precoDaLoja, ...semBase } = dados.publicacao.enviado;
       await prisma.anuncio.update({ where: { id: salvo.id }, data: { dados: { ...dados, publicacao: { ...dados.publicacao, enviado: semBase } } } });
       await prisma.produto.update({ where: { id: produto.id }, data: { precoVenda: 59.9 } });
-      conferir("anuncio de antes: sem base nao acende", (await enviarMudancasML(salvo.id, { ml, lerFoto })).enviadas, []);
+      conferir("anuncio de antes: sem base nao acende", (await enviarMudancasML(salvo.id, { ml, lerFoto })).enviadas.includes("precoDaLoja"), false);
       conferir("anuncio de antes: o primeiro Salvar grava a base", [(await salvarPublicadoML(salvo.id, { preco: 49.9, atributos: {} })).ok, (await carregarAnuncioML(salvo.id)).publicacao.enviado.precoDaLoja], [true, 59.9]);
     }
   }
@@ -4278,7 +4305,7 @@ try {
     conferir("titulo: conteudo atual leva o titulo do rascunho", conteudoAtualDoAnuncio({ produtoId: "x", titulo: "T", preco: 1, atributos: {}, composicao: null, envio: {} }, {}).titulo, "T");
     conferir("titulo: a impressao guarda o titulo", impressaoDoConteudo({ titulo: "T" }).titulo, "T");
     conferir("etapas: titulo, fiscal, estoque e bling", [ETAPAS_DO_ENVIO_ML.map((e) => e.id), PARTES_DO_ENVIO_ML], [["permissao", "ler", "titulo", "descricao", "fotos", "pacote", "precoDaLoja", "preco", "ficha", "prazo", "atacado", "fiscal", "estoque", "bling", "conferir"], ["titulo", "descricao", "fotos", "pacote", "precoDaLoja", "preco", "ficha", "prazo", "atacado"]]);
-    conferir("etapas do popup: fiscal e estoque so no Publicar do reutilizado", [etapasDoEnvioML({}).some((e) => e.id === "fiscal" || e.id === "estoque"), etapasDoEnvioML({ comReutilizado: true }).filter((e) => e.id === "fiscal" || e.id === "estoque").map((e) => e.id)], [false, ["fiscal", "estoque"]]);
+    conferir("etapas do popup: fiscal e estoque em todo envio (Mandar tudo sempre)", [etapasDoEnvioML({}).filter((e) => e.id === "fiscal" || e.id === "estoque").map((e) => e.id), etapasDoEnvioML({ comReutilizado: true }).filter((e) => e.id === "fiscal" || e.id === "estoque").map((e) => e.id)], [["fiscal", "estoque"], ["fiscal", "estoque"]]);
     conferir("etapas do popup: atacado so quando a impressao o tem", [etapasDoEnvioML({}).some((e) => e.id === "atacado"), etapasDoEnvioML({ comAtacado: true }).some((e) => e.id === "atacado")], [false, true]);
     conferir("etapas do popup: titulo e bling so quando se aplicam", [etapasDoEnvioML({ comTitulo: false, comBling: false }).map((e) => e.id).filter((id) => id === "titulo" || id === "bling"), etapasDoEnvioML({ comTitulo: true, comBling: true }).map((e) => e.id).filter((id) => id === "titulo" || id === "bling")], [[], ["titulo", "bling"]]);
     conferir("loja antiga do ML no Bling", LOJA_ML_ANTIGA_NO_BLING, "203593931");
@@ -4379,7 +4406,7 @@ try {
     conferir("Publicar do reutilizado: revisado e movido, vira Publicado", [typeof depois.revisadoEm, typeof depois.blingMovidoEm, (await linhaDe(comVendas.anuncioId)).reutilizado, seloDaLinha(await linhaDe(comVendas.anuncioId)).rotulo], ["string", "string", false, "Publicado"]);
     conferir("depois do Publicar: nada acende de novo", (await carregarAnuncioML(comVendas.anuncioId)).mudancas.partes, []);
     const deNovo = await enviarMudancasML(comVendas.anuncioId, { ml, bling });
-    conferir("envio depois de publicado: so o que mudou (nada), sem fiscal, estoque nem Bling", [deNovo.ok, deNovo.enviadas, deNovo.bling ?? null], [true, [], null]);
+    conferir("envio depois de publicado: manda a tela de novo (dono: 'sempre atualizar tudo'), sem o Bling", [deNovo.ok, deNovo.enviadas.includes("descricao"), deNovo.bling ?? null], [true, true, null]);
 
     // O fiscal que falha (produto sem NCM) para o Publicar antes do Bling e da revisao: o "!" fica.
     const semNcm = await prisma.produto.create({ data: { sku: "ZZ-ML-TN", tituloBase: "ZZ TN", descricaoBase: "Descricao", conferido: true, blingId: "202", pesoKg: 0.05, alturaCm: 2, larguraCm: 6, comprimentoCm: 7, estoque: 4, precoVenda: 45.9, custo: 20 } });
@@ -4395,7 +4422,7 @@ try {
     const semFamily = criarMLFalso({ meusItens: { "ZZ-ML-TI": [item("MLBANTIGO2", { sold_quantity: 0, family_name: undefined })] } });
     await soOTitulo(semVendas.anuncioId, "PLACA NOVA SEM FAMILY");
     const porTitle = await enviarMudancasML(semVendas.anuncioId, { ml: semFamily, bling });
-    conferir("envio sem vendas e sem family_name: PUT com title", [porTitle.ok, semFamily.escritas.filter((e) => e.metodo === "PUT").map((e) => e.corpo)], [true, [{ title: "PLACA NOVA SEM FAMILY" }]]);
+    conferir("envio sem vendas e sem family_name: PUT com title", [porTitle.ok, semFamily.escritas.filter((e) => e.metodo === "PUT" && (e.corpo?.title || e.corpo?.family_name)).map((e) => e.corpo)], [true, [{ title: "PLACA NOVA SEM FAMILY" }]]);
   }
 
   {

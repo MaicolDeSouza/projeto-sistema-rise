@@ -30,6 +30,28 @@ import { guardarContaDoEditorSemFalhar } from "@/lib/canaisDeVenda/ml/contaDoEdi
  */
 
 const textoDe = (erro) => erro?.message ?? String(erro);
+
+/**
+ * O aviso de regra do ML num PUT de atributos (medido em 09/11/2026 no MLB5340689634, do 900309): o ML
+ * responde 200, grava o valor e avisa em `warnings` (`code` "...business_conditional...", `message` "Attribute
+ * [UNITS_PER_PACK] to be modified - values [(null,25)] should be [(null,1)]"); depois troca sozinho pelo valor dele (o 25 do
+ * Publicar das 06:51 virou 1 as 07:07). Sem olhar o aviso, o Rise dava a ficha por enviada. Devolve o texto da falha ou null.
+ */
+export function atributosQueOMLTroca(resposta) {
+  const avisos = Array.isArray(resposta?.dados?.warnings) ? resposta.dados.warnings : [];
+  const nomes = new Map((Array.isArray(resposta?.dados?.attributes) ? resposta.dados.attributes : []).map((atributo) => [atributo?.id, atributo?.name]));
+  const textos = avisos
+    .filter((aviso) => /business_conditional/.test(String(aviso?.code ?? "")))
+    .map((aviso) => {
+      const lido = String(aviso?.message ?? "").match(/Attribute \[([^\]]+)\].*?values \[\(\w*,\s*([^)]*)\)\] should be \[\(\w*,\s*([^)]*)\)\]/);
+      if (!lido) return String(aviso?.message ?? "").trim();
+      const [, id, enviado, esperado] = lido;
+      return `${nomes.get(id) ?? id} (${id}): o Rise mandou ${enviado.trim()} e o ML exige ${esperado.trim()}`;
+    })
+    .filter(Boolean);
+  if (textos.length === 0) return null;
+  return `O Mercado Livre não aceita a ficha como está e troca o valor sozinho: ${textos.join("; ")}. Ajuste a ficha no Rise (por exemplo, o Formato de venda) e sincronize de novo.`;
+}
 // As partes da tela que o Publicar do reutilizado sempre manda (o titulo, o preco da loja e o atacado seguem as regras deles).
 const PARTES_DA_TELA = ["descricao", "fotos", "pacote", "preco", "ficha", "prazo"];
 
@@ -66,10 +88,13 @@ async function enviarUmaVez(anuncioId, { ml, bling, lerFoto, progresso }) {
   const conteudo = conteudoAtualDoAnuncio(rascunho, contexto.produtos);
   const atual = impressaoDoConteudo(conteudo);
   const { partes: mudaram } = mudancasDoAnuncio(publicacao.enviado ?? null, atual);
-  // O Publicar do reutilizado (dono, 09/11/2026: "quero que mova todos os dados da tela do ML para o anuncio reaproveitado,
-  // inclusive dados fiscais e estoque do bling"): todas as partes da tela que o anuncio tem, nao so as do "!", como num novo.
+  // TODO envio manda todas as partes da tela que o anuncio tem, nao so as do "!", mais os dados fiscais e o estoque (dono,
+  // 09/11/2026, primeiro no Publicar do reutilizado: "quero que mova todos os dados da tela do ML para o anuncio
+  // reaproveitado, inclusive dados fiscais e estoque do bling"; depois para todo envio, ao ver a ficha do 900309 diferente no
+  // ML: "Haviamos combinado de sempre atualizar tudo ao publicar", opcao "Mandar tudo sempre"). So o "!" olhava a impressao, e
+  // o que o ML mudou do lado dele nunca voltava. As fotos ja no ML nao sobem de novo (o id guardado em `publicacao.fotos`).
   const revisar = reutilizadoPendente(publicacao);
-  const partes = revisar ? PARTES_DO_ENVIO_ML.filter((parte) => mudaram.includes(parte) || (PARTES_DA_TELA.includes(parte) && temParaMandar(atual, parte))) : mudaram;
+  const partes = PARTES_DO_ENVIO_ML.filter((parte) => mudaram.includes(parte) || (PARTES_DA_TELA.includes(parte) && temParaMandar(atual, parte)));
   const principal = contexto.produtos[rascunho.produtoId];
   const codigo = String(rascunho.composicao ? rascunho.composicao.codigo : principal?.sku ?? "").trim();
   const enviadas = [];
@@ -87,9 +112,9 @@ async function enviarUmaVez(anuncioId, { ml, bling, lerFoto, progresso }) {
   const pronto = (extra = {}) => ({ ok: true, enviadas, ...(avisos.length ? { avisos } : {}), ...extra });
   let reaproveitado = publicacao.reaproveitado;
 
-  // O Publicar do reutilizado, como num anuncio novo (09/11/2026): os dados fiscais (o SKU e o vinculo dele ao anuncio) e o
-  // estoque do Rise no ML (no kit, o estoque do produto / N). Falhou, para antes do Bling e da revisao: o "!" fica.
-  if (revisar) {
+  // Todo envio, como num anuncio novo (09/11/2026): os dados fiscais (o SKU e o vinculo dele ao anuncio) e o estoque do Rise
+  // no ML (no kit, o estoque do produto / N). Falhou, para antes do Bling e da revisao: o "!" fica.
+  {
     try {
       ml.exigirEscrita(codigo);
     } catch (erro) {
@@ -259,6 +284,8 @@ async function enviarPartes({ ml, lerFoto, progresso, anuncioId, itemId, codigo,
         return falhar(parte, `Falha ao enviar o peso e as medidas: ${textoDe(erro)}`);
       }
       if (!resposta?.ok) return falhar(parte, textoDaRecusaML(resposta, "o peso e as medidas"));
+      const regra = atributosQueOMLTroca(resposta);
+      if (regra) return falhar(parte, regra);
     } else if (parte === "preco") {
       // Num PUT so dele. Medido no 100107 em 24/10/2026 (MLB7881142312, conta sem automatizacao de precos): 200 e o
       // preco mudou. A documentacao diz que, desde 18/03/2026, o PUT so com o preco e recusado (400) para quem usa a
@@ -289,6 +316,8 @@ async function enviarPartes({ ml, lerFoto, progresso, anuncioId, itemId, codigo,
         return falhar(parte, `Falha ao enviar a ficha técnica: ${textoDe(erro)}`);
       }
       if (!resposta?.ok) return falhar(parte, textoDaRecusaML(resposta, "a ficha técnica"));
+      const regra = atributosQueOMLTroca(resposta);
+      if (regra) return falhar(parte, regra);
     } else if (parte === "atacado") {
       // Recomendacao do ML -> POST com X-Version -> leitura de volta. Desligar manda a lista vazia. Os % que o ML gravou
       // entram no rascunho, para ele e a impressao ficarem iguais (spec 6.6).

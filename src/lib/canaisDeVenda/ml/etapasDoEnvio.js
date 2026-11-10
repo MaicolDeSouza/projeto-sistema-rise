@@ -35,8 +35,7 @@ export const PARTES_DO_ENVIO_ML = ["titulo", "descricao", "fotos", "pacote", "pr
  * so quando ela tem o atacado e `bling` so com o vinculo ainda por mover. Nos demais anuncios as duas nao aparecem (regra 4 do padrao visual: so o que tem dado).
  */
 export function etapasDoEnvioML({ comTitulo = false, comBling = false, comAtacado = false, comReutilizado = false } = {}) {
-  const doReutilizado = new Set(["fiscal", "estoque"]);
-  return ETAPAS_DO_ENVIO_ML.filter(
-    (etapa) => (etapa.id !== "titulo" || comTitulo) && (etapa.id !== "bling" || comBling) && (etapa.id !== "atacado" || comAtacado) && (!doReutilizado.has(etapa.id) || comReutilizado),
-  );
+  // Fiscal e estoque vao em todo envio desde 09/11/2026 ("Mandar tudo sempre", dono); `comReutilizado` ficou sem efeito.
+  void comReutilizado;
+  return ETAPAS_DO_ENVIO_ML.filter((etapa) => (etapa.id !== "titulo" || comTitulo) && (etapa.id !== "bling" || comBling) && (etapa.id !== "atacado" || comAtacado));
 }
