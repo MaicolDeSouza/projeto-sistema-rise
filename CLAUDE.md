@@ -224,6 +224,12 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
     `src/lib/ultimaListaDaTela.js`) e a seta do detalhe (`SetaParaLista`) volta para ele, com o 100, os filtros e a página; sair pelo menu e
     voltar começa limpo em 25. Já seguem Vendas, Ordens de produção e Pedidos de compra (o Salvar e o Cancelar do editor). Produtos tem o
     seu desde 20/10/2026 (`ultimaListaDeProdutos.js`). **Detalhe novo de uma lista usa a mesma seta.**
+    **E volta na mesma ALTURA da tela** (pedido do dono em 10/11/2026, em Vendas: "me leva para o topo da página. Eu quero que ele me
+    leve para onde a tela estava"): a `LembrarLista` anota a rolagem da janela junto do endereço (`rise:rolagem:<caminho>`; outro filtro ou
+    outra página é outra lista) e a seta (ou o `irParaALista` do editor de Compras) pede a volta (`pedirVoltaNaRolagem`) e navega com
+    `scroll={false}`; a lista retoma a altura num `useLayoutEffect`, antes de pintar. Só quem volta do detalhe retoma; pelo menu começa no
+    topo. O Voltar do navegador já retomava sozinho. A lista de Produtos (mecanismo próprio) **não** ganhou isto. Conferido no PC com o
+    painel do navegador oculto (o evento de rolagem foi disparado à mão; em painel oculto ele não dispara sozinho).
   - **Filtro de coluna = cabeçalho que ordena** (`CabecalhoOrdenavel` e `parametrosDaOrdenacao`, `src/components/ui/`):
     nada → crescente → decrescente → nada, na URL (`?ordenar=&direcao=`), feito no banco antes de paginar, e volta à
     página 1. No Scraper: Nome, Código, Estoque, Valor e Atualizado (`listarProdutos` ganhou `ordenar`/`direcao`; vazio,

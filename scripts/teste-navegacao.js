@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
 import { enderecoDaLista, listaComParametros, ultimaListaValida } from "../src/lib/ultimaListaDeProdutos.js";
-import { enderecoDaTela, listaDaTelaValida } from "../src/lib/ultimaListaDaTela.js";
+import { enderecoDaTela, listaDaTelaValida, rolagemGuardada, rolagemParaGuardar, voltaPedidaVale } from "../src/lib/ultimaListaDaTela.js";
 import { aplicarOrdem, ehOrdemPadrao, moverPara, validarOrdem } from "../src/lib/ordemDosCartoes/regras.js";
 import { CANAIS_DO_FILTRO,condicoesDoFiltroDeCanais, estadosDoCanal, filtroDeCanaisDaUrl, passaNosCalculados, proximoValorDoFiltro, temFiltroCalculado } from "../src/lib/filtroDeCanais.js";
 
@@ -66,5 +66,11 @@ conferir("ordem: lista vazia volta ao padrao, repetido vira um so, id invalido e
 // A lista de uma tela lembrada na aba (09/11/2026, Vendas: abrir um pedido nao desfaz o "100 por pagina").
 conferir("lista da tela: guarda a consulta inteira", enderecoDaTela("/pedidos", "por=100&pagina=2&aviso=1") === "/pedidos?por=100&pagina=2&aviso=1" && enderecoDaTela("/pedidos", "") === "/pedidos");
 conferir("lista da tela: so o endereco da propria tela vale", listaDaTelaValida("/pedidos", "/pedidos?por=100") === "/pedidos?por=100" && listaDaTelaValida("/pedidos", "/pedidos/abc") === "/pedidos" && listaDaTelaValida("/pedidos", "https://x.com/pedidos") === "/pedidos" && listaDaTelaValida("/pedidos", null) === "/pedidos");
+
+// A rolagem da lista (10/11/2026, Vendas: voltar do pedido retoma a altura em que a lista estava).
+const ROLAGEM = rolagemParaGuardar("/pedidos?por=100", 1834.6);
+conferir("rolagem: a altura volta so na mesma lista", rolagemGuardada(ROLAGEM, "/pedidos?por=100") === 1835 && rolagemGuardada(ROLAGEM, "/pedidos") === null && rolagemGuardada(ROLAGEM, "/pedidos?por=100&pagina=2") === null);
+conferir("rolagem: nada guardado, texto estragado ou altura invalida abrem no topo", rolagemGuardada(null, "/pedidos") === null && rolagemGuardada("{x", "/pedidos") === null && rolagemGuardada(JSON.stringify({ endereco: "/pedidos", y: "900" }), "/pedidos") === null && rolagemGuardada(rolagemParaGuardar("/pedidos", -50), "/pedidos") === 0);
+conferir("rolagem: o pedido de volta vale so para a lista que abre em seguida", voltaPedidaVale("1000", 1500) && voltaPedidaVale("1000", 30999) && !voltaPedidaVale("1000", 31000) && !voltaPedidaVale(null, 1500) && !voltaPedidaVale("abc", 1500) && !voltaPedidaVale("2000", 1500));
 
 console.log(`\n${contagem} asserções ok`);

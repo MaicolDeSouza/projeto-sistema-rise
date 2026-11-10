@@ -9,7 +9,7 @@ import { adicionarItemAcao, desfazerCasamentoAliExpressAcao, mudarStatusAcao, sa
 import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
 import { marcarTelaIniciada } from "@/components/mercados/NavegacaoDoTopo";
 import { faltaLancar } from "@/lib/compras/regras";
-import { lerListaDaTela } from "@/lib/ultimaListaDaTela";
+import { lerListaDaTela, pedirVoltaNaRolagem } from "@/lib/ultimaListaDaTela";
 import { AvisosAliExpress, ResumoAliExpress } from "./AliExpressDoPedido";
 import BlocoItens from "./BlocoItens";
 import ComprovantesDePagamento from "./ComprovantesDePagamento";
@@ -32,7 +32,9 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
   // A lista de pedidos como estava (100 por pagina, busca, pagina): ver src/lib/ultimaListaDaTela.js.
   const irParaALista = () => {
     marcarTelaIniciada();
-    router.push(lerListaDaTela("/compras/pedidos"));
+    // A lista retoma tambem a altura em que estava (10/11/2026): sem o `scroll: false` o Next a rolaria para o topo.
+    pedirVoltaNaRolagem("/compras/pedidos");
+    router.push(lerListaDaTela("/compras/pedidos"), { scroll: false });
   };
   const [pedido, setPedido] = useState(pedidoInicial);
   const [base, setBase] = useState(() => formularioDoPedido(pedidoInicial));

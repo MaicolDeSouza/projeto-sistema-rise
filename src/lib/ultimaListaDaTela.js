@@ -38,3 +38,81 @@ export function lerListaDaTela(caminho) {
     return caminho;
   }
 }
+
+/*
+ * A ROLAGEM da lista (pedido do dono em 10/11/2026, em Vendas: "toda vez que eu abro uma venda e retorno a tela
+ * principal, ele me leva para o topo da pagina. Eu quero que ele me leve para onde a tela estava"). A lista guarda a
+ * altura em que esta a cada rolagem, junto do endereco (outro filtro ou outra pagina e outra lista), e a seta do detalhe
+ * PEDE a volta: so quem volta do detalhe retoma a altura; entrar pelo menu comeca no topo.
+ */
+
+const PREFIXO_ROLAGEM = "rise:rolagem:";
+const PREFIXO_VOLTA = "rise:rolagem:voltar:";
+/** O pedido de volta vale so para a lista que abre em seguida: velho (a navegacao nao aconteceu) nao retoma nada. */
+const VOLTA_VALE_MS = 30_000;
+
+/** O texto guardado: a altura e de qual lista ela e. */
+export function rolagemParaGuardar(endereco, altura) {
+  return JSON.stringify({ endereco, y: Math.max(0, Math.round(Number(altura) || 0)) });
+}
+
+/** A altura guardada, so quando e DESTA lista; texto estragado ou de outra lista da null (a lista abre no topo). */
+export function rolagemGuardada(texto, endereco) {
+  try {
+    const guardado = JSON.parse(texto);
+    return guardado?.endereco === endereco && Number.isFinite(guardado?.y) && guardado.y >= 0 ? guardado.y : null;
+  } catch {
+    return null;
+  }
+}
+
+/** O pedido de volta ainda vale? (guardado como o instante do clique na seta) */
+export function voltaPedidaVale(texto, agora) {
+  const quando = Number(texto);
+  return Number.isFinite(quando) && quando > 0 && agora - quando >= 0 && agora - quando < VOLTA_VALE_MS;
+}
+
+export function guardarRolagemDaLista(caminho, endereco, altura) {
+  try {
+    sessionStorage.setItem(PREFIXO_ROLAGEM + caminho, rolagemParaGuardar(endereco, altura));
+  } catch {
+    // sem sessionStorage: a lista abre no topo, como antes
+  }
+}
+
+export function lerRolagemDaLista(caminho, endereco) {
+  try {
+    return rolagemGuardada(sessionStorage.getItem(PREFIXO_ROLAGEM + caminho), endereco);
+  } catch {
+    return null;
+  }
+}
+
+/** Entrou na lista sem vir do detalhe: a altura de uma visita antiga nao vale mais. */
+export function esquecerRolagemDaLista(caminho) {
+  try {
+    sessionStorage.removeItem(PREFIXO_ROLAGEM + caminho);
+  } catch {
+    // nada a esquecer
+  }
+}
+
+/** Chamada por quem volta do detalhe (a seta, o Salvar e o Cancelar do editor): a lista que abrir retoma a altura. */
+export function pedirVoltaNaRolagem(caminho, agora = Date.now()) {
+  try {
+    sessionStorage.setItem(PREFIXO_VOLTA + caminho, String(agora));
+  } catch {
+    // sem sessionStorage: a lista abre no topo
+  }
+}
+
+/** A lista pergunta ao abrir, uma vez so: o pedido e consumido, para a proxima entrada pelo menu comecar no topo. */
+export function consumirVoltaNaRolagem(caminho, agora = Date.now()) {
+  try {
+    const texto = sessionStorage.getItem(PREFIXO_VOLTA + caminho);
+    sessionStorage.removeItem(PREFIXO_VOLTA + caminho);
+    return voltaPedidaVale(texto, agora);
+  } catch {
+    return false;
+  }
+}
