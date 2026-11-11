@@ -131,7 +131,7 @@ export default function AbaCatalogo({ rascunho, alterar, visivel = false, idExte
             const acompanhado = tela?.catalogoId === catalogo.id;
             return (
               // O link do catalogo fica FORA do botao da linha (link dentro de botao e HTML invalido): a linha abre a janela,
-              // o "Abrir no ML" abre o catalogo no site em outra aba (pedido do dono em 26/10/2026).
+              // o "Abrir o ganhador" abre o catalogo no site em outra aba (pedido do dono em 26/10/2026).
               <li key={catalogo.id} className="flex items-center hover:bg-fundo">
                 <button type="button" onClick={() => setAberto(catalogo.id)} className="flex min-w-0 flex-1 items-center gap-4 px-4 py-3 text-left">
                   <span className="min-w-0 flex-1">
@@ -172,13 +172,13 @@ export default function AbaCatalogo({ rascunho, alterar, visivel = false, idExte
                   </a>
                 )}
                 <a
-                  href={urlDoCatalogo(catalogo.id, desteAnuncio(catalogo) ? idExterno : null)}
+                  href={urlDoCatalogo(catalogo.id)}
                   target="_blank"
                   rel="noreferrer"
-                  title={`Abre o catálogo ${catalogo.id} no Mercado Livre, em outra aba`}
+                  title={`Abre o catálogo ${catalogo.id} no Mercado Livre, na oferta que está ganhando, em outra aba`}
                   className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-borda bg-superficie px-3 py-1.5 text-sm font-medium text-acento hover:bg-fundo"
                 >
-                  Abrir no ML <ExternalLink size={13} />
+                  Abrir o ganhador <ExternalLink size={13} />
                 </a>
                 <button type="button" onClick={() => setAberto(catalogo.id)} aria-label={`Ver os concorrentes de ${catalogo.nome || catalogo.id}`} className="shrink-0 px-3 py-2.5 text-suave">
                   <ChevronRight size={16} />
@@ -192,7 +192,6 @@ export default function AbaCatalogo({ rascunho, alterar, visivel = false, idExte
       {catalogoAberto && (
         <JanelaDoCatalogo
           meuItemId={idExterno}
-          esteAnuncioNoCatalogo={desteAnuncio(catalogoAberto)}
           catalogo={catalogoAberto}
           tela={tela?.catalogoId === catalogoAberto.id ? tela : null}
           produtoId={produtoId}
@@ -285,7 +284,7 @@ function EstadoNaDisputa({ disputa }) {
  * dono em 26/10/2026: ele era o 2o e a lista dos acompanhados, que tira os dele, pulava a linha). No catalogo acompanhado,
  * os avisos e o preco anterior (a seta) vem do que o Rise guardou, e o "Reler agora" renova o guardado e a leitura.
  */
-function JanelaDoCatalogo({ catalogo, tela, produtoId, alterar, podeReler, aoReler, aoFechar, meuItemId = null, esteAnuncioNoCatalogo = false }) {
+function JanelaDoCatalogo({ catalogo, tela, produtoId, alterar, podeReler, aoReler, aoFechar, meuItemId = null }) {
   const [aoVivo, setAoVivo] = useState(null);
   const [erro, setErro] = useState(null);
   const [ocupado, iniciar] = useTransition();
@@ -343,8 +342,9 @@ function JanelaDoCatalogo({ catalogo, tela, produtoId, alterar, podeReler, aoRel
               {aoVivo ? <span>{textoDoResumo(aoVivo.resumo) ?? `${aoVivo.total} anúncios`} · lido agora</span> : tela ? <ResumoDaPosicao posicao={tela.posicao} /> : null}
             </p>
           </div>
-          <a href={urlDoCatalogo(catalogo.id, esteAnuncioNoCatalogo ? meuItemId : null)} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-1 rounded border border-borda px-2.5 py-1 text-sm font-medium text-acento hover:bg-fundo">
-            Abrir no ML <ExternalLink size={12} />
+          {/* "Abrir o ganhador" (pedido do dono em 11/11/2026): a pagina do catalogo, que o ML abre na oferta que esta ganhando. */}
+          <a href={urlDoCatalogo(catalogo.id)} target="_blank" rel="noreferrer" title="Abre o catálogo no Mercado Livre, na oferta que está ganhando" className="inline-flex shrink-0 items-center gap-1 rounded border border-borda px-2.5 py-1 text-sm font-medium text-acento hover:bg-fundo">
+            Abrir o ganhador <ExternalLink size={12} />
           </a>
           {tela && podeReler && (
             <button type="button" onClick={reler} disabled={ocupado} className="inline-flex shrink-0 items-center gap-1.5 rounded bg-acento px-3 py-1 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
