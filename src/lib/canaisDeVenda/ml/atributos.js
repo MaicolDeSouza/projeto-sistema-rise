@@ -25,7 +25,19 @@ const texto = (valor) => String(valor ?? "").trim();
 
 // O Microcontrolador da ficha vem, nesta ordem, destas linhas da descricao. "Chip de Interface USB" (o CH340 de uma placa
 // Arduino) e outro chip e nao casa: os nomes sao exatos.
-const NOMES_DO_MICROCONTROLADOR = [/^microcontrolador$/i, /^chip\s*(\(\s*soc\s*\))?$/i, /^ci$/i, /^processador(\s*\/\s*cpu)?$/i];
+// "Microprocessador" entrou em 11/11/2026 (pedido do dono: "chip, microcontrolador ou microprocessador").
+const NOMES_DO_MICROCONTROLADOR = [
+  /^microcontrolador$/i,
+  /^chip\s*(\(\s*soc\s*\))?$/i,
+  /^microprocessador$/i,
+  /^ci$/i,
+  /^processador(\s*\/\s*cpu)?$/i,
+];
+
+// O atributo da categoria que recebe o microcontrolador: o id MICROCONTROLLER ou, em categoria que usa outro id, o atributo
+// chamado "Microcontrolador" ou "Microprocessador" (o nome que o dono ve na aba).
+const ehAtributoDoMicrocontrolador = (atributo) =>
+  atributo?.id === "MICROCONTROLLER" || /^micro(controlador|processador)$/i.test(String(atributo?.nome ?? "").trim());
 
 /**
  * O que a ficha do ML tira das Especificacoes tecnicas da descricao do produto (pedido do dono em 03/11/2026: "caso nao tenha
@@ -132,8 +144,12 @@ export function completarFichaPelaDescricao(atuais, atributosDaCategoria, descri
   const daCategoria = new Set((atributosDaCategoria ?? []).map((atributo) => atributo.id));
   const { tensaoLimite: limite, ...porId } = fichaDaDescricao(descricao);
   const novos = {};
-  for (const [id, valor] of Object.entries(porId)) {
+  const { MICROCONTROLLER: microcontrolador, ...outros } = porId;
+  for (const [id, valor] of Object.entries(outros)) {
     if (valor && daCategoria.has(id) && !texto(atuais?.[id])) novos[id] = valor;
+  }
+  for (const atributo of microcontrolador ? atributosDaCategoria ?? [] : []) {
+    if (ehAtributoDoMicrocontrolador(atributo) && !texto(atuais?.[atributo.id])) novos[atributo.id] = microcontrolador;
   }
   for (const id of daCategoria) {
     if (limite && ehTensaoLimite(id) && !texto(atuais?.[id])) novos[id] = limite;

@@ -1442,7 +1442,27 @@ try {
     conferir(
       "preencherFicha: le a categoria, extrai as especificacoes e passa tudo a IA",
       [fichaIA, pedidoDaIA.especificacoes.length, pedidoDaIA.atributos[0].id, pedidoDaIA.valoresAtuais, pedidoDaIA.internet],
-      [[{ id: "MODEL", nome: "Modelo", valor: "UNO R3" }], 1, "BRAND", { BRAND: "ARDUINO" }, true],
+      // O Microcontrolador vem da linha "Chip" da descricao do produtoIA (11/11/2026), mesmo sem a IA sugerir.
+      [[{ id: "MODEL", nome: "Modelo", valor: "UNO R3" }, { id: "MICROCONTROLLER", nome: "Microcontrolador", valor: "ATmega328P" }], 1, "BRAND", { BRAND: "ARDUINO" }, true],
+    );
+    // Pedido do dono em 11/11/2026: "Chip: HX711" na descricao e a IA deixou o Microcontrolador vazio. A descricao entra nas
+    // sugestoes e vence a IA; o preenchido pelo dono fica.
+    const comChip = { ...produtoIA, descricaoBase: "X\n\nEspecificações técnicas:\n- Chip: ATmega328P;\n- Modelo: UNO R3;" };
+    const fichaComChip = await preencherFicha(falso, {
+      produto: comChip, categoriaId: "MLB99779", valoresAtuais: { BRAND: "ARDUINO" }, internet: false,
+      ia: async () => [{ id: "MICROCONTROLLER", nome: "Microcontrolador", valor: "ATmega2560" }, { id: "INCLUDES_USB_CABLE", nome: "Inclui cabo USB", valor: "Sim" }],
+    });
+    conferir(
+      "preencherFicha: o Chip da descricao vira o Microcontrolador e vence a IA",
+      Object.fromEntries(fichaComChip.map((s) => [s.id, s.valor]).sort(([a], [b]) => a.localeCompare(b))),
+      { INCLUDES_USB_CABLE: "Sim", MICROCONTROLLER: "ATmega328P", MODEL: "UNO R3" },
+    );
+    const jaPreenchido = await preencherFicha(falso, { produto: comChip, categoriaId: "MLB99779", valoresAtuais: { MICROCONTROLLER: "Z80" }, internet: false, ia: async () => [] });
+    conferir("preencherFicha: Microcontrolador preenchido pelo dono nao recebe sugestao", jaPreenchido.some((s) => s.id === "MICROCONTROLLER"), false);
+    conferir(
+      "ficha pela descricao: Microprocessador da descricao e atributo de outro id chamado Microprocessador",
+      (await import("../src/lib/canaisDeVenda/ml/atributos.js")).completarFichaPelaDescricao({}, [{ id: "PROCESSOR_X", nome: "Microprocessador" }], "- Microprocessador: RP2040;"),
+      { PROCESSOR_X: "RP2040" },
     );
     let semCategoria = null;
     try {

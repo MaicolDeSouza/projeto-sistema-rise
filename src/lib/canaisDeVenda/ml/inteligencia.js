@@ -13,6 +13,7 @@ import { gerarTitulosML } from "../../ia/tituloML";
 import { linhasDeEspecificacao } from "../../medidas";
 import { categoriasPeloCatalogo } from "./catalogo";
 import { descobrirCategoria, lerCategoria, lerCategoriaCompleta, lerTendencias } from "./leitura";
+import { completarFichaPelaDescricao } from "./atributos";
 
 const SEM_CATEGORIA = "O Mercado Livre não achou categoria para este produto. Digite o código.";
 
@@ -105,11 +106,20 @@ export async function sugerirTitulos(cliente, { produto, kit, categoriaId, limit
 export async function preencherFicha(cliente, { produto, categoriaId, valoresAtuais, internet, ia = preencherFichaIA }) {
   const categoria = await lerCategoriaCompleta(cliente, categoriaId);
   if (!categoria) throw new Error("Categoria não encontrada no Mercado Livre.");
-  return ia({
+  const daIA = await ia({
     produto,
     especificacoes: linhasDeEspecificacao(produto?.descricaoBase ?? ""),
     atributos: categoria.atributos,
     valoresAtuais: valoresAtuais ?? {},
     internet: Boolean(internet),
   });
+  // O que a descricao do produto ja diz (Modelo, Microcontrolador pelo "Chip"/"Microcontrolador"/"Microprocessador", tensao
+  // limite, temperatura, Fabricante = Marca) entra como sugestao e vence a da IA (pedido do dono em 11/11/2026: a IA deixou o
+  // Microcontrolador vazio com "Chip: HX711" na descricao). Ate ali essa regra so rodava ao abrir a aba de um rascunho nunca
+  // publicado; o anuncio reaproveitado da conta ficava sem ela.
+  const pelaDescricao = completarFichaPelaDescricao(valoresAtuais ?? {}, categoria.atributos, produto?.descricaoBase ?? "");
+  const nomeDe = new Map((categoria.atributos ?? []).map((atributo) => [atributo.id, atributo.nome]));
+  const sugestoes = (daIA ?? []).filter((sugestao) => !(sugestao.id in pelaDescricao));
+  for (const [id, valor] of Object.entries(pelaDescricao)) sugestoes.push({ id, nome: nomeDe.get(id) ?? id, valor });
+  return sugestoes;
 }
