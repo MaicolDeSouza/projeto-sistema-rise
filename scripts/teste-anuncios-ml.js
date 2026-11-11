@@ -1269,14 +1269,14 @@ try {
       [null, null, 2.6],
     );
     conferir("custos: sem preco e null", custosDoAnuncio({ preco: 0, custo: 24, percentual: 0.13, tarifaFixa: 0, frete: 0 }), null);
-    conferir("preco por margem: R$ 20 de lucro", precoPorMargem({ custo: 24, percentual: 0.13, tarifaFixa: 0, frete: 0, margem: { tipo: "reais", valor: 20 } }), 54.33);
+    conferir("preco por margem: R$ 20 de lucro", precoPorMargem({ custo: 24, percentual: 0.13, tarifaFixa: 0, frete: 0, margem: { tipo: "reais", valor: 20 } }), 54.4);
     // "percentual" = markup sobre o custo total (24/10/2026): P = 1,3 * 24 / (1 - 1,3 * 0,19) = 31,2 / 0,753 = 41,434...
-    conferir("preco por markup: 30%", precoPorMargem({ custo: 24, percentual: 0.13, tarifaFixa: 0, frete: 0, margem: { tipo: "percentual", valor: 30 } }), 41.44);
+    conferir("preco por markup: 30%", precoPorMargem({ custo: 24, percentual: 0.13, tarifaFixa: 0, frete: 0, margem: { tipo: "percentual", valor: 30 } }), 41.5);
     conferir("preco por markup: inatingivel (comissao de 95% + 6%)", precoPorMargem({ custo: 24, percentual: 0.95, tarifaFixa: 0, frete: 0, margem: { tipo: "percentual", valor: 40 } }), null);
     conferir(
       "preco por margem: arredonda para cima ao centavo (24,8 / 0,81 = 30,617...)",
       precoPorMargem({ custo: 10, percentual: 0.13, tarifaFixa: 6.65, frete: 8.15, margem: { tipo: "reais", valor: 0 } }),
-      30.62,
+      30.7,
     );
     conferir("preco por margem: sem custo e null", precoPorMargem({ custo: null, percentual: 0.13, tarifaFixa: 0, frete: 0, margem: { tipo: "reais", valor: 5 } }), null);
     conferir("preco por margem: o preco calculado devolve a margem pedida", (() => {
@@ -1355,8 +1355,8 @@ try {
     conferir("precoPorMargemNoML: 100% de markup da lucro igual ao custo", custosDoAnuncio({ preco: porMarkup.preco, custo: 24, percentual: porMarkup.custosML.percentual, tarifaFixa: porMarkup.custosML.tarifaFixa, frete: freteQueConta(porMarkup.custosML, r) }).markup >= 100, true);
     // Acima do limite (79) a tarifa fixa some: o preco que a calcula tem que reler as taxas nele.
     const acimaDoLimite = await precoPorMargemNoML(falso, { ...r, envio: { ...r.envio, logistica: "self_service" } }, { custo: 60, margem: { tipo: "reais", valor: 10 } });
-    // (60 + 10 + frete 8,15) / (1 - 13% - 6%) = 96,49: o frete agora conta sempre (era 86,42 sem ele).
-    conferir("precoPorMargemNoML: rele as taxas no preco novo (tarifa some acima de 79)", [acimaDoLimite.preco, acimaDoLimite.custosML.tarifaFixa], [96.49, 0]);
+    // (60 + 10 + frete 8,15) / (1 - 13% - 6%) = 96,49, fechado em 96,50: o frete agora conta sempre (era 86,42 sem ele).
+    conferir("precoPorMargemNoML: rele as taxas no preco novo (tarifa some acima de 79)", [acimaDoLimite.preco, acimaDoLimite.custosML.tarifaFixa], [96.5, 0]);
 
     // So as partes puras: nenhuma chamada a IA sai do teste.
     console.log("\nFase 2: pedidos e limpeza da IA");
@@ -3175,14 +3175,14 @@ try {
     conferir("concorrentes mais caros: o preço não sobe até eles", [barato.valor, barato.posicao, barato.avisos], [48.5, 1, []]);
 
     // Acima de R$ 79 o frete gratis obrigatorio (12,95): custo 40 e loja a R$ 70 (lucro R$ 25,80). Com o frete de 6,85 o preco
-    // passaria de 79, entao vale o do frete gratis: (40 + 12,95 + 25,80) / 0,82 = 96,04, vai a 96,05.
+    // passaria de 79, entao vale o do frete gratis: (40 + 12,95 + 25,80) / 0,82 = 96,04, fechado em 96,10.
     const acima = await precoDaPropostaML(ml, rascunho, { custo: 40, precoNaLoja: 70, precos: [] });
-    conferir("acima de R$ 79: com o frete grátis na conta", [acima.valor, acima.lucro >= acima.lucroNaLoja, acima.lucroNaLoja], [96.05, true, 25.8]);
+    conferir("acima de R$ 79: com o frete grátis na conta", [acima.valor, acima.lucro >= acima.lucroNaLoja, acima.lucroNaLoja], [96.1, true, 25.8]);
 
     // Arredondar cruza R$ 79: custo 30 e loja a R$ 61,60 (lucro R$ 27,90) dao 78,97, que sobe a 79,00 e liga o frete gratis.
-    // Refaz com ele: (30 + 12,95 + 27,90) / 0,82 = 86,41, vai a 86,45 (a R$ 78,95 o lucro seria R$ 27,89, um centavo a menos).
+    // Refaz com ele: (30 + 12,95 + 27,90) / 0,82 = 86,41, fechado em 86,50 (a R$ 78,95 o lucro seria R$ 27,89, um centavo a menos).
     const virada = await precoDaPropostaML(ml, rascunho, { custo: 30, precoNaLoja: 61.6, precos: [] });
-    conferir("arredondar cruza R$ 79: refaz com o frete grátis", [virada.valor, virada.lucro >= virada.lucroNaLoja], [86.45, true]);
+    conferir("arredondar cruza R$ 79: refaz com o frete grátis", [virada.valor, virada.lucro >= virada.lucroNaLoja], [86.5, true]);
 
     const semCusto = await precoDaPropostaML(ml, rascunho, { custo: null, precoNaLoja: 35, precos: [45] });
     conferir("sem custo: sem preço e avisa", [semCusto.valor, semCusto.avisos.some((aviso) => /custo/.test(aviso))], [null, true]);
@@ -3198,7 +3198,7 @@ try {
     // para R$ 79 com frete gratis (piso); de 79 em diante e com frete gratis. A proposta devolve a variante que o preco pede.
     conferir("variante: abaixo de R$ 72 e o Classico sem frete", [top5.variante, top5.freteGratis], ["classico_sem_frete", false]);
     const abaixo72 = await precoDaPropostaML(ml, rascunho, { custo: 30, precoNaLoja: 55, precos: [] });
-    conferir("variante: R$ 71,45 continua sem frete", [abaixo72.valor, abaixo72.variante, abaixo72.freteGratis], [71.45, "classico_sem_frete", false]);
+    conferir("variante: R$ 71,45 continua sem frete", [abaixo72.valor, abaixo72.variante, abaixo72.freteGratis], [71.5, "classico_sem_frete", false]);
     const piso = await precoDaPropostaML(ml, rascunho, { custo: 30, precoNaLoja: 58, precos: [] });
     conferir("variante: preco sem frete entre 72 e 79 sobe para R$ 79 com frete gratis (piso) e avisa", [piso.valor, piso.variante, piso.freteGratis, piso.avisos.some((aviso) => /79/.test(aviso))], [79, "classico_frete_gratis", true, true]);
     conferir("variante: de 79 em diante e com frete gratis", [acima.variante, acima.freteGratis, virada.variante], ["classico_frete_gratis", true, "classico_frete_gratis"]);
@@ -3307,11 +3307,11 @@ try {
       "gravar: Clássico com categoria, título, ficha e preço",
       [anuncio.status, anuncio.dados.tipoAnuncio, anuncio.categoriaExternaId, anuncio.titulo, anuncio.atributos.BRAND, anuncio.dados.preco, gravada.preco.valor],
       // O lucro da loja (R$ 49 com custo 20: R$ 26,06; regra do dono de 05/11/2026) com 13% de comissao e frete de 6,85:
-      // (20 + 6,85 + 26,06) / 0,81 = 65,33, vai a 65,35. O titulo e o do produto base, e o que a LLM mandou ("Placa Uno R3
+      // (20 + 6,85 + 26,06) / 0,81 = 65,33, fechado em 65,40. O titulo e o do produto base, e o que a LLM mandou ("Placa Uno R3
       // CH340 compatível") e ignorado e avisado (regra do dono de 24/10/2026).
-      ["RASCUNHO", "gold_special", "MLB99779", "PLACA UNO R3 CH340 ZZ", "ARDUINO", 65.35, 65.35],
+      ["RASCUNHO", "gold_special", "MLB99779", "PLACA UNO R3 CH340 ZZ", "ARDUINO", 65.4, 65.4],
     );
-    // A variante (pedido do dono em 08/11/2026: "pode sempre criar as propostas com as variantes"): R$ 65,35 e o Classico sem frete.
+    // A variante (pedido do dono em 08/11/2026: "pode sempre criar as propostas com as variantes"): R$ 65,40 e o Classico sem frete.
     conferir("variante: abaixo de R$ 72 o rascunho fica sem frete gratis", [gravada.preco.variante, anuncio.dados.envio.freteGratis], ["classico_sem_frete", false]);
     // Loja a R$ 58 (custo 20): sem frete daria (6,85 + 58 x 0,94) / 0,81 = 75,77, entre 72 e 79: sobe para R$ 79 com frete gratis.
     await criarPronto("ZZ-ML-PA9", { precoVenda: 58 });
@@ -3353,7 +3353,7 @@ try {
     const { VERSAO_ROTEIRO_ML } = await import("../src/lib/propostaDeAnuncio/roteiros.js");
     conferir("a proposta guardada com o preço, os dois lucros e os catálogos",
       [anuncio.dados.proposta.preco.valor, anuncio.dados.proposta.preco.lucroNaLoja, anuncio.dados.proposta.preco.lucro >= 26.06, anuncio.dados.proposta.catalogosSugeridos.length, anuncio.dados.proposta.versaoDoRoteiro],
-      [65.35, 26.06, true, 2, VERSAO_ROTEIRO_ML]);
+      [65.4, 26.06, true, 2, VERSAO_ROTEIRO_ML]);
 
     // Um rascunho antigo da proposta, com outro titulo, volta ao nome do produto (o titulo nao e proposta fora do kit).
     await prisma.anuncio.update({ where: { id: gravada.anuncioId }, data: { titulo: "Titulo antigo da proposta" } });
@@ -3971,7 +3971,8 @@ try {
     const taxas = (preco) => ({ percentual: 0.13, tarifaFixa: preco >= 79 ? 0 : 6.5 });
     const frete = (preco, fg) => (fg || preco >= 79 ? 19.05 : 13);
     const lucroDe = (preco, custo, fg) => custosDoAnuncio({ preco, custo, ...taxas(preco), frete: frete(preco, fg) }).lucro;
-    const terminaEm9 = (preco) => Math.round(preco * 100) % 10 === 9;
+    // Preco fechado (pedido do dono em 11/11/2026): termina em 0 centavo (5,90; 5,80), nunca 5,83.
+    const precoFechadoEm0 = (preco) => Math.round(preco * 100) % 10 === 0;
 
     // Definicao do dono em 08/11/2026 (noite): abaixo de R$ 72 so o Classico sem frete; o com frete gratis saiu.
     conferir("abaixo de 72: so o sem frete", [variantesEsperadas(71.99), variantesEsperadas(18.9)], [["classico_sem_frete"], ["classico_sem_frete"]]);
@@ -4002,15 +4003,15 @@ try {
 
     const semFrete = await precoPelaFaixa({ lucro: 9.44, custo: 25, variante: "classico_sem_frete", taxas, frete });
     const lucroSem = lucroDe(semFrete.preco, 25, false);
-    conferir("preco pela faixa sem frete: mantem o lucro (ate 10 centavos a mais) e termina em 9", [semFrete.freteGratis, semFrete.piso, lucroSem >= 9.44, lucroSem < 9.54, terminaEm9(semFrete.preco)], [false, false, true, true, true]);
+    conferir("preco pela faixa sem frete: mantem o lucro (ate 10 centavos a mais) e termina em 0 (preco fechado)", [semFrete.freteGratis, semFrete.piso, lucroSem >= 9.44, lucroSem < 9.54, precoFechadoEm0(semFrete.preco)], [false, false, true, true, true]);
     const comFG = await precoPelaFaixa({ lucro: 9.44, custo: 25, variante: "classico_frete_gratis", taxas, frete });
     const lucroCom = lucroDe(comFG.preco, 25, true);
-    conferir("preco pela faixa com frete gratis: maior que o sem frete e mantem o lucro", [comFG.freteGratis, comFG.preco > semFrete.preco, lucroCom >= 9.44, lucroCom < 9.54, terminaEm9(comFG.preco)], [true, true, true, true, true]);
-    // Sem frete: (6 + 35 + 6,50 + 13) / 0,81 = 74,79, na faixa 72-79; com frete gratis o lucro sozinho daria 74,19 (a tarifa
+    conferir("preco pela faixa com frete gratis: maior que o sem frete e mantem o lucro", [comFG.freteGratis, comFG.preco > semFrete.preco, lucroCom >= 9.44, lucroCom < 9.54, precoFechadoEm0(comFG.preco)], [true, true, true, true, true]);
+    // Sem frete: (6 + 35 + 6,50 + 13) / 0,81 = 74,69..., fechado em 74,70, na faixa 72-79; com frete gratis o lucro sozinho daria 74,19 (a tarifa
     // cai no 79), entao vale o piso de R$ 79.
     const naFaixa = await precoPelaFaixa({ lucro: 6, custo: 35, variante: "classico_sem_frete", taxas, frete });
     const piso = await precoPelaFaixa({ lucro: 6, custo: 35, variante: "classico_frete_gratis", taxas, frete });
-    conferir("faixa 72-79: o sem frete cai nela e o com frete gratis sobe para R$ 79, marcado como piso", [naFaixa.preco, piso.preco, piso.freteGratis, piso.piso], [74.79, 79, true, true]);
+    conferir("faixa 72-79: o sem frete cai nela e o com frete gratis sobe para R$ 79, marcado como piso", [naFaixa.preco, piso.preco, piso.freteGratis, piso.piso], [74.7, 79, true, true]);
     const alto = await precoPelaFaixa({ lucro: 60, custo: 100, variante: "classico_frete_gratis", taxas, frete });
     conferir("acima de 79 pelo lucro: sem piso, frete gratis", [alto.piso, alto.preco > 79, alto.freteGratis], [false, true, true]);
     // O frete do vendedor cresce com o preco (a R$ 467 o 100101 x10 pagou R$ 21,65, nao os R$ 19,05 lidos a R$ 79; visto na
@@ -4018,7 +4019,7 @@ try {
     const freteEmDegraus = (preco, fg) => (fg || preco >= 79 ? (preco >= 200 ? 27.5 : 19.05) : 13);
     const degraus = await precoPelaFaixa({ lucro: 60, custo: 100, variante: "classico_frete_gratis", taxas, frete: freteEmDegraus });
     const lucroDegraus = custosDoAnuncio({ preco: degraus.preco, custo: 100, ...taxas(degraus.preco), frete: freteEmDegraus(degraus.preco, true) }).lucro;
-    conferir("frete que muda com o preco: o lucro final ainda e o pedido", [lucroDegraus >= 60, lucroDegraus < 60.2, terminaEm9(degraus.preco)], [true, true, true]);
+    conferir("frete que muda com o preco: o lucro final ainda e o pedido", [lucroDegraus >= 60, lucroDegraus < 60.2, precoFechadoEm0(degraus.preco)], [true, true, true]);
     conferir("sem custo ou sem lucro: nada", [await precoPelaFaixa({ lucro: 9, custo: 0, variante: "classico_sem_frete", taxas, frete }), await precoPelaFaixa({ lucro: null, custo: 25, variante: "classico_sem_frete", taxas, frete })], [null, null]);
     conferir("lucro por unidade do kit", [lucroPorUnidade(15.37, 10), lucroPorUnidade(null, 10), lucroPorUnidade(15.37, 0)], [1.54, null, null]);
   }

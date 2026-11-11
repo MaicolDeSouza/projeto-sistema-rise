@@ -12,7 +12,10 @@ import { ROTULO_DO_TIPO_ML } from "@/lib/canaisDeVenda/ml/rotulos";
  */
 
 const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-export const urlDoCatalogo = (id) => `https://www.mercadolivre.com.br/p/${id}`;
+// Com o MLB do anuncio, a pagina do catalogo abre NA OFERTA DELE (`pdp_filters=item_id:`, o filtro que o proprio ML usa
+// no link de cada oferta do catalogo); sem ele o ML mostra o ganhador (o dono em 11/11/2026: "esta abrindo o ganhador").
+export const urlDoCatalogo = (id, itemId = null) =>
+  `https://www.mercadolivre.com.br/p/${id}${itemId ? `?pdp_filters=item_id%3A${encodeURIComponent(itemId)}` : ""}`;
 const nomeDoVendedor = (apelido, id) => apelido || `vendedor ${id}`;
 // Links de cada concorrente (pedido do dono em 22/10/2026). O anuncio pelo id ("MLB7862426858" -> ".../MLB-7862426858") e o
 // perfil pelo apelido, no formato do `permalink` do ML (espaco vira "+"; medido: responde 301 para o https).

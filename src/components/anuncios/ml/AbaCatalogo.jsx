@@ -172,7 +172,7 @@ export default function AbaCatalogo({ rascunho, alterar, visivel = false, idExte
                   </a>
                 )}
                 <a
-                  href={urlDoCatalogo(catalogo.id)}
+                  href={urlDoCatalogo(catalogo.id, desteAnuncio(catalogo) ? idExterno : null)}
                   target="_blank"
                   rel="noreferrer"
                   title={`Abre o catálogo ${catalogo.id} no Mercado Livre, em outra aba`}
@@ -192,6 +192,7 @@ export default function AbaCatalogo({ rascunho, alterar, visivel = false, idExte
       {catalogoAberto && (
         <JanelaDoCatalogo
           meuItemId={idExterno}
+          esteAnuncioNoCatalogo={desteAnuncio(catalogoAberto)}
           catalogo={catalogoAberto}
           tela={tela?.catalogoId === catalogoAberto.id ? tela : null}
           produtoId={produtoId}
@@ -284,7 +285,7 @@ function EstadoNaDisputa({ disputa }) {
  * dono em 26/10/2026: ele era o 2o e a lista dos acompanhados, que tira os dele, pulava a linha). No catalogo acompanhado,
  * os avisos e o preco anterior (a seta) vem do que o Rise guardou, e o "Reler agora" renova o guardado e a leitura.
  */
-function JanelaDoCatalogo({ catalogo, tela, produtoId, alterar, podeReler, aoReler, aoFechar, meuItemId = null }) {
+function JanelaDoCatalogo({ catalogo, tela, produtoId, alterar, podeReler, aoReler, aoFechar, meuItemId = null, esteAnuncioNoCatalogo = false }) {
   const [aoVivo, setAoVivo] = useState(null);
   const [erro, setErro] = useState(null);
   const [ocupado, iniciar] = useTransition();
@@ -342,7 +343,7 @@ function JanelaDoCatalogo({ catalogo, tela, produtoId, alterar, podeReler, aoRel
               {aoVivo ? <span>{textoDoResumo(aoVivo.resumo) ?? `${aoVivo.total} anúncios`} · lido agora</span> : tela ? <ResumoDaPosicao posicao={tela.posicao} /> : null}
             </p>
           </div>
-          <a href={urlDoCatalogo(catalogo.id)} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-1 rounded border border-borda px-2.5 py-1 text-sm font-medium text-acento hover:bg-fundo">
+          <a href={urlDoCatalogo(catalogo.id, esteAnuncioNoCatalogo ? meuItemId : null)} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-1 rounded border border-borda px-2.5 py-1 text-sm font-medium text-acento hover:bg-fundo">
             Abrir no ML <ExternalLink size={12} />
           </a>
           {tela && podeReler && (

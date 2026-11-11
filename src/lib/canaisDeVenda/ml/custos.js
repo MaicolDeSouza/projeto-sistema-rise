@@ -42,10 +42,21 @@ export function custosDoAnuncio({ preco, custo, percentual, tarifaFixa, frete, i
 }
 
 /**
+ * O preco "fechado": sobe ao proximo multiplo de R$ 0,10 (5,83 -> 5,90; 5,80 fica). Pedido do dono em 11/11/2026: "ao definir
+ * o preco, arredondar ... sempre deixar numero fechado". Sempre para cima, para nunca entregar menos lucro que o pedido. O
+ * ruido do ponto flutuante (5,8 * 10 = 57,99999) sai antes de subir.
+ */
+export function precoFechado(valor) {
+  const numero = Number(valor);
+  if (!Number.isFinite(numero)) return null;
+  return Math.ceil(Math.round(numero * 10 * 1e6) / 1e6) / 10;
+}
+
+/**
  * O preco que deixa o lucro pedido, em R$ (`reais`) ou em % DO CUSTO TOTAL (`percentual`, o markup
  * sobre fornecedor + taxas + frete + imposto, desde 24/10/2026; ate ali era % do preco), a partir de
  * `P*(1 - comissao% - imposto%) - tarifa - frete - custo = lucro`. Arredonda PARA CIMA ao
- * centavo: arredondar para baixo entregaria um lucro um pouco menor que o pedido. `null` sem custo
+ * preco fechado (`precoFechado`, multiplo de R$ 0,10; ate 11/11/2026 era ao centavo): para baixo entregaria um lucro menor. `null` sem custo
  * ou quando nenhum preco chega la (as porcentagens somam 100% ou mais).
  */
 export function precoPorMargem({ custo, percentual, tarifaFixa, frete, imposto = IMPOSTO_PADRAO, margem }) {
@@ -62,9 +73,7 @@ export function precoPorMargem({ custo, percentual, tarifaFixa, frete, imposto =
     margem.tipo === "percentual" ? [fator * fixos, 1 - fator * (1 - parteDoPreco)] : [fixos + valor, parteDoPreco];
   if (!(denominador > 0)) return null;
 
-  // 72,59 * 100 pode dar 7259,000000001 em ponto flutuante: arredonda o ruido antes de subir.
-  const centavos = Math.ceil(Math.round((numerador / denominador) * 100 * 1e6) / 1e6);
-  return centavos / 100;
+  return precoFechado(numerador / denominador);
 }
 
 /**

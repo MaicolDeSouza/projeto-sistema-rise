@@ -13,7 +13,7 @@
  */
 
 import { lucroLiquido } from "../../margem";
-import { custosDoAnuncio, LIMITE_DO_FRETE_GRATIS } from "./custos";
+import { custosDoAnuncio, LIMITE_DO_FRETE_GRATIS, precoFechado } from "./custos";
 import { ATACADO_DESLIGADO, ATACADO_PADRAO, atacadoPermitido } from "./atacado";
 
 const dinheiro = (valor) => Math.round((Number(valor) + Number.EPSILON) * 100) / 100;
@@ -116,11 +116,12 @@ export function rascunhoDaVariante(rascunho, variante) {
   };
 }
 
-// Sobe ao proximo preco terminado em 9 centavos (72,90 -> 72,99; 72,991 -> 73,09): nunca abaixo do pedido.
-const paraCimaEm9 = (valor) => Math.ceil(Math.round((valor + 0.01) * 10 * 1e6) / 1e6) / 10 - 0.01;
+// Sobe ao proximo preco "fechado", terminado em 0 centavo (5,83 -> 5,90; 5,80 fica): nunca abaixo do pedido. Pedido do dono
+// em 11/11/2026 ("sempre deixar numero fechado, 5,90, 5,80, nao 5,83"); ate ali era terminado em 9 (72,99).
+const paraCimaFechado = (valor) => precoFechado(valor);
 
 /**
- * O menor preco terminado em ,X9 que deixa o `lucro` pedido numa variante, dadas `taxas(preco)` ->
+ * O menor preco fechado (terminado em ,X0) que deixa o `lucro` pedido numa variante, dadas `taxas(preco)` ->
  * `{ percentual, tarifaFixa }` e `frete(preco, freteGratis)` -> R$ do vendedor. O frete gratis e o
  * da variante ou o obrigatorio (preco >= 79). O preco e resolvido pela formula de `precoPorMargem`
  * nos dois regimes (abaixo e a partir de 79, onde tarifa e frete mudam) e conferido com
@@ -164,7 +165,7 @@ async function resolver({ pedido, custo, freteDaVariante, taxas, frete }) {
     const { percentual, tarifaFixa } = (await taxas(referencia)) ?? {};
     const parte = 1 - Number(percentual ?? 0) - 0.06;
     if (!(parte > 0)) return null;
-    return paraCimaEm9((pedido + custo + Number(tarifaFixa ?? 0) + Number((await frete(referencia, fg)) ?? 0)) / parte);
+    return paraCimaFechado((pedido + custo + Number(tarifaFixa ?? 0) + Number((await frete(referencia, fg)) ?? 0)) / parte);
   };
 
   let preco = null;

@@ -7496,6 +7496,12 @@ com o roteiro v2** (título inventado no rascunho do ML): refazer a proposta do 
   links com preço, guardados só em `dados.proposta.links`. **Nada entra em `CatalogoReferenciaML`**: o editor mostra
   "Sugeridos pela proposta" no ranking com Adicionar. Atualiza o Clássico ainda não publicado; nunca mexe no publicado.
   `sugerirCategoria` roda com uma IA vazia (nunca a paga).
+- **Preço FECHADO em todo preço calculado do ML (11/11/2026, pedido do dono: "arredondar o preço. Sempre deixar número
+  fechado. Por exemplo, 5,90, 5,80. Não deixar 5,83"):** `precoFechado` (`ml/custos.js`) sobe ao próximo múltiplo de R$ 0,10,
+  nunca para baixo (o lucro nunca fica menor que o pedido). Vale no `precoPorMargem` (calculadora, markup alvo, conta do kit,
+  proposta do ML) e no "Preço pelo lucro da loja" (`precoPelaFaixa`, que até ali terminava em 9: 72,99). O piso de R$ 79 segue.
+  **"Abrir no ML" do catálogo** (mesmo dia: "está abrindo o ganhador do catálogo"): com o anúncio no catálogo, o link leva
+  `?pdp_filters=item_id%3A<MLB>` (`urlDoCatalogo` em `ConcorrentesDoML.jsx`), para a página abrir na oferta dele.
 - **Preço do ML** (`precoDaPropostaML`), **regra desde 05/11/2026** (pedido do dono ao ver o MQ-4 100253 a R$ 27,50 no ML com R$ 6,34
   de lucro contra R$ 4,93 na loja a R$ 14,90: "o valor de venda deve respeitar para que o lucro no ML seja similar ao lucro na LI, não
   olhar mais para regra de % no ML"): o preço é o que deixa no ML, com as taxas relidas no próprio preço (comissão, tarifa, frete do
