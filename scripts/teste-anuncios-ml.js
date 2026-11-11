@@ -4071,6 +4071,11 @@ try {
     // O contexto dos produtos (`contextoDosProdutos`) traz o custo como `{ valor, origem }`, o mesmo que a aba Preco le.
     conferir("lucro da loja: custo no formato do contexto ({ valor, origem })", lucroDaLojaDoRascunho(rascunho, [{ id: "p-fx", precoVenda: 45.9, custo: { valor: 25, origem: "cadastro" } }]), Math.round(lucro * 100) / 100);
     conferir("lucro da loja: kit = soma por peca x quantidade", lucroDaLojaDoRascunho({ ...rascunho, composicao: { itens: [{ produtoId: "p-fx", quantidade: 2 }, { produtoId: "p-2", quantidade: 3 }] } }, produtos), Math.round((lucro * 2 + lucroLiquido(10, 4) * 3) * 100) / 100);
+    const { lucroComMinimo, LUCRO_MINIMO_ML } = await import("../src/lib/canaisDeVenda/ml/faixas.js");
+    conferir("lucro minimo: R$ 5", LUCRO_MINIMO_ML, 5);
+    conferir("lucro minimo: abaixo de 5 sobe e avisa", [lucroComMinimo(1.79), lucroComMinimo(-2)], [{ lucro: 5, subiu: true }, { lucro: 5, subiu: true }]);
+    conferir("lucro minimo: 5 ou mais fica", [lucroComMinimo(5), lucroComMinimo(12.345)], [{ lucro: 5, subiu: false }, { lucro: 12.35, subiu: false }]);
+    conferir("lucro minimo: sem lucro = null", lucroComMinimo(null), null);
     conferir("lucro da loja: peca sem custo ou produto sem preco = null", [lucroDaLojaDoRascunho({ ...rascunho, composicao: { itens: [{ produtoId: "p-3", quantidade: 1 }] } }, produtos), lucroDaLojaDoRascunho({ ...rascunho, produtoId: "p-3" }, produtos)], [null, null]);
   }
 

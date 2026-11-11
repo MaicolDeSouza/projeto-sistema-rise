@@ -213,7 +213,12 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
                   const lucroDoKit = acessos.custos && somaAvulsa !== null ? lucroLiquido(somaAvulsa, custo.valor) : null;
                   if (lucroDoKit === null) return null;
                   const lucroPorUnidade = lucroDoKit / unidadesDoKit;
-                  return <span className={`ml-1 ${lucroPorUnidade < 0 ? "text-red-600" : "text-suave"}`}>(Lucro = {MOEDA.format(lucroPorUnidade)})</span>;
+                  return (
+                    <span className={`ml-1 ${lucroPorUnidade < 0 ? "text-red-600" : "text-suave"}`}>
+                      (Lucro = {MOEDA.format(lucroPorUnidade)}
+                      <PercentualDoLucro preco={somaAvulsa} custo={custo.valor} />)
+                    </span>
+                  );
                 })()}
               </dd>
               <dt className="text-suave">Preço no ML (UN)</dt>
@@ -242,7 +247,10 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
                 {(() => {
                   const lucroNaLoja = acessos.custos ? lucroLiquido(Number(contexto.produtos[rascunho.produtoId].precoVenda), custo.valor) : null;
                   return lucroNaLoja === null ? null : (
-                    <span className={`ml-1 ${lucroNaLoja < 0 ? "text-red-600" : "text-suave"}`}>(Lucro = {MOEDA.format(lucroNaLoja)})</span>
+                    <span className={`ml-1 ${lucroNaLoja < 0 ? "text-red-600" : "text-suave"}`}>
+                      (Lucro = {MOEDA.format(lucroNaLoja)}
+                      <PercentualDoLucro preco={Number(contexto.produtos[rascunho.produtoId].precoVenda)} custo={custo.valor} />)
+                    </span>
                   );
                 })()}
               </dd>
@@ -297,6 +305,12 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
   );
 }
 
+// O % de lucro na loja (pedido do dono em 11/11/2026): o markup do cadastro do produto, (preco - custo) / custo, sem o imposto.
+function PercentualDoLucro({ preco, custo }) {
+  const markup = calcularMarkup(Number(preco), Number(custo));
+  return markup === null ? null : <> · {markup.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</>;
+}
+
 // O nome pelo que o preco FICOU: a variante sem frete cujo preco passou de R$ 79 sai com frete gratis (obrigatorio).
 function nomeDaVariante({ variante, freteGratis }) {
   const premium = String(variante).startsWith("premium");
@@ -334,9 +348,13 @@ function BotaoPrecoPeloLucroDaLoja({ rascunho, custo, temPrecoDaLoja, aplicar })
       }
       aplicar(resposta);
       setResultado({
+        // Lucro da loja abaixo do minimo (R$ 5): o preco subiu para deixar R$ 5, em ambar porque e dinheiro (regra 2).
+        aviso: resposta.minimoAplicado
+          ? `Lucro da loja ${MOEDA.format(resposta.lucroDaLoja)} abaixo do mínimo: preço ajustado para lucro de ${MOEDA.format(resposta.lucro)}.`
+          : null,
         texto: resposta.piso
-          ? `Faixa R$ 72–79: sobe para R$ 79 com frete grátis (lucro da loja ${MOEDA.format(resposta.lucro)}).`
-          : `Lucro da loja ${MOEDA.format(resposta.lucro)} mantido como ${nomeDaVariante(resposta)}.`,
+          ? `Faixa R$ 72–79: sobe para R$ 79 com frete grátis (lucro ${MOEDA.format(resposta.lucro)}).`
+          : `Lucro ${MOEDA.format(resposta.lucro)} mantido como ${nomeDaVariante(resposta)}.`,
       });
     });
   }
@@ -354,6 +372,7 @@ function BotaoPrecoPeloLucroDaLoja({ rascunho, custo, temPrecoDaLoja, aplicar })
         {ocupado ? "Calculando…" : "Preço pelo lucro da loja"}
       </button>
       {resultado?.erro && <p className="mt-1 text-[11px] text-red-600">{resultado.erro}</p>}
+      {resultado?.aviso && <p className="mt-1 text-[11px] font-medium text-amber-700">{resultado.aviso}</p>}
       {resultado?.texto && <p className="mt-1 text-[11px] text-suave">{resultado.texto}</p>}
     </div>
   );

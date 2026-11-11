@@ -244,6 +244,20 @@ export function lucroPorUnidade(lucro, unidades) {
   return dinheiro(Number(lucro) / Number(unidades));
 }
 
+/** Lucro minimo por venda no ML (pedido do dono em 11/11/2026: "O lucro minimo que eu desejo por venda e R$ 5,00"). */
+export const LUCRO_MINIMO_ML = 5;
+
+/**
+ * O lucro que o botao "Preco pelo lucro da loja" persegue: o da loja, ou R$ 5 quando o da loja e menor. `subiu` diz que o
+ * minimo foi aplicado, para a tela avisar (o dono quer saber quando isso acontece).
+ */
+export function lucroComMinimo(lucro) {
+  if (lucro === null || lucro === undefined) return null;
+  const valor = Number(lucro);
+  if (!Number.isFinite(valor)) return null;
+  return valor < LUCRO_MINIMO_ML ? { lucro: LUCRO_MINIMO_ML, subiu: true } : { lucro: dinheiro(valor), subiu: false };
+}
+
 /**
  * O lucro da loja do produto do rascunho: preco de venda menos custo e imposto (`lucroLiquido`,
  * o mesmo da proposta do ML). Kit (`composicao.itens`): a soma do lucro de cada peca vezes a

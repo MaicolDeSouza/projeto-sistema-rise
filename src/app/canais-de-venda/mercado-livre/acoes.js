@@ -36,7 +36,7 @@ import {
 } from "@/lib/canaisDeVenda/ml/concorrentes";
 import { LIMITES_ML, RascunhoMLSchema } from "@/lib/canaisDeVenda/ml/esquema";
 import { preencherFicha, sugerirCategoria, sugerirTitulos } from "@/lib/canaisDeVenda/ml/inteligencia";
-import { lucroDaLojaDoRascunho, ordenarAnunciosDoProduto, VARIANTES, varianteDoRascunho, variantesDoProduto } from "@/lib/canaisDeVenda/ml/faixas";
+import { lucroComMinimo, lucroDaLojaDoRascunho, ordenarAnunciosDoProduto, VARIANTES, varianteDoRascunho, variantesDoProduto } from "@/lib/canaisDeVenda/ml/faixas";
 import { clonarVarianteML } from "@/lib/canaisDeVenda/ml/variantes";
 import { anunciosDoSkuNaConta, candidatosParaReaproveitar, reaproveitarAnuncioML } from "@/lib/canaisDeVenda/ml/reaproveitar";
 import { completarComLinhasGravadas, marcarDuplicados, sincronizarForaDoRiseDoProduto, verificarAnunciosAntigosML } from "@/lib/canaisDeVenda/ml/anunciosAntigos";
@@ -485,8 +485,10 @@ export async function precoPelaFaixaMLAcao(rascunho, { variante } = {}) {
     if (!(custo > 0)) return { ok: false, erro: "Sem custo do produto." };
     const lucro = lucroDaLojaDoRascunho(lido.data, Object.values(produtos));
     if (lucro === null) return { ok: false, erro: "Sem preço de venda do produto." };
-    const resultado = await precoPelaFaixaNoML(clienteML(), lido.data, { custo, lucro, variante: variante ?? varianteDoRascunho(lido.data) });
-    return resultado ? { ok: true, ...resultado, lucro } : { ok: false, erro: "Lucro inatingível com estas taxas." };
+    // Lucro da loja abaixo de R$ 5: o preco do ML sobe ate deixar R$ 5 (pedido do dono em 11/11/2026), e a tela avisa.
+    const alvo = lucroComMinimo(lucro);
+    const resultado = await precoPelaFaixaNoML(clienteML(), lido.data, { custo, lucro: alvo.lucro, variante: variante ?? varianteDoRascunho(lido.data) });
+    return resultado ? { ok: true, ...resultado, lucro: alvo.lucro, lucroDaLoja: lucro, minimoAplicado: alvo.subiu } : { ok: false, erro: "Lucro inatingível com estas taxas." };
   } catch (erro) {
     return falhaDeLeitura(erro, "preco pela faixa");
   }
