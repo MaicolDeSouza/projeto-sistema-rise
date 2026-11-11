@@ -213,7 +213,36 @@ compras. Conferir no código na hora de construir se essa guarda já existe; se 
   de preço continua cortada.
 - MCP: `comprasACaminhoDoProduto` passa a trazer as compras do ML (mesma regra de "a caminho").
 
-### 6.8 Testes e entrega
+### 6.8 Busca pelo rastreio (pedido do dono em 11/11/2026, vale para todo pedido de compra)
+
+A busca da lista de Pedidos de compra ("Buscar por número, fornecedor ou produto") passa a achar também pelo **código de
+rastreio**: o campo `rastreio` do pedido (o digitado à mão, de qualquer fornecedor), os pacotes do AliExpress
+(`PacoteAliExpress.codigo` e `codigoOrigem`) e o envio do ML (`CompraMercadoLivre.rastreio`). Sem caixa e com parte do
+código (colar "NN436981120BR" ou só "436981120" acha). O texto de dentro do campo vira "Buscar por número, fornecedor,
+produto ou rastreio". O envio combinado do AliExpress (o mesmo pacote em dois pedidos, visto em PC-0012 e PC-0014) traz
+os dois pedidos. Entra em `listarPedidos` (`src/lib/compras/banco.js`), no `OR` que já existe.
+
+### 6.9 Nota fiscal do pedido de compra (pedido do dono em 11/11/2026, vale para todo pedido de compra)
+
+**A API do ML não entrega a nota da compra** (medido em 11/11/2026 em 3 compras pagas e entregues, com e sem pack, e uma
+de Sedex): `/packs/{pack}/fiscal_documents` → 404 "does not exist"; `/users/{vendedor}/invoices/orders/{compra}` e
+`/users/{conta}/invoices/orders/{compra}` → 404 "Invoice not found"; `/packs/{pack}` → 403 para quem compra. Essas rotas
+são do lado do vendedor; quem compra só baixa a nota na página "Minhas compras". Então a nota do ML também entra por
+upload, como a dos outros fornecedores.
+
+- **Bloco próprio "Nota fiscal"** no pedido, ao lado de Pagamento (escolha do dono em 11/11/2026): a nota é da
+  mercadoria e da entrada no estoque, não do dinheiro, e um pedido pode ter várias (entrega parcial, frete em nota
+  separada). Botão "Anexar nota fiscal", vários arquivos por pedido, em qualquer situação, como os comprovantes.
+- **Arquivos:** PDF (DANFE), XML da NF-e, JPG ou PNG, conferidos pelos bytes. Tabela `NotaFiscalCompra` no molde de
+  `ComprovanteDePagamentoCompra` (`pedidoId`, `arquivo`, `nomeOriginal`, `enviadoPor`, `enviadoEm`), mais os campos lidos
+  do XML: `numero`, `serie`, `chave` (44 dígitos), `emitidaEm`, `valorTotal`, `emitenteCnpj`, `emitenteNome`. Pasta
+  `dados/compras/<pedidoId>/notas/`.
+- **XML é lido na hora** (minha escolha): a linha mostra "NF 12345 · 05/11/2026 · R$ 990,90 · emitente"; PDF e foto
+  mostram só o nome do arquivo. A busca da lista também acha pelo número e pela chave da nota.
+- **Fora daqui (ideia para depois, não pedida):** baixar sozinho TODA nota emitida contra o CNPJ da loja pela SEFAZ
+  (Distribuição de DF-e, com o certificado A1), o que cobriria o ML e todos os fornecedores. É projeto à parte.
+
+### 6.10 Testes e entrega
 
 - `scripts/teste-compras-ml.js` (`npm run teste:compras-ml`) com o `mlFalso` ganhando `/orders/search?buyer=` e
   `/shipments/{id}`, e fixtures tiradas das 24 compras medidas (anonimizadas): compra nova paga, aguardando pagamento
