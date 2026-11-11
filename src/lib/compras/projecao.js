@@ -21,8 +21,15 @@ export function semPrecos(pedido) {
     aliexpress: pedido.aliexpress
       ? { ...pedido.aliexpress, linhasPendentes: pedido.aliexpress.linhasPendentes.map((linha) => ({ ...linha, precoComprado: SEM })) }
       : pedido.aliexpress,
+    // O valor da nota fiscal tambem e preco de compra (11/11/2026).
+    notasFiscais: semValorDasNotas(pedido.notasFiscais),
     semPrecos: true,
   };
+}
+
+/** As notas fiscais sem o valor (quem nao ve custo). */
+export function semValorDasNotas(notas) {
+  return notas?.map((nota) => ({ ...nota, valorTotal: SEM }));
 }
 
 /** O que a tela manda ao Salvar, sem os campos de preco (o `undefined` faz o servidor nao mexer neles). */

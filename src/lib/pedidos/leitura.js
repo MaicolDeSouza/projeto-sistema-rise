@@ -79,6 +79,9 @@ async function opcional(promessa, rota, { codigos = [404] } = {}) {
 async function lerPedidoML(ml, idExterno) {
   const id = String(idExterno);
   const order = await exigir(ml.get(`/orders/${id}`), `GET /orders/${id}`);
+  // A conta da loja tambem COMPRA no ML (11/11/2026): o aviso de uma compra dela nao e venda. Devolve null e quem chama
+  // ignora; a compra entra pelo Compras (lerComprasDoML).
+  if (order?.seller?.id !== undefined && String(order.seller.id) !== String(await ml.usuarioId())) return null;
   // O documento do comprador nem sempre e liberado (403): o pedido entra sem cliente, com o aviso.
   const billing = await opcional(ml.get(`/orders/${id}/billing_info`), `GET /orders/${id}/billing_info`, { codigos: [403, 404] });
   const shipments = (await opcional(ml.get(`/orders/${id}/shipments`), `GET /orders/${id}/shipments`)) ?? [];
@@ -239,7 +242,9 @@ export async function lerPedidosDaOrigem(origem, { ml = null, li = null, bling =
   const resultado = { normalizados: [], espelhos: [], ignorados: {}, cursorNovo: new Date(agora), falhas: [] };
   const tentar = async (idExterno, leitura) => {
     try {
-      resultado.normalizados.push(await leitura());
+      // null = compra da propria conta (nao e venda).
+      const lido = await leitura();
+      if (lido) resultado.normalizados.push(lido);
     } catch (erro) {
       resultado.falhas.push({ idExterno: String(idExterno), erro: erro?.message ?? String(erro) });
     }
@@ -423,12 +428,14 @@ async function tratarRecurso(origem, recurso, clientes, memoria, agora) {
   if (origem === "MERCADO_LIVRE") {
     const [, tipo, id] = String(recurso).split("/");
     if (!id) return;
-    if (tipo === "orders") return aplicar(await lerPedidoML(clientes.ml, id));
+    // `null` = compra da propria conta (nao e venda): ignorada aqui.
+    const aplicarSeVenda = (lido) => (lido ? aplicar(lido) : undefined);
+    if (tipo === "orders") return aplicarSeVenda(await lerPedidoML(clientes.ml, id));
     if (tipo === "shipments") {
       // O aviso do envio traz so o id dele: o pedido sai do proprio envio.
       const envio = await exigir(clientes.ml.get(`/shipments/${id}`), `GET /shipments/${id}`);
       if (!envio?.order_id) throw new Error(`GET /shipments/${id} veio sem order_id`);
-      return aplicar(await lerPedidoML(clientes.ml, envio.order_id));
+      return aplicarSeVenda(await lerPedidoML(clientes.ml, envio.order_id));
     }
     return;
   }
@@ -538,6 +545,7 @@ export async function reconferirPedidosPendentes({ ml = null, li = null, bling =
     try {
       // A versao de 09/11/2026 chamava a leitura sem o numero do pedido e o erro sumia no catch: nenhum pedido era relido.
       const normalizado = await lerPedidoDaOrigem(pedido.origem, pedido.idExterno, { ml, li, bling });
+      if (!normalizado) continue;
       // O lucro fechado sem custo nunca se refaz sozinho; aqui ele ainda esta em aberto de verdade (so depois de ler a origem).
       if (pedido.semCusto) await reabrirLucroDoPedido(pedido.id);
       await aplicarPedidoLido(normalizado, { cliente: ml ?? clienteML(), taxas, agora });
@@ -568,6 +576,7 @@ export async function conferirMercadoPagoPendentes({ ml = null, agora = new Date
   for (const pedido of lista) {
     try {
       const normalizado = await lerPedidoDaOrigem(pedido.origem, pedido.idExterno, { ml: cliente });
+      if (!normalizado) continue;
       await aplicarPedidoLido(normalizado, { cliente, taxas, agora });
       // O pedido foi relido, mas o Mercado Pago nao respondeu: vai para o log e a proxima tentativa e em 6 h.
       if (normalizado.mercadoPagoErro) {

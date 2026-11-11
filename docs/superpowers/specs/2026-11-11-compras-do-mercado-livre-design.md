@@ -117,8 +117,17 @@ a caixa chega, "Lançar estoque" como hoje.
     AliExpress).
 - Vínculo do fornecedor ML: `ProdutoFornecedor.codigo` = `"<MLB…>:<variation_id>"` (sem variação: `"<MLB…>:"`),
   `link` = página do anúncio, `descricao` = título, `fator`.
-- Minha escolha: tabelas próprias em vez de generalizar as do AliExpress. Os campos são outros (um envio por compra,
-  sem pacotes nem opção em texto), e mexer nas tabelas do AliExpress em produção arrisca o que já funciona.
+- **Revisto na implementação (11/11/2026): o ML usa as MESMAS tabelas do AliExpress, sem as duas tabelas acima.** Ao ler
+  o código, o casamento, o Virtual, a chegada, o custo do vínculo, a tela do pedido, a coluna Situação e o MCP estão
+  todos presos a `PedidoAliExpress`/`LinhaAliExpress`/`PacoteAliExpress`; tabelas próprias obrigariam a copiar ~1.500
+  linhas, e duas cópias da mesma regra divergem com o tempo. Quem distingue é `PedidoDeCompra.origem` (MERCADO_LIVRE).
+  O mapa: `PedidoAliExpress.externoId` = o pack (ou a compra sem pack), `loja`/`lojaId` = vendedor, `statusTexto` = a
+  situação no ML em português; `LinhaAliExpress.externoLinhaId` = `<compra>:<MLB>:<variação>`, `productId` = MLB,
+  `skuId` = variação, `opcao` = os atributos da variação; um `PacoteAliExpress` por envio, `codigo` = o rastreio (ou
+  "envio <id>" enquanto não há rastreio; renomeado quando ele aparece), `ultimoCodigo` = `ML_<status>[_<substatus>]`. O
+  código do AliExpress ganha o parâmetro de origem onde fixava "ALIEXPRESS" e os textos dizem "Mercado Livre" no pedido
+  do ML. O `teste:aliexpress` inteiro continua valendo como guarda do que já está no ar. Sem cursor: cada volta lê as
+  compras dos últimos 120 dias (≈ 2 por mês, uma página).
 
 ### 6.2 Unidade do pedido: uma compra do Rise por pacote do ML (minha escolha)
 

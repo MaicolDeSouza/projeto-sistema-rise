@@ -346,7 +346,7 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Rise AI | **Mudança de rumo em 20/10/2026:** o chat interno saiu da tela e a equipe consulta o Rise pelo **Claude ou pelo ChatGPT**, pelo servidor MCP (`/mcp`, OAuth próprio, só leitura, nunca chama IA paga), pronto e **sem deploy**. Ficam a aba Conexões (o endereço e as conexões de cada pessoa), a Revisão do dia (com as dúvidas que o Claude e o ChatGPT anotam), o Consumo e as Configurações (Modelos, orçamento dos clientes e o prompt do cliente); a lib `src/lib/riseAi/` fica inteira como o motor do WhatsApp. A Entrega 1 está na VPS desde 13/10/2026; o chat da A1 nunca subiu e saiu. **Entrega C1 (avisos no Telegram) pronta em 23/10/2026, SEM deploy:** aba Canais com o bot, vínculo por código na tela do usuário e cinco avisos pelo worker. Ver "Servidor MCP (20/10/2026)", "Rise AI (Entrega 1)" e "Rise AI (Entrega C1, avisos no Telegram)" |
 | Configurações (Acessos) | Lançamento 1 pronto em 12/10/2026 e **no ar na VPS desde 13/10/2026**: usuários, funções com a matriz de permissões, exceções, quebra-vidro `RISE_AI_ADMINS` e segredo de borda; o Rise AI e Configurações conferem o acesso no servidor. Integrações virou cartão de Configurações. **Lançamento 2 pronto em 22/10/2026, SEM deploy:** o Rise inteiro confere o acesso (menu e Painel filtrados, telas em `ver` com o selo "Somente leitura", dados sensíveis cortados no servidor), "Ver como" e a aba Histórico. Ver "Acessos (lançamento 1)" e "Acessos (lançamento 2)" |
 | Relatórios | **Relatório semanal da coleta** em PDF (tela `/relatorios`, 20/10/2026, sem deploy): lista das rodadas, "Gerar agora" e baixar o PDF. Ver "Relatório semanal da coleta" |
-| Compras | Pedidos de compra e reposição do estoque mínimo (26/10/2026, sem deploy): lista dos conferidos abaixo do mínimo com popup de fornecedores e rascunho automático por fornecedor, editor do pedido no molde do Bling, estoque a caminho calculado, lançar estoque no Bling por item com Desfazer, proposta anexada e PDF para o fornecedor. Ver "Compras (26/10/2026)". **AliExpress (28/10/2026):** extensão do Chrome "Enviar ao Rise" importa os pedidos do site com rastreio por item e depósito Virtual do Bling; ver "AliExpress no Compras (28/10/2026)" |
+| Compras | Pedidos de compra e reposição do estoque mínimo (26/10/2026, sem deploy): lista dos conferidos abaixo do mínimo com popup de fornecedores e rascunho automático por fornecedor, editor do pedido no molde do Bling, estoque a caminho calculado, lançar estoque no Bling por item com Desfazer, proposta anexada e PDF para o fornecedor. Ver "Compras (26/10/2026)". **AliExpress (28/10/2026):** extensão do Chrome "Enviar ao Rise" importa os pedidos do site com rastreio por item e depósito Virtual do Bling; ver "AliExpress no Compras (28/10/2026)". **Mercado Livre (11/11/2026):** as compras da conta da loja entram sozinhas pela API, mais a busca pelo rastreio e a nota fiscal do pedido; ver "Compras do Mercado Livre, busca pelo rastreio e nota fiscal (11/11/2026)" |
 | Estoque | Ordens de produção dos produtos com peças próprias (26/10/2026, sem deploy): baixa das peças, conclusão com perda, cancelamento que devolve. Saldo e movimentações ainda não. Ver "Peças próprias e ordem de produção (26/10/2026)" |
 | Pedidos | **Pedidos de venda, fase 1 (04/11/2026, NO AR na VPS desde 04.11.2026.60):** o worker lê a cada 5 min os pedidos do ML, da LI e do Bling (desde 01/11/2026), cria o cliente pelo CPF/CNPJ, casa os itens com os produtos, calcula status, peças em falta e lucro estimado × real; lista `/pedidos`, tela do pedido com abas, taxas da LI e nível do cliente. Ver "Pedidos de venda (04/11/2026)" |
 | Financeiro | Esqueleto |
@@ -421,6 +421,7 @@ npm run teste:telegram            # 96 asserções da Entrega C1 (avisos no Tele
 npm run teste:producao            # 89 asserções das peças próprias e da ordem de produção: regras (custo, cor do estoque, validação, arredondamento), custo pelas peças e o recálculo, trava da entrada manual, preparo do Salvar, clone, rascunho, a ordem (cria, baixa com falta, baixa, clique duplo, conclui com perda, cancela devolvendo, kit recalculado) contra o Bling falso. Postgres local, SEM rede; só escreve ZZ-PROD-*
 npm run teste:compras             # 194 asserções do módulo Compras (com a observação por item, o link público e o "Voltar para rascunho" do enviado): regras (totais, desconto % ou R$, a caminho, carrinho, situação), lista do mínimo e rascunho automático (com concorrência), pedido (salvar, itens, situação, preço que não se apaga), lançamento contra o Bling falso (clique duplo, Bling que recusa, desfazer com estoque vendido), proposta pelos bytes, dados da empresa, o PDF e as ferramentas de Compras do MCP. Postgres local, SEM rede; só escreve ZZ-COMPRA-* e "ZZ Compra *"
 npm run teste:aliexpress          # 153 asserções do AliExpress no Compras: regras puras, esquema, chave da extensão, depósito Virtual (saída por balanço, Reenviar que acerta), casamento (anúncio+opção, fator), importação, chegada, rotas e a leitura para a tela, contra um Bling falso. Postgres local, SEM rede; só escreve ZZ-ALI-*, "ZZ Ali *" e pedidos 99…; `-- --manter` deixa os dados para conferir a tela
+npm run teste:compras-ml           # 50 asserções das compras do Mercado Livre no Compras e da nota fiscal do pedido de compra: regras puras (pack, situação, totais, variação, 1ª leitura, envio e fases), XML da NF-e, leitura contra um ML falso (rascunho que vira enviado, rastreio que aparece, cancelada, sem duplicar), casamento pelo MLB, Virtual contra o Bling falso, busca pelo rastreio e pela nota e a guarda que impede a compra de virar venda. Postgres local, SEM rede; só escreve ZZ-CML-*, "ZZ CML Fornecedor" e compras 98…; `-- --manter` deixa os dados
 npm run teste:pedidos             # 312 asserções dos Pedidos de venda (com o envio do ML entregue na agência pelo substatus): falsos (ML, LI, Bling), normalizadores, status, cliente automático, itens e custo congelado, lucro e devolução, peças, aplicarPedidoLido, a leitura com cursor, acessos e taxas da LI. Postgres local, SEM rede; só escreve ZZ-PED-*, "ZZ Ped *" e os documentos de teste, e devolve a linha "pedidos" de RotinaDoWorker e as taxas da LI; `-- --manter` deixa os pedidos para conferir a tela
 npm run teste:extensao-aliexpress # 15 asserções da leitura da extensão (extensao-aliexpress/leitura.js) com as respostas da página Meus pedidos medidas em 28/10/2026. Puro: sem banco, sem rede, sem Chrome
 npm run teste:licencas            # 109 asserções das Licenças Softwares: regras (vagas, casamento por nome do PC, situação, frescor, ordem), zip e upload do arquivo, banco (programas, licenças, linhas, versões do arquivo, download), leitura do portal (esquema, aplicação, incompleta, sumidos, chave da extensão) e a importação das planilhas (fixtures em scripts/fixtures/licencas/). Postgres local, SEM rede; só escreve ZZ-LIC-*, zz-lic-* e "ZZ LIC *" e devolve a Conexao LIGHTBURN; `-- --manter` deixa os dados para conferir a tela
@@ -5744,6 +5745,41 @@ para **qualquer fornecedor, com lista em R$ ou US$**. O que existe:
   (roteiro v1 com os 7 passos, modelo de 53 KB com os 3 marcadores, recusa sem `tela.compras.pedidos`). **Não verificado:** a
   página aberta num navegador de verdade fora do claude.ai (só o DOM falso) e a ferramenta chamada pelo ChatGPT (a lista de
   ferramentas do conector é lida ao conectar: uma conversa já aberta não vê a nova).
+
+## Compras do Mercado Livre, busca pelo rastreio e nota fiscal (11/11/2026)
+
+Pedido do dono: "criar uma extensão igual foi feita para o AliExpress mas agora para puxar minhas compras feitas no Mercado
+Livre", depois "encontrar pelo rastreio" e "upload da nota fiscal". Spec `docs/superpowers/specs/2026-11-11-compras-do-mercado-livre-design.md`.
+
+- **Sem extensão:** as compras são feitas pela conta da loja (4HOBBY_STORE), e a API lista o lado de quem compra
+  (`GET /orders/search?buyer=<conta>`, medido em 11/11/2026: 24 compras num ano). `lerComprasDoML`
+  (`src/lib/compras/mercadoLivre/compras.js`, regras puras em `regras.js`) roda no worker a cada 30 min (rotina `comprasML`
+  na Saúde do Rise) e no botão **"Ler compras do ML"** da lista de Pedidos de compra (`tela.compras.pedidos` editar). Lê as
+  compras dos últimos 120 dias e o envio (`/shipments/{id}`) das ainda abertas no Rise; sem cursor.
+- **Mesmas tabelas do AliExpress** (`PedidoAliExpress`/`LinhaAliExpress`/`PacoteAliExpress`), com `PedidoDeCompra.origem`
+  = `MERCADO_LIVRE` (migration `20261111_compras_ml_e_notas`). Mapa: `externoId` = pack (carrinho do mesmo vendedor = um
+  pedido) ou a compra; `loja` = vendedor; `productId` = MLB; `skuId` = variação; um pacote por envio com `codigo` = rastreio
+  (ou "envio <id>" até ele aparecer, renomeado depois) e `ultimoCodigo` = `ML_<status>[_<substatus>]`. O casamento
+  (`candidatosDaLinha` ganhou `fornecedorId`/`origem`; regra 2 do ML = o MLB, com ou sem hífen, no link/código/descrição de
+  um vínculo ou no rascunho do Bling), o Virtual, a chegada, o custo do vínculo, as fases (`FASE_POR_CODIGO` com os `ML_*`;
+  `ML_not_delivered` não conta como entregue) e a tela são os do AliExpress, com `canal` = "Mercado Livre" nos textos.
+- **Decisões do dono:** fornecedor = o "ML" que ele cadastrou (marca `Fornecedor.mercadoLivreCompras`, índice único parcial
+  só no SQL da migration; a migration marcou o de nome "ML"); 1ª leitura = em andamento + 30 dias; **aguardando pagamento
+  entra como RASCUNHO** (sem Virtual) e vira ENVIADO ao pagar; casamento, Virtual e fases iguais ao AliExpress. O rascunho
+  importado fica fora da reposição automática (`rascunhoDoFornecedor` e o "Voltar para rascunho" só olham `origem` RISE).
+  Pedido importado não se apaga (servidor e lista). Frete e cupom: do pagamento aprovado, uma vez (`detalheLidoEm`).
+- **Compra não vira venda:** `lerPedidoML` devolve null quando o `seller` não é a conta (aviso de webhook de uma compra), e
+  a fila, a rotina e as releituras ignoram.
+- **Busca da lista de Pedidos de compra** acha também pelo rastreio (o digitado, os pacotes do AliExpress e do ML, parte do
+  código) e pelo número ou chave da nota fiscal.
+- **Nota fiscal** (bloco próprio ao lado de Pagamento, Opção 1 do dono; `NotasFiscais.jsx`, tabela `NotaFiscalCompra`):
+  várias por pedido, em qualquer situação, PDF/XML/JPG/PNG conferidos pelos bytes, em `dados/compras/<pedidoId>/notas/`. O
+  XML da NF-e é lido na hora (`notaFiscalXml.js`: número, série, chave, emissão, valor, emitente); XML que não é NF-e e a
+  mesma chave duas vezes no pedido são recusados. O XML baixa como anexo em texto puro (aberto no domínio do Rise, um XML de
+  fora poderia rodar script). Sem `dado.custo`, o valor da nota não chega à tela. **A API do ML não entrega a nota da compra**
+  (medido em 3 compras: `/packs/{pack}/fiscal_documents` 404, `/users/{id}/invoices/orders/{id}` "Invoice not found"): a do ML
+  entra por upload. Ideia não pedida: baixar da SEFAZ (Distribuição DF-e com o A1) toda nota contra o CNPJ.
+- **Não visto ainda:** a 1ª leitura real na VPS e os substatus do envio além de `delivered` e `pending/waiting_for_payment`.
 
 ## AliExpress no Compras (28/10/2026)
 

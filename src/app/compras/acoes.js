@@ -6,10 +6,13 @@ import { negarSemAcesso, negarSemAcessos, podeAgora, sessaoDeAcessos } from "@/l
 import { guardarPropostaTemporaria } from "@/lib/compras/arquivos";
 import { casarManual, desfazerCasamento } from "@/lib/compras/aliexpress/casamento";
 import { reenviarAoVirtual } from "@/lib/compras/aliexpress/importacao";
+import { lerComprasDoML } from "@/lib/compras/mercadoLivre/compras";
 import { desfazerUltimoLancamento, lancarEstoqueDoItem, reenviarPendentes } from "@/lib/compras/lancamento";
 import {
   anexarComprovante,
+  anexarNotaFiscal,
   excluirComprovante,
+  excluirNotaFiscal,
   adicionarAoPedido,
   adicionarItem,
   buscarItensParaPedido,
@@ -21,7 +24,7 @@ import {
   salvarPedido,
 } from "@/lib/compras/banco";
 import { linkPublicoDoPedido } from "@/lib/compras/linkPublico";
-import { semPrecos, semPrecosNaEntrada } from "@/lib/compras/projecao";
+import { semPrecos, semPrecosNaEntrada, semValorDasNotas } from "@/lib/compras/projecao";
 import { prisma } from "@/lib/db";
 
 const revalidar = () => revalidatePath("/compras", "layout");
@@ -255,5 +258,61 @@ export async function excluirComprovanteAcao(pedidoId, comprovanteId) {
   } catch (erro) {
     console.error("[compras] comprovante:", erro);
     return { ok: false, erro: "Não foi possível excluir o comprovante." };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Notas fiscais (pedido do dono em 11/11/2026): como os comprovantes, anexadas e excluidas na hora
+// ---------------------------------------------------------------------------
+
+/** Sem `dado.custo`, a lista volta sem o valor das notas. */
+async function notasParaQuemVe(resultado) {
+  if (!resultado?.ok || (await podeAgora("dado.custo", "ver"))) return resultado;
+  return { ...resultado, notas: semValorDasNotas(resultado.notas) };
+}
+
+/** Anexa UMA nota (a tela manda uma por vez); devolve a lista atualizada. */
+export async function anexarNotaFiscalAcao(formData) {
+  const negado = await negarSemAcesso("tela.compras.pedidos", "editar");
+  if (negado) return negado;
+  try {
+    const resultado = await anexarNotaFiscal(String(formData?.get("pedidoId") ?? ""), formData?.get("arquivo"), await quemEsta());
+    if (resultado.ok) revalidar();
+    return notasParaQuemVe(resultado);
+  } catch (erro) {
+    console.error("[compras] nota fiscal:", erro);
+    return { ok: false, erro: "Não foi possível anexar a nota fiscal." };
+  }
+}
+
+/** Exclui uma nota (a tela confirma antes, com o nome); devolve a lista atualizada. */
+export async function excluirNotaFiscalAcao(pedidoId, notaId) {
+  const negado = await negarSemAcesso("tela.compras.pedidos", "editar");
+  if (negado) return negado;
+  try {
+    const resultado = await excluirNotaFiscal(String(pedidoId ?? ""), String(notaId ?? ""));
+    if (resultado.ok) revalidar();
+    return notasParaQuemVe(resultado);
+  } catch (erro) {
+    console.error("[compras] nota fiscal:", erro);
+    return { ok: false, erro: "Não foi possível excluir a nota fiscal." };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Compras do Mercado Livre (11/11/2026): o worker le a cada 30 min; o botao da lista le na hora
+// ---------------------------------------------------------------------------
+
+/** "Ler compras do ML": a mesma leitura do worker, agora. Devolve o resumo para o pop-up. */
+export async function lerComprasDoMLAcao() {
+  const negado = await negarSemAcesso("tela.compras.pedidos", "editar");
+  if (negado) return negado;
+  try {
+    const resultado = await lerComprasDoML();
+    if (resultado.ok) revalidar();
+    return resultado;
+  } catch (erro) {
+    console.error("[compras] compras do ML:", erro);
+    return { ok: false, erro: "Não foi possível ler as compras do ML." };
   }
 }

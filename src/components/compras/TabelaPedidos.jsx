@@ -180,10 +180,10 @@ export default function TabelaPedidos({ linhas, status, veCusto, podeExcluir = f
                     <td className="px-2 py-1.5" onClick={(evento) => evento.stopPropagation()}>
                       {(() => {
                         // Pedido do AliExpress nao se apaga: a proxima importacao o recriaria (cancelado fica no historico).
-                        const doAliExpress = linha.origem === "ALIEXPRESS";
+                        const doAliExpress = linha.origem !== "RISE";
                         const pode = PODE_EXCLUIR.includes(linha.status) && !doAliExpress;
                         const motivo = doAliExpress
-                          ? "Pedido do AliExpress não se apaga"
+                          ? `Pedido do ${linha.origem === "MERCADO_LIVRE" ? "Mercado Livre" : "AliExpress"} não se apaga`
                           : pode
                           ? `Excluir ${linha.codigo}`
                           : linha.status === "ENVIADO"

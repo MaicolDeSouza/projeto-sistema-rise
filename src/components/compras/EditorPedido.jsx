@@ -13,6 +13,7 @@ import { lerListaDaTela, pedirVoltaNaRolagem } from "@/lib/ultimaListaDaTela";
 import { AvisosAliExpress, ResumoAliExpress } from "./AliExpressDoPedido";
 import BlocoItens from "./BlocoItens";
 import ComprovantesDePagamento from "./ComprovantesDePagamento";
+import NotasFiscais from "./NotasFiscais";
 import { BlocoFrete, BlocoObservacoes, BlocoPagamento, BlocoProposta, BlocoTotais } from "./BlocosDoPedido";
 import { entradaDoFormulario, formularioDoPedido, totaisDoFormulario } from "./formato";
 import Pergunta from "./Pergunta";
@@ -236,7 +237,7 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
           enviadoEm={pedido.enviadoEm}
           finalizadoEm={pedido.finalizadoEm}
           canceladoEm={pedido.canceladoEm}
-          rotuloEnviado={pedido.aliexpress ? "Comprado no AliExpress" : undefined}
+          rotuloEnviado={pedido.aliexpress ? `Comprado no ${pedido.aliexpress.canal ?? "AliExpress"}` : undefined}
         />
       </div>
 
@@ -311,7 +312,7 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
       <div className="space-y-6">
         {/* O cartao Fornecedor saiu (07/11/2026); no pedido do AliExpress o resumo dele continua num cartao proprio. */}
         {pedido.aliexpress && (
-          <SecaoDoAnuncio titulo="AliExpress">
+          <SecaoDoAnuncio titulo={pedido.aliexpress.canal ?? "AliExpress"}>
             <ResumoAliExpress aliexpress={pedido.aliexpress} />
           </SecaoDoAnuncio>
         )}
@@ -345,6 +346,8 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
           <BlocoPagamento formulario={formulario} editar={!fechado} erros={erros} aoMudar={mudar} totais={veCusto ? totais : null} editarEntrada={!fechado}>
             <ComprovantesDePagamento pedidoId={pedido.id} inicial={pedido.comprovantes ?? []} podeEditar={podeEditar} />
           </BlocoPagamento>
+          {/* Nota fiscal num bloco proprio ao lado de Pagamento (11/11/2026, Opcao 1 do dono). */}
+          <NotasFiscais pedidoId={pedido.id} inicial={pedido.notasFiscais ?? []} podeEditar={podeEditar} />
           <BlocoFrete formulario={formulario} transportadoras={transportadoras} editar={!fechado} aoMudar={mudar} aliexpress={pedido.aliexpress} />
           <BlocoProposta formulario={formulario} editar={!fechado} aoMudar={mudar}>
             {extras.arquivoDaProposta?.({ pedido, editar: !fechado, formulario, mudar })}

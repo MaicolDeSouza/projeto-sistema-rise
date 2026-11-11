@@ -29,7 +29,7 @@ function BotoesDoSite({ aliexpress }) {
   return (
     <div className="mt-3 flex flex-wrap items-start gap-2">
       <a href={aliexpress.linkDoPedido} target="_blank" rel="noreferrer" className={botaoDoSite}>
-        Detalhes do pedido <ExternalLink size={14} />
+        {aliexpress.canal === "Mercado Livre" ? "Minhas compras" : "Detalhes do pedido"} <ExternalLink size={14} />
       </a>
       {produtos.length === 1 && (
         <a href={produtos[0].url} target="_blank" rel="noreferrer" className={botaoDoSite}>
@@ -129,7 +129,7 @@ export function ResumoAliExpress({ aliexpress }) {
     <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-suave">
       {aliexpress.loja && <span>{aliexpress.loja}</span>}
       <a href={aliexpress.linkDoPedido} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-mono text-xs text-texto hover:text-acento">
-        AliExpress {aliexpress.numero} <ExternalLink size={12} />
+        {aliexpress.canal ?? "AliExpress"} {aliexpress.numero} <ExternalLink size={12} />
       </a>
       <span>
         {aliexpress.statusTexto}

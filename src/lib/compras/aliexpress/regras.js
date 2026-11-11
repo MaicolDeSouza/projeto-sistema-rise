@@ -72,18 +72,19 @@ export function situacaoDoAliExpress({ codigo, texto }) {
   return { aberto, entregue, cancelado, aguardandoPagamento };
 }
 
-const AVISO_CANCELADO_COM_ESTOQUE = "Cancelado no AliExpress, mas há estoque lançado.";
+// `canal`: "AliExpress" ou "Mercado Livre" (as compras do ML usam as mesmas tabelas e regras desde 11/11/2026).
+const avisoCanceladoComEstoque = (canal = "AliExpress") => `Cancelado no ${canal}, mas há estoque lançado.`;
 
 /**
  * O status do pedido de compra depois de ler a situacao no AliExpress. So o cancelamento muda alguma coisa, e so
  * quando nada foi lancado: estoque lancado nao some por causa de um reembolso. Entregue nao fecha (o dono confere a
  * caixa e lanca); FINALIZADO e CANCELADO nao voltam.
  */
-export function statusNoRise({ situacao, statusAtual, temLancamento }) {
+export function statusNoRise({ situacao, statusAtual, temLancamento, canal = "AliExpress" }) {
   if (statusAtual === "FINALIZADO" || statusAtual === "CANCELADO") return { status: statusAtual, aviso: null };
   if (situacao?.cancelado) {
     if (!temLancamento) return { status: "CANCELADO", aviso: null };
-    return { status: statusAtual, aviso: AVISO_CANCELADO_COM_ESTOQUE };
+    return { status: statusAtual, aviso: avisoCanceladoComEstoque(canal) };
   }
   return { status: statusAtual, aviso: null };
 }
@@ -94,9 +95,9 @@ export function formatarDataCurta(data) {
 }
 
 /** Os avisos ambar do pedido do AliExpress, na ordem em que a tela os mostra. Nenhum = nada a fazer. */
-export function avisosDoPedido({ entregueEm, canceladoNoAliExpressEm, faltaLancar = 0, estoqueLancado = false, linhasPendentes = 0, virtualErros = 0 }) {
+export function avisosDoPedido({ entregueEm, canceladoNoAliExpressEm, faltaLancar = 0, estoqueLancado = false, linhasPendentes = 0, virtualErros = 0, canal = "AliExpress" }) {
   const avisos = [];
-  if (canceladoNoAliExpressEm && estoqueLancado) avisos.push(AVISO_CANCELADO_COM_ESTOQUE);
+  if (canceladoNoAliExpressEm && estoqueLancado) avisos.push(avisoCanceladoComEstoque(canal));
   if (entregueEm && !canceladoNoAliExpressEm && faltaLancar > 0) avisos.push(`Entregue em ${formatarDataCurta(entregueEm)}, aguardando conferência para lançar o estoque.`);
   if (linhasPendentes > 0) avisos.push(`${linhasPendentes} item(ns) sem produto: escolha o produto para contar no estoque a caminho.`);
   if (virtualErros > 0) avisos.push(`Entrada no depósito Virtual pendente em ${virtualErros} item(ns).`);
@@ -215,7 +216,10 @@ const TEXTO_DE_CONCLUSAO = /conclui|liberad|entregue ao destinatario/;
 const NAO_E_A_ENTREGA = /nao |tentativa|transportador|centro|armazem|agente|correio|operador|parceiro|aeroporto|alfandega|ponto de/;
 export function entregueNoRastreio(evento) {
   if (!evento) return false;
-  if (/DELIVERED|DELIVERY_SUCCESS/i.test(String(evento.codigo ?? ""))) return true;
+  const codigo = String(evento.codigo ?? "");
+  // "ML_not_delivered" (envio do Mercado Livre que nao chegou) tambem tem "delivered" no nome.
+  if (/NOT_DELIVERED/i.test(codigo)) return false;
+  if (/DELIVERED|DELIVERY_SUCCESS/i.test(codigo)) return true;
   const texto = semAcento(evento.descricao);
   return /\bentregue\b/.test(texto) && !NAO_E_A_ENTREGA.test(texto);
 }
@@ -248,6 +252,11 @@ const FASES = {
 // transportadora no Brasil (TD, GTMS_ACCEPT), alfandega (CC_IM_START), liberado (CC_IM_SUCCESS, GTMS_SC_DEPART),
 // entrega (GTMS_DELIVERING, GTMS_SIGNED). A primeira regra que casa vence.
 const FASE_POR_CODIGO = [
+  // Mercado Livre (11/11/2026): `ML_<status do envio>[_<substatus>]`, gravado pela leitura das compras do ML.
+  [/^ML_shipped_out_for_delivery/, "saiu"],
+  [/^ML_shipped/, "transito"],
+  [/^ML_ready_to_ship_(picked_up|dropped_off|in_hub|in_warehouse)/, "postado"],
+  [/^ML_/, "envio"],
   [/^AE_GTMS_SIGNED/, "entregue"],
   [/^AE_GTMS_DELIVERING/, "saiu"],
   [/^AE_CC_IM_START/, "alfandega"],
@@ -332,7 +341,7 @@ export function faseDoPedido({
   const com = (rotulo, tom) => ({ rotulo, tom, detalhe });
   const atrasado = Boolean(prazoFim) && faltaLancar > 0 && diaEmSaoPaulo(agora) > diaEmSaoPaulo(prazoFim);
 
-  if (origem !== "ALIEXPRESS") {
+  if (origem !== "ALIEXPRESS" && origem !== "MERCADO_LIVRE") {
     if (atrasado) return com("Atrasado", "problema");
     return status === "PARCIAL" ? com("Recebido em parte", "parcial") : com("Aguardando entrega", "neutro");
   }
@@ -407,6 +416,7 @@ export function alertasDoPedido({
   ultimosEventos = [],
   statusNoAliExpress = null,
   rastreioLidoEm = null,
+  canal = "AliExpress",
 }) {
   if (status !== "ENVIADO" && status !== "PARCIAL") return [];
   const alertas = [];
@@ -423,9 +433,9 @@ export function alertasDoPedido({
   if (parado) alertas.push(`Rastreio sem atualização desde ${formatarDataCurta(parado)}.`);
   const situacao = semAcento(statusNoAliExpress);
   if (situacao && /disputa|reembols|cancelad|fechad/.test(situacao) && !(canceladoNoAliExpressEm && estoqueLancado)) {
-    alertas.push(`Situação no AliExpress: ${statusNoAliExpress}.`);
+    alertas.push(`Situação no ${canal}: ${statusNoAliExpress}.`);
   }
   // Entregue nao e "!": a Situacao ja diz "Aguardando conferencia" (pedido do dono em 04/11/2026).
-  alertas.push(...avisosDoPedido({ entregueEm: null, canceladoNoAliExpressEm, faltaLancar, estoqueLancado, linhasPendentes }));
+  alertas.push(...avisosDoPedido({ entregueEm: null, canceladoNoAliExpressEm, faltaLancar, estoqueLancado, linhasPendentes, canal }));
   return alertas;
 }

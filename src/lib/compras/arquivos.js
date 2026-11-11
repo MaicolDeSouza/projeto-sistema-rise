@@ -3,6 +3,7 @@ import { mkdir, rename, rm, writeFile, copyFile } from "node:fs/promises";
 import path from "node:path";
 
 import { RAIZ_TEMPORARIA, limparTemporariosAntigos, loteValido } from "@/lib/arquivos";
+import { pareceXml } from "@/lib/compras/notaFiscalXml";
 
 /**
  * O arquivo da proposta do fornecedor (o orcamento que ele mandou). Como os documentos do produto: o envio vai para o
@@ -105,4 +106,35 @@ export async function guardarComprovante(pedidoId, arquivo) {
 export async function apagarComprovanteDoDisco(pedidoId, nome) {
   if (!nome) return;
   await rm(caminhoDoComprovante(pedidoId, nome), { force: true });
+}
+
+// ---- Notas fiscais (11/11/2026) ----
+// Como os comprovantes (direto na pasta do pedido, na hora), mais o XML da NF-e, que o Rise le (`notaFiscalXml.js`).
+
+const PASTA_DAS_NOTAS = "notas";
+const NOME_DA_NOTA = /^[0-9a-f]{32}\.(pdf|jpg|png|xml)$/;
+
+export function caminhoDaNotaFiscal(pedidoId, nome) {
+  if (!ID_DO_PEDIDO.test(pedidoId ?? "") || !NOME_DA_NOTA.test(nome ?? "")) throw new Error("Caminho de nota fiscal inválido.");
+  return path.join(RAIZ_COMPRAS, pedidoId, PASTA_DAS_NOTAS, nome);
+}
+
+/** Grava uma nota na pasta do pedido: PDF, JPG, PNG ou XML (conferidos pelos BYTES), ate 20 MB. Devolve os bytes do XML. */
+export async function guardarNotaFiscal(pedidoId, arquivo) {
+  if (!ID_DO_PEDIDO.test(pedidoId ?? "")) return { ok: false, erro: "Pedido inválido." };
+  if (!arquivo || typeof arquivo.arrayBuffer !== "function" || !arquivo.size) return { ok: false, erro: "Nenhum arquivo enviado." };
+  if (arquivo.size > TAMANHO_MAXIMO) return { ok: false, erro: `O arquivo tem ${(arquivo.size / 1024 / 1024).toFixed(1)} MB; o limite é 20 MB.` };
+  const bytes = Buffer.from(await arquivo.arrayBuffer());
+  const formato = ASSINATURAS.find((assinatura) => assinatura.confere(bytes))?.extensao ?? (pareceXml(bytes) ? ".xml" : null);
+  if (!formato) return { ok: false, erro: "Envie a nota em PDF, XML, JPG ou PNG." };
+  const nome = `${randomUUID().replaceAll("-", "")}${formato}`;
+  const destino = caminhoDaNotaFiscal(pedidoId, nome);
+  await mkdir(path.dirname(destino), { recursive: true });
+  await writeFile(destino, bytes);
+  return { ok: true, nome, nomeOriginal: String(arquivo.name ?? "").slice(0, 200) || null, xml: formato === ".xml" ? bytes.toString("utf8") : null };
+}
+
+export async function apagarNotaFiscalDoDisco(pedidoId, nome) {
+  if (!nome) return;
+  await rm(caminhoDaNotaFiscal(pedidoId, nome), { force: true });
 }

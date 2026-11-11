@@ -64,6 +64,7 @@
     "teste:pedidos": "node scripts/teste-pedidos.js",
     "pedidos:conferir-mp": "node scripts/conferir-mercado-pago.js",
     "teste:aliexpress": "node scripts/teste-aliexpress.js",
+    "teste:compras-ml": "node scripts/teste-compras-ml.js",
     "teste:extensao-aliexpress": "node scripts/teste-extensao-aliexpress.js",
     "teste:licencas": "node scripts/teste-licencas.js",
     "teste:extensao-lightburn": "node scripts/teste-extensao-lightburn.js",

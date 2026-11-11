@@ -23,17 +23,52 @@ import { entradaNoVirtual, saidaDoVirtual } from "./virtual";
 const ERRO_COM_ESTOQUE = "Já há estoque lançado deste item: não dá para trocar.";
 const FECHADOS = ["FINALIZADO", "CANCELADO"];
 
-/** Os produtos candidatos a uma linha (regras 1 e 2). */
-export async function candidatosDaLinha(tx, { productId, skuId }) {
-  const ali = await fornecedorDoAliExpress(tx);
-  const vinculo = ali
+/** As origens importadas que usam estas tabelas (o Mercado Livre desde 11/11/2026). */
+export const ORIGENS_IMPORTADAS = ["ALIEXPRESS", "MERCADO_LIVRE"];
+
+/** O nome do canal no texto do Bling e da tela. */
+export const nomeDoCanal = (origem) => (origem === "MERCADO_LIVRE" ? "Mercado Livre" : "AliExpress");
+
+/**
+ * Os candidatos de uma compra do Mercado Livre pelo anuncio (MLB): o mesmo MLB no link, no codigo ou na descricao de um
+ * vinculo de qualquer fornecedor, ou no fornecedor em rascunho do Bling. O link do anuncio escreve "MLB-123..." e a API
+ * "MLB123..."; os dois contam. A variacao nao vem no link: candidato sem variacao.
+ */
+async function candidatosDoML(tx, mlb) {
+  const numero = String(mlb ?? "").replace(/^MLB-?/i, "");
+  if (!/^\d{6,}$/.test(numero)) return [];
+  const formas = [`MLB${numero}`, `MLB-${numero}`];
+  // O numero inteiro: MLB123 nao pode casar dentro de MLB1234.
+  const casa = (texto) => formas.some((forma) => new RegExp(`${forma}(?![0-9])`, "i").test(String(texto ?? "")));
+  const candidatos = [];
+  const vinculos = await tx.produtoFornecedor.findMany({
+    where: { OR: formas.flatMap((forma) => [{ link: { contains: forma, mode: "insensitive" } }, { descricao: { contains: forma, mode: "insensitive" } }, { codigo: { contains: forma, mode: "insensitive" } }]) },
+    select: { produtoId: true, link: true, descricao: true, codigo: true },
+  });
+  for (const linha of vinculos) if (casa(linha.link) || casa(linha.descricao) || casa(linha.codigo)) candidatos.push({ produtoId: linha.produtoId, origem: "vinculo", skuId: null });
+  const rascunhos = await tx.produto.findMany({
+    where: { OR: formas.map((forma) => ({ fornecedorRascunho: { path: ["descricao"], string_contains: forma } })) },
+    select: { id: true, fornecedorRascunho: true },
+  });
+  for (const produto of rascunhos) if (casa(produto.fornecedorRascunho?.descricao)) candidatos.push({ produtoId: produto.id, origem: "rascunho", skuId: null });
+  return candidatos;
+}
+
+/**
+ * Os produtos candidatos a uma linha (regras 1 e 2). `fornecedorId` e `origem` sao os do pedido: a regra 1 procura o
+ * vinculo do fornecedor do PEDIDO (o "Ali" ou o "ML"), e a regra 2 le o link do canal dele.
+ */
+export async function candidatosDaLinha(tx, { productId, skuId }, { fornecedorId = null, origem = "ALIEXPRESS" } = {}) {
+  const fornecedor = fornecedorId ? { id: fornecedorId } : await fornecedorDoAliExpress(tx);
+  const vinculo = fornecedor
     ? await tx.produtoFornecedor.findFirst({
-        where: { fornecedorId: ali.id, codigo: codigoDoVinculo(productId, skuId) },
+        where: { fornecedorId: fornecedor.id, codigo: codigoDoVinculo(productId, skuId) },
         orderBy: { criadoEm: "asc" },
         select: { id: true, produtoId: true, fator: true },
       })
     : null;
   if (vinculo) return { vinculo, candidatos: [] };
+  if (origem === "MERCADO_LIVRE") return { vinculo: null, candidatos: await candidatosDoML(tx, productId) };
 
   const trecho = `/item/${productId}.`;
   const candidatos = [];
@@ -118,7 +153,7 @@ async function gravarVinculo(tx, { aliId, produtoId, codigo, linha, fator, preco
 export async function casarLinha(tx, linhaId, escolha = null) {
   const linha = await tx.linhaAliExpress.findUnique({
     where: { id: linhaId },
-    include: { pedidoAliExpress: { include: { pedido: { select: { id: true, fornecedorId: true, fornecedor: { select: { prazoEntregaDias: true } } } } } } },
+    include: { pedidoAliExpress: { include: { pedido: { select: { id: true, origem: true, fornecedorId: true, fornecedor: { select: { prazoEntregaDias: true } } } } } } },
   });
   if (!linha) return { ok: false, pendente: true, motivo: "sem_produto" };
   if (linha.itemId) return { ok: true, itemId: linha.itemId, produtoId: null, fator: linha.fator, criouItem: false };
@@ -129,7 +164,7 @@ export async function casarLinha(tx, linhaId, escolha = null) {
     produtoId = escolha.produtoId;
     fator = escolha.fator;
   } else {
-    const { vinculo, candidatos } = await candidatosDaLinha(tx, linha);
+    const { vinculo, candidatos } = await candidatosDaLinha(tx, linha, { fornecedorId: linha.pedidoAliExpress.pedido.fornecedorId, origem: linha.pedidoAliExpress.pedido.origem });
     if (vinculo) {
       produtoId = vinculo.produtoId;
       fator = vinculo.fator ?? 1;
@@ -183,7 +218,7 @@ export async function casarLinha(tx, linhaId, escolha = null) {
 async function dadosDoVirtual(tx, linhaId) {
   const linha = await tx.linhaAliExpress.findUnique({
     where: { id: linhaId },
-    include: { item: { select: { produto: { select: { sku: true, blingId: true } } } }, pedidoAliExpress: { select: { externoId: true } } },
+    include: { item: { select: { produto: { select: { sku: true, blingId: true } } } }, pedidoAliExpress: { select: { externoId: true, pedido: { select: { origem: true } } } } },
   });
   if (!linha?.item) return null;
   return {
@@ -191,7 +226,7 @@ async function dadosDoVirtual(tx, linhaId) {
     sku: linha.item.produto.sku,
     blingId: linha.item.produto.blingId,
     quantidade: quantidadeNoRise(linha.quantidadeComprada, linha.fator),
-    observacao: `AliExpress ${linha.pedidoAliExpress.externoId}`,
+    observacao: `${nomeDoCanal(linha.pedidoAliExpress.pedido?.origem)} ${linha.pedidoAliExpress.externoId}`,
   };
 }
 
@@ -305,7 +340,7 @@ export async function virtualNaChegada(itemId, quantidade, sentido, { cliente = 
       linhasAliExpress: { orderBy: { quantidadeComprada: "desc" }, select: { id: true, virtualQuantidade: true, virtualLancadoEm: true, quantidadeComprada: true, fator: true } },
     },
   });
-  if (!item || item.pedido.origem !== "ALIEXPRESS") return null;
+  if (!item || !ORIGENS_IMPORTADAS.includes(item.pedido.origem)) return null;
   const linhas = item.linhasAliExpress.filter((linha) => linha.virtualLancadoEm);
   if (linhas.length === 0) return { ok: true, enviado: false };
 
@@ -314,7 +349,7 @@ export async function virtualNaChegada(itemId, quantidade, sentido, { cliente = 
   const total = Math.min(Number(quantidade) || 0, linhas.reduce((soma, linha) => soma + Math.max(0, cabe(linha)), 0));
   if (total <= 0) return { ok: true, enviado: false };
 
-  const dados = { sku: item.produto.sku, blingId: item.produto.blingId, quantidade: total, observacao: `AliExpress ${item.pedido.aliexpress?.externoId ?? ""} · ${sentido === "saida" ? "chegada" : "desfeito"}` };
+  const dados = { sku: item.produto.sku, blingId: item.produto.blingId, quantidade: total, observacao: `${nomeDoCanal(item.pedido.origem)} ${item.pedido.aliexpress?.externoId ?? ""} · ${sentido === "saida" ? "chegada" : "desfeito"}` };
   const resultado = sentido === "saida" ? await saidaDoVirtual(dados, { cliente }) : await entradaNoVirtual(dados, { cliente });
   if (!resultado.ok) {
     await prisma.linhaAliExpress.update({ where: { id: linhas[0].id }, data: { virtualErro: resultado.erro } });
@@ -355,7 +390,7 @@ export async function atualizarCustoDosVinculos(tx, pedidoId) {
       aliexpress: { select: { dataDoPedido: true, linhas: { select: { quantidadeComprada: true, precoComprado: true } } } },
     },
   });
-  if (!pedido || pedido.origem !== "ALIEXPRESS" || !pedido.aliexpress || pedido.status === "CANCELADO") return;
+  if (!pedido || !ORIGENS_IMPORTADAS.includes(pedido.origem) || !pedido.aliexpress || pedido.status === "CANCELADO") return;
   const itens = pedido.itens.map((item) => ({ ...item, precoUnitario: item.precoUnitario === null ? null : Number(item.precoUnitario) }));
   const produtos = pedido.aliexpress.linhas.reduce((soma, linha) => soma + linha.quantidadeComprada * Number(linha.precoComprado), 0);
   const { desconto } = totaisDoPedido({ itens, descontoTipo: pedido.descontoTipo, descontoValor: Number(pedido.descontoValor) });
@@ -366,7 +401,7 @@ export async function atualizarCustoDosVinculos(tx, pedidoId) {
     const vinculo = await tx.produtoFornecedor.findUnique({ where: { id: item.vinculoId }, select: { id: true, fornecedorId: true, adicionaisValor: true, fator: true } });
     if (!vinculo || vinculo.fornecedorId !== pedido.fornecedorId) continue;
     const maisNovo = await tx.itemDoPedidoDeCompra.count({
-      where: { vinculoId: vinculo.id, pedido: { origem: "ALIEXPRESS", status: { not: "CANCELADO" }, aliexpress: { dataDoPedido: { gt: pedido.aliexpress.dataDoPedido } } } },
+      where: { vinculoId: vinculo.id, pedido: { origem: pedido.origem, status: { not: "CANCELADO" }, aliexpress: { dataDoPedido: { gt: pedido.aliexpress.dataDoPedido } } } },
     });
     if (maisNovo > 0) continue;
     const custo = custos[item.id];

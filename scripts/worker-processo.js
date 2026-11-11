@@ -62,6 +62,7 @@ const { rodarAvisosDoTelegram, AVISOS_TELEGRAM_MS } = await import("../src/lib/t
 const { registrarRotina, registrarMemoria } = await import("../src/lib/saude/registro.js");
 const { rodarLeituraDePedidos, processarNotificacoes } = await import("../src/lib/pedidos/leitura.js");
 const { recalcularPecasDosPedidosAbertos } = await import("../src/lib/pedidos/banco.js");
+const { lerComprasDoML } = await import("../src/lib/compras/mercadoLivre/compras.js");
 
 /// Os avisos do Telegram (Rise AI, Entrega C1): a cada minuto, so o worker normal. A rotina nao faz nada com o bot
 /// desligado, sem token ou sem ninguem vinculado, e nunca lanca.
@@ -80,6 +81,10 @@ let concorrentesRelidosEm = 0;
 /// cada origem. So LEITURA. So o worker normal: o do PC grava no banco da VPS e nao pode se passar por ele.
 const LER_PEDIDOS_MS = 5 * 60 * 1000;
 let pedidosLidosEm = 0;
+/// As compras que a conta da loja faz no Mercado Livre (11/11/2026, spec 2026-11-11-compras-do-mercado-livre): a cada 30
+/// min viram pedidos de compra do fornecedor "ML". So LEITURA no ML; no Bling, so o deposito Virtual. So o worker normal.
+const LER_COMPRAS_ML_MS = 30 * 60 * 1000;
+let comprasMLLidasEm = 0;
 /// Anuncios do ML publicados sem estoque (pausados, `aguardandoEstoque`): de hora em hora o worker os ativa quando o ML
 /// ja mostra estoque (Opcao 2 do dono em 24/10/2026). Escreve no ML (passa pelas travas). So o worker normal.
 const ATIVA_AGUARDANDO_ESTOQUE_MS = 60 * 60 * 1000;
@@ -589,6 +594,13 @@ async function laco() {
         if (pedidos.reconferirErros?.length > 0) logErro(`pedidos de venda: reconferir falhou: ${pedidos.reconferirErros.join("; ")}`);
         if (pedidos.mercadoPagoConferidos > 0) log(`pedidos de venda: ${pedidos.mercadoPagoConferidos} conferido(s) no Mercado Pago`);
         if (pedidos.mercadoPagoErros?.length > 0) logErro(`pedidos de venda: Mercado Pago nao conferido: ${pedidos.mercadoPagoErros.join("; ")}`);
+      }
+      if (!FONTES && !SO_NO_PC && Date.now() - comprasMLLidasEm >= LER_COMPRAS_ML_MS) {
+        comprasMLLidasEm = Date.now();
+        const compras = await rodarRotina("comprasML", LER_COMPRAS_ML_MS, () => lerComprasDoML());
+        if (compras.ok === false) logErro(`compras do ML nao lidas: ${compras.erro}`);
+        else if (compras.novas > 0 || compras.pendentes > 0 || compras.virtualPendentes > 0) log(`compras do ML: ${compras.lidas} lida(s), ${compras.novas} nova(s), ${compras.pendentes} sem produto, ${compras.virtualPendentes} sem Virtual`);
+        for (const aviso of compras.avisos ?? []) log(`compras do ML: ${aviso}`);
       }
       // A fila dos webhooks (fase 2): a cada volta, para a venda nova aparecer em segundos e nao em ate 5 min. A linha
       // que falha conta tentativa e desiste na 5a; a rotina acima continua cobrindo o pedido.

@@ -19,7 +19,9 @@ import {
 } from "@/lib/compras/regras";
 import { conferirPedido } from "@/lib/compras/esquema";
 import { alertasDoPedido, avisosDoPedido, diasAte, entregaPeloRastreio, faseDoPedido, prazoDoPedido, previsaoEmDatas } from "@/lib/compras/aliexpress/regras";
-import { apagarComprovanteDoDisco, apagarPastaDoPedido, apagarPropostaDoPedido, guardarComprovante, moverPropostaParaPedido } from "@/lib/compras/arquivos";
+import { apagarComprovanteDoDisco, apagarNotaFiscalDoDisco, apagarPastaDoPedido, apagarPropostaDoPedido, guardarComprovante, guardarNotaFiscal, moverPropostaParaPedido } from "@/lib/compras/arquivos";
+import { lerXmlDaNfe } from "@/lib/compras/notaFiscalXml";
+import { nomeDoCanal } from "@/lib/compras/aliexpress/casamento";
 
 /**
  * Banco do modulo Compras (spec 2026-10-26-modulo-compras-design.md). Sem conferencia de acesso: quem chama (as
@@ -221,8 +223,9 @@ export async function proximoNumero(tx) {
 /** O rascunho aberto do fornecedor, ou um novo. Sob a trava do fornecedor: nunca dois rascunhos do mesmo. */
 async function rascunhoDoFornecedor(tx, fornecedorId) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`compras.rascunho.${fornecedorId}`}))`;
+  // So o rascunho feito no Rise: a compra do ML aguardando pagamento tambem e RASCUNHO e nao recebe a reposicao (11/11/2026).
   const aberto = await tx.pedidoDeCompra.findFirst({
-    where: { fornecedorId, status: "RASCUNHO" },
+    where: { fornecedorId, status: "RASCUNHO", origem: "RISE" },
     orderBy: { numero: "asc" },
     select: { id: true, numero: true },
   });
@@ -452,6 +455,7 @@ function pedidoParaTela(pedido) {
     propostaArquivo: pedido.propostaArquivo,
     propostaNomeOriginal: pedido.propostaNomeOriginal,
     comprovantes: (pedido.comprovantes ?? []).map((c) => ({ id: c.id, nomeOriginal: c.nomeOriginal, enviadoEm: c.enviadoEm, enviadoPor: c.enviadoPor })),
+    notasFiscais: (pedido.notasFiscais ?? []).map(notaParaTela),
     observacoes: pedido.observacoes,
     observacoesFornecedor: pedido.observacoesFornecedor,
     enviadoEm: pedido.enviadoEm,
@@ -462,7 +466,7 @@ function pedidoParaTela(pedido) {
     itens,
     totais: totaisDoPedido({ itens, ...editaveis }),
     origem: pedido.origem,
-    aliexpress: blocoDoAliExpress(pedido.aliexpress),
+    aliexpress: blocoDoAliExpress(pedido.aliexpress, pedido.origem),
     // Os avisos ambar do pedido do AliExpress: os mesmos motivos do "!" da lista (atraso, rastreio, situacao la, sem
     // produto, entregue) mais o Virtual pendente, que so a tela do pedido resolve.
     avisos: pedido.aliexpress
@@ -474,6 +478,7 @@ function pedidoParaTela(pedido) {
             canceladoNoAliExpressEm: pedido.aliexpress.canceladoNoAliExpressEm,
             faltaLancar: ["ENVIADO", "PARCIAL"].includes(pedido.status) ? itens.reduce((soma, item) => soma + faltaLancar(item), 0) : 0,
             virtualErros: pedido.aliexpress.linhas.filter((linha) => linha.virtualErro).length,
+            canal: nomeDoCanal(pedido.origem),
           }),
         ]
       : [],
@@ -503,6 +508,7 @@ function motivosDoPedido(pedido, itens) {
     ultimosEventos: (ali?.pacotes ?? []).map((pacote) => ({ codigo: pacote.ultimoCodigo, descricao: pacote.ultimoEvento, em: pacote.ultimoEventoEm })),
     statusNoAliExpress: ali?.statusTexto ?? null,
     rastreioLidoEm: ali?.rastreioLidoEm ?? null,
+    canal: nomeDoCanal(pedido.origem),
   });
   const fase = faseDoPedido({
     origem: pedido.origem,
@@ -517,8 +523,22 @@ function motivosDoPedido(pedido, itens) {
   return { prazo, alertas, fase };
 }
 
-/** O que a tela mostra do AliExpress: cabecalho, linhas sem produto, opcao e rastreio por item, Virtual pendente. */
-function blocoDoAliExpress(ali) {
+/** Os enderecos do pedido e do rastreio no canal. ML: a lista de compras (a pagina da compra pede login e muda de formato) e,
+ * com codigo dos Correios, o rastreio deles. */
+function linksDoCanal(ali, origem) {
+  if (origem !== "MERCADO_LIVRE") {
+    return {
+      linkDoPedido: `https://www.aliexpress.com/p/order/detail.html?orderId=${ali.externoId}`,
+      linkDoRastreio: `https://www.aliexpress.com/p/tracking/index.html?tradeOrderId=${ali.externoId}`,
+    };
+  }
+  const correios = (ali.pacotes ?? []).map((pacote) => pacote.codigo).find((codigo) => /^[A-Z]{2}\d{9}[A-Z]{2}$/.test(codigo ?? ""));
+  const compras = "https://myaccount.mercadolivre.com.br/my_purchases/list";
+  return { linkDoPedido: compras, linkDoRastreio: correios ? `https://rastreamento.correios.com.br/app/index.php?objeto=${correios}` : compras };
+}
+
+/** O que a tela mostra do AliExpress (e da compra do ML): cabecalho, linhas sem produto, opcao e rastreio por item, Virtual pendente. */
+function blocoDoAliExpress(ali, origem = "ALIEXPRESS") {
   if (!ali) return null;
   const opcaoPorItem = {};
   const rastreioPorItem = {};
@@ -546,8 +566,8 @@ function blocoDoAliExpress(ali) {
     dataDoPedido: ali.dataDoPedido,
     entregueEm: ali.entregueEm,
     canceladoNoAliExpressEm: ali.canceladoNoAliExpressEm,
-    linkDoPedido: `https://www.aliexpress.com/p/order/detail.html?orderId=${ali.externoId}`,
-    linkDoRastreio: `https://www.aliexpress.com/p/tracking/index.html?tradeOrderId=${ali.externoId}`,
+    canal: nomeDoCanal(origem),
+    ...linksDoCanal(ali, origem),
     linhasPendentes: ali.linhas
       .filter((linha) => !linha.itemId)
       .map((linha) => ({
@@ -597,6 +617,8 @@ const INCLUIR_NO_PEDIDO = {
   transportadora: { select: { id: true, nome: true, nomeFantasia: true, urlRastreamento: true } },
   // Comprovantes de pagamento (09/11/2026), do mais antigo ao mais novo.
   comprovantes: { orderBy: { enviadoEm: "asc" }, select: { id: true, nomeOriginal: true, enviadoEm: true, enviadoPor: true } },
+  // Notas fiscais (11/11/2026), da mais antiga a mais nova.
+  notasFiscais: { orderBy: { enviadoEm: "asc" }, select: { id: true, nomeOriginal: true, arquivo: true, numero: true, serie: true, chave: true, emitidaEm: true, valorTotal: true, emitenteNome: true, enviadoEm: true, enviadoPor: true } },
   itens: {
     orderBy: { ordem: "asc" },
     include: {
@@ -655,6 +677,11 @@ export async function listarPedidos({ status, busca, pagina = 1, porPagina = 25,
             { itens: { some: { nomeNoFornecedor: { contains: texto, mode: "insensitive" } } } },
             { itens: { some: { codigoNoFornecedor: { contains: texto, mode: "insensitive" } } } },
             { aliexpress: { linhas: { some: { titulo: { contains: texto, mode: "insensitive" } } } } },
+            // Pelo rastreio (pedido do dono em 11/11/2026): o digitado no pedido, os pacotes do AliExpress e o envio do ML
+            // (o mesmo pacote em dois pedidos do AliExpress traz os dois). E pela nota fiscal: numero e chave lidos do XML.
+            { rastreio: { contains: texto, mode: "insensitive" } },
+            { aliexpress: { pacotes: { some: { OR: [{ codigo: { contains: texto, mode: "insensitive" } }, { codigoOrigem: { contains: texto, mode: "insensitive" } }] } } } },
+            { notasFiscais: { some: { OR: [{ numero: texto.replace(/^0+(?=\d)/, "") }, { chave: { contains: texto.replace(/\s/g, "") } }] } } },
           ],
         }
       : {}),
@@ -954,8 +981,10 @@ export async function excluirPedido(id) {
   const pedidoId = String(id ?? "");
   try {
     const resultado = await prisma.$transaction(async (tx) => {
-      const [linha] = await tx.$queryRaw`SELECT "status"::text AS "status", "numero" FROM "PedidoDeCompra" WHERE "id" = ${pedidoId} FOR UPDATE`;
+      const [linha] = await tx.$queryRaw`SELECT "status"::text AS "status", "numero", "origem"::text AS "origem" FROM "PedidoDeCompra" WHERE "id" = ${pedidoId} FOR UPDATE`;
       if (!linha) return { ok: false, erro: "Pedido não encontrado. Ele pode já ter sido excluído." };
+      // Importado (AliExpress, Mercado Livre) nao se apaga: a proxima leitura o recriaria; cancelado fica no historico.
+      if (linha.origem !== "RISE") return { ok: false, erro: "Pedido importado não se apaga: a próxima leitura o recriaria." };
       if (!PODE_EXCLUIR.includes(linha.status)) {
         return {
           ok: false,
@@ -1002,9 +1031,9 @@ export async function mudarStatus(id, para) {
         // dois rascunhos do mesmo fornecedor, senao a reposicao automatica escolheria um deles sem o dono saber.
         if (itens.some((item) => item.lancamentos.length)) return { ok: false, erro: "Já há estoque lançado: o pedido não volta para rascunho." };
         const doAliExpress = await tx.pedidoAliExpress.count({ where: { pedidoId: id } });
-        if (doAliExpress) return { ok: false, erro: "Pedido do AliExpress não volta para rascunho." };
+        if (doAliExpress) return { ok: false, erro: "Pedido importado do AliExpress ou do Mercado Livre não volta para rascunho." };
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`compras.rascunho.${linha.fornecedorId}`}))`;
-        const outro = await tx.pedidoDeCompra.findFirst({ where: { fornecedorId: linha.fornecedorId, status: "RASCUNHO" }, select: { numero: true } });
+        const outro = await tx.pedidoDeCompra.findFirst({ where: { fornecedorId: linha.fornecedorId, status: "RASCUNHO", origem: "RISE" }, select: { numero: true } });
         if (outro) return { ok: false, erro: `${numeroDoPedido(outro.numero)} já é o rascunho deste fornecedor: envie ou exclua esse antes.` };
         await tx.pedidoDeCompra.update({ where: { id }, data: { status: "RASCUNHO", enviadoEm: null } });
       } else if (para === "CANCELADO") {
@@ -1061,4 +1090,72 @@ export async function excluirComprovante(pedidoId, comprovanteId) {
   await prisma.comprovanteDePagamentoCompra.delete({ where: { id: comprovante.id } });
   await apagarComprovanteDoDisco(comprovante.pedidoId, comprovante.arquivo).catch((erro) => console.error("[compras] comprovante não apagado do disco:", erro.message));
   return { ok: true, comprovantes: await comprovantesDoPedido(comprovante.pedidoId) };
+}
+
+// ---- Notas fiscais (pedido do dono em 11/11/2026) ----
+
+/** A lista de notas do pedido, para a tela (da mais antiga a mais nova), com o que foi lido do XML. */
+async function notasDoPedido(pedidoId) {
+  const notas = await prisma.notaFiscalCompra.findMany({
+    where: { pedidoId },
+    orderBy: { enviadoEm: "asc" },
+    select: { id: true, nomeOriginal: true, arquivo: true, numero: true, serie: true, chave: true, emitidaEm: true, valorTotal: true, emitenteNome: true, enviadoEm: true, enviadoPor: true },
+  });
+  return notas.map(notaParaTela);
+}
+
+function notaParaTela(nota) {
+  return {
+    id: nota.id,
+    nomeOriginal: nota.nomeOriginal,
+    xml: nota.arquivo.endsWith(".xml"),
+    numero: nota.numero,
+    serie: nota.serie,
+    chave: nota.chave,
+    emitidaEm: nota.emitidaEm,
+    valorTotal: nota.valorTotal === null ? null : Number(nota.valorTotal),
+    emitenteNome: nota.emitenteNome,
+    enviadoEm: nota.enviadoEm,
+    enviadoPor: nota.enviadoPor,
+  };
+}
+
+/**
+ * Anexa uma nota fiscal ao pedido, em qualquer situacao. O XML da NF-e e lido na hora (numero, serie, chave, emissao, valor,
+ * emitente); XML que nao e NF-e e recusado. A mesma chave duas vezes no mesmo pedido e recusada. Grava o arquivo e depois a
+ * linha; se a linha falhar, o arquivo sai. Devolve a lista atualizada.
+ */
+export async function anexarNotaFiscal(pedidoId, arquivo, quem = null) {
+  const pedido = await prisma.pedidoDeCompra.findUnique({ where: { id: String(pedidoId ?? "") }, select: { id: true } });
+  if (!pedido) return { ok: false, erro: "Pedido não encontrado." };
+  const guardado = await guardarNotaFiscal(pedido.id, arquivo);
+  if (!guardado.ok) return guardado;
+  const lido = guardado.xml === null ? null : lerXmlDaNfe(guardado.xml);
+  const recusar = async (erro) => {
+    await apagarNotaFiscalDoDisco(pedido.id, guardado.nome).catch(() => {});
+    return { ok: false, erro };
+  };
+  if (guardado.xml !== null && !lido) return recusar("O XML não é de uma NF-e.");
+  if (lido?.chave && (await prisma.notaFiscalCompra.count({ where: { pedidoId: pedido.id, chave: lido.chave } }))) return recusar(`A nota ${lido.numero ?? lido.chave} já está neste pedido.`);
+  try {
+    await prisma.notaFiscalCompra.create({
+      data: { pedidoId: pedido.id, arquivo: guardado.nome, nomeOriginal: guardado.nomeOriginal, enviadoPor: quem, ...(lido ?? {}) },
+    });
+  } catch (erro) {
+    await apagarNotaFiscalDoDisco(pedido.id, guardado.nome).catch(() => {});
+    throw erro;
+  }
+  return { ok: true, notas: await notasDoPedido(pedido.id) };
+}
+
+/** Exclui uma nota do pedido (a linha e o arquivo). Devolve a lista atualizada. */
+export async function excluirNotaFiscal(pedidoId, notaId) {
+  const nota = await prisma.notaFiscalCompra.findFirst({
+    where: { id: String(notaId ?? ""), pedidoId: String(pedidoId ?? "") },
+    select: { id: true, pedidoId: true, arquivo: true },
+  });
+  if (!nota) return { ok: false, erro: "Nota fiscal não encontrada." };
+  await prisma.notaFiscalCompra.delete({ where: { id: nota.id } });
+  await apagarNotaFiscalDoDisco(nota.pedidoId, nota.arquivo).catch((erro) => console.error("[compras] nota fiscal não apagada do disco:", erro.message));
+  return { ok: true, notas: await notasDoPedido(nota.pedidoId) };
 }

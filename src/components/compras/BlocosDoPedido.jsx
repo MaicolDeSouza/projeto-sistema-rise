@@ -180,7 +180,10 @@ const dataCurta = (valor) =>
 function FreteDoAliExpress({ aliexpress }) {
   const pacotes = aliexpress.pacotes ?? [];
   return (
-    <SecaoDoAnuncio titulo="Frete" ajuda="Vem do AliExpress a cada Enviar ao Rise. O código abre o rastreio no site.">
+    <SecaoDoAnuncio
+      titulo="Frete"
+      ajuda={aliexpress.canal === "Mercado Livre" ? "Vem do Mercado Livre a cada 30 min (ou no Ler compras do ML)." : "Vem do AliExpress a cada Enviar ao Rise. O código abre o rastreio no site."}
+    >
       {pacotes.length === 0 ? (
         <p className="text-sm text-suave">Sem rastreio ainda.</p>
       ) : (

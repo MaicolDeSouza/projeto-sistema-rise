@@ -1,3 +1,4 @@
+import BotaoLerComprasML from "@/components/compras/BotaoLerComprasML";
 import TabelaPedidos, { BotaoNovoPedido } from "@/components/compras/TabelaPedidos";
 import NavegacaoDoTopo from "@/components/mercados/NavegacaoDoTopo";
 import Paginacao from "@/components/mercados/Paginacao";
@@ -36,7 +37,7 @@ export default async function PedidosPage({ searchParams }) {
         .findMany({
           where: { ativo: true },
           orderBy: { nome: "asc" },
-          select: { id: true, nome: true, pedidosDeCompra: { where: { status: "RASCUNHO" }, select: { id: true }, take: 1 } },
+          select: { id: true, nome: true, pedidosDeCompra: { where: { status: "RASCUNHO", origem: "RISE" }, select: { id: true }, take: 1 } },
         })
         .then((lista) => lista.map((fornecedor) => ({ id: fornecedor.id, nome: fornecedor.nome, rascunho: fornecedor.pedidosDeCompra.length > 0 })))
     : [];
@@ -49,11 +50,18 @@ export default async function PedidosPage({ searchParams }) {
         descricao={total === 1 ? "1 pedido." : `${total} pedidos.`}
         voltarPara="/compras"
         voltarRotulo="Voltar a Compras"
-        acao={podeEditar ? <BotaoNovoPedido fornecedores={fornecedores} /> : null}
+        acao={
+          podeEditar ? (
+            <div className="flex items-center gap-2">
+              <BotaoLerComprasML />
+              <BotaoNovoPedido fornecedores={fornecedores} />
+            </div>
+          ) : null
+        }
         somenteLeitura={podeEditar ? null : "Você pode ver os pedidos, mas não editar."}
       />
       <div className="mb-3 flex flex-wrap items-start gap-3">
-        <CampoBusca valorInicial={busca} rotulo="Buscar por número, fornecedor ou produto (código ou nome)" className="w-full max-w-sm" />
+        <CampoBusca valorInicial={busca} rotulo="Buscar por número, fornecedor, produto, rastreio ou nota fiscal" className="w-full max-w-sm" />
         <NavegacaoDoTopo pagina={pagina} totalPaginas={totalPaginas} total={total} porPagina={POR_PAGINA} />
       </div>
       <TabelaPedidos linhas={linhas} status={status} veCusto={acesso.pode("dado.custo", "ver")} podeExcluir={acesso.pode("tela.compras.pedidos", "excluir")} />

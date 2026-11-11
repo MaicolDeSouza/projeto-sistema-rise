@@ -1258,6 +1258,11 @@ model Fornecedor {
   /// da migration 20261028_compras_aliexpress (o migrate diff vai propor apaga-lo; nao apagar).
   aliexpress Boolean @default(false)
 
+  /// O fornecedor das compras do Mercado Livre (o "ML" do dono, 11/11/2026), no mesmo molde do `aliexpress`: achado pela
+  /// marca, nunca pelo nome. Indice unico PARCIAL "Fornecedor_mercadoLivreCompras_unico", so no SQL da migration
+  /// 20261111_compras_ml_e_notas (o migrate diff vai propor apaga-lo; nao apagar).
+  mercadoLivreCompras Boolean @default(false)
+
   /// Moeda da lista que o fornecedor manda ("BRL" ou "USD"; NexMind em dolar, 04/11/2026, Opcao 1 do dono). Lista em
   /// dolar e convertida em reais na gravacao, com o PTAX do dia (src/lib/coleta/moeda.js).
   moedaLista      String   @default("BRL")
@@ -2275,6 +2280,9 @@ model AvisoTelegram {
 enum OrigemDoPedidoDeCompra {
   RISE
   ALIEXPRESS
+  /// Compra feita no Mercado Livre pela conta da loja (spec 2026-11-11-compras-do-mercado-livre-design.md): lida pela
+  /// API e guardada nas mesmas tabelas do AliExpress (PedidoAliExpress, LinhaAliExpress, PacoteAliExpress).
+  MERCADO_LIVRE
 }
 
 enum StatusDoPedidoDeCompra {
@@ -2361,6 +2369,8 @@ model PedidoDeCompra {
   aliexpress PedidoAliExpress?
   /// Comprovantes de pagamento anexados (09/11/2026), em qualquer situacao do pedido.
   comprovantes ComprovanteDePagamentoCompra[]
+  /// Notas fiscais anexadas (11/11/2026), em qualquer situacao do pedido.
+  notasFiscais NotaFiscalCompra[]
 
   @@index([status])
   @@index([fornecedorId, status])
@@ -2874,4 +2884,31 @@ model ComprovanteDePagamentoCompra {
   enviadoEm    DateTime       @default(now())
 
   @@index([pedidoId])
+}
+
+/// Nota fiscal de um pedido de compra (pedido do dono em 11/11/2026: "poder fazer o upload da nota fiscal", bloco proprio
+/// ao lado de Pagamento). Varias por pedido (entrega parcial, frete em nota separada), anexadas e excluidas na hora, em
+/// qualquer situacao. PDF (DANFE), XML da NF-e, JPG ou PNG conferidos pelos bytes; do XML o Rise le numero, serie, chave,
+/// emissao, valor e emitente. O arquivo mora em dados/compras/<pedidoId>/notas/<arquivo> (nome gerado).
+/// A API do ML NAO entrega a nota da compra (medido em 11/11/2026): a do ML tambem entra por aqui.
+model NotaFiscalCompra {
+  id           String         @id @default(cuid())
+  pedidoId     String
+  pedido       PedidoDeCompra @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  arquivo      String
+  nomeOriginal String?
+  /// Lidos do XML da NF-e; nulos em PDF e foto.
+  numero       String?
+  serie        String?
+  chave        String?
+  emitidaEm    DateTime?
+  valorTotal   Decimal?       @db.Decimal(12, 2)
+  emitenteCnpj String?
+  emitenteNome String?
+  /// O login de quem anexou ("pc" no PC sem login).
+  enviadoPor   String?
+  enviadoEm    DateTime       @default(now())
+
+  @@index([pedidoId])
+  @@index([chave])
 }
