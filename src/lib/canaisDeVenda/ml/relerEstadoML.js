@@ -88,6 +88,56 @@ async function nomeDoCatalogo(cliente, id, nomes) {
 
 const esperar = (ms) => (ms > 0 ? new Promise((resolver) => setTimeout(resolver, ms)) : Promise.resolve());
 
+// O apto a faturar (pedido do dono em 11/11/2026, opcao 1): o aviso "ainda nao marcou como apto a faturar" saia na janela do
+// Sincronizar segundos depois de o Rise cadastrar os dados fiscais, antes de o ML processar. Agora o worker pergunta de hora em
+// hora (`/can_invoice/items/{id}`, um item por chamada: nao ha lote) e grava `publicacao.fatura = { apto, naoAptoDesde }` so
+// quando muda; o "!" vem depois de `HORAS_PARA_AVISAR_FATURA` (estadoNoML.js). O apto e relido uma vez por dia (memoria do
+// processo: o worker reiniciado rele todos uma vez), o nao apto a cada rodada.
+const RELER_APTO_MS = 24 * 60 * 60 * 1000;
+const aptoLidoEm = new Map();
+
+/** `true`/`false` pelo ML; o 404 e o item sem dados fiscais (medido em 05/11/2026 no 170102), que o ML nao fatura. */
+async function lerApto(cliente, itemId) {
+  const resposta = await cliente.get(`/can_invoice/items/${encodeURIComponent(itemId)}`);
+  if (resposta?.ok) return { apto: resposta.dados?.status === true };
+  if (resposta?.status === 404) return { apto: false };
+  return { status: resposta?.status ?? null };
+}
+
+async function conferirFaturamento(cliente, anuncios, { agora, espera }) {
+  const resultado = { conferidos: 0, mudaram: 0, falhas: 0 };
+  let primeira = true;
+  for (const anuncio of anuncios) {
+    const anterior = anuncio.dados?.publicacao?.fatura ?? null;
+    if (anterior?.apto === true && agora.getTime() - (aptoLidoEm.get(anuncio.id) ?? 0) < RELER_APTO_MS) continue;
+    if (!primeira) await esperar(Math.min(espera, 200));
+    primeira = false;
+    let lido;
+    try {
+      lido = await lerApto(cliente, anuncio.idExterno);
+    } catch (erro) {
+      lido = { status: erro?.status ?? null };
+    }
+    if (PARA_A_RODADA.has(lido.status)) return { ...resultado, parou: `HTTP ${lido.status}` };
+    resultado.conferidos += 1;
+    if (typeof lido.apto !== "boolean") {
+      resultado.falhas += 1;
+      continue;
+    }
+    if (lido.apto) aptoLidoEm.set(anuncio.id, agora.getTime());
+    if (anterior?.apto === lido.apto) continue;
+    const fatura = { apto: lido.apto, naoAptoDesde: lido.apto ? null : agora.toISOString() };
+    try {
+      await gravarPublicacao(anuncio.id, { fatura });
+      resultado.mudaram += 1;
+    } catch (erro) {
+      console.error("[ml estado] gravar o faturamento:", erro?.message ?? erro);
+      resultado.falhas += 1;
+    }
+  }
+  return resultado;
+}
+
 /**
  * @param {{ ml?, agora?: Date, anuncioIds?: string[], espera?: number }} [opcoes] `anuncioIds` limita a rodada (o teste).
  * @returns {Promise<{ conferidos: number, mudaram: number, falhas: number, parou?: string }>}
@@ -209,5 +259,8 @@ export async function relerEstadosML({ ml, bling, agora = new Date(), anuncioIds
     const seguido = await seguirCatalogoDosAnuncios(cliente, produtoId, { agora }).catch((erro) => ({ erro: erro?.message ?? String(erro) }));
     if (seguido.erro) console.error("[ml estado] acompanhar o catalogo:", seguido.erro);
   }
+  // O apto a faturar, depois do estado (a falha dele nao derruba o estado ja gravado). `faturamento` vai a parte no resultado:
+  // `mudaram` continua sendo so o estado.
+  resultado.faturamento = await conferirFaturamento(cliente, anuncios, { agora, espera }).catch((erro) => ({ conferidos: 0, mudaram: 0, falhas: 1, erro: erro?.message ?? String(erro) }));
   return resultado;
 }

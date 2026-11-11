@@ -182,6 +182,36 @@ export function catalogoParaAcompanhar(acompanhadoId, catalogos) {
   return catalogos[0];
 }
 
+/**
+ * O anuncio que o ML nao fatura (pedido do dono em 11/11/2026, opcao 1): `publicacao.fatura` gravado pela releitura de hora em
+ * hora. O "!" so depois de 24 h nao apto: o ML leva um tempo para processar os dados fiscais que o Sincronizar acabou de
+ * cadastrar, e o aviso na hora assustava a toa. `agora` vem de fora para o teste.
+ */
+export const HORAS_PARA_AVISAR_FATURA = 24;
+export function faturaPendente(fatura, agora = new Date()) {
+  if (fatura?.apto !== false || !fatura.naoAptoDesde) return false;
+  const desde = new Date(fatura.naoAptoDesde).getTime();
+  return Number.isFinite(desde) && agora.getTime() - desde >= HORAS_PARA_AVISAR_FATURA * 60 * 60 * 1000;
+}
+
+/**
+ * O `publicacao.fatura` depois de um envio que perguntou ao ML (Publicar, Sincronizar, "Enviar dados fiscais"), ou null quando
+ * nao ha o que gravar. Apto limpa o "!" na hora; nao apto que ja era nao apto mantem a data (o relogio das 24 h nao recomeca a
+ * cada envio); `null` (o ML nao respondeu) nao grava.
+ */
+export function faturaDepoisDoEnvio(anterior, podeFaturar, agora = new Date()) {
+  if (typeof podeFaturar !== "boolean") return null;
+  if (podeFaturar) return anterior?.apto === true ? null : { apto: true, naoAptoDesde: null };
+  return anterior?.apto === false && anterior.naoAptoDesde ? null : { apto: false, naoAptoDesde: agora.toISOString() };
+}
+
+const DIA_MES_HORA = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" });
+/** "Não apto a faturar no ML desde 11/11" */
+export function textoDaFatura(fatura) {
+  const desde = fatura?.naoAptoDesde ? new Date(fatura.naoAptoDesde) : null;
+  return desde && Number.isFinite(desde.getTime()) ? `Não apto a faturar no ML desde ${DIA_MES_HORA.format(desde)}` : "Não apto a faturar no ML";
+}
+
 /** O ML barrou o anuncio e o dono precisa agir (o "!" do icone). */
 export function precisaAgirNoML(estado) {
   if (!estado?.status) return false;

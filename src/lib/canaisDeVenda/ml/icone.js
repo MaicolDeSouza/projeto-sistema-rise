@@ -11,7 +11,7 @@
  * Varios anuncios do mesmo produto (Classico e Premium) valem juntos: um publicado deixa verde, um com erro poe o "!".
  */
 
-import { LEITURAS_PARA_DIVERGIR, avisoDeCatalogoPendente, precisaAgirNoML, textoDoAvisoDeCatalogo, textoDoEstadoML } from "./estadoNoML";
+import { LEITURAS_PARA_DIVERGIR, avisoDeCatalogoPendente, faturaPendente, precisaAgirNoML, textoDoAvisoDeCatalogo, textoDoEstadoML } from "./estadoNoML";
 // `rotulos.js` tambem nao tem imports: a regra do "Reutilizado" e a mesma do selo da lista.
 import { reutilizadoPendente } from "./rotulos";
 
@@ -44,13 +44,15 @@ const NOME_DA_PARTE = {
  */
 // `foraDoRise`: as linhas de `AnuncioForaDoRiseML` do produto (botao "Verificar anuncios antigos", 09/11/2026), so na lista de
 // Produtos; o "!" pede o Reaproveitar (o ML nao aceita anuncio duplicado).
-export function estadoDoIconeML(anuncios, { foraDoRise = [] } = {}) {
+export function estadoDoIconeML(anuncios, { foraDoRise = [], agora = new Date() } = {}) {
   const doML = (Array.isArray(anuncios) ? anuncios : []).filter(ehDoML);
   const paraTras = doML.filter((anuncio) => estaPublicado(anuncio) && (anuncio.mudancas?.partes?.length ?? 0) > 0);
   const partes = new Set(paraTras.flatMap((anuncio) => anuncio.mudancas.partes));
   const barrados = doML.filter(barradoNoML);
   const comEstoqueDiferente = doML.filter((anuncio) => estaPublicado(anuncio) && (anuncio.dados?.publicacao?.estadoML?.estoqueDiferenteSeguidas ?? 0) >= LEITURAS_PARA_DIVERGIR);
   const comCatalogoNovo = doML.filter((anuncio) => estaPublicado(anuncio) && avisoDeCatalogoPendente(anuncio.dados?.publicacao?.estadoML));
+  // O ML nao fatura o anuncio ha 24 h (11/11/2026): o apto a faturar lido de hora em hora pelo worker.
+  const semFatura = doML.filter((anuncio) => estaPublicado(anuncio) && faturaPendente(anuncio.dados?.publicacao?.fatura, agora));
   // O reaproveitado da conta ainda nao revisado (dono, 09/11/2026) nao acende o verde: fica "Reutilizado", com o "!", ate o
   // Publicar do editor. A situacao no canal pode nem ter sido lida ainda (o Reaproveitar nao a grava), por isso o status basta.
   const pendente = (anuncio) => reutilizadoPendente(anuncio.dados?.publicacao);
@@ -75,6 +77,8 @@ export function estadoDoIconeML(anuncios, { foraDoRise = [] } = {}) {
     estadosNoML: [...new Set(barrados.map((anuncio) => textoDoEstadoML(anuncio.dados.publicacao.estadoML)))],
     // O anuncio entrou, saiu ou trocou de catalogo no ML (25/10/2026): "!" ate o dono abrir o anuncio.
     catalogoMudouNoML: comCatalogoNovo.length > 0,
+    // So quando ha, como o `foraDoRise`: o objeto do icone sem o aviso fica igual ao de antes.
+    ...(semFatura.length > 0 ? { naoFaturaNoML: true } : {}),
     catalogosNoML: [...new Set(comCatalogoNovo.map((anuncio) => textoDoAvisoDeCatalogo(anuncio.dados.publicacao.estadoML.catalogoAviso)))],
     // O selo "C2" (pedido do dono em 26/10/2026): em quantos catalogos DIFERENTES estao os anuncios publicados do produto.
     catalogos: new Set(doML.filter(estaPublicado).map((anuncio) => anuncio.dados?.publicacao?.estadoML?.catalogo?.id).filter(Boolean)).size,
@@ -106,7 +110,7 @@ function textoDoDesatualizado(partes) {
 
 /** O selo "!" do icone: a mesma condicao na lista de Produtos, na lista do ML e em cada linha do popup do produto. */
 export function temProblemaNoIconeML(estado) {
-  return Boolean(estado?.erro || estado?.foraDoRise > 0 || estado?.reutilizado || estado?.desatualizado || estado?.precisaAgirNoML || estado?.estoqueDivergenteNoML || estado?.catalogoMudouNoML);
+  return Boolean(estado?.erro || estado?.foraDoRise > 0 || estado?.reutilizado || estado?.desatualizado || estado?.precisaAgirNoML || estado?.estoqueDivergenteNoML || estado?.catalogoMudouNoML || estado?.naoFaturaNoML);
 }
 
 /**
@@ -114,12 +118,13 @@ export function temProblemaNoIconeML(estado) {
  * com problema). A mesma ordem e as mesmas palavras do `rotuloDoIconeML`.
  */
 // O texto do reaproveitado ainda nao revisado, o mesmo no "!" do icone, no popup do produto e na lista do ML.
+const TEXTO_DA_FATURA = "não apto a faturar no ML";
 const TEXTO_DO_REUTILIZADO = "reutilizado da conta, esperando a sua revisão";
 
 // "2 anuncios na conta fora do Rise" (09/11/2026): o motivo do "!" de quem tem anuncio antigo para reaproveitar.
 const textoDoForaDoRise = (quantos) => `${quantos} ${quantos === 1 ? "anúncio" : "anúncios"} na conta fora do Rise`;
 
-export function motivosDoProblemaML({ foraDoRise = 0, erro = false, reutilizado = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [], precisaAgirNoML: barrado = false, estadosNoML = [], estoqueDivergenteNoML = false, estoquesNoML = [], catalogoMudouNoML = false, catalogosNoML = [] } = {}) {
+export function motivosDoProblemaML({ foraDoRise = 0, erro = false, reutilizado = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [], precisaAgirNoML: barrado = false, estadosNoML = [], estoqueDivergenteNoML = false, estoquesNoML = [], catalogoMudouNoML = false, catalogosNoML = [], naoFaturaNoML = false } = {}) {
   const motivos = [];
   if (foraDoRise > 0) motivos.push(textoDoForaDoRise(foraDoRise));
   if (reutilizado) motivos.push(TEXTO_DO_REUTILIZADO);
@@ -127,11 +132,12 @@ export function motivosDoProblemaML({ foraDoRise = 0, erro = false, reutilizado 
   if (barrado) motivos.push(...estadosNoML.map((texto) => texto.charAt(0).toLowerCase() + texto.slice(1)));
   if (estoqueDivergenteNoML) motivos.push(...estoquesNoML.map(({ ml, bling }) => `estoque no ML ${ml}, no Bling ${bling}`));
   if (catalogoMudouNoML) motivos.push(...catalogosNoML);
+  if (naoFaturaNoML) motivos.push(TEXTO_DA_FATURA);
   if (erro) motivos.push("com erro na publicação");
   return motivos;
 }
 
-export function rotuloDoIconeML({ foraDoRise = 0, publicado, pausado = false, erro, rascunho = false, reutilizado = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [], precisaAgirNoML: barrado = false, estadosNoML = [], estoqueDivergenteNoML = false, estoquesNoML = [], catalogoMudouNoML = false, catalogosNoML = [], catalogos = 0 }) {
+export function rotuloDoIconeML({ foraDoRise = 0, publicado, pausado = false, erro, rascunho = false, reutilizado = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [], precisaAgirNoML: barrado = false, estadosNoML = [], estoqueDivergenteNoML = false, estoquesNoML = [], catalogoMudouNoML = false, catalogosNoML = [], naoFaturaNoML = false, catalogos = 0 }) {
   const base = "Anúncio no Mercado Livre";
   const partes = [];
   if (publicado) partes.push(pausado ? "publicado, pausado (sem estoque)" : "publicado");
@@ -147,6 +153,7 @@ export function rotuloDoIconeML({ foraDoRise = 0, publicado, pausado = false, er
   if (barrado) partes.push(...estadosNoML.map((texto) => texto.charAt(0).toLowerCase() + texto.slice(1)));
   if (estoqueDivergenteNoML) partes.push(...estoquesNoML.map(({ ml, bling }) => `estoque no ML ${ml}, no Bling ${bling}`));
   if (catalogoMudouNoML) partes.push(...catalogosNoML);
+  if (naoFaturaNoML) partes.push(TEXTO_DA_FATURA);
   if (erro) partes.push("com erro na publicação");
   if (foraDoRise > 0) partes.push(textoDoForaDoRise(foraDoRise));
   if (!publicado && !erro && rascunho) partes.push("rascunho, ainda não publicado");

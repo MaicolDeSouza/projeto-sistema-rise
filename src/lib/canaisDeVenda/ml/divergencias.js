@@ -1,5 +1,5 @@
 import { textoDasPartes } from "./acompanhar";
-import { LEITURAS_PARA_DIVERGIR, avisoDeCatalogoPendente, precisaAgirNoML, textoDoAvisoDeCatalogo, textoDoCatalogo, textoDoEstadoML } from "./estadoNoML";
+import { LEITURAS_PARA_DIVERGIR, avisoDeCatalogoPendente, faturaPendente, precisaAgirNoML, textoDaFatura, textoDoAvisoDeCatalogo, textoDoCatalogo, textoDoEstadoML } from "./estadoNoML";
 import { reutilizadoPendente } from "./rotulos";
 
 /**
@@ -42,6 +42,14 @@ export function divergenciasDoAnuncioML({ publicado, publicacao, mudancas } = {}
       titulo: `Estoque no ML ${estado.estoque}, no Bling ${estado.estoqueBling}`,
       detalhe: "Diferente em leituras seguidas: confira o vínculo do anúncio no Bling, que é quem manda o estoque ao ML.",
       acao: null,
+    });
+  }
+  if (faturaPendente(publicacao?.fatura)) {
+    itens.push({
+      id: "fatura",
+      titulo: textoDaFatura(publicacao.fatura),
+      detalhe: "O ML ainda não emite a nota deste anúncio: confira em Faturamento no ML ou reenvie os dados fiscais na aba Status.",
+      acao: "painel",
     });
   }
   if (avisoDeCatalogoPendente(estado)) {

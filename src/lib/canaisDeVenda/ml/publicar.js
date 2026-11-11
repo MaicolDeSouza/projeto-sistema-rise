@@ -11,6 +11,7 @@ import { impressaoDoConteudo } from "./impressao";
 import { conferirKitNoBling, criarKitNoBling, registrarAnuncioNoBlingML, vincularNoBlingML, vinculoNoBlingML } from "./bling";
 import { ETAPAS, etapasDoAnuncio, proximaEtapa } from "./etapas";
 import { garantirFiscalNoML, planoFiscalDoRascunho } from "./fiscalNoML";
+import { faturaDepoisDoEnvio } from "./estadoNoML";
 import { iniciarProgressoML } from "./progresso";
 import { ROTULO_DA_PARTE, atributosDaRetomada, impressaoDaCriacao, partesMudadas } from "./criadoCom";
 import { lerCategoriaCompleta, textoDoErroML } from "./leitura";
@@ -431,7 +432,9 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto, p
     } else if (etapa === "fiscal") {
       const enviado = await garantirFiscalNoML(ml, fiscal, { itemId: pub.itemId });
       if (!enviado.ok) return falhar(etapa, `Dados fiscais: ${enviado.erro}`);
-      if (enviado.podeFaturar === false) avisos = [...avisos, `O Mercado Livre ainda não marcou o anúncio ${pub.itemId} como apto a faturar: confira em Faturamento no ML.`];
+      // O "nao apto a faturar" saiu do resultado (dono, 11/11/2026): fica gravado e o "!" vem da releitura se passar de 24 h.
+      const fatura = faturaDepoisDoEnvio(pub.fatura ?? null, enviado.podeFaturar);
+      if (fatura) await gravar({ fatura });
     } else if (etapa === "kit_bling") {
       const itens = (rascunho.composicao?.itens ?? []).map((item) => ({ sku: contexto.produtos[item.produtoId]?.sku, quantidade: Number(item.quantidade) }));
       const conferido = await conferirKitNoBling(bling, { codigo, itens });

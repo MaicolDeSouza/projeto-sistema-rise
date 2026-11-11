@@ -14,6 +14,7 @@
 
 import { prisma } from "@/lib/db";
 import { planoFiscal, fiscalIgual, mesclarComML } from "./dadosFiscais";
+import { faturaDepoisDoEnvio } from "./estadoNoML";
 import { textoDaRecusaML } from "./respostas";
 
 const CAMPOS_DO_PRODUTO = { id: true, sku: true, tituloBase: true, tipo: true, ncm: true, cest: true, origem: true, tipoProducao: true, ean: true, pesoKg: true, custo: true, precoVenda: true };
@@ -141,7 +142,7 @@ export async function anuncioComPlano(anuncioId) {
   if (!anuncio) return { ok: false, erro: "Anúncio não encontrado." };
   if (!anuncio.idExterno) return { ok: false, erro: "O anúncio ainda não foi publicado: os dados fiscais vão no Publicar." };
   const plano = await planoFiscalDoRascunho({ produtoId: anuncio.produtoId, titulo: anuncio.dados?.titulo, composicao: anuncio.dados?.composicao ?? null });
-  return { ok: true, itemId: anuncio.idExterno, plano };
+  return { ok: true, itemId: anuncio.idExterno, plano, fatura: anuncio.dados?.publicacao?.fatura ?? null };
 }
 
 /** "Enviar dados fiscais" do editor (anuncio ja publicado): garante o SKU e o vinculo. Nunca lanca. */
@@ -153,7 +154,24 @@ export async function enviarDadosFiscaisDoAnuncio(anuncioId, { ml }) {
   } catch (erro) {
     return { ok: false, feitos: [], podeFaturar: null, erro: textoDe(erro) };
   }
-  return garantirFiscalNoML(ml, alvo.plano, { itemId: alvo.itemId });
+  const enviado = await garantirFiscalNoML(ml, alvo.plano, { itemId: alvo.itemId });
+  await guardarFaturaDoEnvio(anuncioId, alvo.fatura, enviado.podeFaturar);
+  return enviado;
+}
+
+/**
+ * Grava o apto a faturar que o envio leu (11/11/2026): o "!" do "nao apto" some na hora quando o ML ja liberou. Falha so vai
+ * ao log: a releitura de hora em hora acerta.
+ */
+export async function guardarFaturaDoEnvio(anuncioId, anterior, podeFaturar) {
+  const fatura = faturaDepoisDoEnvio(anterior, podeFaturar);
+  if (!fatura) return;
+  try {
+    const { gravarPublicacao } = await import("./banco");
+    await gravarPublicacao(anuncioId, { fatura });
+  } catch (erro) {
+    console.error("[ml fiscal] gravar o faturamento:", erro?.message ?? erro);
+  }
 }
 
 /** A situacao fiscal do anuncio para a aba Status: o que o ML guarda e o que falta no Rise. So le. */

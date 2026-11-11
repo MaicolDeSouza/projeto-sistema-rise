@@ -3684,6 +3684,47 @@ try {
     const com429 = criarMLFalso({ falhas: [{ metodo: "GET", caminho: "/items/bulk", status: 429 }] });
     conferir("releitura: 429 para a rodada", Boolean((await relerEstadosML({ ml: com429, agora, anuncioIds: ids })).parou), true);
 
+    // Apto a faturar (pedido do dono em 11/11/2026, opcao 1): saiu da janela do Sincronizar e virou leitura de hora em hora,
+    // com o "!" e a Divergencia so depois de 24 h nao apto.
+    {
+      const { faturaPendente, faturaDepoisDoEnvio, textoDaFatura } = await import("../src/lib/canaisDeVenda/ml/estadoNoML.js");
+      const { divergenciasDoAnuncioML } = await import("../src/lib/canaisDeVenda/ml/divergencias.js");
+      const { estadoDoIconeML: iconeML, rotuloDoIconeML: rotuloFatura } = await import("../src/lib/canaisDeVenda/ml/icone.js");
+      const estadoDoIconeMLFatura = (linhas, agora) => iconeML(linhas, { agora });
+      const naoApto = { apto: false, naoAptoDesde: "2026-10-24T15:00:00.000Z" };
+      conferir(
+        "fatura: o '!' so depois de 24 h nao apto",
+        [faturaPendente(naoApto, new Date("2026-10-25T14:59:00Z")), faturaPendente(naoApto, new Date("2026-10-25T15:00:00Z")), faturaPendente({ apto: true, naoAptoDesde: null }, new Date("2030-01-01")), faturaPendente(null)],
+        [false, true, false, false],
+      );
+      conferir("fatura: texto com a data de Sao Paulo", textoDaFatura(naoApto), "Não apto a faturar no ML desde 24/10");
+      conferir(
+        "fatura depois do envio: apto limpa, nao apto mantem a data antiga, sem resposta nao grava",
+        [faturaDepoisDoEnvio(naoApto, true), faturaDepoisDoEnvio({ apto: true }, true), faturaDepoisDoEnvio(naoApto, false), faturaDepoisDoEnvio(null, false, new Date("2026-11-11T12:00:00Z")), faturaDepoisDoEnvio(naoApto, null)],
+        [{ apto: true, naoAptoDesde: null }, null, null, { apto: false, naoAptoDesde: "2026-11-11T12:00:00.000Z" }, null],
+      );
+      // A rodada r1 ja perguntou: os itens do ML falso sem dados fiscais ligados respondem `status: false`.
+      const faturaDe = async (anuncio) => (await prisma.anuncio.findUnique({ where: { id: anuncio.id }, select: { dados: true } })).dados.publicacao.fatura ?? null;
+      const f1 = await faturaDe(a1);
+      conferir("releitura: o nao apto grava a data da 1a leitura", [f1?.apto, f1?.naoAptoDesde, r1.faturamento?.mudaram], [false, "2026-10-24T15:00:00.000Z", 3]);
+      conferir("releitura: a contagem do estado nao mistura o faturamento", r1.mudaram, 2);
+      const linhas = await prisma.anuncio.findMany({ where: { id: { in: [a1.id] } }, select: { canal: true, status: true, situacaoCanal: true, dados: true } });
+      const cedo = estadoDoIconeMLFatura(linhas, new Date("2026-10-24T20:00:00Z"));
+      const tarde = estadoDoIconeMLFatura(linhas, new Date("2026-10-25T16:00:00Z"));
+      conferir("icone: nao apto ha menos de 24 h nao acende; depois acende com o texto", [Boolean(cedo.naoFaturaNoML), tarde.naoFaturaNoML, /não apto a faturar no ML/.test(rotuloFatura(tarde))], [false, true, true]);
+      const comPrazo = divergenciasDoAnuncioML({ publicado: true, publicacao: { fatura: { apto: false, naoAptoDesde: "2020-01-01T00:00:00.000Z" } } });
+      conferir("divergencias: o item do faturamento manda ao painel", comPrazo.map((item) => [item.id, item.acao]), [["fatura", "painel"]]);
+
+      const mlApto = criarMLFalso({ fiscais: { "ZZ-ML-EST1": { sku: "ZZ-ML-EST1" } }, ligacoesFiscais: { MLB910001: "ZZ-ML-EST1" } });
+      const rApto = await relerEstadosML({ ml: mlApto, agora: new Date("2026-10-26T10:00:00Z"), anuncioIds: [a1.id] });
+      conferir("releitura: o ML liberou, a fatura vira apta e o '!' some", [rApto.faturamento.mudaram, await faturaDe(a1)], [1, { apto: true, naoAptoDesde: null }]);
+      const perguntas = () => mlApto.chamadas.filter((c) => /^\/can_invoice\//.test(c.caminho)).length;
+      await relerEstadosML({ ml: mlApto, agora: new Date("2026-10-26T11:00:00Z"), anuncioIds: [a1.id] });
+      const naHora = perguntas();
+      await relerEstadosML({ ml: mlApto, agora: new Date("2026-10-27T11:00:00Z"), anuncioIds: [a1.id] });
+      conferir("releitura: o apto so e relido depois de um dia", [naHora, perguntas()], [1, 2]);
+    }
+
     const { estadoDoIconeML, rotuloDoIconeML } = await import("../src/lib/canaisDeVenda/ml/icone.js");
     const doBanco = await prisma.anuncio.findMany({ where: { id: { in: ids } }, select: { canal: true, status: true, situacaoCanal: true, dados: true } });
     const icone = estadoDoIconeML(doBanco);

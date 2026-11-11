@@ -618,6 +618,10 @@ async function laco() {
         const estados = await rodarRotina("estadoML", RELER_ESTADO_ML_MS, () => relerEstadosML());
         if (estados.parou) logErro(`estado dos anuncios do ML: rodada parada (${estados.parou}); tenta de novo na proxima rodada`);
         else if (estados.conferidos) log(`estado dos anuncios do ML: ${estados.conferidos} conferido(s), ${estados.mudaram} mudaram, ${estados.falhas} falha(s)`);
+        // O apto a faturar (11/11/2026), na mesma rodada: so aparece no log quando perguntou a alguem.
+        const fatura = estados.faturamento;
+        if (fatura?.parou) logErro(`faturamento dos anuncios do ML: parado (${fatura.parou})`);
+        else if (fatura?.conferidos) log(`faturamento dos anuncios do ML: ${fatura.conferidos} conferido(s), ${fatura.mudaram} mudaram, ${fatura.falhas} falha(s)`);
       }
       // A Loja Integrada x Rise x Bling (fora do `coletaPausada`). `relerMonitorLI` nunca lanca.
       if (!FONTES && !SO_NO_PC && Date.now() - monitorLIRelidoEm >= RELER_MONITOR_LI_MS) {
