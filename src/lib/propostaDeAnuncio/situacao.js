@@ -15,8 +15,8 @@ import { ErroDeFerramenta } from "@/lib/riseAi/ferramentas/erro";
 const MOTIVOS = {
   "proposta-do-produto": "O produto ainda não foi Conferido no Rise: o próximo passo é a proposta de cadastro do produto (com as categorias e o SEO da Loja Integrada).",
   "conferir-no-rise": "A proposta de cadastro do produto está pronta e espera o dono aplicar e marcar Conferido no Rise.",
-  "sincronizar-bling": "O produto não está igual no Bling (ícone do Bling sem sincronizar ou com \"!\"): o dono sincroniza com o Bling antes.",
-  "cadastrar-li": "Rise e Bling estão em dia: o dono cadastra o produto na Loja Integrada pelo ícone da LI (cria pausado, liga no Bling, grava o estoque e ativa). Se ele pedir para pular a LI, siga para o Mercado Livre.",
+  "sincronizar-bling": "O produto não está igual no Bling (ícone do Bling sem sincronizar ou com \"!\"): sincronize com o Bling antes, pelo ícone B da lista de Produtos ou pela ferramenta sincronizarComBling (ela escreve no Bling: só quando a pessoa pedir).",
+  "cadastrar-li": "Rise e Bling estão em dia: o produto vai para a Loja Integrada pelo ícone LI da lista de Produtos ou pela ferramenta sincronizarComLojaIntegrada (cria pausado, liga no Bling, grava o estoque e ativa; ela escreve na loja: só quando a pessoa pedir). Se a pessoa pedir para pular a LI, siga para o Mercado Livre.",
   "revisar-ml": "A proposta do Mercado Livre está pronta e espera o dono revisar e publicar no editor do ML.",
   "proposta-ml": "A Loja Integrada está sincronizada: o próximo passo é a proposta do anúncio do Mercado Livre (Clássico).",
   pronto: "O produto já tem anúncio na Loja Integrada e no Mercado Livre: nada a propor.",

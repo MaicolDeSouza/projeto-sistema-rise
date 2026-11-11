@@ -26,7 +26,9 @@ import { REGRAS_DAS_VARIANTES } from "@/lib/canaisDeVenda/ml/faixas";
 
 // "11" em 09/11/2026: anunciosNaConta traz tambem os kits do codigo ({sku}_{N}, campo kit), inclusive na leitura do kit, e o
 // reaproveitar aceita o kit (pedido do dono: o 910207 tinha o kit 20x e a proposta nao achou).
-export const VERSAO_ROTEIRO_ML = "11";
+// "12" em 10/11/2026: o Bling e a Loja Integrada passam a ter ferramenta (sincronizarComBling e sincronizarComLojaIntegrada),
+// e o roteiro deixa de dizer que so o dono sincroniza (pedido do dono: o Claude da Andrea nao tinha como fazer os dois cliques).
+export const VERSAO_ROTEIRO_ML = "12";
 
 export const ROTEIRO_ML = `ROTEIRO DA PROPOSTA DE ANÚNCIO DO MERCADO LIVRE (Rise / 4hobby), versão ${VERSAO_ROTEIRO_ML}
 
@@ -41,9 +43,14 @@ A proposta usa só você (sem custo de IA para o Rise). O PREÇO é calculado pe
 CAMINHO (nesta ordem)
 1. situacaoDoProduto(sku). Diga à pessoa, no chat, o proximoPasso e o motivo, ANTES de fazer qualquer coisa.
    Siga se o proximoPasso for "proposta-ml", ou se o dono pedir para pular o cadastro na Loja Integrada.
-   "cadastrar-li": o dono cadastra o produto na Loja Integrada pelo ícone da LI (cria pausado, liga no Bling, grava o
-   estoque e ativa); diga isso e siga para o ML só se ele pedir.
-   "sincronizar-bling", "proposta-do-produto" ou "conferir-no-rise": pare e diga o que o dono precisa fazer antes.
+   "sincronizar-bling": o produto vai para o Bling pelo ícone B da lista de Produtos ou pela ferramenta
+   sincronizarComBling, que ESCREVE no Bling: diga isso à pessoa e só chame a ferramenta se ela pedir.
+   "cadastrar-li": o produto vai para a Loja Integrada pelo ícone LI da lista de Produtos ou pela ferramenta
+   sincronizarComLojaIntegrada (cria pausado, liga no Bling, grava o estoque e ativa), que ESCREVE na loja: diga isso e
+   só chame a ferramenta se a pessoa pedir; siga para o ML se ela pedir para pular a loja, ou depois de a loja ficar em dia.
+   Se uma dessas ferramentas devolver ok falso com aviso, NÃO tente de novo: pare e peça à pessoa que confira o produto no
+   Bling ou na loja primeiro.
+   "proposta-do-produto" ou "conferir-no-rise": pare e diga o que o dono precisa fazer antes.
 2. lerParaPropostaML(sku): o produto (com o custo), as categorias candidatas, os atributos da categoria mais provável,
    os catálogos candidatos (cada um com o total de anúncios e o 1º colocado), os catálogos dos anúncios do dono e as
    referências que o produto já tem. No kit no ML, com quantidade (veja KIT NO ML).

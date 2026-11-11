@@ -6137,6 +6137,28 @@ margem, concorrentes e financeiro.
 Perguntar o preço do 100101: a resposta traz o preço do Rise. (3) Rise AI › Revisão do dia: "Dúvidas pelo Claude · dd/mm" com a
 pergunta e a resposta. (4) Rise AI › Conexões: a conexão aparece; Desconectar faz o Claude pedir a conexão de novo.
 
+**Sincronizar com o Bling e com a Loja Integrada pelo MCP (10/11/2026, NO GITHUB, SEM deploy):** pedido do dono depois de a Andrea ver
+o chat dela responder "nenhuma das ferramentas do Rise sincroniza com o Bling ou cadastra na Loja Integrada" ("pode criar"). O chat
+só enxerga as ferramentas publicadas no `/mcp`; quem tem terminal (o Claude Code do dono) roda o código direto, e essa diferença não
+é permissão. `sincronizarComBling` e `sincronizarComLojaIntegrada` (`src/lib/mcp/canais.js`) são as **únicas ferramentas do MCP que
+escrevem em sistema de fora** (as outras leem ou gravam rascunho no Rise).
+- **Mesmas bibliotecas dos ícones B e LI da lista de Produtos:** as travas de escrita (`BLING_ESCRITA`, `LI_ESCRITA` e as listas de
+  códigos) e o `pode()` do login (`acao.produtos.sincronizarBling` e `acao.lojaIntegrada.sincronizar`) são os de lá. A ferramenta só
+  faz a escolha que o operador faz a olho: fora do canal = cadastrar; cadastro parado numa etapa (`faltaNoCadastroLI` +
+  `ofereceCompletar`) = completar; o resto = sincronizar. O resultado diz a `acao` (`cadastrou`, `completou`, `sincronizou`), o que
+  foi enviado (`camposEnviados`, `etapas`) e devolve a `situacao` nova com o `proximoPasso`.
+- **Regras:** só produto **Conferido**; a da Loja Integrada exige também o **Bling verde** (`exigirProdutoPronto`, o Bling vem antes);
+  a do Bling **lê antes de escrever** (código repetido no Bling recusa sem tocar em nada); os ajustes de estoque pendentes vão junto
+  (sem eles o Bling não fica verde); com 2 depósitos e nenhum padrão o estoque fica para a tela (`estoque.escolherDepositoNaTela`:
+  o Claude não escolhe depósito).
+- **Falha no meio:** volta `ok: false` com `aviso` de conferir o produto no Bling ou na loja antes de repetir (o canal pode ter
+  gravado e a resposta se perdido), e a descrição manda o modelo NÃO tentar de novo; a chamada seguinte, depois da conferência,
+  completa o que faltou. Recusa antes de escrever (sem acesso, não Conferido, Bling repetido) volta como erro.
+- **Roteiro do ML v12** e motivos do próximo passo (`situacao.js`) citam as ferramentas e mandam chamá-las só quando a pessoa pedir.
+- **Testes:** blocos novos no `teste:bling-sync` e no `teste:li-sync` (Bling e LI falsos, injetados por `contexto.mcp.clienteBling` e
+  `clienteLI`) e o registro e o acesso no `teste:mcp`. **Não conferido de verdade:** nenhuma chamada real ao Bling nem à loja; o 1º uso
+  da Andrea é o teste. Quem perde a ação (a função "Visibilidade Andrea", depois de 17/11/2026) volta a receber a recusa de antes.
+
 ## Acessos (lançamento 1, 12/10/2026)
 
 Pedido do dono na fase 2 do Rise AI. Spec: `docs/superpowers/specs/2026-10-12-acessos-design.md` (revisão 2); plano (18 tarefas,

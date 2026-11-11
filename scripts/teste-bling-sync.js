@@ -3591,6 +3591,82 @@ try {
     }
   }
 
+  {
+    // A ferramenta do MCP (pedido do dono em 10/11/2026: o Claude da Andrea faz o que o icone do Bling faz). Mesmas
+    // bibliotecas da tela; o que muda e quem decide entre cadastrar e sincronizar, e o estoque pendente que vai junto.
+    console.log("\nFerramenta do MCP: sincronizarComBling");
+    await limpar();
+    const { FERRAMENTAS_DE_CANAIS } = await import("../src/lib/mcp/canais.js");
+    const ferramenta = FERRAMENTAS_DE_CANAIS.find((f) => f.nome === "sincronizarComBling");
+    const chamar = async (sku, { bling, pode = () => true }) => {
+      try {
+        return await ferramenta.executar(ferramenta.esquema.parse({ sku }), { pode, mcp: { clienteBling: bling } });
+      } catch (erro) {
+        return { lancou: erro.name, erro: erro.message };
+      }
+    };
+    const novo = (sku, extra = {}) =>
+      prisma.produto.create({
+        data: { sku, tituloBase: "Sensor da ferramenta do MCP", descricaoBase: "Linha 1", precoVenda: "30.00", marca: "GENERICA", unidade: "UN", pesoKg: "0.05", alturaCm: "2", larguraCm: "3", comprimentoCm: "4", ncm: "85423190", origem: 0, conferido: true, estoque: 3, ...extra },
+      });
+    const pendente = (produtoId, quantidade) => prisma.movimentoEstoque.create({ data: { produtoId, tipo: "ENTRADA", quantidade, saldoAnterior: 0, saldoNovo: quantidade } });
+    const escritas = (falso) => falso.chamadas.filter((c) => !["GET", "exigirEscrita"].includes(c.metodo)).length;
+
+    const produto = await novo("ZZ-BS-M1");
+    await pendente(produto.id, 3);
+    const falso = criarBlingFalso();
+
+    const semAcao = await chamar("ZZ-BS-M1", { bling: falso, pode: (recurso) => recurso !== "acao.produtos.sincronizarBling" });
+    conferir("mcp Bling: sem a acao recusa, sem chamar o Bling", [semAcao.lancou, /Bling/.test(semAcao.erro ?? ""), falso.chamadas.length], ["ErroDeFerramenta", true, 0]);
+
+    await prisma.produto.update({ where: { id: produto.id }, data: { conferido: false } });
+    const naoConferido = await chamar("ZZ-BS-M1", { bling: falso });
+    conferir("mcp Bling: produto nao Conferido recusa, sem chamar o Bling", [naoConferido.lancou, /Conferido/.test(naoConferido.erro ?? ""), falso.chamadas.length], ["ErroDeFerramenta", true, 0]);
+    await prisma.produto.update({ where: { id: produto.id }, data: { conferido: true } });
+
+    const cadastro = await chamar("ZZ-BS-M1", { bling: falso });
+    conferir(
+      "mcp Bling: fora do Bling, cadastra e manda o ajuste de estoque pendente",
+      [cadastro.ok, cadastro.acao, Boolean(falso.produto("ZZ-BS-M1")), cadastro.estoque?.enviados, cadastro.estoque?.restantes],
+      [true, "cadastrou", true, 1, 0],
+    );
+    conferir("mcp Bling: devolve o Bling verde e o proximo passo (a Loja Integrada)", [cadastro.situacao?.bling?.verde, cadastro.proximoPasso], [true, "cadastrar-li"]);
+
+    const antes = escritas(falso);
+    const deNovo = await chamar("ZZ-BS-M1", { bling: falso });
+    conferir("mcp Bling: de novo, com tudo igual, nao escreve nada", [deNovo.ok, deNovo.acao, deNovo.camposEnviados, escritas(falso) - antes], [true, "sincronizou", [], 0]);
+
+    await prisma.produto.update({ where: { id: produto.id }, data: { tituloBase: "Sensor da ferramenta do MCP, novo nome" } });
+    const mudou = await chamar("ZZ-BS-M1", { bling: falso });
+    conferir(
+      "mcp Bling: o nome mudou no Rise, sincroniza e diz o campo",
+      [mudou.ok, mudou.acao, mudou.camposEnviados, falso.produto("ZZ-BS-M1")?.nome],
+      [true, "sincronizou", ["nome"], "Sensor da ferramenta do MCP, novo nome"],
+    );
+
+    // Dois produtos com o mesmo codigo no Bling: o Rise nao escolhe um sozinho, e a ferramenta tambem nao.
+    await novo("ZZ-BS-M2");
+    const duplicado = criarBlingFalso({ produtos: [{ id: 501, codigo: "ZZ-BS-M2", nome: "A" }, { id: 502, codigo: "ZZ-BS-M2", nome: "B" }] });
+    const doDuplicado = await chamar("ZZ-BS-M2", { bling: duplicado });
+    conferir("mcp Bling: codigo repetido no Bling recusa, sem escrever", [doDuplicado.lancou, /mais de um produto/.test(doDuplicado.erro ?? ""), escritas(duplicado)], ["ErroDeFerramenta", true, 0]);
+
+    // Dois depositos sem padrao: o cadastro vai, e o estoque fica para a tela (so a pessoa escolhe o deposito).
+    const p3 = await novo("ZZ-BS-M3");
+    await pendente(p3.id, 2);
+    const doisDepositos = criarBlingFalso({
+      depositos: [
+        { id: 1, descricao: "Loja", situacao: 1, padrao: false, desconsiderarSaldo: false },
+        { id: 2, descricao: "Galpao", situacao: 1, padrao: false, desconsiderarSaldo: false },
+      ],
+    });
+    const semDeposito = await chamar("ZZ-BS-M3", { bling: doisDepositos });
+    conferir(
+      "mcp Bling: dois depositos sem padrao: cadastra, e o estoque fica para a pessoa escolher na tela",
+      [semDeposito.ok, semDeposito.acao, semDeposito.estoque?.enviados, semDeposito.estoque?.escolherDepositoNaTela?.length, semDeposito.situacao?.bling?.verde],
+      [true, "cadastrou", 0, 2, false],
+    );
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } finally {
   await limpar();

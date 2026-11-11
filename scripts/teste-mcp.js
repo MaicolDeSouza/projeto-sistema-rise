@@ -53,6 +53,8 @@ const COMPRAS_ESCRITA = ["montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra"
 const CORRECOES = ["gravarCorrecaoDaDescricao", "listarCorrecoesDaDescricao", "desligarCorrecaoDaDescricao"];
 // O roteiro da analise de lista de fornecedor (07/11/2026): trabalho do dono, como o roteiro da proposta, sem o lembrete.
 const ANALISE_FORNECEDOR = ["roteiroDaAnaliseDeFornecedor"];
+// Sincronizar com o Bling e a Loja Integrada (10/11/2026): escrita pedida pelo dono, sem o lembrete.
+const CANAIS = ["sincronizarComBling", "sincronizarComLojaIntegrada"];
 
 async function lerRespostaMcp(resposta) {
   const texto = await resposta.text();
@@ -759,7 +761,7 @@ try {
         descoberta?.instructions === INSTRUCOES && INSTRUCOES.includes("anotarDuvida"),
       ],
       [
-        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "comprasACaminhoDoProduto", "consultarEstoque", "consultarPreco", "consultarProduto", "desligarCorrecaoDaDescricao", "filtrarProdutos", "folhaDeContato", "gravarCorrecaoDaDescricao", "gravarPropostaML", "gravarSecao", "historicoDePreco", "lerCategoriaML", "lerParaProposta", "lerParaPropostaML", "lerPedidoDeCompra", "lerPedidoDeVenda", "lerProposta", "listarClientes", "listarConcorrentes", "listarCorrecoesDaDescricao", "listarFornecedores", "listarMarcas", "listarPedidosDeCompra", "listarPedidosDeVenda", "listarTransportadoras", "marcarReferencias", "montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra", "produtosAbaixoDoMinimo", "reaproveitarAnuncioML", "relatorioDeVendas", "roteiroDaAnaliseDeFornecedor", "roteiroDaProposta", "situacaoDoProduto"],
+        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "comprasACaminhoDoProduto", "consultarEstoque", "consultarPreco", "consultarProduto", "desligarCorrecaoDaDescricao", "filtrarProdutos", "folhaDeContato", "gravarCorrecaoDaDescricao", "gravarPropostaML", "gravarSecao", "historicoDePreco", "lerCategoriaML", "lerParaProposta", "lerParaPropostaML", "lerPedidoDeCompra", "lerPedidoDeVenda", "lerProposta", "listarClientes", "listarConcorrentes", "listarCorrecoesDaDescricao", "listarFornecedores", "listarMarcas", "listarPedidosDeCompra", "listarPedidosDeVenda", "listarTransportadoras", "marcarReferencias", "montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra", "produtosAbaixoDoMinimo", "reaproveitarAnuncioML", "relatorioDeVendas", "roteiroDaAnaliseDeFornecedor", "roteiroDaProposta", "sincronizarComBling", "sincronizarComLojaIntegrada", "situacaoDoProduto"],
         32,
         true,
       ],
@@ -1192,7 +1194,7 @@ try {
       [2, true, 1],
     );
     const lista = (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/list", {}, { id: id++ }), quem)))?.result?.tools ?? [];
-    conferir("a descricao de toda ferramenta de consulta lembra de anotar", lista.filter((ferramenta) => ferramenta.name !== "anotarDuvida" && !PROPOSTA.includes(ferramenta.name) && !PROPOSTA_DE_ANUNCIO.includes(ferramenta.name) && !REFERENCIAS.includes(ferramenta.name) && !COMPRAS_ESCRITA.includes(ferramenta.name) && !CORRECOES.includes(ferramenta.name) && !ANALISE_FORNECEDOR.includes(ferramenta.name) && !ferramenta.description.includes("anotarDuvida")).map((ferramenta) => ferramenta.name), []);
+    conferir("a descricao de toda ferramenta de consulta lembra de anotar", lista.filter((ferramenta) => ferramenta.name !== "anotarDuvida" && !PROPOSTA.includes(ferramenta.name) && !PROPOSTA_DE_ANUNCIO.includes(ferramenta.name) && !REFERENCIAS.includes(ferramenta.name) && !COMPRAS_ESCRITA.includes(ferramenta.name) && !CORRECOES.includes(ferramenta.name) && !ANALISE_FORNECEDOR.includes(ferramenta.name) && !CANAIS.includes(ferramenta.name) && !ferramenta.description.includes("anotarDuvida")).map((ferramenta) => ferramenta.name), []);
 
     // --- as Correcoes da descricao (07/11/2026): gravadas pelo chat com o login da conexao, sem o lembrete ---
     await prisma.correcaoDaDescricao.deleteMany({ where: { criadoPor: "zz-mcp-lembrete" } });
@@ -1460,6 +1462,24 @@ try {
     conferir("resumo na Revisao", resumoDaChamada("situacaoDoProduto", { sku: "ZZ-MCP-PA1" }), "situação de ZZ-MCP-PA1");
     const { RECURSOS } = await import("../src/lib/acessos/recursos.js");
     conferir("a acao Propor anuncio existe no catalogo", RECURSOS.some((recurso) => recurso.id === "acao.canaisDeVenda.proporAnuncio"), true);
+
+    // Sincronizar com o Bling e com a Loja Integrada pelo MCP (10/11/2026): as duas unicas ferramentas que escrevem fora do Rise.
+    // O funcionamento (cadastrar, completar, sincronizar, falha no meio) esta no teste:bling-sync e no teste:li-sync, com os
+    // falsos; aqui, o que depende do servidor: elas existem, escrevem (readOnlyHint falso) e recusam o login sem a acao.
+    console.log("\nSincronizar canais pelo MCP: registro e acesso");
+    for (const [nome, recurso, rotulo] of [["sincronizarComBling", "acao.produtos.sincronizarBling", "Bling"], ["sincronizarComLojaIntegrada", "acao.lojaIntegrada.sincronizar", "Loja Integrada"]]) {
+      const ferramenta = lista.find((f) => f.name === nome);
+      conferir(`${nome}: no tools/list, e nao e so de leitura`, [Boolean(ferramenta), ferramenta?.annotations?.readOnlyHint], [true, false]);
+      const semAcao = await chamar(nome, { sku: "ZZ-MCP-PA1" }, quem((r) => r !== recurso));
+      conferir(`${nome} sem a acao: recusa e cita o ${rotulo}`, [semAcao?.isError, (semAcao?.content?.[0]?.text ?? "").includes(rotulo)], [true, true]);
+      conferir(`${nome}: resumo na Revisao`, resumoDaChamada(nome, { sku: "ZZ-MCP-PA1" }), `${rotulo}: sincronizou ZZ-MCP-PA1`);
+    }
+    const naoExiste = await chamar("sincronizarComBling", { sku: "ZZ-MCP-NAO-EXISTE" });
+    conferir("sincronizarComBling: sku que nao existe recusa antes de tocar no Bling", [naoExiste?.isError, /não encontrado/.test(naoExiste?.content?.[0]?.text ?? "")], [true, true]);
+    await prisma.produto.update({ where: { sku: "ZZ-MCP-PA1" }, data: { conferido: false } });
+    const naoConferido = await chamar("sincronizarComBling", { sku: "ZZ-MCP-PA1" });
+    conferir("sincronizarComBling: produto nao Conferido recusa antes de tocar no Bling", [naoConferido?.isError, /Conferido/.test(naoConferido?.content?.[0]?.text ?? "")], [true, true]);
+    await prisma.produto.update({ where: { sku: "ZZ-MCP-PA1" }, data: { conferido: true } });
 
     console.log("\nA proposta da LI nao existe mais (25/10/2026)");
     conferir("tools/list nao traz as ferramentas da proposta da LI", lista.some((ferramenta) => ["lerParaPropostaLI", "gravarPropostaLI"].includes(ferramenta.name)), false);

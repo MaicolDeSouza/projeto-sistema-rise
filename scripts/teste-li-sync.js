@@ -1230,6 +1230,71 @@ try {
     conferir("confirmar: produto sem anuncio publicado e recusado", (await confirmarAjusteFiscalLI("inexistente")).ok, false);
   }
 
+  {
+    // A ferramenta do MCP (pedido do dono em 10/11/2026: o Claude da Andrea faz o que o icone da LI faz). Mesmas
+    // bibliotecas da tela; o que muda e quem decide entre cadastrar, completar e sincronizar.
+    console.log("\nFerramenta do MCP: sincronizarComLojaIntegrada");
+    await limpar();
+    const { FERRAMENTAS_DE_CANAIS } = await import("../src/lib/mcp/canais.js");
+    const ferramenta = FERRAMENTAS_DE_CANAIS.find((f) => f.nome === "sincronizarComLojaIntegrada");
+    const { INCLUDE_DO_ICONE_BLING } = await import("../src/lib/blingSync/estado.js");
+    const { assinaturaDoRise, normalizarDoRise, normalizarFornecedoresDoRise } = await import("../src/lib/blingSync/campos.js");
+    const blingEmDia = async (id) => {
+      const lido = await prisma.produto.findUnique({ where: { id }, include: INCLUDE_DO_ICONE_BLING });
+      await prisma.produto.update({ where: { id }, data: { blingSincronizadoEm: new Date(), blingAssinatura: assinaturaDoRise(normalizarDoRise(lido), normalizarFornecedoresDoRise(lido.fornecedores)) } });
+    };
+    const novo = async (sku) => {
+      const criado = await prisma.produto.create({ data: { ...MEDIDAS, sku, tituloBase: `MCP ${sku}`, descricaoBase: "O produto da ferramenta do MCP.", ncm: "85364900", conferido: true, seoTituloLI: "MCP", seoDescricaoLI: "O produto da ferramenta do MCP." } });
+      await blingEmDia(criado.id);
+      return criado;
+    };
+    const chamar = async (sku, { li, bling, pode = () => true }) => {
+      try {
+        return await ferramenta.executar(ferramenta.esquema.parse({ sku }), { pode, mcp: { clienteLI: li, clienteBling: bling } });
+      } catch (erro) {
+        return { lancou: erro.name, erro: erro.message };
+      }
+    };
+    // A conferencia da trava tambem fica em `chamadas` (metodo TRAVA), mas nao e escrita.
+    const escritas = (li) => li.chamadas.filter((c) => !["GET", "TRAVA"].includes(c.metodo)).length;
+
+    const p = await novo("ZZ-LI-60");
+    const li = criarLojaIntegradaFalsa({});
+    const bling = criarBlingDaLI({ saldo: 4 });
+
+    const semAcao = await chamar("ZZ-LI-60", { li, bling, pode: (recurso) => recurso !== "acao.lojaIntegrada.sincronizar" });
+    conferir("mcp LI: sem a acao da loja recusa, sem chamar a LI", [semAcao.lancou, /Loja Integrada/.test(semAcao.erro ?? ""), li.chamadas.length], ["ErroDeFerramenta", true, 0]);
+
+    await prisma.produto.update({ where: { id: p.id }, data: { blingAssinatura: "outra" } });
+    const blingComAviso = await chamar("ZZ-LI-60", { li, bling });
+    conferir("mcp LI: Bling com '!' recusa (o Bling vem antes), sem chamar a LI", [blingComAviso.lancou, /Bling/.test(blingComAviso.erro ?? ""), li.chamadas.length], ["ErroDeFerramenta", true, 0]);
+    await blingEmDia(p.id);
+
+    const cadastro = await chamar("ZZ-LI-60", { li, bling });
+    conferir(
+      "mcp LI: produto fora da loja e cadastrado, ativo, com o estoque do Bling",
+      [cadastro.ok, cadastro.acao, cadastro.etapas, li.produtos().at(-1)?.ativo, li.produtos().at(-1)?.estoque_quantidade],
+      [true, "cadastrou", ["criar", "ligar_bling", "estoque", "ativar", "gravar"], true, 4],
+    );
+    conferir("mcp LI: devolve a situacao e o proximo passo (a proposta do ML)", [cadastro.situacao?.li?.anuncio, cadastro.proximoPasso], ["sincronizado", "proposta-ml"]);
+
+    const antes = escritas(li);
+    const deNovo = await chamar("ZZ-LI-60", { li, bling });
+    conferir("mcp LI: de novo, com tudo igual, nao escreve nada", [deNovo.ok, deNovo.acao, deNovo.camposEnviados, escritas(li) - antes], [true, "sincronizou", [], 0]);
+
+    await prisma.produto.update({ where: { id: p.id }, data: { seoDescricaoLI: "Outro texto de SEO para a loja." } });
+    const mudou = await chamar("ZZ-LI-60", { li, bling });
+    conferir("mcp LI: campo da loja mudou, sincroniza e diz o que enviou", [mudou.ok, mudou.acao, mudou.camposEnviados.length > 0], [true, "sincronizou", true]);
+
+    // O cadastro que parou no vinculo do Bling: a chamada seguinte completa, em vez de criar de novo.
+    await novo("ZZ-LI-61");
+    const li2 = criarLojaIntegradaFalsa({});
+    const parou = await chamar("ZZ-LI-61", { li: li2, bling: criarBlingDaLI({ recusaVinculo: 400 }) });
+    conferir("mcp LI: falha no meio volta com ok falso, a etapa e o aviso de conferir antes", [parou.ok, parou.etapa, /confira/i.test(parou.aviso ?? "")], [false, "ligar_bling", true]);
+    const completou = await chamar("ZZ-LI-61", { li: li2, bling: criarBlingDaLI({ saldo: 2 }) });
+    conferir("mcp LI: a chamada seguinte completa o cadastro (nao cria outro)", [completou.ok, completou.acao, li2.produtos().length, li2.produtos().at(-1)?.ativo], [true, "completou", 1, true]);
+  }
+
   // Blocos das tarefas seguintes entram aqui, antes do finally.
 } catch (erro) {
   falhas++;
