@@ -50,6 +50,7 @@ import * as bibliotecaDePrompts from "@/lib/ia/promptsDescricao";
 import { normalizar } from "@/lib/texto";
 import { problemaDoEanInterno } from "@/lib/eanInterno";
 import { LIMITES_LI } from "@/lib/canaisDeVenda/li/esquema";
+import { tituloSeoPadrao } from "@/lib/canaisDeVenda/li/seo";
 import { descartarLote } from "@/lib/imagens/lote";
 import { padronizarImagem } from "@/lib/imagens/padronizar";
 import { reconciliarImagensDoProduto } from "@/lib/imagens/produto";
@@ -840,6 +841,11 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
   }
 
   const dados = resultado.data;
+
+  // Tag Title vazio grava o nome cortado em 70 (11/11/2026): a aba SEO MOSTRA esse padrao, mas so o preenche quando e
+  // aberta. Salvando sem abrir a aba o banco ficava vazio, a tela parecia preenchida e o envio a LI travava (121607,
+  // 190602 e 190608). O padrao agora e dado, igual ao que a tela mostra.
+  if (!dados.seoTituloLI?.trim()) dados.seoTituloLI = tituloSeoPadrao(dados.tituloBase) || null;
 
   // As Correcoes da descricao (TROCAs de todas as descricoes) valem tambem no texto digitado ou colado no cadastro
   // (spec 2026-11-07). As de um prompt so valem na geracao e na proposta: o Salvar nao sabe que prompt escreveu o texto.
