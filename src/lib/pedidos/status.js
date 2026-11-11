@@ -221,12 +221,22 @@ function finalizarSeVelho(status, { entregueEm, tags, agora }) {
   return passados !== null && passados >= DIAS_PARA_FINALIZAR ? "FINALIZADO" : status;
 }
 
+/**
+ * ML: substatus do envio `ready_to_ship` em que o pacote JA SAIU das maos da loja (pedido do dono em 11/11/2026: o Rise
+ * dizia "Atrasado" e a venda no ML dizia "a caminho"). No envio por agencia (xd_drop_off) o status continua
+ * ready_to_ship depois da entrega na agencia; so o substatus muda (medido na VPS: 18195, 18196 e 18201 em
+ * `in_packing_list`, o 18223 ainda em `printed`). `ready_to_print` e `printed` continuam a postar.
+ */
+export const SUBSTATUS_ML_JA_SAIU = new Set(["dropped_off", "picked_up", "in_hub", "in_packing_list"]);
+
+const jaSaiuNoML = (envio) => envio?.statusDaOrigem === "ready_to_ship" && SUBSTATUS_ML_JA_SAIU.has(envio?.substatus);
+
 function basePorOrigem({ origem, statusDaOrigem, tags, envio, agora, entregueEm }) {
   const codigo = statusDaOrigem ?? null;
   if (origem === "MERCADO_LIVRE") {
     const base = PEDIDO_ML[codigo] ?? null;
     if (base !== "PAGO") return base;
-    const peloEnvio = PEDIDO_ML_PAGO_PELO_ENVIO[envio?.statusDaOrigem] ?? "PAGO";
+    const peloEnvio = jaSaiuNoML(envio) ? "ENVIADO" : (PEDIDO_ML_PAGO_PELO_ENVIO[envio?.statusDaOrigem] ?? "PAGO");
     return finalizarSeVelho(peloEnvio, { entregueEm: envio?.historico?.entregueEm ?? entregueEm, tags, agora });
   }
   if (origem === "LOJA_INTEGRADA") {
@@ -319,6 +329,7 @@ export function statusDoEnvio({ origem, envio = {}, devolucao = null }) {
   const codigo = envio?.statusDaOrigem ?? null;
   if (origem === "MERCADO_LIVRE") {
     if (!codigo && !envio?.tipo && !envio?.rastreio) return "SEM_ENVIO";
+    if (jaSaiuNoML(envio)) return "POSTADO";
     return ENVIO_ML[codigo] ?? "A_POSTAR";
   }
   if (origem === "LOJA_INTEGRADA") {

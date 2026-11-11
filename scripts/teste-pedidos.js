@@ -338,6 +338,16 @@ try {
     conferir("Bling nomes", ["Em aberto", "Em andamento", "Cancelado"].map((n) => s({ origem: "BLING", statusDaOrigem: n, envio: {} })), ["AGUARDANDO_PAGAMENTO", "PAGO", "CANCELADO"]);
     conferir("Bling atendido com rastreio", s({ origem: "BLING", statusDaOrigem: "Atendido", envio: { rastreio: "X1" } }), "ENVIADO");
     conferir("envio ML", ["pending", "ready_to_ship", "shipped", "delivered", "not_delivered", "cancelled"].map((st) => statusDoEnvio({ origem: "MERCADO_LIVRE", envio: { statusDaOrigem: st } })), ["A_POSTAR", "A_POSTAR", "EM_TRANSITO", "ENTREGUE", "NAO_ENTREGUE", "CANCELADO"]);
+    conferir(
+      "envio ML entregue na agencia (substatus) = postado; impresso continua a postar",
+      ["in_packing_list", "dropped_off", "picked_up", "in_hub", "printed", "ready_to_print"].map((sub) => statusDoEnvio({ origem: "MERCADO_LIVRE", envio: { statusDaOrigem: "ready_to_ship", substatus: sub } })),
+      ["POSTADO", "POSTADO", "POSTADO", "POSTADO", "A_POSTAR", "A_POSTAR"],
+    );
+    conferir(
+      "pedido ML pago com o pacote na agencia = enviado",
+      ["in_packing_list", "printed"].map((sub) => s({ origem: "MERCADO_LIVRE", statusDaOrigem: "paid", envio: { statusDaOrigem: "ready_to_ship", substatus: sub } })),
+      ["ENVIADO", "EM_SEPARACAO"],
+    );
     conferir("envio LI pelo Enviali", ["created", "posted", "transit", "delivering", "delivered", "returned", "cancelled"].map((st) => statusDoEnvio({ origem: "LOJA_INTEGRADA", envio: { tipo: "enviali", statusDaOrigem: st } })), ["A_POSTAR", "POSTADO", "EM_TRANSITO", "EM_TRANSITO", "ENTREGUE", "NAO_ENTREGUE", "CANCELADO"]);
     conferir("envio LI sem Enviali pela situacao", statusDoEnvio({ origem: "LOJA_INTEGRADA", envio: { tipo: "correios", statusDaOrigem: null, situacaoDoPedido: "pedido_enviado" } }), "EM_TRANSITO");
     conferir("sem envio", statusDoEnvio({ origem: "BLING", envio: { tipo: null } }), "SEM_ENVIO");
