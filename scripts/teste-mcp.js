@@ -54,7 +54,7 @@ const CORRECOES = ["gravarCorrecaoDaDescricao", "listarCorrecoesDaDescricao", "d
 // O roteiro da analise de lista de fornecedor (07/11/2026): trabalho do dono, como o roteiro da proposta, sem o lembrete.
 const ANALISE_FORNECEDOR = ["roteiroDaAnaliseDeFornecedor"];
 // Sincronizar com o Bling e a Loja Integrada (10/11/2026): escrita pedida pelo dono, sem o lembrete.
-const CANAIS = ["sincronizarComBling", "sincronizarComLojaIntegrada"];
+const CANAIS = ["sincronizarComBling", "sincronizarComLojaIntegrada", "criarProduto"];
 
 async function lerRespostaMcp(resposta) {
   const texto = await resposta.text();
@@ -761,7 +761,7 @@ try {
         descoberta?.instructions === INSTRUCOES && INSTRUCOES.includes("anotarDuvida"),
       ],
       [
-        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "comprasACaminhoDoProduto", "consultarEstoque", "consultarPreco", "consultarProduto", "desligarCorrecaoDaDescricao", "filtrarProdutos", "folhaDeContato", "gravarCorrecaoDaDescricao", "gravarPropostaML", "gravarSecao", "historicoDePreco", "lerCategoriaML", "lerParaProposta", "lerParaPropostaML", "lerPedidoDeCompra", "lerPedidoDeVenda", "lerProposta", "listarClientes", "listarConcorrentes", "listarCorrecoesDaDescricao", "listarFornecedores", "listarMarcas", "listarPedidosDeCompra", "listarPedidosDeVenda", "listarTransportadoras", "marcarReferencias", "montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra", "produtosAbaixoDoMinimo", "reaproveitarAnuncioML", "relatorioDeVendas", "roteiroDaAnaliseDeFornecedor", "roteiroDaProposta", "sincronizarComBling", "sincronizarComLojaIntegrada", "situacaoDoProduto"],
+        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "comprasACaminhoDoProduto", "consultarEstoque", "consultarPreco", "consultarProduto", "criarProduto", "desligarCorrecaoDaDescricao", "filtrarProdutos", "folhaDeContato", "gravarCorrecaoDaDescricao", "gravarPropostaML", "gravarSecao", "historicoDePreco", "lerCategoriaML", "lerParaProposta", "lerParaPropostaML", "lerPedidoDeCompra", "lerPedidoDeVenda", "lerProposta", "listarClientes", "listarConcorrentes", "listarCorrecoesDaDescricao", "listarFornecedores", "listarMarcas", "listarPedidosDeCompra", "listarPedidosDeVenda", "listarTransportadoras", "marcarReferencias", "montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra", "produtosAbaixoDoMinimo", "reaproveitarAnuncioML", "relatorioDeVendas", "roteiroDaAnaliseDeFornecedor", "roteiroDaProposta", "sincronizarComBling", "sincronizarComLojaIntegrada", "situacaoDoProduto"],
         32,
         true,
       ],
@@ -1480,6 +1480,22 @@ try {
     const naoConferido = await chamar("sincronizarComBling", { sku: "ZZ-MCP-PA1" });
     conferir("sincronizarComBling: produto nao Conferido recusa antes de tocar no Bling", [naoConferido?.isError, /Conferido/.test(naoConferido?.content?.[0]?.text ?? "")], [true, true]);
     await prisma.produto.update({ where: { sku: "ZZ-MCP-PA1" }, data: { conferido: true } });
+
+    // Criar produto pelo MCP (10/11/2026): so o basico, nasce nao Conferido, e o codigo nunca reaproveita o de outro.
+    console.log("\nCriar produto pelo MCP");
+    conferir("criarProduto: no tools/list, e nao e so de leitura", [lista.some((f) => f.name === "criarProduto"), lista.find((f) => f.name === "criarProduto")?.annotations?.readOnlyHint], [true, false]);
+    const semEditar = await chamar("criarProduto", { nome: "ZZMCP produto novo", sku: "ZZ-MCP-CR1" }, quem((r) => r !== "tela.produtos.cadastro"));
+    conferir("criarProduto sem editar o cadastro: recusa e nao cria", [semEditar?.isError, await prisma.produto.count({ where: { sku: "ZZ-MCP-CR1" } })], [true, 0]);
+    const criado = JSON.parse((await chamar("criarProduto", { nome: "ZZMCP produto novo", sku: "ZZ-MCP-CR1", marca: "marca x", modelo: "m1", unidade: "MT" }))?.content?.[0]?.text || "{}");
+    const gravado = await prisma.produto.findUnique({ where: { sku: "ZZ-MCP-CR1" } });
+    conferir("criarProduto: grava o basico, marca e modelo em maiusculas, nao Conferido", [criado.ok, gravado?.tituloBase, gravado?.marca, gravado?.modelo, gravado?.unidade, gravado?.conferido, criado.proximoPasso], [true, "ZZMCP produto novo", "MARCA X", "M1", "MT", false, "proposta-do-produto"]);
+    const repetido = await chamar("criarProduto", { nome: "Outro nome", sku: "zz-mcp-cr1" });
+    conferir("criarProduto: codigo que ja existe (mesmo em outra caixa) recusa", [repetido?.isError, /Já existe/.test(repetido?.content?.[0]?.text ?? ""), await prisma.produto.count({ where: { sku: { startsWith: "ZZ-MCP-CR" } } })], [true, true, 1]);
+    const ruim = await chamar("criarProduto", { nome: "Nome valido", sku: "ZZ MCP/../x" });
+    conferir("criarProduto: codigo com caracteres que nao servem de pasta recusa", ruim?.isError, true);
+    const automatico = JSON.parse((await chamar("criarProduto", { nome: "ZZMCP produto automatico" }))?.content?.[0]?.text || "{}");
+    conferir("criarProduto: sem codigo usa o proximo livre da faixa 25xxxx", /^25\d{4}$/.test(automatico.sku ?? ""), true);
+    if (automatico.sku) await prisma.produto.delete({ where: { sku: automatico.sku } });
 
     console.log("\nA proposta da LI nao existe mais (25/10/2026)");
     conferir("tools/list nao traz as ferramentas da proposta da LI", lista.some((ferramenta) => ["lerParaPropostaLI", "gravarPropostaLI"].includes(ferramenta.name)), false);

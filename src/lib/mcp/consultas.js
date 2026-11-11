@@ -51,6 +51,7 @@ const RESUMOS = {
   reaproveitarAnuncioML: (a) => `proposta ML de ${a.sku}: reaproveitou ${a.itemId}`,
   sincronizarComBling: (a) => `Bling: sincronizou ${a.sku}`,
   sincronizarComLojaIntegrada: (a) => `Loja Integrada: sincronizou ${a.sku}`,
+  criarProduto: (a) => `criou produto: ${a.nome}`,
   gravarCorrecaoDaDescricao: (a) => `correção da descrição: ${a.tipo === "REGRA" ? a.certo : `${a.errado} → ${a.certo}`}`,
   listarCorrecoesDaDescricao: () => "correções da descrição: lista",
   desligarCorrecaoDaDescricao: (a) => `correção da descrição ${a.id}: desligou`,

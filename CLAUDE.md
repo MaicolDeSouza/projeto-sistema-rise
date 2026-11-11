@@ -6154,6 +6154,11 @@ escrevem em sistema de fora** (as outras leem ou gravam rascunho no Rise).
 - **Falha no meio:** volta `ok: false` com `aviso` de conferir o produto no Bling ou na loja antes de repetir (o canal pode ter
   gravado e a resposta se perdido), e a descrição manda o modelo NÃO tentar de novo; a chamada seguinte, depois da conferência,
   completa o que faltou. Recusa antes de escrever (sem acesso, não Conferido, Bling repetido) volta como erro.
+- **`criarProduto` (10/11/2026, mesmo arquivo, pedido do dono "também crie ferramenta para permitir criar produto no Rise"):** cria um
+  produto SIMPLES só com o básico (nome, e se vier, código, marca, modelo e unidade); nasce NÃO Conferido, sem preço, fotos nem
+  fornecedor (o resto vem pela proposta de cadastro e pelo dono). Exige editar `tela.produtos.cadastro`. Sem `sku` usa o próximo livre
+  da faixa 25xxxx (`proximoCodigoLivre`); com `sku`, valida como a tela (`skuValido`) e recusa o que já existe, sem diferenciar caixa.
+  Marca e modelo em maiúsculas. Não cria kit nem escreve no Bling ou nas lojas.
 - **Roteiro do ML v12** e motivos do próximo passo (`situacao.js`) citam as ferramentas e mandam chamá-las só quando a pessoa pedir.
 - **Testes:** blocos novos no `teste:bling-sync` e no `teste:li-sync` (Bling e LI falsos, injetados por `contexto.mcp.clienteBling` e
   `clienteLI`) e o registro e o acesso no `teste:mcp`. **Não conferido de verdade:** nenhuma chamada real ao Bling nem à loja; o 1º uso

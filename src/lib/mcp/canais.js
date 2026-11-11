@@ -1,6 +1,9 @@
 import { z } from "zod";
 
+import { skuValido } from "@/lib/arquivos";
 import { prisma } from "@/lib/db";
+import { proximoCodigoLivre } from "@/lib/proposta/codigo";
+import { UNIDADES } from "@/lib/unidades";
 import { clienteBling } from "@/lib/blingSync/cliente";
 import { cadastrarNoBling, enviarAjustesDeEstoque, sincronizarProduto } from "@/lib/blingSync/envio";
 import { lerParaPopup } from "@/lib/blingSync/leitura";
@@ -200,4 +203,60 @@ const SINCRONIZAR_COM_LOJA_INTEGRADA = {
   },
 };
 
-export const FERRAMENTAS_DE_CANAIS = [SINCRONIZAR_COM_BLING, SINCRONIZAR_COM_LOJA_INTEGRADA];
+// ---------------------------------------------------------------------------
+// Criar produto no Rise (pedido do dono em 10/11/2026)
+// ---------------------------------------------------------------------------
+
+
+
+const CRIAR_PRODUTO = {
+  nome: "criarProduto",
+  descricao: [
+    "CRIA um produto SIMPLES novo no Rise, só com o básico: nome, e se a pessoa informar, código, marca, modelo e unidade.",
+    "Nasce NÃO Conferido, sem preço, sem fotos e sem fornecedor: o resto vem pela proposta de cadastro (roteiroDaProposta) e pelo dono, no Rise.",
+    "Sem sku, o Rise usa o próximo código livre da faixa automática 25xxxx. Com sku, ele precisa ser novo (nunca reaproveite o de outro produto).",
+    "ANTES de criar, procure se o produto já existe (buscarProdutos ou consultarProduto) e só chame quando a pessoa pedir; mostre a ela o código que ficou.",
+    "Não cria kit (composição) nem escreve no Bling ou nas lojas.",
+  ].join(" "),
+  esquema: z.object({
+    nome: z.string().trim().min(3).max(200).describe("O nome do produto, como a loja o vende"),
+    sku: z.string().trim().min(1).max(64).optional().describe("O código. Sem ele, o Rise usa o próximo livre (25xxxx)"),
+    marca: z.string().trim().max(60).optional(),
+    modelo: z.string().trim().max(60).optional(),
+    unidade: z.enum(UNIDADES).optional().describe("Padrão UN"),
+  }),
+  anotacoes: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  async executar({ nome, sku, marca, modelo, unidade }, contexto) {
+    if (typeof contexto?.pode !== "function" || !contexto.pode("tela.produtos.cadastro", "editar")) {
+      throw new ErroDeFerramenta("Este login não pode criar produto (precisa editar o cadastro de Produtos).");
+    }
+    let codigo = sku;
+    if (codigo === undefined) {
+      codigo = await proximoCodigoLivre();
+      if (!codigo) throw new ErroDeFerramenta("A faixa automática 25xxxx acabou.");
+    } else if (!skuValido(codigo)) {
+      throw new ErroDeFerramenta("Código inválido: use apenas letras, números, ponto, hífen e sublinhado.");
+    }
+    // O SKU e unico sem diferenciar caixa: o Bling e o resto do Rise o tratam assim.
+    const igual = await prisma.produto.findFirst({ where: { sku: { equals: codigo, mode: "insensitive" } }, select: { sku: true, tituloBase: true } });
+    if (igual) throw new ErroDeFerramenta(`Já existe o produto ${igual.sku} (${igual.tituloBase}): não foi criado nada.`);
+    try {
+      // Marca e modelo sempre em maiusculas (regra do Rise); o resto nasce com os padroes do banco.
+      const criado = await prisma.produto.create({
+        data: {
+          sku: codigo,
+          tituloBase: nome,
+          marca: marca ? marca.toLocaleUpperCase("pt-BR") : null,
+          modelo: modelo ? modelo.toLocaleUpperCase("pt-BR") : null,
+          unidade: unidade ?? "UN",
+        },
+      });
+      return { ok: true, sku: criado.sku, nome: criado.tituloBase, conferido: false, proximoPasso: "proposta-do-produto", ...(await situacaoAtual(criado.sku)) };
+    } catch (erro) {
+      if (erro?.code === "P2002") throw new ErroDeFerramenta(`O código ${codigo} acabou de ser usado por outro produto: tente de novo.`);
+      throw erro;
+    }
+  },
+};
+
+export const FERRAMENTAS_DE_CANAIS = [SINCRONIZAR_COM_BLING, SINCRONIZAR_COM_LOJA_INTEGRADA, CRIAR_PRODUTO];
