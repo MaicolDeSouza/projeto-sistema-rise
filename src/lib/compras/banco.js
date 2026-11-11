@@ -975,12 +975,12 @@ export async function excluirPedido(id) {
 }
 
 /** As mudancas de situacao que o dono faz pela tela. PARCIAL <-> ENVIADO e so pelo lancamento (lancamento.js). */
-const PELO_DONO = { RASCUNHO: ["ENVIADO", "CANCELADO"], ENVIADO: ["FINALIZADO", "CANCELADO"], PARCIAL: ["FINALIZADO"] };
+const PELO_DONO = { RASCUNHO: ["ENVIADO", "CANCELADO"], ENVIADO: ["RASCUNHO", "FINALIZADO", "CANCELADO"], PARCIAL: ["FINALIZADO"] };
 
 export async function mudarStatus(id, para) {
   try {
     return await prisma.$transaction(async (tx) => {
-      const [linha] = await tx.$queryRaw`SELECT "status"::text AS "status" FROM "PedidoDeCompra" WHERE "id" = ${String(id ?? "")} FOR UPDATE`;
+      const [linha] = await tx.$queryRaw`SELECT "status"::text AS "status", "fornecedorId" FROM "PedidoDeCompra" WHERE "id" = ${String(id ?? "")} FOR UPDATE`;
       if (!linha) return { ok: false, erro: "Pedido não encontrado." };
       if (!podeIrPara(linha.status, para) || !(PELO_DONO[linha.status] ?? []).includes(para)) {
         return { ok: false, erro: "Esta mudança de situação não é permitida." };
@@ -995,6 +995,18 @@ export async function mudarStatus(id, para) {
         const semPreco = itens.filter((item) => item.precoUnitario === null).map((item) => item.produto.sku);
         if (semPreco.length) return { ok: false, erro: `Item sem preço: ${semPreco.join(", ")}.` };
         await tx.pedidoDeCompra.update({ where: { id }, data: { status: "ENVIADO", enviadoEm: agora } });
+      } else if (para === "RASCUNHO") {
+        // Voltar para rascunho (pedido do dono em 11/11/2026): corrigir quantidade ou preco de um pedido ja enviado e
+        // mandar o PDF de novo. So sem estoque lancado (o lancamento guarda a quantidade daquela epoca) e nunca no do
+        // AliExpress (la "enviado" e "comprado no site"). Sob a trava do fornecedor, como rascunhoDoFornecedor: nunca
+        // dois rascunhos do mesmo fornecedor, senao a reposicao automatica escolheria um deles sem o dono saber.
+        if (itens.some((item) => item.lancamentos.length)) return { ok: false, erro: "Já há estoque lançado: o pedido não volta para rascunho." };
+        const doAliExpress = await tx.pedidoAliExpress.count({ where: { pedidoId: id } });
+        if (doAliExpress) return { ok: false, erro: "Pedido do AliExpress não volta para rascunho." };
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`compras.rascunho.${linha.fornecedorId}`}))`;
+        const outro = await tx.pedidoDeCompra.findFirst({ where: { fornecedorId: linha.fornecedorId, status: "RASCUNHO" }, select: { numero: true } });
+        if (outro) return { ok: false, erro: `${numeroDoPedido(outro.numero)} já é o rascunho deste fornecedor: envie ou exclua esse antes.` };
+        await tx.pedidoDeCompra.update({ where: { id }, data: { status: "RASCUNHO", enviadoEm: null } });
       } else if (para === "CANCELADO") {
         if (itens.some((item) => item.lancamentos.length)) return { ok: false, erro: "Já há estoque lançado: finalize o pedido." };
         await tx.pedidoDeCompra.update({ where: { id }, data: { status: "CANCELADO", canceladoEm: agora } });

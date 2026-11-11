@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCheck, FileDown, Loader2, MoreVertical, Send } from "lucide-react";
+import { ArrowLeft, CheckCheck, FileDown, Loader2, MoreVertical, Send, Undo2 } from "lucide-react";
 
 import { adicionarItemAcao, desfazerCasamentoAliExpressAcao, mudarStatusAcao, salvarPedidoAcao } from "@/app/compras/acoes";
 import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
@@ -161,6 +161,11 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
         )}
       </Pergunta>
     ),
+    rascunho: (
+      <Pergunta titulo={`Voltar ${pedido.codigo} para rascunho?`} confirmar={alterado ? "Salvar e voltar para rascunho" : "Voltar para rascunho"} ocupado={ocupado} aoRecuar={() => setPergunta(null)} aoConfirmar={() => mudarStatus("RASCUNHO")}>
+        Quantidades e preços voltam a ser editáveis e o pedido deixa de contar como estoque a caminho. Depois de corrigir, marque como enviado de novo e mande o PDF novo ao fornecedor.
+      </Pergunta>
+    ),
     cancelar: (
       <Pergunta titulo={`Cancelar ${pedido.codigo}?`} confirmar="Cancelar pedido" recuar="Voltar" destrutiva ocupado={ocupado} aoRecuar={() => setPergunta(null)} aoConfirmar={() => mudarStatus("CANCELADO")}>
         O pedido de {pedido.fornecedor.nome} fica cancelado e as quantidades deixam de contar como estoque a caminho.
@@ -169,6 +174,9 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
   };
 
   const podeCancelar = !fechado && ["RASCUNHO", "ENVIADO"].includes(pedido.status);
+  // "Voltar para rascunho" (pedido do dono em 11/11/2026): enviado, sem estoque lancado e fora do AliExpress; o servidor confere igual.
+  const lancou = pedido.itens.some((item) => (Number(item.quantidadeLancada) || 0) > 0);
+  const podeVoltarARascunho = !fechado && pedido.status === "ENVIADO" && !pedido.aliexpress;
   const voltarALista = () => (alterado ? setPergunta("sair") : irParaALista());
   // O Salvar volta a lista de pedidos (pedido do dono em 08/11/2026: "ao clicar em salvar deve voltar a tela principal");
   // com erro, fica na tela com os campos marcados.
@@ -263,7 +271,21 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
               <MoreVertical size={18} />
             </button>
             {menu && (
-              <div className="absolute right-0 z-20 mt-1 w-44 rounded-md border border-borda bg-superficie py-1 shadow-lg" onMouseLeave={() => setMenu(false)}>
+              <div className="absolute right-0 z-20 mt-1 w-56 rounded-md border border-borda bg-superficie py-1 shadow-lg" onMouseLeave={() => setMenu(false)}>
+                {podeVoltarARascunho && (
+                  <button
+                    type="button"
+                    disabled={lancou}
+                    title={lancou ? "Já há estoque lançado neste pedido" : "Para corrigir quantidades ou preços"}
+                    onClick={() => {
+                      setMenu(false);
+                      setPergunta("rascunho");
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-fundo disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Undo2 size={15} /> Voltar para rascunho
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {

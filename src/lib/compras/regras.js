@@ -15,7 +15,9 @@ export const PODE_EXCLUIR = ["RASCUNHO", "CANCELADO"];
 
 export const PROXIMOS_STATUS = {
   RASCUNHO: ["ENVIADO", "CANCELADO"],
-  ENVIADO: ["PARCIAL", "FINALIZADO", "CANCELADO"],
+  // ENVIADO -> RASCUNHO: "Voltar para rascunho" (pedido do dono em 11/11/2026, para corrigir a quantidade de um pedido ja
+  // enviado); so sem estoque lancado, conferido em mudarStatus.
+  ENVIADO: ["RASCUNHO", "PARCIAL", "FINALIZADO", "CANCELADO"],
   // Parcial nao cancela (decisao do dono): ja ha estoque lancado; o caminho e finalizar com o que chegou.
   PARCIAL: ["ENVIADO", "FINALIZADO"],
   FINALIZADO: [],

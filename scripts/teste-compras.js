@@ -137,8 +137,8 @@ conferir(
 conferir("preco sem nada", precoInicialDoItem({ precoFornecedor: null, coletado: null }), { precoUnitario: null, ipiPercentual: 0 });
 conferir(
   "transicoes",
-  [podeIrPara("RASCUNHO", "ENVIADO"), podeIrPara("PARCIAL", "CANCELADO"), podeIrPara("FINALIZADO", "ENVIADO")],
-  [true, false, false],
+  [podeIrPara("RASCUNHO", "ENVIADO"), podeIrPara("PARCIAL", "CANCELADO"), podeIrPara("FINALIZADO", "ENVIADO"), podeIrPara("ENVIADO", "RASCUNHO"), podeIrPara("PARCIAL", "RASCUNHO")],
+  [true, false, false, true, false],
 );
 conferir(
   "depois de lancar",
@@ -453,10 +453,21 @@ try {
     await banco.adicionarItem(outro.pedidoId, p3.id);
     conferir("busca marca o que ja esta no pedido", (await banco.buscarItensParaPedido(outro.pedidoId, "ZZ-COMPRA-P3"))[0]?.jaNoPedido, true);
 
+    // Voltar para rascunho (pedido do dono em 11/11/2026): recusa com outro rascunho do fornecedor aberto.
+    const comOutro = await banco.mudarStatus(criado.pedidoId, "RASCUNHO");
+    conferir("voltar para rascunho recusa com outro rascunho do fornecedor", [comOutro.ok, /j[aá] [eé] o rascunho/.test(comOutro.erro ?? "")], [false, true]);
+    conferir("cancelar rascunho", (await banco.mudarStatus(outro.pedidoId, "CANCELADO")).ok, true);
+    const voltou = await banco.mudarStatus(criado.pedidoId, "RASCUNHO");
+    pedido = await banco.lerPedido(criado.pedidoId);
+    conferir("voltar para rascunho", [voltou.ok, pedido.status, pedido.enviadoEm], [true, "RASCUNHO", null]);
+    await banco.salvarPedido(criado.pedidoId, { itens: [{ ...itens[0], quantidade: "12" }] });
+    conferir("de volta ao rascunho a quantidade muda", (await banco.lerPedido(criado.pedidoId)).itens[0].quantidade, 12);
+    conferir("enviado de novo", (await banco.mudarStatus(criado.pedidoId, "ENVIADO")).ok, true);
+
     conferir("finalizar", (await banco.mudarStatus(criado.pedidoId, "FINALIZADO")).ok, true);
     conferir("finalizado nao volta", (await banco.mudarStatus(criado.pedidoId, "ENVIADO")).ok, false);
     conferir("finalizado nao salva", (await banco.salvarPedido(criado.pedidoId, { observacoes: "x" })).ok, false);
-    conferir("cancelar rascunho", (await banco.mudarStatus(outro.pedidoId, "CANCELADO")).ok, true);
+    conferir("finalizado nao volta para rascunho", (await banco.mudarStatus(criado.pedidoId, "RASCUNHO")).ok, false);
 
     // Entrada: o valor ja pago ao fazer o pedido (pedido do dono em 26/10/2026). Muda ate o pedido fechar.
     const comEntrada = await banco.criarPedido((await criarFornecedor("ZZ Compra Entrada")).id);
