@@ -221,6 +221,103 @@ try {
   const reenvio = await cliente.enviarClienteAoBling(recusa.clienteId, opcoes);
   conferir("Enviar ao Bling depois cria la", [reenvio.ok, Boolean(reenvio.blingContatoId)], [true, true]);
 
+  // -------------------------------------------------------------------------
+  // Gravacao, numeracao, situacao e lista
+  // -------------------------------------------------------------------------
+  console.log("\nGravação das propostas");
+  const banco = await import("../src/lib/propostas/banco.js");
+  const produto = await prisma.produto.create({
+    data: { sku: "ZZ-PROP-CLI-1", tituloBase: "PRODUTO ZZ-PROP-CLI-1", ativo: true, unidade: "UN", precoVenda: 100, custo: 40 },
+  });
+
+  const [p1, p2] = await Promise.all([banco.criarProposta({ login: "zz", nome: "ZZ" }), banco.criarProposta({ login: "zz" })]);
+  conferir("duas ao mesmo tempo: numeros diferentes e seguidos", Math.abs(p1.numero - p2.numero), 1);
+  conferir("numeracao a partir de 2026", Math.min(p1.numero, p2.numero) >= 2026, true);
+  const nova = await banco.lerProposta(p1.numero, { hoje: "2026-11-12" });
+  conferir("nasce rascunho, com garantia e validade", [nova.situacao, Boolean(nova.garantia), nova.validadeAte >= regras.hojeEmSaoPaulo()], ["RASCUNHO", true, true]);
+
+  const doProduto = await banco.produtoParaProposta(produto.id);
+  conferir("item copia o produto", [doProduto.codigoInterno, doProduto.precoUnitario, doProduto.custoUnitario, doProduto.unidade], ["ZZ-PROP-CLI-1", 100, 40, "UN"]);
+  const achados = await banco.buscarProdutosParaProposta("zz-prop-cli");
+  conferir("busca de produto", achados.map((a) => a.sku), ["ZZ-PROP-CLI-1"]);
+
+  const entrada = {
+    clienteNome: "ZZ Proposta Provisorio",
+    clienteTelefone: "54988990009",
+    validadeAte: "2026-12-01",
+    proximoContato: "2026-11-10",
+    fretePorConta: "CIF",
+    frete: "30,00",
+    desconto: "10%",
+    observacoesInternas: "so nossa",
+    itens: [
+      { ...doProduto, descricaoCliente: "Módulo relé 5V conforme cotação", codigoCliente: "PN-1", quantidade: "2", prazoDiasUteis: "5" },
+      { ...doProduto, descricaoCliente: "O mesmo, outra descrição", quantidade: "1", descontoPercentual: "10" },
+      { descricaoCliente: "Item avulso", quantidade: "3", unidade: "PC", precoUnitario: "10", custoUnitario: "4" },
+    ],
+  };
+  const salvo = await banco.salvarProposta(p1.numero, entrada, { hoje: "2026-11-12" });
+  conferir("salva o provisorio sem documento", [salvo.ok, salvo.avisoBling], [true, null]);
+  const lida = await banco.lerProposta(p1.numero, { hoje: "2026-11-12" });
+  conferir(
+    "provisorio fica so na proposta",
+    [lida.clienteId, lida.clienteNome, await prisma.cliente.count({ where: { nome: "ZZ Proposta Provisorio" } })],
+    [null, "ZZ Proposta Provisorio", 0],
+  );
+  conferir(
+    "itens: mesmo produto duas vezes e avulso",
+    lida.itens.map((i) => [Boolean(i.produtoId), i.descricaoCliente, i.prontaEntrega, i.prazoDiasUteis]),
+    [[true, "Módulo relé 5V conforme cotação", false, 5], [true, "O mesmo, outra descrição", true, null], [false, "Item avulso", true, null]],
+  );
+  conferir("totais lidos", [lida.totais.subtotal, lida.totais.desconto, lida.totais.frete, lida.totais.total], [320, 32, 30, 318]);
+  conferir("o \"!\" de contato", lida.precisaContato, true);
+  conferir("sem custo corta", banco.semCusto(lida).itens.map((i) => i.custoUnitario).concat(banco.semCusto(lida).totais.lucro), [null, null, null, null]);
+
+  const ruim = await banco.salvarProposta(p1.numero, { ...entrada, itens: [{ descricaoCliente: "x", quantidade: "0" }] }, { hoje: "2026-11-12" });
+  conferir("quantidade zero recusa", ruim.erros?.["itens.0.quantidade"], "Informe a quantidade.");
+
+  // Quem nao ve custo manda os itens sem ele: o custo gravado fica.
+  const semCustoNaEntrada = { ...entrada, itens: lida.itens.map((i) => ({ ...i, custoUnitario: null })) };
+  await banco.salvarProposta(p1.numero, semCustoNaEntrada, { manterCusto: true, hoje: "2026-11-12" });
+  conferir("manterCusto preserva", (await banco.lerProposta(p1.numero)).itens.map((i) => i.custoUnitario), [40, 40, 4]);
+
+  // Com documento: vira cliente na hora (Rise e Bling falso).
+  const falso2 = falso; // o mesmo falso: dois falsos gerariam o mesmo id de contato
+  const comDoc = await banco.salvarProposta(
+    p2.numero,
+    { ...entrada, clienteNome: "ZZ Proposta Com Doc", clienteDocumento: cnpjDeTeste(999990000501) },
+    { hoje: "2026-11-12", bling: falso2, exigirEscrita: () => falso2.exigirEscrita("ZZ-CLIENTE") },
+  );
+  const lidaComDoc = await banco.lerProposta(p2.numero);
+  conferir("documento cria o cliente e liga", [comDoc.ok, comDoc.avisoBling, Boolean(lidaComDoc.clienteId), Boolean(lidaComDoc.cliente?.blingContatoId)], [true, null, true, true]);
+
+  conferir("rascunho nao vai para vencida pelo botao", (await banco.mudarSituacao(p1.numero, "VENCIDA")).ok, false);
+  conferir("recusar sem motivo", (await banco.mudarSituacao(p1.numero, "RECUSADA")).erro, "Escolha o motivo da recusa.");
+  await banco.marcarEnviada(p1.numero);
+  conferir("PDF marca enviada", (await banco.lerProposta(p1.numero)).situacao, "ENVIADA");
+  await banco.mudarSituacao(p1.numero, "RECUSADA", { motivo: "PRECO", motivoTexto: "caro" });
+  const recusada = await banco.lerProposta(p1.numero);
+  conferir("recusada com motivo e so leitura", [recusada.situacao, recusada.motivoRecusa, recusada.soLeitura, recusada.precisaContato], ["RECUSADA", "PRECO", true, false]);
+  conferir("recusada nao salva", (await banco.salvarProposta(p1.numero, entrada)).ok, false);
+  await banco.mudarSituacao(p1.numero, "EM_NEGOCIACAO");
+  conferir("reabrir apaga o motivo", (await banco.lerProposta(p1.numero)).motivoRecusa, null);
+
+  conferir("registrar contato sem texto", (await banco.registrarContato(p1.numero, { texto: " " })).ok, false);
+  await banco.registrarContato(p1.numero, { texto: "Ligou, vai ver com o chefe", proximoContato: "2099-01-01", quem: "zz" });
+  const comContato = await banco.lerProposta(p1.numero, { hoje: "2026-11-12" });
+  conferir("contato registrado tira o \"!\"", [comContato.contatos.length, comContato.precisaContato, comContato.proximoContato], [1, false, "2099-01-01"]);
+
+  const venceram = await banco.vencerPropostas({ hoje: "2026-12-02" });
+  conferir("vence sozinha depois da validade", [venceram >= 2, (await banco.lerProposta(p1.numero)).situacao], [true, "VENCIDA"]);
+  await banco.salvarProposta(p1.numero, { ...entrada, validadeAte: "2099-12-31" });
+  conferir("validade de volta ao futuro reabre", (await banco.lerProposta(p1.numero)).situacao, "EM_NEGOCIACAO");
+
+  const lista = await banco.listarPropostas({ busca: "ZZ Proposta", ordenar: "numero", direcao: "asc" });
+  conferir("lista pelo cliente, ordenada", lista.linhas.map((l) => l.numero), [p1.numero, p2.numero].sort((a, b) => a - b));
+  const peloPart = await banco.listarPropostas({ busca: "PN-1" });
+  conferir("lista pelo codigo do cliente", peloPart.linhas.length >= 2, true);
+  conferir("excluir so rascunho", (await banco.excluirProposta(p1.numero)).ok, false);
+
   // @@BANCO@@
 
   terminou = true;
