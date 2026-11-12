@@ -366,6 +366,26 @@ try {
   const chave = l1.url.split("/").pop();
   conferir("chave abre a proposta", (await link.propostaPelaChavePublica(chave))?.numero, p2.numero);
   conferir("chave errada nao abre", await link.propostaPelaChavePublica("x".repeat(43)), null);
+  // PDF e pagina publica: a descricao e o codigo do CLIENTE entram; nosso codigo, custo e internas nunca.
+  const { conteudoDaProposta } = await import("../src/lib/propostas/conteudo.js");
+  const { pdfDaProposta } = await import("../src/lib/propostas/pdf.js");
+  const { htmlDaProposta } = await import("../src/lib/propostas/paginaPublica.js");
+  const paraPdf = await banco.lerProposta(p2.numero);
+  const empresaFalsa = { razaoSocial: "ZZ Empresa", nomeFantasia: "ZZ Loja", cnpj: "00.000.000/0001-00", endereco: "Rua", cidade: "Caxias", uf: "RS", cep: "95000-000" };
+  const conteudo = conteudoDaProposta(paraPdf, empresaFalsa);
+  const tudo = JSON.stringify(conteudo);
+  conferir(
+    "PDF: descricao e codigo do cliente, OC e frete com explicacao",
+    [conteudo.itens[0].celulas.descricao, conteudo.itens[0].celulas.codigo, /OC-77/.test(tudo), /CIF \(frete por nossa conta\)/.test(tudo)],
+    ["Módulo relé 5V conforme cotação", "PN-1", true, true],
+  );
+  conferir("PDF: nunca nosso codigo, custo nem internas", [tudo.includes("ZZ-PROP-CLI-1"), tudo.includes("so nossa"), /custo/i.test(tudo)], [false, false, false]);
+  conferir("PDF: empresa com nome fantasia", conteudo.empresa[0], "ZZ Loja · ZZ Empresa");
+  const bytesDoPdf = await pdfDaProposta(paraPdf, empresaFalsa, {});
+  conferir("PDF gerado", bytesDoPdf.subarray(0, 5).toString("latin1"), "%PDF-");
+  const html = htmlDaProposta(paraPdf, empresaFalsa, {});
+  conferir("pagina publica sem script e sem internas", [/<script/i.test(html), html.includes("so nossa"), html.includes("Módulo relé 5V")], [false, false, true]);
+
   await arquivos.apagarPastaDaProposta((await banco.lerProposta(p2.numero)).id);
 
   // @@BANCO@@
