@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Download,
   ExternalLink,
+  FlaskConical,
   ImageOff,
   Loader,
   PackageCheck,
@@ -25,12 +26,13 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Badge from "@/components/ui/Badge";
 import CabecalhoOrdenavel, { parametrosDaOrdenacao } from "@/components/ui/CabecalhoOrdenavel";
 import Copiar from "@/components/ui/Copiar";
+import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
 import FotoComLupa from "@/components/ui/FotoComLupa";
 import RegrasDeCompra from "@/components/mercados/RegrasDeCompra";
 import { precoComImpostoTexto, precoDaFaixaTexto } from "@/components/mercados/precoTexto";
 import { precoComImpostos } from "@/lib/coleta/impostos";
 import { contaDoPrecoOriginal, precoOriginalEmTexto } from "@/lib/coleta/moeda";
-import { detalhePagina } from "@/app/mercados/acoes";
+import { detalhePagina, enviarParaEstudoAcao } from "@/app/mercados/acoes";
 
 const MOEDA = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -1176,7 +1178,7 @@ function Detalhe({ dados, carregando, foto, aoTrocarFoto, aoAmpliar }) {
   );
 }
 
-export default function TabelaMercados({ linhas, ordenar = "", direcao = "" }) {
+export default function TabelaMercados({ linhas, ordenar = "", direcao = "", podeEstudar = false }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -1188,6 +1190,33 @@ export default function TabelaMercados({ linhas, ordenar = "", direcao = "" }) {
 
   const [selecionada, setSelecionada] = useState(null);
   const [detalhe, setDetalhe] = useState(null);
+  /*
+   * ESTUDO DE VIABILIDADE (spec 2026-11-12): a caixa de cada linha marca o produto, e o botao acima da tabela manda os
+   * marcados para a fila que o Claude Desktop estuda pelo MCP. A marcacao vale so nesta pagina da lista (trocar de pagina
+   * remonta a tabela), para o botao nunca enviar o que nao esta a vista.
+   */
+  const [marcados, setMarcados] = useState(() => new Set());
+  const [enviando, iniciarEnvio] = useTransition();
+  const [envio, setEnvio] = useState(null);
+  const todosMarcados = linhas.length > 0 && linhas.every((linha) => marcados.has(linha.id));
+  function marcar(id) {
+    setMarcados((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(id)) novo.delete(id);
+      else novo.add(id);
+      return novo;
+    });
+  }
+  function marcarTodos() {
+    setMarcados(todosMarcados ? new Set() : new Set(linhas.map((linha) => linha.id)));
+  }
+  function enviarParaEstudo() {
+    iniciarEnvio(async () => {
+      const resultado = await enviarParaEstudoAcao([...marcados]);
+      setEnvio(resultado);
+      if (resultado.ok) setMarcados(new Set());
+    });
+  }
   /**
    * QUAL FOTO, num lugar so.
    *
@@ -1241,6 +1270,37 @@ export default function TabelaMercados({ linhas, ordenar = "", direcao = "" }) {
 
   return (
     <>
+      {podeEstudar && marcados.size > 0 && (
+        <div className="mb-2 flex items-center justify-end gap-3">
+          <button type="button" onClick={() => setMarcados(new Set())} className="text-sm text-suave hover:text-texto">
+            Limpar marcação
+          </button>
+          <button
+            type="button"
+            onClick={enviarParaEstudo}
+            disabled={enviando}
+            title="O Claude Desktop estuda no Mercado Livre e o relatório fica em Compras › Estudos de viabilidade."
+            className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-60"
+          >
+            {enviando ? <Loader size={15} className="animate-spin" /> : <FlaskConical size={15} />}
+            Enviar para estudo ({marcados.size})
+          </button>
+        </div>
+      )}
+      {envio && !envio.ok && (
+        <p role="alert" className="mb-2 text-right text-sm text-red-700">
+          {envio.erro}
+        </p>
+      )}
+      {envio?.ok && (
+        <ConclusaoDoEnvio
+          titulo="Enviado para estudo"
+          mensagem={`${envio.criados} ${envio.criados === 1 ? "produto entrou" : "produtos entraram"} na fila dos estudos de viabilidade.`}
+          linhas={["Peça ao Claude Desktop: \"faça os estudos de viabilidade da fila\".", "O relatório fica em Compras › Estudos de viabilidade."]}
+          aviso={envio.repetidos > 0 ? `${envio.repetidos} já ${envio.repetidos === 1 ? "estava" : "estavam"} na fila e não ${envio.repetidos === 1 ? "entrou" : "entraram"} de novo.` : null}
+          aoFechar={() => setEnvio(null)}
+        />
+      )}
       <div className="overflow-x-auto rounded-lg border border-borda bg-superficie">
         <table className="w-full text-sm">
           {/*
@@ -1250,6 +1310,18 @@ export default function TabelaMercados({ linhas, ordenar = "", direcao = "" }) {
           */}
           <thead className="border-b border-borda bg-fundo text-xs tracking-wide text-suave uppercase">
             <tr className="divide-x divide-borda">
+              {podeEstudar && (
+                <th className="w-9 px-2 py-2.5 text-center">
+                  <input
+                    type="checkbox"
+                    checked={todosMarcados}
+                    onChange={marcarTodos}
+                    aria-label="Marcar todos desta página para estudo"
+                    title="Marcar todos desta página para estudo"
+                    className="size-4 cursor-pointer accent-emerald-600"
+                  />
+                </th>
+              )}
               <th className="w-16 px-3 py-2.5 text-center font-medium">Imagem</th>
               <CabecalhoOrdenavel campo="nome" rotulo="Nome" className="text-left" ordenar={ordenar} direcao={direcao} aoClicar={trocarOrdenacao} />
               <CabecalhoOrdenavel campo="codigo" rotulo="Código" className="text-left" ordenar={ordenar} direcao={direcao} aoClicar={trocarOrdenacao} />
@@ -1271,8 +1343,20 @@ export default function TabelaMercados({ linhas, ordenar = "", direcao = "" }) {
                 // esta esgotado e o rotulo, com todas as letras.
                 className={`cursor-pointer hover:bg-fundo ${
                   selecionada === linha.id ? "bg-fundo" : ""
-                }`}
+                } ${marcados.has(linha.id) ? "bg-emerald-50" : ""}`}
               >
+                {/* O clique na caixa NAO abre o detalhe (stopPropagation), como o link do site. */}
+                {podeEstudar && (
+                  <td className="px-2 py-2.5 text-center" onClick={(evento) => evento.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={marcados.has(linha.id)}
+                      onChange={() => marcar(linha.id)}
+                      aria-label={`Marcar ${linha.titulo ?? "produto"} para estudo`}
+                      className="size-4 cursor-pointer accent-emerald-600"
+                    />
+                  </td>
+                )}
                 <td className="px-3 py-2.5">
                   <div className="flex justify-center">
                     <Miniatura url={linha.imagem} alt={linha.titulo ?? ""} />

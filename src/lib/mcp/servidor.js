@@ -7,6 +7,7 @@ import { FERRAMENTAS_DE_CADASTRO } from "./cadastros.js";
 import { FERRAMENTAS_DE_CANAIS } from "./canais.js";
 import { FERRAMENTAS_DE_COMPRAS_ESCRITA, FERRAMENTAS_DE_COMPRAS_LEITURA } from "./compras.js";
 import { FERRAMENTAS_DE_CORRECOES } from "./correcoes.js";
+import { FERRAMENTAS_DE_ESTUDOS } from "./estudos.js";
 import { FERRAMENTAS_DO_CATALOGO } from "./catalogo.js";
 import { horasDeBrasilia } from "./horario.js";
 import { FERRAMENTA_MERCADO } from "./mercado.js";
@@ -40,6 +41,7 @@ export const INSTRUCOES = [
   "Para a proposta de ANÚNCIO de um produto (Loja Integrada ou Mercado Livre), chame primeiro situacaoDoProduto, diga à pessoa o próximo passo e então roteiroDaProposta com canal \"li\" ou \"ml\", e siga o roteiro; a proposta só preenche o rascunho do anúncio no Rise (o dono revisa e envia).",
   "Sincronizar canais: sincronizarComBling e sincronizarComLojaIntegrada ESCREVEM no Bling e na Loja Integrada (o mesmo que os ícones B e LI da lista de Produtos). Chame só quando situacaoDoProduto indicar o passo E a pessoa pedir, e diga a ela o que vai fazer antes. Se uma delas devolver ok falso com aviso, não tente de novo: a pessoa confere no Bling ou na loja primeiro.",
   "Compras: produtosAbaixoDoMinimo, listarPedidosDeCompra e lerPedidoDeCompra leem; montarPedidoDeCompra cria ou completa o RASCUNHO do fornecedor com os dados que a pessoa passar (mostre o pedido devolvido); mudarSituacaoDoPedidoDeCompra (enviar, cancelar, finalizar) só quando a pessoa pedir com todas as letras. Lançar estoque recebido é só na tela do Rise.",
+  "Estudo de viabilidade (vale a pena trabalhar com um produto mandado pelo Scraper? quanto comprar?): chame primeiro roteiroDoEstudoDeViabilidade e siga o roteiro; o relatório volta ao Rise com gravarEstudoDeViabilidade.",
   "Análise de lista de fornecedor (comparar os preços de um fornecedor, em R$ ou US$, com os concorrentes e os outros fornecedores, e montar a página padrão): chame primeiro roteiroDaAnaliseDeFornecedor e siga o roteiro; com parte \"modelo\" ela traz o HTML da página.",
   "Vendas: relatorioDeVendas (totais, canais, dias, mais vendidos e lucro de um período), listarPedidosDeVenda e lerPedidoDeVenda leem os pedidos do Mercado Livre, da Loja Integrada e do Bling (desde 01/11/2026). Datas como AAAA-MM-DD; sem período, os últimos 30 dias. Do cliente só vêm o nome e a cidade.",
   "OBRIGATÓRIO: ao terminar CADA resposta em que você consultou o Rise, chame a ferramenta anotarDuvida com a pergunta original da pessoa, a sua resposta final e, se ela enviou arquivo, o texto extraído dele em anexos. A pessoa não vê essa anotação; ela serve para a loja revisar e melhorar as respostas.",
@@ -60,9 +62,10 @@ const SO_LEITURA_DO_MCP = [FERRAMENTA_MERCADO, ...FERRAMENTAS_DO_CATALOGO, ...FE
 // O pedido de compra montado pela conversa (26/10/2026) tambem: cada uma traz as proprias anotacoes de escrita.
 // As Correcoes da descricao (07/11/2026) tambem: o dono dita, nao e duvida de atendimento.
 // O roteiro da analise de lista de fornecedor (07/11/2026) tambem: e trabalho do dono, como o roteiro da proposta.
+// O estudo de viabilidade (12/11/2026) tambem: o Claude Desktop estuda a fila do Scraper e so escreve no proprio estudo.
 // Sincronizar com o Bling e com a Loja Integrada (10/11/2026): as duas UNICAS que escrevem em sistema de fora; cada uma
 // confere a acao propria do login (acao.produtos.sincronizarBling e acao.lojaIntegrada.sincronizar) e as travas do Rise.
-const PROPOSTAS = [...FERRAMENTAS_DA_PROPOSTA, ...FERRAMENTAS_DA_PROPOSTA_DE_ANUNCIO, ...FERRAMENTAS_DE_CANAIS, ...FERRAMENTAS_DE_REFERENCIAS, ...FERRAMENTAS_DE_COMPRAS_ESCRITA, ...FERRAMENTAS_DE_CORRECOES, ...FERRAMENTAS_DA_ANALISE_DE_FORNECEDOR];
+const PROPOSTAS = [...FERRAMENTAS_DA_PROPOSTA, ...FERRAMENTAS_DA_PROPOSTA_DE_ANUNCIO, ...FERRAMENTAS_DE_CANAIS, ...FERRAMENTAS_DE_REFERENCIAS, ...FERRAMENTAS_DE_COMPRAS_ESCRITA, ...FERRAMENTAS_DE_CORRECOES, ...FERRAMENTAS_DA_ANALISE_DE_FORNECEDOR, ...FERRAMENTAS_DE_ESTUDOS];
 const SO_DO_MCP = [...SO_LEITURA_DO_MCP, FERRAMENTA_ANOTAR, ...PROPOSTAS];
 // A proposta de produto (spec 2026-10-21) nao e pergunta de atendimento: sem o lembrete de anotar, como a propria anotacao.
 const SEM_LEMBRETE = new Set([FERRAMENTA_ANOTAR.nome, ...PROPOSTAS.map((ferramenta) => ferramenta.nome)]);

@@ -324,7 +324,12 @@ export default async function MercadosPage({ searchParams }) {
               }
             />
           ) : (
-            <TabelaMercados linhas={linhas} ordenar={ordenar} direcao={direcao} />
+            <TabelaMercados
+              linhas={linhas}
+              ordenar={ordenar}
+              direcao={direcao}
+              podeEstudar={pode("tela.compras.estudos", "editar") && pode("dado.custo", "ver") && pode("dado.concorrentes", "ver")}
+            />
           )}
 
           {linhas.length > 0 && (

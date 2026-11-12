@@ -1,4 +1,4 @@
-import { ClipboardList, TriangleAlert } from "lucide-react";
+import { ClipboardList, FlaskConical, TriangleAlert } from "lucide-react";
 
 /**
  * Os cartoes da pagina Compras, no desenho de Configuracoes e Ferramentas: o cartao inteiro e o link. Cada um com o
@@ -22,5 +22,12 @@ export const CARTOES_DE_COMPRAS = [
     rotulo: "Pedidos de compra",
     icone: ClipboardList,
     resumo: "Rascunhos, pedidos enviados e o lançamento do estoque que chegou.",
+  },
+  {
+    href: "/compras/estudos",
+    recurso: "tela.compras.estudos",
+    rotulo: "Estudos de viabilidade",
+    icone: FlaskConical,
+    resumo: "Vale a pena trabalhar com o produto? Preço e vendas no Mercado Livre, custo e quanto comprar.",
   },
 ];

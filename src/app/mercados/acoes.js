@@ -1236,3 +1236,27 @@ export async function alternarPausaColeta() {
   revalidatePath("/mercados");
   return { ok: true, pausada };
 }
+
+// ---------------------------------------------------------------------------
+// Estudo de viabilidade (spec 2026-11-12-estudo-de-viabilidade-design.md)
+// ---------------------------------------------------------------------------
+
+/**
+ * Os produtos marcados no Scraper viram estudos NA FILA, para o Claude Desktop estudar pelo MCP. Pede o acesso de editar
+ * os estudos e as duas abas (fornecedor e concorrente), porque o estudo mostra custo e preco de concorrente.
+ */
+export async function enviarParaEstudoAcao(ids) {
+  const negado = await negarSemAcessos(["tela.compras.estudos", "editar"], ["dado.custo", "ver"], ["dado.concorrentes", "ver"]);
+  if (negado) return negado;
+  try {
+    const { enviarParaEstudo } = await import("@/lib/estudos/banco");
+    const sessao = await sessaoDeAcessos();
+    const resultado = await enviarParaEstudo(ids, { usuario: sessao?.login ?? null });
+    revalidatePath("/compras/estudos");
+    return { ok: true, ...resultado };
+  } catch (erro) {
+    if (erro?.name === "ErroDoEstudo") return { ok: false, erro: erro.message };
+    console.error("[estudos] envio para estudo falhou:", erro);
+    return { ok: false, erro: "Não foi possível enviar para estudo agora." };
+  }
+}

@@ -4,6 +4,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { contarAbaixoDoMinimo, contarPedidosPorStatus } from "@/lib/compras/banco";
 import { CARTOES_DE_COMPRAS } from "@/lib/compras/catalogo";
+import { contarEstudos } from "@/lib/estudos/banco";
 
 export const metadata = { title: "Compras | Sistema Rise" };
 // O detalhe de cada cartao e vivo (quantos produtos faltam, quantos pedidos abertos): nada montado no build.
@@ -26,6 +27,13 @@ async function detalhe(href) {
         .map(([quantos, um, varios]) => `${quantos} ${quantos === 1 ? um : varios}`);
       return partes.length ? partes.join(" · ") : "Nenhum pedido aberto";
     }
+    if (href === "/compras/estudos") {
+      const contagem = await contarEstudos();
+      const fila = contagem.NA_FILA ?? 0;
+      const feitos = contagem.CONCLUIDO ?? 0;
+      if (!fila && !feitos) return "Nenhum estudo";
+      return [fila ? `${fila} na fila` : null, feitos ? `${feitos} ${feitos === 1 ? "concluído" : "concluídos"}` : null].filter(Boolean).join(" · ");
+    }
   } catch (erro) {
     console.error(`[compras] detalhe de ${href} não lido:`, erro?.message ?? erro);
   }
@@ -38,7 +46,9 @@ async function detalhe(href) {
  */
 export default async function ComprasPage() {
   const acesso = await exigirAcessoNaPagina("tela.compras", "ver");
-  const cartoes = CARTOES_DE_COMPRAS.filter((cartao) => acesso.pode(cartao.recurso, "ver"));
+  // O estudo de viabilidade mostra custo e preco de concorrente: o cartao so aparece com os dois (senao a tela da 404).
+  const veEstudos = acesso.pode("dado.custo", "ver") && acesso.pode("dado.concorrentes", "ver");
+  const cartoes = CARTOES_DE_COMPRAS.filter((cartao) => acesso.pode(cartao.recurso, "ver") && (cartao.recurso !== "tela.compras.estudos" || veEstudos));
   const detalhes = await Promise.all(cartoes.map((cartao) => detalhe(cartao.href)));
 
   return (

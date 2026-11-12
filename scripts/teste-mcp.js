@@ -53,6 +53,8 @@ const COMPRAS_ESCRITA = ["montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra"
 const CORRECOES = ["gravarCorrecaoDaDescricao", "listarCorrecoesDaDescricao", "desligarCorrecaoDaDescricao"];
 // O roteiro da analise de lista de fornecedor (07/11/2026): trabalho do dono, como o roteiro da proposta, sem o lembrete.
 const ANALISE_FORNECEDOR = ["roteiroDaAnaliseDeFornecedor"];
+// O estudo de viabilidade (12/11/2026): trabalho do dono, sem o lembrete de anotar.
+const ESTUDOS = ["roteiroDoEstudoDeViabilidade", "listarEstudosDeViabilidade", "lerParaEstudoDeViabilidade", "calcularEstudoDeViabilidade", "gravarEstudoDeViabilidade"];
 // Sincronizar com o Bling e a Loja Integrada (10/11/2026): escrita pedida pelo dono, sem o lembrete.
 const CANAIS = ["sincronizarComBling", "sincronizarComLojaIntegrada", "criarProduto"];
 
@@ -761,8 +763,8 @@ try {
         descoberta?.instructions === INSTRUCOES && INSTRUCOES.includes("anotarDuvida"),
       ],
       [
-        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "compararProdutos", "comprasACaminhoDoProduto", "consultarEstoque", "consultarPreco", "consultarProduto", "criarProduto", "desligarCorrecaoDaDescricao", "filtrarProdutos", "folhaDeContato", "gravarCorrecaoDaDescricao", "gravarPropostaML", "gravarSecao", "historicoDePreco", "lerCategoriaML", "lerParaProposta", "lerParaPropostaML", "lerPedidoDeCompra", "lerPedidoDeVenda", "lerProposta", "listarClientes", "listarConcorrentes", "listarCorrecoesDaDescricao", "listarFornecedores", "listarMarcas", "listarPedidosDeCompra", "listarPedidosDeVenda", "listarTransportadoras", "marcarReferencias", "montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra", "produtosAbaixoDoMinimo", "reaproveitarAnuncioML", "relatorioDeVendas", "roteiroDaAnaliseDeFornecedor", "roteiroDaProposta", "sincronizarComBling", "sincronizarComLojaIntegrada", "situacaoDoProduto"],
-        32,
+        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "calcularEstudoDeViabilidade", "compararProdutos", "comprasACaminhoDoProduto", "consultarEstoque", "consultarPreco", "consultarProduto", "criarProduto", "desligarCorrecaoDaDescricao", "filtrarProdutos", "folhaDeContato", "gravarCorrecaoDaDescricao", "gravarEstudoDeViabilidade", "gravarPropostaML", "gravarSecao", "historicoDePreco", "lerCategoriaML", "lerParaEstudoDeViabilidade", "lerParaProposta", "lerParaPropostaML", "lerPedidoDeCompra", "lerPedidoDeVenda", "lerProposta", "listarClientes", "listarConcorrentes", "listarCorrecoesDaDescricao", "listarEstudosDeViabilidade", "listarFornecedores", "listarMarcas", "listarPedidosDeCompra", "listarPedidosDeVenda", "listarTransportadoras", "marcarReferencias", "montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra", "produtosAbaixoDoMinimo", "reaproveitarAnuncioML", "relatorioDeVendas", "roteiroDaAnaliseDeFornecedor", "roteiroDaProposta", "roteiroDoEstudoDeViabilidade", "sincronizarComBling", "sincronizarComLojaIntegrada", "situacaoDoProduto"],
+        35,
         true,
       ],
     );
@@ -1194,7 +1196,7 @@ try {
       [2, true, 1],
     );
     const lista = (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/list", {}, { id: id++ }), quem)))?.result?.tools ?? [];
-    conferir("a descricao de toda ferramenta de consulta lembra de anotar", lista.filter((ferramenta) => ferramenta.name !== "anotarDuvida" && !PROPOSTA.includes(ferramenta.name) && !PROPOSTA_DE_ANUNCIO.includes(ferramenta.name) && !REFERENCIAS.includes(ferramenta.name) && !COMPRAS_ESCRITA.includes(ferramenta.name) && !CORRECOES.includes(ferramenta.name) && !ANALISE_FORNECEDOR.includes(ferramenta.name) && !CANAIS.includes(ferramenta.name) && !ferramenta.description.includes("anotarDuvida")).map((ferramenta) => ferramenta.name), []);
+    conferir("a descricao de toda ferramenta de consulta lembra de anotar", lista.filter((ferramenta) => ferramenta.name !== "anotarDuvida" && !PROPOSTA.includes(ferramenta.name) && !PROPOSTA_DE_ANUNCIO.includes(ferramenta.name) && !REFERENCIAS.includes(ferramenta.name) && !COMPRAS_ESCRITA.includes(ferramenta.name) && !CORRECOES.includes(ferramenta.name) && !ANALISE_FORNECEDOR.includes(ferramenta.name) && !ESTUDOS.includes(ferramenta.name) && !CANAIS.includes(ferramenta.name) && !ferramenta.description.includes("anotarDuvida")).map((ferramenta) => ferramenta.name), []);
 
     // --- as Correcoes da descricao (07/11/2026): gravadas pelo chat com o login da conexao, sem o lembrete ---
     await prisma.correcaoDaDescricao.deleteMany({ where: { criadoPor: "zz-mcp-lembrete" } });

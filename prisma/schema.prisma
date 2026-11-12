@@ -3015,3 +3015,47 @@ model HistoricoDeLocal {
 
   @@index([produtoId, criadoEm])
 }
+
+/// Estudo de viabilidade de um produto do Scraper (spec 2026-11-12-estudo-de-viabilidade-design.md): o dono manda o
+/// produto pelo botao do Scraper, o Claude Desktop estuda no Mercado Livre pelo MCP e devolve o relatorio. Uma linha por
+/// estudo: estudar de novo cria outra, e as anteriores ficam como historico. Nunca altera produto, custo ou pedido.
+model EstudoDeViabilidade {
+  id String @id @default(cuid())
+
+  /// Copia da origem, SEM chave estrangeira: apagar a fonte nao pode levar o estudo (a regra das fotos mensais).
+  produtoColetadoId String?
+  nome              String
+  codigo            String?
+  fonteNome         String
+  fonteTipo         String
+  url               String?
+  miniatura         String?
+
+  /// NA_FILA ou CONCLUIDO.
+  situacao String @default("NA_FILA")
+
+  /// O que o Claude leu e apontou: [{ titulo, preco, unidades, mesmoProduto, motivo, vendidos, ... }], os fornecedores
+  /// coletados com o custo do dia, e os produtos da 4hobby parecidos com as vendas.
+  termos       String[] @default([])
+  anunciosML   Json?
+  fornecedores Json?
+  parecidos    Json?
+  /// O que o Rise calculou (lib/estudos/regras.js): preco de referencia, custo, lucro, demanda, quantidade.
+  contas       Json?
+
+  /// VALE, VALE_COM_RESSALVA ou NAO_VALE; ALTA, MEDIA ou BAIXA.
+  veredito          String?
+  confianca         String?
+  quantidadeInicial Int?
+  conclusao         String?
+
+  versaoDoRoteiro String?
+  criadoPor       String?
+  criadoEm        DateTime  @default(now())
+  calculadoEm     DateTime?
+  concluidoEm     DateTime?
+  atualizadoEm    DateTime  @updatedAt
+
+  @@index([situacao, criadoEm])
+  @@index([produtoColetadoId])
+}
