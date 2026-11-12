@@ -355,6 +355,7 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Compras | Pedidos de compra e reposição do estoque mínimo (26/10/2026, sem deploy): lista dos conferidos abaixo do mínimo com popup de fornecedores e rascunho automático por fornecedor, editor do pedido no molde do Bling, estoque a caminho calculado, lançar estoque no Bling por item com Desfazer, proposta anexada e PDF para o fornecedor. Ver "Compras (26/10/2026)". **AliExpress (28/10/2026):** extensão do Chrome "Enviar ao Rise" importa os pedidos do site com rastreio por item e depósito Virtual do Bling; ver "AliExpress no Compras (28/10/2026)". **Mercado Livre (11/11/2026):** as compras da conta da loja entram sozinhas pela API, mais a busca pelo rastreio e a nota fiscal do pedido; ver "Compras do Mercado Livre, busca pelo rastreio e nota fiscal (11/11/2026)". **Estudos de viabilidade (12/11/2026, NO AR em 12.11.2026.112):** produtos marcados no Scraper estudados no Mercado Livre pelo Claude Desktop (MCP), com veredito e quantidade; ver "Estudo de viabilidade de produto" |
 | Estoque | Ordens de produção dos produtos com peças próprias (26/10/2026, sem deploy): baixa das peças, conclusão com perda, cancelamento que devolve. Saldo e movimentações ainda não. Ver "Peças próprias e ordem de produção (26/10/2026)". **Mapa do estoque (12/11/2026, fase 1, SEM deploy):** os três estoques em 3D e de frente, colunas, modelos de caixinha e a caixinha do produto; ver "Mapa do estoque (12/11/2026)" |
 | Pedidos | **Pedidos de venda, fase 1 (04/11/2026, NO AR na VPS desde 04.11.2026.60):** o worker lê a cada 5 min os pedidos do ML, da LI e do Bling (desde 01/11/2026), cria o cliente pelo CPF/CNPJ, casa os itens com os produtos, calcula status, peças em falta e lucro estimado × real; lista `/pedidos`, tela do pedido com abas, taxas da LI e nível do cliente. Ver "Pedidos de venda (04/11/2026)" |
+| Propostas | **Propostas para cliente, fase 1 (12/11/2026, SEM deploy):** proposta comercial que vive só no Rise (nº 2026, 2027…), cliente do Rise ou do Bling (ou provisório, sem cadastro), itens com a descrição e o código do cliente, prazo por item, pagamento, frete, OC/obs. da NF, validade de 15 dias que vence sozinha, "!" de contato, PDF, link público com WhatsApp, cotação anexada e pedido de venda no Bling na aprovada. Ver "Propostas para cliente (12/11/2026)" |
 | Financeiro | Esqueleto |
 
 **O que está no ar (24/10/2026):** o deploy 24.10.2026.29 (commit `5ede491`) subiu TUDO o que estava na main até esse commit
@@ -430,6 +431,7 @@ npm run teste:aliexpress          # 153 asserções do AliExpress no Compras: re
 npm run teste:compras-ml           # 50 asserções das compras do Mercado Livre no Compras e da nota fiscal do pedido de compra: regras puras (pack, situação, totais, variação, 1ª leitura, envio e fases), XML da NF-e, leitura contra um ML falso (rascunho que vira enviado, rastreio que aparece, cancelada, sem duplicar), casamento pelo MLB, Virtual contra o Bling falso, busca pelo rastreio e pela nota e a guarda que impede a compra de virar venda. Postgres local, SEM rede; só escreve ZZ-CML-*, "ZZ CML Fornecedor" e compras 98…; `-- --manter` deixa os dados
 npm run teste:estoque3d            # 97 asserções do Mapa do estoque: leitura da localização ("M2"), peças que cabem na caixinha, caixinha certa, peso, a cena montada (ordem, largura, o que passa do vão, a 1 em cima ou embaixo, fora das prateleiras), as regras da fase 2 (parecidos, vizinhos, pesado em cima, Onde guardar) e o banco (colunas pela localização, coluna, modelo, caixinha do produto, Mover com renumeração e histórico, ordem pelas fotos). Postgres local, SEM rede; só escreve ZZ-E3D-*, as colunas ZY/ZZ e os modelos "ZZ E3D *", e apaga
 npm run teste:estudos             # 51 asserções do estudo de viabilidade: regras puras (mediana, piso dos vendidos, demanda, preço por unidade, quantidade, vendas por mês entre estudos, veredito), banco (fila sem repetir, contas contra um ML falso, gravar, estudar de novo, lista) e as 5 ferramentas do MCP com o acesso. Postgres local, SEM rede; só escreve "ZZ-EST *" e ZZ-EST-*, e apaga
+npm run teste:propostas           # 98 asserções das Propostas para cliente: regras puras (totais, desconto, frete só no CIF, prazo geral, "!", vencer), cliente (busca Rise/Bling, cópia, provisório, cadastro nos dois, Bling travado), gravação e numeração (duas ao mesmo tempo), situação, contatos, lista, pedido de venda contra o Bling falso (recusa avulso, não duplica), anexos, link público, PDF e página pública (nunca nosso código, custo nem internas) e as ferramentas do MCP. Postgres local, SEM rede; só escreve "ZZ Proposta *" e ZZ-PROP-CLI-*, e apaga
 npm run teste:pedidos             # 312 asserções dos Pedidos de venda (com o envio do ML entregue na agência pelo substatus): falsos (ML, LI, Bling), normalizadores, status, cliente automático, itens e custo congelado, lucro e devolução, peças, aplicarPedidoLido, a leitura com cursor, acessos e taxas da LI. Postgres local, SEM rede; só escreve ZZ-PED-*, "ZZ Ped *" e os documentos de teste, e devolve a linha "pedidos" de RotinaDoWorker e as taxas da LI; `-- --manter` deixa os pedidos para conferir a tela
 npm run teste:extensao-aliexpress # 15 asserções da leitura da extensão (extensao-aliexpress/leitura.js) com as respostas da página Meus pedidos medidas em 28/10/2026. Puro: sem banco, sem rede, sem Chrome
 npm run teste:licencas            # 109 asserções das Licenças Softwares: regras (vagas, casamento por nome do PC, situação, frescor, ordem), zip e upload do arquivo, banco (programas, licenças, linhas, versões do arquivo, download), leitura do portal (esquema, aplicação, incompleta, sumidos, chave da extensão) e a importação das planilhas (fixtures em scripts/fixtures/licencas/). Postgres local, SEM rede; só escreve ZZ-LIC-*, zz-lic-* e "ZZ LIC *" e devolve a Conexao LIGHTBURN; `-- --manter` deixa os dados para conferir a tela
@@ -6149,6 +6151,51 @@ AliExpress, Alibaba, extensão própria e estudo automático ficaram para depois
   cabeçalhos que ordenam, 100 por página, lixeira com pop-up) e o relatório `/compras/estudos/[id]` (veredito, confiança,
   quantidade e conclusão no topo; abas Resumo, Mercado Livre, Custo e Histórico; "Estudar de novo").
 - **Testes:** `npm run teste:estudos`. **Falta:** o 1º estudo real de ponta a ponta com um produto escolhido pelo dono.
+
+## Propostas para cliente (12/11/2026, fase 1, SEM deploy)
+
+Pedido do dono em 12/11/2026, decidido no brainstorming do mesmo dia: spec `docs/superpowers/specs/2026-11-12-propostas-para-cliente-design.md`,
+plano `docs/superpowers/plans/2026-11-12-propostas-para-cliente.md`. Menu **Propostas** (logo depois de Vendas), acesso
+`tela.propostas` (ver = lista e PDF; editar = criar e mudar; excluir = só o rascunho) e `acao.propostas.pedidoDeVenda`
+(executar).
+
+- **Vive só no Rise** (nada em `/propostas-comerciais` do Bling). Numeração **2026, 2027…** sem prefixo, sob trava do
+  Postgres (`proximoNumero` em `lib/propostas/banco.js`). Tabelas `PropostaParaCliente`, `ItemDaPropostaParaCliente`,
+  `ContatoDaProposta`, `AnexoDaProposta` (migration `20261112d`) e `Cliente.blingContatoId` (o id do contato no Bling).
+- **Cliente** (`lib/propostas/cliente.js`): uma busca só, Rise primeiro e depois o Bling (`GET /contatos` com
+  `numeroDocumento` ou `pesquisa`, `criterio=1`, nunca excluído). **Sem CPF/CNPJ o cliente é PROVISÓRIO e fica só na
+  proposta** (regra do dono: não entra no cadastro); **com documento válido, o Salvar cadastra NA HORA no Rise e no
+  Bling** (`POST /contatos` com o tipo Cliente lido de `GET /contatos/tipos`). Falha do Bling nunca perde a proposta: o
+  cliente fica no Rise e volta o aviso, com o "Enviar ao Bling" no cartão. A trava é a `BLING_ESCRITA` (o
+  `exigirEscrita(codigo)` do cliente do Bling é por código de produto, que contato não tem).
+- **Itens:** produto do Rise (cópia de código, nome, foto, preço de venda e custo) ou **avulso**; a **descrição do
+  cliente** (obrigatória para o PDF, "!" na linha) e o **código do cliente** são o que o PDF mostra; o mesmo produto pode
+  entrar duas vezes. Quantidade com 3 casas, unidade da lista `UNIDADES_DA_PROPOSTA`, desconto % por item, prazo "Pronta
+  entrega" ou "N dias úteis" (o geral é o maior), "+Obs." que sai no PDF e custo/lucro (markup) só para `dado.custo`.
+  Quem não vê custo salva sem ele e o custo gravado fica (`manterCusto`).
+- **Regras** (`lib/propostas/regras.js`, sem banco, as mesmas na tela, no PDF e no teste): frete soma no total **só no
+  CIF**; desconto geral % ou R$ (o `lerDesconto` de Compras); impostos inclusos. Situações Rascunho → Enviada → Em
+  negociação → Aprovada / Recusada (com motivo) / Vencida; "aberta" = as três primeiras. **"!" de contato** com a aberta e
+  `proximoContato <= hoje` (São Paulo), filtro "Contatar hoje"; **Registrar contato** grava o histórico e a próxima data.
+  **Validade de 15 dias** que **vence sozinha** (rotina horária `propostas` do worker e também antes de toda leitura da
+  lista); salvar uma vencida com a validade no futuro reabre. Aprovada e Recusada ficam só leitura (Reabrir).
+- **PDF, link e WhatsApp** (`conteudo.js` decide o que o cliente lê; `pdf.js` e `paginaPublica.js` só desenham):
+  logo e dados de `DadosDaEmpresa`, cliente com endereço e A/C, descrição e código do cliente, totais, prazo, pagamento,
+  frete com a explicação, "Para a nota fiscal" (OC + texto), observações e garantia. **Nunca** nosso código, custo,
+  lucro nem as internas (o teste confere). Link público `/p/proposta/<43>` sem login (Caddy `@propostaPublica`, só GET e
+  HEAD); o WhatsApp abre `wa.me` com o link, pelo telefone do A/C ou do cliente. Gerar PDF, link ou WhatsApp de um
+  Rascunho a marca Enviada; com alteração não salva, salva antes.
+- **Cotação anexada** (`lib/propostas/arquivos.js`): PDF, imagem ou planilha conferidos pelos bytes, até 20 MB, em
+  `dados/propostas/<id>/cotacao/`; download em `/api/propostas/anexos/<id>`.
+- **Pedido de venda no Bling** (`lib/propostas/pedidoDeVenda.js`), só na Aprovada: exige cliente cadastrado e todo item
+  com produto que tenha `blingId` (avulso recusa com o motivo); `POST /pedidos/vendas` com contato, itens (desconto do
+  item em %), desconto geral em R$, frete (`fretePorConta` 0/1/9), OC em `numeroPedidoCompra`, obs. da NF em
+  `observacoes` e pagamento/prazo/internas em `observacoesInternas`. **As parcelas não vão** (id da forma é da conta e a
+  soma teria de bater). Marca "em envio" antes do POST (clique duplo não duplica). **O corpo nunca foi medido no Bling
+  real: o 1º envio é no ZZ-TESTE-BLING, com o OK do dono.** O pedido volta sozinho para Vendas pela leitura de 5 min.
+- **MCP** (só leitura): `listarPropostasParaCliente` e `lerPropostaParaCliente`, com `tela.propostas`; custo só com
+  `dado.custo`; do cliente só o nome (nunca documento, telefone, e-mail ou endereço, como nos pedidos de venda).
+- **Fase 2 (não feita):** duplicar e revisões, aviso no Telegram no dia do contato e buscar dados pelo CNPJ.
 
 ## Peças próprias e ordem de produção (26/10/2026)
 
