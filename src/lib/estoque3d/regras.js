@@ -129,6 +129,13 @@ export function pesoDaCaixinha(produto, modelo) {
   return Math.round((daPeca * pecas + (numero(modelo?.pesoVazioKg) ?? 0)) * 1000) / 1000;
 }
 
+/** Peso da caixinha cheia com o que ela vai guardar (o estoque maximo; sem ele, o de hoje), em kg. null sem peso. */
+export function pesoDaCaixinhaCheia(produto, modelo) {
+  const daPeca = numero(produto?.pesoKg);
+  if (!daPeca) return null;
+  return Math.round((daPeca * quantidadeAGuardar(produto) + (numero(modelo?.pesoVazioKg) ?? 0)) * 1000) / 1000;
+}
+
 /** O nivel (0 = o de baixo) de uma prateleira numerada, conforme o estoque conta de baixo ou de cima. */
 export function nivelDaPrateleira(numeroDaPrateleira, prateleiras, primeiraEmbaixo) {
   return primeiraEmbaixo ? numeroDaPrateleira - 1 : prateleiras - numeroDaPrateleira;
@@ -176,6 +183,10 @@ function disporNaPrateleira(produtos, larguraDoVao, modelosPorId) {
       capacidade: capacidade.pecas,
       origemDaCapacidade: capacidade.origem,
       pesoKg: pesoDaCaixinha(produto, modelo),
+      // Para as regras da fase 2: o peso da caixinha CHEIA (pelo estoque maximo, que e o que ela vai guardar) e a familia.
+      pesoCheiaKg: pesoDaCaixinhaCheia(produto, modelo),
+      familia: produto.familiaEstoque ?? null,
+      modeloId: modelo?.id ?? null,
       avisos,
     };
     x += largura;
@@ -281,6 +292,7 @@ export function montarMapa({ locais = [], colunas = [], modelos = [], produtos =
             larguraCm: largura,
             profundidadeCm: profundidade,
             alturaLivreCm: alturaLivre,
+            pesoMaximoKg: numero(coluna.pesoMaximoKg),
             alturaCm: quantas * (alturaLivre + PADRAO.espessuraCm) + PADRAO.espessuraCm,
             medida: Boolean(numero(coluna.larguraCm)),
             prateleiras,
@@ -291,6 +303,7 @@ export function montarMapa({ locais = [], colunas = [], modelos = [], produtos =
       return {
         id: local.id,
         numero: local.numero,
+        maiorNivel: colunasDoLocal.reduce((maior, coluna) => Math.max(maior, coluna.prateleiras.length - 1), 0),
         nome: local.nome,
         descricao: local.descricao ?? null,
         aplicaRegras: Boolean(local.aplicaRegras),

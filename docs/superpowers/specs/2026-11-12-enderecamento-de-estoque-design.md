@@ -122,3 +122,40 @@ Uma caixinha por produto dispensa a tabela produto × posição com quantidade: 
 - Medidas de envio ≠ medidas da peça: a estimativa erra em peça miúda; por isso o número digitado vence.
 - A Localização não diz a ordem das caixinhas na prateleira: a primeira vista põe em ordem de código, e o dono acerta.
 - A separação de parecidos disputa espaço com o "pesado embaixo": a sugestão precisa de prioridade (peso primeiro).
+
+## 11. Plano da fase 2 (12/11/2026, para aprovação do dono)
+
+Fase 1 no ar (12.11.2026.110). Fase 2 = Estoques 2 e 3 com as regras, "Onde guardar", mover caixinha, avisos e a gravação da
+ordem pelas fotos. Nada aqui exige as fotos; para a sugestão funcionar de verdade, o dono cadastra as colunas dos Estoques 2 e 3
+e os modelos de caixinha (as abas já existem).
+
+**Dado medido que muda o desenho da regra "parecidos":** só 100 dos 1.377 produtos ativos da VPS têm categoria da loja
+(`categoriasLI`); 906 têm peso e 907 têm as três medidas. Categoria sozinha não separa nada: o parecido tem de vir do NOME.
+
+1. **Regras puras** (`src/lib/estoque3d/arrumacao.js`, testadas sem banco):
+   - **Parecido** = nome semelhante (trigramas, sem acento, sem palavras genéricas como "módulo", "kit", "para", "com"; limiar
+     ajustável, começa em 0,45) OU mesma categoria da loja quando os dois têm. Ex.: "Motor de passo 28BYJ-48 5V" × "12V".
+   - **Vizinho** = caixinha ao lado na mesma prateleira, ou na prateleira de cima/de baixo com sobreposição na largura.
+   - **Pesado embaixo** = peso da caixinha cheia pelo Estoque máximo (peso da peça × máximo + caixinha vazia). Quebra a regra a
+     caixinha que está ACIMA de outra da mesma coluna com menos da metade do peso dela e pelo menos 1 kg de diferença (ajustável).
+   - **Cabe** = largura livre do vão, altura livre da prateleira e peso máximo da prateleira.
+2. **"Onde guardar este produto?"** (`sugerirLugar`): escolhe a caixinha (menor modelo em que cabe o Estoque máximo), lista as
+   prateleiras do estoque escolhido onde ela cabe, tira as que deixariam um parecido vizinho, e ordena: o pesado o mais baixo
+   possível e o leve em cima, depois o que aproveita melhor o espaço. Devolve as 3 melhores com o motivo de cada uma. Só nos
+   Estoques 2 e 3; no Estoque 1 só quando o dono pedir.
+3. **Mover caixinha** (botão "Mover" no painel da caixinha e "Guardar em outro estoque" no cadastro do produto): janela com as 3
+   sugestões e a escolha manual (estoque, coluna, prateleira, posição). Grava a `localizacao` ("K3"), a posição, a caixinha e uma
+   linha em `HistoricoDeLocal`. A localização vai ao Bling pelo Sincronizar de sempre (o "!" do Bling acende). Mover para um lugar
+   que quebra regra é permitido com o aviso.
+4. **Avisos no mapa** (só Estoques 2 e 3): selo na caixinha (cor por tipo: parecido vizinho, pesado em cima, não cabe) e uma
+   lista "Fora da regra" ao lado do mapa, com o "Mover" em cada linha. No Estoque 1 só aparece "não cabe no vão".
+5. **Histórico**: no painel da caixinha, as últimas trocas de lugar (de, para, quem, quando).
+6. **Ordem pelas fotos** (`scripts/ordem-pelas-fotos.js --simular | --confirmo`): a sessão lê as fotos e escreve um arquivo por
+   coluna (prateleira → códigos da esquerda para a direita); o script confere cada código no Rise, compara com a Localização,
+   grava `ordemNaPrateleira` e devolve a lista de dúvidas (código que não existe, localização diferente). Nunca muda a
+   Localização sozinho.
+7. **Acesso**: mover exige `tela.estoque.mapa` editar e `dado.localizacao` editar (o mesmo da edição rápida).
+8. **Testes**: `teste:estoque3d` ganha as regras, a sugestão, o mover com histórico e o script das fotos.
+
+Perguntas ao dono: (a) o código do produto tem família (ex.: 1002xx = mesmo tipo)? se tiver, entra como "parecido"; (b) mover
+deve mandar a Localização ao Bling na hora, ou fica para o Sincronizar (recomendado)?

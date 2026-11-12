@@ -422,7 +422,7 @@ npm run teste:producao            # 89 asserções das peças próprias e da ord
 npm run teste:compras             # 194 asserções do módulo Compras (com a observação por item, o link público e o "Voltar para rascunho" do enviado): regras (totais, desconto % ou R$, a caminho, carrinho, situação), lista do mínimo e rascunho automático (com concorrência), pedido (salvar, itens, situação, preço que não se apaga), lançamento contra o Bling falso (clique duplo, Bling que recusa, desfazer com estoque vendido), proposta pelos bytes, dados da empresa, o PDF e as ferramentas de Compras do MCP. Postgres local, SEM rede; só escreve ZZ-COMPRA-* e "ZZ Compra *"
 npm run teste:aliexpress          # 153 asserções do AliExpress no Compras: regras puras, esquema, chave da extensão, depósito Virtual (saída por balanço, Reenviar que acerta), casamento (anúncio+opção, fator), importação, chegada, rotas e a leitura para a tela, contra um Bling falso. Postgres local, SEM rede; só escreve ZZ-ALI-*, "ZZ Ali *" e pedidos 99…; `-- --manter` deixa os dados para conferir a tela
 npm run teste:compras-ml           # 50 asserções das compras do Mercado Livre no Compras e da nota fiscal do pedido de compra: regras puras (pack, situação, totais, variação, 1ª leitura, envio e fases), XML da NF-e, leitura contra um ML falso (rascunho que vira enviado, rastreio que aparece, cancelada, sem duplicar), casamento pelo MLB, Virtual contra o Bling falso, busca pelo rastreio e pela nota e a guarda que impede a compra de virar venda. Postgres local, SEM rede; só escreve ZZ-CML-*, "ZZ CML Fornecedor" e compras 98…; `-- --manter` deixa os dados
-npm run teste:estoque3d            # 64 asserções do Mapa do estoque: leitura da localização ("M2"), peças que cabem na caixinha, caixinha certa, peso, a cena montada (ordem, largura, o que passa do vão, a 1 em cima ou embaixo, fora das prateleiras) e o banco (colunas pela localização, coluna, modelo, caixinha do produto). Postgres local, SEM rede; só escreve ZZ-E3D-*, as colunas ZY/ZZ e os modelos "ZZ E3D *", e apaga
+npm run teste:estoque3d            # 97 asserções do Mapa do estoque: leitura da localização ("M2"), peças que cabem na caixinha, caixinha certa, peso, a cena montada (ordem, largura, o que passa do vão, a 1 em cima ou embaixo, fora das prateleiras), as regras da fase 2 (parecidos, vizinhos, pesado em cima, Onde guardar) e o banco (colunas pela localização, coluna, modelo, caixinha do produto, Mover com renumeração e histórico, ordem pelas fotos). Postgres local, SEM rede; só escreve ZZ-E3D-*, as colunas ZY/ZZ e os modelos "ZZ E3D *", e apaga
 npm run teste:pedidos             # 312 asserções dos Pedidos de venda (com o envio do ML entregue na agência pelo substatus): falsos (ML, LI, Bling), normalizadores, status, cliente automático, itens e custo congelado, lucro e devolução, peças, aplicarPedidoLido, a leitura com cursor, acessos e taxas da LI. Postgres local, SEM rede; só escreve ZZ-PED-*, "ZZ Ped *" e os documentos de teste, e devolve a linha "pedidos" de RotinaDoWorker e as taxas da LI; `-- --manter` deixa os pedidos para conferir a tela
 npm run teste:extensao-aliexpress # 15 asserções da leitura da extensão (extensao-aliexpress/leitura.js) com as respostas da página Meus pedidos medidas em 28/10/2026. Puro: sem banco, sem rede, sem Chrome
 npm run teste:licencas            # 109 asserções das Licenças Softwares: regras (vagas, casamento por nome do PC, situação, frescor, ordem), zip e upload do arquivo, banco (programas, licenças, linhas, versões do arquivo, download), leitura do portal (esquema, aplicação, incompleta, sumidos, chave da extensão) e a importação das planilhas (fixtures em scripts/fixtures/licencas/). Postgres local, SEM rede; só escreve ZZ-LIC-*, zz-lic-* e "ZZ LIC *" e devolve a Conexao LIGHTBURN; `-- --manter` deixa os dados para conferir a tela
@@ -6083,9 +6083,33 @@ plano anterior do mesmo dia, rua-prateleira-nível-posição, foi DESCARTADO pel
   compara). Só no produto existente e para quem vê o mapa.
 - **Conferido no PC** (1366×768): 1.087 caixinhas no Estoque 1, busca do 100225 até J3, vista de frente, criar modelo e
   escolher a caixinha no produto. **Não visto:** celular/toque, colunas com medidas reais, Estoques 2 e 3 com colunas.
-- **Próximo:** as fotos da coluna A (o dono manda; a sessão lê os códigos e grava `ordemNaPrateleira`, dúvidas em lista);
-  medidas dos vãos e modelos de caixinha. Fase 2: Estoques 2 e 3 com as regras (pesado embaixo, parecidos nunca vizinhos),
-  "Onde guardar", mover caixinha e histórico. Fase 3: reorganizar em lote.
+- **Fase 2 (12/11/2026, mesmo dia, SEM deploy):** regras, "Onde guardar", Mover, avisos e a ordem pelas fotos.
+  - **Família** = `Produto.familiaEstoque` ("Topo > Folha"), carregada de `docs/categorias-4hobby-mapeamento.csv` (o trabalho de
+    categorias de 06-21/10/2026, que foi à LI mas nunca entrou no produto: só 100 de 1.377 têm `categoriasLI` na VPS) por
+    `scripts/familias-do-estoque.js --simular | --confirmo` (PC: 1.303 de 1.320, 97 famílias; migration `20261112b`). **Na VPS
+    rodar o `--confirmo` depois do deploy.** Produto sem família (cadastrado depois de 20/10) cai na semelhança do nome.
+  - **Regras** (`src/lib/estoque3d/arrumacao.js`, `LIMITES` ajustáveis): parecido = mesma família, ou (sem família) nome
+    semelhante por trigramas ≥ 0,45 sem palavras genéricas; vizinho = ao lado ou na prateleira de cima/baixo com sobreposição
+    na largura; pesado em cima = ≥ 1 kg a mais e a de baixo < metade (peso da caixinha CHEIA pelo Estoque máximo). Só nos
+    estoques com `aplicaRegras` (2 e 3); o Estoque 1 só ganha "não cabe" (conferido: 0 avisos de regra nas 1.087 do PC).
+  - **"Onde guardar"** (`sugerirLugar`): tira o produto do lugar de hoje ANTES de conferir (as caixinhas da prateleira dele
+    deslizam: bug achado na tela), cabe por largura/altura/peso, descarta parecido vizinho e pesado em cima, e ordena pela
+    altura (pesado embaixo, leve em cima; cada nível vale mais que a ocupação) e depois o aproveitamento. 3 sugestões, uma
+    por prateleira; coluna sem largura do vão não entra.
+  - **Mover** (`src/lib/estoque3d/mover.js`): grava a `localizacao`, renumera a prateleira de destino INTEIRA na ordem do
+    desenho (somar 1 a quem tinha posição ≥ N errava com buracos; bug achado na tela) por SQL direto (o `atualizadoEm` dos
+    vizinhos não muda) e anota `HistoricoDeLocal`. Acesso: mapa editar + `dado.localizacao` editar. A Localização vai ao Bling
+    pelo Sincronizar de sempre. **Nunca roda sozinho**: o Estoque 1 só muda pelo Mover do dono (decisão de 12/11/2026).
+  - **Tela:** "Guardar produto" (pelo código) na barra do mapa, "Mover" no painel da caixinha, janela com Estoque 1/2/3,
+    as 3 sugestões, o lugar à mão e o histórico; lista "Fora da regra" embaixo do mapa (só 2 e 3); selo no canto da caixinha
+    (vermelho = regra, âmbar = o resto). **Não há "Onde guardar" no cadastro do produto** (era o plano): o formulário aberto
+    tem a Localização e o Salvar gravaria por cima do lugar dado pelo Mover.
+  - **Ordem pelas fotos** (`src/lib/estoque3d/fotos.js` + `scripts/ordem-pelas-fotos.js --arquivo=<json> [--confirmo]`): a
+    sessão lê as fotos e escreve `{coluna, prateleiras: {"1": [códigos da esquerda para a direita, "?" = ilegível]}}`; grava
+    só `ordemNaPrateleira` de quem está mesmo naquela prateleira; o resto vira dúvida, e lista os da coluna não vistos.
+  - **Conferido no PC** com uma coluna ZK de teste no Estoque 2 (apagada): avisos, Guardar, Mover e renumeração.
+- **Próximo:** as fotos da coluna A; medidas dos vãos, colunas dos Estoques 2 e 3 e modelos de caixinha. Fase 3: reorganizar
+  em lote.
 
 ## Peças próprias e ordem de produção (26/10/2026)
 

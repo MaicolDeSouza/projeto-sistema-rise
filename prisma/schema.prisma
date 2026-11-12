@@ -329,6 +329,10 @@ model Produto {
   pecasPorCaixinha  Int?
   /// A posicao da caixinha na prateleira, da esquerda para a direita (1, 2, 3...). Vazio = depois das numeradas, por codigo.
   ordemNaPrateleira Int?
+  /// A familia do produto no estoque, "Topo > Folha" da arvore de categorias do dono (docs/categorias-4hobby-mapeamento.csv,
+  /// trabalho de 06-21/10/2026). Separada de `categoriasLI` (ids da LI, preenchida so em 100 produtos): e a regra "parecidos
+  /// nunca vizinhos" do Mapa do estoque que a le. Carregada por scripts/familias-do-estoque.js.
+  familiaEstoque    String?
 
   @@index([marca])
   @@index([ativo])

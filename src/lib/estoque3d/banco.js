@@ -3,7 +3,8 @@ import { z } from "zod";
 import { urlDe } from "@/lib/arquivos";
 import { prisma } from "@/lib/db";
 
-import { colunasPelaLocalizacao, lerLocalizacao, montarMapa } from "./regras";
+import { montarMapaComAvisos } from "./arrumacao";
+import { colunasPelaLocalizacao, lerLocalizacao } from "./regras";
 
 /**
  * Leitura e gravacao do Mapa do estoque (spec 2026-11-12-enderecamento-de-estoque-design.md). O lugar do produto e a
@@ -62,6 +63,7 @@ async function produtosComLocalizacao(db) {
       modeloCaixinhaId: true,
       pecasPorCaixinha: true,
       ordemNaPrateleira: true,
+      familiaEstoque: true,
       arquivos: { where: { tipo: "IMAGEM" }, orderBy: [{ principal: "desc" }, { ordem: "asc" }], take: 1, select: { arquivo: true } },
     },
   });
@@ -79,6 +81,7 @@ async function produtosComLocalizacao(db) {
     modeloCaixinhaId: produto.modeloCaixinhaId,
     pecasPorCaixinha: produto.pecasPorCaixinha,
     ordemNaPrateleira: produto.ordemNaPrateleira,
+    familiaEstoque: produto.familiaEstoque,
     foto: produto.arquivos[0] ? urlDe(produto.sku, "IMAGEM", produto.arquivos[0].arquivo) : null,
   }));
 }
@@ -99,7 +102,7 @@ export async function lerMapa(db = prisma) {
     if (lida) usoPorLetra.set(lida.letra, (usoPorLetra.get(lida.letra) ?? 0) + 1);
   }
   return {
-    mapa: montarMapa({ locais, colunas: colunasDaTela, modelos: modelosDaTela, produtos }),
+    mapa: montarMapaComAvisos({ locais, colunas: colunasDaTela, modelos: modelosDaTela, produtos }),
     locais: locais.map((local) => ({ id: local.id, numero: local.numero, nome: local.nome, descricao: local.descricao, aplicaRegras: local.aplicaRegras, primeiraEmbaixo: local.primeiraEmbaixo })),
     colunas: colunasDaTela.map((coluna) => ({ ...coluna, produtos: usoPorLetra.get(coluna.letra) ?? 0 })),
     modelos: modelosDaTela,

@@ -54,7 +54,7 @@ export default async function MapaPage({ searchParams }) {
               </Link>
             ))}
           </nav>
-          {aba === "mapa" && <MapaDoEstoque mapa={dados.mapa} />}
+          {aba === "mapa" && <MapaDoEstoque mapa={dados.mapa} podeMover={podeEditar && acesso.pode("dado.localizacao", "editar")} />}
           {aba === "colunas" && <AbaColunas locais={dados.locais} colunas={dados.colunas} semColuna={dados.mapa.semColuna} podeEditar={podeEditar} />}
           {aba === "caixinhas" && <AbaCaixinhas modelos={dados.modelos} podeEditar={podeEditar} />}
         </>

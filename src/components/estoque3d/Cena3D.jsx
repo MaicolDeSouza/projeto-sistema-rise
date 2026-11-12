@@ -40,6 +40,17 @@ function pintarFace(canvas, caixinha, imagem) {
   contexto.textAlign = "center";
   contexto.textBaseline = "middle";
   contexto.fillText(String(caixinha.sku), LADO_DA_FACE / 2, LADO_DA_FACE - 14, LADO_DA_FACE - 6);
+  // O canto de cima, como o selo da vista de frente: vermelho = regra quebrada (parecido, pesado); ambar = o resto.
+  if (caixinha.avisos?.length) {
+    const quebra = caixinha.alertas?.some((alerta) => alerta.tipo === "parecido" || alerta.tipo === "pesado");
+    contexto.fillStyle = quebra ? "#ef4444" : "#fbbf24";
+    contexto.beginPath();
+    contexto.moveTo(LADO_DA_FACE - 34, 0);
+    contexto.lineTo(LADO_DA_FACE, 0);
+    contexto.lineTo(LADO_DA_FACE, 34);
+    contexto.closePath();
+    contexto.fill();
+  }
 }
 
 /** Uma etiqueta de texto que sempre olha para a camera (a letra da coluna, o numero da prateleira). */
@@ -134,7 +145,8 @@ export default function Cena3D({ local, selecionado, destacados, aoSelecionar })
       for (const prateleira of coluna.prateleiras) {
         grupo.add(bloco(materialDaEstante, coluna.larguraCm, e, coluna.profundidadeCm, 0, prateleira.yCm - e, 0));
         const numero = etiqueta(String(prateleira.numero), { altura: 7, cor: "#ffffff", fundo: "#475569" });
-        numero.position.set(-e / 2, prateleira.yCm + 5, 2);
+        // Fora do vao, a esquerda do montante: dentro ele cobria a primeira caixinha.
+        numero.position.set(-e - 9, prateleira.yCm + 5, 0);
         grupo.add(numero);
 
         for (const caixinha of prateleira.caixinhas) {

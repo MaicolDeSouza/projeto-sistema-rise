@@ -116,11 +116,72 @@ conferir("uma por letra, com a maior prateleira; as que existem ficam fora", col
   { letra: "AB", prateleiras: 3 },
 ]);
 
+console.log("\nRegras de arrumacao (fase 2)");
+const { avisosDoLocal, montarMapaComAvisos, motivoDeParecidos, semelhancaDeNome, sugerirLugar } = await import("../src/lib/estoque3d/arrumacao.js");
+conferir("nome igual = 1, diferente ~0", [semelhancaDeNome("Motor de passo 28BYJ-48", "MOTOR DE PASSO 28BYJ-48"), semelhancaDeNome("Resistor 10k", "Display OLED") < 0.1], [1, true]);
+conferir("palavras genericas nao contam", semelhancaDeNome("Modulo Rele 5V", "Modulo Sensor de Chuva") < 0.2, true);
+conferir("mesma familia e parecido; familia diferente nao", [
+  motivoDeParecidos({ produtoId: "a", familia: "Componentes > Resistores", nome: "Resistor 10k" }, { produtoId: "b", familia: "Componentes > Resistores", nome: "Resistor 1k" }),
+  motivoDeParecidos({ produtoId: "a", familia: "Componentes > Resistores", nome: "Motor 5V" }, { produtoId: "b", familia: "Motores > Motores DC", nome: "Motor 5V" }),
+], ["mesma família (Resistores)", null]);
+conferir("sem familia: decide o nome", [
+  motivoDeParecidos({ produtoId: "a", nome: "Motor de passo 28BYJ-48 5V" }, { produtoId: "b", nome: "Motor de passo 28BYJ-48 12V" }),
+  motivoDeParecidos({ produtoId: "a", nome: "Motor de passo 28BYJ-48" }, { produtoId: "b", nome: "Sensor ultrassonico HC-SR04" }),
+], ["nome parecido", null]);
+
+const locaisR = [{ id: "r2", numero: 2, nome: "Estoque 2", aplicaRegras: true, primeiraEmbaixo: true }, { id: "r1", numero: 1, nome: "Estoque 1", aplicaRegras: false, primeiraEmbaixo: true }];
+const colunasR = [{ id: "cK", localId: "r2", letra: "K", ordem: 1, prateleiras: 3, larguraCm: 40, alturaLivreCm: 20 }, { id: "cB", localId: "r1", letra: "B", ordem: 1, prateleiras: 2 }];
+const modelosR = [{ id: "m10", nome: "M10", larguraCm: 10, alturaCm: 8, profundidadeCm: 20, fatorUtil: 0.7 }];
+const caixa = (sku, localizacao, extra = {}) => ({ id: `r-${sku}`, sku, nome: `Produto ${sku}`, localizacao, estoque: 1, modeloCaixinhaId: "m10", ...extra });
+const comRegras = montarMapaComAvisos({
+  locais: locaisR,
+  colunas: colunasR,
+  modelos: modelosR,
+  produtos: [
+    caixa("R1", "K1", { familia: null, familiaEstoque: "Comp > Resistores", ordemNaPrateleira: 1 }),
+    caixa("R2", "K1", { familiaEstoque: "Comp > Resistores", ordemNaPrateleira: 2 }),
+    caixa("LEVE", "K1", { familiaEstoque: "Comp > LEDs", ordemNaPrateleira: 3, pesoKg: 0.1, estoqueMaximo: 1 }),
+    caixa("PESADO", "K3", { familiaEstoque: "Motores > Motores de Passo", pesoKg: 1, estoqueMaximo: 5 }),
+    caixa("B1", "B1", { familiaEstoque: "Comp > Resistores" }),
+    caixa("B2", "B1", { familiaEstoque: "Comp > Resistores" }),
+  ],
+});
+const k = comRegras.locais.find((local) => local.id === "r2");
+const alertasDe = (sku) => k.colunas[0].prateleiras.flatMap((p) => p.caixinhas).find((c) => c.sku === sku)?.alertas.map((a) => a.tipo);
+conferir("parecidos lado a lado: os dois avisados", [alertasDe("R1"), alertasDe("R2")], [["parecido"], ["parecido"]]);
+conferir("pesada em cima de leve (5 kg em K3 sobre 0,1 kg em K1)", alertasDe("PESADO"), ["pesado"]);
+conferir("estoque 1 sem regras: parecidos lado a lado nao avisam", comRegras.locais.find((local) => local.id === "r1").foraDaRegra, 0);
+conferir("fora da regra conta caixinhas", k.foraDaRegra, 3);
+conferir("avisosDoLocal sem caixinha avisa nada", avisosDoLocal({ aplicaRegras: true, colunas: [] }), {});
+
+const vazio = montarMapaComAvisos({ locais: locaisR, colunas: colunasR, modelos: modelosR, produtos: [caixa("R1", "K2", { familiaEstoque: "Comp > Resistores" })] }).locais.find((local) => local.id === "r2");
+const novoResistor = { id: "novo", sku: "NOVO", nome: "Resistor novo", familiaEstoque: "Comp > Resistores", estoque: 1, modeloCaixinhaId: "m10" };
+const sugestao = sugerirLugar(vazio, novoResistor, modelosR);
+conferir("nao poe o parecido ao lado nem em cima/embaixo de K2", sugestao.sugestoes.every((s) => s.codigo !== "K2" && !(["K1", "K3"].includes(s.codigo) && s.posicao === 1)), true);
+const doisResistores = montarMapaComAvisos({
+  locais: locaisR,
+  colunas: colunasR,
+  modelos: modelosR,
+  produtos: [caixa("RA", "K2", { familiaEstoque: "Comp > Resistores", ordemNaPrateleira: 1 }), caixa("RB", "K2", { familiaEstoque: "Comp > Resistores", ordemNaPrateleira: 2 })],
+}).locais.find((local) => local.id === "r2");
+const movendoRA = sugerirLugar(doisResistores, { id: "r-RA", sku: "RA", nome: "Resistor A", familiaEstoque: "Comp > Resistores", estoque: 1, modeloCaixinhaId: "m10" }, modelosR);
+// RB desliza para x 0 em K2: K1 e K3 (vazias, so a posicao 1, em x 0) ficariam em cima/embaixo dele, e K2 ao lado.
+conferir("ao sair, o vizinho desliza e nenhum lugar serve", movendoRA.sugestoes.map((s) => s.codigo), []);
+conferir("tres sugestoes, uma por prateleira no maximo", new Set(sugestao.sugestoes.map((s) => s.codigo)).size, sugestao.sugestoes.length);
+const pesado = { id: "p", sku: "P", nome: "Fonte grande", familiaEstoque: "Fontes > Fontes", pesoKg: 2, estoque: 1, estoqueMaximo: 2, modeloCaixinhaId: "m10" };
+conferir("o pesado vai para a prateleira de baixo (1 embaixo)", sugerirLugar(vazio, pesado, modelosR).sugestoes[0].codigo, "K1");
+const leveProduto = { id: "l", sku: "L", nome: "Botao", familiaEstoque: "Comp > Botoes", pesoKg: 0.01, estoque: 1, modeloCaixinhaId: "m10" };
+conferir("o leve vai para a de cima", sugerirLugar(vazio, leveProduto, modelosR).sugestoes[0].codigo, "K3");
+conferir("coluna sem medida nao sugere, com o motivo", sugerirLugar(comRegras.locais.find((local) => local.id === "r1"), leveProduto, modelosR).motivo, "As colunas do Estoque 1 ainda não têm a largura do vão.");
+const cheia = montarMapaComAvisos({ locais: locaisR, colunas: colunasR, modelos: modelosR, produtos: ["1", "2", "3", "4"].flatMap((n) => ["K1", "K2", "K3"].map((l) => caixa(`${l}-${n}`, l, { familiaEstoque: `F${n}${l}` }))) }).locais.find((local) => local.id === "r2");
+conferir("coluna cheia: sem lugar, com o motivo", sugerirLugar(cheia, leveProduto, modelosR), { sugestoes: [], modelo: { id: "m10", nome: "M10" }, motivo: "Não há lugar no Estoque 2 que siga as regras." });
+
 console.log("\nBanco");
 const { prisma } = await import("../src/lib/db.js");
 const { criarColunasPelaLocalizacao, excluirColuna, excluirModelo, lerMapa, salvarCaixinhaDoProduto, salvarColuna, salvarLocal, salvarModelo } = await import("../src/lib/estoque3d/banco.js");
 
 async function limpar() {
+  await prisma.historicoDeLocal.deleteMany({ where: { sku: { startsWith: "ZZ-E3D-" } } });
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-E3D-" } } });
   await prisma.colunaDeEstoque.deleteMany({ where: { letra: { in: ["ZY", "ZZ"] } } });
   await prisma.modeloDeCaixinha.deleteMany({ where: { nome: { startsWith: "ZZ E3D" } } });
@@ -172,7 +233,43 @@ try {
   conferir("a lista de colunas conta os produtos", lido.colunas.find((coluna) => coluna.letra === "ZZ").produtos, 2);
   conferir("a lista de modelos conta os produtos", lido.modelos.find((item) => item.nome === "ZZ E3D P").produtos, 1);
 
+  console.log("\nMover, historico e ordem pelas fotos");
+  const { lerParaMover, moverProduto, sugerirLugarParaProduto } = await import("../src/lib/estoque3d/mover.js");
+  const { conferirOrdemDasFotos } = await import("../src/lib/estoque3d/fotos.js");
+  const tres = await criarProduto("ZZ-E3D-4", "ZZ3");
+  await prisma.produto.update({ where: { id: um.id }, data: { ordemNaPrateleira: 1 } });
+  const antesDoVizinho = (await prisma.produto.findUnique({ where: { id: um.id }, select: { atualizadoEm: true } })).atualizadoEm;
+  conferir("mover para coluna que nao existe recusa", (await moverProduto(tres.id, { letra: "QZ", prateleira: 1 })).erro, "A coluna QZ não existe.");
+  conferir("prateleira alem da coluna recusa", (await moverProduto(tres.id, { letra: "ZZ", prateleira: 9 })).erro, "A coluna ZZ tem 3 prateleira(s).");
+  conferir("mover para ZZ3 na 1a posicao", (await moverProduto(tres.id, { letra: "zz", prateleira: 3, posicao: 1 }, "teste")).para, "ZZ3");
+  const vizinho = await prisma.produto.findUnique({ where: { id: um.id }, select: { ordemNaPrateleira: true, atualizadoEm: true } });
+  conferir("o vizinho andou uma casa sem mudar o atualizadoEm", [vizinho.ordemNaPrateleira, vizinho.atualizadoEm.getTime() === antesDoVizinho.getTime()], [2, true]);
+  // Posicao alem do fim vai para o fim; mover dentro da mesma prateleira renumera sem buraco.
+  conferir("posicao alem do fim fica no fim", (await moverProduto(tres.id, { letra: "ZZ", prateleira: 3, posicao: 9 }, "teste")).ok, true);
+  const naZZ3 = await prisma.produto.findMany({ where: { localizacao: "ZZ3", ativo: true }, orderBy: { ordemNaPrateleira: "asc" }, select: { sku: true, ordemNaPrateleira: true } });
+  conferir("prateleira renumerada 1, 2", naZZ3.map((p) => [p.sku, p.ordemNaPrateleira]), [["ZZ-E3D-1", 1], ["ZZ-E3D-4", 2]]);
+  await moverProduto(tres.id, { letra: "ZZ", prateleira: 3, posicao: 1 }, "teste");
+  conferir("mover para ZZ1 com o modelo", (await moverProduto(tres.id, { letra: "ZZ", prateleira: 1, posicao: "", modeloCaixinhaId: modelo.id }, "teste")).ok, true);
+  const movido = await prisma.produto.findUnique({ where: { id: tres.id }, select: { localizacao: true, ordemNaPrateleira: true, modeloCaixinhaId: true } });
+  conferir("localizacao, posicao e modelo gravados", [movido.localizacao, movido.ordemNaPrateleira, movido.modeloCaixinhaId === modelo.id], ["ZZ1", null, true]);
+  const paraMover = await lerParaMover(tres.id);
+  conferir("historico das duas trocas, mais nova primeiro", paraMover.historico.map((h) => [h.de, h.para, h.usuario]), [["ZZ3 · 1ª", "ZZ1", "teste"], ["ZZ3 · 2ª", "ZZ3 · 1ª", "teste"], ["ZZ3 · 1ª", "ZZ3 · 2ª", "teste"], ["ZZ3", "ZZ3 · 1ª", "teste"]]);
+  conferir("lerParaMover traz o estoque atual e as colunas", [paraMover.localAtualId === estoqueUm.id, paraMover.colunas.some((c) => c.letra === "ZZ")], [true, true]);
+  conferir("sugestao em estoque que nao existe recusa", (await sugerirLugarParaProduto(tres.id, "nao-existe")).erro, "Estoque não encontrado.");
+  const noDois = await sugerirLugarParaProduto(tres.id, "estoque-2");
+  conferir("sugestao no Estoque 2 responde (lugares ou o motivo)", noDois.ok && (noDois.sugestoes.length > 0 || Boolean(noDois.motivo)), true);
+
+  const fotos = await conferirOrdemDasFotos({ coluna: "zz", prateleiras: { 1: ["ZZ-E3D-4", "zz-e3d-2", "?"], 3: ["ZZ-E3D-1", "NAO-EXISTE"], 2: ["ZZ-E3D-4"] } });
+  conferir("fotos: grava so quem esta na prateleira", fotos.gravar.map((g) => [g.sku, g.localizacao, g.posicao]), [["ZZ-E3D-4", "ZZ1", 1], ["ZZ-E3D-2", "ZZ1", 2], ["ZZ-E3D-1", "ZZ3", 1]]);
+  conferir("fotos: duvidas (ilegivel, inexistente, repetido)", fotos.duvidas.map((d) => d.lugar), ["ZZ1 3ª", "ZZ2 1ª", "ZZ3 2ª"]);
+  conferir("fotos: simulacao nao grava", (await prisma.produto.findUnique({ where: { id: um.id }, select: { ordemNaPrateleira: true } })).ordemNaPrateleira, 2);
+  await conferirOrdemDasFotos({ coluna: "ZZ", prateleiras: { 3: ["ZZ-E3D-1"], 1: ["ZZ-E3D-3"] } }, { gravar: true });
+  const depoisDasFotos = await prisma.produto.findUnique({ where: { id: um.id }, select: { ordemNaPrateleira: true, localizacao: true } });
+  conferir("fotos: grava a posicao e nunca a localizacao", [depoisDasFotos.ordemNaPrateleira, depoisDasFotos.localizacao], [1, "ZZ3"]);
+  conferir("fotos: coluna invalida recusa", (await conferirOrdemDasFotos({ coluna: "1", prateleiras: {} })).ok, false);
+
   await prisma.produto.update({ where: { id: um.id }, data: { modeloCaixinhaId: null } });
+  await prisma.produto.update({ where: { id: tres.id }, data: { modeloCaixinhaId: null } });
   conferir("modelo sem uso se exclui", (await excluirModelo(modelo.id)).ok, true);
 } finally {
   await prisma.localDeEstoque.update({ where: { numero: 1 }, data: { primeiraEmbaixo: embaixoAntes } });
