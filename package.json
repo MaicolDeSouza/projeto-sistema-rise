@@ -71,7 +71,8 @@
     "teste:licencas": "node scripts/teste-licencas.js",
     "teste:extensao-lightburn": "node scripts/teste-extensao-lightburn.js",
     "teste:analise-fornecedor": "node scripts/teste-analise-fornecedor.js",
-    "aliexpress:recalcular": "node scripts/aliexpress-recalcular.js"
+    "aliexpress:recalcular": "node scripts/aliexpress-recalcular.js",
+    "teste:propostas": "node scripts/teste-propostas.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",
