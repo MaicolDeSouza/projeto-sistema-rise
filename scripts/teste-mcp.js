@@ -1589,6 +1589,19 @@ try {
     const unica = await prisma.produtoFornecedor.findFirst({ where: { produto: { sku: "ZZ-MCP-REF2" } } });
     const produtoRef2 = await prisma.produto.findUnique({ where: { sku: "ZZ-MCP-REF2" }, select: { custo: true } });
     conferir("sem rascunho do Bling, o unico fornecedor marcado vira padrao e da o custo", [sozinho.feitos?.map((item) => item.acao), unica?.padrao, Number(produtoRef2?.custo)], [["fornecedor marcado"], true, 30.5]);
+
+    // Item sem codigo (12/11/2026, NexMind): "N/A" nunca casa pelo codigo (ligava o 1o "N/A" da fonte, o UNO R3); vai pelo nome exato.
+    await prisma.produtoColetado.create({ data: { fonteId: fonteF.id, chave: "nome:zz uno", origem: "arquivo", codigo: "N/A", nome: "ZZ UNO R3 Board", precoNormal: 10 } });
+    await prisma.produtoColetado.create({ data: { fonteId: fonteF.id, chave: "nome:zz n20", origem: "arquivo", codigo: "N/A", nome: "ZZ Micro N20 Gear Motor", precoNormal: 9.35, precoComImpostos: 20.57 } });
+    const soNA = await chamar("marcarReferencias", { sku: "ZZ-MCP-REF", fornecedores: { adicionar: [{ fonte: "ZZ-MCP Atacado", codigo: "N/A" }] } });
+    conferir("sem codigo: 'N/A' sozinho e recusado antes", soNA?.isError, true);
+    const peloNome = lerJson(await chamar("marcarReferencias", { sku: "ZZ-MCP-REF", fornecedores: { adicionar: [{ fonte: "ZZ-MCP Atacado", codigo: "N/A", nome: "zz micro n20 gear motor" }] } }));
+    const linhaN20 = await prisma.produtoFornecedor.findFirst({ where: { produto: { sku: "ZZ-MCP-REF" }, descricao: "ZZ Micro N20 Gear Motor" } });
+    conferir("sem codigo: marca pelo nome, o item certo, com codigo vazio", [peloNome.feitos?.[0]?.nome, linhaN20?.codigo, Number(linhaN20?.precoCusto)], ["ZZ Micro N20 Gear Motor", null, 20.57]);
+    const nomeDeNovo = lerJson(await chamar("marcarReferencias", { sku: "ZZ-MCP-REF", fornecedores: { adicionar: [{ fonte: "ZZ-MCP Atacado", nome: "ZZ Micro N20 Gear Motor" }] } }));
+    conferir("sem codigo: marcar de novo nao duplica", nomeDeNovo.feitos?.map((item) => item.acao), ["fornecedor já estava marcado"]);
+    const nomeTirado = lerJson(await chamar("marcarReferencias", { sku: "ZZ-MCP-REF", fornecedores: { remover: [{ fonte: "ZZ-MCP Atacado", nome: "ZZ UNO R3 Board" }, { fonte: "ZZ-MCP Atacado", nome: "ZZ Micro N20 Gear Motor" }] } }));
+    conferir("sem codigo: desmarca so o do nome pedido", [nomeTirado.feitos?.map((item) => item.acao), nomeTirado.recusados?.length], [["fornecedor desmarcado"], 1]);
   }
 
   // (os blocos das tarefas seguintes entram aqui, antes do finally)

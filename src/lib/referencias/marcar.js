@@ -21,9 +21,13 @@ import { garantirPadraoDoUnico } from "@/lib/fornecedorPadraoBanco";
 const texto = (valor) => String(valor ?? "").trim();
 const numero = (valor) => (valor == null ? null : Number(valor));
 
-async function acharColetado({ fonte, codigo, url }) {
+// "N/A" e a marca de "sem codigo" da coleta (SEM_CODIGO), nunca um codigo: casar por ele pegava o primeiro item sem codigo da
+// fonte (12/11/2026: o motor N20 da NexMind virou o UNO R3). Sem codigo, o item e achado pelo endereco ou pelo nome exato.
+const semCodigo = (codigo) => !texto(codigo) || texto(codigo).toUpperCase() === "N/A";
+
+async function acharColetado({ fonte, codigo, url, nome }) {
   const ondeFonte = { nome: { equals: texto(fonte), mode: "insensitive" } };
-  if (texto(codigo)) {
+  if (!semCodigo(codigo)) {
     const porCodigo = await prisma.produtoColetado.findFirst({
       where: { codigo: texto(codigo), fonte: ondeFonte },
       include: { fonte: { select: { nome: true, tipo: true } } },
@@ -36,10 +40,19 @@ async function acharColetado({ fonte, codigo, url }) {
       include: { fonte: { select: { nome: true, tipo: true } } },
     });
   }
+  if (semCodigo(codigo) && texto(nome)) {
+    return prisma.produtoColetado.findFirst({
+      where: { nome: { equals: texto(nome), mode: "insensitive" }, fonte: ondeFonte },
+      include: { fonte: { select: { nome: true, tipo: true } } },
+    });
+  }
   return null;
 }
 
-const rotulo = (item) => `${texto(item.fonte)} ${texto(item.codigo) || texto(item.url)}`.trim();
+const rotulo = (item) => `${texto(item.fonte)} ${semCodigo(item.codigo) ? texto(item.url) || texto(item.nome) : texto(item.codigo)}`.trim();
+// A linha do fornecedor e a mesma do item: pelo codigo; sem codigo, pela descricao (o nome na lista, como o custo segue a lista).
+const mesmaLinha = (linha, codigo, nome) =>
+  semCodigo(codigo) ? semCodigo(linha.codigo) && texto(linha.descricao).toLowerCase() === texto(nome).toLowerCase() : texto(linha.codigo) === texto(codigo);
 
 /**
  * @param {string} sku
@@ -51,7 +64,7 @@ const rotulo = (item) => `${texto(item.fonte)} ${texto(item.codigo) || texto(ite
 export async function marcarReferencias(sku, plano) {
   const produto = await prisma.produto.findUnique({
     where: { sku },
-    select: { id: true, fornecedorRascunho: true, fornecedores: { select: { id: true, fornecedorId: true, codigo: true, padrao: true } } },
+    select: { id: true, fornecedorRascunho: true, fornecedores: { select: { id: true, fornecedorId: true, codigo: true, descricao: true, padrao: true } } },
   });
   if (!produto) return { ok: false, erro: `O produto ${sku} não existe no Rise.` };
 
@@ -90,8 +103,9 @@ export async function marcarReferencias(sku, plano) {
     if (coletado.fonte.tipo !== "FORNECEDOR") { recusar(item, `${coletado.fonte.nome} é concorrente, não fornecedor`); continue; }
     const fornecedor = await prisma.fornecedor.findFirst({ where: { nome: { equals: coletado.fonte.nome, mode: "insensitive" } }, select: { id: true, nome: true } });
     if (!fornecedor) { recusar(item, `o fornecedor "${coletado.fonte.nome}" não tem cadastro no Rise`); continue; }
-    const codigo = texto(coletado.codigo) || null;
-    if (linhas.some((linha) => linha.fornecedorId === fornecedor.id && texto(linha.codigo) === texto(codigo))) {
+    // "N/A" vira codigo vazio, como a tela de Fornecedores grava (senao o custo que segue a lista casaria todo "N/A").
+    const codigo = semCodigo(coletado.codigo) ? null : texto(coletado.codigo);
+    if (linhas.some((linha) => linha.fornecedorId === fornecedor.id && mesmaLinha(linha, codigo, coletado.nome))) {
       feitos.push({ acao: "fornecedor já estava marcado", fonte: fornecedor.nome, codigo, nome: coletado.nome });
       continue;
     }
@@ -117,14 +131,15 @@ export async function marcarReferencias(sku, plano) {
         link: coletado.url ?? null,
         padrao: false,
       },
-      select: { id: true, fornecedorId: true, codigo: true, padrao: true },
+      select: { id: true, fornecedorId: true, codigo: true, descricao: true, padrao: true },
     });
     linhas.push(criada);
     feitos.push({ acao: "fornecedor marcado", fonte: fornecedor.nome, codigo, nome: coletado.nome, custo: preco });
   }
   for (const item of plano?.fornecedores?.remover ?? []) {
     const fornecedor = await prisma.fornecedor.findFirst({ where: { nome: { equals: texto(item.fonte), mode: "insensitive" } }, select: { id: true, nome: true } });
-    const alvo = fornecedor && linhas.find((linha) => linha.fornecedorId === fornecedor.id && texto(linha.codigo) === texto(item.codigo));
+    if (semCodigo(item.codigo) && !texto(item.nome)) { recusar(item, "sem código: diga o nome do produto na lista"); continue; }
+    const alvo = fornecedor && linhas.find((linha) => linha.fornecedorId === fornecedor.id && mesmaLinha(linha, item.codigo, item.nome));
     if (!alvo) { recusar(item, "não estava marcado neste produto"); continue; }
     // O padrao e o custo do produto: so o dono troca, na tela.
     if (alvo.padrao) { recusar(item, "é o fornecedor padrão do produto: só o dono tira, na tela"); continue; }

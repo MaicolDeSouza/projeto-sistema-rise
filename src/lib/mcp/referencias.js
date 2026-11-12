@@ -23,8 +23,17 @@ const ITEM = z
     fonte: z.string().trim().min(1).max(120).describe("A loja, como buscarNoMercado devolve em 'fonte' (ex.: 'Fortek', '4hobby')"),
     codigo: z.string().trim().max(120).optional().describe("O código do produto na loja, como buscarNoMercado devolve"),
     url: z.string().trim().max(1000).optional().describe("O endereço do produto, só quando a loja não tem código"),
+    nome: z
+      .string()
+      .trim()
+      .max(300)
+      .optional()
+      .describe("O nome EXATO do produto como buscarNoMercado devolve, quando a loja não tem código nem endereço (código 'N/A', ex.: NexMind)"),
   })
-  .refine((item) => Boolean(item.codigo || item.url), { message: "Informe o código (ou o endereço, sem código)." });
+  // "N/A" nao e codigo (12/11/2026: o "N/A" da NexMind ligou o UNO R3 no lugar do motor N20): sem codigo de verdade, o endereco ou o nome.
+  .refine((item) => Boolean((item.codigo && item.codigo.toUpperCase() !== "N/A") || item.url || item.nome), {
+    message: "Informe o código (sem código: o endereço ou o nome exato do produto).",
+  });
 
 const LADO = z
   .object({
@@ -37,7 +46,7 @@ const MARCAR_REFERENCIAS = {
   nome: "marcarReferencias",
   descricao: [
     "Marca (vincula) ou desmarca os fornecedores e concorrentes de um produto, para o dono conferir na lupa e na aba Fornecedores / Concorrentes. Siga o roteiro da roteiroDaProposta com canal 'referencias'.",
-    "Cada item pela loja e código que buscarNoMercado devolveu. Fornecedor não vira padrão (o custo do produto não muda e o fornecedor que veio do Bling continua valendo), menos quando é o único fornecedor do produto: aí ele vira padrão sozinho, regra do Rise. Nada vai ao Bling.",
+    "Cada item pela loja e código que buscarNoMercado devolveu; item com código 'N/A' (sem código, ex.: NexMind) vai pelo nome exato que buscarNoMercado devolveu, nunca pelo 'N/A'.Fornecedor não vira padrão (o custo do produto não muda e o fornecedor que veio do Bling continua valendo), menos quando é o único fornecedor do produto: aí ele vira padrão sozinho, regra do Rise. Nada vai ao Bling.",
     "Devolve o que foi feito, os recusados com o motivo e quantos ficaram vinculados.",
   ].join(" "),
   esquema: z.object({
