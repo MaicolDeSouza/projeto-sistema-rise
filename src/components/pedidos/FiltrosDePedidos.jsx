@@ -13,6 +13,12 @@ import { SITUACOES, TEXTO_DA_SITUACAO } from "./textos";
 const CANAIS_DO_FILTRO = CANAIS.filter((canal) => ["BLING", "LOJA_INTEGRADA", "MERCADO_LIVRE", "SHOPEE"].includes(canal.id));
 const LIGAVEIS = new Set(["BLING", "LOJA_INTEGRADA", "MERCADO_LIVRE"]);
 
+/** O numero do botao de situacao: o selo cinza ao lado do texto; o ambar fica para o "Enviar hoje", que pede acao. */
+function Contagem({ valor }) {
+  if (!valor) return null;
+  return <span className="rounded-full bg-zinc-200 px-1.5 text-[11px] leading-4 font-semibold tabular-nums text-zinc-700">{valor}</span>;
+}
+
 /** "2026-11-07" menos N dias, em dia de calendario (sem fuso: a conta e so de datas). */
 function diasAntes(dia, n) {
   const [ano, mes, d] = dia.split("-").map(Number);
@@ -24,7 +30,7 @@ function diasAntes(dia, n) {
  * (`desde`/`ate`, padrao 1 mes, decidido pela pagina; atalhos Hoje e 7 dias), canais e status (parametro repetido; nenhum = todos) e "Só com
  * !" (`aviso=1`). Cada mudanca volta a pagina 1. `navegacao` e a paginacao do topo, posta no canto direito da 1a linha.
  */
-export default function FiltrosDePedidos({ busca, desde, ate, hoje, canais, situacoes, soComAviso, enviarHoje = null, navegacao = null }) {
+export default function FiltrosDePedidos({ busca, desde, ate, hoje, canais, situacoes, soComAviso, contagemDasSituacoes = null, enviarHoje = null, navegacao = null }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -161,13 +167,17 @@ export default function FiltrosDePedidos({ busca, desde, ate, hoje, canais, situ
         {navegacao}
       </div>
 
+      {/* O numero de cada situacao (pedido do dono em 12/11/2026, "como no Enviar hoje"): os pedidos da lista com os outros
+          filtros, igual com o botao ligado ou nao. Zero nao aparece (regra 4: so o que tem dado). */}
       <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar pela situação">
-        <button type="button" onClick={() => alternarRepetido("situacao", null)} className={chip(situacoes.length === 0)} aria-pressed={situacoes.length === 0}>
+        <button type="button" onClick={() => alternarRepetido("situacao", null)} className={`inline-flex items-center gap-1.5 ${chip(situacoes.length === 0)}`} aria-pressed={situacoes.length === 0}>
           Todos
+          <Contagem valor={contagemDasSituacoes ? Object.values(contagemDasSituacoes).reduce((s, n) => s + n, 0) : 0} />
         </button>
         {SITUACOES.map((valor) => (
-          <button key={valor} type="button" onClick={() => alternarRepetido("situacao", valor)} className={chip(situacoes.includes(valor))} aria-pressed={situacoes.includes(valor)}>
+          <button key={valor} type="button" onClick={() => alternarRepetido("situacao", valor)} className={`inline-flex items-center gap-1.5 ${chip(situacoes.includes(valor))}`} aria-pressed={situacoes.includes(valor)}>
             {TEXTO_DA_SITUACAO[valor]}
+            <Contagem valor={contagemDasSituacoes?.[valor] ?? 0} />
           </button>
         ))}
       </div>

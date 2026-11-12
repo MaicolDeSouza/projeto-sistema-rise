@@ -418,7 +418,7 @@ export async function opcoesDasColunas(filtro = {}) {
   const [porStatus, porEnvio, porSituacao, itensPorCodigo, itensPorLocal] = await Promise.all([
     prisma.pedidoDeVenda.groupBy({ by: ["status"], where: filtroDaLista({ ...filtro, status: undefined }) }),
     prisma.pedidoDeVenda.groupBy({ by: ["statusDoEnvio"], where: filtroDaLista({ ...filtro, envio: undefined }) }),
-    prisma.pedidoDeVenda.groupBy({ by: ["status", "statusDoEnvio"], where: filtroDaLista({ ...filtro, situacoes: undefined }) }),
+    prisma.pedidoDeVenda.groupBy({ by: ["status", "statusDoEnvio"], where: filtroDaLista({ ...filtro, situacoes: undefined }), _count: { _all: true } }),
     // Codigo e Local (07/11/2026): os valores dos itens dos pedidos da lista, sem o filtro da propria coluna.
     prisma.itemDoPedidoDeVenda.findMany({
       where: { pedido: filtroDaLista({ ...filtro, codigos: undefined }) },
@@ -432,11 +432,16 @@ export async function opcoesDasColunas(filtro = {}) {
   const status = new Set(porStatus.map((g) => g.status));
   const envio = new Set(porEnvio.map((g) => g.statusDoEnvio));
   const situacoes = new Set(porSituacao.map(situacaoDoPedido));
+  // O numero de cada botao de situacao (pedido do dono em 12/11/2026, "como no Enviar hoje"): os pedidos da lista com os
+  // outros filtros, sem o da propria situacao, para o numero nao mudar ao ligar ou desligar o botao.
+  const contagemDasSituacoes = Object.fromEntries(SITUACOES.map((v) => [v, 0]));
+  for (const g of porSituacao) contagemDasSituacoes[situacaoDoPedido(g)] += g._count._all;
   const ordenados = (valores) => [...new Set(valores.filter((v) => typeof v === "string" && v.trim()))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
   return {
     status: ORDEM_DO_STATUS.filter((v) => status.has(v)),
     envio: ORDEM_DO_ENVIO.filter((v) => envio.has(v)),
     situacoes: SITUACOES.filter((v) => situacoes.has(v)),
+    contagemDasSituacoes,
     codigos: ordenados(itensPorCodigo.map((i) => codigoVendido({ sku: i.produto?.sku, codigoNaOrigem: i.codigoNaOrigem, quantidadeDoKit: i.quantidadeDoKit }))),
     locais: ordenados(itensPorLocal.map((i) => i.produto?.localizacao)),
   };
@@ -466,6 +471,28 @@ export async function resumoDaLista(filtro = {}) {
     else lucro += valor;
   }
   return { lucro: Math.round(lucro * 100) / 100, pedidos: pedidos.length, semLucro };
+}
+
+/**
+ * Ticket medio (pedido do dono em 12/11/2026: "por canal de venda e também um ticket médio geral"): o total pago pelo
+ * cliente (`total`, com o frete cobrado) dividido pelo numero de pedidos, sobre a lista filtrada inteira. Cancelado e
+ * devolvido nao entram: o dinheiro nao ficou, e um pedido cancelado de R$ 0 puxaria a media para baixo.
+ */
+export async function ticketMedio(filtro = {}) {
+  const grupos = await prisma.pedidoDeVenda.groupBy({
+    by: ["canal"],
+    where: { AND: [filtroDaLista(filtro), { status: { notIn: ["CANCELADO", "DEVOLVIDO"] } }, { statusDoEnvio: { not: "DEVOLVIDO" } }] },
+    _sum: { total: true },
+    _count: { _all: true },
+  });
+  const media = (soma, n) => (n > 0 ? Math.round((soma / n) * 100) / 100 : null);
+  const canais = grupos
+    .map((g) => ({ canal: g.canal, pedidos: g._count._all, faturamento: numero(g._sum.total) ?? 0 }))
+    .map((c) => ({ ...c, ticket: media(c.faturamento, c.pedidos) }))
+    .sort((a, b) => b.faturamento - a.faturamento);
+  const pedidos = canais.reduce((s, c) => s + c.pedidos, 0);
+  const faturamento = Math.round(canais.reduce((s, c) => s + c.faturamento, 0) * 100) / 100;
+  return { pedidos, faturamento, ticket: media(faturamento, pedidos), canais };
 }
 
 function itemParaTela(item) {
