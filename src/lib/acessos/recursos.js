@@ -116,6 +116,9 @@ const LISTA = [
   acao("acao.pedidos.aceitarDivergencia", "Aceitar a divergência do lucro de um pedido", "tela.pedidos"),
   acao("acao.pedidos.emitirNF", "Criar NF pelo pedido", "tela.pedidos", "Desligada pela trava NFE_EMISSAO."),
   acao("acao.pedidos.baixarNF", "Baixar NF e XML do pedido", "tela.pedidos"),
+  // Propostas para cliente (spec 2026-11-12): ver = a lista e o PDF; editar = criar e mudar; excluir = o rascunho.
+  tela("tela.propostas", "Propostas", "/propostas"),
+  acao("acao.propostas.pedidoDeVenda", "Gerar pedido de venda no Bling pela proposta", "tela.propostas", "Cria o pedido de venda no Bling a partir da proposta aprovada."),
   tela("tela.estoque", "Estoque", "/estoque"),
   // Ordem de producao (spec 2026-10-26-producao-pecas-proprias-design.md): a lista e a ordem; editar = criar ordem.
   sub("tela.estoque.producao", "Estoque › Ordens de produção", "tela.estoque"),

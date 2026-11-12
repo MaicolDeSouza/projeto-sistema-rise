@@ -11,6 +11,7 @@ import {
   Settings,
   ShoppingBag,
   ShoppingCart,
+  FileText,
   Store,
   Wallet,
   Wrench,
@@ -125,6 +126,14 @@ export const blocos = [
     icone: ShoppingCart,
     resumo: "Vendas de todos os canais em um só lugar",
     // Pedidos de venda (04/11/2026): a lista dos pedidos do ML, da LI e do Bling.
+    pronto: true,
+  },
+  {
+    // Propostas para cliente (spec 2026-11-12): logo depois de Vendas, a pedido do dono.
+    href: "/propostas",
+    rotulo: "Propostas",
+    icone: FileText,
+    resumo: "Propostas comerciais para cliente, com PDF e contato",
     pronto: true,
   },
   {

@@ -63,6 +63,7 @@ const { registrarRotina, registrarMemoria } = await import("../src/lib/saude/reg
 const { rodarLeituraDePedidos, processarNotificacoes } = await import("../src/lib/pedidos/leitura.js");
 const { recalcularPecasDosPedidosAbertos } = await import("../src/lib/pedidos/banco.js");
 const { lerComprasDoML } = await import("../src/lib/compras/mercadoLivre/compras.js");
+const { vencerPropostas } = await import("../src/lib/propostas/banco.js");
 
 /// Os avisos do Telegram (Rise AI, Entrega C1): a cada minuto, so o worker normal. A rotina nao faz nada com o bot
 /// desligado, sem token ou sem ninguem vinculado, e nunca lanca.
@@ -85,6 +86,10 @@ let pedidosLidosEm = 0;
 /// min viram pedidos de compra do fornecedor "ML". So LEITURA no ML; no Bling, so o deposito Virtual. So o worker normal.
 const LER_COMPRAS_ML_MS = 30 * 60 * 1000;
 let comprasMLLidasEm = 0;
+/// Propostas para cliente (12/11/2026): a aberta com a validade vencida vira Vencida. A lista tambem vence ao abrir; o
+/// worker cobre o "!" e os numeros dos filtros de quem nao abriu a lista.
+const VENCE_PROPOSTAS_MS = 60 * 60 * 1000;
+let propostasVencidasEm = 0;
 /// Anuncios do ML publicados sem estoque (pausados, `aguardandoEstoque`): de hora em hora o worker os ativa quando o ML
 /// ja mostra estoque (Opcao 2 do dono em 24/10/2026). Escreve no ML (passa pelas travas). So o worker normal.
 const ATIVA_AGUARDANDO_ESTOQUE_MS = 60 * 60 * 1000;
@@ -594,6 +599,11 @@ async function laco() {
         if (pedidos.reconferirErros?.length > 0) logErro(`pedidos de venda: reconferir falhou: ${pedidos.reconferirErros.join("; ")}`);
         if (pedidos.mercadoPagoConferidos > 0) log(`pedidos de venda: ${pedidos.mercadoPagoConferidos} conferido(s) no Mercado Pago`);
         if (pedidos.mercadoPagoErros?.length > 0) logErro(`pedidos de venda: Mercado Pago nao conferido: ${pedidos.mercadoPagoErros.join("; ")}`);
+      }
+      if (!FONTES && !SO_NO_PC && Date.now() - propostasVencidasEm >= VENCE_PROPOSTAS_MS) {
+        propostasVencidasEm = Date.now();
+        const vencidas = await rodarRotina("propostas", VENCE_PROPOSTAS_MS, async () => ({ ok: true, vencidas: await vencerPropostas() }));
+        if (vencidas.vencidas > 0) log(`propostas para cliente: ${vencidas.vencidas} vencida(s)`);
       }
       if (!FONTES && !SO_NO_PC && Date.now() - comprasMLLidasEm >= LER_COMPRAS_ML_MS) {
         comprasMLLidasEm = Date.now();
