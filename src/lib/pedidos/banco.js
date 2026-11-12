@@ -473,26 +473,56 @@ export async function resumoDaLista(filtro = {}) {
   return { lucro: Math.round(lucro * 100) / 100, pedidos: pedidos.length, semLucro };
 }
 
+/** Os canais das caixinhas de Vendas, na ordem que o dono pediu em 12/11/2026. */
+export const CANAIS_DO_RESUMO = ["MERCADO_LIVRE", "BLING", "LOJA_INTEGRADA"];
+
+const centavos = (valor) => Math.round(valor * 100) / 100;
+
 /**
- * Ticket medio (pedido do dono em 12/11/2026: "por canal de venda e também um ticket médio geral"): o total pago pelo
- * cliente (`total`, com o frete cobrado) dividido pelo numero de pedidos, sobre a lista filtrada inteira. Cancelado e
- * devolvido nao entram: o dinheiro nao ficou, e um pedido cancelado de R$ 0 puxaria a media para baixo.
+ * As caixinhas por canal de Vendas (pedido do dono em 12/11/2026): vendas em R$ (com a quantidade), lucro em R$ (com o
+ * markup) e ticket medio de cada canal, mais o ticket medio geral. Seguem os filtros da lista MENOS o de canal: as
+ * caixinhas existem para comparar os canais, e filtrar um zeraria as outras.
+ * - Vendas e ticket: o `total` pago pelo cliente (com o frete cobrado); cancelado e devolvido nao entram (o dinheiro
+ *   nao ficou, e um cancelado de R$ 0 puxaria a media para baixo).
+ * - Lucro: a regra da coluna Lucro e do "Lucro no período" (`lucroQueConta`; devolvido entra com o prejuizo do frete).
+ * - Markup: lucro / custo total, a regra do ML no Rise (o custo inclui produto, comissao, tarifa, frete e imposto), com o
+ *   custo = o que o cliente pagou menos o lucro, so nas vendas com lucro calculado (venda sem custo nao entra na conta).
+ * `comLucro` falso (login sem `dado.custo`) nao devolve lucro nem markup.
  */
-export async function ticketMedio(filtro = {}) {
-  const grupos = await prisma.pedidoDeVenda.groupBy({
-    by: ["canal"],
-    where: { AND: [filtroDaLista(filtro), { status: { notIn: ["CANCELADO", "DEVOLVIDO"] } }, { statusDoEnvio: { not: "DEVOLVIDO" } }] },
-    _sum: { total: true },
-    _count: { _all: true },
+export async function resumoDosCanais(filtro = {}, { comLucro = false } = {}) {
+  const pedidos = await prisma.pedidoDeVenda.findMany({
+    where: { AND: [filtroDaLista({ ...filtro, canais: [] }), { status: { not: "CANCELADO" } }] },
+    select: { canal: true, status: true, statusDoEnvio: true, total: true, lucroFechado: true, lucroEstimado: true, lucroReal: true },
   });
-  const media = (soma, n) => (n > 0 ? Math.round((soma / n) * 100) / 100 : null);
-  const canais = grupos
-    .map((g) => ({ canal: g.canal, pedidos: g._count._all, faturamento: numero(g._sum.total) ?? 0 }))
-    .map((c) => ({ ...c, ticket: media(c.faturamento, c.pedidos) }))
-    .sort((a, b) => b.faturamento - a.faturamento);
-  const pedidos = canais.reduce((s, c) => s + c.pedidos, 0);
-  const faturamento = Math.round(canais.reduce((s, c) => s + c.faturamento, 0) * 100) / 100;
-  return { pedidos, faturamento, ticket: media(faturamento, pedidos), canais };
+  const porCanal = new Map(CANAIS_DO_RESUMO.map((canal) => [canal, { canal, pedidos: 0, faturamento: 0, lucro: 0, custo: 0, semLucro: 0 }]));
+  for (const p of pedidos) {
+    const soma = porCanal.get(p.canal);
+    if (!soma) continue;
+    const devolvido = p.status === "DEVOLVIDO" || p.statusDoEnvio === "DEVOLVIDO";
+    const total = numero(p.total) ?? 0;
+    const lucro = lucroQueConta(p);
+    if (!devolvido) {
+      soma.pedidos += 1;
+      soma.faturamento += total;
+    }
+    if (lucro === null) {
+      if (!devolvido) soma.semLucro += 1;
+      continue;
+    }
+    soma.lucro += lucro;
+    if (!devolvido) soma.custo += total - lucro;
+  }
+  const media = (valor, n) => (n > 0 ? centavos(valor / n) : null);
+  const canais = [...porCanal.values()].map((c) => ({
+    canal: c.canal,
+    pedidos: c.pedidos,
+    faturamento: centavos(c.faturamento),
+    ticket: media(c.faturamento, c.pedidos),
+    ...(comLucro ? { lucro: centavos(c.lucro), markup: c.custo > 0 ? c.lucro / c.custo : null, semLucro: c.semLucro } : {}),
+  }));
+  const total = canais.reduce((s, c) => s + c.pedidos, 0);
+  const faturamento = centavos(canais.reduce((s, c) => s + c.faturamento, 0));
+  return { canais, geral: { pedidos: total, faturamento, ticket: media(faturamento, total) } };
 }
 
 function itemParaTela(item) {

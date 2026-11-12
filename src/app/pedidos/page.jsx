@@ -12,8 +12,8 @@ import AvisoBanco from "@/components/ui/AvisoBanco";
 import EmptyState from "@/components/ui/EmptyState";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
-import TicketMedio from "@/components/pedidos/TicketMedio";
-import { contarEnviosDeHoje, listarPedidosDeVenda, opcoesDasColunas, resumoDaLista, ticketMedio } from "@/lib/pedidos/banco";
+import ResumoDosCanais from "@/components/pedidos/ResumoDosCanais";
+import { contarEnviosDeHoje, listarPedidosDeVenda, opcoesDasColunas, resumoDaLista, resumoDosCanais } from "@/lib/pedidos/banco";
 import { projetarLinhaDaLista } from "@/lib/pedidos/projecao";
 import { porPaginaDaUrl } from "@/lib/porPagina";
 
@@ -76,7 +76,7 @@ export default async function PedidosDeVendaPage({ searchParams }) {
   let opcoes = null;
   let resumo = null;
   let enviosDeHoje = null;
-  let ticket = null;
+  let resumoPorCanal = null;
   let erro = null;
   try {
     const filtro = {
@@ -97,12 +97,12 @@ export default async function PedidosDeVendaPage({ searchParams }) {
       direcao,
       porPagina,
     };
-    [resultado, opcoes, resumo, enviosDeHoje, ticket] = await Promise.all([
+    [resultado, opcoes, resumo, enviosDeHoje, resumoPorCanal] = await Promise.all([
       listarPedidosDeVenda({ ...filtro, pagina: paginaPedida }),
       opcoesDasColunas(filtro),
       veLucro ? resumoDaLista(filtro) : null,
       contarEnviosDeHoje(agora),
-      ticketMedio(filtro),
+      resumoDosCanais(filtro, { comLucro: veLucro }),
     ]);
     // Pagina alem do fim (link antigo, filtro que encolheu a lista): mostra a ultima que existe.
     const ultima = Math.max(1, Math.ceil(resultado.total / porPagina));
@@ -125,6 +125,8 @@ export default async function PedidosDeVendaPage({ searchParams }) {
 
       {erro && <AvisoBanco erro={erro} />}
 
+      <ResumoDosCanais resumo={resumoPorCanal} />
+
       <FiltrosDePedidos
         busca={busca}
         desde={desde}
@@ -137,7 +139,6 @@ export default async function PedidosDeVendaPage({ searchParams }) {
         enviarHoje={{ ativo: despacho === "hoje", total: enviosDeHoje }}
         navegacao={
           <div className="ml-auto flex items-end gap-6">
-            <TicketMedio resumo={ticket} />
             {/* O lucro do periodo (pedido do dono em 04/11/2026): a lista filtrada inteira, pela regra da coluna Lucro. */}
             {resumo && (
               <div className="text-right" title={resumo.semLucro > 0 ? `${resumo.semLucro} pedido(s) sem lucro calculado (item sem custo) ficaram de fora` : "Cancelados não entram; devolvidos entram com o prejuízo do frete de retorno"}>
