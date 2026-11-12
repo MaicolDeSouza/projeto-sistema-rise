@@ -417,9 +417,10 @@ export async function excluirProposta(numeroDaProposta) {
  * Vence sozinha: aberta com a validade antes de hoje vira Vencida. Roda de hora em hora no worker e antes de toda
  * leitura da lista (para nao depender do worker). Devolve quantas venceram.
  */
-export async function vencerPropostas({ hoje = hojeEmSaoPaulo(), agora = new Date() } = {}) {
+export async function vencerPropostas({ hoje = hojeEmSaoPaulo(), agora = new Date(), numeros = null } = {}) {
   const { count } = await prisma.propostaParaCliente.updateMany({
-    where: { situacao: { in: SITUACOES_ABERTAS }, validadeAte: { lt: comoData(hoje) } },
+    // `numeros`: so o teste, para um "hoje" no futuro nao vencer as propostas de verdade.
+    where: { situacao: { in: SITUACOES_ABERTAS }, validadeAte: { lt: comoData(hoje) }, ...(numeros ? { numero: { in: numeros } } : {}) },
     data: { situacao: "VENCIDA", vencidaEm: agora },
   });
   return count;

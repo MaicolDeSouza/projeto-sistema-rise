@@ -307,8 +307,8 @@ try {
   const comContato = await banco.lerProposta(p1.numero, { hoje: "2026-11-12" });
   conferir("contato registrado tira o \"!\"", [comContato.contatos.length, comContato.precisaContato, comContato.proximoContato], [1, false, "2099-01-01"]);
 
-  const venceram = await banco.vencerPropostas({ hoje: "2026-12-02" });
-  conferir("vence sozinha depois da validade", [venceram >= 2, (await banco.lerProposta(p1.numero)).situacao], [true, "VENCIDA"]);
+  const venceram = await banco.vencerPropostas({ hoje: "2026-12-02", numeros: [p1.numero, p2.numero] });
+  conferir("vence sozinha depois da validade", [venceram === 2, (await banco.lerProposta(p1.numero)).situacao], [true, "VENCIDA"]);
   await banco.salvarProposta(p1.numero, { ...entrada, validadeAte: "2099-12-31" });
   conferir("validade de volta ao futuro reabre", (await banco.lerProposta(p1.numero)).situacao, "EM_NEGOCIACAO");
 
@@ -317,6 +317,56 @@ try {
   const peloPart = await banco.listarPropostas({ busca: "PN-1" });
   conferir("lista pelo codigo do cliente", peloPart.linhas.length >= 2, true);
   conferir("excluir so rascunho", (await banco.excluirProposta(p1.numero)).ok, false);
+
+  // -------------------------------------------------------------------------
+  // Pedido de venda no Bling (falso), anexos e link publico
+  // -------------------------------------------------------------------------
+  console.log("\nPedido de venda, anexos e link público");
+  const pedido = await import("../src/lib/propostas/pedidoDeVenda.js");
+  falso.estado.produtos.set(15000009001, { id: 15000009001, codigo: "ZZ-PROP-CLI-1", nome: "Produto", preco: 100, situacao: "A", formato: "S", tipo: "P" });
+  await prisma.produto.update({ where: { id: produto.id }, data: { blingId: "15000009001" } });
+  const exigir = (codigo) => falso.exigirEscrita(codigo);
+  await banco.salvarProposta(p2.numero, { ...entrada, clienteNome: "ZZ Proposta Com Doc", clienteDocumento: cnpjDeTeste(999990000501), ocCliente: "OC-77", observacoesNf: "Pedido OC-77", validadeAte: "2099-12-31" }, { bling: falso, exigirEscrita: () => falso.exigirEscrita("ZZ-CLIENTE") });
+  conferir("pedido so de aprovada", (await pedido.gerarPedidoDeVenda(p2.numero, { bling: falso, exigirEscrita: exigir })).ok, false);
+  await banco.mudarSituacao(p2.numero, "APROVADA");
+  const comAvulso = await pedido.gerarPedidoDeVenda(p2.numero, { bling: falso, exigirEscrita: exigir });
+  conferir("item avulso recusa com o motivo", /sem produto do Rise/.test(comAvulso.erro ?? ""), true);
+  conferir("recusa solta a marca", (await prisma.propostaParaCliente.findUnique({ where: { numero: p2.numero } })).pedidoDeVendaEm, null);
+  await banco.mudarSituacao(p2.numero, "EM_NEGOCIACAO");
+  await banco.salvarProposta(p2.numero, { ...entrada, clienteNome: "ZZ Proposta Com Doc", clienteDocumento: cnpjDeTeste(999990000501), ocCliente: "OC-77", observacoesNf: "Pedido OC-77", validadeAte: "2099-12-31", itens: entrada.itens.slice(0, 2) }, { bling: falso, exigirEscrita: () => falso.exigirEscrita("ZZ-CLIENTE") });
+  await banco.mudarSituacao(p2.numero, "APROVADA");
+  const gerado = await pedido.gerarPedidoDeVenda(p2.numero, { bling: falso, exigirEscrita: exigir });
+  const noBling = falso.estado.pedidosDeVenda.get(Number(gerado.blingPedidoId));
+  conferir(
+    "pedido criado com OC, itens, desconto e frete",
+    [gerado.ok, noBling?.numeroPedidoCompra, noBling?.itens?.length, noBling?.itens?.[1]?.desconto, noBling?.desconto, noBling?.transporte?.fretePorConta, noBling?.transporte?.frete, noBling?.observacoes],
+    [true, "OC-77", 2, 10, { valor: 29, unidade: "REAL" }, 0, 30, "Pedido OC-77"],
+  );
+  conferir("internas levam o numero da proposta", /Proposta \d+ do Rise/.test(noBling?.observacoesInternas ?? ""), true);
+  const deNovoPedido = await pedido.gerarPedidoDeVenda(p2.numero, { bling: falso, exigirEscrita: exigir });
+  conferir("repetir nao duplica", [deNovoPedido.blingPedidoId, deNovoPedido.jaExistia, falso.estado.pedidosDeVenda.size], [gerado.blingPedidoId, true, 1]);
+
+  const arquivos = await import("../src/lib/propostas/arquivos.js");
+  const pdfFalso = new File([Buffer.from("%PDF-1.4 cotacao")], "cotacao do cliente.pdf");
+  const xlsxFalso = new File([Buffer.from([0x50, 0x4b, 0x03, 0x04, 1, 2, 3])], "itens.xlsx");
+  const txt = new File([Buffer.from("texto")], "x.txt");
+  conferir("anexo recusa formato", (await arquivos.anexarCotacao(p2.numero, [txt])).ok, false);
+  conferir("anexa pdf e planilha", (await arquivos.anexarCotacao(p2.numero, [pdfFalso, xlsxFalso])).anexados, 2);
+  const anexos = (await banco.lerProposta(p2.numero)).anexos;
+  conferir("planilha guarda a extensao", anexos.map((a) => a.arquivo.split(".").pop()).sort(), ["pdf", "xlsx"]);
+  const lidoAnexo = await arquivos.lerAnexo(anexos.find((a) => a.nomeOriginal.endsWith(".pdf")).id);
+  conferir("le o anexo de volta", [lidoAnexo.nomeOriginal, lidoAnexo.tipo], ["cotacao do cliente.pdf", "application/pdf"]);
+  await arquivos.excluirAnexo(p2.numero, anexos[0].id);
+  conferir("exclui o anexo", (await banco.lerProposta(p2.numero)).anexos.length, 1);
+
+  const link = await import("../src/lib/propostas/linkPublico.js");
+  const l1 = await link.linkPublicoDaProposta(p2.numero);
+  const l2 = await link.linkPublicoDaProposta(p2.numero);
+  conferir("link publico nao muda", [l1.ok, l1.url === l2.url, /\/p\/proposta\/[A-Za-z0-9_-]{43}$/.test(l1.url)], [true, true, true]);
+  const chave = l1.url.split("/").pop();
+  conferir("chave abre a proposta", (await link.propostaPelaChavePublica(chave))?.numero, p2.numero);
+  conferir("chave errada nao abre", await link.propostaPelaChavePublica("x".repeat(43)), null);
+  await arquivos.apagarPastaDaProposta((await banco.lerProposta(p2.numero)).id);
 
   // @@BANCO@@
 

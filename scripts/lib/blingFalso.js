@@ -228,7 +228,7 @@ export function criarBlingFalso(opcoes = {}) {
   const lancamentos = [];
 
   // Ids com o tamanho dos reais (10 a 11 digitos): pegaria um erro de coluna de 32 bits.
-  const contadores = { produto: 15000000001, contato: 16000000001, vinculo: 17000000001, lancamento: 18000000001, anuncio: 19000000001 };
+  const contadores = { produto: 15000000001, contato: 16000000001, vinculo: 17000000001, lancamento: 18000000001, anuncio: 19000000001, pedidoDeVenda: 20000000001 };
   function novoId(tipo, existe) {
     let id = contadores[tipo]++;
     while (existe(id)) id = contadores[tipo]++;
@@ -503,6 +503,22 @@ export function criarBlingFalso(opcoes = {}) {
       ([, id]) => {
         const pedido = pedidosDeVenda.get(Number(id));
         return pedido ? resposta(200, { data: copia(pedido) }) : naoEncontrado();
+      },
+    ],
+    // POST do pedido de venda (Propostas para cliente, 12/11/2026). O corpo real NUNCA foi medido: o falso so exige o
+    // contato e itens com produto que existem, e guarda o corpo como veio (o teste confere o que o Rise mandou).
+    [
+      "POST",
+      /^\/pedidos\/vendas$/,
+      (_partes, { corpo }) => {
+        if (!contatos.has(Number(corpo?.contato?.id))) return validacao("O contato informado nao existe.", ["contato.id"]);
+        const itens = Array.isArray(corpo?.itens) ? corpo.itens : [];
+        if (!itens.length) return validacao("Informe ao menos um item.", ["itens"]);
+        const semProduto = itens.find((item) => !produtos.has(Number(item?.produto?.id)));
+        if (semProduto) return validacao("Produto do item nao existe.", ["itens.produto.id"]);
+        const id = novoId("pedidoDeVenda", (candidato) => pedidosDeVenda.has(candidato));
+        pedidosDeVenda.set(id, { ...copia(corpo), id, numero: id - 20000000000 });
+        return resposta(201, { data: { id } });
       },
     ],
     ["GET", /^\/formas-pagamentos$/, () => resposta(200, { data: copia(formasDePagamento) })],
@@ -971,6 +987,6 @@ export function criarBlingFalso(opcoes = {}) {
       const produto = acharProduto(idOuCodigo);
       return produto ? saldos.get(produto.id).virtual : null;
     },
-    estado: { produtos, contatos, vinculos, vinculosDeLoja, anuncios, saldos, lancamentos, depositos, tiposDeContato },
+    estado: { pedidosDeVenda, produtos, contatos, vinculos, vinculosDeLoja, anuncios, saldos, lancamentos, depositos, tiposDeContato },
   };
 }
