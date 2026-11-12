@@ -388,6 +388,30 @@ try {
 
   await arquivos.apagarPastaDaProposta((await banco.lerProposta(p2.numero)).id);
 
+  // -------------------------------------------------------------------------
+  // Ferramentas do MCP
+  // -------------------------------------------------------------------------
+  console.log("\nMCP");
+  const mcp = await import("../src/lib/mcp/propostasParaCliente.js");
+  const todos = { pode: () => true };
+  const semCustoMcp = { pode: (id) => id !== "dado.custo" };
+  const nada = { pode: () => false };
+  let recusou = false;
+  try {
+    await mcp.lerPropostaParaCliente({ numero: p2.numero }, nada);
+  } catch {
+    recusou = true;
+  }
+  conferir("MCP sem acesso recusa", recusou, true);
+  const lidaMcp = await mcp.lerPropostaParaCliente({ numero: p2.numero }, todos);
+  const textoMcp = JSON.stringify(lidaMcp);
+  conferir("MCP le a proposta com o custo", [lidaMcp.cliente, lidaMcp.itens[0].custoUnitario, lidaMcp.ocDoCliente], ["ZZ Proposta Com Doc", 40, "OC-77"]);
+  conferir("MCP nunca leva documento do cliente", textoMcp.includes(cnpjDeTeste(999990000501).slice(0, 8)), false);
+  const semCustoLido = await mcp.lerPropostaParaCliente({ numero: p2.numero }, semCustoMcp);
+  conferir("MCP sem custo", ["custoUnitario" in semCustoLido.itens[0], "lucro" in semCustoLido.totais], [false, false]);
+  const listaMcp = await mcp.listarPropostasParaCliente({ termos: "ZZ Proposta" }, todos);
+  conferir("MCP lista", listaMcp.propostas.some((pr) => pr.numero === p2.numero), true);
+
   // @@BANCO@@
 
   terminou = true;

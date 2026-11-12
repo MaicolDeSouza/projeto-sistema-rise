@@ -14,6 +14,7 @@ import { FERRAMENTA_MERCADO } from "./mercado.js";
 import { FERRAMENTAS_DE_PEDIDOS_DE_VENDA } from "./pedidosDeVenda.js";
 import { autenticacaoParaSdk } from "./portao.js";
 import { FERRAMENTAS_DA_PROPOSTA } from "./proposta.js";
+import { FERRAMENTAS_DE_PROPOSTAS_PARA_CLIENTE } from "./propostasParaCliente.js";
 import { FERRAMENTAS_DA_PROPOSTA_DE_ANUNCIO } from "./propostaDeAnuncio.js";
 import { FERRAMENTAS_DE_REFERENCIAS } from "./referencias.js";
 import { registrarChamadaMcp } from "./registro.js";
@@ -56,7 +57,7 @@ const ANOTACAO = { readOnlyHint: false, destructiveHint: false, idempotentHint: 
  * fornecedores e concorrentes coletados, os filtros do catalogo, os anuncios, o historico de preco, os cadastros e a
  * anotacao da duvida. Conferem o `pode()` do login por conta propria. So a anotacao escreve.
  */
-const SO_LEITURA_DO_MCP = [FERRAMENTA_MERCADO, ...FERRAMENTAS_DO_CATALOGO, ...FERRAMENTAS_DE_CADASTRO, ...FERRAMENTAS_DE_COMPRAS_LEITURA, ...FERRAMENTAS_DE_PEDIDOS_DE_VENDA];
+const SO_LEITURA_DO_MCP = [FERRAMENTA_MERCADO, ...FERRAMENTAS_DO_CATALOGO, ...FERRAMENTAS_DE_CADASTRO, ...FERRAMENTAS_DE_COMPRAS_LEITURA, ...FERRAMENTAS_DE_PEDIDOS_DE_VENDA, ...FERRAMENTAS_DE_PROPOSTAS_PARA_CLIENTE];
 // A proposta de anuncio (spec 2026-10-23) entra junto com a de produto: mesmo registro, sem o lembrete.
 // A marcacao das referencias (25/10/2026) vai junto: etapa de antes da proposta, sem o lembrete.
 // O pedido de compra montado pela conversa (26/10/2026) tambem: cada uma traz as proprias anotacoes de escrita.
