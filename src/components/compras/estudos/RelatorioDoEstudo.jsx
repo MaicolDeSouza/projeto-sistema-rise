@@ -180,7 +180,8 @@ function Custo({ fornecedores, parecidos }) {
       <section className="rounded-lg border border-borda bg-superficie p-4">
         <h3 className="mb-2 text-xs font-semibold tracking-wide text-suave uppercase">Fornecedores do mesmo produto</h3>
         {fornecedores?.length ? (
-          <table className="w-full text-sm">
+          // table-fixed: com as celulas de numero sem largura, a do nome (max-w-0) encolhia ate "ZZ-E...".
+          <table className="w-full table-fixed text-sm">
             <tbody className="divide-y divide-borda">
               {[...fornecedores]
                 .sort((a, b) => (a.custo ?? Infinity) - (b.custo ?? Infinity))
@@ -193,7 +194,7 @@ function Custo({ fornecedores, parecidos }) {
                         {fornecedor.nome}
                       </span>
                     </td>
-                    <td className="py-1.5 pr-3 text-right tabular-nums">{moeda(fornecedor.custo)}</td>
+                    <td className="w-24 py-1.5 pr-3 text-right tabular-nums">{moeda(fornecedor.custo)}</td>
                     <td className="w-36 py-1.5 text-right text-xs">
                       {fornecedor.temEstoque ? (
                         <span className="text-emerald-700">{fornecedor.quantidade != null ? `${fornecedor.quantidade} pronta entrega` : "Disponível"}</span>
@@ -214,7 +215,7 @@ function Custo({ fornecedores, parecidos }) {
       <section className="rounded-lg border border-borda bg-superficie p-4">
         <h3 className="mb-2 text-xs font-semibold tracking-wide text-suave uppercase">Parecidos da 4hobby no ML (últimos {LIMITES.diasDasVendasDaLoja} dias)</h3>
         {parecidos?.length ? (
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
             <tbody className="divide-y divide-borda">
               {parecidos.map((parecido) => (
                 <tr key={parecido.sku}>
@@ -223,7 +224,7 @@ function Custo({ fornecedores, parecidos }) {
                       <span className="font-mono text-xs">{parecido.sku}</span> {parecido.nome}
                     </Link>
                   </td>
-                  <td className="py-1.5 text-right text-xs whitespace-nowrap tabular-nums">
+                  <td className="w-44 py-1.5 text-right text-xs whitespace-nowrap tabular-nums">
                     {parecido.vendidos90Dias} vendidos · {String(parecido.vendasPorMes).replace(".", ",")}/mês
                   </td>
                 </tr>
