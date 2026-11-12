@@ -318,6 +318,18 @@ model Produto {
   /// Em que pedidos de venda este produto foi vendido (modulo Pedidos de venda, 04/11/2026).
   itensDeVenda ItemDoPedidoDeVenda[]
 
+  // --- Mapa do estoque (spec 2026-11-12-enderecamento-de-estoque-design.md) ---
+  // O LUGAR do produto continua sendo a `localizacao` ("M2" = coluna M, prateleira 2): o mapa a le na hora, e por isso
+  // nao ha chave para a prateleira aqui (a edicao rapida, o cadastro e o Bling escrevem a localizacao; uma chave ao lado
+  // ficaria velha). Aqui mora so o que a localizacao nao diz.
+  /// A caixinha plastica em que as pecas deste codigo ficam (uma por codigo; nao coube = modelo maior).
+  modeloCaixinhaId  String?
+  modeloCaixinha    ModeloDeCaixinha? @relation(fields: [modeloCaixinhaId], references: [id], onDelete: SetNull)
+  /// Quantas pecas cabem na caixinha, DIGITADO pelo dono. Vazio = vale a estimativa pelas medidas (que sao as de envio).
+  pecasPorCaixinha  Int?
+  /// A posicao da caixinha na prateleira, da esquerda para a direita (1, 2, 3...). Vazio = depois das numeradas, por codigo.
+  ordemNaPrateleira Int?
+
   @@index([marca])
   @@index([ativo])
 }
@@ -2911,4 +2923,91 @@ model NotaFiscalCompra {
 
   @@index([pedidoId])
   @@index([chave])
+}
+
+// ---------------------------------------------------------------------------
+// Mapa do estoque (spec 2026-11-12-enderecamento-de-estoque-design.md)
+// ---------------------------------------------------------------------------
+
+/// Os estoques fisicos do dono: 1 (container inferior), 2 (porao da casa) e 3 (container superior).
+model LocalDeEstoque {
+  id        String  @id @default(cuid())
+  numero    Int     @unique
+  nome      String
+  descricao String?
+  /// false no Estoque 1 (fica como esta; so se mexe num produto quando o dono troca aquele produto de lugar);
+  /// true nos Estoques 2 e 3, que ja nascem com as regras (pesado embaixo, parecidos nunca vizinhos).
+  aplicaRegras Boolean @default(false)
+  /// true = a prateleira 1 e a de BAIXO; false = a 1 e a de cima. O dono ainda nao disse: troca-se na tela.
+  primeiraEmbaixo Boolean @default(false)
+
+  colunas ColunaDeEstoque[]
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+}
+
+/// A coluna (o vao) de uma estante: a LETRA da localizacao. Unica no sistema inteiro, porque a localizacao ("M2")
+/// nao diz o estoque: e a coluna que diz.
+model ColunaDeEstoque {
+  id      String         @id @default(cuid())
+  localId String
+  local   LocalDeEstoque @relation(fields: [localId], references: [id], onDelete: Restrict)
+  letra   String         @unique
+  /// A ordem das colunas na parede, da esquerda para a direita.
+  ordem   Int            @default(0)
+  /// Quantas prateleiras a coluna tem (a numeracao vai de 1 ate aqui).
+  prateleiras Int        @default(5)
+
+  /// Medidas do vao, em cm. Vazias = o desenho usa o padrao (o dono ainda nao mediu).
+  larguraCm      Decimal? @db.Decimal(10, 2)
+  profundidadeCm Decimal? @db.Decimal(10, 2)
+  /// Altura livre de cada prateleira ate a de cima.
+  alturaLivreCm  Decimal? @db.Decimal(10, 2)
+  /// Peso maximo por prateleira.
+  pesoMaximoKg   Decimal? @db.Decimal(10, 3)
+
+  /// Onde a coluna fica no ambiente (canto esquerdo da frente, em cm) e para onde a frente aponta (0, 90, 180, 270).
+  /// Vazios = o desenho poe as colunas em fila, pela `ordem`.
+  xCm       Decimal? @db.Decimal(10, 2)
+  zCm       Decimal? @db.Decimal(10, 2)
+  giroGraus Int?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([localId, ordem])
+}
+
+/// Modelo de caixinha plastica (gaveteiro tipo bico). As medidas sao as de FORA; a caixinha e afunilada e tem a boca
+/// rebaixada, entao o volume que serve e `fatorUtil` do volume de fora.
+model ModeloDeCaixinha {
+  id             String   @id @default(cuid())
+  nome           String   @unique
+  /// Cor do desenho (#rrggbb).
+  cor            String   @default("#2f5d8a")
+  larguraCm      Decimal  @db.Decimal(10, 2)
+  alturaCm       Decimal  @db.Decimal(10, 2)
+  profundidadeCm Decimal  @db.Decimal(10, 2)
+  fatorUtil      Decimal  @default(0.70) @db.Decimal(3, 2)
+  pesoVazioKg    Decimal? @db.Decimal(10, 3)
+  ativo          Boolean  @default(true)
+
+  produtos Produto[]
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+}
+
+/// Cada troca de lugar feita pelo mapa (de -> para, quem, quando). Base da futura lista de mudancas e dos avisos.
+model HistoricoDeLocal {
+  id        String   @id @default(cuid())
+  produtoId String
+  sku       String
+  de        String?
+  para      String?
+  usuario   String?
+  criadoEm  DateTime @default(now())
+
+  @@index([produtoId, criadoEm])
 }

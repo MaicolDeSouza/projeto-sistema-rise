@@ -119,6 +119,8 @@ const LISTA = [
   // Ordem de producao (spec 2026-10-26-producao-pecas-proprias-design.md): a lista e a ordem; editar = criar ordem.
   sub("tela.estoque.producao", "Estoque › Ordens de produção", "tela.estoque"),
   acao("acao.producao.movimentar", "Dar baixa, concluir ou cancelar ordem de produção", "tela.estoque.producao", "Grava os movimentos no Rise e manda ao Bling."),
+  // Mapa do estoque (spec 2026-11-12): ver = o desenho; editar = colunas, modelos de caixinha e a caixinha do produto.
+  sub("tela.estoque.mapa", "Estoque › Mapa do estoque", "tela.estoque"),
   tela("tela.financeiro", "Financeiro", "/financeiro"),
   tela("tela.relatorios", "Relatórios", "/relatorios"),
 

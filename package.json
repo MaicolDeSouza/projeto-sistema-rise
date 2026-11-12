@@ -65,6 +65,7 @@
     "pedidos:conferir-mp": "node scripts/conferir-mercado-pago.js",
     "teste:aliexpress": "node scripts/teste-aliexpress.js",
     "teste:compras-ml": "node scripts/teste-compras-ml.js",
+    "teste:estoque3d": "node scripts/teste-estoque3d.js",
     "teste:extensao-aliexpress": "node scripts/teste-extensao-aliexpress.js",
     "teste:licencas": "node scripts/teste-licencas.js",
     "teste:extensao-lightburn": "node scripts/teste-extensao-lightburn.js",
@@ -89,6 +90,7 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "sharp": "0.35.5",
+    "three": "^0.170.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

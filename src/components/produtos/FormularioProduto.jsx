@@ -60,6 +60,7 @@ import { gerarEanDoSku } from "@/lib/eanInterno";
 import { indisponivel, ordenarPrecosDasReferencias, situacaoDeEstoque } from "@/lib/estoqueDoConcorrente";
 import { codigoSugeridoDoKit, localizacaoDoKit, ncmsDasPecas, pesoEMedidasDoKit, totaisDoKit } from "@/lib/composicao";
 import { DocumentosDasPecas, FornecedoresDoKit, MedidasDoKit } from "./AbasDoKit";
+import CaixinhaDoProduto from "@/components/estoque3d/CaixinhaDoProduto";
 import BuscarPorCodigo from "./BuscarPorCodigo";
 import Composicao from "./Composicao";
 import Concorrentes from "./Concorrentes";
@@ -2091,6 +2092,8 @@ export default function FormularioProduto({
   // O que a pessoa pode fazer neste cadastro (`acessosDoCadastro`, pedido do dono em 20/10/2026). Sem restricao por
   // padrao: telas que ainda nao passam o prop seguem como eram. A conferencia de verdade e do servidor.
   acessos = ACESSO_TOTAL,
+  // Bloco "Caixinha do estoque" (Mapa do estoque, 12/11/2026): so no produto que ja existe e para quem ve o mapa.
+  caixinha = null,
 }) {
   const router = useRouter();
   const somenteLeitura = !acessos.editar;
@@ -4297,6 +4300,14 @@ export default function FormularioProduto({
               </div>
               {ehKit && (
                 <MedidasDoKit pecas={pecas} />
+              )}
+              {produto?.id && caixinha && (
+                <CaixinhaDoProduto
+                  produtoId={produto.id}
+                  caixinha={caixinha}
+                  medidas={{ larguraCm: v("larguraCm"), alturaCm: v("alturaCm"), comprimentoCm: v("comprimentoCm"), estoque: v("estoque"), estoqueMaximo: v("estoqueMaximo") }}
+                  podeEditar={caixinha.podeEditar}
+                />
               )}
             </div>
 

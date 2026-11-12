@@ -347,7 +347,7 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Configurações (Acessos) | Lançamento 1 pronto em 12/10/2026 e **no ar na VPS desde 13/10/2026**: usuários, funções com a matriz de permissões, exceções, quebra-vidro `RISE_AI_ADMINS` e segredo de borda; o Rise AI e Configurações conferem o acesso no servidor. Integrações virou cartão de Configurações. **Lançamento 2 pronto em 22/10/2026, SEM deploy:** o Rise inteiro confere o acesso (menu e Painel filtrados, telas em `ver` com o selo "Somente leitura", dados sensíveis cortados no servidor), "Ver como" e a aba Histórico. Ver "Acessos (lançamento 1)" e "Acessos (lançamento 2)" |
 | Relatórios | **Relatório semanal da coleta** em PDF (tela `/relatorios`, 20/10/2026, sem deploy): lista das rodadas, "Gerar agora" e baixar o PDF. Ver "Relatório semanal da coleta" |
 | Compras | Pedidos de compra e reposição do estoque mínimo (26/10/2026, sem deploy): lista dos conferidos abaixo do mínimo com popup de fornecedores e rascunho automático por fornecedor, editor do pedido no molde do Bling, estoque a caminho calculado, lançar estoque no Bling por item com Desfazer, proposta anexada e PDF para o fornecedor. Ver "Compras (26/10/2026)". **AliExpress (28/10/2026):** extensão do Chrome "Enviar ao Rise" importa os pedidos do site com rastreio por item e depósito Virtual do Bling; ver "AliExpress no Compras (28/10/2026)". **Mercado Livre (11/11/2026):** as compras da conta da loja entram sozinhas pela API, mais a busca pelo rastreio e a nota fiscal do pedido; ver "Compras do Mercado Livre, busca pelo rastreio e nota fiscal (11/11/2026)" |
-| Estoque | Ordens de produção dos produtos com peças próprias (26/10/2026, sem deploy): baixa das peças, conclusão com perda, cancelamento que devolve. Saldo e movimentações ainda não. Ver "Peças próprias e ordem de produção (26/10/2026)" |
+| Estoque | Ordens de produção dos produtos com peças próprias (26/10/2026, sem deploy): baixa das peças, conclusão com perda, cancelamento que devolve. Saldo e movimentações ainda não. Ver "Peças próprias e ordem de produção (26/10/2026)". **Mapa do estoque (12/11/2026, fase 1, SEM deploy):** os três estoques em 3D e de frente, colunas, modelos de caixinha e a caixinha do produto; ver "Mapa do estoque (12/11/2026)" |
 | Pedidos | **Pedidos de venda, fase 1 (04/11/2026, NO AR na VPS desde 04.11.2026.60):** o worker lê a cada 5 min os pedidos do ML, da LI e do Bling (desde 01/11/2026), cria o cliente pelo CPF/CNPJ, casa os itens com os produtos, calcula status, peças em falta e lucro estimado × real; lista `/pedidos`, tela do pedido com abas, taxas da LI e nível do cliente. Ver "Pedidos de venda (04/11/2026)" |
 | Financeiro | Esqueleto |
 
@@ -422,6 +422,7 @@ npm run teste:producao            # 89 asserções das peças próprias e da ord
 npm run teste:compras             # 194 asserções do módulo Compras (com a observação por item, o link público e o "Voltar para rascunho" do enviado): regras (totais, desconto % ou R$, a caminho, carrinho, situação), lista do mínimo e rascunho automático (com concorrência), pedido (salvar, itens, situação, preço que não se apaga), lançamento contra o Bling falso (clique duplo, Bling que recusa, desfazer com estoque vendido), proposta pelos bytes, dados da empresa, o PDF e as ferramentas de Compras do MCP. Postgres local, SEM rede; só escreve ZZ-COMPRA-* e "ZZ Compra *"
 npm run teste:aliexpress          # 153 asserções do AliExpress no Compras: regras puras, esquema, chave da extensão, depósito Virtual (saída por balanço, Reenviar que acerta), casamento (anúncio+opção, fator), importação, chegada, rotas e a leitura para a tela, contra um Bling falso. Postgres local, SEM rede; só escreve ZZ-ALI-*, "ZZ Ali *" e pedidos 99…; `-- --manter` deixa os dados para conferir a tela
 npm run teste:compras-ml           # 50 asserções das compras do Mercado Livre no Compras e da nota fiscal do pedido de compra: regras puras (pack, situação, totais, variação, 1ª leitura, envio e fases), XML da NF-e, leitura contra um ML falso (rascunho que vira enviado, rastreio que aparece, cancelada, sem duplicar), casamento pelo MLB, Virtual contra o Bling falso, busca pelo rastreio e pela nota e a guarda que impede a compra de virar venda. Postgres local, SEM rede; só escreve ZZ-CML-*, "ZZ CML Fornecedor" e compras 98…; `-- --manter` deixa os dados
+npm run teste:estoque3d            # 64 asserções do Mapa do estoque: leitura da localização ("M2"), peças que cabem na caixinha, caixinha certa, peso, a cena montada (ordem, largura, o que passa do vão, a 1 em cima ou embaixo, fora das prateleiras) e o banco (colunas pela localização, coluna, modelo, caixinha do produto). Postgres local, SEM rede; só escreve ZZ-E3D-*, as colunas ZY/ZZ e os modelos "ZZ E3D *", e apaga
 npm run teste:pedidos             # 312 asserções dos Pedidos de venda (com o envio do ML entregue na agência pelo substatus): falsos (ML, LI, Bling), normalizadores, status, cliente automático, itens e custo congelado, lucro e devolução, peças, aplicarPedidoLido, a leitura com cursor, acessos e taxas da LI. Postgres local, SEM rede; só escreve ZZ-PED-*, "ZZ Ped *" e os documentos de teste, e devolve a linha "pedidos" de RotinaDoWorker e as taxas da LI; `-- --manter` deixa os pedidos para conferir a tela
 npm run teste:extensao-aliexpress # 15 asserções da leitura da extensão (extensao-aliexpress/leitura.js) com as respostas da página Meus pedidos medidas em 28/10/2026. Puro: sem banco, sem rede, sem Chrome
 npm run teste:licencas            # 109 asserções das Licenças Softwares: regras (vagas, casamento por nome do PC, situação, frescor, ordem), zip e upload do arquivo, banco (programas, licenças, linhas, versões do arquivo, download), leitura do portal (esquema, aplicação, incompleta, sumidos, chave da extensão) e a importação das planilhas (fixtures em scripts/fixtures/licencas/). Postgres local, SEM rede; só escreve ZZ-LIC-*, zz-lic-* e "ZZ LIC *" e devolve a Conexao LIGHTBURN; `-- --manter` deixa os dados para conferir a tela
@@ -6050,6 +6051,41 @@ transação Serializable), telas em `src/app/pedidos/` e `src/components/pedidos
   Rise não criou (não há `Anuncio` dele). **Ainda não medido:** pedido da LI, etiqueta real do Enviali e pedido digitado no Bling.
 - **Armadilha de dev:** arquivo reescrito por script (Python) às vezes não é recompilado pelo `next dev`; o servidor desenha a
   versão antiga e o navegador acusa erro de hidratação. Uma edição pelo editor resolve.
+
+## Mapa do estoque (12/11/2026)
+
+Pedido do dono: desenho interativo "tipo Minecraft" das prateleiras e caixinhas dos três estoques, com a foto do produto na
+caixinha, para girar e trocar de estoque. Spec `docs/superpowers/specs/2026-11-12-enderecamento-de-estoque-design.md` (o
+plano anterior do mesmo dia, rua-prateleira-nível-posição, foi DESCARTADO pelo dono). **Fase 1 de 3, SEM deploy.**
+
+- **O lugar do produto é a `localizacao` que já existe** ("M2" = coluna M, prateleira 2; 1.218 produtos no PC): o mapa a lê
+  na hora (`lerLocalizacao`). Não há chave produto → prateleira: a edição rápida, o cadastro e o Bling escrevem a
+  localização, e uma chave ao lado ficaria velha. "CHAO" e outros textos que não são coluna vão para a lista "Localização que
+  não é coluna"; só a letra ("X") fica em "Fora das prateleiras" do estoque da coluna.
+- **Tabelas** (migration `20261112_mapa_do_estoque`): `LocalDeEstoque` (os 3, semeados: 1 = container inferior, sem regras;
+  2 = porão e 3 = container superior, `aplicaRegras`), `ColunaDeEstoque` (a letra, ÚNICA no sistema porque a localização
+  não diz o estoque; medidas do vão opcionais; `xCm/zCm/giroGraus` para pôr no ambiente), `ModeloDeCaixinha` (medidas de
+  fora, `fatorUtil` 0,70 porque a caixinha é afunilada, cor do desenho), `HistoricoDeLocal` (para a fase 2). No Produto:
+  `modeloCaixinhaId`, `pecasPorCaixinha` (digitado; vence a estimativa) e `ordemNaPrateleira` (da esquerda; virá das fotos
+  do dono). `primeiraEmbaixo` no estoque: o dono ainda não disse se a prateleira 1 é a de baixo (padrão: de cima).
+- **Contas** (`src/lib/estoque3d/regras.js`, puras): peças na caixinha = volume × `fatorUtil` × 0,85 ÷ volume da peça, desde
+  que a peça passe em alguma rotação (as medidas do produto são as de ENVIO: é estimativa). Caixinha certa = o menor modelo
+  em que cabe o Estoque máximo (uma caixinha por código, decisão do dono: não coube, modelo maior). Caixinhas lado a lado
+  pela largura do modelo; sem modelo, o desenho divide o vão. Sem medidas da coluna, o desenho usa `PADRAO` (90×40 cm,
+  20 cm de altura livre) e põe as colunas em filas de 8.
+- **Tela** `/estoque/mapa` (cartão no bloco Estoque, acesso `tela.estoque.mapa`; sem `dado.localizacao` não vê): aba Mapa
+  (Estoque 1/2/3, busca que esmaece o resto, 3D com three.js e vista "De frente" por coluna, painel da caixinha com lugar,
+  estoque, quanto cabe, peso e avisos), Colunas ("Criar N pela Localização" cria no Estoque 1 uma coluna por letra usada,
+  com a maior prateleira vista; foi usado no PC: A a Y, 25 colunas) e Caixinhas. O 3D desenha só quando algo muda e pede as
+  fotos ao otimizador do Next em 128 px, 6 por vez.
+- **Cadastro do produto**, aba Peso e dimensões: bloco "Caixinha do estoque" que grava NA HORA pelo próprio botão, fora do
+  Salvar (sem `name`, eventos não sobem, e o UPDATE é SQL direto para não mexer no `atualizadoEm` que o rascunho automático
+  compara). Só no produto existente e para quem vê o mapa.
+- **Conferido no PC** (1366×768): 1.087 caixinhas no Estoque 1, busca do 100225 até J3, vista de frente, criar modelo e
+  escolher a caixinha no produto. **Não visto:** celular/toque, colunas com medidas reais, Estoques 2 e 3 com colunas.
+- **Próximo:** as fotos da coluna A (o dono manda; a sessão lê os códigos e grava `ordemNaPrateleira`, dúvidas em lista);
+  medidas dos vãos e modelos de caixinha. Fase 2: Estoques 2 e 3 com as regras (pesado embaixo, parecidos nunca vizinhos),
+  "Onde guardar", mover caixinha e histórico. Fase 3: reorganizar em lote.
 
 ## Peças próprias e ordem de produção (26/10/2026)
 

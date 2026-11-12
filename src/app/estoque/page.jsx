@@ -1,4 +1,4 @@
-import { Factory } from "lucide-react";
+import { Boxes, Factory } from "lucide-react";
 import GradeDeCartoes from "@/components/ui/GradeDeCartoes";
 
 import CartaoDeAtalho from "@/components/ui/CartaoDeAtalho";
@@ -34,10 +34,11 @@ async function detalheDasOrdens() {
 export default async function EstoquePage() {
   const acesso = await exigirAcessoNaPagina("tela.estoque", "ver");
   const veOrdens = acesso.pode("tela.estoque.producao", "ver");
+  const veMapa = acesso.pode("tela.estoque.mapa", "ver");
 
   return (
     <>
-      <PageHeader titulo="Estoque" descricao="Ordens de produção dos produtos com lista personalizada." />
+      <PageHeader titulo="Estoque" descricao="Ordens de produção e o mapa das prateleiras." />
       <GradeDeCartoes pagina="estoque" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {veOrdens && (
           <CartaoDeAtalho
@@ -47,6 +48,9 @@ export default async function EstoquePage() {
             descricao="Dar baixa nas peças e lançar o produto montado."
             detalhe={await detalheDasOrdens()}
           />
+        )}
+        {veMapa && (
+          <CartaoDeAtalho href="/estoque/mapa" icone={Boxes} titulo="Mapa do estoque" descricao="As prateleiras e as caixinhas dos três estoques, em 3D." />
         )}
       </GradeDeCartoes>
     </>

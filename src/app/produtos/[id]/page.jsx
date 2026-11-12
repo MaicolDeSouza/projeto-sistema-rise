@@ -6,6 +6,7 @@ import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { acessosDoCadastro } from "@/lib/acessos/produto";
 import { carregarProdutoParaFormulario, projetarParaAcessos } from "@/lib/produtoParaFormulario";
 import { listarFornecedores } from "@/app/produtos/acoes";
+import { lerCaixinhaDoProduto } from "@/lib/estoque3d/banco";
 import PageHeader from "@/components/ui/PageHeader";
 import { SetaParaListaDeProdutos } from "@/components/produtos/ListaDeProdutosNaAba";
 import FormularioProduto from "@/components/produtos/FormularioProduto";
@@ -27,6 +28,8 @@ export default async function EditarProdutoPage({ params, searchParams }) {
   const { registro, produto, arquivos, fornecedores, concorrentes } = dados;
 
   const catalogoFornecedores = await listarFornecedores();
+  // Bloco "Caixinha do estoque" (Mapa do estoque): so para quem ve o mapa; grava a parte do Salvar do cadastro.
+  const caixinha = sessao.pode("tela.estoque.mapa", "ver") ? { ...(await lerCaixinhaDoProduto(id)), podeEditar: sessao.pode("tela.estoque.mapa", "editar") } : null;
 
   const { integrados } = separarCanais(registro.anuncios);
 
@@ -81,6 +84,7 @@ export default async function EditarProdutoPage({ params, searchParams }) {
         catalogoFornecedores={catalogoFornecedores}
         dominioLojaIntegrada={config.lojaIntegrada.dominio}
         acessos={acessos}
+        caixinha={caixinha}
       />
     </>
   );
