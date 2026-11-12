@@ -17,15 +17,16 @@ function Linha({ rotulo, children, title }) {
   );
 }
 
-function CaixaDoCanal({ resumo }) {
-  const canal = canalPorId(resumo.canal);
+/** Uma caixinha: a de um canal (com o logo) ou a Geral (`geral`, em destaque azul, sem logo). */
+function Caixa({ resumo, geral = false }) {
+  const canal = geral ? null : canalPorId(resumo.canal);
   const temLucro = "lucro" in resumo;
   const semVenda = resumo.pedidos === 0;
   return (
-    <div className="rounded-lg border border-borda bg-superficie px-3.5 py-2.5">
+    <div className={`rounded-lg border px-3.5 py-2.5 ${geral ? "border-acento/40 bg-acento/5" : "border-borda bg-superficie"}`}>
       <div className="mb-1.5 flex items-center gap-2">
         {canal?.logo && <Image src={canal.logo} alt="" width={18} height={18} className="rounded-sm" />}
-        <span className="text-sm font-medium">{canal?.nome ?? resumo.canal}</span>
+        <span className="text-sm font-medium">{geral ? "Geral" : (canal?.nome ?? resumo.canal)}</span>
       </div>
       {semVenda ? (
         <p className="py-3 text-center text-xs text-suave">Sem vendas no período</p>
@@ -56,26 +57,18 @@ function CaixaDoCanal({ resumo }) {
 }
 
 /**
- * As caixinhas de Vendas (pedido do dono em 12/11/2026): uma por canal (vendas, lucro com markup e ticket medio) e a do
- * ticket medio geral. Seguem os filtros da lista menos o de canal (`resumoDosCanais`). Cancelados e devolvidos nao
- * entram nas vendas nem no ticket.
+ * As caixinhas de Vendas (pedido do dono em 12/11/2026): uma por canal (vendas, lucro com markup e ticket medio) e a
+ * Geral, com as mesmas linhas somando os tres canais (ela substituiu o "Lucro no periodo" do canto). Seguem os filtros
+ * da lista menos o de canal (`resumoDosCanais`). Cancelados e devolvidos nao entram nas vendas nem no ticket.
  */
 export default function ResumoDosCanais({ resumo }) {
   if (!resumo) return null;
-  const { geral } = resumo;
   return (
     <div className="mb-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
       {resumo.canais.map((c) => (
-        <CaixaDoCanal key={c.canal} resumo={c} />
+        <Caixa key={c.canal} resumo={c} />
       ))}
-      <div
-        className="flex flex-col justify-center rounded-lg border border-acento/40 bg-acento/5 px-3.5 py-2.5"
-        title={`${vendasTexto(geral.pedidos)}, ${moeda.format(geral.faturamento)} no período, nos três canais. Cancelados e devolvidos não entram.`}
-      >
-        <p className="text-sm font-medium">Ticket médio geral</p>
-        <p className="mt-1 text-2xl leading-tight font-semibold tabular-nums">{geral.ticket === null ? "—" : moeda.format(geral.ticket)}</p>
-        {geral.pedidos > 0 && <p className="text-xs text-suave">{vendasTexto(geral.pedidos)}</p>}
-      </div>
+      <Caixa resumo={resumo.geral} geral />
     </div>
   );
 }

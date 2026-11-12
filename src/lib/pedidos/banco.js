@@ -513,16 +513,19 @@ export async function resumoDosCanais(filtro = {}, { comLucro = false } = {}) {
     if (!devolvido) soma.custo += total - lucro;
   }
   const media = (valor, n) => (n > 0 ? centavos(valor / n) : null);
-  const canais = [...porCanal.values()].map((c) => ({
-    canal: c.canal,
+  // A caixinha Geral (pedido do dono em 12/11/2026) e a soma dos tres canais com as mesmas contas; o markup geral sai da
+  // soma dos lucros sobre a soma dos custos, e nao da media dos markups.
+  const geral = [...porCanal.values()].reduce(
+    (g, c) => ({ pedidos: g.pedidos + c.pedidos, faturamento: g.faturamento + c.faturamento, lucro: g.lucro + c.lucro, custo: g.custo + c.custo, semLucro: g.semLucro + c.semLucro }),
+    { pedidos: 0, faturamento: 0, lucro: 0, custo: 0, semLucro: 0 },
+  );
+  const paraTela = (c) => ({
     pedidos: c.pedidos,
     faturamento: centavos(c.faturamento),
     ticket: media(c.faturamento, c.pedidos),
     ...(comLucro ? { lucro: centavos(c.lucro), markup: c.custo > 0 ? c.lucro / c.custo : null, semLucro: c.semLucro } : {}),
-  }));
-  const total = canais.reduce((s, c) => s + c.pedidos, 0);
-  const faturamento = centavos(canais.reduce((s, c) => s + c.faturamento, 0));
-  return { canais, geral: { pedidos: total, faturamento, ticket: media(faturamento, total) } };
+  });
+  return { canais: [...porCanal.values()].map((c) => ({ canal: c.canal, ...paraTela(c) })), geral: paraTela(geral) };
 }
 
 function itemParaTela(item) {

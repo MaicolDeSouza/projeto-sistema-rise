@@ -4,7 +4,6 @@ import FiltrosDePedidos from "@/components/pedidos/FiltrosDePedidos";
 import { diaIso } from "@/components/pedidos/formato";
 import TabelaPedidosDeVenda from "@/components/pedidos/TabelaPedidosDeVenda";
 import { SITUACOES, STATUS, TEXTO_DO_STATUS_DO_ENVIO } from "@/components/pedidos/textos";
-import { moedaComSinal } from "@/components/pedidos/formato";
 import NavegacaoDoTopo from "@/components/mercados/NavegacaoDoTopo";
 import { LembrarLista } from "@/components/ui/ListaLembrada";
 import Paginacao from "@/components/mercados/Paginacao";
@@ -13,7 +12,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import ResumoDosCanais from "@/components/pedidos/ResumoDosCanais";
-import { contarEnviosDeHoje, listarPedidosDeVenda, opcoesDasColunas, resumoDaLista, resumoDosCanais } from "@/lib/pedidos/banco";
+import { contarEnviosDeHoje, listarPedidosDeVenda, opcoesDasColunas, resumoDosCanais } from "@/lib/pedidos/banco";
 import { projetarLinhaDaLista } from "@/lib/pedidos/projecao";
 import { porPaginaDaUrl } from "@/lib/porPagina";
 
@@ -72,9 +71,8 @@ export default async function PedidosDeVendaPage({ searchParams }) {
   const veLucro = acesso.pode("dado.custo", "ver");
 
   let resultado = null;
-  // As opcoes do filtro de Status e Envio e o lucro do periodo saem do mesmo filtro da lista (sem a pagina).
+  // As opcoes do filtro de Status e Envio e as caixinhas dos canais saem do mesmo filtro da lista (sem a pagina).
   let opcoes = null;
-  let resumo = null;
   let enviosDeHoje = null;
   let resumoPorCanal = null;
   let erro = null;
@@ -97,10 +95,9 @@ export default async function PedidosDeVendaPage({ searchParams }) {
       direcao,
       porPagina,
     };
-    [resultado, opcoes, resumo, enviosDeHoje, resumoPorCanal] = await Promise.all([
+    [resultado, opcoes, enviosDeHoje, resumoPorCanal] = await Promise.all([
       listarPedidosDeVenda({ ...filtro, pagina: paginaPedida }),
       opcoesDasColunas(filtro),
-      veLucro ? resumoDaLista(filtro) : null,
       contarEnviosDeHoje(agora),
       resumoDosCanais(filtro, { comLucro: veLucro }),
     ]);
@@ -139,14 +136,7 @@ export default async function PedidosDeVendaPage({ searchParams }) {
         enviarHoje={{ ativo: despacho === "hoje", total: enviosDeHoje }}
         navegacao={
           <div className="ml-auto flex items-end gap-6">
-            {/* O lucro do periodo (pedido do dono em 04/11/2026): a lista filtrada inteira, pela regra da coluna Lucro. */}
-            {resumo && (
-              <div className="text-right" title={resumo.semLucro > 0 ? `${resumo.semLucro} pedido(s) sem lucro calculado (item sem custo) ficaram de fora` : "Cancelados não entram; devolvidos entram com o prejuízo do frete de retorno"}>
-                <p className="text-xs text-suave">Lucro no período</p>
-                <p className={`text-lg leading-tight font-semibold tabular-nums ${resumo.lucro < 0 ? "text-red-600" : "text-emerald-700"}`}>{moedaComSinal(resumo.lucro)}</p>
-                {resumo.semLucro > 0 && <p className="text-xs text-suave">{resumo.semLucro} sem lucro calculado</p>}
-              </div>
-            )}
+            {/* O "Lucro no período" que morava aqui saiu em 12/11/2026: a caixinha Geral do ResumoDosCanais mostra o lucro. */}
             <NavegacaoDoTopo pagina={pagina} totalPaginas={totalPaginas} total={total} porPagina={porPagina} />
           </div>
         }
