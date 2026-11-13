@@ -145,7 +145,7 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     let yContatos = yInfo;
     for (const contato of conteudo.contatos) {
       desenharIcone(doc, contato.tipo, xContatos, yContatos, 8.5);
-      doc.font("Helvetica").fontSize(7.8).fillColor(TEXTO_SUAVE).text(contato.texto, xContatos + 12, yContatos + 0.5, { width: larguraDosContatos - 12, link: contato.url, lineBreak: false, ellipsis: true });
+      doc.font("Helvetica").fontSize(7.8).fillColor(TEXTO_SUAVE).text(contato.texto, xContatos + 12, yContatos + 0.5, { width: larguraDosContatos - 12, link: contato.url ?? undefined, lineBreak: false, ellipsis: true });
       yContatos += 12.5;
     }
     const xQuadro = MARGEM + largura - larguraDoQuadro;

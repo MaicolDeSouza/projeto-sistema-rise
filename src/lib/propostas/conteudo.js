@@ -50,17 +50,18 @@ function dadosDaEmpresa(empresa) {
 
 /**
  * Telefone fixo, os dois WhatsApp (comercial = `celular`, tecnico = `whatsappTecnico`) e o e-mail, cada um com o seu
- * icone e link (coluna do meio do cabecalho, pedido do dono em 13/11/2026). Campo vazio nao entra.
+ * icone (coluna do meio do cabecalho, pedido do dono em 13/11/2026). So o WhatsApp tem link (o dono: "o fixo e o e-mail
+ * nao devem ser via link"). Campo vazio nao entra.
  */
 function contatosDaEmpresa(empresa) {
   if (!empresa) return [];
   const whatsapp = (numero, rotulo) =>
     soDigitos(numero) ? { tipo: "whatsapp", texto: `${formatarTelefone(numero)} (${rotulo})`, url: `https://wa.me/55${soDigitos(numero)}` } : null;
   return [
-    soDigitos(empresa.telefone) ? { tipo: "fone", texto: formatarTelefone(empresa.telefone), url: `tel:+55${soDigitos(empresa.telefone)}` } : null,
+    soDigitos(empresa.telefone) ? { tipo: "fone", texto: formatarTelefone(empresa.telefone), url: null } : null,
     whatsapp(empresa.celular, "Contato comercial"),
     whatsapp(empresa.whatsappTecnico, "Contato técnico"),
-    empresa.email ? { tipo: "email", texto: empresa.email, url: `mailto:${empresa.email}` } : null,
+    empresa.email ? { tipo: "email", texto: empresa.email, url: null } : null,
   ].filter(Boolean);
 }
 

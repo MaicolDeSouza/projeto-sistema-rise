@@ -384,9 +384,9 @@ try {
   // Cabecalho no molde da cotacao que o dono mandou (13/11/2026): nome, contatos com link, quadro, entrega e faixa.
   conferir("PDF: nome no topo e endereco da empresa", [conteudo.nomeDaEmpresa, conteudo.empresa[0], conteudo.site?.url], ["4hobby Indústria, Comércio e Importação", "Rua", "https://www.4hobby.com.br"]);
   conferir(
-    "PDF: fixo, WhatsApp comercial e tecnico e e-mail com link",
+    "PDF: so o WhatsApp tem link (fixo e e-mail sem)",
     conteudo.contatos.map((ct) => [ct.tipo, ct.url]),
-    [["fone", "tel:+555432900870"], ["whatsapp", "https://wa.me/5554981222300"], ["whatsapp", "https://wa.me/5554996050390"], ["email", "mailto:contato@4hobby.com.br"]],
+    [["fone", null], ["whatsapp", "https://wa.me/5554981222300"], ["whatsapp", "https://wa.me/5554996050390"], ["email", null]],
   );
   conferir("PDF: faixa com validade, pagamento, prazo, envio e vendedor", conteudo.faixa.map(([r]) => r), ["Validade", "Condições de pagamento", "Prazo de entrega", "Método de envio", "Vendedor"]);
   conferir("PDF: metodo de envio leva o frete por conta", conteudo.faixa[3][1].startsWith("CIF (frete por nossa conta)"), true);
