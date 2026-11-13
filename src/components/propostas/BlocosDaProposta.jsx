@@ -145,7 +145,7 @@ const ABAS = [
  * As abas de baixo (Padrao visual, regra 5): todas montadas e so escondidas, para o Salvar nunca perder o digitado.
  * `contatos` e `cotacao` sao componentes proprios (gravam na hora, fora do Salvar).
  */
-export function AbasDaProposta({ formulario, editar, aoMudar, contatos, cotacao, quantos }) {
+export function AbasDaProposta({ formulario, editar, aoMudar, contatos, cotacao, quantos, vendedores = [] }) {
   const [aba, setAba] = useState("nf");
   return (
     <section className="rounded-lg border border-borda bg-superficie">
@@ -179,6 +179,15 @@ export function AbasDaProposta({ formulario, editar, aoMudar, contatos, cotacao,
           </Rotulo>
           <Rotulo texto="Garantia">
             <textarea rows={3} value={formulario.garantia} disabled={!editar} onChange={(e) => aoMudar("garantia", e.target.value)} className={`${campo} field-sizing-content min-h-20`} />
+          </Rotulo>
+          {/* Vendedor da faixa do PDF (13/11/2026): os usuarios do Rise na lista, ou outro nome digitado. */}
+          <Rotulo texto="Vendedor">
+            <input list="vendedores-da-proposta" value={formulario.vendedor} disabled={!editar} onChange={(e) => aoMudar("vendedor", e.target.value.slice(0, 120))} placeholder="Quem criou a proposta" className={`${campo} max-w-sm`} />
+            <datalist id="vendedores-da-proposta">
+              {vendedores.map((nome) => (
+                <option key={nome} value={nome} />
+              ))}
+            </datalist>
           </Rotulo>
         </div>
         <div hidden={aba !== "internas"}>

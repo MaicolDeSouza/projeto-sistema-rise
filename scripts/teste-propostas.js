@@ -415,6 +415,11 @@ try {
   );
   conferir("PDF: faixa com validade, pagamento, prazo, envio e vendedor", conteudo.faixa.map(([r]) => r), ["Validade da proposta", "Condições de pagamento", "Prazo de entrega", "Método de envio", "Garantia", "Vendedor"]);
   conferir(
+    "PDF: vendedor editado vence quem criou",
+    [conteudoDaProposta({ ...paraPdf, criadoPorNome: "Quem Criou", vendedor: "Outro Vendedor" }, empresaFalsa).faixa.at(-1)[1], conteudoDaProposta({ ...paraPdf, criadoPorNome: "Quem Criou", vendedor: null }, empresaFalsa).faixa.at(-1)[1]],
+    ["Outro Vendedor", "Quem Criou"],
+  );
+  conferir(
     "PDF: quadro do total com frete e impostos",
     [conteudo.linhasDeTotal.map(([r]) => r).slice(-2), conteudoDaProposta({ ...paraPdf, fretePorConta: "FOB" }, empresaFalsa).linhasDeTotal.find(([r]) => r === "Frete")[1]],
     [["Frete", "Impostos"], "Por conta do cliente"],
@@ -423,7 +428,7 @@ try {
     { ...paraPdf, contatoId: "ct1", contatoNome: "Ana Souza", cliente: { contatos: [{ id: "ct1", nome: "Ana Souza", cargo: "Compras", telefone: "54988990008", email: "ana@zz.com" }] } },
     empresaFalsa,
   ).cliente;
-  conferir("PDF: A/C com cargo, telefone e e-mail do contato do cadastro", [comAc.ac, comAc.acLinha], ["A/C: Ana Souza", "Compras · (54) 98899-0008 · ana@zz.com"]);
+  conferir("PDF: A/C so com o nome do contato", [comAc.ac, comAc.acLinha], ["A/C: Ana Souza", null]);
   const { prazoDaGarantia } = await import("../src/lib/propostas/conteudo.js");
   conferir(
     "PDF: garantia so com o prazo",

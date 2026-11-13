@@ -65,6 +65,7 @@ export function conferirProposta(entrada = {}) {
   dados.observacoesNf = texto(entrada.observacoesNf, 2000);
   dados.observacoesCliente = texto(entrada.observacoesCliente, 4000);
   dados.garantia = texto(entrada.garantia, 2000);
+  dados.vendedor = texto(entrada.vendedor, 120);
   dados.observacoesInternas = texto(entrada.observacoesInternas, 4000);
 
   if (!dataValida(entrada.validadeAte)) erros.validadeAte = "Informe a validade.";

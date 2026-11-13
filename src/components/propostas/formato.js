@@ -76,6 +76,7 @@ export function formularioDaProposta(proposta) {
     observacoesNf: proposta.observacoesNf ?? "",
     observacoesCliente: proposta.observacoesCliente ?? "",
     garantia: proposta.garantia ?? "",
+    vendedor: proposta.vendedor ?? proposta.criadoPorNome ?? "",
     observacoesInternas: proposta.observacoesInternas ?? "",
     validadeAte: proposta.validadeAte ?? "",
     proximoContato: proposta.proximoContato ?? "",

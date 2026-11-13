@@ -3189,6 +3189,9 @@ model PropostaParaCliente {
   /// Login de quem criou ("pc" no PC sem login) e o nome mostrado no PDF.
   criadoPor     String
   criadoPorNome String?
+  /// O vendedor que sai na faixa do PDF e do link (pedido do dono em 13/11/2026: "deve ser possivel colocar outro
+  /// vendedor"). Vazio = quem criou (`criadoPorNome`).
+  vendedor      String?
 
   /// Chave do link publico (/p/proposta/<chave>), 43 caracteres, criada no primeiro "Link publico" e nunca trocada.
   linkPublico String? @unique

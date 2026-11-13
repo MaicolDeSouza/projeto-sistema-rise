@@ -85,14 +85,11 @@ function linhasDoCliente(proposta) {
 }
 
 /**
- * O A/C logo abaixo de "Dados do cliente" (pedido do dono em 13/11/2026): o contato escolhido na proposta, que vem dos
- * contatos do cadastro do cliente no Rise, com o cargo, o telefone e o e-mail dele numa linha.
+ * O A/C logo abaixo de "Dados do cliente": SO o nome do contato escolhido na proposta (pedido do dono em 13/11/2026, na
+ * proposta da Coppetec: "deixar apenas o nome do contato", sem cargo, telefone nem e-mail; ate ali vinham numa linha).
  */
 function contatoDoCliente(proposta) {
-  if (!proposta.contatoNome) return { ac: null, acLinha: null };
-  const contato = proposta.cliente?.contatos?.find((ct) => ct.id === proposta.contatoId);
-  const acLinha = [contato?.cargo, contato?.telefone ? formatarTelefone(contato.telefone) : null, contato?.email].filter(Boolean).join(" · ");
-  return { ac: `A/C: ${proposta.contatoNome}`, acLinha: acLinha || null };
+  return { ac: proposta.contatoNome ? `A/C: ${proposta.contatoNome}` : null, acLinha: null };
 }
 
 /**
@@ -197,7 +194,7 @@ export function conteudoDaProposta(proposta, empresa) {
       ["Método de envio", metodoDeEnvio(proposta)],
       // Garantia ao lado do metodo de envio (pedido do dono em 13/11/2026); saiu dos blocos de baixo.
       ["Garantia", prazoDaGarantia(proposta.garantia)],
-      ["Vendedor", proposta.criadoPorNome || "—"],
+      ["Vendedor", proposta.vendedor || proposta.criadoPorNome || "—"],
     ],
     colunas: COLUNAS.filter((c) => (c.chave !== "desconto" || temDesconto) && (c.chave !== "marca" || temMarca) && (c.chave !== "codigo" || temCodigo)),
     itens: proposta.itens.map((item, indice) => ({

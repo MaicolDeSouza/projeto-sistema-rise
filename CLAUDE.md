@@ -6197,6 +6197,10 @@ plano `docs/superpowers/plans/2026-11-12-propostas-para-cliente.md`. Menu **Prop
   dos blocos de baixo. Dados da empresa ganhou **WhatsApp técnico** e **Site** (migration `20261113_empresa_site_whatsapp`,
   já preenchida: (54) 99605-0390 e www.4hobby.com.br; "Celular / WhatsApp" virou "WhatsApp comercial"). A página do link
   público segue o mesmo desenho.
+- **A/C só com o nome e Vendedor editável** (pedidos do dono em 13/11/2026, na proposta 2027 da Coppetec): o A/C do PDF e
+  do link é só "A/C: <nome>" (`contatoDoCliente` em `conteudo.js`; cargo, telefone e e-mail do contato saíram). O Vendedor da
+  faixa é a coluna nova `PropostaParaCliente.vendedor` (migration `20261113d_proposta_vendedor`), editada na aba "Observações
+  para o cliente" com a lista dos usuários ativos do Rise ou outro nome digitado; vazia = `criadoPorNome`.
 - **Foto do item avulso** (pedido do dono em 13/11/2026, na proposta da Fundação Coppetec: itens comprados no ML só para o
   cliente): no editor, a caixa da foto do avulso é um botão (ícone de imagem) que envia JPG/PNG/WebP na hora para
   `dados/propostas/<propostaId>/fotos/<32 hex>.jpg` (`gravarFotoDoItem`, reduzida a 600 px sobre branco); o "x" tira. O
