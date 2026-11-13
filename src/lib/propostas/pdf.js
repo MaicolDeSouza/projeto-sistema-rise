@@ -128,9 +128,13 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
 
     // O logo da 4hobby e largo (engrenagem + nome): as tres colunas comecam embaixo dele e usam a largura toda.
     const yInfo = Math.max(yLinha + 12, topo + LOGO_ALTURA + 6);
-    const larguraDoQuadro = 150;
-    const larguraDosContatos = 172;
-    const larguraDoEndereco = largura - larguraDoQuadro - larguraDosContatos - 24;
+    // Tres colunas quase iguais (pedido do dono em 13/11/2026: a coluna do meio ficava puxada para a direita); o quadro
+    // encosta na margem direita dentro da dele.
+    // O endereco ganha um pouco mais (a linha do CEP tem ~175 pt e quebrava num terco exato).
+    const terco = 190;
+    const larguraDoQuadro = largura - terco * 2;
+    const larguraDosContatos = terco - 6;
+    const larguraDoEndereco = terco - 8;
     doc.font("Helvetica").fontSize(7.8).fillColor(TEXTO_SUAVE);
     let yEndereco = yInfo;
     for (const linha of conteudo.empresa) {
@@ -141,7 +145,7 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
       doc.fillColor(AZUL_LINK).text(conteudo.site.texto, MARGEM, yEndereco, { width: larguraDoEndereco, link: conteudo.site.url, underline: true });
       yEndereco = doc.y + 1;
     }
-    const xContatos = MARGEM + larguraDoEndereco + 12;
+    const xContatos = MARGEM + terco;
     let yContatos = yInfo;
     for (const contato of conteudo.contatos) {
       desenharIcone(doc, contato.tipo, xContatos, yContatos, 8.5);

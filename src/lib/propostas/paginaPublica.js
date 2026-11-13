@@ -36,12 +36,12 @@ header img{height:54px;max-width:170px;object-fit:contain;display:block}
 .nome{flex:1;min-width:220px;border-bottom:4px double #1f3d6b;padding-bottom:6px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
 .nome b{font-size:18px}
 h1{margin:0;font-size:22px}
-.info{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px 24px;margin-top:12px;color:#374151;font-size:12px}
+.info{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 24px;margin-top:12px;color:#374151;font-size:12px}
 .info a{color:#1d4ed8}
 .contato{display:flex;align-items:center;gap:7px;color:#374151;text-decoration:none;line-height:1.6;white-space:nowrap}
 .contato svg{width:14px;height:14px;flex:none}
 a.contato:hover{text-decoration:underline}
-.quadro{font-size:14px;text-align:left}
+.quadro{font-size:14px;text-align:left;justify-self:end}
 .quadro div{white-space:nowrap}
 .partes{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px 24px}
 .faixa{margin-top:16px}
