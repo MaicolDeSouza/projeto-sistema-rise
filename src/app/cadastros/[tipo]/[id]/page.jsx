@@ -7,6 +7,7 @@ import { projetarCliente } from "@/lib/acessos/projecoes";
 import { prisma } from "@/lib/db";
 import { recursoDaSecao } from "@/lib/secoesDeCadastros";
 import { PARCEIROS } from "@/lib/cadastros";
+import { ordenarCondicoes } from "@/lib/condicoesDePagamento";
 import { formatarTelefone } from "@/lib/telefone";
 import { listarArquivosDoCliente } from "@/lib/clientes/arquivos";
 import { listarPadroes } from "@/lib/propostas/padroes";
@@ -44,9 +45,17 @@ async function carregarCliente(id) {
     include: {
       enderecos: true,
       contatos: { orderBy: { criadoEm: "asc" } },
+      condicoesPreferidas: { orderBy: { nome: "asc" }, take: 1, select: { id: true } },
     },
   });
   if (!cliente) return null;
+  const condicaoPagamentoId = cliente.condicoesPreferidas[0]?.id ?? "";
+  const condicoes = ordenarCondicoes(
+    await prisma.condicaoPagamento.findMany({
+      where: { OR: [{ ativo: true }, { id: condicaoPagamentoId }] },
+      select: { id: true, nome: true },
+    }),
+  );
 
   const transportadoras = await prisma.transportadora.findMany({
     where: { OR: [{ ativo: true }, { id: cliente.transportadoraId ?? "" }] },
@@ -56,7 +65,9 @@ async function carregarCliente(id) {
 
   return {
     transportadoras,
+    condicoes,
     cliente: {
+      condicaoPagamentoId,
       id: cliente.id,
       nome: cliente.nome,
       tipoPessoa: cliente.tipoPessoa,
@@ -234,6 +245,7 @@ export default async function EditarCadastroPage({ params }) {
           semPessoal={semPessoal}
           somenteLeitura={somenteLeitura}
           transportadoras={dadosDoCliente.transportadoras}
+          condicoes={dadosDoCliente.condicoes}
           padroes={dadosDoCliente.padroes}
           arquivos={dadosDoCliente.arquivos}
           pedidos={dadosDoCliente.pedidos ?? null}

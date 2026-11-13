@@ -59,6 +59,7 @@ const LISTA = [
   sub("tela.cadastros.concorrentes", "Cadastros › Concorrentes", "tela.cadastros"),
   sub("tela.cadastros.transportadoras", "Cadastros › Transportadoras", "tela.cadastros"),
   sub("tela.cadastros.marcas", "Cadastros › Marcas", "tela.cadastros"),
+  sub("tela.cadastros.condicoes", "Cadastros › Condições de pagamento", "tela.cadastros"),
 
   tela("tela.anuncios", "Anúncios", "/anuncios"),
 

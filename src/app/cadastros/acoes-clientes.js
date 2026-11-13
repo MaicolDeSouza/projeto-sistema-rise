@@ -184,9 +184,19 @@ export async function salvarCliente(id, _anterior, formData) {
   if (dados.clienteDesde) dados.clienteDesde = new Date(`${dados.clienteDesde}T00:00:00.000Z`);
   else delete dados.clienteDesde;
 
-  // As condicoes de pagamento preferidas SAIRAM da tela (21/09/2026), mas a relacao
-  // continua no banco: nao mexer nela aqui. Gravar `set: []` apagaria em silencio o
-  // que ja estivesse ligado ao cliente.
+  // Condicao de pagamento preferida (voltou em 13/11/2026): UMA, que a proposta usa no Pagamento. A relacao e uma
+  // lista no banco (de quando eram varias); a tela escolhe uma e a lista gravada passa a ser so ela. Formulario que
+  // nao trouxe o campo (outra tela, versao antiga) nao mexe na relacao.
+  if ("condicaoPagamentoId" in campos) {
+    const condicaoId = String(campos.condicaoPagamentoId ?? "").trim();
+    // Conferida antes: a condicao excluida no meio do caminho cairia no P2025, que o catch le como "cliente nao existe".
+    if (condicaoId && !(await prisma.condicaoPagamento.findUnique({ where: { id: condicaoId }, select: { id: true } }))) {
+      return { ok: false, erros: { condicaoPagamentoId: "Esta condição não existe mais. Atualize a página." } };
+    }
+    dados.condicoesPreferidas = id
+      ? { set: condicaoId ? [{ id: condicaoId }] : [] }
+      : condicaoId ? { connect: [{ id: condicaoId }] } : undefined;
+  }
   try {
     const cliente = await prisma.$transaction(async (tx) => {
       const salvo = id

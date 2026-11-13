@@ -7,6 +7,7 @@ import { projetarCliente } from "@/lib/acessos/projecoes";
 import { prisma } from "@/lib/db";
 import { recursoDaSecao } from "@/lib/secoesDeCadastros";
 import { PARCEIROS } from "@/lib/cadastros";
+import { ordenarCondicoes } from "@/lib/condicoesDePagamento";
 import { formatarTelefone } from "@/lib/telefone";
 import PageHeader from "@/components/ui/PageHeader";
 import AvisoBanco from "@/components/ui/AvisoBanco";
@@ -14,7 +15,7 @@ import TabelaClientes from "@/components/cadastros/TabelaClientes";
 import TabelaParceiros from "@/components/cadastros/TabelaParceiros";
 import TabelaSimples from "@/components/cadastros/TabelaSimples";
 import LinkDeVolta from "@/components/ui/LinkDeVolta";
-import { excluirMarca, salvarMarca } from "@/app/cadastros/acoes";
+import { excluirCondicao, excluirMarca, salvarCondicao, salvarMarca } from "@/app/cadastros/acoes";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,18 @@ const SECOES = {
   ...PARCEIROS,
   produtos: { plural: "Produtos" },
   marcas: { plural: "Marcas" },
+  condicoes: { plural: "Condições de pagamento" },
+};
+
+/** Condicoes de pagamento (13/11/2026): a mesma tabela simples das marcas, sem maiusculas forcadas. */
+const TEXTOS_CONDICAO = {
+  item: "condição",
+  coluna: "Condição",
+  nova: "Nova condição",
+  buscar: "Buscar condição",
+  vazio: "Nenhuma condição cadastrada ainda.",
+  tituloExcluir: "Excluir condição?",
+  avisoExcluir: "Os clientes que preferem esta condição perdem a preferência. Condição usada em proposta não é excluída.",
 };
 
 /** Redacao do cadastro simples de marcas (nome + observacao), para a `TabelaSimples`. */
@@ -163,6 +176,13 @@ export default async function SecaoDeCadastrosPage({ params, searchParams }) {
         orderBy: { nome: "asc" },
         select: { id: true, nome: true, observacoes: true },
       });
+    } else if (tipo === "condicoes") {
+      itens = ordenarCondicoes(
+        await prisma.condicaoPagamento.findMany({
+          where: busca ? { OR: [contem("nome", busca), contem("observacoes", busca)] } : undefined,
+          select: { id: true, nome: true, observacoes: true },
+        }),
+      );
     } else {
       totalProdutos = await prisma.produto.count();
     }
@@ -228,6 +248,18 @@ export default async function SecaoDeCadastrosPage({ params, searchParams }) {
               excluir={excluirMarca}
               textos={TEXTOS_MARCA}
               maiusculas
+              podeEditar={podeEditar}
+              podeExcluir={podeExcluir}
+            />
+          )}
+
+          {tipo === "condicoes" && (
+            <TabelaSimples
+              itens={itens}
+              busca={busca}
+              salvar={salvarCondicao}
+              excluir={excluirCondicao}
+              textos={TEXTOS_CONDICAO}
               podeEditar={podeEditar}
               podeExcluir={podeExcluir}
             />

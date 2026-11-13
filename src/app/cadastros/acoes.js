@@ -287,3 +287,36 @@ export async function excluirMarca(id) {
   if (negado) return negado;
   return excluirSimples(prisma.marca, id);
 }
+
+/**
+ * Condicoes de pagamento (voltaram em 13/11/2026, pedido do dono: a Condicao da proposta mostrava so "Sem condicao
+ * da lista"). O nome fica como foi escrito ("28/56 dias", "À vista"), sem maiusculas forcadas.
+ */
+const CondicaoSchema = cadastroSimples("Informe o nome da condição.", false);
+
+export async function salvarCondicao(id, dados) {
+  const negado = await negarSemAcesso("tela.cadastros.condicoes", "editar");
+  if (negado) return negado;
+  return salvarSimples({
+    modelo: prisma.condicaoPagamento,
+    esquema: CondicaoSchema,
+    id,
+    dados,
+    jaExiste: "Esta condição já está cadastrada.",
+    naoExiste: "Esta condição não existe mais. Atualize a página.",
+  });
+}
+
+/**
+ * A condicao usada em proposta NAO e excluida: a proposta ficaria sem condicao em silencio (a relacao e SetNull) e o
+ * PDF ja enviado ao cliente deixaria de bater com o Rise. Os clientes que a preferem so perdem a preferencia.
+ */
+export async function excluirCondicao(id) {
+  const negado = await negarSemAcesso("tela.cadastros.condicoes", "excluir");
+  if (negado) return negado;
+  const emPropostas = await prisma.propostaParaCliente.count({ where: { condicaoPagamentoId: String(id ?? "") } });
+  if (emPropostas > 0) {
+    return { ok: false, erro: `Esta condição está em ${emPropostas} proposta(s) e não pode ser excluída. Renomeie-a, se precisar.` };
+  }
+  return excluirSimples(prisma.condicaoPagamento, id);
+}

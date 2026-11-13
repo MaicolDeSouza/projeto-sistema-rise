@@ -6,6 +6,7 @@ import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { prisma } from "@/lib/db";
 import { recursoDaSecao } from "@/lib/secoesDeCadastros";
 import { PARCEIROS } from "@/lib/cadastros";
+import { ordenarCondicoes } from "@/lib/condicoesDePagamento";
 import { listarPadroes } from "@/lib/propostas/padroes";
 import PageHeader from "@/components/ui/PageHeader";
 import AvisoBanco from "@/components/ui/AvisoBanco";
@@ -27,6 +28,7 @@ export default async function NovoCadastroPage({ params }) {
   let fontes = [];
   let transportadoras = [];
   let padroes = [];
+  let condicoes = [];
   let erro = null;
 
   try {
@@ -38,6 +40,7 @@ export default async function NovoCadastroPage({ params }) {
       });
       // Padroes de proposta (13/11/2026): o cliente novo ja pode nascer com o dele.
       padroes = (await listarPadroes({ soAtivos: true })).map(({ id, nome }) => ({ id, nome }));
+      condicoes = ordenarCondicoes(await prisma.condicaoPagamento.findMany({ where: { ativo: true }, select: { id: true, nome: true } }));
     } else if (config.tiposDeFonte.length > 0) {
       fontes = await prisma.fonteColeta.findMany({
         where: { tipo: { in: config.tiposDeFonte } },
@@ -70,6 +73,7 @@ export default async function NovoCadastroPage({ params }) {
         <FormularioCliente
           cliente={null}
           transportadoras={transportadoras}
+          condicoes={condicoes}
           padroes={padroes}
           // Data de hoje calculada AQUI, no servidor, e nao no navegador: a mesma
           // conta nos dois lados perto da meia-noite daria datas diferentes e a

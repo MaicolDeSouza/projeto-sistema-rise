@@ -1,4 +1,4 @@
-import { Factory, Globe, Package, Tag, Truck, Users } from "lucide-react";
+import { CreditCard, Factory, Globe, Package, Tag, Truck, Users } from "lucide-react";
 
 /**
  * Fonte unica das secoes de Cadastros. A pagina `/cadastros` desenha um cartao
@@ -61,6 +61,13 @@ export const SECOES_DE_CADASTROS = [
     rotulo: "Marcas",
     icone: Tag,
     resumo: "As marcas dos produtos, sempre em maiúsculas, com uma observação.",
+  },
+  {
+    href: "/cadastros/condicoes",
+    recurso: "tela.cadastros.condicoes",
+    rotulo: "Condições de pagamento",
+    icone: CreditCard,
+    resumo: "Os prazos de pagamento (à vista, 28 dias, 30/60/90) que a proposta e o cliente usam.",
   },
 ];
 

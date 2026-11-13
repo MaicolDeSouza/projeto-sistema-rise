@@ -7005,6 +7005,14 @@ mistura com fornecedor** (o Bling junta os dois numa tela).
   em uso por cliente não é excluída**, e o recado diz quantos clientes usam. Editar um cliente
   mantém na lista a transportadora que ele já tem mesmo se estiver inativa — senão salvar apagaria
   uma preferência que a tela nem mostrou.
+- **Condições de pagamento VOLTARAM em 13/11/2026** (pedido do dono ao ver a Condição da proposta só com "Sem condição da
+  lista"): cartão "Condições de pagamento" em Cadastros (`/cadastros/condicoes`, `TabelaSimples` com edição na linha, recurso
+  `tela.cadastros.condicoes`), ações `salvarCondicao`/`excluirCondicao` (recusa a condição usada em proposta, que ficaria sem
+  condição em silêncio) e o campo **"Condição de pagamento preferida"** (UMA, select) na aba Dados adicionais do Cliente, que a
+  proposta já usava (`condicoesPreferidas`, primeira). A lista de clientes de antes deixou de ser lista na tela: o Salvar grava
+  `set` com a escolhida (só quando o formulário traz o campo). Migration `20261113c_condicoes_de_pagamento_iniciais` (só dados,
+  `ON CONFLICT DO NOTHING`) traz 11 condições sugeridas. Ordem pelo número ("7 dias" antes de "14 dias"): `ordenarCondicoes`
+  (`src/lib/condicoesDePagamento.js`) em toda lista. O texto abaixo é o da remoção de 21/09.
 - **Condições de pagamento REMOVIDAS em 21/09/2026 (pedido do dono: "a seção pode ser removida").**
   Saíram o cartão, a rota, a tabela, as ações `salvarCondicao`/`excluirCondicao` e **o campo "Condições
   de pagamento preferidas" do cliente** (sem cadastro, ele ficaria com uma lista vazia para sempre). **O

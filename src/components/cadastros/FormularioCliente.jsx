@@ -56,6 +56,7 @@ const ABA_DO_CAMPO = {
   clienteDesde: "adicionais",
   transportadoraId: "adicionais",
   padraoPropostaId: "adicionais",
+  condicaoPagamentoId: "adicionais",
   observacoes: "adicionais",
 };
 
@@ -130,7 +131,7 @@ function EscolhaDoNivel({ nivel, erro }) {
  * observacoes nao sao desenhados (o servidor nem os mandou), e a aba que ficaria vazia some. O Salvar os mantem como
  * estao no banco.
  */
-export default function FormularioCliente({ cliente, transportadoras, padroes = [], arquivos = null, hoje, somenteLeitura = false, semPessoal = false, pedidos = null, veLucro = false, licencas = null }) {
+export default function FormularioCliente({ cliente, transportadoras, condicoes = [], padroes = [], arquivos = null, hoje, somenteLeitura = false, semPessoal = false, pedidos = null, veLucro = false, licencas = null }) {
   const router = useRouter();
   const inicial = cliente ?? { ativo: true };
   const [tipo, setTipo] = useState(inicial.tipoPessoa ?? "FISICA");
@@ -396,6 +397,31 @@ export default function FormularioCliente({ cliente, transportadoras, padroes = 
               <p className="mt-1 text-[11px] text-suave">
                 Nenhuma transportadora cadastrada.{" "}
                 <Link href="/cadastros/transportadoras/novo" className="text-acento hover:underline">
+                  Cadastrar
+                </Link>
+              </p>
+            )}
+          </Campo>
+
+          {/* Condicao preferida (13/11/2026): a proposta nova deste cliente ja vem com ela no Pagamento. */}
+          <Campo nome="condicaoPagamentoId" rotulo="Condição de pagamento preferida" erro={erros.condicaoPagamentoId} ajuda="A proposta deste cliente já vem com esta condição no Pagamento.">
+            <select
+              id="condicaoPagamentoId"
+              name="condicaoPagamentoId"
+              defaultValue={valor("condicaoPagamentoId")}
+              className={`${CLASSE_CAMPO} ${bordaDoCampo(erros.condicaoPagamentoId)}`}
+            >
+              <option value="">Nenhuma</option>
+              {condicoes.map((condicao) => (
+                <option key={condicao.id} value={condicao.id}>
+                  {condicao.nome}
+                </option>
+              ))}
+            </select>
+            {condicoes.length === 0 && (
+              <p className="mt-1 text-[11px] text-suave">
+                Nenhuma condição cadastrada.{" "}
+                <Link href="/cadastros/condicoes" className="text-acento hover:underline">
                   Cadastrar
                 </Link>
               </p>
