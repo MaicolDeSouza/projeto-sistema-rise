@@ -57,7 +57,16 @@ export async function criarProposta({ login = "pc", nome = null } = {}, { hoje =
 const INCLUIR = {
   itens: {
     orderBy: { ordem: "asc" },
-    include: { produto: { select: { sku: true, ativo: true } } },
+    include: {
+      produto: {
+        select: {
+          sku: true,
+          ativo: true,
+          // A 1a foto do produto: o item sem foto gravada usa ela (pedido do dono em 13/11/2026, Proposta 2028 sem foto).
+          arquivos: { where: { tipo: "IMAGEM", papel: "FOTO" }, orderBy: { ordem: "asc" }, take: 1, select: { arquivo: true } },
+        },
+      },
+    },
   },
   contatos: { orderBy: { em: "desc" } },
   anexos: { orderBy: { criadoEm: "asc" } },
@@ -84,6 +93,8 @@ const INCLUIR = {
 
 /** A proposta no formato da tela e do PDF: Decimal vira numero, datas viram AAAA-MM-DD, com os totais e os avisos. */
 export function propostaParaTela(proposta, { hoje = hojeEmSaoPaulo() } = {}) {
+  // Item do Rise sem foto gravada (entrou sem foto, ou o produto ganhou foto depois): vale a 1a foto do produto base.
+  const fotoDe = (item) => item.foto ?? (item.produtoId ? item.produto?.arquivos?.[0]?.arquivo ?? null : null);
   const itens = proposta.itens.map((item) => ({
     id: item.id,
     produtoId: item.produtoId,
@@ -94,9 +105,9 @@ export function propostaParaTela(proposta, { hoje = hojeEmSaoPaulo() } = {}) {
     modelo: item.modelo,
     codigoInterno: item.codigoInterno,
     nomeInterno: item.nomeInterno,
-    foto: item.foto,
+    foto: fotoDe(item),
     // Com produto, a foto e do cadastro; sem produto (avulso), a enviada a mao na pasta da proposta.
-    fotoUrl: !item.foto ? null : item.produto?.sku ? urlDe(item.produto.sku, "IMAGEM", item.foto) : item.produtoId ? null : urlDaFotoDoItem(proposta.numero, item.foto),
+    fotoUrl: !fotoDe(item) ? null : item.produto?.sku ? urlDe(item.produto.sku, "IMAGEM", fotoDe(item)) : item.produtoId ? null : urlDaFotoDoItem(proposta.numero, item.foto),
     quantidade: numero(item.quantidade),
     unidade: item.unidade,
     precoUnitario: numero(item.precoUnitario),

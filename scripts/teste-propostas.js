@@ -522,6 +522,18 @@ try {
   await prisma.cliente.update({ where: { id: noRise.id }, data: { padraoPropostaId: salvoPadrao.id } });
   conferir("padrao em uso por cliente nao sai", (await padroes.excluirPadrao(salvoPadrao.id)).ok, false);
 
+  // Item do Rise sem foto gravada usa a 1a foto do produto base (pedido do dono em 13/11/2026, Proposta 2028).
+  const comFotoDoProduto = banco.propostaParaTela({
+    numero: 1,
+    situacao: "RASCUNHO",
+    itens: [
+      { id: "a", produtoId: "p1", foto: null, produto: { sku: "941003", arquivos: [{ arquivo: "foto-1.webp" }] }, quantidade: 1, precoUnitario: 1, descontoPercentual: 0 },
+      { id: "b", produtoId: "p1", foto: "gravada.webp", produto: { sku: "941003", arquivos: [{ arquivo: "foto-1.webp" }] }, quantidade: 1, precoUnitario: 1, descontoPercentual: 0 },
+      { id: "c", produtoId: null, foto: null, produto: null, quantidade: 1, precoUnitario: 1, descontoPercentual: 0 },
+    ],
+  });
+  conferir("foto: sem foto gravada vale a do produto; gravada fica; avulso sem foto fica sem", comFotoDoProduto.itens.map((i) => i.foto), ["foto-1.webp", "gravada.webp", null]);
+
   console.log("\nFicha cadastral do cliente");
   const arquivosDoCliente = await import("../src/lib/clientes/arquivos.js");
   const fichaFalsa = new File([Buffer.from("%PDF-1.4\n%falso\n")], "Cartao CNPJ.pdf", { type: "application/pdf" });
