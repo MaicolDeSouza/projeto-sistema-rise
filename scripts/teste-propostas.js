@@ -481,6 +481,11 @@ try {
     [true, "GENÉRICA / HTS-315", true],
   );
   conferir("PDF: sem marca e sem padrao, a coluna nao aparece", conteudoDaProposta({ ...relida, padrao: null, itens: relida.itens.map((i) => ({ ...i, marca: null, modelo: null })) }, empresaFalsa).colunas.some((c) => c.chave === "marca"), false);
+  conferir(
+    "PDF: cliente comum (sem padrao) nao ve o faturamento minimo",
+    conteudoDaProposta({ ...relida, padrao: null }, { ...empresaFalsa, faturamentoMinimo: 50 }).blocos.some(([titulo]) => titulo === "Faturamento mínimo"),
+    false,
+  );
   const pdfComPadrao = await pdfDaProposta(relida, { ...empresaFalsa, faturamentoMinimo: 50 }, {});
   conferir("PDF com marca gerado", pdfComPadrao.subarray(0, 5).toString("latin1"), "%PDF-");
 

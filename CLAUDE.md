@@ -6218,7 +6218,7 @@ plano `docs/superpowers/plans/2026-11-12-propostas-para-cliente.md`. Menu **Prop
   **marca e modelo** (copiados do produto, editáveis): coluna "Marca / Modelo" no PDF quando o padrão exige ou algum item tem,
   e o "Gerar PDF" trava com item sem marca ou modelo quando o padrão exige. A coluna "Cód. cliente" some sem código.
   **Faturamento mínimo** em Dados da empresa (`faturamentoMinimo`, R$ 50,00 pela migration, dono: "Nosso faturamento mínimo
-  é R$50"): bloco "Faturamento mínimo" em toda proposta, "Valor para faturamento mínimo: R$ 50,00". A migration semeia os
+  é R$50"): bloco "Faturamento mínimo" ("Valor para faturamento mínimo: R$ 50,00") **só na proposta com padrão personalizado** (SENAI); cliente comum, sem padrão, não vê (dono em 13/11/2026). A migration semeia os
   padrões **SENAI** (30 dias, transferência, "depósito bancário, 15 dias da entrega, excluindo 10, 20 e 30", CIF, marca e
   modelo, as 15 instruções do e-mail) e **Cliente comum**; o de Instituto Federal o dono cria quando tiver as regras.
 - **Ficha cadastral do cliente** (mesmo pedido: "criar o campo no cadastro do cliente para fazer o upload da ficha

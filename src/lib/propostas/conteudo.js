@@ -172,7 +172,8 @@ export function conteudoDaProposta(proposta, empresa) {
   const blocos = [
     ["Para a nota fiscal", notaFiscal],
     ["Observações", proposta.observacoesCliente],
-    ["Faturamento mínimo", textoDoFaturamentoMinimo(empresa?.faturamentoMinimo)],
+    // So para cliente com padrao personalizado (SENAI); o cliente comum, sem padrao, nao ve (o dono em 13/11/2026).
+    ["Faturamento mínimo", proposta.padrao ? textoDoFaturamentoMinimo(empresa?.faturamentoMinimo) : null],
   ].filter(([, valor]) => String(valor ?? "").trim());
 
   const empresaNoCabecalho = dadosDaEmpresa(empresa);

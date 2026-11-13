@@ -173,17 +173,17 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     doc.fillColor(TEXTO);
     // O A/C vem primeiro, logo abaixo do titulo (desenho do dono em 13/11/2026), com os dados do contato.
     if (conteudo.cliente.ac) {
-      doc.font("Helvetica-Bold").fontSize(9.5).text(conteudo.cliente.ac, MARGEM + 10, doc.y + 2, { width: meia - 10 });
-      if (conteudo.cliente.acLinha) doc.font("Helvetica").fontSize(8.5).text(conteudo.cliente.acLinha, MARGEM + 10, doc.y, { width: meia - 10 });
+      doc.font("Helvetica-Bold").fontSize(9.5).text(conteudo.cliente.ac, MARGEM, doc.y + 2, { width: meia });
+      if (conteudo.cliente.acLinha) doc.font("Helvetica").fontSize(8.5).text(conteudo.cliente.acLinha, MARGEM, doc.y, { width: meia });
     }
-    doc.font("Helvetica-Bold").fontSize(10.5).text(conteudo.cliente.nome, MARGEM + 10, doc.y + 2, { width: meia - 10 });
+    doc.font("Helvetica-Bold").fontSize(10.5).text(conteudo.cliente.nome, MARGEM, doc.y + 2, { width: meia });
     doc.font("Helvetica").fontSize(8.5);
-    for (const linha of conteudo.cliente.linhas) doc.text(linha, MARGEM + 10, doc.y, { width: meia - 10 });
+    for (const linha of conteudo.cliente.linhas) doc.text(linha, MARGEM, doc.y, { width: meia });
     const fimDoCliente = doc.y;
     const xEntrega = MARGEM + meia + 20;
     doc.font("Helvetica-Bold").fontSize(12).fillColor(AZUL).text("Endereço de entrega", xEntrega, yCliente);
     doc.fillColor(TEXTO);
-    doc.font("Helvetica").fontSize(8.5).text(conteudo.entrega.join("\n"), xEntrega + 10, doc.y + 2, { width: meia - 10 });
+    doc.font("Helvetica").fontSize(8.5).text(conteudo.entrega.join("\n"), xEntrega, doc.y + 2, { width: meia });
     doc.y = Math.max(fimDoCliente, doc.y) + 12;
 
     // Faixa de condicoes: validade, pagamento, prazo de entrega, metodo de envio (com o frete por conta) e vendedor.
@@ -287,8 +287,11 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     const LINHA_DO_TOTAL = 19;
     // Caixa estreita e tudo alinhado a esquerda (pedido do dono em 13/11/2026: "tirar aquele espacamento"): rotulo numa
     // coluna, valor na outra, sem sobra antes do rotulo.
-    const larguraDaCaixa = 210;
-    const COLUNA_DO_VALOR = 92;
+    // A caixa do tamanho do conteudo (o dono em 13/11/2026: sobrava espaco a direita dos valores): rotulo mais largo, 12 pt e o
+    // valor mais largo, com 10 pt de cada lado.
+    const larguraDoMaior = (textos, fonte, tamanho) => Math.max(...textos.map((texto) => doc.font(fonte).fontSize(tamanho).widthOfString(texto)));
+    const COLUNA_DO_VALOR = 10 + Math.max(larguraDoMaior(conteudo.linhasDeTotal.map(([r]) => r), "Helvetica-Bold", 9.5), larguraDoMaior(["Total (R$)"], "Helvetica-Bold", 12)) + 14;
+    const larguraDaCaixa = COLUNA_DO_VALOR + Math.max(larguraDoMaior(conteudo.linhasDeTotal.map(([, v]) => v), "Helvetica", 9.5), larguraDoMaior([conteudo.total], "Helvetica-Bold", 12)) + 12;
     const xCaixa = MARGEM + largura - larguraDaCaixa;
     const alturaDaCaixa = conteudo.linhasDeTotal.length * LINHA_DO_TOTAL + 26;
     doc.y += 12;
