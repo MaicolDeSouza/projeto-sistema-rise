@@ -85,7 +85,7 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     contatos: bruto.contatos.map((c) => ({ ...c, texto: f(c.texto) })),
     entrega: bruto.entrega.map(f),
     faixa: bruto.faixa.map(([r, v]) => [f(r), f(v)]),
-    cliente: { nome: f(bruto.cliente.nome), linhas: bruto.cliente.linhas.map(f), ac: bruto.cliente.ac ? f(bruto.cliente.ac) : null },
+    cliente: { nome: f(bruto.cliente.nome), linhas: bruto.cliente.linhas.map(f), ac: bruto.cliente.ac ? f(bruto.cliente.ac) : null, acLinha: bruto.cliente.acLinha ? f(bruto.cliente.acLinha) : null },
     itens: bruto.itens.map((item) => ({ ...item, celulas: Object.fromEntries(Object.entries(item.celulas).map(([k, v]) => [k, f(v)])), obs: item.obs ? f(item.obs) : null })),
     blocos: bruto.blocos.map(([r, v]) => [r, f(v)]),
   };
@@ -171,10 +171,14 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     // Titulos maiores e em azul (pedido do dono em 13/11/2026: "mais evidente"), com os nomes que ele escolheu.
     doc.font("Helvetica-Bold").fontSize(12).fillColor(AZUL).text("Dados do cliente", MARGEM, yCliente);
     doc.fillColor(TEXTO);
+    // O A/C vem primeiro, logo abaixo do titulo (desenho do dono em 13/11/2026), com os dados do contato.
+    if (conteudo.cliente.ac) {
+      doc.font("Helvetica-Bold").fontSize(9.5).text(conteudo.cliente.ac, MARGEM + 10, doc.y + 2, { width: meia - 10 });
+      if (conteudo.cliente.acLinha) doc.font("Helvetica").fontSize(8.5).text(conteudo.cliente.acLinha, MARGEM + 10, doc.y, { width: meia - 10 });
+    }
     doc.font("Helvetica-Bold").fontSize(10.5).text(conteudo.cliente.nome, MARGEM + 10, doc.y + 2, { width: meia - 10 });
     doc.font("Helvetica").fontSize(8.5);
     for (const linha of conteudo.cliente.linhas) doc.text(linha, MARGEM + 10, doc.y, { width: meia - 10 });
-    if (conteudo.cliente.ac) doc.font("Helvetica-Bold").text(conteudo.cliente.ac, MARGEM + 10, doc.y, { width: meia - 10 });
     const fimDoCliente = doc.y;
     const xEntrega = MARGEM + meia + 20;
     doc.font("Helvetica-Bold").fontSize(12).fillColor(AZUL).text("Endereço de entrega", xEntrega, yCliente);

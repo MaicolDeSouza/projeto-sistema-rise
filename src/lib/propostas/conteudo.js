@@ -85,6 +85,17 @@ function linhasDoCliente(proposta) {
 }
 
 /**
+ * O A/C logo abaixo de "Dados do cliente" (pedido do dono em 13/11/2026): o contato escolhido na proposta, que vem dos
+ * contatos do cadastro do cliente no Rise, com o cargo, o telefone e o e-mail dele numa linha.
+ */
+function contatoDoCliente(proposta) {
+  if (!proposta.contatoNome) return { ac: null, acLinha: null };
+  const contato = proposta.cliente?.contatos?.find((ct) => ct.id === proposta.contatoId);
+  const acLinha = [contato?.cargo, contato?.telefone ? formatarTelefone(contato.telefone) : null, contato?.email].filter(Boolean).join(" · ");
+  return { ac: `A/C: ${proposta.contatoNome}`, acLinha: acLinha || null };
+}
+
+/**
  * "Entregar em" (ao lado do cliente, como o "Ship To" do modelo do dono): o endereco de Entrega do cadastro, senao o
  * Geral; cliente que retira, a frase; sem endereco nenhum (provisorio), "A combinar".
  */
@@ -175,7 +186,7 @@ export function conteudoDaProposta(proposta, empresa) {
     empresa: empresaNoCabecalho.linhas,
     site: empresaNoCabecalho.site,
     contatos: contatosDaEmpresa(empresa),
-    cliente: { nome: proposta.clienteNome, linhas: linhasDoCliente(proposta), ac: proposta.contatoNome ? `A/C ${proposta.contatoNome}` : null },
+    cliente: { nome: proposta.clienteNome, linhas: linhasDoCliente(proposta), ...contatoDoCliente(proposta) },
     entrega: linhasDaEntrega(proposta),
     // A faixa de colunas embaixo do cabecalho (o "Valid Until / Payment Terms / ..." do modelo do dono, 13/11/2026).
     faixa: [
