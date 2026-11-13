@@ -388,7 +388,17 @@ try {
     conteudo.contatos.map((ct) => [ct.tipo, ct.url]),
     [["fone", null], ["whatsapp", "https://wa.me/5554981222300"], ["whatsapp", "https://wa.me/5554996050390"], ["email", null]],
   );
-  conferir("PDF: faixa com validade, pagamento, prazo, envio e vendedor", conteudo.faixa.map(([r]) => r), ["Validade", "Condições de pagamento", "Prazo de entrega", "Método de envio", "Vendedor"]);
+  conferir("PDF: faixa com validade, pagamento, prazo, envio e vendedor", conteudo.faixa.map(([r]) => r), ["Validade da proposta", "Condições de pagamento", "Prazo de entrega", "Método de envio", "Vendedor"]);
+  const { validadeEmDias } = await import("../src/lib/propostas/conteudo.js");
+  conferir(
+    "PDF: validade em dias a partir da data da proposta",
+    [
+      validadeEmDias({ atualizadoEm: new Date("2026-11-12T15:00:00Z"), validadeAte: "2026-11-27" }),
+      validadeEmDias({ atualizadoEm: new Date("2026-11-26T15:00:00Z"), validadeAte: "2026-11-27" }),
+      validadeEmDias({ atualizadoEm: new Date("2026-11-28T15:00:00Z"), validadeAte: "2026-11-27" }),
+    ],
+    ["15 dias", "1 dia", "Vencida em 27/11/2026"],
+  );
   conferir("PDF: metodo de envio leva o frete por conta", conteudo.faixa[3][1].startsWith("CIF (frete por nossa conta)"), true);
   conferir("PDF: entregar em sem endereco = a combinar", conteudo.entrega, ["A combinar"]);
   conferir("PDF: entregar em de quem retira", conteudoDaProposta({ ...paraPdf, fretePorConta: "RETIRA" }, empresaFalsa).entrega, ["Retirada pelo cliente na 4hobby"]);

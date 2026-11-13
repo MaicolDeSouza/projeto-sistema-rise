@@ -97,6 +97,19 @@ function linhasDaEntrega(proposta) {
   return geral.length ? geral : ["A combinar"];
 }
 
+/**
+ * "Validade da proposta" em dias (pedido do dono em 13/11/2026: "15 dias"), contados da "Data da proposta" que o PDF mostra
+ * ate a data de validade; a proposta que ja venceu mostra a data.
+ */
+export function validadeEmDias(proposta) {
+  const emitida = new Date(proposta.atualizadoEm ?? proposta.criadoEm).toISOString().slice(0, 10);
+  const ate = String(proposta.validadeAte instanceof Date ? proposta.validadeAte.toISOString() : proposta.validadeAte ?? "").slice(0, 10);
+  if (!ate) return "";
+  const dias = Math.round((Date.parse(ate) - Date.parse(emitida)) / 86_400_000);
+  if (dias < 1) return `Vencida em ${dataBR(ate)}`;
+  return `${dias} ${dias === 1 ? "dia" : "dias"}`;
+}
+
 /** O "Método de envio" da faixa: o tipo de frete (com a explicacao), a transportadora, o valor no FOB e o prazo. */
 function metodoDeEnvio(proposta) {
   const partes = [TEXTO_DO_FRETE[proposta.fretePorConta]];
@@ -145,7 +158,7 @@ export function conteudoDaProposta(proposta, empresa) {
     entrega: linhasDaEntrega(proposta),
     // A faixa de colunas embaixo do cabecalho (o "Valid Until / Payment Terms / ..." do modelo do dono, 13/11/2026).
     faixa: [
-      ["Validade", dataBR(proposta.validadeAte)],
+      ["Validade da proposta", validadeEmDias(proposta)],
       ["Condições de pagamento", textoDoPagamento(proposta) || "A combinar"],
       ["Prazo de entrega", prazoGeral(proposta.itens)],
       ["Método de envio", metodoDeEnvio(proposta)],
