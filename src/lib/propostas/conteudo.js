@@ -1,5 +1,5 @@
 import { formatarTelefone } from "@/lib/telefone";
-import { TEXTO_DO_FRETE, dataBR, numeroDaProposta, prazoGeral, textoDoPagamento, textoDoPrazo, totalDoItem } from "@/lib/propostas/regras";
+import { TEXTO_DO_FRETE, dataBR, numeroDaProposta, prazoGeral, textoDoFaturamentoMinimo, textoDoPagamento, textoDoPrazo, totalDoItem } from "@/lib/propostas/regras";
 
 /**
  * O que o CLIENTE le, igual no PDF e no link publico (spec 2026-11-12, "PDF e link publico"). Aqui se decide o que
@@ -18,6 +18,7 @@ export const COLUNAS = [
   { chave: "foto", titulo: "Foto" },
   { chave: "descricao", titulo: "Descrição" },
   { chave: "codigo", titulo: "Cód. cliente" },
+  { chave: "marca", titulo: "Marca / Modelo" },
   { chave: "qtde", titulo: "Qtde" },
   { chave: "un", titulo: "Un" },
   { chave: "preco", titulo: "Unitário" },
@@ -111,6 +112,9 @@ function metodoDeEnvio(proposta) {
 export function conteudoDaProposta(proposta, empresa) {
   const totais = proposta.totais;
   const temDesconto = proposta.itens.some((item) => Number(item.descontoPercentual) > 0);
+  // Marca / Modelo: quando o padrao do cliente exige (SENAI) ou algum item tem; senao a coluna nao ocupa espaco.
+  const temMarca = Boolean(proposta.padrao?.exigeMarcaModelo) || proposta.itens.some((item) => item.marca || item.modelo);
+  const temCodigo = proposta.itens.some((item) => item.codigoCliente);
   const linhasDeTotal = [["Subtotal", moeda.format(totais.subtotal)]];
   if (totais.desconto > 0) linhasDeTotal.push(["Desconto", `− ${moeda.format(totais.desconto)}`]);
   if (totais.frete > 0) linhasDeTotal.push(["Frete", moeda.format(totais.frete)]);
@@ -122,6 +126,7 @@ export function conteudoDaProposta(proposta, empresa) {
     ["Para a nota fiscal", notaFiscal],
     ["Observações", proposta.observacoesCliente],
     ["Garantia", proposta.garantia],
+    ["Faturamento mínimo", textoDoFaturamentoMinimo(empresa?.faturamentoMinimo)],
   ].filter(([, valor]) => String(valor ?? "").trim());
 
   const empresaNoCabecalho = dadosDaEmpresa(empresa);
@@ -145,13 +150,14 @@ export function conteudoDaProposta(proposta, empresa) {
       ["Método de envio", metodoDeEnvio(proposta)],
       ["Vendedor", proposta.criadoPorNome || "—"],
     ],
-    colunas: COLUNAS.filter((c) => c.chave !== "desconto" || temDesconto),
+    colunas: COLUNAS.filter((c) => (c.chave !== "desconto" || temDesconto) && (c.chave !== "marca" || temMarca) && (c.chave !== "codigo" || temCodigo)),
     itens: proposta.itens.map((item, indice) => ({
       id: item.id,
       celulas: {
         item: String(indice + 1),
         descricao: item.descricaoCliente,
         codigo: item.codigoCliente ?? "",
+        marca: [item.marca, item.modelo].filter(Boolean).join(" / "),
         qtde: quantidade(item.quantidade),
         un: item.unidade,
         preco: unitario.format(item.precoUnitario),

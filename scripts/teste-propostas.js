@@ -129,6 +129,7 @@ async function limpar() {
   await prisma.propostaParaCliente.deleteMany({ where: { OR: [{ clienteNome: { startsWith: "ZZ Proposta" } }, { clienteId: { in: ids } }] } });
   await prisma.cliente.deleteMany({ where: { id: { in: ids } } });
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-PROP-CLI-" } } });
+  await prisma.padraoDeProposta.deleteMany({ where: { nome: { startsWith: "ZZ Proposta" } } });
 }
 await limpar();
 
@@ -400,6 +401,78 @@ try {
   conferir("PDF gerado", bytesDoPdf.subarray(0, 5).toString("latin1"), "%PDF-");
   const html = htmlDaProposta(paraPdf, empresaFalsa, {});
   conferir("pagina publica sem script e sem internas", [/<script/i.test(html), html.includes("so nossa"), html.includes("Módulo relé 5V")], [false, false, true]);
+
+  // -------------------------------------------------------------------------
+  // Padroes de proposta, marca/modelo, faturamento minimo e ficha cadastral (13/11/2026)
+  // -------------------------------------------------------------------------
+  console.log("\nPadroes de proposta");
+  const padroes = await import("../src/lib/propostas/padroes.js");
+  conferir("padrao: nome e validade obrigatorios", Object.keys(padroes.conferirPadrao({ nome: "", validadeDias: "0" }).erros).sort(), ["nome", "validadeDias"]);
+  conferir("padrao: forma de pagamento fora da lista", Boolean(padroes.conferirPadrao({ nome: "X", validadeDias: "30", formaPagamento: "Cheque" }).erros?.formaPagamento), true);
+  const salvoPadrao = await padroes.salvarPadrao(null, {
+    nome: "ZZ Proposta Padrao SENAI",
+    validadeDias: "30",
+    formaPagamento: "Transferência",
+    pagamentoTexto: "Depósito, 15 dias da entrega",
+    fretePorConta: "CIF",
+    exigeMarcaModelo: true,
+    exigencias: "1. Marca e modelo\n\n2. Impostos inclusos ",
+  });
+  conferir("padrao: grava", salvoPadrao.ok, true);
+  conferir("padrao: nome repetido", (await padroes.salvarPadrao(null, { nome: "ZZ Proposta Padrao SENAI", validadeDias: "10" })).erros?.nome, "Já existe um padrão com este nome.");
+  const lidoPadrao = await padroes.lerPadrao(salvoPadrao.id);
+  conferir(
+    "padrao: campos que vao para a proposta",
+    regras.camposDoPadrao(lidoPadrao, { hoje: "2026-11-13" }),
+    { padraoId: salvoPadrao.id, validadeAte: "2026-12-13", fretePorConta: "CIF", formaPagamento: "Transferência", pagamentoTexto: "Depósito, 15 dias da entrega" },
+  );
+  conferir("padrao: exigencias uma por linha, sem vazias", regras.linhasDasExigencias(lidoPadrao.exigencias), ["1. Marca e modelo", "2. Impostos inclusos"]);
+  conferir(
+    "pendencia: sem marca ou modelo quando o padrao exige",
+    regras.pendenciasDoPdf({ clienteNome: "X", itens: [{ descricaoCliente: "a", marca: "OEM", modelo: "" }], exigeMarcaModelo: true }),
+    ["1 item(ns) sem marca ou modelo (o padrão do cliente exige)."],
+  );
+  conferir("pendencia: sem exigencia nao pede marca", regras.pendenciasDoPdf({ clienteNome: "X", itens: [{ descricaoCliente: "a" }] }), []);
+  conferir("faturamento minimo no formato do SENAI", [regras.textoDoFaturamentoMinimo(50), regras.textoDoFaturamentoMinimo(null)], ["Valor para faturamento mínimo: R$ 50,00", null]);
+
+  // A p2 ja foi aprovada (pedido de venda): reabre para editar.
+  await banco.mudarSituacao(p2.numero, "EM_NEGOCIACAO");
+  const comPadrao = await banco.lerProposta(p2.numero);
+  const entradaComPadrao = {
+    ...comPadrao,
+    padraoId: salvoPadrao.id,
+    desconto: "",
+    itens: comPadrao.itens.map((item, i) => ({ ...item, marca: i === 0 ? "GENÉRICA" : null, modelo: i === 0 ? "HTS-315" : null })),
+  };
+  const salvaComPadrao = await banco.salvarProposta(p2.numero, entradaComPadrao);
+  if (!salvaComPadrao.ok) console.log(JSON.stringify(salvaComPadrao));
+  const relida = await banco.lerProposta(p2.numero);
+  conferir("proposta: grava o padrao e a marca/modelo do item", [salvaComPadrao.ok, relida.padrao?.nome, relida.itens[0].marca, relida.itens[0].modelo], [true, "ZZ Proposta Padrao SENAI", "GENÉRICA", "HTS-315"]);
+  const conteudoComPadrao = conteudoDaProposta(relida, { ...empresaFalsa, faturamentoMinimo: 50 });
+  conferir(
+    "PDF: coluna Marca / Modelo e faturamento minimo",
+    [conteudoComPadrao.colunas.some((c) => c.chave === "marca"), conteudoComPadrao.itens[0].celulas.marca, conteudoComPadrao.blocos.some(([titulo, texto]) => titulo === "Faturamento mínimo" && texto.includes("R$ 50,00"))],
+    [true, "GENÉRICA / HTS-315", true],
+  );
+  conferir("PDF: sem marca e sem padrao, a coluna nao aparece", conteudoDaProposta({ ...relida, padrao: null, itens: relida.itens.map((i) => ({ ...i, marca: null, modelo: null })) }, empresaFalsa).colunas.some((c) => c.chave === "marca"), false);
+  const pdfComPadrao = await pdfDaProposta(relida, { ...empresaFalsa, faturamentoMinimo: 50 }, {});
+  conferir("PDF com marca gerado", pdfComPadrao.subarray(0, 5).toString("latin1"), "%PDF-");
+
+  await prisma.cliente.update({ where: { id: noRise.id }, data: { padraoPropostaId: salvoPadrao.id } });
+  conferir("padrao em uso por cliente nao sai", (await padroes.excluirPadrao(salvoPadrao.id)).ok, false);
+
+  console.log("\nFicha cadastral do cliente");
+  const arquivosDoCliente = await import("../src/lib/clientes/arquivos.js");
+  const fichaFalsa = new File([Buffer.from("%PDF-1.4\n%falso\n")], "Cartao CNPJ.pdf", { type: "application/pdf" });
+  conferir("ficha: recusa o que nao e PDF, imagem ou planilha", (await arquivosDoCliente.anexarArquivosDoCliente(noRise.id, [new File([Buffer.from("ola")], "a.txt")])).ok, false);
+  conferir("ficha: anexa", (await arquivosDoCliente.anexarArquivosDoCliente(noRise.id, [fichaFalsa])).ok, true);
+  const fichas = await arquivosDoCliente.listarArquivosDoCliente(noRise.id);
+  const lidaFicha = await arquivosDoCliente.lerArquivoDoCliente(fichas[0].id);
+  conferir("ficha: lista e le de volta", [fichas.length, fichas[0].tipo, lidaFicha?.nomeOriginal, lidaFicha?.tipo], [1, "FICHA_CADASTRAL", "Cartao CNPJ.pdf", "application/pdf"]);
+  conferir("ficha: so exclui do proprio cliente", (await arquivosDoCliente.excluirArquivoDoCliente("outrocliente0001", fichas[0].id)).ok, false);
+  conferir("ficha: exclui", [(await arquivosDoCliente.excluirArquivoDoCliente(noRise.id, fichas[0].id)).ok, (await arquivosDoCliente.listarArquivosDoCliente(noRise.id)).length], [true, 0]);
+  const { rm: apagarPasta } = await import("node:fs/promises");
+  await apagarPasta(arquivosDoCliente.pastaDoCliente(noRise.id), { recursive: true, force: true });
 
   await arquivos.apagarPastaDaProposta((await banco.lerProposta(p2.numero)).id);
 

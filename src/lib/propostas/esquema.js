@@ -43,6 +43,7 @@ export function conferirProposta(entrada = {}) {
   dados.clienteDocumento = texto(entrada.clienteDocumento, 30);
   if (dados.clienteEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dados.clienteEmail)) erros.clienteEmail = "E-mail inválido.";
   dados.contatoId = texto(entrada.contatoId, 40);
+  dados.padraoId = texto(entrada.padraoId, 40);
 
   dados.condicaoPagamentoId = texto(entrada.condicaoPagamentoId, 40);
   dados.formaPagamento = texto(entrada.formaPagamento, 60);
@@ -84,6 +85,8 @@ export function conferirProposta(entrada = {}) {
       produtoId: texto(item.produtoId, 40),
       descricaoCliente: texto(item.descricaoCliente, 2000) ?? "",
       codigoCliente: texto(item.codigoCliente, 100),
+      marca: texto(item.marca, 100),
+      modelo: texto(item.modelo, 150),
       codigoInterno: texto(item.codigoInterno, 100),
       nomeInterno: texto(item.nomeInterno, 300),
       foto: texto(item.foto, 300),

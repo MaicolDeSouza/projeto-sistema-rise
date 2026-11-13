@@ -8,6 +8,8 @@ import { prisma } from "@/lib/db";
 import { recursoDaSecao } from "@/lib/secoesDeCadastros";
 import { PARCEIROS } from "@/lib/cadastros";
 import { formatarTelefone } from "@/lib/telefone";
+import { listarArquivosDoCliente } from "@/lib/clientes/arquivos";
+import { listarPadroes } from "@/lib/propostas/padroes";
 import PageHeader from "@/components/ui/PageHeader";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import FormularioCliente from "@/components/cadastros/FormularioCliente";
@@ -74,6 +76,7 @@ async function carregarCliente(id) {
       observacoes: texto(cliente.observacoes),
       ativo: cliente.ativo,
       transportadoraId: texto(cliente.transportadoraId),
+      padraoPropostaId: texto(cliente.padraoPropostaId),
       enderecos: {
         geral: enderecoParaTela(cliente.enderecos.find((e) => e.tipo === "GERAL")),
         entrega: enderecoParaTela(cliente.enderecos.find((e) => e.tipo === "ENTREGA")),
@@ -160,6 +163,11 @@ export default async function EditarCadastroPage({ params }) {
         const pedidos = await listarPedidosDeVenda({ clienteId: id, porPagina: 50 });
         dadosDoCliente.pedidos = { ...pedidos, linhas: pedidos.linhas.map((linha) => projetarLinhaDaLista(linha, pode)) };
       }
+      // Padroes de proposta e a ficha cadastral (13/11/2026). A ficha traz dado pessoal: so com o dado.
+      if (dadosDoCliente) {
+        dadosDoCliente.padroes = (await listarPadroes()).filter((p) => p.ativo || p.id === dadosDoCliente.cliente.padraoPropostaId).map(({ id, nome }) => ({ id, nome }));
+        dadosDoCliente.arquivos = semPessoal ? null : JSON.parse(JSON.stringify(await listarArquivosDoCliente(id)));
+      }
       // A aba Licencas (Licencas Softwares, 05/11/2026): as vagas de licenca do cliente, para quem ve a tela de Licencas.
       if (dadosDoCliente && pode("tela.ferramentas.licencas", "ver")) {
         dadosDoCliente.licencas = JSON.parse(JSON.stringify(await licencasDoCliente(id)));
@@ -226,6 +234,8 @@ export default async function EditarCadastroPage({ params }) {
           semPessoal={semPessoal}
           somenteLeitura={somenteLeitura}
           transportadoras={dadosDoCliente.transportadoras}
+          padroes={dadosDoCliente.padroes}
+          arquivos={dadosDoCliente.arquivos}
           pedidos={dadosDoCliente.pedidos ?? null}
           licencas={dadosDoCliente.licencas ?? null}
           veLucro={pode("dado.custo", "ver")}

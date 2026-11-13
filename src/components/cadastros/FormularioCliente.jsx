@@ -13,6 +13,7 @@ import { filtrarDigitacaoDeTelefone, formatarTelefone } from "@/lib/telefone";
 import Card from "@/components/ui/Card";
 import { BarraDeAbas, Painel, useAbasDoFormulario } from "./Abas";
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "./Campo";
+import ArquivosDoCliente from "./ArquivosDoCliente";
 import ContatosDoCliente from "./ContatosDoCliente";
 import EnderecoDoCliente from "./EnderecoDoCliente";
 import ListaDeValores from "./ListaDeValores";
@@ -54,6 +55,7 @@ const ABA_DO_CAMPO = {
   naturalidade: "contato",
   clienteDesde: "adicionais",
   transportadoraId: "adicionais",
+  padraoPropostaId: "adicionais",
   observacoes: "adicionais",
 };
 
@@ -128,7 +130,7 @@ function EscolhaDoNivel({ nivel, erro }) {
  * observacoes nao sao desenhados (o servidor nem os mandou), e a aba que ficaria vazia some. O Salvar os mantem como
  * estao no banco.
  */
-export default function FormularioCliente({ cliente, transportadoras, hoje, somenteLeitura = false, semPessoal = false, pedidos = null, veLucro = false, licencas = null }) {
+export default function FormularioCliente({ cliente, transportadoras, padroes = [], arquivos = null, hoje, somenteLeitura = false, semPessoal = false, pedidos = null, veLucro = false, licencas = null }) {
   const router = useRouter();
   const inicial = cliente ?? { ativo: true };
   const [tipo, setTipo] = useState(inicial.tipoPessoa ?? "FISICA");
@@ -399,7 +401,30 @@ export default function FormularioCliente({ cliente, transportadoras, hoje, some
               </p>
             )}
           </Campo>
+
+          {/* O padrao de proposta (13/11/2026): a proposta nova deste cliente nasce com as regras dele. */}
+          <Campo nome="padraoPropostaId" rotulo="Padrão de proposta" erro={erros.padraoPropostaId} ajuda="A proposta nova deste cliente já nasce com as regras do padrão (validade, pagamento, frete, marca e modelo).">
+            <select
+              id="padraoPropostaId"
+              name="padraoPropostaId"
+              defaultValue={valor("padraoPropostaId")}
+              className={`${CLASSE_CAMPO} ${bordaDoCampo(erros.padraoPropostaId)}`}
+            >
+              <option value="">Sem padrão</option>
+              {padroes.map((padrao) => (
+                <option key={padrao.id} value={padrao.id}>
+                  {padrao.nome}
+                </option>
+              ))}
+            </select>
+          </Campo>
         </div>
+
+        {cliente?.id && arquivos !== null && (
+          <div className="mt-4">
+            <ArquivosDoCliente clienteId={cliente.id} arquivosIniciais={arquivos} editar={!somenteLeitura} />
+          </div>
+        )}
 
         {!semPessoal && (
         <div className="mt-4">

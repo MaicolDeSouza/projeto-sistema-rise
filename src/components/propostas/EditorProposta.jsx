@@ -8,7 +8,7 @@ import { linkPublicoAcao, marcarEnviadaAcao, mudarSituacaoAcao, registrarContato
 import Pergunta from "@/components/compras/Pergunta";
 import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
 import { marcarTelaIniciada } from "@/components/mercados/NavegacaoDoTopo";
-import { MOTIVOS_DE_RECUSA, dataBR, linkDoWhatsApp, mensagemDoWhatsApp, numeroDaProposta, pendenciasDoPdf, precisaContato } from "@/lib/propostas/regras";
+import { MOTIVOS_DE_RECUSA, camposDoPadrao, dataBR, linhasDasExigencias, linkDoWhatsApp, mensagemDoWhatsApp, numeroDaProposta, pendenciasDoPdf, precisaContato } from "@/lib/propostas/regras";
 import { lerListaDaTela, pedirVoltaNaRolagem } from "@/lib/ultimaListaDaTela";
 import { AbasDaProposta, CartaoFrete, CartaoPagamento, CartaoTotais, HistoricoDeContatos } from "./BlocosDaProposta";
 import CartaoCliente, { campo, Rotulo } from "./CartaoCliente";
@@ -22,7 +22,7 @@ import { AnexosDaCotacao, JanelaContato, JanelaPedidoDeVenda, JanelaRecusar } fr
  * principal e Salvar, e o "Gerar PDF" fecha a linha de botoes. Aprovar, Recusar, Reabrir e o pedido de venda moram no
  * menu da situacao. Aprovada e Recusada ficam so leitura (Reabrir volta a Em negociacao).
  */
-export default function EditorProposta({ propostaInicial, transportadoras, condicoes, podeEditar, podePedidoDeVenda }) {
+export default function EditorProposta({ propostaInicial, transportadoras, condicoes, padroes = [], podeEditar, podePedidoDeVenda }) {
   const router = useRouter();
   const [proposta, setProposta] = useState(propostaInicial);
   const [cliente, setCliente] = useState(propostaInicial.cliente);
@@ -41,7 +41,10 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
   const editar = podeEditar && !proposta.soLeitura;
   const alterado = useMemo(() => JSON.stringify(formulario) !== JSON.stringify(base), [formulario, base]);
   const totais = useMemo(() => totaisDoFormulario(formulario), [formulario]);
-  const pendencias = pendenciasDoPdf({ clienteNome: formulario.clienteNome || cliente?.nome, itens: formulario.itens });
+  // O padrao em uso: o da lista (pode ter mudado) ou o gravado na proposta (padrao desativado some da lista).
+  const padrao = padroes.find((p) => p.id === formulario.padraoId) ?? (proposta.padrao?.id === formulario.padraoId ? proposta.padrao : null);
+  const exigeMarcaModelo = Boolean(padrao?.exigeMarcaModelo);
+  const pendencias = pendenciasDoPdf({ clienteNome: formulario.clienteNome || cliente?.nome, itens: formulario.itens, exigeMarcaModelo });
 
   useEffect(() => {
     if (!alterado) return undefined;
@@ -66,10 +69,19 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
   }
   const mudar = (campoDoFormulario, valor) => setFormulario((antes) => ({ ...antes, [campoDoFormulario]: valor }));
 
+  /** Escolher o padrao copia as regras dele para a proposta (validade, pagamento, frete, garantia, observacoes). */
+  function aplicarPadrao(id) {
+    const escolhido = padroes.find((p) => p.id === id);
+    setFormulario((antes) => (escolhido ? { ...antes, ...camposDoPadrao(escolhido) } : { ...antes, padraoId: "" }));
+  }
+
   function ligarCliente(lido) {
     setCliente(lido);
+    // O cliente com padrao (SENAI...) traz as regras dele, se a proposta ainda nao tem padrao escolhido.
+    const doCliente = padroes.find((p) => p.id === lido.padraoPropostaId);
     setFormulario((antes) => ({
       ...antes,
+      ...(doCliente && !antes.padraoId ? camposDoPadrao(doCliente) : {}),
       clienteId: lido.id,
       clienteNome: lido.nome,
       clienteDocumento: lido.documento ?? "",
@@ -295,6 +307,17 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
               <Rotulo texto="Válida até" erro={erros.validadeAte}>
                 <input type="date" value={formulario.validadeAte} disabled={!podeEditar || (proposta.soLeitura && situacao !== "VENCIDA")} aria-invalid={Boolean(erros.validadeAte)} onChange={(e) => mudar("validadeAte", e.target.value)} className={campo} />
               </Rotulo>
+              <Rotulo texto="Padrão do cliente" className="col-span-2 lg:col-span-1">
+                <select value={formulario.padraoId} disabled={!editar} onChange={(e) => aplicarPadrao(e.target.value)} className={campo} title="Aplica validade, pagamento, frete, garantia e observações do padrão">
+                  <option value="">Sem padrão</option>
+                  {padroes.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nome}
+                    </option>
+                  ))}
+                  {padrao && !padroes.some((p) => p.id === padrao.id) && <option value={padrao.id}>{padrao.nome}</option>}
+                </select>
+              </Rotulo>
               <Rotulo texto="Próximo contato" erro={erros.proximoContato}>
                 <input type="date" value={formulario.proximoContato} disabled={!editar} onChange={(e) => mudar("proximoContato", e.target.value)} className={`${campo} ${contatoAgora ? "border-amber-400 bg-amber-50" : ""}`} />
               </Rotulo>
@@ -303,7 +326,18 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
           </SecaoDoAnuncio>
         </div>
 
-        <ItensDaProposta itens={formulario.itens} editar={editar} veCusto={veCusto} erros={erros} aoMudar={mudar} aoTrocar={(itens) => mudar("itens", itens)} aoErro={setErroGeral} />
+        {linhasDasExigencias(padrao?.exigencias).length > 0 && (
+          <details open className="rounded-lg border border-amber-200 bg-amber-50/60 px-4 py-3 text-sm">
+            <summary className="cursor-pointer font-semibold text-amber-900">Exigências do cliente ({padrao.nome}) · só na tela, não vão ao PDF</summary>
+            <ol className="mt-2 grid gap-x-6 gap-y-1 text-amber-950 md:grid-cols-2">
+              {linhasDasExigencias(padrao.exigencias).map((linha) => (
+                <li key={linha}>{linha}</li>
+              ))}
+            </ol>
+          </details>
+        )}
+
+        <ItensDaProposta exigeMarcaModelo={exigeMarcaModelo} itens={formulario.itens} editar={editar} veCusto={veCusto} erros={erros} aoMudar={mudar} aoTrocar={(itens) => mudar("itens", itens)} aoErro={setErroGeral} />
 
         <CartaoTotais formulario={formulario} totais={totais} editar={editar} erros={erros} aoMudar={mudar} veCusto={veCusto} />
 

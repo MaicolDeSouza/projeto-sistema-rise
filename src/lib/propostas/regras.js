@@ -207,13 +207,25 @@ export function textoDoPagamento({ condicaoNome, formaPagamento, parcelas, entra
 }
 
 /** O que falta para gerar o PDF: item sem a descricao do cliente e proposta sem item (o "!" da linha e o motivo do botao). */
-export function pendenciasDoPdf({ clienteNome, itens = [] }) {
+export function pendenciasDoPdf({ clienteNome, itens = [], exigeMarcaModelo = false }) {
   const pendencias = [];
   if (!String(clienteNome ?? "").trim()) pendencias.push("Informe o cliente.");
   if (itens.length === 0) pendencias.push("Inclua ao menos um item.");
   const semDescricao = itens.filter((item) => !String(item.descricaoCliente ?? "").trim()).length;
   if (semDescricao) pendencias.push(`${semDescricao} item(ns) sem a descrição do cliente.`);
+  // O padrao do cliente pede marca e modelo (SENAI, 13/11/2026): item sem marca ou sem modelo trava o PDF.
+  if (exigeMarcaModelo) {
+    const semMarca = itens.filter((item) => !String(item.marca ?? "").trim() || !String(item.modelo ?? "").trim()).length;
+    if (semMarca) pendencias.push(`${semMarca} item(ns) sem marca ou modelo (o padrão do cliente exige).`);
+  }
   return pendencias;
+}
+
+/** "Valor para faturamento mínimo: R$ 50,00" (SENAI pede neste formato; 13/11/2026). Sem valor = null. */
+export function textoDoFaturamentoMinimo(valor) {
+  const numero = Number(valor);
+  if (!(numero > 0)) return null;
+  return `Valor para faturamento mínimo: ${numero.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }).replace(/\s/g, " ")}`;
 }
 
 /** Link do WhatsApp: telefone em digitos com DDD (lib/telefone.js) e a mensagem. Sem telefone valido = null. */
@@ -226,4 +238,32 @@ export function linkDoWhatsApp(telefone, mensagem) {
 export function mensagemDoWhatsApp({ numero, nome, link }) {
   const ola = nome ? `Olá, ${String(nome).split(" ")[0]}!` : "Olá!";
   return `${ola} Segue a ${numeroDaProposta(numero)} da 4hobby: ${link}`;
+}
+
+// ---------------------------------------------------------------- padroes de proposta (13/11/2026)
+
+/**
+ * O que o padrao preenche no formulario da proposta (os nomes dos campos do editor). A validade conta a partir de hoje.
+ * Campo vazio no padrao NAO apaga o da proposta (`undefined`): so o que o padrao define e copiado.
+ */
+export function camposDoPadrao(padrao, { hoje = hojeEmSaoPaulo() } = {}) {
+  if (!padrao) return {};
+  const campos = {
+    padraoId: padrao.id,
+    validadeAte: somarDias(hoje, Number(padrao.validadeDias) || 15),
+    fretePorConta: padrao.fretePorConta,
+  };
+  if (padrao.formaPagamento) campos.formaPagamento = padrao.formaPagamento;
+  if (padrao.pagamentoTexto) campos.pagamentoTexto = padrao.pagamentoTexto;
+  if (padrao.garantia) campos.garantia = padrao.garantia;
+  if (padrao.observacoesCliente) campos.observacoesCliente = padrao.observacoesCliente;
+  return campos;
+}
+
+/** As exigencias do padrao, uma por linha (o painel do editor). */
+export function linhasDasExigencias(exigencias) {
+  return String(exigencias ?? "")
+    .split(/\r?\n/)
+    .map((linha) => linha.trim())
+    .filter(Boolean);
 }

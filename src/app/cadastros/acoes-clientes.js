@@ -176,6 +176,8 @@ export async function salvarCliente(id, _anterior, formData) {
   }
   dados.ativo = campos.ativo === "on";
   dados.nivel = nivelLido.nivel;
+  // O padrao de proposta (13/11/2026): vazio = sem padrao; id que nao existe cai no P2003 abaixo.
+  dados.padraoPropostaId = String(campos.padraoPropostaId ?? "").trim() || null;
 
   // Data de "cliente desde": vazia no cadastro novo vale hoje (padrao do banco);
   // vazia na edicao mantem a que ja estava.
@@ -231,6 +233,9 @@ export async function salvarCliente(id, _anterior, formData) {
       };
     }
     if (erro?.code === "P2003") {
+      if (String(erro?.meta?.field_name ?? erro?.message ?? "").includes("padraoProposta")) {
+        return { ok: false, erros: { padraoPropostaId: "Este padrão de proposta não existe mais." } };
+      }
       return { ok: false, erros: { transportadoraId: "Esta transportadora não existe mais." } };
     }
     if (erro?.code === "P2025") {
@@ -240,12 +245,15 @@ export async function salvarCliente(id, _anterior, formData) {
   }
 }
 
-/** Exclui o cliente; enderecos e contatos vao junto (`Cascade`). */
+/** Exclui o cliente; enderecos, contatos e arquivos vao junto (`Cascade`; a pasta dos arquivos e apagada). */
 export async function excluirCliente(id) {
   const negado = await negarSemAcesso("tela.cadastros.clientes", "excluir");
   if (negado) return negado;
   try {
     await prisma.cliente.delete({ where: { id } });
+    const { pastaDoCliente } = await import("@/lib/clientes/arquivos");
+    const pasta = pastaDoCliente(id);
+    if (pasta) await (await import("node:fs/promises")).rm(pasta, { recursive: true, force: true }).catch(() => {});
   } catch (erro) {
     // Ja excluido por outra aba: o resultado que o operador queria.
     if (erro?.code !== "P2025") {
@@ -331,4 +339,32 @@ export async function buscarCep(cep) {
       })
       .catch(() => {});
   }
+}
+
+// --------------------------------------------------------------------------- arquivos do cliente (13/11/2026)
+
+/** Anexa a ficha cadastral (ou outro documento). A ficha traz dado pessoal: pede editar o cadastro E o dado pessoal. */
+export async function anexarArquivoDoClienteAcao(formData) {
+  const negado = await negarSemAcesso("tela.cadastros.clientes", "editar");
+  if (negado) return negado;
+  const { pode } = await sessaoDeAcessos();
+  if (!pode("dado.pessoalDoCliente", "editar")) return { ok: false, erro: "Sem permissão para Dados pessoais do cliente." };
+  const { anexarArquivosDoCliente, listarArquivosDoCliente } = await import("@/lib/clientes/arquivos");
+  const clienteId = String(formData.get("clienteId") ?? "");
+  const resultado = await anexarArquivosDoCliente(clienteId, formData.getAll("arquivo"), String(formData.get("tipo") ?? "FICHA_CADASTRAL"));
+  if (!resultado.ok) return resultado;
+  revalidatePath("/cadastros", "layout");
+  return { ok: true, arquivos: JSON.parse(JSON.stringify(await listarArquivosDoCliente(clienteId))) };
+}
+
+export async function excluirArquivoDoClienteAcao(clienteId, arquivoId) {
+  const negado = await negarSemAcesso("tela.cadastros.clientes", "editar");
+  if (negado) return negado;
+  const { pode } = await sessaoDeAcessos();
+  if (!pode("dado.pessoalDoCliente", "editar")) return { ok: false, erro: "Sem permissão para Dados pessoais do cliente." };
+  const { excluirArquivoDoCliente, listarArquivosDoCliente } = await import("@/lib/clientes/arquivos");
+  const resultado = await excluirArquivoDoCliente(clienteId, arquivoId);
+  if (!resultado.ok) return resultado;
+  revalidatePath("/cadastros", "layout");
+  return { ok: true, arquivos: JSON.parse(JSON.stringify(await listarArquivosDoCliente(clienteId))) };
 }

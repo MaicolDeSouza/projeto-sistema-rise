@@ -41,11 +41,28 @@ export const TIPO_DO_ARQUIVO = {
   ".xls": "application/vnd.ms-excel",
 };
 
-const NOME_GERADO = /^[0-9a-f]{32}\.(pdf|jpg|png|webp|xlsx|ods|docx|zip|xls)$/;
+/**
+ * Confere um arquivo enviado (tamanho e formato pelos BYTES) e devolve os bytes com o nome gerado. Usado tambem pela
+ * ficha cadastral do cliente (lib/clientes/arquivos.js, 13/11/2026).
+ */
+export async function prepararArquivo(arquivo, nomePadrao = "arquivo") {
+  const nomeOriginal = String(arquivo.name ?? "").slice(0, 200) || nomePadrao;
+  if (arquivo.size > TAMANHO_MAXIMO) return { erro: `${nomeOriginal} tem ${(arquivo.size / 1024 / 1024).toFixed(1)} MB; o limite é 20 MB.` };
+  const bytes = Buffer.from(await arquivo.arrayBuffer());
+  let extensao = ASSINATURAS.find((a) => a.confere(bytes))?.extensao;
+  if (!extensao) return { erro: `${nomeOriginal}: envie PDF, imagem ou planilha.` };
+  if (extensao === ".zip") {
+    const pedida = path.extname(nomeOriginal).toLowerCase();
+    if (DO_ZIP.includes(pedida)) extensao = pedida;
+  }
+  return { bytes, nome: `${randomUUID().replaceAll("-", "")}${extensao}`, nomeOriginal, tamanho: bytes.length };
+}
+
+export const NOME_GERADO_DO_ARQUIVO = /^[0-9a-f]{32}\.(pdf|jpg|png|webp|xlsx|ods|docx|zip|xls)$/;
 const ID = /^[a-z0-9]{10,40}$/;
 
 export function caminhoDoAnexo(propostaId, nome) {
-  if (!ID.test(propostaId ?? "") || !NOME_GERADO.test(nome ?? "")) throw new Error("Caminho de anexo inválido.");
+  if (!ID.test(propostaId ?? "") || !NOME_GERADO_DO_ARQUIVO.test(nome ?? "")) throw new Error("Caminho de anexo inválido.");
   return path.join(RAIZ_PROPOSTAS, propostaId, PASTA, nome);
 }
 
@@ -64,16 +81,9 @@ export async function anexarCotacao(numeroDaProposta, arquivos) {
 
   const preparados = [];
   for (const arquivo of lista) {
-    const nomeOriginal = String(arquivo.name ?? "").slice(0, 200) || "cotacao";
-    if (arquivo.size > TAMANHO_MAXIMO) return { ok: false, erro: `${nomeOriginal} tem ${(arquivo.size / 1024 / 1024).toFixed(1)} MB; o limite é 20 MB.` };
-    const bytes = Buffer.from(await arquivo.arrayBuffer());
-    let extensao = ASSINATURAS.find((a) => a.confere(bytes))?.extensao;
-    if (!extensao) return { ok: false, erro: `${nomeOriginal}: envie PDF, imagem ou planilha.` };
-    if (extensao === ".zip") {
-      const pedida = path.extname(nomeOriginal).toLowerCase();
-      if (DO_ZIP.includes(pedida)) extensao = pedida;
-    }
-    preparados.push({ bytes, nome: `${randomUUID().replaceAll("-", "")}${extensao}`, nomeOriginal, tamanho: bytes.length });
+    const preparado = await prepararArquivo(arquivo, "cotacao");
+    if (preparado.erro) return { ok: false, erro: preparado.erro };
+    preparados.push(preparado);
   }
   for (const item of preparados) {
     const destino = caminhoDoAnexo(proposta.id, item.nome);

@@ -52,7 +52,7 @@ function desenharIcone(doc, tipo, x, y, tamanho) {
   doc.restore();
 }
 
-const LARGURAS = { item: 22, foto: FOTO + RESPIRO * 2, descricao: 0, codigo: 62, qtde: 36, un: 26, preco: 58, desconto: 34, total: 62, prazo: 68 };
+const LARGURAS = { item: 22, foto: FOTO + RESPIRO * 2, descricao: 0, codigo: 62, marca: 74, qtde: 36, un: 26, preco: 58, desconto: 34, total: 62, prazo: 68 };
 const ALINHAR = { item: "center", foto: "center", qtde: "right", un: "center", preco: "right", desconto: "right", total: "right" };
 
 /** A foto do produto do Rise em JPEG pequeno sobre branco (o pdfkit so desenha JPEG e PNG; a foto pode ser WebP). */

@@ -10,7 +10,7 @@ import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import Card from "@/components/ui/Card";
 import { formatarTelefone } from "@/lib/telefone";
 
-const CAMPOS = ["razaoSocial", "nomeFantasia", "cnpj", "inscricaoEstadual", "inscricaoMunicipal", "endereco", "numero", "complemento", "bairro", "cidade", "uf", "cep", "telefone", "celular", "whatsappTecnico", "site", "email"];
+const CAMPOS = ["razaoSocial", "nomeFantasia", "cnpj", "inscricaoEstadual", "inscricaoMunicipal", "endereco", "numero", "complemento", "bairro", "cidade", "uf", "cep", "telefone", "celular", "whatsappTecnico", "site", "email", "faturamentoMinimo"];
 const TELEFONES = ["telefone", "celular", "whatsappTecnico"];
 
 /**
@@ -194,6 +194,8 @@ export default function FormularioEmpresa({ inicial, logoInicial = null, podeEdi
             {campo("whatsappTecnico", "WhatsApp técnico", { inputMode: "tel", onBlur: () => setValores((antes) => ({ ...antes, whatsappTecnico: formatarTelefone(antes.whatsappTecnico) })) })}
             {campo("email", "E-mail", { type: "email" })}
             {campo("site", "Site", { placeholder: "www.4hobby.com.br" })}
+            {/* Sai em toda proposta para cliente (13/11/2026; o SENAI pede "R$ XXX,XX"). */}
+            {campo("faturamentoMinimo", "Faturamento mínimo (R$)", { inputMode: "decimal", placeholder: "50,00" })}
           </div>
         </Card>
       </fieldset>

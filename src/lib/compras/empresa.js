@@ -14,7 +14,9 @@ const OBRIGATORIOS = { razaoSocial: "Informe a razão social.", cnpj: "Informe o
 const LIMITES = { razaoSocial: 150, nomeFantasia: 150, inscricaoEstadual: 30, inscricaoMunicipal: 30, endereco: 200, numero: 20, complemento: 100, bairro: 100, cidade: 100, site: 120, email: 150 };
 
 export async function lerDadosDaEmpresa() {
-  return prisma.dadosDaEmpresa.findUnique({ where: { id: ID } });
+  const dados = await prisma.dadosDaEmpresa.findUnique({ where: { id: ID } });
+  // Decimal do Prisma nao atravessa para a tela (Configuracoes > Dados da empresa): vira numero aqui.
+  return dados ? { ...dados, faturamentoMinimo: dados.faturamentoMinimo === null ? null : Number(dados.faturamentoMinimo) } : null;
 }
 
 /** @returns {Promise<{ ok: true } | { ok: false, erros: Record<string, string> }>} */
@@ -59,6 +61,15 @@ export async function salvarDadosDaEmpresa(entrada) {
     if (!/^[^\s/]+\.[^\s/]+(\/\S*)?$/.test(dados.site)) erros.site = "Site inválido.";
   }
   if (dados.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dados.email)) erros.email = "E-mail inválido.";
+
+  // Faturamento minimo (13/11/2026): sai em toda proposta ("Valor para faturamento minimo: R$ 50,00").
+  const minimo = String(entrada?.faturamentoMinimo ?? "").trim().replace(/^R$s*/i, "");
+  if (!minimo) dados.faturamentoMinimo = null;
+  else {
+    const valor = Number(minimo.includes(",") ? minimo.replace(/./g, "").replace(",", ".") : minimo);
+    if (Number.isFinite(valor) && valor >= 0 && valor < 1_000_000) dados.faturamentoMinimo = Math.round(valor * 100) / 100;
+    else erros.faturamentoMinimo = "Valor inválido.";
+  }
 
   if (Object.keys(erros).length) return { ok: false, erros };
   await prisma.dadosDaEmpresa.upsert({ where: { id: ID }, update: dados, create: { id: ID, ...dados } });

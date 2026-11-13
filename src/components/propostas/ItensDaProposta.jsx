@@ -77,7 +77,7 @@ function BuscaDeProduto({ aoEscolher, aoAvulso }) {
  * Os itens da proposta. O operador ve primeiro a DESCRICAO DO CLIENTE (a que sai no PDF), o codigo do cliente, a
  * quantidade e o total; nosso codigo fica pequeno embaixo, so na tela. Custo e lucro (markup) so para quem ve custo.
  */
-export default function ItensDaProposta({ itens, editar, veCusto, erros, aoMudar, aoTrocar, aoErro }) {
+export default function ItensDaProposta({ itens, editar, veCusto, erros, aoMudar, aoTrocar, aoErro, exigeMarcaModelo = false }) {
   const [adicionando, setAdicionando] = useState(false);
   const [obsAberta, setObsAberta] = useState(null);
 
@@ -121,7 +121,7 @@ export default function ItensDaProposta({ itens, editar, veCusto, erros, aoMudar
               <tr className="border-b border-borda">
                 <th className="w-14 px-2 py-2 pl-4"><span className="sr-only">Foto</span></th>
                 <th className="px-2 py-2">Descrição do cliente</th>
-                <th className="w-32 px-2 py-2">Cód. cliente</th>
+                <th className="w-40 px-2 py-2">Cód. / Marca / Modelo</th>
                 <th className="w-20 px-2 py-2 text-right">Qtd.</th>
                 <th className="w-20 px-2 py-2">Un.</th>
                 <th className="w-28 px-2 py-2 text-right">Unitário</th>
@@ -193,8 +193,27 @@ export default function ItensDaProposta({ itens, editar, veCusto, erros, aoMudar
                         />
                       )}
                     </td>
-                    <td className="px-2 py-2">
-                      <input value={item.codigoCliente} disabled={!editar} onChange={(e) => mudarItem(indice, "codigoCliente", e.target.value.slice(0, 100))} className={`${celula} font-mono text-xs`} />
+                    <td className="space-y-1 px-2 py-2">
+                      <input value={item.codigoCliente} disabled={!editar} placeholder="Código" aria-label="Código do cliente" onChange={(e) => mudarItem(indice, "codigoCliente", e.target.value.slice(0, 100))} className={`${celula} font-mono text-xs`} />
+                      {/* Marca e modelo saem no PDF (o SENAI exige; 13/11/2026): vem do produto e se corrigem aqui. */}
+                      <input
+                        value={item.marca}
+                        disabled={!editar}
+                        placeholder="Marca"
+                        aria-label="Marca"
+                        aria-invalid={exigeMarcaModelo && !item.marca.trim()}
+                        onChange={(e) => mudarItem(indice, "marca", e.target.value.slice(0, 100))}
+                        className={`${celula} text-xs`}
+                      />
+                      <input
+                        value={item.modelo}
+                        disabled={!editar}
+                        placeholder="Modelo"
+                        aria-label="Modelo"
+                        aria-invalid={exigeMarcaModelo && !item.modelo.trim()}
+                        onChange={(e) => mudarItem(indice, "modelo", e.target.value.slice(0, 150))}
+                        className={`${celula} text-xs`}
+                      />
                     </td>
                     <td className="px-2 py-2">
                       <input inputMode="decimal" value={item.quantidade} disabled={!editar} aria-invalid={Boolean(erro("quantidade"))} title={erro("quantidade")} onChange={(e) => mudarItem(indice, "quantidade", soDecimal(e.target.value))} className={`${celula} text-right tabular-nums`} />

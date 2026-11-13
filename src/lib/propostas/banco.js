@@ -60,6 +60,7 @@ const INCLUIR = {
   },
   contatos: { orderBy: { em: "desc" } },
   anexos: { orderBy: { criadoEm: "asc" } },
+  padrao: { select: { id: true, nome: true, exigeMarcaModelo: true, exigencias: true } },
   cliente: {
     select: {
       id: true,
@@ -71,6 +72,7 @@ const INCLUIR = {
       email: true,
       inscricaoEstadual: true,
       blingContatoId: true,
+      padraoPropostaId: true,
       enderecos: true,
       contatos: { orderBy: { nome: "asc" }, select: { id: true, nome: true, cargo: true, telefone: true, email: true } },
     },
@@ -87,6 +89,8 @@ export function propostaParaTela(proposta, { hoje = hojeEmSaoPaulo() } = {}) {
     sku: item.produto?.sku ?? null,
     descricaoCliente: item.descricaoCliente,
     codigoCliente: item.codigoCliente,
+    marca: item.marca,
+    modelo: item.modelo,
     codigoInterno: item.codigoInterno,
     nomeInterno: item.nomeInterno,
     foto: item.foto,
@@ -120,6 +124,8 @@ export function propostaParaTela(proposta, { hoje = hojeEmSaoPaulo() } = {}) {
     clienteDocumento: proposta.clienteDocumento,
     contatoId: proposta.contatoId,
     contatoNome: proposta.contatoNome,
+    padraoId: proposta.padraoId ?? null,
+    padrao: proposta.padrao ?? null,
     condicaoPagamentoId: proposta.condicaoPagamentoId,
     condicaoNome: proposta.condicaoPagamento?.nome ?? null,
     formaPagamento: proposta.formaPagamento,
@@ -186,6 +192,8 @@ export async function produtoParaProposta(produtoId) {
       unidade: true,
       precoVenda: true,
       custo: true,
+      marca: true,
+      modelo: true,
       arquivos: { where: { tipo: "IMAGEM", papel: "FOTO" }, orderBy: { ordem: "asc" }, take: 1, select: { arquivo: true } },
     },
   });
@@ -199,6 +207,8 @@ export async function produtoParaProposta(produtoId) {
     foto,
     fotoUrl: foto ? urlDe(produto.sku, "IMAGEM", foto) : null,
     unidade: produto.unidade || "UN",
+    marca: produto.marca ?? null,
+    modelo: produto.modelo ?? null,
     precoUnitario: numero(produto.precoVenda) ?? 0,
     custoUnitario: numero(produto.custo),
   };
@@ -286,6 +296,7 @@ export async function salvarProposta(numeroDaProposta, entrada, { manterCusto = 
   const transportadora = dados.transportadoraId
     ? await prisma.transportadora.findUnique({ where: { id: dados.transportadoraId }, select: { id: true, nome: true, nomeFantasia: true } })
     : null;
+  const padrao = dados.padraoId ? await prisma.padraoDeProposta.findUnique({ where: { id: dados.padraoId }, select: { id: true } }) : null;
   const condicao = dados.condicaoPagamentoId
     ? await prisma.condicaoPagamento.findUnique({ where: { id: dados.condicaoPagamentoId }, select: { id: true } })
     : null;
@@ -306,6 +317,8 @@ export async function salvarProposta(numeroDaProposta, entrada, { manterCusto = 
           produtoId: item.produtoId && produtosExistem.has(item.produtoId) ? item.produtoId : null,
           descricaoCliente: item.descricaoCliente,
           codigoCliente: item.codigoCliente,
+          marca: item.marca,
+          modelo: item.modelo,
           codigoInterno: item.codigoInterno,
           nomeInterno: item.nomeInterno,
           foto: item.produtoId && produtosExistem.has(item.produtoId) ? item.foto : null,
@@ -328,6 +341,7 @@ export async function salvarProposta(numeroDaProposta, entrada, { manterCusto = 
         ...copiaDoCliente,
         contatoId,
         contatoNome,
+        padraoId: padrao?.id ?? null,
         condicaoPagamentoId: condicao?.id ?? null,
         formaPagamento: dados.formaPagamento,
         parcelas: dados.parcelas,

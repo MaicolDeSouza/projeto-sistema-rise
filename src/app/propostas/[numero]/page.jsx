@@ -4,6 +4,7 @@ import EditorProposta from "@/components/propostas/EditorProposta";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { prisma } from "@/lib/db";
 import { lerProposta, semCusto } from "@/lib/propostas/banco";
+import { listarPadroes } from "@/lib/propostas/padroes";
 import { numeroDaProposta } from "@/lib/propostas/regras";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +22,7 @@ export default async function PropostaPage({ params }) {
   if (!lida) notFound();
   const proposta = acesso.pode("dado.custo", "ver") ? lida : semCusto(lida);
 
-  const [transportadoras, condicoes] = await Promise.all([
+  const [transportadoras, condicoes, padroes] = await Promise.all([
     prisma.transportadora.findMany({
       where: { OR: [{ ativo: true }, ...(proposta.transportadoraId ? [{ id: proposta.transportadoraId }] : [])] },
       orderBy: { nome: "asc" },
@@ -32,6 +33,7 @@ export default async function PropostaPage({ params }) {
       orderBy: { nome: "asc" },
       select: { id: true, nome: true },
     }),
+    listarPadroes({ soAtivos: true }),
   ]);
 
   return (
@@ -40,6 +42,7 @@ export default async function PropostaPage({ params }) {
       propostaInicial={JSON.parse(JSON.stringify(proposta))}
       transportadoras={transportadoras}
       condicoes={condicoes}
+      padroes={JSON.parse(JSON.stringify(padroes))}
       podeEditar={acesso.pode("tela.propostas", "editar")}
       podePedidoDeVenda={acesso.pode("acao.propostas.pedidoDeVenda", "executar")}
     />

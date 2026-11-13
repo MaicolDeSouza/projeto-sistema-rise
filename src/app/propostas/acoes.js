@@ -125,6 +125,7 @@ async function clienteParaProposta(clienteId) {
       telefone: true,
       email: true,
       blingContatoId: true,
+      padraoPropostaId: true,
       transportadoraId: true,
       condicoesPreferidas: { orderBy: { nome: "asc" }, take: 1, select: { id: true } },
       contatos: { orderBy: { nome: "asc" }, select: { id: true, nome: true, cargo: true, telefone: true, email: true } },
