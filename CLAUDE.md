@@ -6207,6 +6207,25 @@ plano `docs/superpowers/plans/2026-11-12-propostas-para-cliente.md`. Menu **Prop
   real: o 1º envio é no ZZ-TESTE-BLING, com o OK do dono.** O pedido volta sozinho para Vendas pela leitura de 5 min.
 - **MCP** (só leitura): `listarPropostasParaCliente` e `lerPropostaParaCliente`, com `tela.propostas`; custo só com
   `dado.custo`; do cliente só o nome (nunca documento, telefone, e-mail ou endereço, como nos pedidos de venda).
+- **Padrões de proposta por tipo de cliente** (pedido do dono em 13/11/2026, na cotação do SENAI São Bernardo do Campo: "um
+  padrão para o Senai ... para Instituto Federal ... e o padrão para cliente comum"; commit 08e0dfb, migration `20261113b`,
+  aditiva). `PadraoDeProposta` (nome, validade em dias, forma e texto do pagamento, frete, garantia, observações, **exige
+  marca/modelo** e as **exigências** do cliente, uma por linha), tela `/propostas/padroes` (botão "Padrões" na lista, mesmo
+  acesso `tela.propostas`; padrão em uso por cliente não sai, só desativa). `Cliente.padraoPropostaId` (aba Dados adicionais
+  do cliente): ligar o cliente à proposta aplica o padrão dele se a proposta ainda não tem um; o select "Padrão do cliente"
+  no editor aplica na hora (`camposDoPadrao` em `regras.js`: validade = hoje + dias, pagamento, frete, garantia, observações;
+  campo vazio do padrão não apaga). As exigências aparecem num quadro âmbar no editor e **nunca vão ao PDF**. O item ganhou
+  **marca e modelo** (copiados do produto, editáveis): coluna "Marca / Modelo" no PDF quando o padrão exige ou algum item tem,
+  e o "Gerar PDF" trava com item sem marca ou modelo quando o padrão exige. A coluna "Cód. cliente" some sem código.
+  **Faturamento mínimo** em Dados da empresa (`faturamentoMinimo`, R$ 50,00 pela migration, dono: "Nosso faturamento mínimo
+  é R$50"): bloco "Faturamento mínimo" em toda proposta, "Valor para faturamento mínimo: R$ 50,00". A migration semeia os
+  padrões **SENAI** (30 dias, transferência, "depósito bancário, 15 dias da entrega, excluindo 10, 20 e 30", CIF, marca e
+  modelo, as 15 instruções do e-mail) e **Cliente comum**; o de Instituto Federal o dono cria quando tiver as regras.
+- **Ficha cadastral do cliente** (mesmo pedido: "criar o campo no cadastro do cliente para fazer o upload da ficha
+  cadastral"): `ArquivoDoCliente` (tipo FICHA_CADASTRAL ou OUTRO) em `dados/clientes/<clienteId>/`, conferido pelos bytes
+  (`prepararArquivo`, o mesmo da cotação anexada), enviado na hora no cadastro do cliente (aba Dados adicionais, só na
+  edição), download em `/api/clientes/arquivos/<id>` com `tela.cadastros.clientes` + `dado.pessoalDoCliente` (a ficha traz
+  dado pessoal); excluir o cliente apaga a pasta. Testes no `teste:propostas` (123).
 - **Fase 2 (não feita):** duplicar e revisões, aviso no Telegram no dia do contato e buscar dados pelo CNPJ.
 
 ## Peças próprias e ordem de produção (26/10/2026)
