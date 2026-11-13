@@ -164,14 +164,17 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     // Cliente e "Entregar em" lado a lado (o "Quoted To / Ship To" do modelo).
     const meia = (largura - 20) / 2;
     const yCliente = doc.y;
-    doc.font("Helvetica-Bold").fontSize(9).fillColor(TEXTO).text("Cliente:", MARGEM, yCliente);
+    // Titulos maiores e em azul (pedido do dono em 13/11/2026: "mais evidente"), com os nomes que ele escolheu.
+    doc.font("Helvetica-Bold").fontSize(12).fillColor(AZUL).text("Dados do cliente", MARGEM, yCliente);
+    doc.fillColor(TEXTO);
     doc.font("Helvetica-Bold").fontSize(10.5).text(conteudo.cliente.nome, MARGEM + 10, doc.y + 2, { width: meia - 10 });
     doc.font("Helvetica").fontSize(8.5);
     for (const linha of conteudo.cliente.linhas) doc.text(linha, MARGEM + 10, doc.y, { width: meia - 10 });
     if (conteudo.cliente.ac) doc.font("Helvetica-Bold").text(conteudo.cliente.ac, MARGEM + 10, doc.y, { width: meia - 10 });
     const fimDoCliente = doc.y;
     const xEntrega = MARGEM + meia + 20;
-    doc.font("Helvetica-Bold").fontSize(9).fillColor(TEXTO).text("Entregar em:", xEntrega, yCliente);
+    doc.font("Helvetica-Bold").fontSize(12).fillColor(AZUL).text("Endereço de entrega", xEntrega, yCliente);
+    doc.fillColor(TEXTO);
     doc.font("Helvetica").fontSize(8.5).text(conteudo.entrega.join("\n"), xEntrega + 10, doc.y + 2, { width: meia - 10 });
     doc.y = Math.max(fimDoCliente, doc.y) + 12;
 

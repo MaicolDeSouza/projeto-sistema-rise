@@ -47,7 +47,7 @@ a.contato:hover{text-decoration:underline}
 .faixa{margin-top:16px}
 .faixa td{text-align:center;white-space:pre-line}
 .faixa th{text-align:center}
-.rotulo{margin-top:22px;color:var(--cinza);font-size:11px;letter-spacing:.05em;text-transform:uppercase}
+.rotulo{margin-top:22px;margin-bottom:4px;color:#1f3d6b;font-size:16px;font-weight:700}
 .cliente{font-size:16px;font-weight:700}
 .rolagem{margin-top:16px;overflow-x:auto;-webkit-overflow-scrolling:touch}
 table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
@@ -98,8 +98,8 @@ export function htmlDaProposta(proposta, empresa, extras = {}) {
 <div class="info"><div>${c.empresa.map(escapar).join("<br>")}${c.site ? `<br><a href="${escapar(c.site.url)}">${escapar(c.site.texto)}</a>` : ""}</div>
 <div>${c.contatos.map(contatoEmHtml).join("")}</div>
 <div class="quadro">${c.quadro.map(([r, v]) => `<div><b>${escapar(r)}:</b> ${escapar(v)}</div>`).join("")}</div></div>
-<div class="partes"><div><div class="rotulo">Cliente</div><div class="cliente">${escapar(c.cliente.nome)}</div><div>${c.cliente.linhas.map(escapar).join("<br>")}${c.cliente.ac ? `<br><b>${escapar(c.cliente.ac)}</b>` : ""}</div></div>
-<div><div class="rotulo">Entregar em</div><div>${c.entrega.map(escapar).join("<br>")}</div></div></div>
+<div class="partes"><div><div class="rotulo">Dados do cliente</div><div class="cliente">${escapar(c.cliente.nome)}</div><div>${c.cliente.linhas.map(escapar).join("<br>")}${c.cliente.ac ? `<br><b>${escapar(c.cliente.ac)}</b>` : ""}</div></div>
+<div><div class="rotulo">Endereço de entrega</div><div>${c.entrega.map(escapar).join("<br>")}</div></div></div>
 <div class="rolagem faixa"><table><thead><tr>${c.faixa.map(([r]) => `<th>${escapar(r)}</th>`).join("")}</tr></thead><tbody><tr>${c.faixa.map(([, v]) => `<td>${escapar(v)}</td>`).join("")}</tr></tbody></table></div>
 <div class="rolagem"><table><thead><tr>${c.colunas.map((col) => `<th${DIREITA.has(col.chave) ? ' class="d"' : ""}>${escapar(col.titulo)}</th>`).join("")}</tr></thead><tbody>${linhas}</tbody></table></div>
 <div class="totais">${c.linhasDeTotal.map(([r, v]) => `<div><span>${escapar(r)}</span><span>${escapar(v)}</span></div>`).join("")}<div class="geral"><span>Total da proposta</span><span>${escapar(c.total)}</span></div></div>
