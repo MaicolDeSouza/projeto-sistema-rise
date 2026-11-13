@@ -58,10 +58,9 @@ td.foto{width:52px;padding:4px}
 td.foto img{display:block;width:40px;height:40px;object-fit:contain;margin:0 auto;outline:1px solid rgba(0,0,0,.08);outline-offset:-1px}
 td.desc{min-width:220px}
 tr.obs td{background:var(--obs);font-style:italic}
-.totais{margin:18px 0 0 auto;max-width:340px;border:1px solid var(--linha);font-variant-numeric:tabular-nums}
-.totais div{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:6px 12px;border-bottom:1px solid var(--linha)}
-.totais span:first-child{font-weight:700;text-align:right}
-.totais span:last-child{text-align:right}
+.totais{margin:18px 0 0 auto;width:290px;max-width:100%;border:1px solid var(--linha);font-variant-numeric:tabular-nums}
+.totais div{display:grid;grid-template-columns:120px 1fr;gap:8px;padding:6px 12px;border-bottom:1px solid var(--linha)}
+.totais span:first-child{font-weight:700}
 .totais .geral{border-bottom:0;background:var(--cab);font-size:17px;font-weight:700;padding:9px 12px}
 .condicao{margin-top:16px}
 .condicao b{display:block}

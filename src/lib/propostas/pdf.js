@@ -277,15 +277,18 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     // Quadro do total a direita, no molde da cotacao que o dono mandou (13/11/2026): caixa com Subtotal, Desconto, Frete e
     // Impostos, uma linha por valor, e o Total em destaque no fim.
     const LINHA_DO_TOTAL = 19;
-    const larguraDaCaixa = 250;
+    // Caixa estreita e tudo alinhado a esquerda (pedido do dono em 13/11/2026: "tirar aquele espacamento"): rotulo numa
+    // coluna, valor na outra, sem sobra antes do rotulo.
+    const larguraDaCaixa = 210;
+    const COLUNA_DO_VALOR = 92;
     const xCaixa = MARGEM + largura - larguraDaCaixa;
     const alturaDaCaixa = conteudo.linhasDeTotal.length * LINHA_DO_TOTAL + 26;
     doc.y += 12;
     if (doc.y + alturaDaCaixa > fundo()) doc.addPage();
     const yCaixa = doc.y;
     const linhaDoQuadro = (rotulo, valor, y, altura, tamanho) => {
-      doc.font("Helvetica-Bold").fontSize(tamanho).fillColor(TEXTO).text(rotulo, xCaixa + 10, y + (altura - tamanho) / 2 + 1, { width: 115, align: "right", lineBreak: false });
-      doc.font(tamanho > 10 ? "Helvetica-Bold" : "Helvetica").text(valor, xCaixa + 132, y + (altura - tamanho) / 2 + 1, { width: larguraDaCaixa - 142, align: "right", lineBreak: false });
+      doc.font("Helvetica-Bold").fontSize(tamanho).fillColor(TEXTO).text(rotulo, xCaixa + 10, y + (altura - tamanho) / 2 + 1, { width: COLUNA_DO_VALOR - 14, lineBreak: false });
+      doc.font(tamanho > 10 ? "Helvetica-Bold" : "Helvetica").text(valor, xCaixa + COLUNA_DO_VALOR, y + (altura - tamanho) / 2 + 1, { width: larguraDaCaixa - COLUNA_DO_VALOR - 10, lineBreak: false });
     };
     conteudo.linhasDeTotal.forEach(([rotulo, valor], i) => linhaDoQuadro(rotulo, valor, yCaixa + i * LINHA_DO_TOTAL, LINHA_DO_TOTAL, 9.5));
     const yDoTotal = yCaixa + conteudo.linhasDeTotal.length * LINHA_DO_TOTAL;
