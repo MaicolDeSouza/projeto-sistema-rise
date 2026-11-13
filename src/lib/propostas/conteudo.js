@@ -110,6 +110,25 @@ export function validadeEmDias(proposta) {
   return `${dias} ${dias === 1 ? "dia" : "dias"}`;
 }
 
+/**
+ * A coluna Garantia da faixa so com o prazo (pedido do dono em 13/11/2026: "apenas os dias, por exemplo, 90 dias"): o
+ * primeiro "N dias/meses/anos" do texto da garantia; texto sem prazo sai inteiro.
+ */
+export function prazoDaGarantia(garantia) {
+  const texto = String(garantia ?? "").trim();
+  if (!texto) return "—";
+  const achado = texto.match(/(\d+)\s*(dias?|m[eê]s|meses|anos?)(?![a-zà-ú])/i);
+  return achado ? `${achado[1]} ${achado[2].toLowerCase()}` : texto;
+}
+
+/** A linha "Frete" do quadro do total: o valor no CIF (zero = por nossa conta) e quem paga nos outros tipos. */
+function freteDoTotal(proposta, totais) {
+  if (proposta.fretePorConta === "CIF") return totais.frete > 0 ? moeda.format(totais.frete) : "Por nossa conta";
+  if (proposta.fretePorConta === "FOB") return "Por conta do cliente";
+  if (proposta.fretePorConta === "RETIRA") return "Cliente retira";
+  return "A combinar";
+}
+
 /** O "Método de envio" da faixa: o tipo de frete (com a explicacao), a transportadora, o valor no FOB e o prazo. */
 function metodoDeEnvio(proposta) {
   const partes = [TEXTO_DO_FRETE[proposta.fretePorConta]];
@@ -131,7 +150,10 @@ export function conteudoDaProposta(proposta, empresa) {
   const temCodigo = proposta.itens.some((item) => item.codigoCliente);
   const linhasDeTotal = [["Subtotal", moeda.format(totais.subtotal)]];
   if (totais.desconto > 0) linhasDeTotal.push(["Desconto", `− ${moeda.format(totais.desconto)}`]);
-  if (totais.frete > 0) linhasDeTotal.push(["Frete", moeda.format(totais.frete)]);
+  // Frete e impostos sempre no quadro do total (pedido do dono em 13/11/2026, no molde da cotacao da Hope): o valor so
+  // soma no CIF (regra do total); nos outros tipos a linha diz quem paga.
+  linhasDeTotal.push(["Frete", freteDoTotal(proposta, totais)]);
+  linhasDeTotal.push(["Impostos", "Inclusos"]);
 
   const notaFiscal = [proposta.ocCliente ? `Pedido de compra (OC): ${proposta.ocCliente}` : null, proposta.observacoesNf].filter(Boolean).join("\n");
 
@@ -162,7 +184,7 @@ export function conteudoDaProposta(proposta, empresa) {
       ["Prazo de entrega", prazoGeral(proposta.itens)],
       ["Método de envio", metodoDeEnvio(proposta)],
       // Garantia ao lado do metodo de envio (pedido do dono em 13/11/2026); saiu dos blocos de baixo.
-      ["Garantia", String(proposta.garantia ?? "").trim() || "—"],
+      ["Garantia", prazoDaGarantia(proposta.garantia)],
       ["Vendedor", proposta.criadoPorNome || "—"],
     ],
     colunas: COLUNAS.filter((c) => (c.chave !== "desconto" || temDesconto) && (c.chave !== "marca" || temMarca) && (c.chave !== "codigo" || temCodigo)),
@@ -184,7 +206,6 @@ export function conteudoDaProposta(proposta, empresa) {
     })),
     linhasDeTotal,
     total: moeda.format(totais.total),
-    impostos: "Impostos inclusos.",
     blocos,
   };
 }

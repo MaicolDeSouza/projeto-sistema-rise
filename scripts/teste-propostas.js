@@ -389,6 +389,17 @@ try {
     [["fone", null], ["whatsapp", "https://wa.me/5554981222300"], ["whatsapp", "https://wa.me/5554996050390"], ["email", null]],
   );
   conferir("PDF: faixa com validade, pagamento, prazo, envio e vendedor", conteudo.faixa.map(([r]) => r), ["Validade da proposta", "Condições de pagamento", "Prazo de entrega", "Método de envio", "Garantia", "Vendedor"]);
+  conferir(
+    "PDF: quadro do total com frete e impostos",
+    [conteudo.linhasDeTotal.map(([r]) => r).slice(-2), conteudoDaProposta({ ...paraPdf, fretePorConta: "FOB" }, empresaFalsa).linhasDeTotal.find(([r]) => r === "Frete")[1]],
+    [["Frete", "Impostos"], "Por conta do cliente"],
+  );
+  const { prazoDaGarantia } = await import("../src/lib/propostas/conteudo.js");
+  conferir(
+    "PDF: garantia so com o prazo",
+    [prazoDaGarantia("Garantia de 90 dias contra defeito de fabricação."), prazoDaGarantia("12 meses"), prazoDaGarantia("Sem garantia"), prazoDaGarantia("")],
+    ["90 dias", "12 meses", "Sem garantia", "—"],
+  );
   const { validadeEmDias } = await import("../src/lib/propostas/conteudo.js");
   conferir(
     "PDF: validade em dias a partir da data da proposta",

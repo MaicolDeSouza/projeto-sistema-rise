@@ -58,12 +58,11 @@ td.foto{width:52px;padding:4px}
 td.foto img{display:block;width:40px;height:40px;object-fit:contain;margin:0 auto;outline:1px solid rgba(0,0,0,.08);outline-offset:-1px}
 td.desc{min-width:220px}
 tr.obs td{background:var(--obs);font-style:italic}
-.totais{margin:16px 0 0 auto;max-width:360px;font-variant-numeric:tabular-nums}
-.totais div{display:flex;justify-content:space-between;gap:16px;padding:2px 0}
-.totais span:first-child{color:var(--cinza)}
-.totais .geral{margin-top:4px;font-size:17px;font-weight:700}
-.totais .geral span:first-child{color:var(--texto)}
-.impostos{text-align:right;color:var(--cinza);font-size:12px}
+.totais{margin:18px 0 0 auto;max-width:340px;border:1px solid var(--linha);font-variant-numeric:tabular-nums}
+.totais div{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:6px 12px;border-bottom:1px solid var(--linha)}
+.totais span:first-child{font-weight:700;text-align:right}
+.totais span:last-child{text-align:right}
+.totais .geral{border-bottom:0;background:var(--cab);font-size:17px;font-weight:700;padding:9px 12px}
 .condicao{margin-top:16px}
 .condicao b{display:block}
 .condicao p{margin:2px 0 0;white-space:pre-line}
@@ -102,8 +101,7 @@ export function htmlDaProposta(proposta, empresa, extras = {}) {
 <div><div class="rotulo">Endereço de entrega</div><div>${c.entrega.map(escapar).join("<br>")}</div></div></div>
 <div class="rolagem faixa"><table><thead><tr>${c.faixa.map(([r]) => `<th>${escapar(r)}</th>`).join("")}</tr></thead><tbody><tr>${c.faixa.map(([, v]) => `<td>${escapar(v)}</td>`).join("")}</tr></tbody></table></div>
 <div class="rolagem"><table><thead><tr>${c.colunas.map((col) => `<th${DIREITA.has(col.chave) ? ' class="d"' : ""}>${escapar(col.titulo)}</th>`).join("")}</tr></thead><tbody>${linhas}</tbody></table></div>
-<div class="totais">${c.linhasDeTotal.map(([r, v]) => `<div><span>${escapar(r)}</span><span>${escapar(v)}</span></div>`).join("")}<div class="geral"><span>Total da proposta</span><span>${escapar(c.total)}</span></div></div>
-<p class="impostos">${escapar(c.impostos)}</p>
+<div class="totais">${c.linhasDeTotal.map(([r, v]) => `<div><span>${escapar(r)}</span><span>${escapar(v)}</span></div>`).join("")}<div class="geral"><span>Total (R$)</span><span>${escapar(c.total)}</span></div></div>
 ${c.blocos.map(([r, v]) => `<div class="condicao"><b>${escapar(r)}</b><p>${escapar(v)}</p></div>`).join("")}
 </div></main></body></html>`;
 }

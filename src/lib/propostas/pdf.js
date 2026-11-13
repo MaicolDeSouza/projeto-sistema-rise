@@ -274,20 +274,28 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
       doc.y = y + bloco;
     }
 
-    // Totais a direita.
-    if (doc.y + (conteudo.linhasDeTotal.length + 3) * 14 > fundo()) doc.addPage();
-    doc.moveDown(0.8);
-    for (const [rotulo, valor] of conteudo.linhasDeTotal) {
-      const y = doc.y;
-      doc.font("Helvetica").fontSize(9).fillColor(CINZA).text(rotulo, MARGEM + largura - 260, y, { width: 160, align: "right" });
-      doc.fillColor(TEXTO).text(valor, MARGEM + largura - 95, y, { width: 95, align: "right" });
-      doc.y = y + 13;
-    }
-    const yTotal = doc.y + 2;
-    doc.font("Helvetica-Bold").fontSize(12).fillColor(TEXTO).text("Total da proposta", MARGEM + largura - 260, yTotal, { width: 160, align: "right" });
-    doc.text(conteudo.total, MARGEM + largura - 95, yTotal, { width: 95, align: "right" });
-    doc.font("Helvetica").fontSize(8).fillColor(CINZA).text(conteudo.impostos, MARGEM + largura - 260, yTotal + 16, { width: 255, align: "right" });
-    doc.y = yTotal + 34;
+    // Quadro do total a direita, no molde da cotacao que o dono mandou (13/11/2026): caixa com Subtotal, Desconto, Frete e
+    // Impostos, uma linha por valor, e o Total em destaque no fim.
+    const LINHA_DO_TOTAL = 19;
+    const larguraDaCaixa = 250;
+    const xCaixa = MARGEM + largura - larguraDaCaixa;
+    const alturaDaCaixa = conteudo.linhasDeTotal.length * LINHA_DO_TOTAL + 26;
+    doc.y += 12;
+    if (doc.y + alturaDaCaixa > fundo()) doc.addPage();
+    const yCaixa = doc.y;
+    const linhaDoQuadro = (rotulo, valor, y, altura, tamanho) => {
+      doc.font("Helvetica-Bold").fontSize(tamanho).fillColor(TEXTO).text(rotulo, xCaixa + 10, y + (altura - tamanho) / 2 + 1, { width: 115, align: "right", lineBreak: false });
+      doc.font(tamanho > 10 ? "Helvetica-Bold" : "Helvetica").text(valor, xCaixa + 132, y + (altura - tamanho) / 2 + 1, { width: larguraDaCaixa - 142, align: "right", lineBreak: false });
+    };
+    conteudo.linhasDeTotal.forEach(([rotulo, valor], i) => linhaDoQuadro(rotulo, valor, yCaixa + i * LINHA_DO_TOTAL, LINHA_DO_TOTAL, 9.5));
+    const yDoTotal = yCaixa + conteudo.linhasDeTotal.length * LINHA_DO_TOTAL;
+    doc.rect(xCaixa, yDoTotal, larguraDaCaixa, 26).fill(FUNDO_DO_CABECALHO);
+    linhaDoQuadro("Total (R$)", conteudo.total, yDoTotal, 26, 12);
+    doc.lineWidth(0.5).strokeColor(LINHA);
+    for (let i = 1; i <= conteudo.linhasDeTotal.length; i++) doc.moveTo(xCaixa, yCaixa + i * LINHA_DO_TOTAL).lineTo(xCaixa + larguraDaCaixa, yCaixa + i * LINHA_DO_TOTAL).stroke();
+    doc.rect(xCaixa, yCaixa, larguraDaCaixa, alturaDaCaixa).stroke();
+    doc.x = MARGEM;
+    doc.y = yCaixa + alturaDaCaixa + 16;
 
     // Condicoes.
     for (const [rotulo, valor] of conteudo.blocos) {
