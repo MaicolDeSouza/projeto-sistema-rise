@@ -388,7 +388,7 @@ try {
     conteudo.contatos.map((ct) => [ct.tipo, ct.url]),
     [["fone", null], ["whatsapp", "https://wa.me/5554981222300"], ["whatsapp", "https://wa.me/5554996050390"], ["email", null]],
   );
-  conferir("PDF: faixa com validade, pagamento, prazo, envio e vendedor", conteudo.faixa.map(([r]) => r), ["Validade da proposta", "Condições de pagamento", "Prazo de entrega", "Método de envio", "Vendedor"]);
+  conferir("PDF: faixa com validade, pagamento, prazo, envio e vendedor", conteudo.faixa.map(([r]) => r), ["Validade da proposta", "Condições de pagamento", "Prazo de entrega", "Método de envio", "Garantia", "Vendedor"]);
   const { validadeEmDias } = await import("../src/lib/propostas/conteudo.js");
   conferir(
     "PDF: validade em dias a partir da data da proposta",

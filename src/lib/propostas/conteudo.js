@@ -139,7 +139,6 @@ export function conteudoDaProposta(proposta, empresa) {
   const blocos = [
     ["Para a nota fiscal", notaFiscal],
     ["Observações", proposta.observacoesCliente],
-    ["Garantia", proposta.garantia],
     ["Faturamento mínimo", textoDoFaturamentoMinimo(empresa?.faturamentoMinimo)],
   ].filter(([, valor]) => String(valor ?? "").trim());
 
@@ -162,6 +161,8 @@ export function conteudoDaProposta(proposta, empresa) {
       ["Condições de pagamento", textoDoPagamento(proposta) || "A combinar"],
       ["Prazo de entrega", prazoGeral(proposta.itens)],
       ["Método de envio", metodoDeEnvio(proposta)],
+      // Garantia ao lado do metodo de envio (pedido do dono em 13/11/2026); saiu dos blocos de baixo.
+      ["Garantia", String(proposta.garantia ?? "").trim() || "—"],
       ["Vendedor", proposta.criadoPorNome || "—"],
     ],
     colunas: COLUNAS.filter((c) => (c.chave !== "desconto" || temDesconto) && (c.chave !== "marca" || temMarca) && (c.chave !== "codigo" || temCodigo)),

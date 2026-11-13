@@ -28,8 +28,8 @@ const LOGO_ALTURA = 54;
 const AZUL = "#1f3d6b";
 const AZUL_LINK = "#1d4ed8";
 const TEXTO_SUAVE = "#374151";
-// Validade, Condicoes de pagamento, Prazo de entrega, Metodo de envio, Vendedor.
-const PESOS_DA_FAIXA = [102, 120, 80, 143, 78];
+// Validade, Condicoes de pagamento, Prazo de entrega, Metodo de envio, Garantia, Vendedor (o titulo cabe numa linha).
+const PESOS_DA_FAIXA = [100, 112, 80, 92, 82, 57];
 const VERDE_WHATSAPP = "#25d366";
 // Desenhos 24x24 do lucide (os mesmos icones da tela): telefone e envelope.
 const TELEFONE =
