@@ -128,8 +128,8 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
 
     // O logo da 4hobby e largo (engrenagem + nome): as tres colunas comecam embaixo dele e usam a largura toda.
     const yInfo = Math.max(yLinha + 12, topo + LOGO_ALTURA + 6);
-    const larguraDoQuadro = 118;
-    const larguraDosContatos = 175;
+    const larguraDoQuadro = 150;
+    const larguraDosContatos = 172;
     const larguraDoEndereco = largura - larguraDoQuadro - larguraDosContatos - 24;
     doc.font("Helvetica").fontSize(7.8).fillColor(TEXTO_SUAVE);
     let yEndereco = yInfo;
@@ -150,10 +150,14 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     }
     const xQuadro = MARGEM + largura - larguraDoQuadro;
     let yQuadro = yInfo;
+    // "Número da proposta: 2026" com o valor logo depois do rotulo, maior e junto (pedido do dono em 13/11/2026: o valor
+    // encostado na margem direita ficava longe do rotulo); o bloco encosta na direita pela linha mais larga.
+    const larguraDaLinha = ([rotulo, valor]) => doc.font("Helvetica-Bold").fontSize(10).widthOfString(`${rotulo}: `) + doc.font("Helvetica").fontSize(10).widthOfString(valor);
+    const xDoBloco = Math.max(xQuadro, MARGEM + largura - Math.max(...conteudo.quadro.map(larguraDaLinha)));
     for (const [rotulo, valor] of conteudo.quadro) {
-      doc.font("Helvetica-Bold").fontSize(8.5).fillColor(TEXTO).text(rotulo, xQuadro, yQuadro, { width: larguraDoQuadro, lineBreak: false });
-      doc.font("Helvetica").text(valor, xQuadro, yQuadro, { width: larguraDoQuadro, align: "right", lineBreak: false });
-      yQuadro += 14;
+      doc.font("Helvetica-Bold").fontSize(10).fillColor(TEXTO).text(`${rotulo}: `, xDoBloco, yQuadro, { continued: true, lineBreak: false });
+      doc.font("Helvetica").text(valor, { lineBreak: false });
+      yQuadro += 15;
     }
     doc.y = Math.max(topo + LOGO_ALTURA, yEndereco, yContatos, yQuadro) + 14;
 

@@ -129,8 +129,8 @@ export function conteudoDaProposta(proposta, empresa) {
     titulo: numeroDaProposta(proposta.numero),
     nomeDaEmpresa: NOME_NO_CABECALHO,
     quadro: [
-      ["Número", String(proposta.numero)],
-      ["Data", dataBR(new Date(proposta.atualizadoEm ?? proposta.criadoEm))],
+      ["Número da proposta", String(proposta.numero)],
+      ["Data da proposta", dataBR(new Date(proposta.atualizadoEm ?? proposta.criadoEm))],
     ],
     empresa: empresaNoCabecalho.linhas,
     site: empresaNoCabecalho.site,

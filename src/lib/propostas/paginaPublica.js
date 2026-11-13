@@ -21,11 +21,12 @@ header img{height:54px;max-width:170px;object-fit:contain;display:block}
 .nome{flex:1;min-width:220px;border-bottom:4px double #1f3d6b;padding-bottom:6px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
 .nome b{font-size:18px}
 h1{margin:0;font-size:22px}
-.info{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 24px;margin-top:12px;color:#374151;font-size:12px}
+.info{display:grid;grid-template-columns:1.2fr 1.2fr auto;gap:12px 24px;margin-top:12px;color:#374151;font-size:12px}
 .info a{color:#1d4ed8}
 .contato{display:block;color:#374151;text-decoration:none}
 .contato.zap::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#25d366;margin-right:6px}
-.quadro div{display:flex;justify-content:space-between;gap:12px}
+.quadro{font-size:14px;text-align:right}
+.quadro div{white-space:nowrap}
 .partes{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px 24px}
 .faixa{margin-top:16px}
 .faixa td{text-align:center;white-space:pre-line}
@@ -50,7 +51,7 @@ tr.obs td{background:var(--obs);font-style:italic}
 .condicao{margin-top:16px}
 .condicao b{display:block}
 .condicao p{margin:2px 0 0;white-space:pre-line}
-@media (max-width:640px){.folha{padding:16px}}
+@media (max-width:640px){.folha{padding:16px}.info{grid-template-columns:1fr}.quadro{text-align:left}}
 `;
 
 /** @param {object} proposta `lerProposta`; @param {{ logo?: Buffer|null, fotos?: Record<string, Buffer|null> }} extras */
@@ -80,7 +81,7 @@ export function htmlDaProposta(proposta, empresa, extras = {}) {
 <header>${logo ? `<img src="${logo}" alt="">` : ""}<div class="nome"><b>${escapar(c.nomeDaEmpresa)}</b><h1>PROPOSTA</h1></div></header>
 <div class="info"><div>${c.empresa.map(escapar).join("<br>")}${c.site ? `<br><a href="${escapar(c.site.url)}">${escapar(c.site.texto)}</a>` : ""}</div>
 <div>${c.contatos.map((ct) => `<a class="contato${ct.tipo === "whatsapp" ? " zap" : ""}" href="${escapar(ct.url)}">${escapar(ct.texto)}</a>`).join("")}</div>
-<div class="quadro">${c.quadro.map(([r, v]) => `<div><b>${escapar(r)}</b><span>${escapar(v)}</span></div>`).join("")}</div></div>
+<div class="quadro">${c.quadro.map(([r, v]) => `<div><b>${escapar(r)}:</b> ${escapar(v)}</div>`).join("")}</div></div>
 <div class="partes"><div><div class="rotulo">Cliente</div><div class="cliente">${escapar(c.cliente.nome)}</div><div>${c.cliente.linhas.map(escapar).join("<br>")}${c.cliente.ac ? `<br><b>${escapar(c.cliente.ac)}</b>` : ""}</div></div>
 <div><div class="rotulo">Entregar em</div><div>${c.entrega.map(escapar).join("<br>")}</div></div></div>
 <div class="rolagem faixa"><table><thead><tr>${c.faixa.map(([r]) => `<th>${escapar(r)}</th>`).join("")}</tr></thead><tbody><tr>${c.faixa.map(([, v]) => `<td>${escapar(v)}</td>`).join("")}</tr></tbody></table></div>
