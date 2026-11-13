@@ -6197,6 +6197,12 @@ plano `docs/superpowers/plans/2026-11-12-propostas-para-cliente.md`. Menu **Prop
   dos blocos de baixo. Dados da empresa ganhou **WhatsApp técnico** e **Site** (migration `20261113_empresa_site_whatsapp`,
   já preenchida: (54) 99605-0390 e www.4hobby.com.br; "Celular / WhatsApp" virou "WhatsApp comercial"). A página do link
   público segue o mesmo desenho.
+- **Foto do item avulso** (pedido do dono em 13/11/2026, na proposta da Fundação Coppetec: itens comprados no ML só para o
+  cliente): no editor, a caixa da foto do avulso é um botão (ícone de imagem) que envia JPG/PNG/WebP na hora para
+  `dados/propostas/<propostaId>/fotos/<32 hex>.jpg` (`gravarFotoDoItem`, reduzida a 600 px sobre branco); o "x" tira. O
+  item guarda o nome na coluna `foto` só no Salvar, e o Salvar só aceita nome que existe na pasta DESTA proposta
+  (`fotosDaProposta`). A tela lê pela rota `/api/propostas/<numero>/fotos/<nome>` (acesso `tela.propostas` ver); o PDF e o
+  link público leem o arquivo direto (`fotoDoItem` em `pdf.js`). Item com produto continua com a foto do cadastro.
 - **Cotação anexada** (`lib/propostas/arquivos.js`): PDF, imagem ou planilha conferidos pelos bytes, até 20 MB, em
   `dados/propostas/<id>/cotacao/`; download em `/api/propostas/anexos/<id>`.
 - **Pedido de venda no Bling** (`lib/propostas/pedidoDeVenda.js`), só na Aprovada: exige cliente cadastrado e todo item

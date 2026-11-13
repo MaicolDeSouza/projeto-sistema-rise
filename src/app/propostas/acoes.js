@@ -177,6 +177,14 @@ export async function anexarCotacaoAcao(formData) {
   return { ok: true, proposta: await propostaParaQuemVe(formData.get("numero")) };
 }
 
+/** Foto do item avulso: grava na pasta da proposta e devolve o nome; o item so a guarda no proximo Salvar. */
+export async function enviarFotoDoItemAcao(formData) {
+  const negado = await negarSemAcesso("tela.propostas", "editar");
+  if (negado) return negado;
+  const { gravarFotoDoItem } = await import("@/lib/propostas/arquivos");
+  return gravarFotoDoItem(String(formData.get("numero") ?? ""), formData.get("foto"));
+}
+
 export async function excluirAnexoAcao(numero, anexoId) {
   const negado = await negarSemAcesso("tela.propostas", "editar");
   if (negado) return negado;

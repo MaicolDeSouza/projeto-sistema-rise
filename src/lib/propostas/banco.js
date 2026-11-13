@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { urlDe } from "@/lib/arquivos";
+import { fotosDaProposta, urlDaFotoDoItem } from "@/lib/propostas/arquivos";
 import { garantirClienteDaProposta } from "@/lib/propostas/cliente";
 import { conferirProposta, conferirSituacao } from "@/lib/propostas/esquema";
 import {
@@ -94,7 +95,8 @@ export function propostaParaTela(proposta, { hoje = hojeEmSaoPaulo() } = {}) {
     codigoInterno: item.codigoInterno,
     nomeInterno: item.nomeInterno,
     foto: item.foto,
-    fotoUrl: item.foto && item.produto?.sku ? urlDe(item.produto.sku, "IMAGEM", item.foto) : null,
+    // Com produto, a foto e do cadastro; sem produto (avulso), a enviada a mao na pasta da proposta.
+    fotoUrl: !item.foto ? null : item.produto?.sku ? urlDe(item.produto.sku, "IMAGEM", item.foto) : item.produtoId ? null : urlDaFotoDoItem(proposta.numero, item.foto),
     quantidade: numero(item.quantidade),
     unidade: item.unidade,
     precoUnitario: numero(item.precoUnitario),
@@ -307,6 +309,8 @@ export async function salvarProposta(numeroDaProposta, entrada, { manterCusto = 
   );
 
   const voltaDeVencida = atual.situacao === "VENCIDA" && dados.validadeAte >= hoje;
+  // A foto do avulso so fica se o arquivo esta na pasta DESTA proposta (o nome veio do navegador).
+  const fotosEnviadas = await fotosDaProposta(atual.id);
 
   await prisma.$transaction(async (tx) => {
     await tx.itemDaPropostaParaCliente.deleteMany({ where: { propostaId: atual.id } });
@@ -321,7 +325,7 @@ export async function salvarProposta(numeroDaProposta, entrada, { manterCusto = 
           modelo: item.modelo,
           codigoInterno: item.codigoInterno,
           nomeInterno: item.nomeInterno,
-          foto: item.produtoId && produtosExistem.has(item.produtoId) ? item.foto : null,
+          foto: item.produtoId && produtosExistem.has(item.produtoId) ? item.foto : !item.produtoId && fotosEnviadas.has(item.foto) ? item.foto : null,
           quantidade: item.quantidade,
           unidade: item.unidade,
           precoUnitario: item.precoUnitario,

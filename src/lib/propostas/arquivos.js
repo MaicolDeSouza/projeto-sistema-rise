@@ -66,6 +66,62 @@ export function caminhoDoAnexo(propostaId, nome) {
   return path.join(RAIZ_PROPOSTAS, propostaId, PASTA, nome);
 }
 
+/**
+ * Foto do item AVULSO (pedido do dono em 13/11/2026: o item comprado so para o cliente, sem cadastro no Rise, tambem
+ * sai com foto no PDF e no link). Fica em dados/propostas/<propostaId>/fotos/<32 hex>.jpg, ja reduzida a 600 px em JPEG
+ * sobre branco; o nome vai na coluna `foto` do item. Os itens sao regravados a cada Salvar, entao a foto e da PROPOSTA
+ * (o Salvar so aceita nome que existe nesta pasta) e sai junto com a pasta quando a proposta e excluida.
+ */
+const PASTA_FOTOS = "fotos";
+export const NOME_DA_FOTO_DO_ITEM = /^[0-9a-f]{32}\.jpg$/;
+const IMAGENS = [".jpg", ".png", ".webp"];
+
+export function caminhoDaFotoDoItem(propostaId, nome) {
+  if (!ID.test(propostaId ?? "") || !NOME_DA_FOTO_DO_ITEM.test(nome ?? "")) throw new Error("Caminho de foto inválido.");
+  return path.join(RAIZ_PROPOSTAS, propostaId, PASTA_FOTOS, nome);
+}
+
+/** Endereco da foto do item avulso para a tela (a rota confere o acesso). */
+export const urlDaFotoDoItem = (numero, nome) => `/api/propostas/${numero}/fotos/${nome}`;
+
+export async function gravarFotoDoItem(numeroDaProposta, arquivo) {
+  const proposta = await prisma.propostaParaCliente.findUnique({ where: { numero: Number(numeroDaProposta) || 0 }, select: { id: true, numero: true } });
+  if (!proposta) return { ok: false, erro: "Proposta não encontrada." };
+  if (!arquivo || typeof arquivo.arrayBuffer !== "function" || !arquivo.size) return { ok: false, erro: "Nenhuma imagem enviada." };
+  const preparado = await prepararArquivo(arquivo, "foto");
+  if (preparado.erro) return { ok: false, erro: preparado.erro };
+  if (!IMAGENS.includes(path.extname(preparado.nome))) return { ok: false, erro: `${preparado.nomeOriginal}: envie uma imagem (JPG, PNG ou WebP).` };
+  const { default: sharp } = await import("sharp");
+  let bytes;
+  try {
+    bytes = await sharp(preparado.bytes).rotate().resize(600, 600, { fit: "inside", withoutEnlargement: true }).flatten({ background: "#ffffff" }).jpeg({ quality: 85 }).toBuffer();
+  } catch {
+    return { ok: false, erro: `${preparado.nomeOriginal}: não foi possível ler a imagem.` };
+  }
+  const nome = `${preparado.nome.slice(0, 32)}.jpg`;
+  const destino = caminhoDaFotoDoItem(proposta.id, nome);
+  await mkdir(path.dirname(destino), { recursive: true });
+  await writeFile(destino, bytes);
+  return { ok: true, foto: nome, fotoUrl: urlDaFotoDoItem(proposta.numero, nome) };
+}
+
+/** Os bytes da foto do item avulso (rota da tela e PDF). Nulo quando o nome nao vale ou o arquivo nao existe. */
+export async function lerFotoDoItem(propostaId, nome) {
+  try {
+    return await readFile(caminhoDaFotoDoItem(propostaId, nome));
+  } catch {
+    return null;
+  }
+}
+
+/** Os nomes de foto que existem na pasta da proposta (o Salvar so grava estes no item avulso). */
+export async function fotosDaProposta(propostaId) {
+  if (!ID.test(propostaId ?? "")) return new Set();
+  const { readdir } = await import("node:fs/promises");
+  const nomes = await readdir(path.join(RAIZ_PROPOSTAS, propostaId, PASTA_FOTOS)).catch(() => []);
+  return new Set(nomes.filter((n) => NOME_DA_FOTO_DO_ITEM.test(n)));
+}
+
 export async function apagarPastaDaProposta(propostaId) {
   if (!ID.test(propostaId ?? "")) return;
   await rm(path.join(RAIZ_PROPOSTAS, propostaId), { recursive: true, force: true });

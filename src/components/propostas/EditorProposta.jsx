@@ -337,7 +337,7 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
           </details>
         )}
 
-        <ItensDaProposta exigeMarcaModelo={exigeMarcaModelo} itens={formulario.itens} editar={editar} veCusto={veCusto} erros={erros} aoMudar={mudar} aoTrocar={(itens) => mudar("itens", itens)} aoErro={setErroGeral} />
+        <ItensDaProposta numero={proposta.numero} exigeMarcaModelo={exigeMarcaModelo} itens={formulario.itens} editar={editar} veCusto={veCusto} erros={erros} aoMudar={mudar} aoTrocar={(itens) => mudar("itens", itens)} aoErro={setErroGeral} />
 
         <CartaoTotais formulario={formulario} totais={totais} editar={editar} erros={erros} aoMudar={mudar} veCusto={veCusto} />
 

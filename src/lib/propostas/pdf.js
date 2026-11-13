@@ -6,6 +6,7 @@ import sharp from "sharp";
 import { caminhoDe } from "@/lib/arquivos";
 import { logoDaEmpresa } from "@/lib/compras/dadosDoPdf";
 import { paraFonteDoPdf } from "@/lib/compras/pdf";
+import { lerFotoDoItem } from "@/lib/propostas/arquivos";
 import { conteudoDaProposta } from "@/lib/propostas/conteudo";
 
 /**
@@ -55,11 +56,15 @@ function desenharIcone(doc, tipo, x, y, tamanho) {
 const LARGURAS = { item: 22, foto: FOTO + RESPIRO * 2, descricao: 0, codigo: 62, marca: 74, qtde: 36, un: 26, preco: 58, desconto: 34, total: 62, prazo: 68 };
 const ALINHAR = { item: "center", foto: "center", qtde: "right", un: "center", preco: "right", desconto: "right", total: "right" };
 
-/** A foto do produto do Rise em JPEG pequeno sobre branco (o pdfkit so desenha JPEG e PNG; a foto pode ser WebP). */
-async function fotoDoItem(item) {
-  if (!item.sku || !item.foto) return null;
+/**
+ * A foto do item em JPEG pequeno sobre branco (o pdfkit so desenha JPEG e PNG; a foto pode ser WebP): a do produto do
+ * Rise ou, no item avulso, a enviada a mao na pasta da proposta.
+ */
+async function fotoDoItem(item, propostaId) {
+  if (!item.foto) return null;
   try {
-    const bytes = await readFile(caminhoDe(item.sku, "IMAGEM", item.foto));
+    const bytes = item.sku ? await readFile(caminhoDe(item.sku, "IMAGEM", item.foto)) : !item.produtoId ? await lerFotoDoItem(propostaId, item.foto) : null;
+    if (!bytes) return null;
     return await sharp(bytes).resize(96, 96, { fit: "contain", background: "#ffffff" }).flatten({ background: "#ffffff" }).jpeg({ quality: 82 }).toBuffer();
   } catch {
     return null;
@@ -68,7 +73,7 @@ async function fotoDoItem(item) {
 
 /** Logo e fotos: nada aqui derruba o PDF (foto que falta sai em branco). */
 export async function dadosDoPdfDaProposta(proposta) {
-  const [logo, ...fotos] = await Promise.all([logoDaEmpresa().catch(() => null), ...proposta.itens.map(fotoDoItem)]);
+  const [logo, ...fotos] = await Promise.all([logoDaEmpresa().catch(() => null), ...proposta.itens.map((item) => fotoDoItem(item, proposta.id))]);
   return { logo, fotos: Object.fromEntries(proposta.itens.map((item, i) => [item.id, fotos[i]])) };
 }
 

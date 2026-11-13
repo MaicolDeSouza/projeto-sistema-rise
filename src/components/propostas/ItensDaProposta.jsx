@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, PackagePlus, Plus, Search, Trash2 } from "lucide-react";
+import { ImagePlus, Loader2, PackagePlus, Plus, Search, Trash2, X } from "lucide-react";
 
-import { buscarProdutosAcao, produtoParaPropostaAcao } from "@/app/propostas/acoes";
+import { buscarProdutosAcao, enviarFotoDoItemAcao, produtoParaPropostaAcao } from "@/app/propostas/acoes";
 import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
 import FotoComLupa from "@/components/ui/FotoComLupa";
 import { UNIDADES_DA_PROPOSTA, markupDoItem, totalDoItem } from "@/lib/propostas/regras";
@@ -74,14 +74,47 @@ function BuscaDeProduto({ aoEscolher, aoAvulso }) {
 }
 
 /**
+ * Foto do item AVULSO (13/11/2026): clicar escolhe a imagem, que vai na hora para a pasta da proposta; o item a guarda
+ * no Salvar. Com foto, o "x" tira (o arquivo fica na pasta ate a proposta ser excluida).
+ */
+function FotoDoAvulso({ numero, item, aoMudar, aoErro }) {
+  const [enviando, setEnviando] = useState(false);
+  async function enviar(arquivo) {
+    if (!arquivo) return;
+    setEnviando(true);
+    const dados = new FormData();
+    dados.set("numero", String(numero));
+    dados.set("foto", arquivo);
+    const resposta = await enviarFotoDoItemAcao(dados).catch(() => null);
+    setEnviando(false);
+    if (!resposta?.ok) return aoErro(resposta?.erro ?? "Não foi possível enviar a foto.");
+    aoMudar({ foto: resposta.foto, fotoUrl: resposta.fotoUrl });
+  }
+  return (
+    <div className="relative h-10 w-10">
+      <label className="flex h-10 w-10 cursor-pointer items-center justify-center overflow-hidden rounded border border-dashed border-borda bg-fundo text-suave hover:border-acento hover:text-acento" title={item.fotoUrl ? "Trocar a foto" : "Enviar foto do item"}>
+        {enviando ? <Loader2 size={16} className="animate-spin" /> : item.fotoUrl ? <img src={item.fotoUrl} alt="" className="h-full w-full object-contain" /> : <ImagePlus size={16} />}
+        <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={enviando} onChange={(e) => { enviar(e.target.files?.[0]); e.target.value = ""; }} />
+      </label>
+      {item.fotoUrl && !enviando && (
+        <button type="button" onClick={() => aoMudar({ foto: null, fotoUrl: null })} title="Tirar a foto" aria-label="Tirar a foto" className="absolute -top-1.5 -right-1.5 rounded-full border border-borda bg-superficie p-0.5 text-suave hover:text-rose-600">
+          <X size={10} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
  * Os itens da proposta. O operador ve primeiro a DESCRICAO DO CLIENTE (a que sai no PDF), o codigo do cliente, a
  * quantidade e o total; nosso codigo fica pequeno embaixo, so na tela. Custo e lucro (markup) so para quem ve custo.
  */
-export default function ItensDaProposta({ itens, editar, veCusto, erros, aoMudar, aoTrocar, aoErro, exigeMarcaModelo = false }) {
+export default function ItensDaProposta({ numero, itens, editar, veCusto, erros, aoMudar, aoTrocar, aoErro, exigeMarcaModelo = false }) {
   const [adicionando, setAdicionando] = useState(false);
   const [obsAberta, setObsAberta] = useState(null);
 
   const mudarItem = (indice, campo, valor) => aoTrocar(itens.map((item, i) => (i === indice ? { ...item, [campo]: valor } : item)));
+  const mudarCampos = (indice, campos) => aoTrocar(itens.map((item, i) => (i === indice ? { ...item, ...campos } : item)));
   const remover = (indice) => aoTrocar(itens.filter((_, i) => i !== indice));
 
   async function adicionarProduto(produtoId) {
@@ -147,7 +180,13 @@ export default function ItensDaProposta({ itens, editar, veCusto, erros, aoMudar
                 return (
                   <tr key={item.chave} className="align-top">
                     <td className="px-2 py-2 pl-4">
-                      {item.fotoUrl ? <FotoComLupa src={item.fotoUrl} alt={item.nomeInterno ?? ""} className="h-10 w-10" /> : <span className="block h-10 w-10 rounded bg-fundo" />}
+                      {editar && !item.produtoId ? (
+                        <FotoDoAvulso numero={numero} item={item} aoMudar={(campos) => mudarCampos(indice, campos)} aoErro={aoErro} />
+                      ) : item.fotoUrl ? (
+                        <FotoComLupa src={item.fotoUrl} alt={item.nomeInterno ?? ""} className="h-10 w-10" />
+                      ) : (
+                        <span className="block h-10 w-10 rounded bg-fundo" />
+                      )}
                     </td>
                     <td className="px-2 py-2">
                       <div className="flex items-start gap-1.5">

@@ -360,6 +360,31 @@ try {
   await arquivos.excluirAnexo(p2.numero, anexos[0].id);
   conferir("exclui o anexo", (await banco.lerProposta(p2.numero)).anexos.length, 1);
 
+  // Foto do item AVULSO (13/11/2026): vai para a pasta da proposta, o Salvar guarda no avulso, e o PDF a desenha.
+  const { default: sharpTeste } = await import("sharp");
+  const pngFoto = await sharpTeste({ create: { width: 900, height: 700, channels: 3, background: "#3366cc" } }).png().toBuffer();
+  const pFoto = await banco.criarProposta({ login: "zz", nome: "ZZ" });
+  conferir("foto recusa o que nao e imagem", (await arquivos.gravarFotoDoItem(pFoto.numero, pdfFalso)).ok, false);
+  const enviada = await arquivos.gravarFotoDoItem(pFoto.numero, new File([pngFoto], "sensor.png"));
+  conferir("foto do avulso grava em jpg", [enviada.ok, /^[0-9a-f]{32}\.jpg$/.test(enviada.foto), enviada.fotoUrl], [true, true, `/api/propostas/${pFoto.numero}/fotos/${enviada.foto}`]);
+  const lidaPrimeira = await banco.lerProposta(pFoto.numero);
+  const bytesFoto = await arquivos.lerFotoDoItem(lidaPrimeira.id, enviada.foto);
+  conferir("foto reduzida a 600 px", (await sharpTeste(bytesFoto).metadata()).width, 600);
+  await banco.salvarProposta(pFoto.numero, {
+    clienteNome: "ZZ Proposta Foto",
+    validadeAte: "2099-12-31",
+    itens: [
+      { descricaoCliente: "Avulso com foto", quantidade: "1", precoUnitario: "10", foto: enviada.foto },
+      { descricaoCliente: "Avulso com nome de fora", quantidade: "1", precoUnitario: "10", foto: "0".repeat(32) + ".jpg" },
+    ],
+  });
+  const comFoto = await banco.lerProposta(pFoto.numero);
+  conferir("Salvar guarda so a foto da pasta", comFoto.itens.map((i) => i.fotoUrl), [enviada.fotoUrl, null]);
+  const { dadosDoPdfDaProposta } = await import("../src/lib/propostas/pdf.js");
+  const extrasFoto = await dadosDoPdfDaProposta(comFoto);
+  conferir("PDF e link desenham a foto do avulso", comFoto.itens.map((i) => Boolean(extrasFoto.fotos[i.id])), [true, false]);
+  await arquivos.apagarPastaDaProposta(comFoto.id);
+
   const link = await import("../src/lib/propostas/linkPublico.js");
   const l1 = await link.linkPublicoDaProposta(p2.numero);
   const l2 = await link.linkPublicoDaProposta(p2.numero);
