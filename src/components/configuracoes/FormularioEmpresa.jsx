@@ -10,8 +10,8 @@ import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import Card from "@/components/ui/Card";
 import { formatarTelefone } from "@/lib/telefone";
 
-const CAMPOS = ["razaoSocial", "nomeFantasia", "cnpj", "inscricaoEstadual", "inscricaoMunicipal", "endereco", "numero", "complemento", "bairro", "cidade", "uf", "cep", "telefone", "celular", "email"];
-const TELEFONES = ["telefone", "celular"];
+const CAMPOS = ["razaoSocial", "nomeFantasia", "cnpj", "inscricaoEstadual", "inscricaoMunicipal", "endereco", "numero", "complemento", "bairro", "cidade", "uf", "cep", "telefone", "celular", "whatsappTecnico", "site", "email"];
+const TELEFONES = ["telefone", "celular", "whatsappTecnico"];
 
 /**
  * Dados da empresa: o que vai no cabecalho do pedido de compra. Linha-guia: o dono confere os dados da Receita e salva.
@@ -190,8 +190,10 @@ export default function FormularioEmpresa({ inicial, logoInicial = null, podeEdi
           <h2 className="mb-4 font-semibold">Contato</h2>
           <div className="grid gap-4 sm:grid-cols-3">
             {campo("telefone", "Telefone", { inputMode: "tel", onBlur: () => setValores((antes) => ({ ...antes, telefone: formatarTelefone(antes.telefone) })) })}
-            {campo("celular", "Celular / WhatsApp", { inputMode: "tel", onBlur: () => setValores((antes) => ({ ...antes, celular: formatarTelefone(antes.celular) })) })}
+            {campo("celular", "WhatsApp comercial", { inputMode: "tel", onBlur: () => setValores((antes) => ({ ...antes, celular: formatarTelefone(antes.celular) })) })}
+            {campo("whatsappTecnico", "WhatsApp técnico", { inputMode: "tel", onBlur: () => setValores((antes) => ({ ...antes, whatsappTecnico: formatarTelefone(antes.whatsappTecnico) })) })}
             {campo("email", "E-mail", { type: "email" })}
+            {campo("site", "Site", { placeholder: "www.4hobby.com.br" })}
           </div>
         </Card>
       </fieldset>

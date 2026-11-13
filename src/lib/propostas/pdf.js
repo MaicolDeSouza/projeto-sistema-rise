@@ -22,8 +22,35 @@ const FUNDO_DA_OBS = "#fffbeb";
 const MARGEM = 36;
 const RESPIRO = 4;
 const FOTO = 30;
-const LOGO = 46;
-const LOGO_LARGURA = 170;
+// O logo INTEIRO (o enviado em Dados da empresa) numa caixa a esquerda do cabecalho, como o farol do modelo do dono.
+const LOGO_LARGURA = 132;
+const LOGO_ALTURA = 54;
+const AZUL = "#1f3d6b";
+const AZUL_LINK = "#1d4ed8";
+const TEXTO_SUAVE = "#374151";
+// Validade, Condicoes de pagamento, Prazo de entrega, Metodo de envio, Vendedor.
+const PESOS_DA_FAIXA = [70, 130, 82, 161, 80];
+const VERDE_WHATSAPP = "#25d366";
+// Desenhos 24x24 do lucide (os mesmos icones da tela): telefone e envelope.
+const TELEFONE =
+  "M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384";
+const ENVELOPE = "m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7";
+
+/** O icone do contato no cabecalho: telefone (traco), WhatsApp (balao verde com o telefone branco) e e-mail (envelope). */
+function desenharIcone(doc, tipo, x, y, tamanho) {
+  doc.save().translate(x, y).scale(tamanho / 24);
+  if (tipo === "whatsapp") {
+    doc.circle(12.5, 11.5, 10.5).fill(VERDE_WHATSAPP);
+    doc.polygon([1.5, 23], [3.6, 15.5], [9, 20.5]).fill(VERDE_WHATSAPP);
+    doc.save().translate(6.2, 5.2).scale(0.54).path(TELEFONE).lineWidth(3.4).lineJoin("round").lineCap("round").strokeColor("#ffffff").stroke().restore();
+  } else if (tipo === "email") {
+    doc.roundedRect(2, 4, 20, 16, 2).lineWidth(2.2).strokeColor(TEXTO_SUAVE).stroke();
+    doc.path(ENVELOPE).lineWidth(2.2).lineJoin("round").lineCap("round").strokeColor(TEXTO_SUAVE).stroke();
+  } else {
+    doc.path(TELEFONE).lineWidth(2.2).lineJoin("round").lineCap("round").strokeColor(TEXTO_SUAVE).stroke();
+  }
+  doc.restore();
+}
 
 const LARGURAS = { item: 22, foto: FOTO + RESPIRO * 2, descricao: 0, codigo: 62, qtde: 36, un: 26, preco: 58, desconto: 34, total: 62, prazo: 68 };
 const ALINHAR = { item: "center", foto: "center", qtde: "right", un: "center", preco: "right", desconto: "right", total: "right" };
@@ -52,9 +79,13 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
   const conteudo = {
     ...bruto,
     titulo: f(bruto.titulo),
+    nomeDaEmpresa: f(bruto.nomeDaEmpresa),
+    quadro: bruto.quadro.map(([r, v]) => [f(r), f(v)]),
     empresa: bruto.empresa.map(f),
+    contatos: bruto.contatos.map((c) => ({ ...c, texto: f(c.texto) })),
+    entrega: bruto.entrega.map(f),
+    faixa: bruto.faixa.map(([r, v]) => [f(r), f(v)]),
     cliente: { nome: f(bruto.cliente.nome), linhas: bruto.cliente.linhas.map(f), ac: bruto.cliente.ac ? f(bruto.cliente.ac) : null },
-    quemFez: bruto.quemFez ? f(bruto.quemFez) : null,
     itens: bruto.itens.map((item) => ({ ...item, celulas: Object.fromEntries(Object.entries(item.celulas).map(([k, v]) => [k, f(v)])), obs: item.obs ? f(item.obs) : null })),
     blocos: bruto.blocos.map(([r, v]) => [r, f(v)]),
   };
@@ -70,38 +101,99 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     const largura = doc.page.width - MARGEM * 2;
     const fundo = () => doc.page.height - MARGEM;
 
-    // Cabecalho: logo e dados da 4hobby a esquerda; a proposta, as datas e quem fez a direita.
+    // Cabecalho no molde do modelo do dono (13/11/2026, a cotacao da Hope Industrial): o logo inteiro a esquerda; ao lado o
+    // nome da empresa, "PROPOSTA" a direita e a linha azul dupla; embaixo dela o endereco/CNPJ/site, os contatos com
+    // icone e o quadro com o numero e a data.
     const topo = doc.y;
-    let alturaDoLogo = 0;
     if (extras.logo) {
       try {
-        const imagem = doc.openImage(extras.logo);
-        const escala = Math.min(LOGO_LARGURA / imagem.width, LOGO / imagem.height);
-        alturaDoLogo = imagem.height * escala;
-        doc.image(imagem, MARGEM, topo, { width: imagem.width * escala, height: alturaDoLogo });
+        doc.image(extras.logo, MARGEM, topo, { fit: [LOGO_LARGURA, LOGO_ALTURA], valign: "top" });
       } catch {
-        alturaDoLogo = 0;
+        // Logo ilegivel: o espaco fica em branco.
       }
     }
-    const colunaDaEmpresa = largura * 0.55;
-    doc.font("Helvetica").fontSize(7.5).fillColor(CINZA);
-    let yEmpresa = topo + (alturaDoLogo ? alturaDoLogo + 6 : 0);
-    for (const linha of conteudo.empresa) {
-      doc.text(linha, MARGEM, yEmpresa, { width: colunaDaEmpresa });
-      yEmpresa = doc.y;
-    }
-    doc.font("Helvetica-Bold").fontSize(18).fillColor(TEXTO).text(conteudo.titulo, MARGEM + colunaDaEmpresa, topo, { width: largura - colunaDaEmpresa, align: "right" });
-    doc.font("Helvetica").fontSize(8.5).fillColor(CINZA).text(conteudo.data, { width: largura - colunaDaEmpresa, align: "right" });
-    if (conteudo.quemFez) doc.text(conteudo.quemFez, { width: largura - colunaDaEmpresa, align: "right" });
-    doc.y = Math.max(yEmpresa, doc.y) + 14;
+    const xTexto = MARGEM + LOGO_LARGURA + 12;
+    const larguraDoTexto = MARGEM + largura - xTexto;
+    doc.font("Helvetica-Bold").fontSize(20).fillColor(TEXTO).text("PROPOSTA", xTexto, topo - 2, { width: larguraDoTexto, align: "right" });
+    const larguraDoTitulo = doc.widthOfString("PROPOSTA");
+    // O nome numa linha so: a fonte encolhe ate caber ao lado do "PROPOSTA" (o pdfkit quebra a linha mesmo sem lineBreak).
+    const espacoDoNome = larguraDoTexto - larguraDoTitulo - 12;
+    let tamanhoDoNome = 16;
+    doc.font("Helvetica-Bold");
+    while (tamanhoDoNome > 10 && doc.fontSize(tamanhoDoNome).widthOfString(conteudo.nomeDaEmpresa) > espacoDoNome) tamanhoDoNome -= 0.5;
+    doc.fontSize(tamanhoDoNome).fillColor(TEXTO).text(conteudo.nomeDaEmpresa, xTexto, topo + 3 + (16 - tamanhoDoNome) / 2, { width: espacoDoNome + 4, lineBreak: false });
+    const yLinha = topo + 25;
+    doc.lineWidth(2.6).strokeColor(AZUL).moveTo(xTexto, yLinha).lineTo(MARGEM + largura, yLinha).stroke();
+    doc.lineWidth(0.6).moveTo(xTexto, yLinha + 4).lineTo(MARGEM + largura, yLinha + 4).stroke();
 
-    // Cliente.
-    doc.font("Helvetica").fontSize(7.5).fillColor(CINZA).text("CLIENTE", MARGEM, doc.y, { characterSpacing: 0.5 });
-    doc.font("Helvetica-Bold").fontSize(12).fillColor(TEXTO).text(conteudo.cliente.nome, { width: largura });
-    doc.font("Helvetica").fontSize(8.5).fillColor(TEXTO);
-    for (const linha of conteudo.cliente.linhas) doc.text(linha, { width: largura });
-    if (conteudo.cliente.ac) doc.font("Helvetica-Bold").text(conteudo.cliente.ac, { width: largura });
-    doc.moveDown(0.9);
+    // O logo da 4hobby e largo (engrenagem + nome): as tres colunas comecam embaixo dele e usam a largura toda.
+    const yInfo = Math.max(yLinha + 12, topo + LOGO_ALTURA + 6);
+    const larguraDoQuadro = 118;
+    const larguraDosContatos = 175;
+    const larguraDoEndereco = largura - larguraDoQuadro - larguraDosContatos - 24;
+    doc.font("Helvetica").fontSize(7.8).fillColor(TEXTO_SUAVE);
+    let yEndereco = yInfo;
+    for (const linha of conteudo.empresa) {
+      doc.text(linha, MARGEM, yEndereco, { width: larguraDoEndereco });
+      yEndereco = doc.y + 1;
+    }
+    if (conteudo.site) {
+      doc.fillColor(AZUL_LINK).text(conteudo.site.texto, MARGEM, yEndereco, { width: larguraDoEndereco, link: conteudo.site.url, underline: true });
+      yEndereco = doc.y + 1;
+    }
+    const xContatos = MARGEM + larguraDoEndereco + 12;
+    let yContatos = yInfo;
+    for (const contato of conteudo.contatos) {
+      desenharIcone(doc, contato.tipo, xContatos, yContatos, 8.5);
+      doc.font("Helvetica").fontSize(7.8).fillColor(TEXTO_SUAVE).text(contato.texto, xContatos + 12, yContatos + 0.5, { width: larguraDosContatos - 12, link: contato.url, lineBreak: false, ellipsis: true });
+      yContatos += 12.5;
+    }
+    const xQuadro = MARGEM + largura - larguraDoQuadro;
+    let yQuadro = yInfo;
+    for (const [rotulo, valor] of conteudo.quadro) {
+      doc.font("Helvetica-Bold").fontSize(8.5).fillColor(TEXTO).text(rotulo, xQuadro, yQuadro, { width: larguraDoQuadro, lineBreak: false });
+      doc.font("Helvetica").text(valor, xQuadro, yQuadro, { width: larguraDoQuadro, align: "right", lineBreak: false });
+      yQuadro += 14;
+    }
+    doc.y = Math.max(topo + LOGO_ALTURA, yEndereco, yContatos, yQuadro) + 14;
+
+    // Cliente e "Entregar em" lado a lado (o "Quoted To / Ship To" do modelo).
+    const meia = (largura - 20) / 2;
+    const yCliente = doc.y;
+    doc.font("Helvetica-Bold").fontSize(9).fillColor(TEXTO).text("Cliente:", MARGEM, yCliente);
+    doc.font("Helvetica-Bold").fontSize(10.5).text(conteudo.cliente.nome, MARGEM + 10, doc.y + 2, { width: meia - 10 });
+    doc.font("Helvetica").fontSize(8.5);
+    for (const linha of conteudo.cliente.linhas) doc.text(linha, MARGEM + 10, doc.y, { width: meia - 10 });
+    if (conteudo.cliente.ac) doc.font("Helvetica-Bold").text(conteudo.cliente.ac, MARGEM + 10, doc.y, { width: meia - 10 });
+    const fimDoCliente = doc.y;
+    const xEntrega = MARGEM + meia + 20;
+    doc.font("Helvetica-Bold").fontSize(9).fillColor(TEXTO).text("Entregar em:", xEntrega, yCliente);
+    doc.font("Helvetica").fontSize(8.5).text(conteudo.entrega.join("\n"), xEntrega + 10, doc.y + 2, { width: meia - 10 });
+    doc.y = Math.max(fimDoCliente, doc.y) + 12;
+
+    // Faixa de condicoes: validade, pagamento, prazo de entrega, metodo de envio (com o frete por conta) e vendedor.
+    const yFaixa = doc.y;
+    const totalDosPesos = PESOS_DA_FAIXA.reduce((soma, peso) => soma + peso, 0);
+    const larguras = PESOS_DA_FAIXA.map((peso) => (largura * peso) / totalDosPesos);
+    const alturaDoTitulo = 17;
+    doc.font("Helvetica").fontSize(8.3);
+    const alturaDoValor = Math.max(...conteudo.faixa.map(([, valor], i) => doc.heightOfString(valor, { width: larguras[i] - RESPIRO * 2 }))) + RESPIRO * 2 + 2;
+    doc.rect(MARGEM, yFaixa, largura, alturaDoTitulo).fill(FUNDO_DO_CABECALHO);
+    let xFaixa = MARGEM;
+    conteudo.faixa.forEach(([rotulo, valor], i) => {
+      doc.font("Helvetica-Bold").fontSize(8.3).fillColor(TEXTO).text(rotulo, xFaixa + RESPIRO, yFaixa + 5, { width: larguras[i] - RESPIRO * 2, align: "center", lineBreak: false });
+      doc.font("Helvetica").fontSize(8.3).text(valor, xFaixa + RESPIRO, yFaixa + alturaDoTitulo + RESPIRO + 1, { width: larguras[i] - RESPIRO * 2, align: "center" });
+      xFaixa += larguras[i];
+    });
+    doc.lineWidth(0.5).strokeColor(LINHA).rect(MARGEM, yFaixa, largura, alturaDoTitulo + alturaDoValor).stroke();
+    doc.moveTo(MARGEM, yFaixa + alturaDoTitulo).lineTo(MARGEM + largura, yFaixa + alturaDoTitulo).stroke();
+    xFaixa = MARGEM;
+    for (const larguraDaColuna of larguras.slice(0, -1)) {
+      xFaixa += larguraDaColuna;
+      doc.moveTo(xFaixa, yFaixa).lineTo(xFaixa, yFaixa + alturaDoTitulo + alturaDoValor).stroke();
+    }
+    doc.x = MARGEM;
+    doc.y = yFaixa + alturaDoTitulo + alturaDoValor + 14;
 
     // Tabela.
     const fixas = conteudo.colunas.reduce((soma, c) => soma + LARGURAS[c.chave], 0);

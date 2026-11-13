@@ -9,9 +9,9 @@ import { telefoneParaGravar, telefoneValido } from "@/lib/telefone";
 
 const ID = "empresa";
 // Inscricao municipal e celular/WhatsApp: pedido do dono em 07/11/2026.
-const CAMPOS = ["razaoSocial", "nomeFantasia", "cnpj", "inscricaoEstadual", "inscricaoMunicipal", "endereco", "numero", "complemento", "bairro", "cidade", "uf", "cep", "telefone", "celular", "email"];
+const CAMPOS = ["razaoSocial", "nomeFantasia", "cnpj", "inscricaoEstadual", "inscricaoMunicipal", "endereco", "numero", "complemento", "bairro", "cidade", "uf", "cep", "telefone", "celular", "whatsappTecnico", "site", "email"];
 const OBRIGATORIOS = { razaoSocial: "Informe a razão social.", cnpj: "Informe o CNPJ.", endereco: "Informe o endereço.", cidade: "Informe a cidade.", uf: "Informe a UF.", cep: "Informe o CEP." };
-const LIMITES = { razaoSocial: 150, nomeFantasia: 150, inscricaoEstadual: 30, inscricaoMunicipal: 30, endereco: 200, numero: 20, complemento: 100, bairro: 100, cidade: 100, email: 150 };
+const LIMITES = { razaoSocial: 150, nomeFantasia: 150, inscricaoEstadual: 30, inscricaoMunicipal: 30, endereco: 200, numero: 20, complemento: 100, bairro: 100, cidade: 100, site: 120, email: 150 };
 
 export async function lerDadosDaEmpresa() {
   return prisma.dadosDaEmpresa.findUnique({ where: { id: ID } });
@@ -47,6 +47,16 @@ export async function salvarDadosDaEmpresa(entrada) {
   if (dados.celular) {
     if (telefoneValido(dados.celular)) dados.celular = telefoneParaGravar(dados.celular);
     else erros.celular = `Celular inválido: ${dados.celular}.`;
+  }
+  // WhatsApp tecnico e site: pedido do dono em 13/11/2026 (cabecalho do PDF da proposta).
+  if (dados.whatsappTecnico) {
+    if (telefoneValido(dados.whatsappTecnico)) dados.whatsappTecnico = telefoneParaGravar(dados.whatsappTecnico);
+    else erros.whatsappTecnico = `WhatsApp inválido: ${dados.whatsappTecnico}.`;
+  }
+  if (dados.site) {
+    // Grava sem o "https://" e sem a barra do fim: o PDF mostra assim e monta o link.
+    dados.site = dados.site.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+    if (!/^[^\s/]+\.[^\s/]+(\/\S*)?$/.test(dados.site)) erros.site = "Site inválido.";
   }
   if (dados.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dados.email)) erros.email = "E-mail inválido.";
 

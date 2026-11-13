@@ -26,33 +26,82 @@ export const COLUNAS = [
   { chave: "prazo", titulo: "Prazo" },
 ];
 
-function linhasDaEmpresa(empresa) {
-  if (!empresa) return [];
+/** O nome no topo do PDF (pedido do dono em 13/11/2026: "pode usar 4hobby indústria, comércio e importação"). */
+export const NOME_NO_CABECALHO = "4hobby Indústria, Comércio e Importação";
+
+const soDigitos = (texto) => String(texto ?? "").replace(/\D/g, "");
+
+/** Endereco, CNPJ/IE e o site da 4hobby (a coluna da esquerda do cabecalho). */
+function dadosDaEmpresa(empresa) {
+  if (!empresa) return { linhas: [], site: null };
   const endereco = [empresa.endereco, empresa.numero, empresa.complemento].filter(Boolean).join(", ");
-  const cidade = [empresa.bairro, `${empresa.cidade}/${empresa.uf}`, empresa.cep ? `CEP ${empresa.cep}` : null].filter(Boolean).join(" · ");
-  const fones = [empresa.telefone, empresa.celular].filter(Boolean).map(formatarTelefone).join(" · ");
+  const cidade = [empresa.bairro, `${empresa.cidade} - ${empresa.uf}`, empresa.cep ? `CEP ${empresa.cep}` : null].filter(Boolean).join(" · ");
+  const site = String(empresa.site ?? "").trim();
+  return {
+    linhas: [
+      endereco,
+      cidade,
+      [`CNPJ ${empresa.cnpj}`, empresa.inscricaoEstadual ? `IE ${empresa.inscricaoEstadual}` : null].filter(Boolean).join(" · "),
+    ].filter(Boolean),
+    site: site ? { texto: site, url: /^https?:\/\//i.test(site) ? site : `https://${site}` } : null,
+  };
+}
+
+/**
+ * Telefone fixo, os dois WhatsApp (comercial = `celular`, tecnico = `whatsappTecnico`) e o e-mail, cada um com o seu
+ * icone e link (coluna do meio do cabecalho, pedido do dono em 13/11/2026). Campo vazio nao entra.
+ */
+function contatosDaEmpresa(empresa) {
+  if (!empresa) return [];
+  const whatsapp = (numero, rotulo) =>
+    soDigitos(numero) ? { tipo: "whatsapp", texto: `${formatarTelefone(numero)} (${rotulo})`, url: `https://wa.me/55${soDigitos(numero)}` } : null;
   return [
-    // Nome fantasia em cima quando difere da razao social: e por ele que o cliente conhece a loja.
-    empresa.nomeFantasia && empresa.nomeFantasia !== empresa.razaoSocial ? `${empresa.nomeFantasia} · ${empresa.razaoSocial}` : empresa.razaoSocial,
-    [`CNPJ ${empresa.cnpj}`, empresa.inscricaoEstadual ? `IE ${empresa.inscricaoEstadual}` : null].filter(Boolean).join(" · "),
-    endereco,
-    cidade,
-    [fones, empresa.email].filter(Boolean).join(" · "),
+    soDigitos(empresa.telefone) ? { tipo: "fone", texto: formatarTelefone(empresa.telefone), url: `tel:+55${soDigitos(empresa.telefone)}` } : null,
+    whatsapp(empresa.celular, "Contato comercial"),
+    whatsapp(empresa.whatsappTecnico, "Contato técnico"),
+    empresa.email ? { tipo: "email", texto: empresa.email, url: `mailto:${empresa.email}` } : null,
+  ].filter(Boolean);
+}
+
+function linhasDoEndereco(endereco) {
+  if (!endereco) return [];
+  return [
+    [endereco.logradouro, endereco.numero, endereco.complemento].filter(Boolean).join(", "),
+    [endereco.bairro, endereco.cidade && `${endereco.cidade}${endereco.uf ? ` - ${endereco.uf}` : ""}`, endereco.cep && `CEP ${endereco.cep}`].filter(Boolean).join(" · "),
   ].filter(Boolean);
 }
 
 function linhasDoCliente(proposta) {
   const cliente = proposta.cliente;
   const geral = cliente?.enderecos?.find((e) => e.tipo === "GERAL");
-  const endereco = geral
-    ? [[geral.logradouro, geral.numero, geral.complemento].filter(Boolean).join(", "), [geral.bairro, geral.cidade && `${geral.cidade}/${geral.uf ?? ""}`, geral.cep && `CEP ${geral.cep}`].filter(Boolean).join(" · ")]
-    : [];
   const documento = proposta.clienteDocumento ? `${String(proposta.clienteDocumento).length > 14 ? "CNPJ" : "CPF"} ${proposta.clienteDocumento}` : null;
   return [
     [documento, cliente?.inscricaoEstadual ? `IE ${cliente.inscricaoEstadual}` : null].filter(Boolean).join(" · "),
-    ...endereco,
+    ...linhasDoEndereco(geral),
     [proposta.clienteTelefone ? formatarTelefone(proposta.clienteTelefone) : null, proposta.clienteEmail].filter(Boolean).join(" · "),
   ].filter(Boolean);
+}
+
+/**
+ * "Entregar em" (ao lado do cliente, como o "Ship To" do modelo do dono): o endereco de Entrega do cadastro, senao o
+ * Geral; cliente que retira, a frase; sem endereco nenhum (provisorio), "A combinar".
+ */
+function linhasDaEntrega(proposta) {
+  if (proposta.fretePorConta === "RETIRA") return ["Retirada pelo cliente na 4hobby"];
+  const enderecos = proposta.cliente?.enderecos ?? [];
+  const linhas = linhasDoEndereco(enderecos.find((e) => e.tipo === "ENTREGA"));
+  if (linhas.length) return linhas;
+  const geral = linhasDoEndereco(enderecos.find((e) => e.tipo === "GERAL"));
+  return geral.length ? geral : ["A combinar"];
+}
+
+/** O "Método de envio" da faixa: o tipo de frete (com a explicacao), a transportadora, o valor no FOB e o prazo. */
+function metodoDeEnvio(proposta) {
+  const partes = [TEXTO_DO_FRETE[proposta.fretePorConta]];
+  if (proposta.transportadoraNome && ["CIF", "FOB"].includes(proposta.fretePorConta)) partes.push(proposta.transportadoraNome);
+  if (proposta.fretePorConta === "FOB" && Number(proposta.frete) > 0) partes.push(`Valor estimado: ${moeda.format(proposta.frete)}`);
+  if (proposta.prazoTransporteDias) partes.push(`Transporte: ${proposta.prazoTransporteDias} dia(s)`);
+  return partes.filter(Boolean).join("\n");
 }
 
 /**
@@ -66,28 +115,36 @@ export function conteudoDaProposta(proposta, empresa) {
   if (totais.desconto > 0) linhasDeTotal.push(["Desconto", `− ${moeda.format(totais.desconto)}`]);
   if (totais.frete > 0) linhasDeTotal.push(["Frete", moeda.format(totais.frete)]);
 
-  const frete = [TEXTO_DO_FRETE[proposta.fretePorConta]];
-  if (proposta.transportadoraNome && ["CIF", "FOB"].includes(proposta.fretePorConta)) frete.push(`Transportadora: ${proposta.transportadoraNome}`);
-  if (proposta.fretePorConta === "FOB" && Number(proposta.frete) > 0) frete.push(`Valor estimado: ${moeda.format(proposta.frete)}`);
-  if (proposta.prazoTransporteDias) frete.push(`Prazo de transporte: ${proposta.prazoTransporteDias} dia(s)`);
-
   const notaFiscal = [proposta.ocCliente ? `Pedido de compra (OC): ${proposta.ocCliente}` : null, proposta.observacoesNf].filter(Boolean).join("\n");
 
+  // Prazo, pagamento e frete foram para a faixa de baixo do cabecalho (13/11/2026); aqui fica o resto.
   const blocos = [
-    ["Prazo de entrega", prazoGeral(proposta.itens)],
-    ["Pagamento", textoDoPagamento(proposta)],
-    ["Frete", frete.join("\n")],
     ["Para a nota fiscal", notaFiscal],
     ["Observações", proposta.observacoesCliente],
     ["Garantia", proposta.garantia],
   ].filter(([, valor]) => String(valor ?? "").trim());
 
+  const empresaNoCabecalho = dadosDaEmpresa(empresa);
   return {
     titulo: numeroDaProposta(proposta.numero),
-    data: `Emitida em ${dataBR(new Date(proposta.atualizadoEm ?? proposta.criadoEm))} · Válida até ${dataBR(proposta.validadeAte)}`,
-    quemFez: proposta.criadoPorNome ? `Atendimento: ${proposta.criadoPorNome}` : null,
-    empresa: linhasDaEmpresa(empresa),
+    nomeDaEmpresa: NOME_NO_CABECALHO,
+    quadro: [
+      ["Número", String(proposta.numero)],
+      ["Data", dataBR(new Date(proposta.atualizadoEm ?? proposta.criadoEm))],
+    ],
+    empresa: empresaNoCabecalho.linhas,
+    site: empresaNoCabecalho.site,
+    contatos: contatosDaEmpresa(empresa),
     cliente: { nome: proposta.clienteNome, linhas: linhasDoCliente(proposta), ac: proposta.contatoNome ? `A/C ${proposta.contatoNome}` : null },
+    entrega: linhasDaEntrega(proposta),
+    // A faixa de colunas embaixo do cabecalho (o "Valid Until / Payment Terms / ..." do modelo do dono, 13/11/2026).
+    faixa: [
+      ["Validade", dataBR(proposta.validadeAte)],
+      ["Condições de pagamento", textoDoPagamento(proposta) || "A combinar"],
+      ["Prazo de entrega", prazoGeral(proposta.itens)],
+      ["Método de envio", metodoDeEnvio(proposta)],
+      ["Vendedor", proposta.criadoPorNome || "—"],
+    ],
     colunas: COLUNAS.filter((c) => c.chave !== "desconto" || temDesconto),
     itens: proposta.itens.map((item, indice) => ({
       id: item.id,

@@ -16,11 +16,20 @@ const ESTILO = `
 body{margin:0;background:var(--fundo);color:var(--texto);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 main{max-width:1000px;margin:0 auto;padding:24px 16px 48px}
 .folha{background:#fff;border:1px solid var(--linha);border-radius:8px;padding:28px}
-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
-header img{height:46px;max-width:170px;object-fit:contain;display:block;margin-bottom:6px}
-.empresa{color:var(--cinza);font-size:12px}
-h1{margin:0;font-size:22px;text-align:right}
-.data{color:var(--cinza);font-size:12px;text-align:right}
+header{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
+header img{height:54px;max-width:170px;object-fit:contain;display:block}
+.nome{flex:1;min-width:220px;border-bottom:4px double #1f3d6b;padding-bottom:6px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.nome b{font-size:18px}
+h1{margin:0;font-size:22px}
+.info{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 24px;margin-top:12px;color:#374151;font-size:12px}
+.info a{color:#1d4ed8}
+.contato{display:block;color:#374151;text-decoration:none}
+.contato.zap::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#25d366;margin-right:6px}
+.quadro div{display:flex;justify-content:space-between;gap:12px}
+.partes{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px 24px}
+.faixa{margin-top:16px}
+.faixa td{text-align:center;white-space:pre-line}
+.faixa th{text-align:center}
 .rotulo{margin-top:22px;color:var(--cinza);font-size:11px;letter-spacing:.05em;text-transform:uppercase}
 .cliente{font-size:16px;font-weight:700}
 .rolagem{margin-top:16px;overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -41,7 +50,7 @@ tr.obs td{background:var(--obs);font-style:italic}
 .condicao{margin-top:16px}
 .condicao b{display:block}
 .condicao p{margin:2px 0 0;white-space:pre-line}
-@media (max-width:640px){.folha{padding:16px}h1,.data{text-align:left}}
+@media (max-width:640px){.folha{padding:16px}}
 `;
 
 /** @param {object} proposta `lerProposta`; @param {{ logo?: Buffer|null, fotos?: Record<string, Buffer|null> }} extras */
@@ -68,9 +77,13 @@ export function htmlDaProposta(proposta, empresa, extras = {}) {
     })
     .join("");
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${escapar(c.titulo)}</title><style>${ESTILO}</style></head><body><main><div class="folha">
-<header><div>${logo ? `<img src="${logo}" alt="">` : ""}<div class="empresa">${c.empresa.map(escapar).join("<br>")}</div></div>
-<div><h1>${escapar(c.titulo)}</h1><div class="data">${escapar(c.data)}${c.quemFez ? `<br>${escapar(c.quemFez)}` : ""}</div></div></header>
-<div class="rotulo">Cliente</div><div class="cliente">${escapar(c.cliente.nome)}</div><div>${c.cliente.linhas.map(escapar).join("<br>")}${c.cliente.ac ? `<br><b>${escapar(c.cliente.ac)}</b>` : ""}</div>
+<header>${logo ? `<img src="${logo}" alt="">` : ""}<div class="nome"><b>${escapar(c.nomeDaEmpresa)}</b><h1>PROPOSTA</h1></div></header>
+<div class="info"><div>${c.empresa.map(escapar).join("<br>")}${c.site ? `<br><a href="${escapar(c.site.url)}">${escapar(c.site.texto)}</a>` : ""}</div>
+<div>${c.contatos.map((ct) => `<a class="contato${ct.tipo === "whatsapp" ? " zap" : ""}" href="${escapar(ct.url)}">${escapar(ct.texto)}</a>`).join("")}</div>
+<div class="quadro">${c.quadro.map(([r, v]) => `<div><b>${escapar(r)}</b><span>${escapar(v)}</span></div>`).join("")}</div></div>
+<div class="partes"><div><div class="rotulo">Cliente</div><div class="cliente">${escapar(c.cliente.nome)}</div><div>${c.cliente.linhas.map(escapar).join("<br>")}${c.cliente.ac ? `<br><b>${escapar(c.cliente.ac)}</b>` : ""}</div></div>
+<div><div class="rotulo">Entregar em</div><div>${c.entrega.map(escapar).join("<br>")}</div></div></div>
+<div class="rolagem faixa"><table><thead><tr>${c.faixa.map(([r]) => `<th>${escapar(r)}</th>`).join("")}</tr></thead><tbody><tr>${c.faixa.map(([, v]) => `<td>${escapar(v)}</td>`).join("")}</tr></tbody></table></div>
 <div class="rolagem"><table><thead><tr>${c.colunas.map((col) => `<th${DIREITA.has(col.chave) ? ' class="d"' : ""}>${escapar(col.titulo)}</th>`).join("")}</tr></thead><tbody>${linhas}</tbody></table></div>
 <div class="totais">${c.linhasDeTotal.map(([r, v]) => `<div><span>${escapar(r)}</span><span>${escapar(v)}</span></div>`).join("")}<div class="geral"><span>Total da proposta</span><span>${escapar(c.total)}</span></div></div>
 <p class="impostos">${escapar(c.impostos)}</p>

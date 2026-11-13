@@ -371,7 +371,7 @@ try {
   const { pdfDaProposta } = await import("../src/lib/propostas/pdf.js");
   const { htmlDaProposta } = await import("../src/lib/propostas/paginaPublica.js");
   const paraPdf = await banco.lerProposta(p2.numero);
-  const empresaFalsa = { razaoSocial: "ZZ Empresa", nomeFantasia: "ZZ Loja", cnpj: "00.000.000/0001-00", endereco: "Rua", cidade: "Caxias", uf: "RS", cep: "95000-000" };
+  const empresaFalsa = { razaoSocial: "ZZ Empresa", nomeFantasia: "ZZ Loja", cnpj: "00.000.000/0001-00", endereco: "Rua", cidade: "Caxias", uf: "RS", cep: "95000-000", telefone: "5432900870", celular: "54981222300", whatsappTecnico: "54996050390", site: "www.4hobby.com.br", email: "contato@4hobby.com.br" };
   const conteudo = conteudoDaProposta(paraPdf, empresaFalsa);
   const tudo = JSON.stringify(conteudo);
   conferir(
@@ -380,7 +380,22 @@ try {
     ["Módulo relé 5V conforme cotação", "PN-1", true, true],
   );
   conferir("PDF: nunca nosso codigo, custo nem internas", [tudo.includes("ZZ-PROP-CLI-1"), tudo.includes("so nossa"), /custo/i.test(tudo)], [false, false, false]);
-  conferir("PDF: empresa com nome fantasia", conteudo.empresa[0], "ZZ Loja · ZZ Empresa");
+  // Cabecalho no molde da cotacao que o dono mandou (13/11/2026): nome, contatos com link, quadro, entrega e faixa.
+  conferir("PDF: nome no topo e endereco da empresa", [conteudo.nomeDaEmpresa, conteudo.empresa[0], conteudo.site?.url], ["4hobby Indústria, Comércio e Importação", "Rua", "https://www.4hobby.com.br"]);
+  conferir(
+    "PDF: fixo, WhatsApp comercial e tecnico e e-mail com link",
+    conteudo.contatos.map((ct) => [ct.tipo, ct.url]),
+    [["fone", "tel:+555432900870"], ["whatsapp", "https://wa.me/5554981222300"], ["whatsapp", "https://wa.me/5554996050390"], ["email", "mailto:contato@4hobby.com.br"]],
+  );
+  conferir("PDF: faixa com validade, pagamento, prazo, envio e vendedor", conteudo.faixa.map(([r]) => r), ["Validade", "Condições de pagamento", "Prazo de entrega", "Método de envio", "Vendedor"]);
+  conferir("PDF: metodo de envio leva o frete por conta", conteudo.faixa[3][1].startsWith("CIF (frete por nossa conta)"), true);
+  conferir("PDF: entregar em sem endereco = a combinar", conteudo.entrega, ["A combinar"]);
+  conferir("PDF: entregar em de quem retira", conteudoDaProposta({ ...paraPdf, fretePorConta: "RETIRA" }, empresaFalsa).entrega, ["Retirada pelo cliente na 4hobby"]);
+  conferir(
+    "PDF: entregar em usa o endereco de entrega",
+    conteudoDaProposta({ ...paraPdf, cliente: { enderecos: [{ tipo: "GERAL", logradouro: "Rua A", numero: "1" }, { tipo: "ENTREGA", logradouro: "Rua B", numero: "2", cidade: "Caxias", uf: "RS" }] } }, empresaFalsa).entrega,
+    ["Rua B, 2", "Caxias - RS"],
+  );
   const bytesDoPdf = await pdfDaProposta(paraPdf, empresaFalsa, {});
   conferir("PDF gerado", bytesDoPdf.subarray(0, 5).toString("latin1"), "%PDF-");
   const html = htmlDaProposta(paraPdf, empresaFalsa, {});

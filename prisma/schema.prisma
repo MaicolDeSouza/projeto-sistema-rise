@@ -2487,6 +2487,10 @@ model DadosDaEmpresa {
   telefone           String?
   /// Celular / WhatsApp (07/11/2026), so digitos com DDD como o telefone.
   celular            String?
+  /// WhatsApp do contato tecnico (13/11/2026, cabecalho do PDF da proposta); o `celular` e o comercial.
+  whatsappTecnico    String?
+  /// Site sem "https://" (www.4hobby.com.br), link no PDF da proposta (13/11/2026).
+  site               String?
   email              String?
   atualizadoEm       DateTime @updatedAt
 }
