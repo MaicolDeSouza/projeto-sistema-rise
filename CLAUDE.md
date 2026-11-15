@@ -6117,6 +6117,17 @@ plano anterior do mesmo dia, rua-prateleira-nível-posição, foi DESCARTADO pel
     sessão lê as fotos e escreve `{coluna, prateleiras: {"1": [códigos da esquerda para a direita, "?" = ilegível]}}`; grava
     só `ordemNaPrateleira` de quem está mesmo naquela prateleira; o resto vira dúvida, e lista os da coluna não vistos.
   - **Conferido no PC** com uma coluna ZK de teste no Estoque 2 (apagada): avisos, Guardar, Mover e renumeração.
+- **MCP do estoque (15/11/2026, pedido do dono para a Andrea; spec `docs/superpowers/specs/2026-11-15-mcp-do-estoque-design.md`):**
+  13 ferramentas em `src/lib/mcp/estoque.js`, todas sobre o MESMO `lib/estoque3d` da tela e sem o lembrete de anotar:
+  `roteiroDoMapaDoEstoque`, `lerMapaDoEstoque` (resumo / estoque / coluna com as prateleiras na ordem), `lerCaixinhaDoProduto`,
+  `sugerirLugarNoEstoque`, `moverProdutoNoEstoque` (histórico com o login da conexão), `gravarOrdemPelasFotos` (simula sem
+  `confirmar`; grava só a posição de quem já está na prateleira), `salvarColunaDeEstoque` (manda só o que muda; a nova pede
+  estoque e prateleiras), `excluirColunaDeEstoque`, `salvarModeloDeCaixinha` (pelo nome; `volumeUtil` = `fatorUtil`),
+  `excluirModeloDeCaixinha` (as duas de excluir exigem `confirmo: true`), `definirCaixinhaDoProduto` (modelo pelo nome),
+  `configurarEstoque` (`primeiraEmbaixo`) e `criarColunasPelaLocalizacao`. **A foto não vai ao Rise:** o Claude da pessoa lê
+  os códigos e manda só eles (decisão do dono). Acesso igual ao das ações da tela: ler = mapa ver + `dado.localizacao` ver;
+  mover e fotos = os dois em editar; colunas, modelos, caixinha e estoque = mapa editar. Testes no `teste:mcp` (coluna ZW,
+  produtos ZZ-MCP-E*). A Andrea perde o Administrador em 17/11/2026: a função dela precisa desses acessos.
 - **Próximo:** as fotos da coluna A; medidas dos vãos, colunas dos Estoques 2 e 3 e modelos de caixinha. Fase 3: reorganizar
   em lote.
 

@@ -57,6 +57,22 @@ const ANALISE_FORNECEDOR = ["roteiroDaAnaliseDeFornecedor"];
 const ESTUDOS = ["roteiroDoEstudoDeViabilidade", "listarEstudosDeViabilidade", "lerParaEstudoDeViabilidade", "calcularEstudoDeViabilidade", "gravarEstudoDeViabilidade"];
 // Sincronizar com o Bling e a Loja Integrada (10/11/2026): escrita pedida pelo dono, sem o lembrete.
 const CANAIS = ["sincronizarComBling", "sincronizarComLojaIntegrada", "criarProduto"];
+// O Mapa do estoque pelo chat (15/11/2026): trabalho da Andrea nas prateleiras, sem o lembrete.
+const ESTOQUE = [
+  "roteiroDoMapaDoEstoque",
+  "lerMapaDoEstoque",
+  "lerCaixinhaDoProduto",
+  "sugerirLugarNoEstoque",
+  "moverProdutoNoEstoque",
+  "gravarOrdemPelasFotos",
+  "salvarColunaDeEstoque",
+  "excluirColunaDeEstoque",
+  "salvarModeloDeCaixinha",
+  "excluirModeloDeCaixinha",
+  "definirCaixinhaDoProduto",
+  "configurarEstoque",
+  "criarColunasPelaLocalizacao",
+];
 
 async function lerRespostaMcp(resposta) {
   const texto = await resposta.text();
@@ -763,8 +779,9 @@ try {
         descoberta?.instructions === INSTRUCOES && INSTRUCOES.includes("anotarDuvida"),
       ],
       [
-        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "calcularEstudoDeViabilidade", "compararProdutos", "comprasACaminhoDoProduto", "consultarEstoque", "consultarPreco", "consultarProduto", "criarProduto", "desligarCorrecaoDaDescricao", "filtrarProdutos", "folhaDeContato", "gravarCorrecaoDaDescricao", "gravarEstudoDeViabilidade", "gravarPropostaML", "gravarSecao", "historicoDePreco", "lerCategoriaML", "lerParaEstudoDeViabilidade", "lerParaProposta", "lerParaPropostaML", "lerPedidoDeCompra", "lerPedidoDeVenda", "lerProposta", "lerPropostaParaCliente", "listarClientes", "listarConcorrentes", "listarCorrecoesDaDescricao", "listarEstudosDeViabilidade", "listarFornecedores", "listarMarcas", "listarPedidosDeCompra", "listarPedidosDeVenda", "listarPropostasParaCliente", "listarTransportadoras", "marcarReferencias", "montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra", "produtosAbaixoDoMinimo", "reaproveitarAnuncioML", "relatorioDeVendas", "roteiroDaAnaliseDeFornecedor", "roteiroDaProposta", "roteiroDoEstudoDeViabilidade", "sincronizarComBling", "sincronizarComLojaIntegrada", "situacaoDoProduto"],
-        37,
+        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "calcularEstudoDeViabilidade", "compararProdutos", "comprasACaminhoDoProduto", "consultarEstoque", "consultarPreco", "consultarProduto", "criarProduto", "desligarCorrecaoDaDescricao", "filtrarProdutos", "folhaDeContato", "gravarCorrecaoDaDescricao", "gravarEstudoDeViabilidade", "gravarPropostaML", "gravarSecao", "historicoDePreco", "lerCategoriaML", "lerParaEstudoDeViabilidade", "lerParaProposta", "lerParaPropostaML", "lerPedidoDeCompra", "lerPedidoDeVenda", "lerProposta", "lerPropostaParaCliente", "listarClientes", "listarConcorrentes", "listarCorrecoesDaDescricao", "listarEstudosDeViabilidade", "listarFornecedores", "listarMarcas", "listarPedidosDeCompra", "listarPedidosDeVenda", "listarPropostasParaCliente", "listarTransportadoras", "marcarReferencias", "montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra", "produtosAbaixoDoMinimo", "reaproveitarAnuncioML", "relatorioDeVendas", "roteiroDaAnaliseDeFornecedor", "roteiroDaProposta", "roteiroDoEstudoDeViabilidade", "sincronizarComBling", "sincronizarComLojaIntegrada", "situacaoDoProduto", ...ESTOQUE].sort(),
+        // +4 de leitura do Mapa do estoque (roteiro, mapa, caixinha e sugerir), 15/11/2026.
+        41,
         true,
       ],
     );
@@ -1196,7 +1213,7 @@ try {
       [2, true, 1],
     );
     const lista = (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/list", {}, { id: id++ }), quem)))?.result?.tools ?? [];
-    conferir("a descricao de toda ferramenta de consulta lembra de anotar", lista.filter((ferramenta) => ferramenta.name !== "anotarDuvida" && !PROPOSTA.includes(ferramenta.name) && !PROPOSTA_DE_ANUNCIO.includes(ferramenta.name) && !REFERENCIAS.includes(ferramenta.name) && !COMPRAS_ESCRITA.includes(ferramenta.name) && !CORRECOES.includes(ferramenta.name) && !ANALISE_FORNECEDOR.includes(ferramenta.name) && !ESTUDOS.includes(ferramenta.name) && !CANAIS.includes(ferramenta.name) && !ferramenta.description.includes("anotarDuvida")).map((ferramenta) => ferramenta.name), []);
+    conferir("a descricao de toda ferramenta de consulta lembra de anotar", lista.filter((ferramenta) => ferramenta.name !== "anotarDuvida" && !PROPOSTA.includes(ferramenta.name) && !PROPOSTA_DE_ANUNCIO.includes(ferramenta.name) && !REFERENCIAS.includes(ferramenta.name) && !COMPRAS_ESCRITA.includes(ferramenta.name) && !CORRECOES.includes(ferramenta.name) && !ANALISE_FORNECEDOR.includes(ferramenta.name) && !ESTUDOS.includes(ferramenta.name) && !CANAIS.includes(ferramenta.name) && !ESTOQUE.includes(ferramenta.name) && !ferramenta.description.includes("anotarDuvida")).map((ferramenta) => ferramenta.name), []);
 
     // --- as Correcoes da descricao (07/11/2026): gravadas pelo chat com o login da conexao, sem o lembrete ---
     await prisma.correcaoDaDescricao.deleteMany({ where: { criadoPor: "zz-mcp-lembrete" } });
@@ -1498,6 +1515,88 @@ try {
     const automatico = JSON.parse((await chamar("criarProduto", { nome: "ZZMCP produto automatico" }))?.content?.[0]?.text || "{}");
     conferir("criarProduto: sem codigo usa o proximo livre da faixa 25xxxx", /^25\d{4}$/.test(automatico.sku ?? ""), true);
     if (automatico.sku) await prisma.produto.delete({ where: { sku: automatico.sku } });
+
+    // O Mapa do estoque pelo chat (15/11/2026): as contas e o Mover estao no teste:estoque3d; aqui, o que e do MCP: as 13
+    // ferramentas, o acesso (mapa + Localizacao), o roteiro, o fluxo das fotos (simula, grava), mover, colunas, modelos,
+    // caixinha e exclusao com confirmacao. So escreve ZZ-MCP-E*, a coluna ZW e o modelo "ZZ MCP E".
+    console.log("\nMapa do estoque pelo MCP");
+    const limparEstoque = async () => {
+      await prisma.historicoDeLocal.deleteMany({ where: { sku: { startsWith: "ZZ-MCP-E" } } });
+      await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-MCP-E" } } });
+      await prisma.colunaDeEstoque.deleteMany({ where: { letra: "ZW" } });
+      await prisma.modeloDeCaixinha.deleteMany({ where: { nome: { startsWith: "ZZ MCP E" } } });
+    };
+    await limparEstoque();
+    const embaixoAntes = (await prisma.localDeEstoque.findUnique({ where: { numero: 2 } }))?.primeiraEmbaixo ?? false;
+    try {
+      const texto = (resposta) => resposta?.content?.[0]?.text ?? "";
+      const json = (resposta) => JSON.parse(texto(resposta) || "{}");
+      conferir("estoque: as 13 ferramentas no tools/list", ESTOQUE.filter((nome) => !lista.some((f) => f.name === nome)), []);
+      conferir("estoque: leitura e so leitura, escrita nao, excluir e destrutiva", [lista.find((f) => f.name === "lerMapaDoEstoque")?.annotations?.readOnlyHint, lista.find((f) => f.name === "moverProdutoNoEstoque")?.annotations?.readOnlyHint, lista.find((f) => f.name === "excluirColunaDeEstoque")?.annotations?.destructiveHint], [true, false, true]);
+      const roteiro = await chamar("roteiroDoMapaDoEstoque", {});
+      conferir("roteiro: fala das fotos, sem o lembrete", [/gravarOrdemPelasFotos/.test(texto(roteiro)), roteiro?.content?.length], [true, 1]);
+      conferir("roteiro sem ver a Localizacao: recusa", (await chamar("roteiroDoMapaDoEstoque", {}, quem((r) => r !== "dado.localizacao")))?.isError, true);
+
+      const criada = json(await chamar("salvarColunaDeEstoque", { coluna: "zw", estoque: 2, prateleiras: 2, larguraCm: 60, profundidadeCm: 40, alturaLivreCm: 20 }));
+      conferir("coluna nova no Estoque 2", [criada.criada, criada.coluna?.letra, criada.coluna?.estoque, criada.coluna?.prateleiras], [true, "ZW", 2, 2]);
+      conferir("coluna nova sem estoque: recusa e nao cria", [(await chamar("salvarColunaDeEstoque", { coluna: "ZV", prateleiras: 2 }))?.isError, await prisma.colunaDeEstoque.count({ where: { letra: "ZV" } })], [true, 0]);
+      const alterada = json(await chamar("salvarColunaDeEstoque", { coluna: "ZW", pesoMaximoKg: 30 }));
+      conferir("alterar so o peso mantem o resto", [alterada.criada, alterada.coluna?.larguraCm, alterada.coluna?.pesoMaximoKg, alterada.coluna?.estoque], [false, 60, 30, 2]);
+      conferir("coluna sem editar o mapa: recusa", (await chamar("salvarColunaDeEstoque", { coluna: "ZW", pesoMaximoKg: 1 }, quem((r) => r !== "tela.estoque.mapa")))?.isError, true);
+
+      const modelo = json(await chamar("salvarModeloDeCaixinha", { nome: "ZZ MCP E P", larguraCm: 10, alturaCm: 8, profundidadeCm: 20 }));
+      conferir("modelo novo com o volume util padrao", [modelo.criado, modelo.modelo?.volumeUtil, modelo.modelo?.ativo], [true, 0.7, true]);
+      conferir("modelo novo sem medidas: recusa", (await chamar("salvarModeloDeCaixinha", { nome: "ZZ MCP E sem" }))?.isError, true);
+
+      for (const [sku, localizacao] of [["ZZ-MCP-E1", "ZW1"], ["ZZ-MCP-E2", "ZW1"], ["ZZ-MCP-E3", "ZW2"]]) {
+        await prisma.produto.create({ data: { sku, tituloBase: `ZZMCP ESTOQUE ${sku}`, localizacao, estoque: 3 } });
+      }
+      const caixinha = json(await chamar("definirCaixinhaDoProduto", { sku: "zz-mcp-e1", modelo: "zz mcp e p", pecasPorCaixinha: 40 }));
+      conferir("caixinha do produto pelo nome do modelo", [caixinha.modelo, caixinha.pecasPorCaixinha], ["ZZ MCP E P", 40]);
+      const soPecas = json(await chamar("definirCaixinhaDoProduto", { sku: "ZZ-MCP-E1", pecasPorCaixinha: 50 }));
+      conferir("mudar so as pecas mantem o modelo", [soPecas.modelo, soPecas.pecasPorCaixinha], ["ZZ MCP E P", 50]);
+
+      const coluna = json(await chamar("lerMapaDoEstoque", { coluna: "zw" }));
+      conferir("ler a coluna: prateleiras na ordem com as caixinhas", [coluna.estoque?.numero, coluna.coluna?.prateleiras?.map((p) => [p.codigo, p.caixinhas.map((c) => c.sku)])], [2, [["ZW1", ["ZZ-MCP-E1", "ZZ-MCP-E2"]], ["ZW2", ["ZZ-MCP-E3"]]]]);
+      conferir("ler a coluna: pecas digitadas vencem", coluna.coluna?.prateleiras?.[0]?.caixinhas?.[0]?.cabe, 50);
+      conferir("ler o Estoque 2 traz a coluna", json(await chamar("lerMapaDoEstoque", { estoque: 2 })).colunas?.some((c) => c.letra === "ZW"), true);
+      conferir("ler o resumo traz o modelo", json(await chamar("lerMapaDoEstoque", {})).modelosDeCaixinha?.some((m) => m.nome === "ZZ MCP E P"), true);
+      conferir("coluna que nao existe: erro", (await chamar("lerMapaDoEstoque", { coluna: "QQ" }))?.isError, true);
+
+      const simulado = json(await chamar("gravarOrdemPelasFotos", { coluna: "ZW", prateleiras: { 1: ["ZZ-MCP-E2", "ZZ-MCP-E1"], 2: ["?", "ZZ-MCP-E1"] } }));
+      conferir("fotos simuladas: o que gravaria e as duvidas", [simulado.gravado, simulado.posicoes?.map((p) => [p.sku, p.posicao]), simulado.duvidas?.length, simulado.naoApareceramNasFotos?.map((p) => p.sku)], [false, [["ZZ-MCP-E2", 1], ["ZZ-MCP-E1", 2]], 2, ["ZZ-MCP-E3"]]);
+      conferir("fotos simuladas nao gravam", (await prisma.produto.findUnique({ where: { sku: "ZZ-MCP-E2" } }))?.ordemNaPrateleira, null);
+      conferir("fotos sem editar a Localizacao: recusa", (await chamar("gravarOrdemPelasFotos", { coluna: "ZW", prateleiras: { 1: ["ZZ-MCP-E2"] }, confirmar: true }, quem((r) => r !== "dado.localizacao")))?.isError, true);
+      await chamar("gravarOrdemPelasFotos", { coluna: "ZW", prateleiras: { 1: ["ZZ-MCP-E2", "ZZ-MCP-E1"] }, confirmar: true });
+      const ordem = await prisma.produto.findMany({ where: { sku: { in: ["ZZ-MCP-E1", "ZZ-MCP-E2"] } }, orderBy: { sku: "asc" }, select: { ordemNaPrateleira: true } });
+      conferir("fotos confirmadas gravam a posicao", ordem.map((p) => p.ordemNaPrateleira), [2, 1]);
+
+      const movido = json(await chamar("moverProdutoNoEstoque", { sku: "ZZ-MCP-E3", coluna: "zw", prateleira: 1, posicao: 1 }));
+      conferir("mover: grava ZW1 e lembra do Bling", [movido.localizacao, /Bling/.test(movido.lembrete ?? "")], ["ZW1", true]);
+      const leitura = json(await chamar("lerCaixinhaDoProduto", { sku: "ZZ-MCP-E3" }));
+      conferir("caixinha do produto: lugar e historico com o login", [leitura.lugar?.prateleira, leitura.lugar?.posicao, leitura.historico?.[0]?.usuario], ["ZW1", 1, "zz-mcp-pa"]);
+      conferir("mover para prateleira que a coluna nao tem: erro", (await chamar("moverProdutoNoEstoque", { sku: "ZZ-MCP-E3", coluna: "ZW", prateleira: 9 }))?.isError, true);
+      conferir("mover sem editar o mapa: recusa", (await chamar("moverProdutoNoEstoque", { sku: "ZZ-MCP-E3", coluna: "ZW", prateleira: 2 }, quem((r) => r !== "tela.estoque.mapa")))?.isError, true);
+      const sugestao = json(await chamar("sugerirLugarNoEstoque", { sku: "ZZ-MCP-E3", estoque: 2 }));
+      conferir("sugerir: responde lugares ou o motivo", Array.isArray(sugestao.sugestoes) && (sugestao.sugestoes.length > 0 || Boolean(sugestao.motivo)), true);
+
+      conferir("configurar o Estoque 2", json(await chamar("configurarEstoque", { estoque: 2, primeiraEmbaixo: !embaixoAntes })).primeiraEmbaixo, !embaixoAntes);
+      conferir("excluir sem confirmo: recusa antes", [(await chamar("excluirColunaDeEstoque", { coluna: "ZW" }))?.isError, await prisma.colunaDeEstoque.count({ where: { letra: "ZW" } })], [true, 1]);
+      conferir("excluir coluna com produtos: recusa", /produto/.test(texto(await chamar("excluirColunaDeEstoque", { coluna: "ZW", confirmo: true }))), true);
+      conferir("excluir modelo em uso: recusa", (await chamar("excluirModeloDeCaixinha", { nome: "ZZ MCP E P", confirmo: true }))?.isError, true);
+      await chamar("definirCaixinhaDoProduto", { sku: "ZZ-MCP-E1", modelo: null });
+      conferir("excluir modelo sem uso", json(await chamar("excluirModeloDeCaixinha", { nome: "ZZ MCP E P", confirmo: true })).excluido, "ZZ MCP E P");
+      await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-MCP-E" } } });
+      conferir("excluir coluna vazia", json(await chamar("excluirColunaDeEstoque", { coluna: "ZW", confirmo: true })).excluida, "ZW");
+      conferir(
+        "estoque: resumos na Revisao",
+        [resumoDaChamada("moverProdutoNoEstoque", { sku: "100225", coluna: "m", prateleira: 2, posicao: 3 }), resumoDaChamada("gravarOrdemPelasFotos", { coluna: "a", confirmar: true }), resumoDaChamada("lerMapaDoEstoque", { coluna: "A" })],
+        ["estoque: moveu 100225 para M2 (3ª)", "estoque: fotos da coluna A (gravou)", "mapa do estoque: coluna A"],
+      );
+    } finally {
+      await prisma.localDeEstoque.update({ where: { numero: 2 }, data: { primeiraEmbaixo: embaixoAntes } }).catch(() => {});
+      await limparEstoque();
+    }
 
     console.log("\nA proposta da LI nao existe mais (25/10/2026)");
     conferir("tools/list nao traz as ferramentas da proposta da LI", lista.some((ferramenta) => ["lerParaPropostaLI", "gravarPropostaLI"].includes(ferramenta.name)), false);

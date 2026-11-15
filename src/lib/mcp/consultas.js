@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db";
 import { ErroDeUso } from "@/lib/riseAi/erros";
 import { limitesDoDia } from "@/lib/riseAi/revisao";
 
+import { FERRAMENTAS_DO_ESTOQUE } from "./estoque.js";
+
 /**
  * As consultas que cada pessoa fez ao Rise pelo Claude/ChatGPT num dia, para a Revisao (pedido do dono em 20/10/2026:
  * "sempre salvar o historico de conversa no Rise"). O Rise so recebe a pergunta e a resposta quando o modelo chama
@@ -16,7 +18,7 @@ const FUSO = "America/Sao_Paulo";
 const ANOTAR = "anotarDuvida";
 // A proposta de cadastro nao e duvida de atendimento: aparece na lista, mas nao espera anotacao (spec 2026-10-21).
 // As Correcoes da descricao (07/11/2026) tambem: o dono dita, nao e duvida. E o roteiro da analise de fornecedor (07/11/2026).
-const DA_PROPOSTA = new Set(["roteiroDaAnaliseDeFornecedor", "roteiroDaProposta", "lerParaProposta", "lerProposta", "baixarCandidatas", "folhaDeContato", "gravarSecao", "situacaoDoProduto", "lerParaPropostaML", "lerCategoriaML", "gravarPropostaML", "gravarCorrecaoDaDescricao", "listarCorrecoesDaDescricao", "desligarCorrecaoDaDescricao"]);
+const DA_PROPOSTA = new Set(["roteiroDaAnaliseDeFornecedor", "roteiroDaProposta", "lerParaProposta", "lerProposta", "baixarCandidatas", "folhaDeContato", "gravarSecao", "situacaoDoProduto", "lerParaPropostaML", "lerCategoriaML", "gravarPropostaML", "gravarCorrecaoDaDescricao", "listarCorrecoesDaDescricao", "desligarCorrecaoDaDescricao", ...FERRAMENTAS_DO_ESTOQUE.map((ferramenta) => ferramenta.nome)]);
 const JANELA_MS = 30 * 60 * 1000;
 const hora = (data) => new Intl.DateTimeFormat("pt-BR", { timeZone: FUSO, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(data);
 
@@ -55,6 +57,10 @@ const RESUMOS = {
   gravarCorrecaoDaDescricao: (a) => `correção da descrição: ${a.tipo === "REGRA" ? a.certo : `${a.errado} → ${a.certo}`}`,
   listarCorrecoesDaDescricao: () => "correções da descrição: lista",
   desligarCorrecaoDaDescricao: (a) => `correção da descrição ${a.id}: desligou`,
+  lerMapaDoEstoque: (a) => (a.coluna ? `mapa do estoque: coluna ${a.coluna}` : a.estoque ? `mapa do estoque: Estoque ${a.estoque}` : "mapa do estoque: resumo"),
+  lerCaixinhaDoProduto: (a) => `caixinha de ${a.sku}`,
+  moverProdutoNoEstoque: (a) => `estoque: moveu ${a.sku} para ${String(a.coluna ?? "").toUpperCase()}${a.prateleira}${a.posicao ? ` (${a.posicao}ª)` : ""}`,
+  gravarOrdemPelasFotos: (a) => `estoque: fotos da coluna ${String(a.coluna ?? "").toUpperCase()} (${a.confirmar ? "gravou" : "simulou"})`,
   roteiroDaAnaliseDeFornecedor: (a) => (a?.parte === "modelo" ? "análise de fornecedor: leu o modelo da página" : "análise de fornecedor: leu o roteiro"),
 };
 const ROTULOS_CORTADOS = { buscarProdutos: "buscou", buscarNoMercado: "mercado", buscarConhecimento: "conhecimento" };

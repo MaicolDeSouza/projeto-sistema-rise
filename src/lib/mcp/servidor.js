@@ -7,6 +7,7 @@ import { FERRAMENTAS_DE_CADASTRO } from "./cadastros.js";
 import { FERRAMENTAS_DE_CANAIS } from "./canais.js";
 import { FERRAMENTAS_DE_COMPRAS_ESCRITA, FERRAMENTAS_DE_COMPRAS_LEITURA } from "./compras.js";
 import { FERRAMENTAS_DE_CORRECOES } from "./correcoes.js";
+import { FERRAMENTAS_DO_ESTOQUE } from "./estoque.js";
 import { FERRAMENTAS_DE_ESTUDOS } from "./estudos.js";
 import { FERRAMENTAS_DO_CATALOGO } from "./catalogo.js";
 import { horasDeBrasilia } from "./horario.js";
@@ -45,6 +46,7 @@ export const INSTRUCOES = [
   "Estudo de viabilidade (vale a pena trabalhar com um produto mandado pelo Scraper? quanto comprar?): chame primeiro roteiroDoEstudoDeViabilidade e siga o roteiro; o relatório volta ao Rise com gravarEstudoDeViabilidade.",
   "Análise de lista de fornecedor (comparar os preços de um fornecedor, em R$ ou US$, com os concorrentes e os outros fornecedores, e montar a página padrão): chame primeiro roteiroDaAnaliseDeFornecedor e siga o roteiro; com parte \"modelo\" ela traz o HTML da página.",
   "Vendas: relatorioDeVendas (totais, canais, dias, mais vendidos e lucro de um período), listarPedidosDeVenda e lerPedidoDeVenda leem os pedidos do Mercado Livre, da Loja Integrada e do Bling (desde 01/11/2026). Datas como AAAA-MM-DD; sem período, os últimos 30 dias. Do cliente só vêm o nome e a cidade.",
+  "Mapa do estoque (prateleiras e caixinhas dos 3 estoques; fotos das prateleiras para acertar a posição de cada caixinha, mover produto, colunas e modelos de caixinha): chame primeiro roteiroDoMapaDoEstoque e siga o roteiro; mover e gravar só quando a pessoa pedir, e excluir só com a confirmação dela.",
   "OBRIGATÓRIO: ao terminar CADA resposta em que você consultou o Rise, chame a ferramenta anotarDuvida com a pergunta original da pessoa, a sua resposta final e, se ela enviou arquivo, o texto extraído dele em anexos. A pessoa não vê essa anotação; ela serve para a loja revisar e melhorar as respostas.",
 ].join("\n");
 
@@ -66,7 +68,9 @@ const SO_LEITURA_DO_MCP = [FERRAMENTA_MERCADO, ...FERRAMENTAS_DO_CATALOGO, ...FE
 // O estudo de viabilidade (12/11/2026) tambem: o Claude Desktop estuda a fila do Scraper e so escreve no proprio estudo.
 // Sincronizar com o Bling e com a Loja Integrada (10/11/2026): as duas UNICAS que escrevem em sistema de fora; cada uma
 // confere a acao propria do login (acao.produtos.sincronizarBling e acao.lojaIntegrada.sincronizar) e as travas do Rise.
-const PROPOSTAS = [...FERRAMENTAS_DA_PROPOSTA, ...FERRAMENTAS_DA_PROPOSTA_DE_ANUNCIO, ...FERRAMENTAS_DE_CANAIS, ...FERRAMENTAS_DE_REFERENCIAS, ...FERRAMENTAS_DE_COMPRAS_ESCRITA, ...FERRAMENTAS_DE_CORRECOES, ...FERRAMENTAS_DA_ANALISE_DE_FORNECEDOR, ...FERRAMENTAS_DE_ESTUDOS];
+// O Mapa do estoque (15/11/2026): a Andrea acerta as prateleiras pelas fotos; trabalho, nao duvida, sem o lembrete. Cada
+// uma confere o acesso da tela (tela.estoque.mapa) e o da Localizacao (dado.localizacao), como as acoes de /estoque/mapa.
+const PROPOSTAS = [...FERRAMENTAS_DA_PROPOSTA, ...FERRAMENTAS_DA_PROPOSTA_DE_ANUNCIO, ...FERRAMENTAS_DE_CANAIS, ...FERRAMENTAS_DE_REFERENCIAS, ...FERRAMENTAS_DE_COMPRAS_ESCRITA, ...FERRAMENTAS_DE_CORRECOES, ...FERRAMENTAS_DA_ANALISE_DE_FORNECEDOR, ...FERRAMENTAS_DE_ESTUDOS, ...FERRAMENTAS_DO_ESTOQUE];
 const SO_DO_MCP = [...SO_LEITURA_DO_MCP, FERRAMENTA_ANOTAR, ...PROPOSTAS];
 // A proposta de produto (spec 2026-10-21) nao e pergunta de atendimento: sem o lembrete de anotar, como a propria anotacao.
 const SEM_LEMBRETE = new Set([FERRAMENTA_ANOTAR.nome, ...PROPOSTAS.map((ferramenta) => ferramenta.nome)]);
