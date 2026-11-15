@@ -588,6 +588,31 @@ o Docker Desktop travava ao abrir e o sistema ficava sem banco.
 - As URLs de produto são baseadas no **nome** e editáveis — não dá para deduzi-las do id. O vínculo pelo SKU grava
   `Produto.urlLojaIntegrada` com `LI_DOMINIO` + o `url` da loja.
 
+### Marcas no INPI (consultas feitas a pedido do dono)
+
+O INPI (Instituto Nacional da Propriedade Industrial) é o órgão federal que registra marcas, patentes, desenhos industriais
+e programas no Brasil. Registro de marca vale 10 anos, renováveis, e só protege nas **classes de Nice** pedidas e na lista de
+produtos **deferida** (o resto da classe, o cabeçalho genérico "aparelhos e instrumentos...", não protege nada). Serve para o
+Brand Protection do Mercado Livre (o dono da marca registrada pode pedir a retirada de anúncios).
+
+- **Como consultar:** base pública pePI, `https://busca.inpi.gov.br/pePI/` (sem login: "Consultar por: Titular" ou "Marca";
+  o detalhe do processo traz a especificação deferida e a excluída, datas e despachos). A busca na internet não acha os
+  processos; foi preciso abrir a base no navegador.
+- **Marca DELTA (Delta Electronics, fabricante de CLP, IHM, inversor), consultada em 15/11/2026 (dados do INPI até
+  10/11/2026):**
+  - **Processo 934836183, DELTA (mista), titular DELTA ELECTRONICS BRASIL LTDA. (CNPJ 28.738.080/0001-04), classe NCL(12) 09,
+    REGISTRO EM VIGOR**: depósito 03/06/2024, concessão 24/02/2026, vigência até 24/02/2036. A lista deferida cita
+    **"controlador lógico programável (CLP)"**, interface homem máquina, inversor de frequência, servo drive, fonte AC/DC,
+    nobreak, controlador de temperatura, medidores elétricos, sensores (indutivo, óptico, pressão, fluxo), computador
+    industrial, conversor de comunicação e controle de máquinas CNC. Excluído: servo motor.
+  - Processo 914876511, DELTA (mista), titular DELTA ELECTRONICS, INC. (Taiwan), classe 09, em vigor até 05/10/2031, mas a
+    lista deferida não tem automação (robôs de laboratório, monitores AR/VR, raios-X, scanner, câmeras industriais). Foi
+    indeferido por imitar DELTA PT (912346540) e DELTA STAR (821285254) e deferido no recurso.
+  - Também em vigor: 840274220 (DELTA ELECTRONICS INC., classe 12). Os pedidos nas classes 07, 10, 11, 37, 39 e 42
+    (da matriz e da Delta Brasil) estão indeferidos ou aguardando recurso.
+  - Para a 4hobby: vender Delta original com o nome é normal; anunciar compatível ou paralelo como "Delta" fere o registro e
+    pode ser derrubado pela Delta no ML.
+
 ### Mercados (coleta de concorrentes e fornecedores)
 
 Bloco que lê sites de terceiros. **Não tem vínculo com o catálogo próprio** — nada aqui
