@@ -5,6 +5,9 @@ import { garantirClienteDaProposta } from "@/lib/propostas/cliente";
 import { conferirProposta, conferirSituacao } from "@/lib/propostas/esquema";
 import {
   GARANTIA_PADRAO,
+  PROXIMO_CONTATO_PADRAO_DIAS,
+  VENDEDOR_PADRAO,
+  somarDias,
   PRIMEIRO_NUMERO,
   SITUACOES,
   SITUACOES_ABERTAS,
@@ -45,6 +48,9 @@ export async function criarProposta({ login = "pc", nome = null } = {}, { hoje =
         clienteNome: "",
         validadeAte: comoData(validadePadrao(hoje)),
         garantia: GARANTIA_PADRAO,
+        // Padroes do card "Condicoes da proposta" (pedido do dono em 17/11/2026): Andrea e contato em 10 dias.
+        vendedor: VENDEDOR_PADRAO,
+        proximoContato: comoData(somarDias(hoje, PROXIMO_CONTATO_PADRAO_DIAS)),
         criadoPor: login,
         criadoPorNome: nome,
       },

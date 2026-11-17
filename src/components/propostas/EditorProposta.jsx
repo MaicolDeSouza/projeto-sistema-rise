@@ -10,7 +10,7 @@ import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
 import { marcarTelaIniciada } from "@/components/mercados/NavegacaoDoTopo";
 import { MOTIVOS_DE_RECUSA, camposDoPadrao, dataBR, linhasDasExigencias, linkDoWhatsApp, mensagemDoWhatsApp, numeroDaProposta, pendenciasDoPdf, precisaContato } from "@/lib/propostas/regras";
 import { lerListaDaTela, pedirVoltaNaRolagem } from "@/lib/ultimaListaDaTela";
-import { AbasDaProposta, CartaoFrete, CartaoPagamento, CartaoTotais, HistoricoDeContatos } from "./BlocosDaProposta";
+import { AbasDaProposta, CartaoCondicoesDaProposta, CartaoFrete, CartaoPagamento, CartaoTotais, HistoricoDeContatos } from "./BlocosDaProposta";
 import CartaoCliente, { campo, Rotulo } from "./CartaoCliente";
 import { entradaDoFormulario, formularioDaProposta, moeda, totaisDoFormulario } from "./formato";
 import ItensDaProposta from "./ItensDaProposta";
@@ -22,7 +22,7 @@ import { AnexosDaCotacao, JanelaContato, JanelaPedidoDeVenda, JanelaRecusar } fr
  * principal e Salvar, e o "Gerar PDF" fecha a linha de botoes. Aprovar, Recusar, Reabrir e o pedido de venda moram no
  * menu da situacao. Aprovada e Recusada ficam so leitura (Reabrir volta a Em negociacao).
  */
-export default function EditorProposta({ propostaInicial, transportadoras, condicoes, padroes = [], vendedores = [], podeEditar, podePedidoDeVenda }) {
+export default function EditorProposta({ propostaInicial, transportadoras, condicoes, padroes = [], podeEditar, podePedidoDeVenda }) {
   const router = useRouter();
   const [proposta, setProposta] = useState(propostaInicial);
   const [cliente, setCliente] = useState(propostaInicial.cliente);
@@ -309,7 +309,8 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
       {aviso && <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800" role="status">{aviso}</p>}
 
       <div className="space-y-6">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        {/* O Cliente ocupa a largura toda: a validade e o proximo contato foram para "Condicoes da proposta" (17/11/2026). */}
+        <div>
           <CartaoCliente
             seletorDoPadrao={
               // Ao lado do titulo "Cliente" (pedido do dono em 17/11/2026); sem padrao = "Cliente comum".
@@ -333,17 +334,6 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
             formulario={formulario}
             cliente={formulario.clienteId ? cliente : null}
             editar={editar} erros={erros} aoMudar={mudar} aoLigarCliente={ligarCliente} aoDesligarCliente={desligarCliente} />
-          <SecaoDoAnuncio titulo="Validade e contato">
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-1">
-              <Rotulo texto="Válida até" erro={erros.validadeAte}>
-                <input type="date" value={formulario.validadeAte} disabled={!podeEditar || (proposta.soLeitura && situacao !== "VENCIDA")} aria-invalid={Boolean(erros.validadeAte)} onChange={(e) => mudar("validadeAte", e.target.value)} className={campo} />
-              </Rotulo>
-              <Rotulo texto="Próximo contato" erro={erros.proximoContato}>
-                <input type="date" value={formulario.proximoContato} disabled={!editar} onChange={(e) => mudar("proximoContato", e.target.value)} className={`${campo} ${contatoAgora ? "border-amber-400 bg-amber-50" : ""}`} />
-              </Rotulo>
-            </div>
-            {situacao === "VENCIDA" && <p className="mt-2 text-xs text-suave">Venceu em {dataBR(proposta.validadeAte)}. Mude a data e salve para reabrir.</p>}
-          </SecaoDoAnuncio>
         </div>
 
         {linhasDasExigencias(padrao?.exigencias).length > 0 && (
@@ -361,7 +351,18 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
 
         <CartaoTotais formulario={formulario} totais={totais} editar={editar} erros={erros} aoMudar={mudar} veCusto={veCusto} />
 
+        {/* Dois por linha: tres lado a lado em ~1600 px apertavam a validade ("10 d..."); o Frete vai para baixo. */}
         <div className="grid gap-6 lg:grid-cols-2">
+          <CartaoCondicoesDaProposta
+            formulario={formulario}
+            editar={editar}
+            editarValidade={podeEditar && (!proposta.soLeitura || situacao === "VENCIDA")}
+            vencida={situacao === "VENCIDA"}
+            venceuEm={proposta.validadeAte}
+            contatoAgora={contatoAgora}
+            erros={erros}
+            aoMudar={mudar}
+          />
           <CartaoPagamento formulario={formulario} condicoes={condicoes} total={totais.total} editar={editar} erros={erros} aoMudar={mudar} />
           <CartaoFrete formulario={formulario} transportadoras={transportadoras} editar={editar} erros={erros} aoMudar={mudar} />
         </div>
@@ -370,7 +371,6 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
           formulario={formulario}
           editar={editar}
           aoMudar={mudar}
-          vendedores={vendedores}
           quantos={{ contatos: proposta.contatos.length, cotacao: proposta.anexos.length }}
           contatos={<HistoricoDeContatos contatos={proposta.contatos} />}
           cotacao={<AnexosDaCotacao numero={proposta.numero} anexos={proposta.anexos} editar={podeEditar} aoAtualizar={(nova) => setProposta((antes) => ({ ...antes, anexos: nova.anexos }))} />}

@@ -3,10 +3,113 @@
 import { useState } from "react";
 
 import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
-import { FORMAS_DE_PAGAMENTO, TEXTO_DO_FRETE, dataBR, lerDesconto, planoDaCondicao, prazoGeral, textoDoPagamento, valoresDoPagamento } from "@/lib/propostas/regras";
+import {
+  DIAS_ATE_O_CONTATO,
+  DIAS_DE_VALIDADE,
+  FORMAS_DE_PAGAMENTO,
+  GARANTIAS_DA_PROPOSTA,
+  TEXTO_DO_FRETE,
+  VENDEDORES_DA_PROPOSTA,
+  dataBR,
+  diasEntre,
+  hojeEmSaoPaulo,
+  lerDesconto,
+  planoDaCondicao,
+  prazoGeral,
+  somarDias,
+  textoDoPagamento,
+  valoresDoPagamento,
+} from "@/lib/propostas/regras";
 import { campo, Rotulo } from "./CartaoCliente";
 import { doTexto, moeda, paraTexto, soDecimal, soDigitos } from "./formato";
 import CampoComLista from "./CampoComLista";
+
+/**
+ * Um campo de "N dias" com lista (validade e proximo contato, 17/11/2026): escolher "15 dias" ou digitar "45" grava a
+ * DATA de hoje + N; o campo mostra quantos dias faltam ate a data gravada e, ao lado, a propria data. Enquanto se digita,
+ * o texto e o digitado (senao "4" viraria "4 dias" no meio do "45").
+ */
+function CampoDeDias({ opcoes, data, editar, aoMudarData, rotuloDaSeta, permitirVazio = false, destaque = "", sufixo = (d) => `(${dataBR(d)})` }) {
+  const [digitando, setDigitando] = useState(null);
+  const hoje = hojeEmSaoPaulo();
+  const dias = data ? diasEntre(hoje, data) : null;
+  const mostrado = dias === null ? "" : dias < 0 ? `Venceu há ${-dias} dia${dias === -1 ? "" : "s"}` : `${dias} dia${dias === 1 ? "" : "s"}`;
+  return (
+    <span className="flex items-center gap-2" onBlur={() => setDigitando(null)}>
+      <span className="min-w-0 flex-1">
+        <CampoComLista
+          opcoes={opcoes.map((d) => ({ id: String(d), nome: `${d} dias` }))}
+          id={dias !== null && opcoes.includes(dias) ? String(dias) : ""}
+          texto={digitando ?? mostrado}
+          editar={editar}
+          aoMudar={({ id, texto }) => {
+            setDigitando(texto);
+            const n = Number(String(id || texto).replace(/\D/g, ""));
+            if (n > 0 && n <= 3650) aoMudarData(somarDias(hoje, n));
+            else if (!texto.trim() && permitirVazio) aoMudarData("");
+          }}
+          placeholder="Escolha ou digite os dias"
+          rotuloDaSeta={rotuloDaSeta}
+          className={`${campo} ${destaque}`}
+        />
+      </span>
+      {data && <span className="shrink-0 text-sm text-suave tabular-nums">{sufixo(data)}</span>}
+    </span>
+  );
+}
+
+/**
+ * "Condicoes da proposta" (pedido do dono em 17/11/2026, no molde do card Pagamento): validade da cotacao, garantia,
+ * proximo contato e vendedor, cada um com as opcoes e o campo aberto para digitar. Substituiu o card "Validade e contato"
+ * e tirou a garantia e o vendedor da aba "Observacoes para o cliente".
+ */
+export function CartaoCondicoesDaProposta({ formulario, editar, editarValidade, vencida, venceuEm, contatoAgora, erros, aoMudar }) {
+  return (
+    <SecaoDoAnuncio titulo="Condições da proposta" ajuda="Validade, garantia e vendedor saem no PDF; o próximo contato é só interno (o “!” da lista).">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Rotulo texto="Validade da cotação" erro={erros.validadeAte}>
+          <CampoDeDias opcoes={DIAS_DE_VALIDADE} data={formulario.validadeAte} editar={editarValidade} aoMudarData={(d) => aoMudar("validadeAte", d)} rotuloDaSeta="Opções de validade" sufixo={(d) => `(até ${dataBR(d)})`} />
+        </Rotulo>
+        <Rotulo texto="Garantia">
+          <CampoComLista
+            opcoes={GARANTIAS_DA_PROPOSTA.map((g) => ({ id: g, nome: g }))}
+            id={GARANTIAS_DA_PROPOSTA.includes(formulario.garantia) ? formulario.garantia : ""}
+            texto={formulario.garantia}
+            editar={editar}
+            aoMudar={({ texto }) => aoMudar("garantia", texto)}
+            placeholder="Escolha ou digite a garantia"
+            rotuloDaSeta="Opções de garantia"
+            className={campo}
+          />
+        </Rotulo>
+        <Rotulo texto="Próximo contato" erro={erros.proximoContato}>
+          <CampoDeDias
+            opcoes={DIAS_ATE_O_CONTATO}
+            data={formulario.proximoContato}
+            editar={editar}
+            permitirVazio
+            aoMudarData={(d) => aoMudar("proximoContato", d)}
+            rotuloDaSeta="Opções de próximo contato"
+            destaque={contatoAgora ? "border-amber-400 bg-amber-50" : ""}
+          />
+        </Rotulo>
+        <Rotulo texto="Vendedor">
+          <CampoComLista
+            opcoes={VENDEDORES_DA_PROPOSTA.map((v) => ({ id: v, nome: v }))}
+            id={VENDEDORES_DA_PROPOSTA.includes(formulario.vendedor) ? formulario.vendedor : ""}
+            texto={formulario.vendedor}
+            editar={editar}
+            aoMudar={({ texto }) => aoMudar("vendedor", texto.slice(0, 120))}
+            placeholder="Escolha ou digite o vendedor"
+            rotuloDaSeta="Opções de vendedor"
+            className={campo}
+          />
+        </Rotulo>
+      </div>
+      {vencida && <p className="mt-3 text-xs text-suave">Venceu em {dataBR(venceuEm)}. Escolha uma nova validade e salve para reabrir.</p>}
+    </SecaoDoAnuncio>
+  );
+}
 
 /** Os campos do formulario que a condicao preenche (parcelas e entrada, em texto); {} quando ela nao diz (A combinar). */
 export function camposDaCondicao(condicoes, id) {
@@ -213,7 +316,7 @@ const ABAS = [
  * As abas de baixo (Padrao visual, regra 5): todas montadas e so escondidas, para o Salvar nunca perder o digitado.
  * `contatos` e `cotacao` sao componentes proprios (gravam na hora, fora do Salvar).
  */
-export function AbasDaProposta({ formulario, editar, aoMudar, contatos, cotacao, quantos, vendedores = [] }) {
+export function AbasDaProposta({ formulario, editar, aoMudar, contatos, cotacao, quantos }) {
   const [aba, setAba] = useState("nf");
   return (
     <section className="rounded-lg border border-borda bg-superficie">
@@ -241,21 +344,10 @@ export function AbasDaProposta({ formulario, editar, aoMudar, contatos, cotacao,
             <textarea rows={2} value={formulario.observacoesNf} disabled={!editar} onChange={(e) => aoMudar("observacoesNf", e.target.value)} className={`${campo} field-sizing-content min-h-16`} />
           </Rotulo>
         </div>
-        <div hidden={aba !== "cliente"} className="grid gap-3 lg:grid-cols-2">
+        {/* A garantia e o vendedor foram para o card "Condicoes da proposta" (17/11/2026). */}
+        <div hidden={aba !== "cliente"}>
           <Rotulo texto="Observações para o cliente (saem no PDF)">
             <textarea rows={3} value={formulario.observacoesCliente} disabled={!editar} onChange={(e) => aoMudar("observacoesCliente", e.target.value)} className={`${campo} field-sizing-content min-h-20`} />
-          </Rotulo>
-          <Rotulo texto="Garantia">
-            <textarea rows={3} value={formulario.garantia} disabled={!editar} onChange={(e) => aoMudar("garantia", e.target.value)} className={`${campo} field-sizing-content min-h-20`} />
-          </Rotulo>
-          {/* Vendedor da faixa do PDF (13/11/2026): os usuarios do Rise na lista, ou outro nome digitado. */}
-          <Rotulo texto="Vendedor">
-            <input list="vendedores-da-proposta" value={formulario.vendedor} disabled={!editar} onChange={(e) => aoMudar("vendedor", e.target.value.slice(0, 120))} placeholder="Quem criou a proposta" className={`${campo} max-w-sm`} />
-            <datalist id="vendedores-da-proposta">
-              {vendedores.map((nome) => (
-                <option key={nome} value={nome} />
-              ))}
-            </datalist>
           </Rotulo>
         </div>
         <div hidden={aba !== "internas"}>

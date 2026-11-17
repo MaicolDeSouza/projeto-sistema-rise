@@ -13,7 +13,20 @@ export const FUSO = "America/Sao_Paulo";
 export const PRIMEIRO_NUMERO = 2026;
 /** Validade padrao (decisao do dono: 15 dias, editavel em cada proposta). */
 export const VALIDADE_PADRAO_DIAS = 15;
-export const GARANTIA_PADRAO = "Garantia de 90 dias contra defeito de fabricação.";
+// Card "Condicoes da proposta" (pedido do dono em 17/11/2026): as opcoes de cada campo e o que a proposta nova ja traz.
+// Todos aceitam tambem o que for digitado. Ate ali a garantia padrao era "Garantia de 90 dias contra defeito de fabricacao."
+export const GARANTIA_PADRAO = "90 dias";
+export const GARANTIAS_DA_PROPOSTA = ["90 dias", "6 meses"];
+export const DIAS_DE_VALIDADE = [5, 10, 15, 30];
+export const DIAS_ATE_O_CONTATO = [5, 10, 15, 30];
+export const PROXIMO_CONTATO_PADRAO_DIAS = 10;
+export const VENDEDORES_DA_PROPOSTA = ["Andrea", "Maicol"];
+export const VENDEDOR_PADRAO = "Andrea";
+
+/** Dias de `de` ate `ate` (datas AAAA-MM-DD); negativo = ja passou. */
+export function diasEntre(de, ate) {
+  return Math.round((Date.parse(ate) - Date.parse(de)) / 86_400_000);
+}
 
 export const SITUACOES = {
   RASCUNHO: "Rascunho",

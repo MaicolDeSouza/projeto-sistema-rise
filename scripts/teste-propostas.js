@@ -273,6 +273,13 @@ try {
   conferir("numeracao a partir de 2026", Math.min(p1.numero, p2.numero) >= 2026, true);
   const nova = await banco.lerProposta(p1.numero, { hoje: "2026-11-12" });
   conferir("nasce rascunho, com garantia e validade", [nova.situacao, Boolean(nova.garantia), nova.validadeAte >= regras.hojeEmSaoPaulo()], ["RASCUNHO", true, true]);
+  // Padroes do card "Condicoes da proposta" (17/11/2026): 90 dias, Andrea, contato em 10 dias e validade de 15.
+  const hojeDoTeste = regras.hojeEmSaoPaulo();
+  conferir(
+    "nasce com 90 dias, Andrea, contato em 10 dias e validade de 15",
+    [nova.garantia, nova.vendedor, regras.diasEntre(hojeDoTeste, nova.proximoContato), regras.diasEntre(hojeDoTeste, nova.validadeAte)],
+    ["90 dias", "Andrea", 10, 15],
+  );
 
   const doProduto = await banco.produtoParaProposta(produto.id);
   conferir("item copia o produto", [doProduto.codigoInterno, doProduto.precoUnitario, doProduto.custoUnitario, doProduto.unidade], ["ZZ-PROP-CLI-1", 100, 40, "UN"]);
