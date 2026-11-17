@@ -22,7 +22,7 @@ import { AnexosDaProposta, JanelaContato, JanelaPedidoDeVenda, JanelaRecusar } f
  * principal e Salvar, e o "Gerar PDF" fecha a linha de botoes. Aprovar, Recusar, Reabrir e o pedido de venda moram no
  * menu da situacao. Aprovada e Recusada ficam so leitura (Reabrir volta a Em negociacao).
  */
-export default function EditorProposta({ propostaInicial, transportadoras, condicoes, padroes = [], podeEditar, podePedidoDeVenda }) {
+export default function EditorProposta({ propostaInicial, transportadoras, condicoes, padroes = [], certificado = null, podeEditar, podePedidoDeVenda }) {
   const router = useRouter();
   const [proposta, setProposta] = useState(propostaInicial);
   const [cliente, setCliente] = useState(propostaInicial.cliente);
@@ -363,6 +363,7 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
             contatoAgora={contatoAgora}
             erros={erros}
             aoMudar={mudar}
+            certificado={certificado}
             className="h-full"
           />
           <CartaoPagamento className="h-full" formulario={formulario} condicoes={condicoes} total={totais.total} editar={editar} erros={erros} aoMudar={mudar} />

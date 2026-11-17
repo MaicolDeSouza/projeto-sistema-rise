@@ -80,6 +80,7 @@ export function formularioDaProposta(proposta) {
     prazoTransporteDias: proposta.prazoTransporteDias ? String(proposta.prazoTransporteDias) : "",
     transportadoraNome: proposta.transportadoraNome ?? "",
     freteDiluido: Boolean(proposta.freteDiluido),
+    assinarDigitalmente: Boolean(proposta.assinarDigitalmente),
     desconto: !proposta.descontoValor ? "" : proposta.descontoTipo === "PERCENTUAL" ? `${paraTexto(proposta.descontoValor)}%` : paraTexto(proposta.descontoValor),
     ocCliente: proposta.ocCliente ?? "",
     observacoesNf: proposta.observacoesNf ?? "",

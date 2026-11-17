@@ -453,6 +453,9 @@ try {
   await banco.salvarProposta(p2.numero, { ...comCliente, fretePorConta: "CIF", frete: "30", freteDiluido: true, transportadoraId: "", transportadoraNome: "Transportes ZZ" }, { hoje: "2026-11-12" });
   const comFrete = await banco.lerProposta(p2.numero);
   conferir("frete diluido e transportadora digitada gravados", [comFrete.freteDiluido, comFrete.transportadoraId, comFrete.transportadoraNome], [true, null, "Transportes ZZ"]);
+  conferir("assinar digitalmente nasce desmarcado", comFrete.assinarDigitalmente, false);
+  await banco.salvarProposta(p2.numero, { ...comCliente, fretePorConta: "CIF", frete: "30", freteDiluido: true, transportadoraNome: "Transportes ZZ", assinarDigitalmente: true }, { hoje: "2026-11-12" });
+  conferir("assinar digitalmente gravado", (await banco.lerProposta(p2.numero)).assinarDigitalmente, true);
   const { conteudoDaProposta: conteudoDoFrete } = await import("../src/lib/propostas/conteudo.js");
   const doFrete = conteudoDoFrete(comFrete, null);
   conferir(

@@ -76,6 +76,8 @@ export function conferirProposta(entrada = {}) {
   dados.observacoesCliente = texto(entrada.observacoesCliente, 4000);
   dados.garantia = texto(entrada.garantia, 2000);
   dados.vendedor = texto(entrada.vendedor, 120);
+  // O PDF sai assinado pelo certificado da empresa (17/11/2026, "apenas as marcadas").
+  dados.assinarDigitalmente = entrada.assinarDigitalmente === true || entrada.assinarDigitalmente === "true";
   dados.observacoesInternas = texto(entrada.observacoesInternas, 4000);
 
   if (!dataValida(entrada.validadeAte)) erros.validadeAte = "Informe a validade.";

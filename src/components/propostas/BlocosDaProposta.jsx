@@ -64,7 +64,31 @@ function CampoDeDias({ opcoes, data, editar, aoMudarData, rotuloDaSeta, permitir
  * proximo contato e vendedor, cada um com as opcoes e o campo aberto para digitar. Substituiu o card "Validade e contato"
  * e tirou a garantia e o vendedor da aba "Observacoes para o cliente".
  */
-export function CartaoCondicoesDaProposta({ formulario, editar, editarValidade, vencida, venceuEm, contatoAgora, erros, aoMudar, className = "" }) {
+/**
+ * "Assinar digitalmente" (17/11/2026, "apenas as marcadas"): o PDF sai assinado pelo e-CNPJ da empresa. Sem certificado a
+ * chave fica desligada com o motivo no title (regra 8); marcada com o certificado vencido, uma linha ambar diz que sai sem.
+ */
+function AssinarDigitalmente({ formulario, editar, certificado, aoMudar }) {
+  const marcada = Boolean(formulario.assinarDigitalmente);
+  // Desmarcar continua possivel sem certificado (quem tirou o certificado ainda desliga a marca).
+  const desligada = !editar || (!certificado && !marcada);
+  const motivo = !certificado ? "Cadastre o certificado digital em Configurações › Dados da empresa." : undefined;
+  return (
+    <div className="mt-4 border-t border-borda pt-3">
+      <div className="flex flex-wrap items-center gap-3" title={motivo}>
+        <Interruptor ligado={marcada} desabilitado={desligada} rotulo="Assinar digitalmente" aoMudar={(v) => aoMudar("assinarDigitalmente", v)} />
+        <span className="text-sm font-medium text-texto">Assinar digitalmente</span>
+        {marcada && certificado && !certificado.vencido && <span className="text-xs text-suave">por {certificado.razaoSocial}</span>}
+      </div>
+      {marcada && certificado?.vencido && (
+        <p className="mt-2 text-xs text-amber-700">Certificado vencido em {dataBR(new Date(certificado.validoAte))}: o PDF sai sem assinatura.</p>
+      )}
+      {marcada && !certificado && <p className="mt-2 text-xs text-amber-700">Sem certificado digital: o PDF sai sem assinatura.</p>}
+    </div>
+  );
+}
+
+export function CartaoCondicoesDaProposta({ formulario, editar, editarValidade, vencida, venceuEm, contatoAgora, erros, aoMudar, certificado = null, className = "" }) {
   return (
     <SecaoDoAnuncio className={className} titulo="Condições da proposta" ajuda="Validade, garantia e vendedor saem no PDF; o próximo contato é só interno (o “!” da lista).">
       <div className="grid gap-3 sm:grid-cols-2">
@@ -107,6 +131,7 @@ export function CartaoCondicoesDaProposta({ formulario, editar, editarValidade, 
           />
         </Rotulo>
       </div>
+      <AssinarDigitalmente formulario={formulario} editar={editar} certificado={certificado} aoMudar={aoMudar} />
       {vencida && <p className="mt-3 text-xs text-suave">Venceu em {dataBR(venceuEm)}. Escolha uma nova validade e salve para reabrir.</p>}
     </SecaoDoAnuncio>
   );
