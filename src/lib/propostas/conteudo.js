@@ -18,7 +18,7 @@ export const COLUNAS = [
   { chave: "item", titulo: "#" },
   { chave: "foto", titulo: "Foto" },
   { chave: "descricao", titulo: "Descrição" },
-  { chave: "codigo", titulo: "Código" },
+  { chave: "codigo", titulo: "Código 4hobby" },
   { chave: "marca", titulo: "Marca / Modelo" },
   { chave: "qtde", titulo: "Qtde" },
   { chave: "un", titulo: "Un" },
@@ -46,8 +46,9 @@ function dadosDaEmpresa(empresa) {
     linhas: [
       endereco,
       cidade,
-      empresa.cep ? `CEP ${empresa.cep}` : null,
-      [`CNPJ ${empresa.cnpj}`, empresa.inscricaoEstadual ? `IE ${empresa.inscricaoEstadual}` : null].filter(Boolean).join(" · "),
+      // "CEP:", "CNPJ:" e "IE:" com dois pontos (pedido do dono em 17/11/2026).
+      empresa.cep ? `CEP: ${empresa.cep}` : null,
+      [`CNPJ: ${empresa.cnpj}`, empresa.inscricaoEstadual ? `IE: ${empresa.inscricaoEstadual}` : null].filter(Boolean).join(" · "),
     ].filter(Boolean),
     site: site ? { texto: site, url: /^https?:\/\//i.test(site) ? site : `https://${site}` } : null,
   };
@@ -90,7 +91,7 @@ function linhasDoEndereco(endereco) {
   if (!endereco) return [];
   return [
     [endereco.logradouro, endereco.numero, endereco.complemento].filter(Boolean).join(", "),
-    [endereco.bairro, endereco.cidade && `${endereco.cidade}${endereco.uf ? ` - ${endereco.uf}` : ""}`, endereco.cep && `CEP ${endereco.cep}`].filter(Boolean).join(" · "),
+    [endereco.bairro, endereco.cidade && `${endereco.cidade}${endereco.uf ? ` - ${endereco.uf}` : ""}`, endereco.cep && `CEP: ${endereco.cep}`].filter(Boolean).join(" · "),
   ].filter(Boolean);
 }
 
@@ -98,9 +99,9 @@ function linhasDoEndereco(endereco) {
 export function linhasDoCliente(proposta) {
   const cliente = proposta.cliente;
   const geral = cliente?.enderecos?.find((e) => e.tipo === "GERAL");
-  const documento = proposta.clienteDocumento ? `${String(proposta.clienteDocumento).length > 14 ? "CNPJ" : "CPF"} ${proposta.clienteDocumento}` : null;
+  const documento = proposta.clienteDocumento ? `${String(proposta.clienteDocumento).length > 14 ? "CNPJ" : "CPF"}: ${proposta.clienteDocumento}` : null;
   return [
-    [documento, cliente?.inscricaoEstadual ? `IE ${cliente.inscricaoEstadual}` : null].filter(Boolean).join(" · "),
+    [documento, cliente?.inscricaoEstadual ? `IE: ${cliente.inscricaoEstadual}` : null].filter(Boolean).join(" · "),
     ...linhasDoEndereco(geral),
     [proposta.clienteTelefone ? formatarTelefone(proposta.clienteTelefone) : null, proposta.clienteEmail].filter(Boolean).join(" · "),
   ].filter(Boolean);
@@ -228,7 +229,8 @@ export function conteudoDaProposta(proposta, empresa) {
     // A faixa de colunas embaixo do cabecalho (o "Valid Until / Payment Terms / ..." do modelo do dono, 13/11/2026).
     faixa: [
       ["Validade da proposta", validadeEmDias(proposta)],
-      ["Condições de pagamento", textoDoPagamento(proposta) || "A combinar"],
+      // "7 dias após emissão da NF" e embaixo "Método: Transferência" (pedido do dono em 17/11/2026).
+      ["Condições de pagamento", textoDoPagamento({ ...proposta, formaNaLinhaDeBaixo: true }) || "A combinar"],
       ["Prazo de entrega", prazoDaFaixa(proposta.itens)],
       ["Método de envio", metodoDeEnvio(proposta)],
       // Garantia ao lado do metodo de envio (pedido do dono em 13/11/2026); saiu dos blocos de baixo.
@@ -244,7 +246,8 @@ export function conteudoDaProposta(proposta, empresa) {
         descricao: nomeDoItemParaOCliente(item),
         // Coluna Codigo sempre (pedido do dono em 17/11/2026): o codigo do produto do Rise, o digitado no avulso, senao "-".
         // Ate ali so o `codigoInterno`, vazio no item que veio do produto, e a coluna sumia.
-        codigo: item.sku || item.codigoInterno || "-",
+        // Sem codigo: um travessao (o PDF o centraliza na celula; pedido do dono em 17/11/2026, "um traço um pouco maior").
+        codigo: item.sku || item.codigoInterno || "—",
         marca: [item.marca, item.modelo].filter(Boolean).join(" / "),
         qtde: quantidade(item.quantidade),
         un: item.unidade,

@@ -333,15 +333,17 @@ const emReais = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "B
  * O resumo do pagamento que vai no PDF: "Boleto · entrada de 30% (R$ 507,00) · 3x de R$ 394,00" + o texto livre. Com o
  * total (`total` ou `totais.total` da proposta lida), os valores em reais entram (17/11/2026); sem ele, so "3x".
  */
-export function textoDoPagamento({ condicaoNome, formaPagamento, parcelas, entradaPercentual, entradaTipo = "PERCENTUAL", entradaValor = 0, pagamentoTexto, total, totais }) {
+// `formaNaLinhaDeBaixo` (faixa do PDF, pedido do dono em 17/11/2026): a forma sai numa linha propria, "Método: Transferência".
+export function textoDoPagamento({ condicaoNome, formaPagamento, parcelas, entradaPercentual, entradaTipo = "PERCENTUAL", entradaValor = 0, pagamentoTexto, total, totais, formaNaLinhaDeBaixo = false }) {
   const partes = [];
   const valorTotal = Number(total ?? totais?.total);
   const valores = Number.isFinite(valorTotal) && valorTotal > 0 ? valoresDoPagamento({ total: valorTotal, parcelas, entradaPercentual, entradaTipo, entradaValor }) : null;
   const emReaisNaEntrada = entradaTipo === "VALOR";
   const temEntrada = emReaisNaEntrada ? Number(entradaValor) > 0 : Number(entradaPercentual) > 0;
-  // Condicao em dias ("7 dias", "28/56 dias"): conta da emissao da nota fiscal (melhoria 7 aprovada pelo dono em 17/11/2026).
-  if (condicaoNome) partes.push(/^\s*\d+(\s*\/\s*\d+)*\s*dias?\s*$/i.test(condicaoNome) ? `${condicaoNome.trim()} após a emissão da nota fiscal` : condicaoNome);
-  if (formaPagamento) partes.push(formaPagamento);
+  // Condicao em dias ("7 dias", "28/56 dias"): conta da emissao da nota fiscal (melhoria 7 aprovada pelo dono em 17/11/2026;
+  // no mesmo dia ele pediu o formato curto "7 dias após emissão da NF", para caber numa linha).
+  if (condicaoNome) partes.push(/^\s*\d+(\s*\/\s*\d+)*\s*dias?\s*$/i.test(condicaoNome) ? `${condicaoNome.trim()} após emissão da NF` : condicaoNome);
+  if (formaPagamento && !formaNaLinhaDeBaixo) partes.push(formaPagamento);
   if (temEntrada && emReaisNaEntrada) partes.push(`entrada de ${emReais.format(valores ? valores.entrada : Number(entradaValor))}`);
   else if (temEntrada) {
     const pct = String(Number(entradaPercentual)).replace(".", ",");
@@ -351,7 +353,8 @@ export function textoDoPagamento({ condicaoNome, formaPagamento, parcelas, entra
   else if (valores && temEntrada) partes.push(`saldo de ${emReais.format(valores.restante)}`);
   const resumo = partes.join(" · ");
   const livre = String(pagamentoTexto ?? "").trim();
-  return [resumo, livre].filter(Boolean).join("\n");
+  const forma = formaPagamento && formaNaLinhaDeBaixo ? `Método: ${formaPagamento}` : "";
+  return [resumo, forma, livre].filter(Boolean).join("\n");
 }
 
 /** O que falta para gerar o PDF: item sem nome (nem do Rise nem do cliente) e proposta sem item (o motivo do botao). */

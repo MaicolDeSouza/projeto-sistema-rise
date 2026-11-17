@@ -93,7 +93,7 @@ conferir("aprovada -> recusada nao", regras.podeIrPara("APROVADA", "RECUSADA"), 
 conferir(
   "texto do pagamento",
   regras.textoDoPagamento({ condicaoNome: "28/56 dias", formaPagamento: "Boleto", parcelas: 2, entradaPercentual: 30, pagamentoTexto: " Sem juros " }),
-  "28/56 dias após a emissão da nota fiscal · Boleto · entrada de 30% · 2x\nSem juros",
+  "28/56 dias após emissão da NF · Boleto · entrada de 30% · 2x\nSem juros",
 );
 // Parcelas e entrada pela condicao, com os valores (pedido do dono em 17/11/2026).
 conferir(
@@ -146,7 +146,7 @@ conferir(
     regras.valoresDoPagamento({ total: 100, parcelas: 1, entradaTipo: "VALOR", entradaValor: 500 }).entrada,
     regras.textoDoPagamento({ condicaoNome: "28/56 dias", parcelas: 2, entradaTipo: "VALOR", entradaValor: 300, total: 1000 }).replace(/\u00a0/g, " "),
   ],
-  [{ entrada: 300, restante: 700, parcela: 350, parcelas: 2 }, 100, "28/56 dias após a emissão da nota fiscal · entrada de R$ 300,00 · 2x de R$ 350,00"],
+  [{ entrada: 300, restante: 700, parcela: 350, parcelas: 2 }, 100, "28/56 dias após emissão da NF · entrada de R$ 300,00 · 2x de R$ 350,00"],
 );
 conferir("valores: entrada sai das parcelas", regras.valoresDoPagamento({ total: 1182, parcelas: 3, entradaPercentual: 10 }), { entrada: 118.2, restante: 1063.8, parcela: 354.6, parcelas: 3 });
 conferir(
@@ -155,7 +155,7 @@ conferir(
     regras.textoDoPagamento({ condicaoNome: "30/60/90 dias", parcelas: 3, entradaPercentual: 0, total: 1182 }),
     regras.textoDoPagamento({ condicaoNome: "50% de entrada + 50% na entrega", parcelas: 1, entradaPercentual: 50, totais: { total: 1182 } }),
   ].map((texto) => texto.replace(/\u00a0/g, " ")), // o Intl poe espaco nao separavel depois do R$
-  ["30/60/90 dias após a emissão da nota fiscal · 3x de R$ 394,00", "50% de entrada + 50% na entrega · entrada de 50% (R$ 591,00) · saldo de R$ 591,00"],
+  ["30/60/90 dias após emissão da NF · 3x de R$ 394,00", "50% de entrada + 50% na entrega · entrada de 50% (R$ 591,00) · saldo de R$ 591,00"],
 );
 conferir(
   "pendencias do PDF",
@@ -532,7 +532,7 @@ try {
   conferir(
     "PDF: descricao do cliente e codigo do Rise, OC e frete com explicacao",
     [conteudo.itens[0].celulas.descricao, conteudo.itens[0].celulas.codigo, /OC-77/.test(tudo), /^CIF/.test(conteudo.faixa[3][1]), conteudo.colunas.find((c) => c.chave === "codigo")?.titulo],
-    ["Módulo relé 5V conforme cotação", "ZZ-PROP-CLI-1", true, true, "Código"],
+    ["Módulo relé 5V conforme cotação", "ZZ-PROP-CLI-1", true, true, "Código 4hobby"],
   );
   conferir("PDF: sem descricao do cliente sai o nome do Rise", conteudoDaProposta({ ...paraPdf, itens: [{ ...paraPdf.itens[0], descricaoCliente: "" }] }, empresaFalsa).itens[0].celulas.descricao, paraPdf.itens[0].nomeInterno);
   conferir("PDF: nunca custo nem internas", [tudo.includes("so nossa"), /custo/i.test(tudo)], [false, false]);
@@ -563,7 +563,7 @@ try {
   const comObs = conteudoDaProposta({ ...paraPdf, observacoesCliente: "Entrega no portão 2" }, empresaFalsa);
   conferir("PDF: observacao ao cliente na caixa, fora dos blocos", [comObs.observacoes, comObs.blocos.some(([r]) => r === "Observações")], ["Entrega no portão 2", false]);
   const semCodigo = conteudoDaProposta({ ...paraPdf, itens: [{ ...paraPdf.itens[0], sku: null, codigoInterno: null }] }, empresaFalsa);
-  conferir("PDF: coluna Codigo sempre, com '-' no item sem codigo", [semCodigo.colunas.some((c) => c.chave === "codigo"), semCodigo.itens[0].celulas.codigo], [true, "-"]);
+  conferir("PDF: coluna Codigo sempre, com travessao no item sem codigo", [semCodigo.colunas.some((c) => c.chave === "codigo"), semCodigo.itens[0].celulas.codigo], [true, "—"]);
   const comAc = conteudoDaProposta(
     { ...paraPdf, contatoId: "ct1", contatoNome: "Ana Souza", cliente: { contatos: [{ id: "ct1", nome: "Ana Souza", cargo: "Compras", telefone: "54988990008", email: "ana@zz.com" }] } },
     empresaFalsa,
@@ -610,7 +610,13 @@ try {
     [comPrazos([{ prontaEntrega: true }, { prontaEntrega: true }]), comPrazos([{ prontaEntrega: true }, { prontaEntrega: false, prazoDiasUteis: 10 }])],
     [false, true],
   );
-  conferir("PDF: CEP da empresa numa linha propria", conteudo.empresa.includes("CEP 95000-000"), true);
+  conferir("PDF: CEP da empresa numa linha propria, com dois pontos", conteudo.empresa.includes("CEP: 95000-000"), true);
+  // Faixa (17/11/2026): a forma numa linha propria, "Método: Transferência".
+  conferir(
+    "PDF: pagamento com o metodo embaixo",
+    conteudoDaProposta({ ...paraPdf, condicaoNome: "7 dias", formaPagamento: "Transferência", parcelas: 1, entradaPercentual: 0, pagamentoTexto: "" }, empresaFalsa).faixa[1][1],
+    "7 dias após emissão da NF\nMétodo: Transferência",
+  );
   conferir("PDF: entregar em de quem retira", conteudoDaProposta({ ...paraPdf, fretePorConta: "RETIRA" }, empresaFalsa).entrega, ["Retirada pelo cliente na 4hobby"]);
   conferir(
     "PDF: entregar em usa o endereco de entrega",

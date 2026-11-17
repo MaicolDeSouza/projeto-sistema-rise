@@ -44,7 +44,8 @@ const AZUL = "#1f3d6b";
 const AZUL_LINK = "#1d4ed8";
 const TEXTO_SUAVE = "#374151";
 // Validade, Condicoes de pagamento, Prazo de entrega, Metodo de envio, Garantia, Vendedor (o titulo cabe numa linha).
-const PESOS_DA_FAIXA = [100, 112, 80, 92, 82, 57];
+// Larguras medidas no pdfkit (17/11/2026): "30/60/90 dias após emissão da NF" (144 pt) e cada titulo cabem numa linha.
+const PESOS_DA_FAIXA = [102, 152, 83, 81, 55, 50];
 const VERDE_WHATSAPP = "#25d366";
 // Desenhos 24x24 do lucide (os mesmos icones da tela): telefone e envelope.
 const TELEFONE =
@@ -67,7 +68,7 @@ function desenharIcone(doc, tipo, x, y, tamanho) {
   doc.restore();
 }
 
-const LARGURAS = { item: 22, foto: FOTO + RESPIRO * 2, descricao: 0, codigo: 56, marca: 74, qtde: 34, un: 26, preco: 62, desconto: 36, total: 66, prazo: 76 };
+const LARGURAS = { item: 22, foto: FOTO + RESPIRO * 2, descricao: 0, codigo: 72, marca: 74, qtde: 34, un: 26, preco: 62, desconto: 36, total: 66, prazo: 76 };
 // Tudo a esquerda, titulo e dado (pedido do dono em 17/11/2026: "manter um padrao, todas a esquerda"); ate ali numero a
 // direita e #, foto e unidade ao centro.
 const ALINHAR = {};
@@ -158,6 +159,12 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     doc.fontSize(tamanhoDoTitulo).fillColor(TEXTO).text(TITULO, xTexto, yLinha - tamanhoDoTitulo - 6, { width: espacoDoTitulo + 4, lineBreak: false });
     doc.lineWidth(2.6).strokeColor(AZUL).moveTo(xTexto, yLinha).lineTo(MARGEM + largura, yLinha).stroke();
     doc.lineWidth(0.6).moveTo(xTexto, yLinha + 4).lineTo(MARGEM + largura, yLinha + 4).stroke();
+    // O A/C embaixo do titulo "PROPOSTA COMERCIAL" (pedido do dono em 17/11/2026; saiu da caixa do cliente).
+    let yDoAc = yLinha + 4;
+    if (conteudo.cliente.ac) {
+      doc.font("Helvetica-Bold").fontSize(FONTE_DO_NOME).fillColor(TEXTO).text(conteudo.cliente.ac, xTexto, yLinha + 10, { width: larguraDoTexto, lineBreak: false });
+      yDoAc = yLinha + 10 + FONTE_DO_NOME + 2;
+    }
 
     // As duas areas em caixas com faixa de titulo, no estilo da faixa de condicoes (pedido do dono em 17/11/2026: "dividir
     // melhor essas duas areas"): "4hobby" com as colunas empresa, contato e banco; "Cliente" com os dados e a entrega. A
@@ -178,8 +185,9 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
 
     // Caixa "4hobby": tres colunas com titulo, "Dados da empresa" (o nome na 1a linha), "Dados para contato" e "Dados
     // bancários"; sem dado bancario a terceira some e as outras duas ficam no lugar.
-    const yCaixaDaEmpresa = Math.max(yLinha + 4, topo + LOGO_ALTURA) + 12;
-    const yInfo = abrirCaixa("4hobby", yCaixaDaEmpresa);
+    const yCaixaDaEmpresa = Math.max(yDoAc, topo + LOGO_ALTURA) + 12;
+    // Titulo da caixa "Dados da 4hobby" e sem o "Dados da empresa" dentro (pedido do dono em 17/11/2026): o nome abre a coluna.
+    const yInfo = abrirCaixa("Dados da 4hobby", yCaixaDaEmpresa);
     // Colunas 37/33/30 (17/11/2026): com a margem da caixa, em tercos iguais o endereco da empresa quebrava ("2135" sozinho).
     const larguraDaEmpresa = larguraDentro * 0.37;
     const larguraDoContato = larguraDentro * 0.33;
@@ -187,8 +195,7 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     const tituloDaColuna = (texto, x) =>
       doc.font("Helvetica-Bold").fontSize(FONTE_DO_TITULO_DO_BLOCO).fillColor(AZUL).text(texto, x, yInfo, { width: larguraDoContato - 10, lineBreak: false });
     const yDasLinhas = yInfo + 16;
-    tituloDaColuna("Dados da empresa", xDentro);
-    doc.font("Helvetica-Bold").fontSize(FONTE_DO_NOME).fillColor(TEXTO).text(conteudo.nomeDaEmpresa, xDentro, yDasLinhas, { width: larguraDaEmpresa - 10 });
+    doc.font("Helvetica-Bold").fontSize(FONTE_DO_NOME).fillColor(TEXTO).text(conteudo.nomeDaEmpresa, xDentro, yInfo, { width: larguraDaEmpresa - 10 });
     let yEndereco = doc.y + 1;
     doc.font("Helvetica").fontSize(FONTE_DO_DADO).fillColor(TEXTO);
     for (const linha of conteudo.empresa) {
@@ -225,16 +232,11 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     // Caixa "Cliente": os dados e o "Endereço de entrega" lado a lado (o "Quoted To / Ship To" do modelo).
     const meia = (larguraDentro - 20) / 2;
     const yCaixaDoCliente = doc.y;
-    const yCliente = abrirCaixa("Cliente", yCaixaDoCliente);
+    // Titulo da caixa "Dados do cliente" e sem o "Dados do cliente" dentro (pedido do dono em 17/11/2026).
+    const yCliente = abrirCaixa("Dados do cliente", yCaixaDoCliente);
     // Titulos maiores e em azul (pedido do dono em 13/11/2026: "mais evidente"), com os nomes que ele escolheu.
-    doc.font("Helvetica-Bold").fontSize(FONTE_DO_TITULO_DO_BLOCO).fillColor(AZUL).text("Dados do cliente", xDentro, yCliente);
     doc.fillColor(TEXTO);
-    // O A/C vem primeiro, logo abaixo do titulo (desenho do dono em 13/11/2026), com os dados do contato.
-    if (conteudo.cliente.ac) {
-      doc.font("Helvetica-Bold").fontSize(FONTE_DO_DADO).text(conteudo.cliente.ac, xDentro, doc.y + 2, { width: meia });
-      if (conteudo.cliente.acLinha) doc.font("Helvetica").fontSize(FONTE_DO_DADO).text(conteudo.cliente.acLinha, xDentro, doc.y, { width: meia });
-    }
-    doc.font("Helvetica-Bold").fontSize(FONTE_DO_NOME).text(conteudo.cliente.nome, xDentro, doc.y + 2, { width: meia });
+    doc.font("Helvetica-Bold").fontSize(FONTE_DO_NOME).text(conteudo.cliente.nome, xDentro, yCliente, { width: meia });
     doc.font("Helvetica").fontSize(FONTE_DO_DADO);
     for (const linha of conteudo.cliente.linhas) doc.text(linha, xDentro, doc.y, { width: meia });
     const fimDoCliente = doc.y;
@@ -334,7 +336,9 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
         } else {
           const texto = item.celulas[coluna.chave] || " ";
           const alturaDoConteudo = doc.heightOfString(texto, { width: coluna.largura - RESPIRO * 2 });
-          doc.text(texto, x + RESPIRO, y + (alturaDaCelula - alturaDoConteudo) / 2, { width: coluna.largura - RESPIRO * 2, align: coluna.alinhar });
+          // O travessao do item sem codigo fica no centro da celula (pedido do dono em 17/11/2026).
+          const alinhar = texto === "—" ? "center" : coluna.alinhar;
+          doc.text(texto, x + RESPIRO, y + (alturaDaCelula - alturaDoConteudo) / 2, { width: coluna.largura - RESPIRO * 2, align: alinhar });
         }
         x += coluna.largura;
       });

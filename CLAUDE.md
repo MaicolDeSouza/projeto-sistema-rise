@@ -6359,6 +6359,11 @@ plano `docs/superpowers/plans/2026-11-12-propostas-para-cliente.md`. Menu **Prop
   - **Caixas "4hobby" e "Cliente" no PDF** (17/11/2026, sugestão aprovada pelo dono): cada área numa caixa com faixa de
     título cinza (o estilo da faixa de condições), no lugar da linha fina; colunas da caixa 4hobby em 37/33/30%; o nome
     no cabeçalho virou "4hobby Indústria e Comércio" (sem "Importação", para caber numa linha).
+  - **Mais ajustes do PDF em 17/11/2026:** as caixas se chamam "Dados da 4hobby" e "Dados do cliente" (sem os títulos repetidos
+    dentro); o A/C saiu da caixa do cliente e fica embaixo de "PROPOSTA COMERCIAL"; "Condições de pagamento" em duas linhas,
+    "7 dias após emissão da NF" e "Método: Transferência" (`textoDoPagamento({ formaNaLinhaDeBaixo })`; a faixa com larguras
+    medidas no pdfkit, `PESOS_DA_FAIXA` 102/152/83/81/55/50); "CNPJ:", "CPF:", "IE:" e "CEP:" com dois pontos; a coluna
+    "Código 4hobby" e o item sem código com "—" centralizado. O link público segue com o A/C na área do cliente.
 - **Foto do item avulso** (pedido do dono em 13/11/2026, na proposta da Fundação Coppetec: itens comprados no ML só para o
   cliente): no editor, a caixa da foto do avulso é um botão (ícone de imagem) que envia JPG/PNG/WebP na hora para
   `dados/propostas/<propostaId>/fotos/<32 hex>.jpg` (`gravarFotoDoItem`, reduzida a 600 px sobre branco); o "x" tira. O
