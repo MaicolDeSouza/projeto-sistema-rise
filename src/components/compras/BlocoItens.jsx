@@ -67,7 +67,7 @@ export default function BlocoItens({
   const achados = palavras.length ? itens.filter(aparece).length : itens.length;
   const valorDeTodos = prazoDeTodos ?? prazoComum ?? "";
   const mostrarLinhaDeTodos = itens.length > 1 && (editarPrazo || chegadaDeTodos);
-  const colunasAntesDoPrazo = 5 + (mostrarOpcao ? 1 : 0) + (aliexpress ? 1 : 0) + (veCusto ? 3 : 0);
+  const colunasAntesDoPrazo = 6 + (mostrarOpcao ? 1 : 0) + (aliexpress ? 1 : 0) + (veCusto ? 3 : 0);
 
   return (
     <SecaoDoAnuncio
@@ -130,6 +130,8 @@ export default function BlocoItens({
                 </tr>
               )}
               <tr>
+                {/* Numero do item (pedido do dono em 17/11/2026), o mesmo do PDF; a busca nao renumera. */}
+                <th className="w-10 py-2 pl-3 pr-1 text-right font-medium">#</th>
                 <th className="w-14 px-3 py-2 font-medium">Foto</th>
                 {/* Rotulos pedidos pelo dono em 29/10/2026 (print): "Produto" e "Nome no fornecedor" viraram estes. */}
                 <th className="min-w-40 px-3 py-2 font-medium">Descrição Rise</th>
@@ -157,6 +159,7 @@ export default function BlocoItens({
               )}
               {itens.map((item, indice) => (
                 <tr key={item.id} className={`align-top ${aparece(item) ? "" : "hidden"}`}>
+                  <td className="py-3 pl-3 pr-1 text-right text-xs tabular-nums text-suave">{indice + 1}</td>
                   <td className="px-3 py-2">
                     {item.foto ? <FotoComLupa src={item.foto} alt={item.nome} className="h-10 w-10" /> : <span className="block h-10 w-10 rounded border border-dashed border-borda" />}
                   </td>
