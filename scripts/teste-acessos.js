@@ -878,7 +878,10 @@ try {
       // conta e app do ML) em src/lib/pedidos/webhooks.js, sem sessao, e so grava na fila.
       fonte.includes("conferirNotificacao(") ||
       // O link publico do pedido de compra (07/11/2026): quem autoriza e a chave aleatoria do link (src/lib/compras/linkPublico.js).
-      fonte.includes("pedidoPelaChavePublica(");
+      fonte.includes("pedidoPelaChavePublica(") ||
+      // O link publico da proposta e o PDF assinado dele (12/11 e 17/11/2026): quem autoriza e a chave aleatoria do link
+      // (src/lib/propostas/linkPublico.js).
+      fonte.includes("propostaPelaChavePublica(");
     // Sem recurso de proposito: o layout raiz MONTA a sessao (o menu e o rodape), e o Sair e de quem esta logado. As quatro do
     // protocolo OAuth/MCP sao publicas por desenho (o Claude e o ChatGPT chegam sem login do Tinyauth): os metadados nao tem
     // segredo, o registro nao da acesso a nada, e o token exige o codigo + PKCE. Quem autentica o /mcp e src/lib/mcp/portao.js.

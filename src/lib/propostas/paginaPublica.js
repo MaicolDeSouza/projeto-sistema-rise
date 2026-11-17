@@ -27,6 +27,9 @@ function contatoEmHtml(contato) {
 const ESTILO = `
 :root{color-scheme:light;--texto:#111827;--cinza:#6b7280;--linha:#d1d5db;--cab:#f3f4f6;--obs:#fffbeb;--fundo:#f9fafb}
 *{box-sizing:border-box}
+.baixar{margin:0 0 12px;text-align:right}
+.baixar a{display:inline-block;padding:9px 16px;border-radius:8px;background:#047857;color:#fff;font-weight:600;text-decoration:none}
+.baixar a:hover{background:#065f46}
 body{margin:0;background:var(--fundo);color:var(--texto);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 main{max-width:1000px;margin:0 auto;padding:24px 16px 48px}
 .folha{background:#fff;border:1px solid var(--linha);border-radius:8px;padding:28px}
@@ -73,6 +76,15 @@ tr.obs td{background:var(--obs);font-style:italic}
 `;
 
 /** @param {object} proposta `lerProposta`; @param {{ logo?: Buffer|null, fotos?: Record<string, Buffer|null> }} extras */
+/**
+ * A pagina nao leva assinatura digital; a proposta marcada "Assinar digitalmente" (17/11/2026) ganha o link para o PDF
+ * assinado (`/p/proposta/<chave>/pdf`). Link comum, sem script (a CSP da pagina continua fechada).
+ */
+function botaoDoPdfAssinado(proposta) {
+  if (!proposta.assinarDigitalmente || !proposta.linkPublico) return "";
+  return `<div class="baixar"><a href="/p/proposta/${escapar(proposta.linkPublico)}/pdf">Baixar PDF assinado</a></div>`;
+}
+
 export function htmlDaProposta(proposta, empresa, extras = {}) {
   const c = conteudoDaProposta(proposta, empresa);
   const fotos = extras.fotos ?? {};
@@ -96,7 +108,7 @@ export function htmlDaProposta(proposta, empresa, extras = {}) {
       return `<tr>${celulas}</tr>${obs}`;
     })
     .join("");
-  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${escapar(c.titulo)}</title><style>${ESTILO}</style></head><body><main><div class="folha">
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${escapar(c.titulo)}</title><style>${ESTILO}</style></head><body><main>${botaoDoPdfAssinado(proposta)}<div class="folha">
 <header>${logo ? `<img src="${logo}" alt="">` : ""}<div class="nome"><h1>PROPOSTA COMERCIAL</h1><div class="quadro">${c.quadro.map(([r, v]) => `<div><b>${escapar(r)}:</b> ${escapar(v)}</div>`).join("")}</div></div></header>
 <div class="info"><div><div class="coluna">Dados da empresa</div><b class="empresa">${escapar(c.nomeDaEmpresa)}</b><br>${c.empresa.map(escapar).join("<br>")}${c.site ? `<br><a href="${escapar(c.site.url)}">${escapar(c.site.texto)}</a>` : ""}</div>
 <div><div class="coluna">Dados para contato</div>${c.contatos.map(contatoEmHtml).join("")}</div>

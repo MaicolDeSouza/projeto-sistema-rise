@@ -847,6 +847,29 @@ try {
     const comVencido = await pdfParaEnviar(marcada, depoisDeVencer);
     conferir("PDF com o certificado vencido sai sem assinatura", [comVencido.assinado, comVencido.bytes.toString("latin1").includes("/ByteRange")], [false, false]);
     conferir("PDF sem selo e menor que o com selo", naoMarcada.bytes.length < saiu.bytes.length, true);
+
+    // Link publico (tarefa 5): o botao so na marcada e a rota /pdf so para ela.
+    const { linkPublicoDaProposta } = await import("../src/lib/propostas/linkPublico.js");
+    const chaveDoLink = (await linkPublicoDaProposta(p2.numero)).url.split("/p/proposta/")[1];
+    const { htmlDaProposta: htmlPublico } = await import("../src/lib/propostas/paginaPublica.js");
+    const lidaComLink = await banco.lerProposta(p2.numero);
+    const empresaDoLink = { razaoSocial: "ZZ", nomeFantasia: "ZZ", cnpj: "00.000.000/0001-00" };
+    conferir("link publico: botao so na marcada", [
+      htmlPublico({ ...lidaComLink, assinarDigitalmente: true }, empresaDoLink, {}).includes(`href="/p/proposta/${chaveDoLink}/pdf">Baixar PDF assinado<`),
+      htmlPublico({ ...lidaComLink, assinarDigitalmente: false }, empresaDoLink, {}).includes("Baixar PDF assinado"),
+    ], [true, false]);
+    const rotaDoPdfPublico = await import("../src/app/p/proposta/[chave]/pdf/route.js");
+    const pedirPdf = async () => rotaDoPdfPublico.GET(new Request("https://x/"), { params: Promise.resolve({ chave: chaveDoLink }) });
+    await prisma.propostaParaCliente.update({ where: { numero: p2.numero }, data: { assinarDigitalmente: false } });
+    conferir("link publico: /pdf da nao marcada da 404", (await pedirPdf()).status, 404);
+    await prisma.propostaParaCliente.update({ where: { numero: p2.numero }, data: { assinarDigitalmente: true } });
+    const respostaDoPdf = await pedirPdf();
+    const pdfDoLink = Buffer.from(await respostaDoPdf.arrayBuffer()).toString("latin1");
+    conferir("link publico: /pdf da marcada sai assinado", [respostaDoPdf.status, respostaDoPdf.headers.get("content-type"), pdfDoLink.includes("/ByteRange")], [200, "application/pdf", true]);
+    conferir("link publico: chave errada da 404", (await rotaDoPdfPublico.GET(new Request("https://x/"), { params: Promise.resolve({ chave: "x".repeat(43) }) })).status, 404);
+    await prisma.propostaParaCliente.update({ where: { numero: p2.numero }, data: { assinarDigitalmente: false } });
+    const { readFileSync: lerCaddy } = await import("node:fs");
+    conferir("Caddy deixa passar o /pdf so depois da chave exata", lerCaddy(new URL("../deploy/caddy/Caddyfile", import.meta.url), "utf8").includes("path_regexp ^/p/proposta/[A-Za-z0-9_-]{43}(/pdf)?$"), true);
     let recusou = null;
     try {
       await cofre.gravarCertificado({ pfx: certTeste.pfx, senha: "errada" });

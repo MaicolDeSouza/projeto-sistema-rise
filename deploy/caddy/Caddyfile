@@ -124,10 +124,11 @@ rise.4hobby.com.br {
 	}
 
 	# Link publico da proposta para cliente (12/11/2026), no mesmo desenho: a chave de 43 caracteres no caminho
-	# (src/lib/propostas/linkPublico.js), so GET e HEAD, so esse formato exato.
+	# (src/lib/propostas/linkPublico.js), so GET e HEAD, so esse formato exato. Com "/pdf" no fim (17/11/2026), o PDF
+	# assinado da proposta marcada "Assinar digitalmente" (a rota da 404 para as outras).
 	@propostaPublica {
 		method GET HEAD
-		path_regexp ^/p/proposta/[A-Za-z0-9_-]{43}$
+		path_regexp ^/p/proposta/[A-Za-z0-9_-]{43}(/pdf)?$
 	}
 	handle @propostaPublica {
 		reverse_proxy app:3000
