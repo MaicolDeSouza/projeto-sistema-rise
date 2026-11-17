@@ -1,5 +1,5 @@
 import { formatarTelefone } from "@/lib/telefone";
-import { TEXTO_DO_FRETE, dataBR, itensComFreteDiluido, nomeDoItemParaOCliente, numeroDaProposta, prazoGeral, textoDoFaturamentoMinimo, textoDoPagamento, textoDoPrazo, totalDoItem } from "@/lib/propostas/regras";
+import { TEXTO_DO_FRETE, dataBR, garantiaCurta, itensComFreteDiluido, nomeDoItemParaOCliente, numeroDaProposta, prazoGeral, textoDoFaturamentoMinimo, textoDoPagamento, textoDoPrazo, totalDoItem } from "@/lib/propostas/regras";
 
 /**
  * O que o CLIENTE le, igual no PDF e no link publico (spec 2026-11-12, "PDF e link publico"). Aqui se decide o que
@@ -141,10 +141,7 @@ export function validadeEmDias(proposta) {
  * primeiro "N dias/meses/anos" do texto da garantia; texto sem prazo sai inteiro.
  */
 export function prazoDaGarantia(garantia) {
-  const texto = String(garantia ?? "").trim();
-  if (!texto) return "—";
-  const achado = texto.match(/(\d+)\s*(dias?|m[eê]s|meses|anos?)(?![a-zà-ú])/i);
-  return achado ? `${achado[1]} ${achado[2].toLowerCase()}` : texto;
+  return garantiaCurta(garantia) || "—";
 }
 
 /**

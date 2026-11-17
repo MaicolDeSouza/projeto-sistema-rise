@@ -113,6 +113,16 @@ conferir(
   conferir("frete diluido: o total soma o frete", Math.round(diluidos.reduce((s, i) => s + regras.totalDoItem(i), 0) * 100) / 100, 275);
   conferir("frete diluido: sem frete nada muda", regras.itensComFreteDiluido([{ quantidade: 1, precoUnitario: 10 }], 0)[0].precoUnitario, 10);
 }
+// Entrada em R$ (17/11/2026): o valor digitado sai do total, nunca acima dele, e o texto mostra o valor.
+conferir(
+  "entrada em R$",
+  [
+    regras.valoresDoPagamento({ total: 1000, parcelas: 2, entradaTipo: "VALOR", entradaValor: 300 }),
+    regras.valoresDoPagamento({ total: 100, parcelas: 1, entradaTipo: "VALOR", entradaValor: 500 }).entrada,
+    regras.textoDoPagamento({ condicaoNome: "28/56 dias", parcelas: 2, entradaTipo: "VALOR", entradaValor: 300, total: 1000 }).replace(/\u00a0/g, " "),
+  ],
+  [{ entrada: 300, restante: 700, parcela: 350, parcelas: 2 }, 100, "28/56 dias · entrada de R$ 300,00 · 2x de R$ 350,00"],
+);
 conferir("valores: entrada sai das parcelas", regras.valoresDoPagamento({ total: 1182, parcelas: 3, entradaPercentual: 10 }), { entrada: 118.2, restante: 1063.8, parcela: 354.6, parcelas: 3 });
 conferir(
   "texto do pagamento com valores",

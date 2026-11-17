@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
-import { ImagePlus, Loader2, PackagePlus, Plus, Search, Trash2, X } from "lucide-react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { ExternalLink, ImagePlus, Loader2, PackagePlus, Plus, Search, Trash2, X } from "lucide-react";
 
 import { buscarProdutosAcao, enviarFotoDoItemAcao, estoqueDosItensAcao, produtoParaPropostaAcao } from "@/app/propostas/acoes";
 import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import FotoComLupa from "@/components/ui/FotoComLupa";
-import { UNIDADES_DA_PROPOSTA, UNIDADE_POR_EXTENSO, markupDoItem, totalDoItem } from "@/lib/propostas/regras";
-import { doTexto, itemDoFormulario, moeda, paraTexto, soDecimal, soDigitos } from "./formato";
+import { UNIDADES_DA_PROPOSTA, UNIDADE_POR_EXTENSO, itensComFreteDiluido, markupDoItem, totalDoItem } from "@/lib/propostas/regras";
+import { doTexto, itemDoFormulario, moeda, moedaUnitaria, paraTexto, soDecimal, soDigitos } from "./formato";
 
 // `celulaSolta`: sem o w-full, para a caixa que tem largura propria (fator, marca, modelo, custo, dias): as duas classes
 // de largura juntas brigam e a w-full vencia.
@@ -17,12 +18,16 @@ const celulaSolta =
 const celula = `w-full ${celulaSolta}`;
 
 /**
- * O nome do produto, campo principal do item (pedido do dono em 17/11/2026): mostra o nome do produto do Rise e, ao
- * digitar, busca no Rise pelo codigo ou por qualquer palavra do nome. Escolher troca o produto do item (foto, codigo,
- * marca, modelo, unidade, preco e custo). Item sem produto no Rise guarda o nome digitado; num item com produto, digitar
- * sem escolher volta ao nome do Rise ao sair do campo (ou vira item sem cadastro pela ultima opcao da lista).
+ * Busca de produto do Rise num campo do item (pedido do dono em 17/11/2026). Dois modos:
+ * - "nome" (coluna Produto): mostra o nome do Rise e busca pelo codigo ou por palavra do nome. Item sem produto guarda o
+ *   nome digitado; num item com produto, digitar sem escolher volta ao nome do Rise ao sair do campo (ou vira item sem
+ *   cadastro pela ultima opcao da lista).
+ * - "codigo" (coluna Codigo): mostra o codigo do Rise e busca por ele; digitar sem escolher volta ao codigo ao sair (o
+ *   codigo do item e sempre o do Rise, nunca digitado).
+ * Escolher troca o produto do item (foto, codigo, nome, marca, modelo, unidade, preco e custo). A lista abre por cima da
+ * pagina (fixa, no <body>): dentro da tabela, que rola de lado, ela ficava cortada.
  */
-function CampoDoProduto({ item, editar, focar, erro, aoEscolher, aoNomeLivre }) {
+function CampoDoProduto({ item, editar, focar, erro, aoEscolher, aoNomeLivre, modo = "nome" }) {
   const [editando, setEditando] = useState(false);
   const [texto, setTexto] = useState("");
   const [achados, setAchados] = useState(null);
@@ -31,7 +36,11 @@ function CampoDoProduto({ item, editar, focar, erro, aoEscolher, aoNomeLivre }) 
   const [escolhendo, setEscolhendo] = useState(null);
   const vez = useRef(0);
   const campoRef = useRef(null);
+  const caixaRef = useRef(null);
+  const listaRef = useRef(null);
   const idDaLista = useId();
+  const porCodigo = modo === "codigo";
+  const atual = (porCodigo ? item.sku : item.nomeInterno) ?? "";
 
   useEffect(() => {
     const termo = texto.trim();
@@ -48,10 +57,31 @@ function CampoDoProduto({ item, editar, focar, erro, aoEscolher, aoNomeLivre }) 
     return () => clearTimeout(relogio);
   }, [texto, editando]);
 
-  const valor = editando ? texto : (item.nomeInterno ?? "");
+  const valor = editando ? texto : atual;
   const termo = texto.trim();
   const aberta = editando && termo.length >= 2 && achados !== null && !buscando;
-  const virarAvulso = Boolean(item.produtoId) && Boolean(termo) && termo !== item.nomeInterno;
+  const virarAvulso = !porCodigo && Boolean(item.produtoId) && Boolean(termo) && termo !== item.nomeInterno;
+
+  // A lista fica fixa na tela, colada embaixo do campo, e acompanha a rolagem (a mesma conta da BolhaDeAjuda).
+  useLayoutEffect(() => {
+    if (!aberta) return undefined;
+    function posicionar() {
+      const lista = listaRef.current;
+      const ancora = caixaRef.current;
+      if (!lista || !ancora) return;
+      const alvo = ancora.getBoundingClientRect();
+      const largura = Math.max(alvo.width, 448);
+      const esquerda = Math.min(alvo.left, document.documentElement.clientWidth - largura - 8);
+      Object.assign(lista.style, { left: `${Math.max(8, esquerda)}px`, top: `${alvo.bottom + 4}px`, width: `${largura}px`, visibility: "visible" });
+    }
+    posicionar();
+    window.addEventListener("scroll", posicionar, true);
+    window.addEventListener("resize", posicionar);
+    return () => {
+      window.removeEventListener("scroll", posicionar, true);
+      window.removeEventListener("resize", posicionar);
+    };
+  }, [aberta, achados]);
 
   function fechar() {
     vez.current++;
@@ -69,7 +99,7 @@ function CampoDoProduto({ item, editar, focar, erro, aoEscolher, aoNomeLivre }) 
   function digitar(novo) {
     setTexto(novo);
     if (novo.trim().length < 2) setAchados(null);
-    if (!item.produtoId) aoNomeLivre(novo, false);
+    if (!porCodigo && !item.produtoId) aoNomeLivre(novo, false);
   }
   function tecla(evento) {
     if (evento.key === "Enter") evento.preventDefault();
@@ -88,86 +118,90 @@ function CampoDoProduto({ item, editar, focar, erro, aoEscolher, aoNomeLivre }) 
     }
   }
 
+  const semAchado = porCodigo
+    ? "Nenhum produto no Rise com esse código."
+    : item.produtoId
+      ? "Nenhum produto no Rise com esse texto."
+      : "Nenhum produto no Rise: o nome digitado fica como item sem cadastro.";
+
   return (
-    <div className="relative">
-      <div className="relative">
-        <Search size={14} className="pointer-events-none absolute top-2.5 left-2.5 text-suave" />
-        <textarea
-          ref={campoRef}
-          rows={1}
-          autoFocus={focar}
-          value={valor}
-          disabled={!editar}
-          placeholder="Buscar no Rise pelo código ou nome"
-          aria-label="Produto"
-          role="combobox"
-          aria-expanded={aberta}
-          aria-controls={idDaLista}
-          aria-autocomplete="list"
-          aria-invalid={Boolean(erro)}
-          title={erro}
-          onFocus={() => {
-            setTexto(item.nomeInterno ?? "");
-            setEditando(true);
-          }}
-          onBlur={fechar}
-          onChange={(e) => digitar(e.target.value.replace(/[\r\n]+/g, " ").slice(0, 300))}
-          onKeyDown={tecla}
-          className={`${celula} field-sizing-content min-h-9 resize-none pl-7 font-medium`}
-        />
-        {buscando && <Loader2 size={14} className="absolute top-2.5 right-2.5 animate-spin text-suave" />}
-      </div>
-      {aberta && (
-        <ul
-          id={idDaLista}
-          role="listbox"
-          className="absolute z-20 mt-1 max-h-80 w-full min-w-[28rem] overflow-y-auto rounded-md border border-borda bg-superficie py-1 shadow-lg"
-        >
-          {achados.length === 0 && (
-            <li className="px-3 py-2 text-sm text-suave">
-              {item.produtoId ? "Nenhum produto no Rise com esse texto." : "Nenhum produto no Rise: o nome digitado fica como item sem cadastro."}
-            </li>
-          )}
-          {achados.map((a, indice) => (
-            <li key={a.produtoId} role="option" aria-selected={indice === marcado}>
-              <button
-                type="button"
-                disabled={escolhendo !== null}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => escolher(a.produtoId)}
-                className={`flex w-full items-center gap-3 px-3 py-1.5 text-left text-sm hover:bg-fundo disabled:opacity-60 ${indice === marcado ? "bg-fundo" : ""}`}
-              >
-                {a.fotoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={a.fotoUrl} alt="" className="h-8 w-8 shrink-0 rounded object-contain outline outline-1 -outline-offset-1 outline-black/10" />
-                ) : (
-                  <span className="h-8 w-8 shrink-0 rounded bg-fundo" />
-                )}
-                <span className="w-20 shrink-0 font-mono text-xs">{a.sku}</span>
-                <span className={`min-w-0 flex-1 truncate ${a.ativo ? "" : "text-suave line-through"}`}>{a.nome}</span>
-                <span className="shrink-0 tabular-nums text-suave">{a.preco !== null ? moeda.format(a.preco) : "—"}</span>
-                {escolhendo === a.produtoId && <Loader2 size={14} className="animate-spin" />}
-              </button>
-            </li>
-          ))}
-          {virarAvulso && (
-            <li className="border-t border-borda">
-              <button
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  aoNomeLivre(termo, true);
-                  fechar();
-                  campoRef.current?.blur();
-                }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-suave hover:bg-fundo hover:text-texto"
-              >
-                <PackagePlus size={15} /> Usar “{termo}” como item sem cadastro
-              </button>
-            </li>
-          )}
-        </ul>
-      )}
+    <div ref={caixaRef} className="relative">
+      {!porCodigo && <Search size={14} className="pointer-events-none absolute top-2.5 left-2.5 text-suave" />}
+      <textarea
+        ref={campoRef}
+        rows={1}
+        autoFocus={focar}
+        value={valor}
+        disabled={!editar}
+        placeholder={porCodigo ? "Código" : "Buscar no Rise pelo código ou nome"}
+        aria-label={porCodigo ? "Código" : "Produto"}
+        title={erro ?? (porCodigo ? "Digite o código do Rise para trocar o produto" : undefined)}
+        role="combobox"
+        aria-expanded={aberta}
+        aria-controls={idDaLista}
+        aria-autocomplete="list"
+        aria-invalid={Boolean(erro)}
+        onFocus={() => {
+          setTexto(atual);
+          setEditando(true);
+        }}
+        onBlur={fechar}
+        onChange={(e) => digitar(e.target.value.replace(/[\r\n]+/g, " ").slice(0, porCodigo ? 60 : 300))}
+        onKeyDown={tecla}
+        className={`${celula} field-sizing-content min-h-9 resize-none ${porCodigo ? "font-mono text-xs" : "pl-7 font-medium"}`}
+      />
+      {buscando && <Loader2 size={14} className="absolute top-2.5 right-2.5 animate-spin text-suave" />}
+      {aberta &&
+        createPortal(
+          <ul
+            ref={listaRef}
+            id={idDaLista}
+            role="listbox"
+            style={{ position: "fixed", left: 0, top: 0, visibility: "hidden" }}
+            className="z-50 max-h-80 overflow-y-auto rounded-md border border-borda bg-superficie py-1 shadow-lg"
+          >
+            {achados.length === 0 && <li className="px-3 py-2 text-sm text-suave">{semAchado}</li>}
+            {achados.map((a, indice) => (
+              <li key={a.produtoId} role="option" aria-selected={indice === marcado}>
+                <button
+                  type="button"
+                  disabled={escolhendo !== null}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => escolher(a.produtoId)}
+                  className={`flex w-full items-center gap-3 px-3 py-1.5 text-left text-sm hover:bg-fundo disabled:opacity-60 ${indice === marcado ? "bg-fundo" : ""}`}
+                >
+                  {a.fotoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={a.fotoUrl} alt="" className="h-8 w-8 shrink-0 rounded object-contain outline outline-1 -outline-offset-1 outline-black/10" />
+                  ) : (
+                    <span className="h-8 w-8 shrink-0 rounded bg-fundo" />
+                  )}
+                  <span className="w-20 shrink-0 font-mono text-xs">{a.sku}</span>
+                  <span className={`min-w-0 flex-1 truncate ${a.ativo ? "" : "text-suave line-through"}`}>{a.nome}</span>
+                  <span className="shrink-0 tabular-nums text-suave">{a.preco !== null ? moeda.format(a.preco) : "—"}</span>
+                  {escolhendo === a.produtoId && <Loader2 size={14} className="animate-spin" />}
+                </button>
+              </li>
+            ))}
+            {virarAvulso && (
+              <li className="border-t border-borda">
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    aoNomeLivre(termo, true);
+                    fechar();
+                    campoRef.current?.blur();
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-suave hover:bg-fundo hover:text-texto"
+                >
+                  <PackagePlus size={15} /> Usar “{termo}” como item sem cadastro
+                </button>
+              </li>
+            )}
+          </ul>,
+          document.body,
+        )}
     </div>
   );
 }
@@ -282,9 +316,20 @@ const fatorDe = (item) => {
  * no PDF; o estoque e o pedido de venda do Bling usam quantidade x fator. Mudar o fator (ao sair do campo) leva o preco e
  * o custo junto, na proporcao (`fatorBase` = o fator em que o preco da linha esta).
  */
-export default function ItensDaProposta({ numero, itens, editar, veCusto, erros, aoTrocar, aoErro, exigeMarcaModelo = false }) {
+export default function ItensDaProposta({ numero, itens, editar, veCusto, erros, aoTrocar, aoErro, exigeMarcaModelo = false, freteNosProdutos = 0 }) {
+  // Frete diluido (pedido do dono em 17/11/2026, "ao clicar em diluir nao alterou o valor dos produtos"): a tela mostra o
+  // preco e o total de cada item COM a parte do frete (a mesma conta do PDF); o preco digitado continua sem o frete, para
+  // o frete nao somar duas vezes e acompanhar quando o valor dele muda.
+  const precosComFrete =
+    freteNosProdutos > 0
+      ? itensComFreteDiluido(
+          itens.map((i) => ({ quantidade: doTexto(i.quantidade) ?? 0, precoUnitario: doTexto(i.precoUnitario) ?? 0, descontoPercentual: doTexto(i.descontoPercentual) ?? 0 })),
+          freteNosProdutos,
+        ).map((i) => i.precoUnitario)
+      : null;
   const [obsAberta, setObsAberta] = useState(null);
   const [descricaoAberta, setDescricaoAberta] = useState(null);
+  const [linkAberto, setLinkAberto] = useState(null);
   const [focar, setFocar] = useState(null);
   const [estoque, setEstoque] = useState({});
   const vezDoEstoque = useRef(0);
@@ -374,8 +419,9 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
     });
   }
 
-  const th = "border-l border-borda px-3 py-2 text-left font-medium first:border-l-0";
-  const td = "border-l border-borda px-3 py-2.5 first:border-l-0";
+  // px-2 (era px-3): com a coluna Marca / Modelo (17/11/2026) o espaco ficou curto e cada coluna devolve 8 px ao Produto.
+  const th = "border-l border-borda px-2 py-2 text-left font-medium first:border-l-0";
+  const td = "border-l border-borda px-2 py-2.5 first:border-l-0";
 
   return (
     <SecaoDoAnuncio
@@ -394,28 +440,22 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
       ) : (
         <div className="-m-4 overflow-x-auto">
           {/* table-fixed: as larguras do cabecalho valem e o Produto fica com o resto (sem isso o nome longo espremia o resto). */}
-          <table className="w-full min-w-[1280px] table-fixed border-collapse text-sm">
+          <table className="w-full min-w-[1440px] table-fixed border-collapse text-sm">
             <thead className="bg-fundo/70 text-xs text-suave">
               <tr className="border-b border-borda">
                 <th className={`${th} w-14`}>
                   <span className="sr-only">Foto</span>
                 </th>
-                <th className={`${th} min-w-[20rem]`}>Produto</th>
-                <th className={`${th} w-20`}>Qtd.</th>
-                <th className={`${th} w-36`}>Un.</th>
+                <th className={`${th} w-24`}>Código</th>
+                <th className={th}>Produto</th>
+                <th className={`${th} w-40`}>Marca / Modelo</th>
+                <th className={`${th} w-24`}>Qtd.</th>
+                <th className={`${th} w-[136px]`}>Un.</th>
                 <th className={`${th} w-24`}>Unitário</th>
-                <th className={`${th} w-20 whitespace-nowrap`}>Desc. %</th>
-                <th className={`${th} w-28`}>Total</th>
-                <th className={`${th} w-44`}>Prazo</th>
-                {veCusto && <th className={`${th} w-40 whitespace-nowrap`}>Custo (lucro)</th>}
-                <th className={`${th} w-12`}>
-                  <span className="sr-only">Estoque</span>
-                </th>
-                {editar && (
-                  <th className={`${th} w-12`}>
-                    <span className="sr-only">Remover</span>
-                  </th>
-                )}
+                <th className={`${th} w-[72px] whitespace-nowrap`}>Desc. %</th>
+                <th className={`${th} w-26`}>Total</th>
+                <th className={`${th} w-42`}>Prazo</th>
+                {veCusto && <th className={`${th} w-38 whitespace-nowrap`}>Custo (lucro)</th>}
               </tr>
             </thead>
             <tbody>
@@ -431,6 +471,7 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                 const fator = fatorDe(item);
                 const verDescricao = Boolean(item.descricaoCliente) || descricaoAberta === item.chave;
                 const verObs = Boolean(item.observacao) || obsAberta === item.chave;
+                const verLink = Boolean(item.linkDeCompra) || linkAberto === item.chave;
                 const verFator = Boolean(item.produtoId) && (verDescricao || fator !== 1);
                 return (
                   <tr key={item.chave} className="border-b border-borda align-top last:border-b-0">
@@ -442,6 +483,28 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                       ) : (
                         <span className="block h-10 w-10 rounded bg-fundo" />
                       )}
+                      {/* A lixeira embaixo da foto (pedido do dono em 17/11/2026): na ultima coluna ela sumia na rolagem lateral. */}
+                      {editar && (
+                        <button
+                          type="button"
+                          onClick={() => remover(indice)}
+                          aria-label="Remover o item"
+                          title="Remover o item"
+                          className="mt-1.5 flex h-8 w-10 items-center justify-center rounded text-suave hover:bg-rose-50 hover:text-rose-600"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
+                    </td>
+                    <td className={td}>
+                      {/* Coluna Codigo (pedido do dono em 17/11/2026): sempre o codigo do Rise, e digitar busca por ele. */}
+                      <CampoDoProduto
+                        item={item}
+                        editar={editar}
+                        modo="codigo"
+                        aoEscolher={(produtoId) => escolherProduto(indice, produtoId)}
+                        aoNomeLivre={(texto, desligar) => nomeLivre(indice, texto, desligar)}
+                      />
                     </td>
                     <td className={td}>
                       <CampoDoProduto
@@ -453,13 +516,7 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                         aoNomeLivre={(texto, desligar) => nomeLivre(indice, texto, desligar)}
                       />
                       <p className="mt-1 flex flex-wrap items-center gap-x-3 text-xs text-suave">
-                        {item.produtoId ? (
-                          <span>
-                            Cód. <span className="font-mono text-texto">{item.sku}</span>
-                          </span>
-                        ) : (
-                          <span>Sem cadastro no Rise</span>
-                        )}
+                        {!item.produtoId && <span>Sem cadastro no Rise</span>}
                         {editar && !verDescricao && (
                           <button
                             type="button"
@@ -473,6 +530,16 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                         {editar && !verObs && (
                           <button type="button" onClick={() => setObsAberta(item.chave)} className="font-medium text-acento hover:underline">
                             +Obs.
+                          </button>
+                        )}
+                        {editar && !verLink && (
+                          <button
+                            type="button"
+                            onClick={() => setLinkAberto(item.chave)}
+                            className="font-medium text-acento hover:underline"
+                            title="Onde comprar este item (só no Rise, não sai no PDF)"
+                          >
+                            + Link de compra
                           </button>
                         )}
                       </p>
@@ -532,28 +599,63 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                           className={`${celula} field-sizing-content mt-1 min-h-8 resize-none bg-amber-50/60 text-xs italic`}
                         />
                       )}
-                      {/* Marca e modelo vem do produto do Rise e se corrigem aqui; saem no PDF (o SENAI exige; 13/11/2026). */}
-                      <div className="mt-1.5 flex gap-2">
-                        <input
-                          value={item.marca}
-                          disabled={!editar}
-                          placeholder="Marca"
-                          aria-label="Marca"
-                          title="Marca"
-                          aria-invalid={exigeMarcaModelo && !item.marca.trim()}
-                          onChange={(e) => mudarItem(indice, "marca", e.target.value.slice(0, 100))}
-                          className={`${celulaSolta} w-40 py-1 text-xs`}
-                        />
-                        <input
-                          value={item.modelo}
-                          disabled={!editar}
-                          placeholder="Modelo"
-                          aria-label="Modelo"
-                          title="Modelo"
-                          aria-invalid={exigeMarcaModelo && !item.modelo.trim()}
-                          onChange={(e) => mudarItem(indice, "modelo", e.target.value.slice(0, 150))}
-                          className={`${celulaSolta} w-52 py-1 text-xs`}
-                        />
+                      {verLink && (
+                        // Link de compra (pedido do dono em 17/11/2026): digitado a mao, so no Rise; o icone abre numa aba nova.
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <input
+                            type="url"
+                            autoFocus={linkAberto === item.chave}
+                            value={item.linkDeCompra}
+                            disabled={!editar}
+                            placeholder="Link de compra (https://...)"
+                            aria-label="Link de compra"
+                            aria-invalid={Boolean(erro("linkDeCompra"))}
+                            title={erro("linkDeCompra") ?? "Link de compra (só no Rise, não sai no PDF)"}
+                            onChange={(e) => mudarItem(indice, "linkDeCompra", e.target.value.trim().slice(0, 1000))}
+                            onBlur={() => setLinkAberto(null)}
+                            className={`${celula} py-1 text-xs`}
+                          />
+                          {/^https?:\/\//i.test(item.linkDeCompra ?? "") && (
+                            <a
+                              href={item.linkDeCompra}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label="Abrir o link de compra"
+                              title="Abrir o link de compra"
+                              className="shrink-0 rounded p-1.5 text-suave hover:bg-fundo hover:text-acento"
+                            >
+                              <ExternalLink size={14} />
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                    <td className={td}>
+                      {/* Coluna propria (pedido do dono em 17/11/2026: "Marca: xxxx e logo abaixo Modelo: xxxx"). Vem do produto
+                          do Rise e se corrige aqui; sai no PDF (o SENAI exige; 13/11/2026). */}
+                      <div className="space-y-1.5">
+                        <label className="flex items-center gap-1.5 text-xs text-suave">
+                          <span className="w-12 shrink-0">Marca:</span>
+                          <input
+                            value={item.marca}
+                            disabled={!editar}
+                            aria-label="Marca"
+                            aria-invalid={exigeMarcaModelo && !item.marca.trim()}
+                            onChange={(e) => mudarItem(indice, "marca", e.target.value.slice(0, 100))}
+                            className={`${celula} py-1 text-xs text-texto`}
+                          />
+                        </label>
+                        <label className="flex items-center gap-1.5 text-xs text-suave">
+                          <span className="w-12 shrink-0">Modelo:</span>
+                          <input
+                            value={item.modelo}
+                            disabled={!editar}
+                            aria-label="Modelo"
+                            aria-invalid={exigeMarcaModelo && !item.modelo.trim()}
+                            onChange={(e) => mudarItem(indice, "modelo", e.target.value.slice(0, 150))}
+                            className={`${celula} py-1 text-xs text-texto`}
+                          />
+                        </label>
                       </div>
                     </td>
                     <td className={td}>
@@ -567,6 +669,10 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                         onChange={(e) => mudarItem(indice, "quantidade", soDecimal(e.target.value))}
                         className={`${celula} tabular-nums`}
                       />
+                      {/* O "i" de estoque ao lado da quantidade que ele confere (saiu da ultima coluna em 17/11/2026). */}
+                      <span className="mt-1.5 flex justify-center">
+                        <EstoqueDoItem info={estoque[item.chave]} produtoId={item.produtoId} />
+                      </span>
                     </td>
                     <td className={td}>
                       <select
@@ -594,6 +700,11 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                         onChange={(e) => mudarItem(indice, "precoUnitario", soDecimal(e.target.value))}
                         className={`${celula} tabular-nums`}
                       />
+                      {precosComFrete && precosComFrete[indice] !== numeros.precoUnitario && (
+                        <p className="mt-1 text-xs whitespace-nowrap text-emerald-700 tabular-nums" title="Preço com o frete diluído: é o que sai no PDF">
+                          c/ frete {moedaUnitaria.format(precosComFrete[indice])}
+                        </p>
+                      )}
                     </td>
                     <td className={td}>
                       <input
@@ -607,7 +718,9 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                         className={`${celula} tabular-nums`}
                       />
                     </td>
-                    <td className={`${td} pt-4 font-medium tabular-nums`}>{moeda.format(totalDoItem(numeros))}</td>
+                    <td className={`${td} pt-4 font-medium tabular-nums`} title={precosComFrete ? "Total com o frete diluído" : undefined}>
+                      {moeda.format(totalDoItem(precosComFrete ? { ...numeros, precoUnitario: precosComFrete[indice] } : numeros))}
+                    </td>
                     <td className={td}>
                       <div className="flex items-center gap-1">
                         <select
@@ -665,22 +778,6 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                             ({markup === null ? "—" : `${Math.round(markup)}%`})
                           </span>
                         </div>
-                      </td>
-                    )}
-                    <td className={`${td} text-center`}>
-                      <EstoqueDoItem info={estoque[item.chave]} produtoId={item.produtoId} />
-                    </td>
-                    {editar && (
-                      <td className={td}>
-                        <button
-                          type="button"
-                          onClick={() => remover(indice)}
-                          aria-label="Remover o item"
-                          title="Remover o item"
-                          className="rounded p-1.5 text-suave hover:bg-rose-50 hover:text-rose-600"
-                        >
-                          <Trash2 size={15} />
-                        </button>
                       </td>
                     )}
                   </tr>

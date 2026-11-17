@@ -124,6 +124,7 @@ export function propostaParaTela(proposta, { hoje = hojeEmSaoPaulo() } = {}) {
     prontaEntrega: item.prontaEntrega,
     prazoDiasUteis: item.prazoDiasUteis,
     observacao: item.observacao,
+    linkDeCompra: item.linkDeCompra ?? null,
     custoUnitario: numero(item.custoUnitario),
   }));
   const base = {
@@ -153,6 +154,8 @@ export function propostaParaTela(proposta, { hoje = hojeEmSaoPaulo() } = {}) {
     formaPagamento: proposta.formaPagamento,
     parcelas: proposta.parcelas,
     entradaPercentual: numero(proposta.entradaPercentual),
+    entradaTipo: proposta.entradaTipo ?? "PERCENTUAL",
+    entradaValor: numero(proposta.entradaValor),
     pagamentoTexto: proposta.pagamentoTexto,
     ...base,
     transportadoraId: proposta.transportadoraId,
@@ -362,6 +365,7 @@ export async function salvarProposta(numeroDaProposta, entrada, { manterCusto = 
           prontaEntrega: item.prontaEntrega,
           prazoDiasUteis: item.prazoDiasUteis,
           observacao: item.observacao,
+          linkDeCompra: item.linkDeCompra,
           custoUnitario: manterCusto ? (item.id ? custoGravado.get(item.id) ?? null : null) : item.custoUnitario,
           ordem,
         })),
@@ -379,6 +383,8 @@ export async function salvarProposta(numeroDaProposta, entrada, { manterCusto = 
         formaPagamento: dados.formaPagamento,
         parcelas: dados.parcelas,
         entradaPercentual: dados.entradaPercentual,
+        entradaTipo: dados.entradaTipo,
+        entradaValor: dados.entradaValor,
         pagamentoTexto: dados.pagamentoTexto,
         fretePorConta: dados.fretePorConta,
         transportadoraId: transportadora?.id ?? null,

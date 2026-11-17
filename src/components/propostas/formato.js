@@ -52,6 +52,7 @@ export function itemDoFormulario(item) {
     prontaEntrega: item.prontaEntrega ?? true,
     prazoDiasUteis: item.prazoDiasUteis ? String(item.prazoDiasUteis) : "",
     observacao: item.observacao ?? "",
+    linkDeCompra: item.linkDeCompra ?? "",
     custoUnitario: paraTexto(item.custoUnitario, 4),
   };
 }
@@ -70,6 +71,8 @@ export function formularioDaProposta(proposta) {
     formaPagamento: proposta.formaPagamento ?? "",
     parcelas: String(proposta.parcelas ?? 1),
     entradaPercentual: proposta.entradaPercentual ? paraTexto(proposta.entradaPercentual) : "",
+    entradaTipo: proposta.entradaTipo === "VALOR" ? "VALOR" : "PERCENTUAL",
+    entradaValor: proposta.entradaValor ? paraTexto(proposta.entradaValor) : "",
     pagamentoTexto: proposta.pagamentoTexto ?? "",
     fretePorConta: proposta.fretePorConta ?? "A_COMBINAR",
     transportadoraId: proposta.transportadoraId ?? "",

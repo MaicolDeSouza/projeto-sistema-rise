@@ -8,6 +8,7 @@ import {
   DIAS_DE_VALIDADE,
   FORMAS_DE_PAGAMENTO,
   GARANTIAS_DA_PROPOSTA,
+  ROTULO_DO_FRETE,
   TEXTO_DO_FRETE,
   VENDEDORES_DA_PROPOSTA,
   dataBR,
@@ -114,7 +115,10 @@ export function CartaoCondicoesDaProposta({ formulario, editar, editarValidade, 
 /** Os campos do formulario que a condicao preenche (parcelas e entrada, em texto); {} quando ela nao diz (A combinar). */
 export function camposDaCondicao(condicoes, id) {
   const plano = planoDaCondicao(condicoes.find((c) => c.id === id)?.nome);
-  return plano ? { parcelas: String(plano.parcelas), entradaPercentual: plano.entradaPercentual ? paraTexto(plano.entradaPercentual) : "" } : {};
+  // A condicao fala em % ("50% de entrada"): a entrada volta para %.
+  return plano
+    ? { parcelas: String(plano.parcelas), entradaTipo: "PERCENTUAL", entradaPercentual: plano.entradaPercentual ? paraTexto(plano.entradaPercentual) : "", entradaValor: "" }
+    : {};
 }
 
 /**
@@ -126,8 +130,21 @@ export function CartaoPagamento({ formulario, condicoes, total = 0, editar, erro
   const condicaoNome = condicoes.find((c) => c.id === formulario.condicaoPagamentoId)?.nome ?? null;
   const parcelas = doTexto(formulario.parcelas);
   const entradaPercentual = doTexto(formulario.entradaPercentual);
-  const resumo = textoDoPagamento({ ...formulario, condicaoNome, parcelas, entradaPercentual, total });
-  const valores = total > 0 ? valoresDoPagamento({ total, parcelas, entradaPercentual }) : null;
+  const entradaValor = doTexto(formulario.entradaValor);
+  const emReais = formulario.entradaTipo === "VALOR";
+  const resumo = textoDoPagamento({ ...formulario, condicaoNome, parcelas, entradaPercentual, entradaValor, total });
+  const valores = total > 0 ? valoresDoPagamento({ total, parcelas, entradaPercentual, entradaTipo: formulario.entradaTipo, entradaValor }) : null;
+  // Trocar R$ <-> % converte o que ja esta digitado (pedido do dono em 17/11/2026: "o calculo deve se ajustar a opcao escolhida").
+  const trocarTipoDaEntrada = (tipo) => {
+    if (tipo === formulario.entradaTipo) return;
+    if (tipo === "VALOR") {
+      aoMudar("entradaValor", valores && valores.entrada > 0 ? paraTexto(valores.entrada) : "");
+    } else {
+      const pct = total > 0 && entradaValor > 0 ? Math.min((entradaValor / total) * 100, 100) : 0;
+      aoMudar("entradaPercentual", pct > 0 ? paraTexto(Math.round(pct * 100) / 100) : "");
+    }
+    aoMudar("entradaTipo", tipo);
+  };
   const escolherCondicao = (id) => {
     aoMudar("condicaoPagamentoId", id);
     for (const [campoDoFormulario, valor] of Object.entries(camposDaCondicao(condicoes, id))) aoMudar(campoDoFormulario, valor);
@@ -164,16 +181,47 @@ export function CartaoPagamento({ formulario, condicoes, total = 0, editar, erro
             )}
           </span>
         </Rotulo>
-        <Rotulo texto="Entrada (%)" erro={erros.entradaPercentual}>
+        <div>
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-xs font-medium text-suave">Entrada</span>
+            <span className="inline-flex rounded-md border border-borda p-0.5" role="radiogroup" aria-label="Entrada em">
+              {[
+                ["VALOR", "R$"],
+                ["PERCENTUAL", "%"],
+              ].map(([tipo, rotulo]) => (
+                <button
+                  key={tipo}
+                  type="button"
+                  role="radio"
+                  aria-checked={formulario.entradaTipo === tipo}
+                  disabled={!editar}
+                  onClick={() => trocarTipoDaEntrada(tipo)}
+                  className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${formulario.entradaTipo === tipo ? "bg-acento text-white" : "text-suave hover:text-texto"}`}
+                >
+                  {rotulo}
+                </button>
+              ))}
+            </span>
+          </div>
           <span className="flex items-center gap-2">
-            <input inputMode="decimal" value={formulario.entradaPercentual} disabled={!editar} aria-invalid={Boolean(erros.entradaPercentual)} onChange={(e) => aoMudar("entradaPercentual", soDecimal(e.target.value))} className={`${campo} tabular-nums`} />
+            <input
+              inputMode="decimal"
+              value={emReais ? formulario.entradaValor : formulario.entradaPercentual}
+              disabled={!editar}
+              aria-label={emReais ? "Entrada em R$" : "Entrada em %"}
+              placeholder={emReais ? "0,00" : "0"}
+              aria-invalid={Boolean(erros.entradaPercentual)}
+              onChange={(e) => aoMudar(emReais ? "entradaValor" : "entradaPercentual", soDecimal(e.target.value))}
+              className={`${campo} tabular-nums`}
+            />
             {valores && valores.entrada > 0 && (
-              <span className="shrink-0 text-sm text-suave tabular-nums" title="Valor da entrada">
-                ({moeda.format(valores.entrada)})
+              <span className="shrink-0 text-sm text-suave tabular-nums" title={emReais ? "A entrada em % do total" : "Valor da entrada"}>
+                ({emReais ? `${String(Math.round((valores.entrada / total) * 1000) / 10).replace(".", ",")}%` : moeda.format(valores.entrada)})
               </span>
             )}
           </span>
-        </Rotulo>
+          {erros.entradaPercentual && <span className="mt-1 block text-xs text-rose-600">{erros.entradaPercentual}</span>}
+        </div>
         <Rotulo texto="Texto livre" className="sm:col-span-2">
           <textarea rows={2} value={formulario.pagamentoTexto} disabled={!editar} onChange={(e) => aoMudar("pagamentoTexto", e.target.value)} className={`${campo} field-sizing-content min-h-16`} />
         </Rotulo>
@@ -210,7 +258,7 @@ export function CartaoFrete({ formulario, transportadoras, editar, erros, aoMuda
   return (
     <SecaoDoAnuncio className={className} titulo="Frete" ajuda="O valor do frete soma no total só no CIF. A transportadora vem da preferida do cliente.">
       <div className="mb-3 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Frete por conta de">
-        {Object.entries(TEXTO_DO_FRETE).map(([valor, texto]) => (
+        {Object.entries(ROTULO_DO_FRETE).map(([valor, texto]) => (
           <label
             key={valor}
             className={`cursor-pointer rounded-md border px-3 py-1.5 text-sm transition-colors has-[:disabled]:cursor-not-allowed ${formulario.fretePorConta === valor ? "border-acento bg-acento/10 font-medium text-acento" : "border-borda text-suave hover:text-texto"}`}
@@ -261,6 +309,7 @@ export function CartaoFrete({ formulario, transportadoras, editar, erros, aoMuda
 /** Totais: desconto geral (5% ou 50), o resumo e o total em verde; custo e lucro so para quem ve custo. */
 export function CartaoTotais({ formulario, totais, editar, erros, aoMudar, veCusto }) {
   const desconto = lerDesconto(formulario.desconto);
+  const diluido = Boolean(formulario.freteDiluido) && formulario.fretePorConta === "CIF" && totais.frete > 0;
   return (
     <SecaoDoAnuncio titulo="Totais" ajuda="Desconto geral: 5% para percentual ou 50 para R$ 50,00. Impostos inclusos.">
       <div className="grid items-start gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
@@ -269,8 +318,9 @@ export function CartaoTotais({ formulario, totais, editar, erros, aoMudar, veCus
             <input value={formulario.desconto} disabled={!editar} placeholder="0 ou 5%" onChange={(e) => aoMudar("desconto", e.target.value.replace(/[^\d.,%]/g, "").slice(0, 14))} className={`${campo} text-right tabular-nums`} />
           </Rotulo>
           <dl className="grid max-w-72 grid-cols-[1fr_auto] gap-x-4 gap-y-0.5 tabular-nums">
-            <dt className="text-suave">Subtotal</dt>
-            <dd className="text-right">{moeda.format(totais.subtotal)}</dd>
+            {/* Frete diluido (17/11/2026): o subtotal ja leva o frete, como no PDF; o total nao muda. */}
+            <dt className="text-suave">{diluido ? "Subtotal (com frete)" : "Subtotal"}</dt>
+            <dd className="text-right">{moeda.format(diluido ? Math.round((totais.subtotal + totais.frete) * 100) / 100 : totais.subtotal)}</dd>
             {totais.desconto > 0 && (
               <>
                 <dt className="text-suave">Desconto</dt>
@@ -280,7 +330,7 @@ export function CartaoTotais({ formulario, totais, editar, erros, aoMudar, veCus
             {totais.frete > 0 && (
               <>
                 <dt className="text-suave">Frete</dt>
-                <dd className="text-right">{moeda.format(totais.frete)}</dd>
+                <dd className="text-right">{diluido ? "Incluso nos produtos" : moeda.format(totais.frete)}</dd>
               </>
             )}
             <dt className="text-suave">Prazo</dt>
@@ -304,13 +354,13 @@ export function CartaoTotais({ formulario, totais, editar, erros, aoMudar, veCus
   );
 }
 
-// Card "Notas e anexos" (pedido do dono em 17/11/2026). "Contatos" (o historico do Registrar contato) ficou no fim.
+// Card "Notas e anexos" (pedido do dono em 17/11/2026). A aba "Contatos" (o historico do Registrar contato) saiu no mesmo
+// dia, a pedido dele; o Registrar contato continua gravando.
 const ABAS = [
   ["nf", "Dados para NF"],
   ["cliente", "Observações para a proposta"],
   ["internas", "Observações internas"],
   ["anexos", "Anexos"],
-  ["contatos", "Contatos"],
 ];
 
 /**
@@ -318,7 +368,7 @@ const ABAS = [
  * da NF), Observacoes para a proposta, Observacoes internas, Anexos (a OC do cliente e os gerais) e Contatos. Todas
  * montadas e so escondidas, para o Salvar nunca perder o digitado; `anexos` e `contatos` gravam na hora, fora do Salvar.
  */
-export function CartaoNotasEAnexos({ formulario, editar, aoMudar, contatos, anexos, quantos, className = "" }) {
+export function CartaoNotasEAnexos({ formulario, editar, aoMudar, anexos, quantos, className = "" }) {
   const [aba, setAba] = useState("nf");
   return (
     <section className={`flex flex-col rounded-lg border border-borda bg-superficie ${className}`}>
@@ -361,26 +411,7 @@ export function CartaoNotasEAnexos({ formulario, editar, aoMudar, contatos, anex
           </Rotulo>
         </div>
         <div hidden={aba !== "anexos"}>{anexos}</div>
-        <div hidden={aba !== "contatos"}>{contatos}</div>
       </div>
     </section>
-  );
-}
-
-/** O historico dos contatos (o "Registrar contato" fica no topo). */
-export function HistoricoDeContatos({ contatos }) {
-  if (!contatos.length) return <p className="text-sm text-suave">Nenhum contato registrado.</p>;
-  return (
-    <ol className="space-y-2 text-sm">
-      {contatos.map((c) => (
-        <li key={c.id} className="rounded-md border border-borda px-3 py-2">
-          <p className="text-xs text-suave tabular-nums">
-            {new Date(c.em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} · {c.quem}
-            {c.proximoContato && ` · próximo: ${dataBR(c.proximoContato)}`}
-          </p>
-          <p className="mt-0.5 whitespace-pre-line">{c.texto}</p>
-        </li>
-      ))}
-    </ol>
   );
 }

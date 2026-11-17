@@ -23,6 +23,17 @@ export const PROXIMO_CONTATO_PADRAO_DIAS = 10;
 export const VENDEDORES_DA_PROPOSTA = ["Andrea", "Maicol"];
 export const VENDEDOR_PADRAO = "Andrea";
 
+/**
+ * A garantia "direto e reto" (pedido do dono em 17/11/2026: so "90 dias" ou "6 meses", sem "contra defeito de
+ * fabricacao"): o primeiro "N dias/meses/anos" do texto; texto sem prazo fica inteiro; vazio fica vazio. O PDF usa a mesma
+ * conta (`prazoDaGarantia` em conteudo.js, desde 13/11/2026).
+ */
+export function garantiaCurta(garantia) {
+  const texto = String(garantia ?? "").trim();
+  const achado = texto.match(/(\d+)\s*(dias?|m[eê]s|meses|anos?)(?![a-zà-ú])/i);
+  return achado ? `${achado[1]} ${achado[2].toLowerCase()}` : texto;
+}
+
 /** Dias de `de` ate `ate` (datas AAAA-MM-DD); negativo = ja passou. */
 export function diasEntre(de, ate) {
   return Math.round((Date.parse(ate) - Date.parse(de)) / 86_400_000);
@@ -78,6 +89,14 @@ export const MOTIVOS_DE_RECUSA = {
 export const TEXTO_DO_FRETE = {
   CIF: "CIF (frete por nossa conta)",
   FOB: "FOB (frete por conta do cliente)",
+  RETIRA: "Cliente retira",
+  A_COMBINAR: "A combinar",
+};
+
+/** Os botoes do frete na tela (pedido do dono em 17/11/2026: "deixar apenas CIF ou FOB (Cliente paga)"); o PDF segue com TEXTO_DO_FRETE. */
+export const ROTULO_DO_FRETE = {
+  CIF: "CIF",
+  FOB: "FOB (Cliente paga)",
   RETIRA: "Cliente retira",
   A_COMBINAR: "A combinar",
 };
@@ -278,9 +297,13 @@ export function planoDaCondicao(nome) {
  * O valor da entrada e de cada parcela (pedido do dono em 17/11/2026): a entrada sai do total e o resto se divide pelas
  * parcelas, em centavos. A ultima parcela pode diferir em 1 centavo; a tela e o PDF mostram a parcela arredondada.
  */
-export function valoresDoPagamento({ total, parcelas, entradaPercentual }) {
+export function valoresDoPagamento({ total, parcelas, entradaPercentual, entradaTipo = "PERCENTUAL", entradaValor = 0 }) {
   const totalEmCentavos = centavos(total);
-  const entrada = Math.round((totalEmCentavos * Math.min(Math.max(Number(entradaPercentual) || 0, 0), 100)) / 100);
+  // Entrada em R$ (17/11/2026): o valor digitado, nunca acima do total; em %: a porcentagem do total.
+  const entrada =
+    entradaTipo === "VALOR"
+      ? Math.min(Math.max(centavos(entradaValor), 0), totalEmCentavos)
+      : Math.round((totalEmCentavos * Math.min(Math.max(Number(entradaPercentual) || 0, 0), 100)) / 100);
   const restante = totalEmCentavos - entrada;
   const vezes = Math.max(1, Math.floor(Number(parcelas) || 1));
   return { entrada: entrada / 100, restante: restante / 100, parcela: Math.round(restante / vezes) / 100, parcelas: vezes };
@@ -292,18 +315,21 @@ const emReais = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "B
  * O resumo do pagamento que vai no PDF: "Boleto · entrada de 30% (R$ 507,00) · 3x de R$ 394,00" + o texto livre. Com o
  * total (`total` ou `totais.total` da proposta lida), os valores em reais entram (17/11/2026); sem ele, so "3x".
  */
-export function textoDoPagamento({ condicaoNome, formaPagamento, parcelas, entradaPercentual, pagamentoTexto, total, totais }) {
+export function textoDoPagamento({ condicaoNome, formaPagamento, parcelas, entradaPercentual, entradaTipo = "PERCENTUAL", entradaValor = 0, pagamentoTexto, total, totais }) {
   const partes = [];
   const valorTotal = Number(total ?? totais?.total);
-  const valores = Number.isFinite(valorTotal) && valorTotal > 0 ? valoresDoPagamento({ total: valorTotal, parcelas, entradaPercentual }) : null;
+  const valores = Number.isFinite(valorTotal) && valorTotal > 0 ? valoresDoPagamento({ total: valorTotal, parcelas, entradaPercentual, entradaTipo, entradaValor }) : null;
+  const emReaisNaEntrada = entradaTipo === "VALOR";
+  const temEntrada = emReaisNaEntrada ? Number(entradaValor) > 0 : Number(entradaPercentual) > 0;
   if (condicaoNome) partes.push(condicaoNome);
   if (formaPagamento) partes.push(formaPagamento);
-  if (Number(entradaPercentual) > 0) {
+  if (temEntrada && emReaisNaEntrada) partes.push(`entrada de ${emReais.format(valores ? valores.entrada : Number(entradaValor))}`);
+  else if (temEntrada) {
     const pct = String(Number(entradaPercentual)).replace(".", ",");
     partes.push(valores ? `entrada de ${pct}% (${emReais.format(valores.entrada)})` : `entrada de ${pct}%`);
   }
   if (Number(parcelas) > 1) partes.push(valores ? `${Number(parcelas)}x de ${emReais.format(valores.parcela)}` : `${Number(parcelas)}x`);
-  else if (valores && Number(entradaPercentual) > 0) partes.push(`saldo de ${emReais.format(valores.restante)}`);
+  else if (valores && temEntrada) partes.push(`saldo de ${emReais.format(valores.restante)}`);
   const resumo = partes.join(" · ");
   const livre = String(pagamentoTexto ?? "").trim();
   return [resumo, livre].filter(Boolean).join("\n");
@@ -358,7 +384,7 @@ export function camposDoPadrao(padrao, { hoje = hojeEmSaoPaulo() } = {}) {
   };
   if (padrao.formaPagamento) campos.formaPagamento = padrao.formaPagamento;
   if (padrao.pagamentoTexto) campos.pagamentoTexto = padrao.pagamentoTexto;
-  if (padrao.garantia) campos.garantia = padrao.garantia;
+  if (padrao.garantia) campos.garantia = garantiaCurta(padrao.garantia);
   if (padrao.observacoesCliente) campos.observacoesCliente = padrao.observacoesCliente;
   return campos;
 }

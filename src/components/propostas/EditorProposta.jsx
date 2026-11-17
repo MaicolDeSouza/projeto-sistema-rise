@@ -10,7 +10,7 @@ import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
 import { marcarTelaIniciada } from "@/components/mercados/NavegacaoDoTopo";
 import { MOTIVOS_DE_RECUSA, camposDoPadrao, dataBR, linhasDasExigencias, linkDoWhatsApp, mensagemDoWhatsApp, numeroDaProposta, pendenciasDoPdf, precisaContato } from "@/lib/propostas/regras";
 import { lerListaDaTela, pedirVoltaNaRolagem } from "@/lib/ultimaListaDaTela";
-import { CartaoCondicoesDaProposta, CartaoFrete, CartaoNotasEAnexos, CartaoPagamento, CartaoTotais, HistoricoDeContatos } from "./BlocosDaProposta";
+import { CartaoCondicoesDaProposta, CartaoFrete, CartaoNotasEAnexos, CartaoPagamento, CartaoTotais } from "./BlocosDaProposta";
 import CartaoCliente, { campo, Rotulo } from "./CartaoCliente";
 import { entradaDoFormulario, formularioDaProposta, moeda, totaisDoFormulario } from "./formato";
 import ItensDaProposta from "./ItensDaProposta";
@@ -347,7 +347,7 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
           </details>
         )}
 
-        <ItensDaProposta numero={proposta.numero} exigeMarcaModelo={exigeMarcaModelo} itens={formulario.itens} editar={editar} veCusto={veCusto} erros={erros} aoMudar={mudar} aoTrocar={(itens) => mudar("itens", itens)} aoErro={setErroGeral} />
+        <ItensDaProposta numero={proposta.numero} freteNosProdutos={formulario.freteDiluido && formulario.fretePorConta === "CIF" ? totais.frete : 0} exigeMarcaModelo={exigeMarcaModelo} itens={formulario.itens} editar={editar} veCusto={veCusto} erros={erros} aoMudar={mudar} aoTrocar={(itens) => mudar("itens", itens)} aoErro={setErroGeral} />
 
         <CartaoTotais formulario={formulario} totais={totais} editar={editar} erros={erros} aoMudar={mudar} veCusto={veCusto} />
 
@@ -372,8 +372,7 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
             formulario={formulario}
             editar={editar}
             aoMudar={mudar}
-            quantos={{ contatos: proposta.contatos.length, anexos: proposta.anexos.length }}
-            contatos={<HistoricoDeContatos contatos={proposta.contatos} />}
+            quantos={{ anexos: proposta.anexos.length }}
             anexos={
               <div className="grid gap-4 sm:grid-cols-2">
                 <AnexosDaProposta
@@ -400,8 +399,9 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
             }
           />
         </div>
-
       </div>
+      {/* Folga no fim (pedido do dono em 17/11/2026): a pagina rola ate os cards de baixo (o Frete) ficarem no meio da tela. */}
+      <div aria-hidden="true" className="h-[45vh]" />
 
       {pergunta === "sair" && (
         <Pergunta titulo="Sair sem salvar?" confirmar="Sair sem salvar" recuar="Continuar editando" destrutiva aoRecuar={() => setPergunta(null)} aoConfirmar={irParaALista}>

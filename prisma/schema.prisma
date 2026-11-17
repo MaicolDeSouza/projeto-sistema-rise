@@ -3162,6 +3162,9 @@ model PropostaParaCliente {
   entradaPercentual   Decimal            @default(0) @db.Decimal(5, 2)
   /// Texto livre que vai no PDF depois do resumo do pagamento.
   pagamentoTexto      String?
+  /// A entrada em % (entradaPercentual) ou em R$ (entradaValor); vale a do tipo (pedido do dono em 17/11/2026).
+  entradaTipo         String          @default("PERCENTUAL")
+  entradaValor        Decimal         @default(0) @db.Decimal(12, 2)
 
   fretePorConta       FreteDaProposta @default(A_COMBINAR)
   transportadoraId    String?
@@ -3261,6 +3264,8 @@ model ItemDaPropostaParaCliente {
 
   /// O "+Obs." do item: vai no PDF logo abaixo da linha.
   observacao String?
+  /// "+ Link de compra" (17/11/2026): onde comprar o item, digitado a mao. So no Rise, nunca no PDF.
+  linkDeCompra String?
 
   /// Congelado ao adicionar e editavel (no avulso e digitado). So para quem ve custo; nunca no PDF.
   custoUnitario Decimal? @db.Decimal(12, 4)

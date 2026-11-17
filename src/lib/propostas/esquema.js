@@ -50,7 +50,11 @@ export function conferirProposta(entrada = {}) {
   dados.condicaoPagamentoId = texto(entrada.condicaoPagamentoId, 40);
   dados.formaPagamento = texto(entrada.formaPagamento, 60);
   dados.parcelas = conferirNumero(erros, "parcelas", entrada.parcelas, { minimo: 1, maximo: 48, inteiro: true, mensagem: "Parcelas de 1 a 48." }) ?? 1;
-  dados.entradaPercentual = conferirNumero(erros, "entradaPercentual", entrada.entradaPercentual, { maximo: 100, mensagem: "Entrada de 0 a 100%." }) ?? 0;
+  // A entrada em % ou em R$ (17/11/2026): grava a do tipo escolhido e zera a outra.
+  dados.entradaTipo = entrada.entradaTipo === "VALOR" ? "VALOR" : "PERCENTUAL";
+  dados.entradaPercentual =
+    dados.entradaTipo === "PERCENTUAL" ? (conferirNumero(erros, "entradaPercentual", entrada.entradaPercentual, { maximo: 100, mensagem: "Entrada de 0 a 100%." }) ?? 0) : 0;
+  dados.entradaValor = dados.entradaTipo === "VALOR" ? (conferirNumero(erros, "entradaPercentual", entrada.entradaValor, { mensagem: "Entrada inválida." }) ?? 0) : 0;
   dados.pagamentoTexto = texto(entrada.pagamentoTexto, 2000);
 
   dados.fretePorConta = TEXTO_DO_FRETE[entrada.fretePorConta] ? entrada.fretePorConta : "A_COMBINAR";
@@ -110,6 +114,12 @@ export function conferirProposta(entrada = {}) {
       prontaEntrega,
       prazoDiasUteis: prontaEntrega ? null : prazo,
       observacao: texto(item.observacao, 2000),
+      // Link de compra (17/11/2026): so http(s); outro texto vira erro no campo.
+      linkDeCompra: (() => {
+        const link = texto(item.linkDeCompra, 1000);
+        if (link && !/^https?:\/\/\S+$/i.test(link)) erros[chave("linkDeCompra")] = "Link inválido: comece com https://";
+        return link && /^https?:\/\/\S+$/i.test(link) ? link : null;
+      })(),
       custoUnitario: conferirNumero(erros, chave("custoUnitario"), item.custoUnitario, { mensagem: "Custo inválido." }),
     };
   });

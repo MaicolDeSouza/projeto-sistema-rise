@@ -6,7 +6,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, Loader2, Plus, Trash2, X } from "lucid
 import { excluirPadraoAcao, salvarPadraoAcao } from "@/app/propostas/acoes-padroes";
 import Pergunta from "@/components/compras/Pergunta";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
-import { FORMAS_DE_PAGAMENTO, TEXTO_DO_FRETE, linhasDasExigencias } from "@/lib/propostas/regras";
+import { FORMAS_DE_PAGAMENTO, ROTULO_DO_FRETE, TEXTO_DO_FRETE, linhasDasExigencias } from "@/lib/propostas/regras";
 import { campo, Rotulo } from "./CartaoCliente";
 
 const VAZIO = {
@@ -92,7 +92,7 @@ function JanelaPadrao({ padrao, podeEditar, aoFechar, aoSalvo }) {
           </Rotulo>
           <Rotulo texto="Frete" className="md:col-span-2">
             <select value={formulario.fretePorConta} onChange={(e) => mudar("fretePorConta", e.target.value)} className={campo}>
-              {Object.entries(TEXTO_DO_FRETE).map(([valor, texto]) => (
+              {Object.entries(ROTULO_DO_FRETE).map(([valor, texto]) => (
                 <option key={valor} value={valor}>{texto}</option>
               ))}
             </select>
