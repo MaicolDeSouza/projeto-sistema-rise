@@ -110,17 +110,29 @@ export function casaPalavra(formas, palavra) {
  */
 export function notasDeRelevancia(palavras, formasPorItem) {
   const casamentos = formasPorItem.map((formas) => palavras.map((palavra) => casaPalavra(formas, palavra)));
-  const pesos = palavras.map((palavra, indice) => {
-    const comEla = casamentos.filter((linha) => linha[indice]).length;
-    const raridade = Math.log((formasPorItem.length + 1) / (comEla + 1)) + 1;
-    // `\d` (digito). Ate 25/10/2026 estava `/d/` (a letra "d"): "arduino" e "modulo" ganhavam o bonus de modelo, e
-    // "328p", "5v" e "16mhz" nao.
-    return /\d/.test(palavra) ? raridade * 1.5 : raridade;
-  });
+  const pesos = palavras.map((palavra, indice) => pesoDaPalavra(palavra, formasPorItem.length, casamentos.filter((linha) => linha[indice]).length));
   const pesoTotal = pesos.reduce((soma, peso) => soma + peso, 0);
   const notas = casamentos.map((linha) => {
     const pesoCasado = linha.reduce((soma, casou, posicao) => soma + (casou ? pesos[posicao] : 0), 0);
     return pesoTotal > 0 ? pesoCasado / pesoTotal : 0;
   });
   return { notas, pesos };
+}
+
+/**
+ * O peso de uma palavra pela raridade: `total` itens, `comEla` deles com a palavra. Separado de `notasDeRelevancia` para a
+ * busca so dos vinculos (16/11/2026) contar a raridade no banco sem montar o indice dos 120 mil coletados.
+ */
+export function pesoDaPalavra(palavra, total, comEla) {
+  const raridade = Math.log((total + 1) / (comEla + 1)) + 1;
+  // `\d` (digito). Ate 25/10/2026 estava `/d/` (a letra "d"): "arduino" e "modulo" ganhavam o bonus de modelo, e
+  // "328p", "5v" e "16mhz" nao.
+  return /\d/.test(palavra) ? raridade * 1.5 : raridade;
+}
+
+/** A nota de um item com os pesos ja calculados: a MESMA conta de `notasDeRelevancia` (soma na mesma ordem). */
+export function notaComPesos(formas, palavras, pesos) {
+  const pesoTotal = pesos.reduce((soma, peso) => soma + peso, 0);
+  const pesoCasado = palavras.reduce((soma, palavra, posicao) => soma + (casaPalavra(formas, palavra) ? pesos[posicao] : 0), 0);
+  return pesoTotal > 0 ? pesoCasado / pesoTotal : 0;
 }

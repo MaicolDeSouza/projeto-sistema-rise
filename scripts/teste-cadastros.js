@@ -360,6 +360,32 @@ try {
   const semIdentificador = await buscarReferencias("", { limite: 0, fornecedoresLigados: [{ nome: fonteF.nome, codigo: null, link: null }] });
   conferir("vinculos: fornecedor sem codigo nem link e sem titulo nao escolhe produto no chute", semIdentificador.itens, []);
 
+  // So os vinculos, sem varrer o acervo (16/11/2026, Opcao 1 do dono): com limite 0 a busca le no banco so os produtos
+  // ligados e a raridade das palavras do titulo, em vez dos 120 mil coletados (4 a 6 s na VPS, e o Salvar esperava na
+  // fila). Tem de dar EXATAMENTE o que o acervo inteiro da: os mesmos vinculos e a mesma relevancia.
+  {
+    const soLigados = (resposta) => resposta.itens.filter((item) => item.vinculado).map((item) => [item.id, item.relevancia]).sort();
+    const casos = [
+      ["codigo do fornecedor e concorrente pelo id", "Placa Zzvinculo Nano", { fornecedoresLigados: [{ nome: fonteF.nome, codigo: "ZZV-F1", link: null }], idsConcorrentesLigados: [pC.id] }],
+      ["fornecedor sem codigo nem link escolhe pela nota", "Placa Zzvinculo Nano", { fornecedoresLigados: [{ nome: fonteF.nome, codigo: null, link: null }], idsConcorrentesLigados: [] }],
+      ["fornecedor pelo link, mesmo com outro nome", "Placa Zzvinculo Nano", { fornecedoresLigados: [{ nome: "Outro nome qualquer", codigo: null, link: "https://zz-vinculo-f.invalid/p1/" }], idsConcorrentesLigados: [] }],
+      ["concorrente pelo id com titulo que nao casa", "Termo Sem Relacao Nenhuma", { fornecedoresLigados: [], idsConcorrentesLigados: [pC.id] }],
+    ];
+    let tempoRapido = 0;
+    let tempoCompleto = 0;
+    for (const [rotulo, titulo, ligacoes] of casos) {
+      let inicio = Date.now();
+      const rapido = await buscarReferencias(titulo, { ...ligacoes, limite: 0 });
+      tempoRapido += Date.now() - inicio;
+      inicio = Date.now();
+      const completo = await buscarReferencias(titulo, { ...ligacoes, limite: 200 });
+      tempoCompleto += Date.now() - inicio;
+      conferir(`vinculos so dos ligados: ${rotulo}, igual ao acervo inteiro`, soLigados(rapido), soLigados(completo));
+    }
+    conferir("vinculos so dos ligados: os casos acham algum vinculo (o teste nao compara listas vazias)", (await buscarReferencias("Placa Zzvinculo Nano", { ...casos[0][2], limite: 0 })).itens.length, 2);
+    conferir(`vinculos so dos ligados: bem mais rapido que ler o acervo (${tempoRapido} ms contra ${tempoCompleto} ms)`, tempoRapido * 3 < tempoCompleto, true);
+  }
+
   const campos = await lerCamposDasReferencias([pF.id, pC.id]);
   conferir("campos: EAN valido do vinculo vira indicacao", campos.ean.map((item) => item.valor), ["7891234567895"]);
   conferir("campos: EAN que nao e codigo de barras (\"123\") fica de fora", campos.ean.some((item) => item.valor === "123"), false);

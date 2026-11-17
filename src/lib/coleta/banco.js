@@ -462,7 +462,11 @@ export async function lerProdutosDaFonte(fonteId) {
  * Quem passava `{ incluirIds }` (os concorrentes ligados, que podiam estar fora da ultima coleta) continua
  * funcionando: agora todos ja vem, e o parametro e ignorado.
  */
-export async function produtosParaLista() {
+/**
+ * `onde` (opcional, 16/11/2026): um filtro do Prisma para ler so parte do acervo (a busca dos vinculos le so os produtos
+ * ligados). Sem ele, o acervo inteiro, como sempre.
+ */
+export async function produtosParaLista(onde = undefined) {
   const fontes = await prisma.fonteColeta.findMany({
     select: { id: true, ultimaColetaEm: true },
   });
@@ -471,6 +475,7 @@ export async function produtosParaLista() {
   const ultimaColeta = new Map(fontes.map((fonte) => [fonte.id, fonte.ultimaColetaEm]));
 
   const linhas = await prisma.produtoColetado.findMany({
+    ...(onde ? { where: onde } : {}),
     select: {
       fonteId: true,
       id: true,

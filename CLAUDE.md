@@ -2830,6 +2830,17 @@ operador marca referências e pede **título** ou **descrição** à IA (`src/li
   - Medido em 06/10/2026 no 100103, servidor de desenvolvimento: as indicações aparecem uns 17 s depois de abrir
     a página. As ações do servidor rodam uma de cada vez, e a preparação das fotos vem antes. Testes em
     `teste-cadastros` ("Indicações dos vínculos salvos").
+  - **Abrir o cadastro sem varrer o acervo (16/11/2026, pedido do dono: "ao clicar ao salvar, ele aguarda terminar o
+    carregamento"; Opção 1):** a leitura das indicações (`buscarReferencias` com `limite: 0`) lia os **120 mil** produtos
+    coletados a cada abertura (4 a 6 s na VPS), e o Salvar esperava atrás dela na fila das ações. Agora: sem vínculo
+    (produto novo) volta vazio na hora e o formulário nem chama o servidor; com vínculos, `produtosDosVinculos` lê no banco
+    só os possíveis (concorrentes pelo id; do fornecedor com código, os do código parecido na loja dele; com link, os do
+    mesmo endereço; sem os dois, a loja inteira, porque a escolha é pela nota) e `notasPelaRaridadeDoAcervo` mede a
+    raridade das palavras lendo só a coluna `buscaTexto` (a palavra só casa se aparece no texto sem separadores, então o
+    índice é montado só para esses). As notas são as MESMAS do acervo inteiro: `teste:cadastros` compara os dois caminhos
+    em 4 casos, e 7 produtos reais do PC deram iguais (2,6 s → 0,6 s cada). `pesoDaPalavra` e `notaComPesos` (texto.js)
+    saíram de `notasDeRelevancia`, que não mudou; `produtosParaLista` aceita um filtro opcional. A lupa (limite 200) segue
+    lendo o acervo inteiro.
 
 **O React 19 limpa o formulário depois da action**, e o que volta é o `defaultValue`, não o
 que foi digitado. Num Salvar recusado (SKU repetido), o SKU voltava **vazio** junto com a

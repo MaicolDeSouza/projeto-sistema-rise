@@ -1,6 +1,7 @@
 import { produtosParaLista } from "@/lib/coleta/banco";
 import { custoDoFornecedor } from "@/lib/coleta/impostos";
-import { casaPalavra, indiceDePalavras, normalizar, notasDeRelevancia, palavrasDoTermo } from "@/lib/texto";
+import { prisma } from "@/lib/db";
+import { casaPalavra, indiceDePalavras, normalizar, notaComPesos, notasDeRelevancia, palavrasDoTermo, pesoDaPalavra } from "@/lib/texto";
 
 /**
  * Referencias de mercado para o cadastro de produto: fornecedores e
@@ -23,6 +24,76 @@ const NOTA_MINIMA = 0.5;
 
 const ORDEM = { FORNECEDOR: 0, CONCORRENTE: 1, OUTRO: 2 };
 
+const textoComparavel = (valor) => String(valor ?? "").trim().toLocaleLowerCase("pt-BR");
+
+function enderecoComparavel(valor) {
+  try {
+    const endereco = new URL(valor);
+    return `${endereco.hostname.replace(/^www\./, "")}${endereco.pathname.replace(/\/$/, "")}`.toLocaleLowerCase("pt-BR");
+  } catch {
+    return String(valor ?? "").trim().toLocaleLowerCase("pt-BR");
+  }
+}
+
+/**
+ * Os produtos que PODEM ser vinculos: os concorrentes pelo id, os das lojas com o nome de um fornecedor ligado e os do
+ * mesmo endereco do link. E um superconjunto: a escolha de cada vinculo continua em `buscarReferencias`, com a mesma regra.
+ */
+async function produtosDosVinculos(fornecedoresLigados, idsConcorrentesLigados) {
+  const nomes = new Set(fornecedoresLigados.map((fornecedor) => textoComparavel(fornecedor.nome)).filter(Boolean));
+  const fontes = nomes.size ? await prisma.fonteColeta.findMany({ select: { id: true, nome: true } }) : [];
+  const fontesDoNome = (nome) => fontes.filter((fonte) => textoComparavel(fonte.nome) === textoComparavel(nome)).map((fonte) => fonte.id);
+  // Fornecedor com codigo ou link so escolhe o produto EXATO (codigo igual ou mesmo endereco): da loja dele basta o de codigo
+  // parecido. Sem os dois, a escolha e pela nota entre TODOS os produtos da loja, e a loja inteira vem.
+  const pelasLojas = fornecedoresLigados.flatMap((fornecedor) => {
+    const ids = fontesDoNome(fornecedor.nome);
+    if (!ids.length) return [];
+    if (fornecedor.codigo) return [{ fonteId: { in: ids }, codigo: { contains: String(fornecedor.codigo).trim(), mode: "insensitive" } }];
+    if (fornecedor.link) return [];
+    return [{ fonteId: { in: ids } }];
+  });
+  // Pelo link: o endereco salvo contem o caminho (o host sem "www"); a comparacao exata e feita depois, como sempre.
+  const pelosLinks = fornecedoresLigados
+    .filter((fornecedor) => fornecedor.link)
+    .map((fornecedor) => {
+      try {
+        const endereco = new URL(fornecedor.link);
+        const caminho = endereco.pathname.replace(/\/$/, "");
+        return { AND: [{ url: { contains: endereco.hostname.replace(/^www\./, ""), mode: "insensitive" } }, ...(caminho ? [{ url: { contains: caminho, mode: "insensitive" } }] : [])] };
+      } catch {
+        return { url: { contains: String(fornecedor.link).trim(), mode: "insensitive" } };
+      }
+    });
+  const ou = [
+    ...(idsConcorrentesLigados.length ? [{ id: { in: idsConcorrentesLigados } }] : []),
+    ...pelasLojas,
+    ...pelosLinks,
+  ];
+  return ou.length ? produtosParaLista({ OR: ou }) : [];
+}
+
+/**
+ * A nota de cada candidato com a raridade das palavras medida no ACERVO INTEIRO, como a lupa, sem le-lo todo: uma palavra so
+ * casa com um produto se aparece no `buscaTexto` dele sem os separadores (toda forma do `indiceDePalavras` e um pedaco desse
+ * texto, e `casaPalavra` pede a forma igual ou comecando pela palavra). So a coluna `buscaTexto` e lida (medido no PC: 150
+ * ms, contra 2,5 s de filtrar com regex no banco), o indice so e montado para quem contem alguma palavra, e a contagem exata
+ * e feita com o `casaPalavra` de sempre.
+ */
+async function notasPelaRaridadeDoAcervo(palavras, candidatos) {
+  if (palavras.length === 0) return candidatos.map(() => 0);
+  const linhas = await prisma.produtoColetado.findMany({ select: { buscaTexto: true } });
+  const formas = linhas
+    .map((linha) => linha.buscaTexto ?? "")
+    .filter((texto) => {
+      const compacto = texto.replace(/[^a-z0-9]/g, "");
+      return palavras.some((palavra) => compacto.includes(palavra));
+    })
+    .map((texto) => indiceDePalavras(texto));
+  const total = linhas.length;
+  const pesos = palavras.map((palavra) => pesoDaPalavra(palavra, total, formas.filter((itens) => casaPalavra(itens, palavra)).length));
+  return candidatos.map((produto) => notaComPesos(indiceDePalavras(produto.buscaTexto), palavras, pesos));
+}
+
 export async function buscarReferencias(termo, { limite = TETO, fornecedoresLigados = [], idsConcorrentesLigados = [] } = {}) {
   const palavras = palavrasDoTermo(termo);
   // Sem palavras ainda acha os VINCULOS (pedido do dono em 06/10/2026: as indicacoes dos fornecedores e
@@ -37,14 +108,17 @@ export async function buscarReferencias(termo, { limite = TETO, fornecedoresLiga
     return { total: 0, itens: [] };
   }
 
+  // Limite 0 (so os vinculos, a leitura que roda ao abrir o cadastro; 16/11/2026, Opcao 1 do dono): le no banco SO os produtos
+  // ligados, e a raridade das palavras sai de uma contagem que nao monta o acervo inteiro. Ler os 120 mil coletados levava 4
+  // a 6 s na VPS, e o Salvar esperava na fila das acoes. As notas sao as MESMAS do acervo inteiro (teste:cadastros compara).
+  const soVinculos = limite === 0;
   // Todos os produtos do banco (07/10/2026), inclusive os concorrentes ligados que a ultima varredura nao viu.
-  const todos = await produtosParaLista();
+  const todos = soVinculos ? await produtosDosVinculos(fornecedoresLigados, idsConcorrentesLigados) : await produtosParaLista();
 
   // A nota de cada produto: a fracao do peso do titulo que ele tem (ver `notasDeRelevancia`, em texto.js).
-  const { notas: notasPorProduto } = notasDeRelevancia(
-    palavras,
-    todos.map((produto) => indiceDePalavras(produto.buscaTexto)),
-  );
+  const notasPorProduto = soVinculos
+    ? await notasPelaRaridadeDoAcervo(palavras, todos)
+    : notasDeRelevancia(palavras, todos.map((produto) => indiceDePalavras(produto.buscaTexto))).notas;
 
   // Com ate duas palavras todas precisam aparecer: "sensor" sozinho casaria com
   // metade do acervo.
