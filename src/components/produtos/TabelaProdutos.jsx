@@ -110,14 +110,18 @@ const META = { dia: Date.UTC(2027, 4, 30), texto: "30/05/2027" };
 
 function RitmoAteAMeta({ falta }) {
   const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()).split("-").map(Number);
-  const dias = Math.round((META.dia - Date.UTC(hoje[0], hoje[1] - 1, hoje[2])) / 86400000) + 1;
+  // Domingo nao conta (pedido do dono em 16/11/2026): dias de hoje (inclusive) ate a meta, sem os domingos.
+  let dias = 0;
+  for (let dia = Date.UTC(hoje[0], hoje[1] - 1, hoje[2]); dia <= META.dia; dia += 86400000) {
+    if (new Date(dia).getUTCDay() !== 0) dias += 1;
+  }
   if (falta <= 0 || dias < 1) return null;
   const porDia = Math.ceil(falta / dias);
   return (
     <span
       suppressHydrationWarning
       className="rounded border border-borda bg-superficie px-3 py-2 text-xs whitespace-nowrap text-suave"
-      title={`${falta.toLocaleString("pt-BR")} ainda não verificados ÷ ${dias.toLocaleString("pt-BR")} dias corridos (de hoje até ${META.texto}) = ${(falta / dias).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} por dia, arredondado para cima`}
+      title={`${falta.toLocaleString("pt-BR")} ainda não verificados ÷ ${dias.toLocaleString("pt-BR")} dias (de hoje até ${META.texto}, sem os domingos) = ${(falta / dias).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} por dia, arredondado para cima`}
     >
       <span className="font-medium tabular-nums text-texto">{porDia.toLocaleString("pt-BR")}</span> por dia até {META.texto}
     </span>
