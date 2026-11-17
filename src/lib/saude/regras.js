@@ -95,6 +95,20 @@ export function avaliarBackup(maisNovoEm, agora) {
   return { estado: "ok", detalhe };
 }
 
+/**
+ * O certificado digital da empresa (17/11/2026, `situacaoDoCertificado`): vencido, as propostas marcadas "Assinar
+ * digitalmente" saem sem assinatura; avisa 30 dias antes, o tempo de renovar com a certificadora.
+ */
+export function avaliarCertificado(situacao, agora) {
+  if (!situacao?.validoAte) return { estado: "aguardando", detalhe: "Não cadastrado." };
+  const ate = tempo(situacao.validoAte);
+  const data = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(ate));
+  if (ate <= agora) return { estado: "falha", detalhe: `Vencido em ${data}: as propostas saem sem assinatura.` };
+  const dias = Math.ceil((ate - agora) / (24 * HORA));
+  if (dias <= 30) return { estado: "atencao", detalhe: `Vence em ${dias} dia(s) (${data}).` };
+  return { estado: "ok", detalhe: `Vale até ${data}.` };
+}
+
 /** A memoria do worker (gravada por ele de hora em hora): o worker ja caiu 6 vezes por falta de heap. */
 export function avaliarMemoria(memoria, agora) {
   if (!memoria?.heapMb || !memoria?.limiteMb) return { estado: "aguardando", detalhe: "O worker ainda não informou a memória." };

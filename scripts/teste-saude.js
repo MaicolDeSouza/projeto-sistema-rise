@@ -69,6 +69,14 @@ conferir("backup de 30 h: atencao", regras.avaliarBackup(antes(30 * HORA), AGORA
 conferir("backup de 3 dias: falha", regras.avaliarBackup(antes(72 * HORA), AGORA).estado, "falha");
 conferir("sem backup: falha", regras.avaliarBackup(null, AGORA).estado, "falha");
 
+// Certificado digital da empresa (17/11/2026): avisa 30 dias antes de vencer.
+const DIA = 24 * HORA;
+const certificadoAte = (ms) => ({ razaoSocial: "ZZ", cnpj: null, validoAte: new Date(AGORA + ms).toISOString() });
+conferir("certificado: nao cadastrado", regras.avaliarCertificado(null, AGORA), { estado: "aguardando", detalhe: "Não cadastrado." });
+conferir("certificado: vence em 200 dias e ok", regras.avaliarCertificado(certificadoAte(200 * DIA), AGORA).estado, "ok");
+conferir("certificado: vence em 10 dias", regras.avaliarCertificado(certificadoAte(10 * DIA), AGORA), { estado: "atencao", detalhe: "Vence em 10 dia(s) (04/11/2026)." });
+conferir("certificado: vencido", regras.avaliarCertificado(certificadoAte(-DIA), AGORA), { estado: "falha", detalhe: "Vencido em 24/10/2026: as propostas saem sem assinatura." });
+
 conferir("memoria em 50%: ok", regras.avaliarMemoria({ heapMb: 1024, limiteMb: 2048, em: antes(MIN) }, AGORA).estado, "ok");
 conferir("memoria em 85%: atencao", regras.avaliarMemoria({ heapMb: 1740, limiteMb: 2048, em: antes(MIN) }, AGORA).estado, "atencao");
 conferir("memoria em 95%: falha", regras.avaliarMemoria({ heapMb: 1950, limiteMb: 2048, em: antes(MIN) }, AGORA).estado, "falha");

@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { prisma } from "@/lib/db";
 import { config as configDasIntegracoes } from "@/lib/integracoes/config";
+import { situacaoDoCertificado } from "@/lib/propostas/certificado";
 import { lerConfiguracao } from "@/lib/riseAi/configuracao";
 import { ESCOPOS, estadoDoOrcamento } from "@/lib/riseAi/orcamento";
 import { ambienteDoRise } from "@/lib/sessao";
@@ -11,6 +12,7 @@ import {
   ROTINAS_DO_WORKER,
   avaliarBackup,
   avaliarBanco,
+  avaliarCertificado,
   avaliarColeta,
   avaliarDisco,
   avaliarHealthchecks,
@@ -194,6 +196,10 @@ async function itensDaOperacao({ agora }) {
       const nomes = new Map((await prisma.fonteColeta.findMany({ where: { id: { in: ids } }, select: { id: true, nome: true } })).map((fonte) => [fonte.id, fonte.nome]));
       return avaliarColeta({ emAndamento, naFila, falhas24h: reais.map((job) => nomes.get(job.fonteId) ?? "fonte") });
     }),
+    // O e-CNPJ que assina as propostas (17/11/2026): avisa 30 dias antes de vencer.
+    await seguro({ id: "certificado", rotulo: "Certificado digital", caminho: "/configuracoes/empresa" }, async () =>
+      avaliarCertificado(await situacaoDoCertificado(new Date(agora)), agora),
+    ),
   );
   return itens;
 }
