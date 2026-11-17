@@ -6356,6 +6356,9 @@ plano `docs/superpowers/plans/2026-11-12-propostas-para-cliente.md`. Menu **Prop
     espaço comum, então não dá para segurar a quebra assim); condição em dias com "após a emissão da nota fiscal"
     (`textoDoPagamento`, vale também no resumo da tela); "Total" sem "(R$)"; e as áreas da empresa e do cliente com a mesma
     fonte (títulos 10,5, nomes 9,5 e dados 8,5; a da empresa era 7,8).
+  - **Caixas "4hobby" e "Cliente" no PDF** (17/11/2026, sugestão aprovada pelo dono): cada área numa caixa com faixa de
+    título cinza (o estilo da faixa de condições), no lugar da linha fina; colunas da caixa 4hobby em 37/33/30%; o nome
+    no cabeçalho virou "4hobby Indústria e Comércio" (sem "Importação", para caber numa linha).
 - **Foto do item avulso** (pedido do dono em 13/11/2026, na proposta da Fundação Coppetec: itens comprados no ML só para o
   cliente): no editor, a caixa da foto do avulso é um botão (ícone de imagem) que envia JPG/PNG/WebP na hora para
   `dados/propostas/<propostaId>/fotos/<32 hex>.jpg` (`gravarFotoDoItem`, reduzida a 600 px sobre branco); o "x" tira. O

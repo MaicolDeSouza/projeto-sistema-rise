@@ -159,68 +159,93 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     doc.lineWidth(2.6).strokeColor(AZUL).moveTo(xTexto, yLinha).lineTo(MARGEM + largura, yLinha).stroke();
     doc.lineWidth(0.6).moveTo(xTexto, yLinha + 4).lineTo(MARGEM + largura, yLinha + 4).stroke();
 
-    // Tres colunas com titulo (pedido do dono em 17/11/2026): "Dados da empresa" (o nome na 1a linha), "Dados para
-    // contato" e "Dados bancários"; sem dado bancario a terceira some e as outras duas ficam no lugar.
-    const yInfo = Math.max(yLinha + 4, topo + LOGO_ALTURA) + 14;
-    const terco = largura / 3;
+    // As duas areas em caixas com faixa de titulo, no estilo da faixa de condicoes (pedido do dono em 17/11/2026: "dividir
+    // melhor essas duas areas"): "4hobby" com as colunas empresa, contato e banco; "Cliente" com os dados e a entrega. A
+    // borda e desenhada depois do texto, quando a altura ja e conhecida.
+    const PADDING = 8;
+    const ALTURA_DA_FAIXA = 19;
+    const abrirCaixa = (titulo, y) => {
+      doc.rect(MARGEM, y, largura, ALTURA_DA_FAIXA).fill(FUNDO_DO_CABECALHO);
+      doc.font("Helvetica-Bold").fontSize(FONTE_DA_FAIXA).fillColor(TEXTO).text(titulo, MARGEM + PADDING, y + 5.5, { lineBreak: false });
+      return y + ALTURA_DA_FAIXA + PADDING;
+    };
+    const fecharCaixa = (yTopo, yFim) => {
+      doc.lineWidth(0.5).strokeColor(LINHA).rect(MARGEM, yTopo, largura, yFim - yTopo).stroke();
+      doc.moveTo(MARGEM, yTopo + ALTURA_DA_FAIXA).lineTo(MARGEM + largura, yTopo + ALTURA_DA_FAIXA).stroke();
+    };
+    const xDentro = MARGEM + PADDING;
+    const larguraDentro = largura - PADDING * 2;
+
+    // Caixa "4hobby": tres colunas com titulo, "Dados da empresa" (o nome na 1a linha), "Dados para contato" e "Dados
+    // bancários"; sem dado bancario a terceira some e as outras duas ficam no lugar.
+    const yCaixaDaEmpresa = Math.max(yLinha + 4, topo + LOGO_ALTURA) + 12;
+    const yInfo = abrirCaixa("4hobby", yCaixaDaEmpresa);
+    // Colunas 37/33/30 (17/11/2026): com a margem da caixa, em tercos iguais o endereco da empresa quebrava ("2135" sozinho).
+    const larguraDaEmpresa = larguraDentro * 0.37;
+    const larguraDoContato = larguraDentro * 0.33;
+    const larguraDoBanco = larguraDentro - larguraDaEmpresa - larguraDoContato;
     const tituloDaColuna = (texto, x) =>
-      doc.font("Helvetica-Bold").fontSize(FONTE_DO_TITULO_DO_BLOCO).fillColor(AZUL).text(texto, x, yInfo, { width: terco - 10, lineBreak: false });
+      doc.font("Helvetica-Bold").fontSize(FONTE_DO_TITULO_DO_BLOCO).fillColor(AZUL).text(texto, x, yInfo, { width: larguraDoContato - 10, lineBreak: false });
     const yDasLinhas = yInfo + 16;
-    tituloDaColuna("Dados da empresa", MARGEM);
-    doc.font("Helvetica-Bold").fontSize(FONTE_DO_NOME).fillColor(TEXTO).text(conteudo.nomeDaEmpresa, MARGEM, yDasLinhas, { width: terco - 10 });
+    tituloDaColuna("Dados da empresa", xDentro);
+    doc.font("Helvetica-Bold").fontSize(FONTE_DO_NOME).fillColor(TEXTO).text(conteudo.nomeDaEmpresa, xDentro, yDasLinhas, { width: larguraDaEmpresa - 10 });
     let yEndereco = doc.y + 1;
     doc.font("Helvetica").fontSize(FONTE_DO_DADO).fillColor(TEXTO);
     for (const linha of conteudo.empresa) {
-      doc.text(linha, MARGEM, yEndereco, { width: terco - 10 });
+      doc.text(linha, xDentro, yEndereco, { width: larguraDaEmpresa - 10 });
       yEndereco = doc.y + 1;
     }
     if (conteudo.site) {
-      doc.fillColor(AZUL_LINK).text(conteudo.site.texto, MARGEM, yEndereco, { width: terco - 10, link: conteudo.site.url, underline: true });
+      doc.fillColor(AZUL_LINK).text(conteudo.site.texto, xDentro, yEndereco, { width: larguraDaEmpresa - 10, link: conteudo.site.url, underline: true });
       yEndereco = doc.y + 1;
     }
-    const xContatos = MARGEM + terco;
+    const xContatos = xDentro + larguraDaEmpresa;
     tituloDaColuna("Dados para contato", xContatos);
     let yContatos = yDasLinhas;
     for (const contato of conteudo.contatos) {
       desenharIcone(doc, contato.tipo, xContatos, yContatos, 9);
-      doc.font("Helvetica").fontSize(FONTE_DO_DADO).fillColor(TEXTO).text(contato.texto, xContatos + 13, yContatos + 0.5, { width: terco - 23, link: contato.url ?? undefined, lineBreak: false, ellipsis: true });
+      doc.font("Helvetica").fontSize(FONTE_DO_DADO).fillColor(TEXTO).text(contato.texto, xContatos + 13, yContatos + 0.5, { width: larguraDoContato - 23, link: contato.url ?? undefined, lineBreak: false, ellipsis: true });
       yContatos += 13.5;
     }
     let yBancarios = yDasLinhas;
     if (conteudo.bancarios.length) {
-      const xBancarios = MARGEM + terco * 2;
+      const xBancarios = xDentro + larguraDaEmpresa + larguraDoContato;
       tituloDaColuna("Dados bancários", xBancarios);
       doc.font("Helvetica").fontSize(FONTE_DO_DADO).fillColor(TEXTO);
       for (const linha of conteudo.bancarios) {
-        doc.text(linha, xBancarios, yBancarios, { width: terco - 4 });
+        doc.text(linha, xBancarios, yBancarios, { width: larguraDoBanco - 4 });
         yBancarios = doc.y + 1;
       }
     }
-    // Separacao do cabecalho (pedido do dono em 17/11/2026): mais espaco e uma linha fina no meio, da largura da pagina.
-    const ySeparador = Math.max(yEndereco, yContatos, yBancarios) + ENTRE_BLOCOS / 2;
-    doc.lineWidth(0.5).strokeColor(LINHA).moveTo(MARGEM, ySeparador).lineTo(MARGEM + largura, ySeparador).stroke();
-    doc.y = ySeparador + ENTRE_BLOCOS / 2 + 2;
+    // A caixa no lugar da linha fina que separava o cabecalho (17/11/2026).
+    const yFimDaEmpresa = Math.max(yEndereco, yContatos, yBancarios) + PADDING - 2;
+    fecharCaixa(yCaixaDaEmpresa, yFimDaEmpresa);
+    doc.y = yFimDaEmpresa + ENTRE_BLOCOS * 0.7;
 
-    // Cliente e "Entregar em" lado a lado (o "Quoted To / Ship To" do modelo).
-    const meia = (largura - 20) / 2;
-    const yCliente = doc.y;
+    // Caixa "Cliente": os dados e o "Endereço de entrega" lado a lado (o "Quoted To / Ship To" do modelo).
+    const meia = (larguraDentro - 20) / 2;
+    const yCaixaDoCliente = doc.y;
+    const yCliente = abrirCaixa("Cliente", yCaixaDoCliente);
     // Titulos maiores e em azul (pedido do dono em 13/11/2026: "mais evidente"), com os nomes que ele escolheu.
-    doc.font("Helvetica-Bold").fontSize(FONTE_DO_TITULO_DO_BLOCO).fillColor(AZUL).text("Dados do cliente", MARGEM, yCliente);
+    doc.font("Helvetica-Bold").fontSize(FONTE_DO_TITULO_DO_BLOCO).fillColor(AZUL).text("Dados do cliente", xDentro, yCliente);
     doc.fillColor(TEXTO);
     // O A/C vem primeiro, logo abaixo do titulo (desenho do dono em 13/11/2026), com os dados do contato.
     if (conteudo.cliente.ac) {
-      doc.font("Helvetica-Bold").fontSize(FONTE_DO_DADO).text(conteudo.cliente.ac, MARGEM, doc.y + 2, { width: meia });
-      if (conteudo.cliente.acLinha) doc.font("Helvetica").fontSize(FONTE_DO_DADO).text(conteudo.cliente.acLinha, MARGEM, doc.y, { width: meia });
+      doc.font("Helvetica-Bold").fontSize(FONTE_DO_DADO).text(conteudo.cliente.ac, xDentro, doc.y + 2, { width: meia });
+      if (conteudo.cliente.acLinha) doc.font("Helvetica").fontSize(FONTE_DO_DADO).text(conteudo.cliente.acLinha, xDentro, doc.y, { width: meia });
     }
-    doc.font("Helvetica-Bold").fontSize(FONTE_DO_NOME).text(conteudo.cliente.nome, MARGEM, doc.y + 2, { width: meia });
+    doc.font("Helvetica-Bold").fontSize(FONTE_DO_NOME).text(conteudo.cliente.nome, xDentro, doc.y + 2, { width: meia });
     doc.font("Helvetica").fontSize(FONTE_DO_DADO);
-    for (const linha of conteudo.cliente.linhas) doc.text(linha, MARGEM, doc.y, { width: meia });
+    for (const linha of conteudo.cliente.linhas) doc.text(linha, xDentro, doc.y, { width: meia });
     const fimDoCliente = doc.y;
-    const xEntrega = MARGEM + meia + 20;
+    const xEntrega = xDentro + meia + 20;
     doc.font("Helvetica-Bold").fontSize(FONTE_DO_TITULO_DO_BLOCO).fillColor(AZUL).text("Endereço de entrega", xEntrega, yCliente);
     doc.fillColor(TEXTO);
     doc.font("Helvetica").fontSize(FONTE_DO_DADO).text(conteudo.entrega.join("\n"), xEntrega, doc.y + 2, { width: meia });
-    doc.y = Math.max(fimDoCliente, doc.y) + ENTRE_BLOCOS;
+    const yFimDoCliente = Math.max(fimDoCliente, doc.y) + PADDING - 2;
+    fecharCaixa(yCaixaDoCliente, yFimDoCliente);
+    doc.x = MARGEM;
+    doc.y = yFimDoCliente + ENTRE_BLOCOS;
 
     // Faixa de condicoes: validade, pagamento, prazo de entrega, metodo de envio (com o frete por conta) e vendedor.
     const yFaixa = doc.y;

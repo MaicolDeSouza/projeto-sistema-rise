@@ -29,7 +29,8 @@ export const COLUNAS = [
 ];
 
 /** O nome no topo do PDF (pedido do dono em 13/11/2026: "pode usar 4hobby indústria, comércio e importação"). */
-export const NOME_NO_CABECALHO = "4hobby Indústria, Comércio e Importação";
+// Sem "Importação" (pedido do dono em 17/11/2026, para caber numa linha na caixa "4hobby" com a fonte nova).
+export const NOME_NO_CABECALHO = "4hobby Indústria e Comércio";
 
 const soDigitos = (texto) => String(texto ?? "").replace(/\D/g, "");
 

@@ -537,7 +537,7 @@ try {
   conferir("PDF: sem descricao do cliente sai o nome do Rise", conteudoDaProposta({ ...paraPdf, itens: [{ ...paraPdf.itens[0], descricaoCliente: "" }] }, empresaFalsa).itens[0].celulas.descricao, paraPdf.itens[0].nomeInterno);
   conferir("PDF: nunca custo nem internas", [tudo.includes("so nossa"), /custo/i.test(tudo)], [false, false]);
   // Cabecalho no molde da cotacao que o dono mandou (13/11/2026): nome, contatos com link, quadro, entrega e faixa.
-  conferir("PDF: nome no topo e endereco da empresa", [conteudo.nomeDaEmpresa, conteudo.empresa[0], conteudo.site?.url], ["4hobby Indústria, Comércio e Importação", "Rua", "https://www.4hobby.com.br"]);
+  conferir("PDF: nome no topo e endereco da empresa", [conteudo.nomeDaEmpresa, conteudo.empresa[0], conteudo.site?.url], ["4hobby Indústria e Comércio", "Rua", "https://www.4hobby.com.br"]);
   conferir(
     "PDF: so o WhatsApp tem link (fixo e e-mail sem)",
     conteudo.contatos.map((ct) => [ct.tipo, ct.url]),
