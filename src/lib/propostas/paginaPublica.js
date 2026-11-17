@@ -33,10 +33,8 @@ main{max-width:1000px;margin:0 auto;padding:24px 16px 48px}
 header{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
 header img{height:72px;max-width:170px;object-fit:contain;display:block}
 .nome{flex:1;min-width:220px;border-bottom:4px double #1f3d6b;padding-bottom:6px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
-.nome b{font-size:18px}
-.titulo{text-align:right}
 h1{margin:0;font-size:22px}
-.quadro{font-size:14px;margin-top:2px}
+.quadro{font-size:14px;text-align:left}
 .quadro div{white-space:nowrap}
 .info{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 24px;margin-top:16px;color:#374151;font-size:12px}
 .coluna{color:#1f3d6b;font-size:13px;font-weight:700;margin-bottom:4px}
@@ -99,7 +97,7 @@ export function htmlDaProposta(proposta, empresa, extras = {}) {
     })
     .join("");
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${escapar(c.titulo)}</title><style>${ESTILO}</style></head><body><main><div class="folha">
-<header>${logo ? `<img src="${logo}" alt="">` : ""}<div class="nome"><b>${escapar(c.nomeDaEmpresa)}</b><div class="titulo"><h1>PROPOSTA</h1><div class="quadro">${c.quadro.map(([r, v]) => `<div><b>${escapar(r)}:</b> ${escapar(v)}</div>`).join("")}</div></div></div></header>
+<header>${logo ? `<img src="${logo}" alt="">` : ""}<div class="nome"><h1>PROPOSTA COMERCIAL</h1><div class="quadro">${c.quadro.map(([r, v]) => `<div><b>${escapar(r)}:</b> ${escapar(v)}</div>`).join("")}</div></div></header>
 <div class="info"><div><div class="coluna">Dados da empresa</div><b class="empresa">${escapar(c.nomeDaEmpresa)}</b><br>${c.empresa.map(escapar).join("<br>")}${c.site ? `<br><a href="${escapar(c.site.url)}">${escapar(c.site.texto)}</a>` : ""}</div>
 <div><div class="coluna">Dados para contato</div>${c.contatos.map(contatoEmHtml).join("")}</div>
 ${c.bancarios.length ? `<div><div class="coluna">Dados bancários</div>${c.bancarios.map(escapar).join("<br>")}</div>` : ""}</div>

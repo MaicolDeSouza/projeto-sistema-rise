@@ -33,6 +33,8 @@ const LOGO_LARGURA = 132;
 const LOGO_ALTURA = 56;
 // Espaco entre os blocos (17/11/2026: o dono pediu mais respiro entre cabecalho, cliente, condicoes e itens).
 const ENTRE_BLOCOS = 22;
+// O titulo do documento (pedido do dono em 17/11/2026; ate ali "PROPOSTA").
+const TITULO = "PROPOSTA COMERCIAL";
 const AZUL = "#1f3d6b";
 const AZUL_LINK = "#1d4ed8";
 const TEXTO_SUAVE = "#374151";
@@ -130,25 +132,25 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     }
     const xTexto = MARGEM + LOGO_LARGURA + 12;
     const larguraDoTexto = MARGEM + largura - xTexto;
-    doc.font("Helvetica-Bold").fontSize(20).fillColor(TEXTO).text("PROPOSTA", xTexto, topo - 2, { width: larguraDoTexto, align: "right" });
-    const larguraDoTitulo = doc.widthOfString("PROPOSTA");
-    // O numero e a data logo abaixo do "PROPOSTA", acima da linha azul (pedido do dono em 17/11/2026, Opcao 1; ate ali
-    // ficavam numa terceira coluna embaixo da linha). O bloco encosta na direita pela linha mais larga.
+    // Acima da linha azul (pedido do dono em 17/11/2026): o titulo "PROPOSTA COMERCIAL" no lugar do nome da empresa (o
+    // nome ficou so na coluna "Dados da empresa") e, a direita, o numero e a data um embaixo do outro, alinhados a
+    // esquerda entre si, o bloco encostado na margem direita pela linha mais larga.
+    const yLinha = topo + LOGO_ALTURA - 4;
     const larguraDaLinha = ([rotulo, valor]) => doc.font("Helvetica-Bold").fontSize(10).widthOfString(`${rotulo}: `) + doc.font("Helvetica").fontSize(10).widthOfString(valor);
-    const larguraDoQuadro = Math.max(larguraDoTitulo, ...conteudo.quadro.map(larguraDaLinha));
-    let yQuadro = topo + 22;
+    const larguraDoQuadro = Math.max(...conteudo.quadro.map(larguraDaLinha));
+    const xDoQuadro = MARGEM + largura - larguraDoQuadro;
+    let yQuadro = yLinha - 8 - conteudo.quadro.length * 13;
     for (const [rotulo, valor] of conteudo.quadro) {
-      doc.font("Helvetica-Bold").fontSize(10).fillColor(TEXTO).text(`${rotulo}: `, MARGEM + largura - larguraDaLinha([rotulo, valor]), yQuadro, { continued: true, lineBreak: false });
+      doc.font("Helvetica-Bold").fontSize(10).fillColor(TEXTO).text(`${rotulo}: `, xDoQuadro, yQuadro, { continued: true, lineBreak: false });
       doc.font("Helvetica").text(valor, { lineBreak: false });
       yQuadro += 13;
     }
-    // O nome numa linha so: a fonte encolhe ate caber ao lado do bloco do "PROPOSTA" (o pdfkit quebra a linha mesmo sem lineBreak).
-    const espacoDoNome = larguraDoTexto - larguraDoQuadro - 14;
-    let tamanhoDoNome = 16;
+    // O titulo numa linha so: a fonte encolhe ate caber ao lado do numero e da data (o pdfkit quebra a linha mesmo sem lineBreak).
+    const espacoDoTitulo = larguraDoTexto - larguraDoQuadro - 14;
+    let tamanhoDoTitulo = 20;
     doc.font("Helvetica-Bold");
-    while (tamanhoDoNome > 10 && doc.fontSize(tamanhoDoNome).widthOfString(conteudo.nomeDaEmpresa) > espacoDoNome) tamanhoDoNome -= 0.5;
-    const yLinha = Math.max(yQuadro + 4, topo + LOGO_ALTURA - 4);
-    doc.fontSize(tamanhoDoNome).fillColor(TEXTO).text(conteudo.nomeDaEmpresa, xTexto, yLinha - tamanhoDoNome - 6, { width: espacoDoNome + 4, lineBreak: false });
+    while (tamanhoDoTitulo > 12 && doc.fontSize(tamanhoDoTitulo).widthOfString(TITULO) > espacoDoTitulo) tamanhoDoTitulo -= 0.5;
+    doc.fontSize(tamanhoDoTitulo).fillColor(TEXTO).text(TITULO, xTexto, yLinha - tamanhoDoTitulo - 6, { width: espacoDoTitulo + 4, lineBreak: false });
     doc.lineWidth(2.6).strokeColor(AZUL).moveTo(xTexto, yLinha).lineTo(MARGEM + largura, yLinha).stroke();
     doc.lineWidth(0.6).moveTo(xTexto, yLinha + 4).lineTo(MARGEM + largura, yLinha + 4).stroke();
 
