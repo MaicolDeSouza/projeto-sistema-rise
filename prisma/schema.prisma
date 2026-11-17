@@ -61,6 +61,9 @@ enum Servico {
   ALIEXPRESS
   /// Chave da extensao "Rise LightBurn" (so o hash), como ALIEXPRESS.
   LIGHTBURN
+  /// Certificado digital e-CNPJ A1 da empresa (spec 2026-11-17-assinatura-digital-proposta-design.md): o .pfx e a senha
+  /// cifrados no segredo; contaExterna = razao social e CNPJ; expiraEm = fim da validade. Assina o PDF da proposta marcada.
+  CERTIFICADO_DIGITAL
 }
 
 enum TipoPessoa {
@@ -3175,6 +3178,8 @@ model PropostaParaCliente {
   /// So no CIF (17/11/2026): o frete entra no preco de cada item (proporcional ao valor do item) no PDF, no link e no
   /// pedido de venda do Bling, que vai sem frete. O total nao muda.
   freteDiluido        Boolean         @default(false)
+  /// O PDF (no Rise e pelo link) sai assinado pelo certificado digital da empresa (17/11/2026, "apenas as marcadas").
+  assinarDigitalmente Boolean         @default(false)
   prazoTransporteDias Int?
 
   descontoTipo  TipoDeDesconto?

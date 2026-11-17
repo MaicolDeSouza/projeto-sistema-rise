@@ -813,6 +813,44 @@ try {
   const listaMcp = await mcp.listarPropostasParaCliente({ termos: "ZZ Proposta" }, todos);
   conferir("MCP lista", listaMcp.propostas.some((pr) => pr.numero === p2.numero), true);
 
+  // -------------------------------------------------------------------------
+  // Certificado digital no cofre (plano 2026-11-17, tarefa 2). Guarda e devolve o certificado do dono, se houver.
+  // -------------------------------------------------------------------------
+  console.log("\nCertificado digital no banco");
+  const cofre = await import("../src/lib/propostas/certificado.js");
+  const certificadoDoDono = await prisma.conexao.findUnique({ where: { servico: "CERTIFICADO_DIGITAL" } });
+  try {
+    const gravado = await cofre.gravarCertificado({ pfx: certTeste.pfx, senha: certTeste.senha });
+    conferir("cofre: gravar devolve quem assina", [gravado.razaoSocial, gravado.cnpj], ["ZZ TESTE LTDA", "00.000.000/0001-91"]);
+    const situacao = await cofre.situacaoDoCertificado();
+    conferir("cofre: situacao sem segredo", [situacao.razaoSocial, situacao.vencido, "pfx" in situacao, "senha" in situacao], ["ZZ TESTE LTDA", false, false, false]);
+    const paraAssinar = await cofre.certificadoParaAssinar();
+    conferir("cofre: devolve o mesmo pfx e a senha", [paraAssinar.pfx.equals(certTeste.pfx), paraAssinar.senha], [true, certTeste.senha]);
+    const linha = await prisma.conexao.findUnique({ where: { servico: "CERTIFICADO_DIGITAL" } });
+    conferir("cofre: a senha nao fica em texto no banco", linha.segredoCifrado.includes(certTeste.senha) || JSON.stringify(linha).includes(certTeste.senha), false);
+    const depoisDeVencer = new Date(new Date(situacao.validoAte).getTime() + 60_000);
+    conferir("cofre: vencido nao assina", await cofre.certificadoParaAssinar(depoisDeVencer), null);
+    conferir("cofre: vencido aparece na situacao", (await cofre.situacaoDoCertificado(depoisDeVencer)).vencido, true);
+    let recusou = null;
+    try {
+      await cofre.gravarCertificado({ pfx: certTeste.pfx, senha: "errada" });
+    } catch (erro) {
+      recusou = erro.message;
+    }
+    conferir("cofre: senha errada nao grava", recusou, "Senha do certificado incorreta ou arquivo inválido.");
+    await prisma.conexao.update({ where: { servico: "CERTIFICADO_DIGITAL" }, data: { segredoCifrado: "a.b.c" } });
+    conferir("cofre: segredo corrompido nao assina (nem lanca)", await cofre.certificadoParaAssinar(), null);
+    await cofre.removerCertificado();
+    conferir("cofre: removido", [await cofre.situacaoDoCertificado(), await cofre.certificadoParaAssinar()], [null, null]);
+  } finally {
+    if (certificadoDoDono) {
+      const { id: _id, servico: _servico, ...dados } = certificadoDoDono;
+      await prisma.conexao.upsert({ where: { servico: "CERTIFICADO_DIGITAL" }, update: dados, create: { servico: "CERTIFICADO_DIGITAL", ...dados } });
+    } else {
+      await prisma.conexao.deleteMany({ where: { servico: "CERTIFICADO_DIGITAL" } });
+    }
+  }
+
   // @@BANCO@@
 
   terminou = true;
