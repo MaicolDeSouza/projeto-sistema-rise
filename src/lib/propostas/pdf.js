@@ -159,11 +159,15 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     doc.fontSize(tamanhoDoTitulo).fillColor(TEXTO).text(TITULO, xTexto, yLinha - tamanhoDoTitulo - 6, { width: espacoDoTitulo + 4, lineBreak: false });
     doc.lineWidth(2.6).strokeColor(AZUL).moveTo(xTexto, yLinha).lineTo(MARGEM + largura, yLinha).stroke();
     doc.lineWidth(0.6).moveTo(xTexto, yLinha + 4).lineTo(MARGEM + largura, yLinha + 4).stroke();
-    // O A/C embaixo do titulo "PROPOSTA COMERCIAL" (pedido do dono em 17/11/2026; saiu da caixa do cliente).
+    // "Aos cuidados de:" logo abaixo do logo, a esquerda (pedidos do dono em 17/11/2026; saiu da caixa do cliente): o
+    // rotulo em negrito e o nome normal.
     let yDoAc = yLinha + 4;
     if (conteudo.cliente.ac) {
-      doc.font("Helvetica-Bold").fontSize(FONTE_DO_NOME).fillColor(TEXTO).text(conteudo.cliente.ac, xTexto, yLinha + 10, { width: larguraDoTexto, lineBreak: false });
-      yDoAc = yLinha + 10 + FONTE_DO_NOME + 2;
+      const yAc = topo + LOGO_ALTURA + 6;
+      const [rotuloDoAc, ...resto] = conteudo.cliente.ac.split(": ");
+      doc.font("Helvetica-Bold").fontSize(FONTE_DO_NOME).fillColor(TEXTO).text(`${rotuloDoAc}: `, MARGEM, yAc, { continued: true, lineBreak: false });
+      doc.font("Helvetica").text(resto.join(": "), { lineBreak: false });
+      yDoAc = yAc + FONTE_DO_NOME + 2;
     }
 
     // As duas areas em caixas com faixa de titulo, no estilo da faixa de condicoes (pedido do dono em 17/11/2026: "dividir

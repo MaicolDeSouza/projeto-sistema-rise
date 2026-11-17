@@ -568,7 +568,7 @@ try {
     { ...paraPdf, contatoId: "ct1", contatoNome: "Ana Souza", cliente: { contatos: [{ id: "ct1", nome: "Ana Souza", cargo: "Compras", telefone: "54988990008", email: "ana@zz.com" }] } },
     empresaFalsa,
   ).cliente;
-  conferir("PDF: A/C so com o nome do contato", [comAc.ac, comAc.acLinha], ["A/C: Ana Souza", null]);
+  conferir("PDF: A/C so com o nome do contato", [comAc.ac, comAc.acLinha], ["Aos cuidados de: Ana Souza", null]);
   const { prazoDaGarantia } = await import("../src/lib/propostas/conteudo.js");
   conferir(
     "PDF: garantia so com o prazo",

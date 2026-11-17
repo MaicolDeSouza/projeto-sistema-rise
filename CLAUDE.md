@@ -6363,7 +6363,9 @@ plano `docs/superpowers/plans/2026-11-12-propostas-para-cliente.md`. Menu **Prop
     dentro); o A/C saiu da caixa do cliente e fica embaixo de "PROPOSTA COMERCIAL"; "Condições de pagamento" em duas linhas,
     "7 dias após emissão da NF" e "Método: Transferência" (`textoDoPagamento({ formaNaLinhaDeBaixo })`; a faixa com larguras
     medidas no pdfkit, `PESOS_DA_FAIXA` 102/152/83/81/55/50); "CNPJ:", "CPF:", "IE:" e "CEP:" com dois pontos; a coluna
-    "Código 4hobby" e o item sem código com "—" centralizado. O link público segue com o A/C na área do cliente.
+    "Código 4hobby" e o item sem código com "—" centralizado. No mesmo dia o A/C virou **"Aos cuidados de:"** (rótulo em negrito,
+    nome normal) e foi para **logo abaixo do logo**, à esquerda (`contatoDoCliente` em `conteudo.js`; o link público segue
+    com ele na área do cliente).
 - **Foto do item avulso** (pedido do dono em 13/11/2026, na proposta da Fundação Coppetec: itens comprados no ML só para o
   cliente): no editor, a caixa da foto do avulso é um botão (ícone de imagem) que envia JPG/PNG/WebP na hora para
   `dados/propostas/<propostaId>/fotos/<32 hex>.jpg` (`gravarFotoDoItem`, reduzida a 600 px sobre branco); o "x" tira. O

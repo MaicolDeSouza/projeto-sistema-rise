@@ -112,7 +112,8 @@ export function linhasDoCliente(proposta) {
  * proposta da Coppetec: "deixar apenas o nome do contato", sem cargo, telefone nem e-mail; ate ali vinham numa linha).
  */
 function contatoDoCliente(proposta) {
-  return { ac: proposta.contatoNome ? `A/C: ${proposta.contatoNome}` : null, acLinha: null };
+  // "Aos cuidados de:" no lugar de "A/C:" (o dono sugeriu e concordamos em 17/11/2026: mais claro para o cliente).
+  return { ac: proposta.contatoNome ? `Aos cuidados de: ${proposta.contatoNome}` : null, acLinha: null };
 }
 
 /**
