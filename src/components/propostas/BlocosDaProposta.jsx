@@ -3,19 +3,37 @@
 import { useState } from "react";
 
 import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
-import { FORMAS_DE_PAGAMENTO, TEXTO_DO_FRETE, dataBR, lerDesconto, prazoGeral, textoDoPagamento } from "@/lib/propostas/regras";
+import { FORMAS_DE_PAGAMENTO, TEXTO_DO_FRETE, dataBR, lerDesconto, planoDaCondicao, prazoGeral, textoDoPagamento, valoresDoPagamento } from "@/lib/propostas/regras";
 import { campo, Rotulo } from "./CartaoCliente";
-import { doTexto, moeda, soDecimal, soDigitos } from "./formato";
+import { doTexto, moeda, paraTexto, soDecimal, soDigitos } from "./formato";
+import CampoComLista from "./CampoComLista";
 
-/** Pagamento: uma condicao da lista (vem a preferida do cliente) e os ajustes; o resumo e o que sai no PDF. */
-export function CartaoPagamento({ formulario, condicoes, editar, erros, aoMudar }) {
+/** Os campos do formulario que a condicao preenche (parcelas e entrada, em texto); {} quando ela nao diz (A combinar). */
+export function camposDaCondicao(condicoes, id) {
+  const plano = planoDaCondicao(condicoes.find((c) => c.id === id)?.nome);
+  return plano ? { parcelas: String(plano.parcelas), entradaPercentual: plano.entradaPercentual ? paraTexto(plano.entradaPercentual) : "" } : {};
+}
+
+/**
+ * Pagamento: uma condicao da lista (vem a preferida do cliente) e os ajustes; o resumo e o que sai no PDF. Escolher a
+ * condicao preenche as parcelas e a entrada (17/11/2026), e ao lado de cada uma vai o valor em reais, com a entrada ja
+ * descontada das parcelas.
+ */
+export function CartaoPagamento({ formulario, condicoes, total = 0, editar, erros, aoMudar }) {
   const condicaoNome = condicoes.find((c) => c.id === formulario.condicaoPagamentoId)?.nome ?? null;
-  const resumo = textoDoPagamento({ ...formulario, condicaoNome, parcelas: doTexto(formulario.parcelas), entradaPercentual: doTexto(formulario.entradaPercentual) });
+  const parcelas = doTexto(formulario.parcelas);
+  const entradaPercentual = doTexto(formulario.entradaPercentual);
+  const resumo = textoDoPagamento({ ...formulario, condicaoNome, parcelas, entradaPercentual, total });
+  const valores = total > 0 ? valoresDoPagamento({ total, parcelas, entradaPercentual }) : null;
+  const escolherCondicao = (id) => {
+    aoMudar("condicaoPagamentoId", id);
+    for (const [campoDoFormulario, valor] of Object.entries(camposDaCondicao(condicoes, id))) aoMudar(campoDoFormulario, valor);
+  };
   return (
     <SecaoDoAnuncio titulo="Pagamento" ajuda="A condição vem da preferida do cliente. O texto livre vai no PDF depois do resumo.">
       <div className="grid gap-3 sm:grid-cols-2">
         <Rotulo texto="Condição">
-          <select value={formulario.condicaoPagamentoId} disabled={!editar} onChange={(e) => aoMudar("condicaoPagamentoId", e.target.value)} className={campo}>
+          <select value={formulario.condicaoPagamentoId} disabled={!editar} onChange={(e) => escolherCondicao(e.target.value)} className={campo}>
             <option value="">Sem condição da lista</option>
             {condicoes.map((c) => (
               <option key={c.id} value={c.id}>
@@ -33,10 +51,25 @@ export function CartaoPagamento({ formulario, condicoes, editar, erros, aoMudar 
           </select>
         </Rotulo>
         <Rotulo texto="Parcelas" erro={erros.parcelas}>
-          <input inputMode="numeric" value={formulario.parcelas} disabled={!editar} aria-invalid={Boolean(erros.parcelas)} onChange={(e) => aoMudar("parcelas", soDigitos(e.target.value, 2))} className={`${campo} tabular-nums`} />
+          <span className="flex items-center gap-2">
+            <input inputMode="numeric" value={formulario.parcelas} disabled={!editar} aria-invalid={Boolean(erros.parcelas)} onChange={(e) => aoMudar("parcelas", soDigitos(e.target.value, 2))} className={`${campo} tabular-nums`} />
+            {valores && (
+              <span className="shrink-0 text-sm text-suave tabular-nums" title="Valor de cada parcela, com a entrada já descontada">
+                ({moeda.format(valores.parcela)}
+                {valores.parcelas > 1 ? " cada" : ""})
+              </span>
+            )}
+          </span>
         </Rotulo>
         <Rotulo texto="Entrada (%)" erro={erros.entradaPercentual}>
-          <input inputMode="decimal" value={formulario.entradaPercentual} disabled={!editar} aria-invalid={Boolean(erros.entradaPercentual)} onChange={(e) => aoMudar("entradaPercentual", soDecimal(e.target.value))} className={`${campo} tabular-nums`} />
+          <span className="flex items-center gap-2">
+            <input inputMode="decimal" value={formulario.entradaPercentual} disabled={!editar} aria-invalid={Boolean(erros.entradaPercentual)} onChange={(e) => aoMudar("entradaPercentual", soDecimal(e.target.value))} className={`${campo} tabular-nums`} />
+            {valores && valores.entrada > 0 && (
+              <span className="shrink-0 text-sm text-suave tabular-nums" title="Valor da entrada">
+                ({moeda.format(valores.entrada)})
+              </span>
+            )}
+          </span>
         </Rotulo>
         <Rotulo texto="Texto livre" className="sm:col-span-2">
           <textarea rows={2} value={formulario.pagamentoTexto} disabled={!editar} onChange={(e) => aoMudar("pagamentoTexto", e.target.value)} className={`${campo} field-sizing-content min-h-16`} />
@@ -47,7 +80,28 @@ export function CartaoPagamento({ formulario, condicoes, editar, erros, aoMudar 
   );
 }
 
-/** Frete: CIF, FOB, Cliente retira ou A combinar (com a explicacao curta), transportadora, valor e prazo. */
+/** O interruptor do Rise (o mesmo desenho do "Ativo" do usuario e do atacado do ML). */
+function Interruptor({ ligado, aoMudar, rotulo, desabilitado = false }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={ligado}
+      aria-label={rotulo}
+      disabled={desabilitado}
+      onClick={() => aoMudar(!ligado)}
+      className={`relative h-6 w-11 shrink-0 rounded-full transition-[background-color] duration-150 focus-visible:ring-2 focus-visible:ring-acento focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${ligado ? "bg-emerald-600" : "bg-slate-300"}`}
+    >
+      <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-150 ${ligado ? "translate-x-5" : ""}`} />
+    </button>
+  );
+}
+
+/**
+ * Frete: CIF, FOB, Cliente retira ou A combinar (com a explicacao curta), transportadora, valor e prazo. Pedidos do dono
+ * em 17/11/2026: a transportadora e uma das cadastradas OU digitada; no CIF, o interruptor dilui o frete nos produtos; o
+ * prazo se chama "Prazo de entrega".
+ */
 export function CartaoFrete({ formulario, transportadoras, editar, erros, aoMudar }) {
   const comTransporte = formulario.fretePorConta === "CIF" || formulario.fretePorConta === "FOB";
   return (
@@ -66,20 +120,34 @@ export function CartaoFrete({ formulario, transportadoras, editar, erros, aoMuda
       {comTransporte && (
         <div className="grid gap-3 sm:grid-cols-3">
           <Rotulo texto="Transportadora" className="sm:col-span-3">
-            <select value={formulario.transportadoraId} disabled={!editar} onChange={(e) => aoMudar("transportadoraId", e.target.value)} className={campo}>
-              <option value="">—</option>
-              {transportadoras.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.nomeFantasia || t.nome}
-                </option>
-              ))}
-            </select>
+            <CampoComLista
+              opcoes={transportadoras.map((t) => ({ id: t.id, nome: t.nomeFantasia || t.nome }))}
+              id={formulario.transportadoraId}
+              texto={formulario.transportadoraNome || ((t) => t?.nomeFantasia || t?.nome || "")(transportadoras.find((t) => t.id === formulario.transportadoraId))}
+              editar={editar}
+              aoMudar={({ id, texto }) => {
+                aoMudar("transportadoraNome", texto);
+                aoMudar("transportadoraId", id);
+              }}
+              placeholder="Escolha ou digite a transportadora"
+              rotuloDaSeta="Mostrar as transportadoras cadastradas"
+              tituloDoLivre="Nome digitado: fica só nesta proposta, sem entrar no cadastro de transportadoras."
+              className={campo}
+            />
           </Rotulo>
-          <Rotulo texto="Valor do frete (R$)" erro={erros.frete}>
-            <input inputMode="decimal" value={formulario.frete} disabled={!editar} aria-invalid={Boolean(erros.frete)} onChange={(e) => aoMudar("frete", soDecimal(e.target.value))} className={`${campo} text-right tabular-nums`} />
-          </Rotulo>
-          <Rotulo texto="Prazo de transporte (dias)" erro={erros.prazoTransporteDias}>
-            <input inputMode="numeric" value={formulario.prazoTransporteDias} disabled={!editar} onChange={(e) => aoMudar("prazoTransporteDias", soDigitos(e.target.value, 3))} className={`${campo} text-right tabular-nums`} />
+          <div>
+            <Rotulo texto="Valor do frete (R$)" erro={erros.frete}>
+              <input inputMode="decimal" value={formulario.frete} disabled={!editar} aria-invalid={Boolean(erros.frete)} onChange={(e) => aoMudar("frete", soDecimal(e.target.value))} className={`${campo} tabular-nums`} />
+            </Rotulo>
+            {formulario.fretePorConta === "CIF" && (
+              <div className="mt-2 flex items-center gap-2 text-sm" title="Ligado: no PDF e no pedido do Bling o frete entra no preço de cada produto, proporcional ao valor do item. O total não muda.">
+                <Interruptor ligado={Boolean(formulario.freteDiluido)} desabilitado={!editar} rotulo="Diluir o frete nos produtos" aoMudar={(ligado) => aoMudar("freteDiluido", ligado)} />
+                <span className={formulario.freteDiluido ? "text-texto" : "text-suave"}>Diluir nos produtos</span>
+              </div>
+            )}
+          </div>
+          <Rotulo texto="Prazo de entrega (dias)" erro={erros.prazoTransporteDias}>
+            <input inputMode="numeric" value={formulario.prazoTransporteDias} disabled={!editar} onChange={(e) => aoMudar("prazoTransporteDias", soDigitos(e.target.value, 3))} className={`${campo} tabular-nums`} />
           </Rotulo>
         </div>
       )}

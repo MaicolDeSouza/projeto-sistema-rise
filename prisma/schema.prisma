@@ -3163,6 +3163,9 @@ model PropostaParaCliente {
   transportadoraNome  String?
   /// Soma no total so com CIF: no FOB o cliente paga direto a transportadora.
   frete               Decimal         @default(0) @db.Decimal(12, 2)
+  /// So no CIF (17/11/2026): o frete entra no preco de cada item (proporcional ao valor do item) no PDF, no link e no
+  /// pedido de venda do Bling, que vai sem frete. O total nao muda.
+  freteDiluido        Boolean         @default(false)
   prazoTransporteDias Int?
 
   descontoTipo  TipoDeDesconto?
@@ -3224,14 +3227,15 @@ model ItemDaPropostaParaCliente {
   produtoId String?
   produto   Produto? @relation(fields: [produtoId], references: [id], onDelete: Restrict)
 
-  /// A descricao que o CLIENTE mandou: e ela que sai no PDF (pedido do dono).
+  /// A descricao que o CLIENTE mandou: sai no PDF no lugar do nome do Rise quando preenchida (17/11/2026).
   descricaoCliente String
-  /// Codigo do item no cliente (part number da cotacao dele); sai no PDF.
+  /// Codigo do item no cliente (part number da cotacao dele). Desde 17/11/2026 nao sai mais no PDF (sai o do Rise).
   codigoCliente    String?
   /// Marca e modelo que saem no PDF (o SENAI exige; 13/11/2026). Copiados do produto ao entrar, editaveis.
   marca            String?
   modelo           String?
-  /// Copias internas (nunca no PDF).
+  /// O codigo e o nome do produto do Rise (o nome digitado, no item sem cadastro). Desde 17/11/2026 o codigo sempre sai
+  /// no PDF e o nome sai quando nao ha descricao do cliente.
   codigoInterno    String?
   nomeInterno      String?
   /// Caminho relativo da foto (do produto, ou enviada a mao no avulso).
@@ -3240,6 +3244,9 @@ model ItemDaPropostaParaCliente {
   /// 3 casas: metro e quilo.
   quantidade         Decimal @db.Decimal(12, 3)
   unidade            String  @default("UN")
+  /// Quantas unidades do produto do Rise formam 1 unidade do cliente (kit de 10 = 10; 17/11/2026). Quantidade, preco e
+  /// custo do item sao na unidade do cliente; estoque e pedido de venda usam quantidade x fator.
+  fator              Decimal @default(1) @db.Decimal(12, 4)
   precoUnitario      Decimal @default(0) @db.Decimal(12, 4)
   descontoPercentual Decimal @default(0) @db.Decimal(5, 2)
 

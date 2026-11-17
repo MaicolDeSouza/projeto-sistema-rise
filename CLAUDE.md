@@ -431,7 +431,7 @@ npm run teste:aliexpress          # 153 asserções do AliExpress no Compras: re
 npm run teste:compras-ml           # 50 asserções das compras do Mercado Livre no Compras e da nota fiscal do pedido de compra: regras puras (pack, situação, totais, variação, 1ª leitura, envio e fases), XML da NF-e, leitura contra um ML falso (rascunho que vira enviado, rastreio que aparece, cancelada, sem duplicar), casamento pelo MLB, Virtual contra o Bling falso, busca pelo rastreio e pela nota e a guarda que impede a compra de virar venda. Postgres local, SEM rede; só escreve ZZ-CML-*, "ZZ CML Fornecedor" e compras 98…; `-- --manter` deixa os dados
 npm run teste:estoque3d            # 97 asserções do Mapa do estoque: leitura da localização ("M2"), peças que cabem na caixinha, caixinha certa, peso, a cena montada (ordem, largura, o que passa do vão, a 1 em cima ou embaixo, fora das prateleiras), as regras da fase 2 (parecidos, vizinhos, pesado em cima, Onde guardar) e o banco (colunas pela localização, coluna, modelo, caixinha do produto, Mover com renumeração e histórico, ordem pelas fotos). Postgres local, SEM rede; só escreve ZZ-E3D-*, as colunas ZY/ZZ e os modelos "ZZ E3D *", e apaga
 npm run teste:estudos             # 51 asserções do estudo de viabilidade: regras puras (mediana, piso dos vendidos, demanda, preço por unidade, quantidade, vendas por mês entre estudos, veredito), banco (fila sem repetir, contas contra um ML falso, gravar, estudar de novo, lista) e as 5 ferramentas do MCP com o acesso. Postgres local, SEM rede; só escreve "ZZ-EST *" e ZZ-EST-*, e apaga
-npm run teste:propostas           # 140 asserções das Propostas para cliente (com o cabeçalho no molde da cotação: contatos com link, faixa e "Entregar em", e o A/C da lista ou digitado): regras puras (totais, desconto, frete só no CIF, prazo geral, "!", vencer), cliente (busca Rise/Bling, cópia, provisório, cadastro nos dois, Bling travado), gravação e numeração (duas ao mesmo tempo), situação, contatos, lista, pedido de venda contra o Bling falso (recusa avulso, não duplica), anexos, link público, PDF e página pública (nunca nosso código, custo nem internas) e as ferramentas do MCP. Postgres local, SEM rede; só escreve "ZZ Proposta *" e ZZ-PROP-CLI-*, e apaga
+npm run teste:propostas           # 158 asserções das Propostas para cliente (com o nome/código do Rise no PDF, o fator, o estoque do item, as parcelas pela condição e o frete diluído) (com o cabeçalho no molde da cotação: contatos com link, faixa e "Entregar em", e o A/C da lista ou digitado): regras puras (totais, desconto, frete só no CIF, prazo geral, "!", vencer), cliente (busca Rise/Bling, cópia, provisório, cadastro nos dois, Bling travado), gravação e numeração (duas ao mesmo tempo), situação, contatos, lista, pedido de venda contra o Bling falso (recusa avulso, não duplica), anexos, link público, PDF e página pública (nunca nosso código, custo nem internas) e as ferramentas do MCP. Postgres local, SEM rede; só escreve "ZZ Proposta *" e ZZ-PROP-CLI-*, e apaga
 npm run teste:pedidos             # 312 asserções dos Pedidos de venda (com o envio do ML entregue na agência pelo substatus): falsos (ML, LI, Bling), normalizadores, status, cliente automático, itens e custo congelado, lucro e devolução, peças, aplicarPedidoLido, a leitura com cursor, acessos e taxas da LI. Postgres local, SEM rede; só escreve ZZ-PED-*, "ZZ Ped *" e os documentos de teste, e devolve a linha "pedidos" de RotinaDoWorker e as taxas da LI; `-- --manter` deixa os pedidos para conferir a tela
 npm run teste:extensao-aliexpress # 15 asserções da leitura da extensão (extensao-aliexpress/leitura.js) com as respostas da página Meus pedidos medidas em 28/10/2026. Puro: sem banco, sem rede, sem Chrome
 npm run teste:licencas            # 109 asserções das Licenças Softwares: regras (vagas, casamento por nome do PC, situação, frescor, ordem), zip e upload do arquivo, banco (programas, licenças, linhas, versões do arquivo, download), leitura do portal (esquema, aplicação, incompleta, sumidos, chave da extensão) e a importação das planilhas (fixtures em scripts/fixtures/licencas/). Postgres local, SEM rede; só escreve ZZ-LIC-*, zz-lic-* e "ZZ LIC *" e devolve a Conexao LIGHTBURN; `-- --manter` deixa os dados para conferir a tela
@@ -6259,6 +6259,36 @@ plano `docs/superpowers/plans/2026-11-12-propostas-para-cliente.md`. Menu **Prop
   **"Cliente comum"** e aplica as regras do padrão `padrao-cliente-comum`, mas a proposta fica sem padrão (o PDF só mostra o
   faturamento mínimo a quem tem padrão), por isso esse padrão não aparece de novo na lista. O "Sem padrão" do cadastro do
   Cliente (`FormularioCliente.jsx`) ficou como estava.
+- **Itens com o produto do Rise, fator, estoque, pagamento e frete** (pedidos do dono em 17/11/2026, migrations `20261117` e
+  `20261117b`):
+  - **Campo principal = nome do produto do Rise** (`CampoDoProduto` em `ItensDaProposta.jsx`): digitar busca no Rise pelo
+    código ou por palavra do nome; escolher troca foto, código, marca, modelo, unidade, preço e custo. Sem produto, o nome
+    digitado fica no `nomeInterno` (item sem cadastro); "+ Adicionar item" já abre a linha com o campo em foco. Foto do item
+    com produto = SEMPRE a 1ª do cadastro de hoje (`fotoDe` em `banco.js`).
+  - **PDF/link (decisão do dono): a descrição do cliente quando preenchida, senão o nome do Rise, e SEMPRE o código do Rise**
+    (`nomeDoItemParaOCliente` em `regras.js`; coluna "Código"). Até ali eram a descrição e o código do cliente e nunca o
+    nosso; o `codigoCliente` continua no banco e não aparece mais. "+ Descrição do cliente" e "+Obs." embaixo do nome, e a
+    marca e o modelo (vêm do Rise, editáveis) lado a lado embaixo. Item sem nome nenhum recusa ("Informe o produto.").
+  - **Fator** (`ItemDaPropostaParaCliente.fator`, ao lado da descrição, só com produto do Rise): "kit espaçador 10 unidades"
+    = 10. Quantidade, preço e custo da linha são do KIT (o que sai no PDF); ao escolher o produto e ao mudar o fator (ao
+    sair do campo) preço e custo vão na proporção (`fatorBase`, só na tela). Estoque e pedido de venda do Bling usam
+    quantidade × fator (o Bling recebe o valor ÷ fator, 4 casas).
+  - **Unidades com o significado** ("UN (unitário)", `UNIDADE_POR_EXTENSO`); **Custo (lucro)** numa coluna só; cabeçalhos
+    todos à esquerda, linha entre as colunas e `table-fixed` (cabe sem rolagem em tela de 1600 px).
+  - **"i" de estoque no fim da linha** (`EstoqueDoItem`, `BolhaDeAjuda` com a prop nova `cor`): verde quando o disponível
+    cobre, vermelho quando falta; o mouse mostra em estoque, reservado em pedidos abertos, disponível, nesta proposta,
+    comprar e a compra a caminho. Reaproveita `calcularPecas` dos Pedidos de venda (`lib/propostas/estoque.js`, a proposta
+    é o pedido mais novo; o kit abre nas peças), que passou a devolver `estoque` e `reservado`.
+  - **Pagamento pela condição** (`planoDaCondicao`, lido do NOME: "30/60/90 dias" = 3, "28/56" = 2, "N% de entrada" = a
+    entrada, "Nx" = N, o resto 1; "A combinar" não mexe): escolher a condição preenche Parcelas e Entrada, e ao lado vai o
+    valor em R$ com a entrada descontada (`valoresDoPagamento`). O resumo do PDF ganhou os valores ("3x de R$ 394,00",
+    "entrada de 50% (R$ 591,00) · saldo de R$ 591,00").
+  - **Frete**: transportadora e A/C usam o mesmo `CampoComLista` (lista OU digitado; o digitado fica só na proposta,
+    `transportadoraNome` sem id); "Prazo de transporte" virou "Prazo de entrega" na tela (no PDF segue "Transporte: N
+    dia(s)", porque "Prazo de entrega" já é a coluna do prazo dos itens). No CIF, o interruptor **Diluir nos produtos**
+    (`PropostaParaCliente.freteDiluido`) põe o frete no preço de cada item, proporcional ao total do item
+    (`itensComFreteDiluido`), no PDF, no link (o quadro diz "Incluso nos produtos") e no pedido do Bling (que vai sem frete);
+    o total não muda e a tela do editor mostra os preços sem o frete.
 - **Foto do item avulso** (pedido do dono em 13/11/2026, na proposta da Fundação Coppetec: itens comprados no ML só para o
   cliente): no editor, a caixa da foto do avulso é um botão (ícone de imagem) que envia JPG/PNG/WebP na hora para
   `dados/propostas/<propostaId>/fotos/<32 hex>.jpg` (`gravarFotoDoItem`, reduzida a 600 px sobre branco); o "x" tira. O

@@ -362,7 +362,7 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
         <CartaoTotais formulario={formulario} totais={totais} editar={editar} erros={erros} aoMudar={mudar} veCusto={veCusto} />
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <CartaoPagamento formulario={formulario} condicoes={condicoes} editar={editar} erros={erros} aoMudar={mudar} />
+          <CartaoPagamento formulario={formulario} condicoes={condicoes} total={totais.total} editar={editar} erros={erros} aoMudar={mudar} />
           <CartaoFrete formulario={formulario} transportadoras={transportadoras} editar={editar} erros={erros} aoMudar={mudar} />
         </div>
 

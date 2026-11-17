@@ -1,12 +1,13 @@
 import { formatarTelefone } from "@/lib/telefone";
-import { TEXTO_DO_FRETE, dataBR, numeroDaProposta, prazoGeral, textoDoFaturamentoMinimo, textoDoPagamento, textoDoPrazo, totalDoItem } from "@/lib/propostas/regras";
+import { TEXTO_DO_FRETE, dataBR, itensComFreteDiluido, nomeDoItemParaOCliente, numeroDaProposta, prazoGeral, textoDoFaturamentoMinimo, textoDoPagamento, textoDoPrazo, totalDoItem } from "@/lib/propostas/regras";
 
 /**
  * O que o CLIENTE le, igual no PDF e no link publico (spec 2026-11-12, "PDF e link publico"). Aqui se decide o que
  * entra; `pdf.js` e `paginaPublica.js` so desenham.
  *
- * NUNCA entra: nosso codigo e nome interno, custo, lucro, observacoes internas, contatos registrados e anexos. O item
- * aparece pela DESCRICAO DO CLIENTE e pelo codigo do cliente (pedido do dono).
+ * NUNCA entra: custo, lucro, observacoes internas, contatos registrados e anexos. O item aparece pela descricao do
+ * cliente quando preenchida, senao pelo nome do Rise, e sempre pelo CODIGO DO RISE (decisao do dono em 17/11/2026; ate
+ * ali eram a descricao e o codigo do cliente, e o nosso nome e codigo nunca saiam).
  */
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -17,7 +18,7 @@ export const COLUNAS = [
   { chave: "item", titulo: "#" },
   { chave: "foto", titulo: "Foto" },
   { chave: "descricao", titulo: "Descrição" },
-  { chave: "codigo", titulo: "Cód. cliente" },
+  { chave: "codigo", titulo: "Código" },
   { chave: "marca", titulo: "Marca / Modelo" },
   { chave: "qtde", titulo: "Qtde" },
   { chave: "un", titulo: "Un" },
@@ -156,12 +157,16 @@ export function conteudoDaProposta(proposta, empresa) {
   const temDesconto = proposta.itens.some((item) => Number(item.descontoPercentual) > 0);
   // Marca / Modelo: quando o padrao do cliente exige (SENAI) ou algum item tem; senao a coluna nao ocupa espaco.
   const temMarca = Boolean(proposta.padrao?.exigeMarcaModelo) || proposta.itens.some((item) => item.marca || item.modelo);
-  const temCodigo = proposta.itens.some((item) => item.codigoCliente);
-  const linhasDeTotal = [["Subtotal", moeda.format(totais.subtotal)]];
+  const temCodigo = proposta.itens.some((item) => item.codigoInterno);
+  // Frete diluido (17/11/2026): o cliente ve os precos com o frete dentro e o quadro diz "Incluso nos produtos".
+  const diluido = Boolean(proposta.freteDiluido) && proposta.fretePorConta === "CIF" && totais.frete > 0;
+  const itensDoCliente = diluido ? itensComFreteDiluido(proposta.itens, totais.frete) : proposta.itens;
+  const subtotalDoCliente = diluido ? Math.round((totais.subtotal + totais.frete) * 100) / 100 : totais.subtotal;
+  const linhasDeTotal = [["Subtotal", moeda.format(subtotalDoCliente)]];
   if (totais.desconto > 0) linhasDeTotal.push(["Desconto", `− ${moeda.format(totais.desconto)}`]);
   // Frete e impostos sempre no quadro do total (pedido do dono em 13/11/2026, no molde da cotacao da Hope): o valor so
   // soma no CIF (regra do total); nos outros tipos a linha diz quem paga.
-  linhasDeTotal.push(["Frete", freteDoTotal(proposta, totais)]);
+  linhasDeTotal.push(["Frete", diluido ? "Incluso nos produtos" : freteDoTotal(proposta, totais)]);
   linhasDeTotal.push(["Impostos", "Inclusos"]);
 
   const notaFiscal = [proposta.ocCliente ? `Pedido de compra (OC): ${proposta.ocCliente}` : null, proposta.observacoesNf].filter(Boolean).join("\n");
@@ -198,12 +203,12 @@ export function conteudoDaProposta(proposta, empresa) {
       ["Vendedor", proposta.vendedor || proposta.criadoPorNome || "—"],
     ],
     colunas: COLUNAS.filter((c) => (c.chave !== "desconto" || temDesconto) && (c.chave !== "marca" || temMarca) && (c.chave !== "codigo" || temCodigo)),
-    itens: proposta.itens.map((item, indice) => ({
+    itens: itensDoCliente.map((item, indice) => ({
       id: item.id,
       celulas: {
         item: String(indice + 1),
-        descricao: item.descricaoCliente,
-        codigo: item.codigoCliente ?? "",
+        descricao: nomeDoItemParaOCliente(item),
+        codigo: item.codigoInterno ?? "",
         marca: [item.marca, item.modelo].filter(Boolean).join(" / "),
         qtde: quantidade(item.quantidade),
         un: item.unidade,

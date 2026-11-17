@@ -16,6 +16,7 @@ import {
   semCusto,
 } from "@/lib/propostas/banco";
 import { buscarClienteParaProposta, copiarContatoDoBling, enviarClienteAoBling } from "@/lib/propostas/cliente";
+import { estoqueDosItens } from "@/lib/propostas/estoque";
 import { prisma } from "@/lib/db";
 
 /**
@@ -146,6 +147,13 @@ export async function enviarClienteAoBlingAcao(clienteId) {
 }
 
 // ---------------------------------------------------------------- itens
+
+/** O "i" de estoque de cada item (verde atende, vermelho falta); so os ids e as quantidades vem da tela. */
+export async function estoqueDosItensAcao(itens) {
+  if (!(await podeAgora("tela.propostas", "ver"))) return [];
+  const lista = (Array.isArray(itens) ? itens : []).map((item) => ({ produtoId: item?.produtoId ? String(item.produtoId).slice(0, 40) : null, quantidade: item?.quantidade }));
+  return estoqueDosItens(lista);
+}
 
 export async function buscarProdutosAcao(texto) {
   if (!(await podeAgora("tela.propostas", "ver"))) return [];

@@ -43,7 +43,8 @@ const MARGEM = 6;
  * `children` (09/11/2026, o lucro de Vendas): o proprio valor vira o gatilho no lugar do "i", para a explicacao abrir ao
  * passar o mouse ou clicar no numero (o dono: "nao quero poluir a aba lucro com mensagens"). Sem `children`, o "i" de sempre.
  */
-export default function BolhaDeAjuda({ texto, variante = "canto", className = "", children = null }) {
+// `cor`: a cor do circulo do "i" (padrao: a de destaque). O "i" de estoque da proposta usa verde e vermelho (17/11/2026).
+export default function BolhaDeAjuda({ texto, variante = "canto", className = "", cor = "text-acento", children = null }) {
   // "inline-direita": igual a "inline", mas o texto abre alinhado pela DIREITA do icone (para a
   // esquerda). E a variante para icone que mora na borda direita de uma janela ou coluna (pedido
   // do dono em 21/09/2026).
@@ -102,7 +103,7 @@ export default function BolhaDeAjuda({ texto, variante = "canto", className = ""
         tabIndex={0}
         onFocus={() => setAberto(true)}
         onBlur={() => setAberto(false)}
-        className={children ? "cursor-help rounded focus-visible:outline-2 focus-visible:outline-acento" : "block h-4 w-4 cursor-help rounded-full text-acento shadow-md ring-2 ring-superficie"}
+        className={children ? "cursor-help rounded focus-visible:outline-2 focus-visible:outline-acento" : `block h-4 w-4 cursor-help rounded-full ${cor} shadow-md ring-2 ring-superficie`}
       >
         {children}
         {/* O "i" e desenhado (SVG), e nao escrito como texto: e o de serifa e cauda

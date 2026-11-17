@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { clienteBling } from "@/lib/blingSync/cliente";
 import { lerProposta } from "@/lib/propostas/banco";
 import { enviarClienteAoBling } from "@/lib/propostas/cliente";
-import { hojeEmSaoPaulo, prazoGeral, textoDoPagamento, TEXTO_DO_FRETE } from "@/lib/propostas/regras";
+import { hojeEmSaoPaulo, itensComFreteDiluido, prazoGeral, textoDoPagamento, TEXTO_DO_FRETE } from "@/lib/propostas/regras";
 
 /**
  * A proposta APROVADA vira pedido de venda no Bling (spec 2026-11-12, extra B). O pedido volta sozinho para Vendas pela
@@ -21,6 +21,9 @@ const FRETE_NO_BLING = { CIF: 0, FOB: 1, RETIRA: 9 };
 
 export function montarCorpoDoPedido(proposta, { blingContatoId, produtosNoBling, hoje = hojeEmSaoPaulo() }) {
   const totais = proposta.totais;
+  // Frete diluido (17/11/2026): os itens vao com o frete no preco e o pedido vai sem frete (o total e o mesmo).
+  const diluido = Boolean(proposta.freteDiluido) && proposta.fretePorConta === "CIF" && totais.frete > 0;
+  const itensDoPedido = diluido ? itensComFreteDiluido(proposta.itens, totais.frete) : proposta.itens;
   const pagamento = textoDoPagamento(proposta);
   const internas = [
     `Gerado pela Proposta ${proposta.numero} do Rise.`,
@@ -35,13 +38,15 @@ export function montarCorpoDoPedido(proposta, { blingContatoId, produtosNoBling,
     data: hoje,
     contato: { id: Number(blingContatoId) },
     ...(proposta.ocCliente ? { numeroPedidoCompra: proposta.ocCliente } : {}),
-    itens: proposta.itens.map((item) => ({
+    itens: itensDoPedido.map((item) => ({
       produto: { id: Number(produtosNoBling.get(item.produtoId)) },
       codigo: item.sku ?? item.codigoInterno,
       descricao: item.nomeInterno ?? item.descricaoCliente,
+      // Fator (17/11/2026): a proposta conta em kits do cliente; o Bling baixa o produto do Rise, entao a quantidade vai
+      // em unidades do Rise (x fator) e o valor por unidade (/ fator, 4 casas). O total da linha fica o mesmo.
       unidade: item.unidade,
-      quantidade: item.quantidade,
-      valor: item.precoUnitario,
+      quantidade: Number(item.quantidade) * (Number(item.fator) || 1),
+      valor: Math.round((Number(item.precoUnitario) / (Number(item.fator) || 1)) * 10_000) / 10_000,
       // No Bling o desconto do item e percentual (o mesmo que a leitura dos pedidos usa).
       desconto: item.descontoPercentual || 0,
     })),
@@ -50,7 +55,7 @@ export function montarCorpoDoPedido(proposta, { blingContatoId, produtosNoBling,
       ? {
           transporte: {
             fretePorConta: FRETE_NO_BLING[proposta.fretePorConta],
-            ...(totais.frete > 0 ? { frete: totais.frete } : {}),
+            ...(totais.frete > 0 && !diluido ? { frete: totais.frete } : {}),
             ...(proposta.transportadoraNome ? { contato: { nome: proposta.transportadoraNome } } : {}),
           },
         }

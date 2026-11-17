@@ -173,7 +173,8 @@ export async function calcularPecas(tx, pedido) {
     const disponivel = disponivelPara(produtoId);
     const falta = Math.max(0, necessario - disponivel);
     const previsao = falta > 0 ? previsaoDaPeca(produtoId, comprasPendentes, ordens) : { previsao: null, previsaoOrigem: null };
-    return { produtoId, sku: produto?.sku ?? null, nome: produto?.tituloBase ?? null, necessario, disponivel, falta, ...previsao };
+    // `estoque` e `reservado`: o "i" de estoque da proposta mostra a conta inteira (pedido do dono em 17/11/2026).
+    return { produtoId, sku: produto?.sku ?? null, nome: produto?.tituloBase ?? null, necessario, disponivel, falta, estoque: livre(produtoId), reservado: reservas.get(produtoId) ?? 0, ...previsao };
   });
   return { pecas, falta: pecas.some((peca) => peca.falta > 0) };
 }

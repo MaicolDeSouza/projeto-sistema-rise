@@ -44,6 +44,9 @@ export function itemDoFormulario(item) {
     modelo: item.modelo ?? "",
     quantidade: paraTexto(item.quantidade ?? 1, 3),
     unidade: item.unidade ?? "UN",
+    fator: paraTexto(item.fator ?? 1, 4),
+    // O fator em que o preco e o custo da linha estao: mudar o fator leva os dois na proporcao (so na tela).
+    fatorBase: Number(item.fator) > 0 ? Number(item.fator) : 1,
     precoUnitario: paraTexto(item.precoUnitario, 4),
     descontoPercentual: item.descontoPercentual ? paraTexto(item.descontoPercentual) : "",
     prontaEntrega: item.prontaEntrega ?? true,
@@ -72,6 +75,8 @@ export function formularioDaProposta(proposta) {
     transportadoraId: proposta.transportadoraId ?? "",
     frete: proposta.frete ? paraTexto(proposta.frete) : "",
     prazoTransporteDias: proposta.prazoTransporteDias ? String(proposta.prazoTransporteDias) : "",
+    transportadoraNome: proposta.transportadoraNome ?? "",
+    freteDiluido: Boolean(proposta.freteDiluido),
     desconto: !proposta.descontoValor ? "" : proposta.descontoTipo === "PERCENTUAL" ? `${paraTexto(proposta.descontoValor)}%` : paraTexto(proposta.descontoValor),
     ocCliente: proposta.ocCliente ?? "",
     observacoesNf: proposta.observacoesNf ?? "",
@@ -89,7 +94,7 @@ export function formularioDaProposta(proposta) {
 export function entradaDoFormulario(formulario) {
   return {
     ...formulario,
-    itens: formulario.itens.map(({ chave: _chave, fotoUrl: _fotoUrl, sku: _sku, ...item }) => item),
+    itens: formulario.itens.map(({ chave: _chave, fotoUrl: _fotoUrl, sku: _sku, fatorBase: _fatorBase, ...item }) => item),
   };
 }
 

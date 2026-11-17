@@ -83,12 +83,49 @@ conferir("aprovada -> recusada nao", regras.podeIrPara("APROVADA", "RECUSADA"), 
 conferir(
   "texto do pagamento",
   regras.textoDoPagamento({ condicaoNome: "28/56 dias", formaPagamento: "Boleto", parcelas: 2, entradaPercentual: 30, pagamentoTexto: " Sem juros " }),
-  "28/56 dias · Boleto · 2x · entrada de 30%\nSem juros",
+  "28/56 dias · Boleto · entrada de 30% · 2x\nSem juros",
+);
+// Parcelas e entrada pela condicao, com os valores (pedido do dono em 17/11/2026).
+conferir(
+  "plano da condicao",
+  ["30/60/90 dias", "28/56 dias", "30 dias", "À vista", "50% de entrada + 50% na entrega", "Cartão em até 12x", "A combinar"].map((nome) => regras.planoDaCondicao(nome)),
+  [
+    { parcelas: 3, entradaPercentual: 0 },
+    { parcelas: 2, entradaPercentual: 0 },
+    { parcelas: 1, entradaPercentual: 0 },
+    { parcelas: 1, entradaPercentual: 0 },
+    { parcelas: 1, entradaPercentual: 50 },
+    { parcelas: 12, entradaPercentual: 0 },
+    null,
+  ],
+);
+// Frete diluido (17/11/2026): proporcional ao total de cada item, centavos que sobram no ultimo, total igual.
+{
+  const diluidos = regras.itensComFreteDiluido(
+    [
+      { quantidade: 2, precoUnitario: 100, descontoPercentual: 0 },
+      { quantidade: 1, precoUnitario: 50, descontoPercentual: 10 },
+      { quantidade: 1, precoUnitario: 0, descontoPercentual: 0 },
+    ],
+    30,
+  );
+  conferir("frete diluido: precos", diluidos.map((i) => i.precoUnitario), [112.245, 56.1222, 0]);
+  conferir("frete diluido: o total soma o frete", Math.round(diluidos.reduce((s, i) => s + regras.totalDoItem(i), 0) * 100) / 100, 275);
+  conferir("frete diluido: sem frete nada muda", regras.itensComFreteDiluido([{ quantidade: 1, precoUnitario: 10 }], 0)[0].precoUnitario, 10);
+}
+conferir("valores: entrada sai das parcelas", regras.valoresDoPagamento({ total: 1182, parcelas: 3, entradaPercentual: 10 }), { entrada: 118.2, restante: 1063.8, parcela: 354.6, parcelas: 3 });
+conferir(
+  "texto do pagamento com valores",
+  [
+    regras.textoDoPagamento({ condicaoNome: "30/60/90 dias", parcelas: 3, entradaPercentual: 0, total: 1182 }),
+    regras.textoDoPagamento({ condicaoNome: "50% de entrada + 50% na entrega", parcelas: 1, entradaPercentual: 50, totais: { total: 1182 } }),
+  ].map((texto) => texto.replace(/\u00a0/g, " ")), // o Intl poe espaco nao separavel depois do R$
+  ["30/60/90 dias · 3x de R$ 394,00", "50% de entrada + 50% na entrega · entrada de 50% (R$ 591,00) · saldo de R$ 591,00"],
 );
 conferir(
   "pendencias do PDF",
   regras.pendenciasDoPdf({ clienteNome: "", itens: [{ descricaoCliente: "" }, { descricaoCliente: "x" }] }),
-  ["Informe o cliente.", "1 item(ns) sem a descrição do cliente."],
+  ["Informe o cliente.", "1 item(ns) sem o produto."],
 );
 conferir("whatsapp sem telefone", regras.linkDoWhatsApp("", "oi"), null);
 conferir("whatsapp", regras.linkDoWhatsApp("54988990008", "a b"), "https://wa.me/5554988990008?text=a%20b");
@@ -276,6 +313,10 @@ try {
 
   const ruim = await banco.salvarProposta(p1.numero, { ...entrada, itens: [{ descricaoCliente: "x", quantidade: "0" }] }, { hoje: "2026-11-12" });
   conferir("quantidade zero recusa", ruim.erros?.["itens.0.quantidade"], "Informe a quantidade.");
+  // O item precisa de nome: o do Rise (ou o digitado do item sem cadastro) ou a descricao do cliente (17/11/2026).
+  const semNome = await banco.salvarProposta(p1.numero, { ...entrada, itens: [{ quantidade: "1" }] }, { hoje: "2026-11-12" });
+  conferir("item sem nome recusa", semNome.erros?.["itens.0.nomeInterno"], "Informe o produto.");
+  conferir("nome para o cliente: a descricao vence o nome do Rise", [regras.nomeDoItemParaOCliente({ descricaoCliente: " Kit 10 ", nomeInterno: "Espaçador" }), regras.nomeDoItemParaOCliente({ descricaoCliente: "", nomeInterno: "Espaçador" })], ["Kit 10", "Espaçador"]);
 
   // Quem nao ve custo manda os itens sem ele: o custo gravado fica.
   const semCustoNaEntrada = { ...entrada, itens: lida.itens.map((i) => ({ ...i, custoUnitario: null })) };
@@ -306,6 +347,20 @@ try {
   conferir("A/C digitado a mao fica so na proposta", await acDe({ contatoId: "", contatoNome: "Fulano da Silva" }), [null, "Fulano da Silva"]);
   conferir("A/C digitado nao vira contato do cliente", await prisma.clienteContato.count({ where: { clienteId: lidaComDoc.clienteId } }), 1);
   conferir("A/C vazio", await acDe({ contatoId: "", contatoNome: "" }), [null, null]);
+
+  // Transportadora digitada e frete diluido (17/11/2026): gravados, e o PDF mostra o frete dentro dos produtos.
+  await banco.salvarProposta(p2.numero, { ...comCliente, fretePorConta: "CIF", frete: "30", freteDiluido: true, transportadoraId: "", transportadoraNome: "Transportes ZZ" }, { hoje: "2026-11-12" });
+  const comFrete = await banco.lerProposta(p2.numero);
+  conferir("frete diluido e transportadora digitada gravados", [comFrete.freteDiluido, comFrete.transportadoraId, comFrete.transportadoraNome], [true, null, "Transportes ZZ"]);
+  const { conteudoDaProposta: conteudoDoFrete } = await import("../src/lib/propostas/conteudo.js");
+  const doFrete = conteudoDoFrete(comFrete, null);
+  conferir(
+    "PDF: frete diluido vira 'Incluso nos produtos' e o total nao muda",
+    [doFrete.linhasDeTotal.find(([r]) => r === "Frete")?.[1], doFrete.total.replace(/ /g, " ")],
+    ["Incluso nos produtos", `R$ ${comFrete.totais.total.toFixed(2).replace(".", ",")}`],
+  );
+  await banco.salvarProposta(p2.numero, { ...comCliente, fretePorConta: "FOB", frete: "30", freteDiluido: true }, { hoje: "2026-11-12" });
+  conferir("frete diluido so existe no CIF", (await banco.lerProposta(p2.numero)).freteDiluido, false);
 
   conferir("rascunho nao vai para vencida pelo botao", (await banco.mudarSituacao(p1.numero, "VENCIDA")).ok, false);
   conferir("recusar sem motivo", (await banco.mudarSituacao(p1.numero, "RECUSADA")).erro, "Escolha o motivo da recusa.");
@@ -349,7 +404,10 @@ try {
   conferir("item avulso recusa com o motivo", /sem produto do Rise/.test(comAvulso.erro ?? ""), true);
   conferir("recusa solta a marca", (await prisma.propostaParaCliente.findUnique({ where: { numero: p2.numero } })).pedidoDeVendaEm, null);
   await banco.mudarSituacao(p2.numero, "EM_NEGOCIACAO");
-  await banco.salvarProposta(p2.numero, { ...entrada, clienteNome: "ZZ Proposta Com Doc", clienteDocumento: cnpjDeTeste(999990000501), ocCliente: "OC-77", observacoesNf: "Pedido OC-77", validadeAte: "2099-12-31", itens: entrada.itens.slice(0, 2) }, { bling: falso, exigirEscrita: () => falso.exigirEscrita("ZZ-CLIENTE") });
+  // O 1o item com fator 10 (kit do cliente de 10 unidades do Rise, 17/11/2026): o Bling recebe 20 unidades a 10,00.
+  const itensComFator = [{ ...entrada.itens[0], fator: "10" }, entrada.itens[1]];
+  await banco.salvarProposta(p2.numero, { ...entrada, clienteNome: "ZZ Proposta Com Doc", clienteDocumento: cnpjDeTeste(999990000501), ocCliente: "OC-77", observacoesNf: "Pedido OC-77", validadeAte: "2099-12-31", itens: itensComFator }, { bling: falso, exigirEscrita: () => falso.exigirEscrita("ZZ-CLIENTE") });
+  conferir("fator gravado e lido", (await banco.lerProposta(p2.numero)).itens.map((i) => i.fator), [10, 1]);
   await banco.mudarSituacao(p2.numero, "APROVADA");
   const gerado = await pedido.gerarPedidoDeVenda(p2.numero, { bling: falso, exigirEscrita: exigir });
   const noBling = falso.estado.pedidosDeVenda.get(Number(gerado.blingPedidoId));
@@ -358,6 +416,7 @@ try {
     [gerado.ok, noBling?.numeroPedidoCompra, noBling?.itens?.length, noBling?.itens?.[1]?.desconto, noBling?.desconto, noBling?.transporte?.fretePorConta, noBling?.transporte?.frete, noBling?.observacoes],
     [true, "OC-77", 2, 10, { valor: 29, unidade: "REAL" }, 0, 30, "Pedido OC-77"],
   );
+  conferir("fator: quantidade em unidades do Rise e valor por unidade", [noBling?.itens?.[0]?.quantidade, noBling?.itens?.[0]?.valor, noBling?.itens?.[1]?.quantidade], [20, 10, 1]);
   conferir("internas levam o numero da proposta", /Proposta \d+ do Rise/.test(noBling?.observacoesInternas ?? ""), true);
   const deNovoPedido = await pedido.gerarPedidoDeVenda(p2.numero, { bling: falso, exigirEscrita: exigir });
   conferir("repetir nao duplica", [deNovoPedido.blingPedidoId, deNovoPedido.jaExistia, falso.estado.pedidosDeVenda.size], [gerado.blingPedidoId, true, 1]);
@@ -407,7 +466,7 @@ try {
   const chave = l1.url.split("/").pop();
   conferir("chave abre a proposta", (await link.propostaPelaChavePublica(chave))?.numero, p2.numero);
   conferir("chave errada nao abre", await link.propostaPelaChavePublica("x".repeat(43)), null);
-  // PDF e pagina publica: a descricao e o codigo do CLIENTE entram; nosso codigo, custo e internas nunca.
+  // PDF e pagina publica (17/11/2026): a descricao do cliente (senao o nome do Rise) e o codigo do RISE; custo e internas nunca.
   const { conteudoDaProposta } = await import("../src/lib/propostas/conteudo.js");
   const { pdfDaProposta } = await import("../src/lib/propostas/pdf.js");
   const { htmlDaProposta } = await import("../src/lib/propostas/paginaPublica.js");
@@ -416,11 +475,12 @@ try {
   const conteudo = conteudoDaProposta(paraPdf, empresaFalsa);
   const tudo = JSON.stringify(conteudo);
   conferir(
-    "PDF: descricao e codigo do cliente, OC e frete com explicacao",
-    [conteudo.itens[0].celulas.descricao, conteudo.itens[0].celulas.codigo, /OC-77/.test(tudo), /CIF \(frete por nossa conta\)/.test(tudo)],
-    ["Módulo relé 5V conforme cotação", "PN-1", true, true],
+    "PDF: descricao do cliente e codigo do Rise, OC e frete com explicacao",
+    [conteudo.itens[0].celulas.descricao, conteudo.itens[0].celulas.codigo, /OC-77/.test(tudo), /CIF \(frete por nossa conta\)/.test(tudo), conteudo.colunas.find((c) => c.chave === "codigo")?.titulo],
+    ["Módulo relé 5V conforme cotação", "ZZ-PROP-CLI-1", true, true, "Código"],
   );
-  conferir("PDF: nunca nosso codigo, custo nem internas", [tudo.includes("ZZ-PROP-CLI-1"), tudo.includes("so nossa"), /custo/i.test(tudo)], [false, false, false]);
+  conferir("PDF: sem descricao do cliente sai o nome do Rise", conteudoDaProposta({ ...paraPdf, itens: [{ ...paraPdf.itens[0], descricaoCliente: "" }] }, empresaFalsa).itens[0].celulas.descricao, paraPdf.itens[0].nomeInterno);
+  conferir("PDF: nunca custo nem internas", [tudo.includes("so nossa"), /custo/i.test(tudo)], [false, false]);
   // Cabecalho no molde da cotacao que o dono mandou (13/11/2026): nome, contatos com link, quadro, entrega e faixa.
   conferir("PDF: nome no topo e endereco da empresa", [conteudo.nomeDaEmpresa, conteudo.empresa[0], conteudo.site?.url], ["4hobby Indústria, Comércio e Importação", "Rua", "https://www.4hobby.com.br"]);
   conferir(
@@ -547,7 +607,18 @@ try {
       { id: "c", produtoId: null, foto: null, produto: null, quantidade: 1, precoUnitario: 1, descontoPercentual: 0 },
     ],
   });
-  conferir("foto: sem foto gravada vale a do produto; gravada fica; avulso sem foto fica sem", comFotoDoProduto.itens.map((i) => i.foto), ["foto-1.webp", "gravada.webp", null]);
+  // Desde 17/11/2026 a foto do item com produto e SEMPRE a do cadastro (a gravada so vale se o produto ficou sem foto).
+  conferir("foto: com produto vale a do cadastro; avulso sem foto fica sem", comFotoDoProduto.itens.map((i) => i.foto), ["foto-1.webp", "foto-1.webp", null]);
+  const semFotoNoCadastro = banco.propostaParaTela({ numero: 1, situacao: "RASCUNHO", itens: [{ id: "d", produtoId: "p1", foto: "gravada.webp", produto: { sku: "941003", arquivos: [] }, quantidade: 1, precoUnitario: 1, descontoPercentual: 0 }] });
+  conferir("foto: produto sem foto usa a gravada", semFotoNoCadastro.itens[0].foto, "gravada.webp");
+
+  // O "i" de estoque do item (17/11/2026): a conta das pecas dos pedidos (estoque menos o reservado), em unidades do Rise.
+  const { estoqueDosItens } = await import("../src/lib/propostas/estoque.js");
+  await prisma.produto.update({ where: { id: produto.id }, data: { estoque: 5 } });
+  const [atende, falta, semProduto] = await estoqueDosItens([{ produtoId: produto.id, quantidade: 3 }, { produtoId: produto.id, quantidade: 8 }, { produtoId: null, quantidade: 2 }]);
+  conferir("estoque: atende", [atende?.atende, atende?.pecas?.[0]?.estoque, atende?.pecas?.[0]?.falta], [true, 5, 0]);
+  conferir("estoque: falta diz quanto comprar", [falta?.atende, falta?.pecas?.[0]?.disponivel, falta?.pecas?.[0]?.falta], [false, 5, 3]);
+  conferir("estoque: item sem produto nao tem conta", semProduto, null);
 
   console.log("\nFicha cadastral do cliente");
   const arquivosDoCliente = await import("../src/lib/clientes/arquivos.js");

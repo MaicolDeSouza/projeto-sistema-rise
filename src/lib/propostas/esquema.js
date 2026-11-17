@@ -55,6 +55,10 @@ export function conferirProposta(entrada = {}) {
 
   dados.fretePorConta = TEXTO_DO_FRETE[entrada.fretePorConta] ? entrada.fretePorConta : "A_COMBINAR";
   dados.transportadoraId = texto(entrada.transportadoraId, 40);
+  // A transportadora digitada a mao (17/11/2026): vale quando nao e uma das cadastradas.
+  dados.transportadoraNome = texto(entrada.transportadoraNome, 120);
+  // Diluir o frete nos produtos so existe no CIF (17/11/2026).
+  dados.freteDiluido = dados.fretePorConta === "CIF" && (entrada.freteDiluido === true || entrada.freteDiluido === "true");
   dados.frete = conferirNumero(erros, "frete", entrada.frete, { mensagem: "Frete inválido." }) ?? 0;
   dados.prazoTransporteDias = conferirNumero(erros, "prazoTransporteDias", entrada.prazoTransporteDias, { maximo: 365, inteiro: true, mensagem: "Prazo em dias inteiros." });
 
@@ -83,6 +87,8 @@ export function conferirProposta(entrada = {}) {
     if (!(quantidade > 0) && !erros[chave("quantidade")]) erros[chave("quantidade")] = "Informe a quantidade.";
     const prazo = conferirNumero(erros, chave("prazoDiasUteis"), item.prazoDiasUteis, { maximo: 3650, inteiro: true, mensagem: "Prazo em dias úteis inteiros." });
     const prontaEntrega = item.prontaEntrega === true || item.prontaEntrega === "true" || !(prazo > 0);
+    // O item precisa de um nome: o do produto do Rise (ou o digitado do item sem cadastro) ou a descricao do cliente.
+    if (!texto(item.nomeInterno, 300) && !texto(item.descricaoCliente, 2000)) erros[chave("nomeInterno")] = "Informe o produto.";
     return {
       id: texto(item.id, 40),
       produtoId: texto(item.produtoId, 40),
@@ -95,6 +101,10 @@ export function conferirProposta(entrada = {}) {
       foto: texto(item.foto, 300),
       quantidade: quantidade ?? 0,
       unidade: UNIDADES_DA_PROPOSTA.includes(item.unidade) ? item.unidade : "UN",
+      // Sem produto do Rise nao ha fator (fica 1). Vazio = 1.
+      fator: texto(item.produtoId, 40)
+        ? conferirNumero(erros, chave("fator"), item.fator, { maximo: 99_999, mensagem: "Fator inválido." }) || 1
+        : 1,
       precoUnitario: conferirNumero(erros, chave("precoUnitario"), item.precoUnitario, { mensagem: "Preço inválido." }) ?? 0,
       descontoPercentual: conferirNumero(erros, chave("descontoPercentual"), item.descontoPercentual, { maximo: 100, mensagem: "Desconto de 0 a 100%." }) ?? 0,
       prontaEntrega,

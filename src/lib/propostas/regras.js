@@ -74,6 +74,27 @@ export const FORMAS_DE_PAGAMENTO = ["PIX", "Boleto", "Cartão de crédito", "Tra
 /** Unidades da proposta: as do cadastro (lib/unidades.js) e as que o cliente costuma pedir. */
 export const UNIDADES_DA_PROPOSTA = ["UN", "PC", "MT", "KG", "CX", "PAR", "RL", "KIT", "HR"];
 
+/** O que cada unidade quer dizer, para quem monta a proposta (pedido do dono em 17/11/2026: "UN (unitário)"). */
+export const UNIDADE_POR_EXTENSO = {
+  UN: "unitário",
+  PC: "peça",
+  MT: "metro",
+  KG: "quilo",
+  CX: "caixa",
+  PAR: "par",
+  RL: "rolo",
+  KIT: "kit",
+  HR: "hora",
+};
+
+/**
+ * O nome do item que o CLIENTE le no PDF e no link (decisao do dono em 17/11/2026): a descricao do cliente quando
+ * preenchida; senao o nome do produto do Rise (ou o nome digitado do item sem cadastro, que mora no mesmo campo).
+ */
+export function nomeDoItemParaOCliente(item) {
+  return String(item?.descricaoCliente ?? "").trim() || String(item?.nomeInterno ?? "").trim();
+}
+
 const centavos = (valor) => Math.round((Number(valor) || 0) * 100);
 const reais = (emCentavos) => emCentavos / 100;
 
@@ -152,6 +173,29 @@ export function totaisDaProposta({ itens = [], descontoTipo = null, descontoValo
   };
 }
 
+/**
+ * Os itens com o frete do CIF diluido no preco (pedido do dono em 17/11/2026: "diluido proporcionalmente em cada produto
+ * da cotacao"): cada item com valor leva uma parte do frete proporcional ao total dele, o ultimo leva o resto dos
+ * centavos, e o preco unitario novo (4 casas) ja considera a quantidade e o desconto do item. Sem frete, os itens voltam
+ * iguais. O total da proposta nao muda; quem mostra troca o "Frete" do quadro por "Incluso nos produtos".
+ */
+export function itensComFreteDiluido(itens = [], frete = 0) {
+  const freteEmCentavos = centavos(frete);
+  const totais = itens.map((item) => centavos(totalDoItem(item)));
+  const soma = totais.reduce((a, b) => a + b, 0);
+  if (!(freteEmCentavos > 0) || !(soma > 0)) return itens;
+  const ultimo = totais.findLastIndex((total) => total > 0);
+  let distribuido = 0;
+  return itens.map((item, indice) => {
+    if (!(totais[indice] > 0)) return item;
+    const parte = indice === ultimo ? freteEmCentavos - distribuido : Math.round((freteEmCentavos * totais[indice]) / soma);
+    distribuido += parte;
+    const unidades = (Number(item.quantidade) || 0) * (1 - (Number(item.descontoPercentual) || 0) / 100);
+    if (!(unidades > 0)) return item;
+    return { ...item, precoUnitario: Math.round(((totais[indice] + parte) / 100 / unidades) * 10_000) / 10_000 };
+  });
+}
+
 /** Markup do item (lucro sobre o custo, regra do Rise), com o desconto do item. Sem custo = null. */
 export function markupDoItem(item) {
   const custo = Number(item.custoUnitario);
@@ -194,25 +238,71 @@ export function podeIrPara(de, para) {
   return (PROXIMAS_SITUACOES[de] ?? []).includes(para);
 }
 
-/** O resumo do pagamento que vai no PDF: "Boleto · 3x · entrada de 30%" + o texto livre. */
-export function textoDoPagamento({ condicaoNome, formaPagamento, parcelas, entradaPercentual, pagamentoTexto }) {
+const semAcentoMinusculo = (texto) =>
+  String(texto ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+
+/**
+ * As parcelas e a entrada que a condicao pede, lidas do NOME dela (pedido do dono em 17/11/2026: "30/60/90 dias" = 3
+ * parcelas; "50% de entrada + 50% na entrega" = entrada de 50% e 1 parcela). A condicao nao tem campos proprios para isso,
+ * e o nome ja diz: "N% de entrada" e a entrada; "Nx" sao N parcelas ("Cartao em ate 12x" = 12, o maximo, que se corrige);
+ * prazos com barra ("28/56") sao uma parcela cada; o resto ("30 dias", "A vista", "Antecipado") e 1 parcela sem entrada.
+ * "A combinar" (ou sem nome) devolve null: nao mexe no que o operador ja pos.
+ */
+export function planoDaCondicao(nome) {
+  const texto = semAcentoMinusculo(nome).trim();
+  if (!texto || /combinar/.test(texto)) return null;
+  const entrada = texto.match(/(\d+(?:[.,]\d+)?)\s*%\s*de\s+entrada/);
+  const vezes = texto.match(/(\d+)\s*x\b/);
+  const prazos = texto.match(/\d+(?:\s*\/\s*\d+)+/);
+  const parcelas = vezes ? Number(vezes[1]) : prazos ? prazos[0].split("/").length : 1;
+  return { parcelas: Math.min(Math.max(parcelas, 1), 48), entradaPercentual: entrada ? Math.min(Number(entrada[1].replace(",", ".")), 100) : 0 };
+}
+
+/**
+ * O valor da entrada e de cada parcela (pedido do dono em 17/11/2026): a entrada sai do total e o resto se divide pelas
+ * parcelas, em centavos. A ultima parcela pode diferir em 1 centavo; a tela e o PDF mostram a parcela arredondada.
+ */
+export function valoresDoPagamento({ total, parcelas, entradaPercentual }) {
+  const totalEmCentavos = centavos(total);
+  const entrada = Math.round((totalEmCentavos * Math.min(Math.max(Number(entradaPercentual) || 0, 0), 100)) / 100);
+  const restante = totalEmCentavos - entrada;
+  const vezes = Math.max(1, Math.floor(Number(parcelas) || 1));
+  return { entrada: entrada / 100, restante: restante / 100, parcela: Math.round(restante / vezes) / 100, parcelas: vezes };
+}
+
+const emReais = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
+/**
+ * O resumo do pagamento que vai no PDF: "Boleto · entrada de 30% (R$ 507,00) · 3x de R$ 394,00" + o texto livre. Com o
+ * total (`total` ou `totais.total` da proposta lida), os valores em reais entram (17/11/2026); sem ele, so "3x".
+ */
+export function textoDoPagamento({ condicaoNome, formaPagamento, parcelas, entradaPercentual, pagamentoTexto, total, totais }) {
   const partes = [];
+  const valorTotal = Number(total ?? totais?.total);
+  const valores = Number.isFinite(valorTotal) && valorTotal > 0 ? valoresDoPagamento({ total: valorTotal, parcelas, entradaPercentual }) : null;
   if (condicaoNome) partes.push(condicaoNome);
   if (formaPagamento) partes.push(formaPagamento);
-  if (Number(parcelas) > 1) partes.push(`${Number(parcelas)}x`);
-  if (Number(entradaPercentual) > 0) partes.push(`entrada de ${String(Number(entradaPercentual)).replace(".", ",")}%`);
+  if (Number(entradaPercentual) > 0) {
+    const pct = String(Number(entradaPercentual)).replace(".", ",");
+    partes.push(valores ? `entrada de ${pct}% (${emReais.format(valores.entrada)})` : `entrada de ${pct}%`);
+  }
+  if (Number(parcelas) > 1) partes.push(valores ? `${Number(parcelas)}x de ${emReais.format(valores.parcela)}` : `${Number(parcelas)}x`);
+  else if (valores && Number(entradaPercentual) > 0) partes.push(`saldo de ${emReais.format(valores.restante)}`);
   const resumo = partes.join(" · ");
   const livre = String(pagamentoTexto ?? "").trim();
   return [resumo, livre].filter(Boolean).join("\n");
 }
 
-/** O que falta para gerar o PDF: item sem a descricao do cliente e proposta sem item (o "!" da linha e o motivo do botao). */
+/** O que falta para gerar o PDF: item sem nome (nem do Rise nem do cliente) e proposta sem item (o motivo do botao). */
 export function pendenciasDoPdf({ clienteNome, itens = [], exigeMarcaModelo = false }) {
   const pendencias = [];
   if (!String(clienteNome ?? "").trim()) pendencias.push("Informe o cliente.");
   if (itens.length === 0) pendencias.push("Inclua ao menos um item.");
-  const semDescricao = itens.filter((item) => !String(item.descricaoCliente ?? "").trim()).length;
-  if (semDescricao) pendencias.push(`${semDescricao} item(ns) sem a descrição do cliente.`);
+  const semNome = itens.filter((item) => !nomeDoItemParaOCliente(item)).length;
+  if (semNome) pendencias.push(`${semNome} item(ns) sem o produto.`);
   // O padrao do cliente pede marca e modelo (SENAI, 13/11/2026): item sem marca ou sem modelo trava o PDF.
   if (exigeMarcaModelo) {
     const semMarca = itens.filter((item) => !String(item.marca ?? "").trim() || !String(item.modelo ?? "").trim()).length;

@@ -94,7 +94,9 @@ const INCLUIR = {
 /** A proposta no formato da tela e do PDF: Decimal vira numero, datas viram AAAA-MM-DD, com os totais e os avisos. */
 export function propostaParaTela(proposta, { hoje = hojeEmSaoPaulo() } = {}) {
   // Item do Rise sem foto gravada (entrou sem foto, ou o produto ganhou foto depois): vale a 1a foto do produto base.
-  const fotoDe = (item) => item.foto ?? (item.produtoId ? item.produto?.arquivos?.[0]?.arquivo ?? null : null);
+  // Com produto, a foto e SEMPRE a 1a do cadastro de hoje (pedido do dono em 17/11/2026); a copia do item so vale se o
+  // produto ficou sem foto. Sem produto (avulso), a enviada a mao.
+  const fotoDe = (item) => (item.produtoId ? item.produto?.arquivos?.[0]?.arquivo ?? item.foto ?? null : item.foto ?? null);
   const itens = proposta.itens.map((item) => ({
     id: item.id,
     produtoId: item.produtoId,
@@ -110,6 +112,7 @@ export function propostaParaTela(proposta, { hoje = hojeEmSaoPaulo() } = {}) {
     fotoUrl: !fotoDe(item) ? null : item.produto?.sku ? urlDe(item.produto.sku, "IMAGEM", fotoDe(item)) : item.produtoId ? null : urlDaFotoDoItem(proposta.numero, item.foto),
     quantidade: numero(item.quantidade),
     unidade: item.unidade,
+    fator: numero(item.fator) ?? 1,
     precoUnitario: numero(item.precoUnitario),
     descontoPercentual: numero(item.descontoPercentual),
     prontaEntrega: item.prontaEntrega,
@@ -149,6 +152,7 @@ export function propostaParaTela(proposta, { hoje = hojeEmSaoPaulo() } = {}) {
     transportadoraId: proposta.transportadoraId,
     transportadoraNome: proposta.transportadoraNome,
     prazoTransporteDias: proposta.prazoTransporteDias,
+    freteDiluido: Boolean(proposta.freteDiluido),
     ocCliente: proposta.ocCliente,
     observacoesNf: proposta.observacoesNf,
     observacoesCliente: proposta.observacoesCliente,
@@ -346,6 +350,7 @@ export async function salvarProposta(numeroDaProposta, entrada, { manterCusto = 
           foto: item.produtoId && produtosExistem.has(item.produtoId) ? item.foto : !item.produtoId && fotosEnviadas.has(item.foto) ? item.foto : null,
           quantidade: item.quantidade,
           unidade: item.unidade,
+          fator: item.fator,
           precoUnitario: item.precoUnitario,
           descontoPercentual: item.descontoPercentual,
           prontaEntrega: item.prontaEntrega,
@@ -371,8 +376,14 @@ export async function salvarProposta(numeroDaProposta, entrada, { manterCusto = 
         pagamentoTexto: dados.pagamentoTexto,
         fretePorConta: dados.fretePorConta,
         transportadoraId: transportadora?.id ?? null,
-        transportadoraNome: transportadora ? transportadora.nomeFantasia || transportadora.nome : null,
+        // A cadastrada pelo id; senao o nome digitado (so com transporte: CIF ou FOB).
+        transportadoraNome: transportadora
+          ? transportadora.nomeFantasia || transportadora.nome
+          : dados.fretePorConta === "CIF" || dados.fretePorConta === "FOB"
+            ? dados.transportadoraNome
+            : null,
         frete: dados.fretePorConta === "CIF" || dados.fretePorConta === "FOB" ? dados.frete : 0,
+        freteDiluido: dados.freteDiluido,
         prazoTransporteDias: dados.prazoTransporteDias,
         descontoTipo: dados.descontoTipo,
         descontoValor: dados.descontoValor,
@@ -497,6 +508,7 @@ export async function listarPropostas({ busca, situacoes = [], abertas = false, 
             { ocCliente: { contains: texto, mode: "insensitive" } },
             { itens: { some: { descricaoCliente: { contains: texto, mode: "insensitive" } } } },
             { itens: { some: { codigoCliente: { contains: texto, mode: "insensitive" } } } },
+            { itens: { some: { nomeInterno: { contains: texto, mode: "insensitive" } } } },
             { itens: { some: { codigoInterno: { contains: texto, mode: "insensitive" } } } },
           ],
         }
