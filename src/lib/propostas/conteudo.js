@@ -159,13 +159,14 @@ function freteDoTotal(proposta, totais, diluido) {
   return "A combinar";
 }
 
-/** O "Método de envio" da faixa: o tipo de frete (com a explicacao), a transportadora, o valor no FOB e o prazo. */
+/**
+ * O "Método de envio" da faixa (pedido do dono em 17/11/2026): so "CIF" ou "FOB" e, na linha de baixo, a transportadora
+ * ("A combinar" sem ela). Sem os dias de transporte nem o valor estimado do FOB (ate ali "CIF (frete por nossa conta)",
+ * a transportadora, o valor e "Transporte: N dia(s)"). Retira e A combinar seguem com o texto deles.
+ */
 function metodoDeEnvio(proposta) {
-  const partes = [TEXTO_DO_FRETE[proposta.fretePorConta]];
-  if (proposta.transportadoraNome && ["CIF", "FOB"].includes(proposta.fretePorConta)) partes.push(proposta.transportadoraNome);
-  if (proposta.fretePorConta === "FOB" && Number(proposta.frete) > 0) partes.push(`Valor estimado: ${moeda.format(proposta.frete)}`);
-  if (proposta.prazoTransporteDias) partes.push(`Transporte: ${proposta.prazoTransporteDias} dia(s)`);
-  return partes.filter(Boolean).join("\n");
+  if (!["CIF", "FOB"].includes(proposta.fretePorConta)) return TEXTO_DO_FRETE[proposta.fretePorConta] ?? "A combinar";
+  return `${proposta.fretePorConta}\n${String(proposta.transportadoraNome ?? "").trim() || "A combinar"}`;
 }
 
 /**

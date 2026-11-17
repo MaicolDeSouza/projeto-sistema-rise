@@ -505,7 +505,7 @@ try {
   const tudo = JSON.stringify(conteudo);
   conferir(
     "PDF: descricao do cliente e codigo do Rise, OC e frete com explicacao",
-    [conteudo.itens[0].celulas.descricao, conteudo.itens[0].celulas.codigo, /OC-77/.test(tudo), /CIF \(frete por nossa conta\)/.test(tudo), conteudo.colunas.find((c) => c.chave === "codigo")?.titulo],
+    [conteudo.itens[0].celulas.descricao, conteudo.itens[0].celulas.codigo, /OC-77/.test(tudo), conteudo.faixa[3][1].startsWith("CIF\n"), conteudo.colunas.find((c) => c.chave === "codigo")?.titulo],
     ["Módulo relé 5V conforme cotação", "ZZ-PROP-CLI-1", true, true, "Código"],
   );
   conferir("PDF: sem descricao do cliente sai o nome do Rise", conteudoDaProposta({ ...paraPdf, itens: [{ ...paraPdf.itens[0], descricaoCliente: "" }] }, empresaFalsa).itens[0].celulas.descricao, paraPdf.itens[0].nomeInterno);
@@ -559,7 +559,16 @@ try {
     ],
     ["15 dias", "1 dia", "Vencida em 27/11/2026"],
   );
-  conferir("PDF: metodo de envio leva o frete por conta", conteudo.faixa[3][1].startsWith("CIF (frete por nossa conta)"), true);
+  // Metodo de envio (17/11/2026): so CIF/FOB e a transportadora embaixo ("A combinar" sem ela), sem dias nem valor.
+  conferir(
+    "PDF: metodo de envio so com CIF/FOB e a transportadora",
+    [
+      conteudoDaProposta({ ...paraPdf, fretePorConta: "CIF", transportadoraNome: "Transportes ZZ", prazoTransporteDias: 15 }, empresaFalsa).faixa[3][1],
+      conteudoDaProposta({ ...paraPdf, fretePorConta: "FOB", transportadoraNome: "", frete: 30 }, empresaFalsa).faixa[3][1],
+      conteudoDaProposta({ ...paraPdf, fretePorConta: "RETIRA" }, empresaFalsa).faixa[3][1],
+    ],
+    ["CIF\nTransportes ZZ", "FOB\nA combinar", "Cliente retira"],
+  );
   conferir("PDF: entregar em sem endereco = a combinar", conteudo.entrega, ["A combinar"]);
   conferir("PDF: entregar em de quem retira", conteudoDaProposta({ ...paraPdf, fretePorConta: "RETIRA" }, empresaFalsa).entrega, ["Retirada pelo cliente na 4hobby"]);
   conferir(
