@@ -502,7 +502,103 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                         aoEscolher={(produtoId) => escolherProduto(indice, produtoId)}
                         aoNomeLivre={(texto, desligar) => nomeLivre(indice, texto, desligar)}
                       />
-                      <p className="mt-1 flex flex-wrap items-center gap-x-3 text-xs text-suave">
+                      {/* Cada campo aberto tem o nome em cima e os botoes "+" ficam embaixo dos campos (pedido do dono em 17/11/2026). */}
+                      {(verDescricao || verFator) && (
+                        <div className="mt-2 flex items-start gap-2">
+                          {verDescricao && (
+                            <label className="block min-w-0 flex-1">
+                              <span className="mb-0.5 block text-[11px] font-medium text-suave">
+                                Descrição do cliente <span className="font-normal">(sai no PDF no lugar do nome)</span>
+                              </span>
+                              <textarea
+                                rows={1}
+                                autoFocus={descricaoAberta === item.chave}
+                                value={item.descricaoCliente}
+                                disabled={!editar}
+                                placeholder="Como o cliente descreveu o item"
+                                onChange={(e) => mudarItem(indice, "descricaoCliente", e.target.value)}
+                                onBlur={() => setDescricaoAberta(null)}
+                                className={`${celula} field-sizing-content min-h-8 resize-none border-sky-200 bg-sky-50/60 text-xs`}
+                              />
+                            </label>
+                          )}
+                          {verFator && (
+                            <label
+                              className="block shrink-0"
+                              title="Quantas unidades do produto do Rise formam 1 unidade do cliente (kit de 10 = fator 10). Preço e custo da linha são do kit."
+                            >
+                              <span className="mb-0.5 block text-[11px] font-medium text-suave">Fator</span>
+                              <span className="flex items-center gap-1.5 text-xs text-suave">
+                                <input
+                                  inputMode="decimal"
+                                  value={item.fator}
+                                  disabled={!editar}
+                                  aria-invalid={Boolean(erro("fator"))}
+                                  onChange={(e) => mudarItem(indice, "fator", soDecimal(e.target.value))}
+                                  onBlur={() => confirmarFator(indice)}
+                                  className={`${celulaSolta} w-16 py-1 text-xs tabular-nums`}
+                                />
+                                {fator !== 1 && numeros.quantidade > 0 && (
+                                  <span className="whitespace-nowrap tabular-nums">= {numeroBR(numeros.quantidade * fator)} un. do Rise</span>
+                                )}
+                              </span>
+                            </label>
+                          )}
+                        </div>
+                      )}
+                      {verObs && (
+                        <label className="mt-2 block">
+                          <span className="mb-0.5 block text-[11px] font-medium text-suave">
+                            Observação <span className="font-normal">(sai no PDF)</span>
+                          </span>
+                          <textarea
+                            rows={1}
+                            autoFocus={obsAberta === item.chave}
+                            value={item.observacao}
+                            disabled={!editar}
+                            placeholder="Observação do item"
+                            onChange={(e) => mudarItem(indice, "observacao", e.target.value)}
+                            onBlur={() => setObsAberta(null)}
+                            className={`${celula} field-sizing-content min-h-8 resize-none bg-amber-50/60 text-xs italic`}
+                          />
+                        </label>
+                      )}
+                      {verLink && (
+                        // Link de compra (pedido do dono em 17/11/2026): digitado a mao, so no Rise; o icone abre numa aba nova.
+                        <div className="mt-2">
+                          <label htmlFor={`link-${item.chave}`} className="mb-0.5 block text-[11px] font-medium text-suave">
+                            Link de compra <span className="font-normal">(só no Rise)</span>
+                          </label>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              id={`link-${item.chave}`}
+                              type="url"
+                              autoFocus={linkAberto === item.chave}
+                              value={item.linkDeCompra}
+                              disabled={!editar}
+                              placeholder="https://..."
+                              aria-invalid={Boolean(erro("linkDeCompra"))}
+                              title={erro("linkDeCompra")}
+                              onChange={(e) => mudarItem(indice, "linkDeCompra", e.target.value.trim().slice(0, 1000))}
+                              onBlur={() => setLinkAberto(null)}
+                              className={`${celula} py-1 text-xs`}
+                            />
+                            {/^https?:\/\//i.test(item.linkDeCompra ?? "") && (
+                              <a
+                                href={item.linkDeCompra}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label="Abrir o link de compra"
+                                title="Abrir o link de compra"
+                                className="shrink-0 rounded p-1.5 text-suave hover:bg-fundo hover:text-acento"
+                              >
+                                <ExternalLink size={14} />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      <p className="mt-1.5 flex flex-wrap items-center gap-x-3 text-xs text-suave">
                         {!item.produtoId && <span>Sem cadastro no Rise</span>}
                         {editar && !verDescricao && (
                           <button
@@ -530,92 +626,6 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                           </button>
                         )}
                       </p>
-                      {(verDescricao || verFator) && (
-                        <div className="mt-1 flex items-start gap-2">
-                          {verDescricao && (
-                            // A caixa da descricao num div flex-1: o textarea com field-sizing direto no flex ficava da
-                            // largura do texto e espremido pelo Fator.
-                            <div className="min-w-0 flex-1">
-                              <textarea
-                                rows={1}
-                                autoFocus={descricaoAberta === item.chave}
-                                value={item.descricaoCliente}
-                                disabled={!editar}
-                                placeholder="Descrição do cliente (sai no PDF no lugar do nome)"
-                                aria-label="Descrição do cliente"
-                                title="Descrição do cliente: sai no PDF no lugar do nome do Rise"
-                                onChange={(e) => mudarItem(indice, "descricaoCliente", e.target.value)}
-                                onBlur={() => setDescricaoAberta(null)}
-                                className={`${celula} field-sizing-content min-h-8 resize-none border-sky-200 bg-sky-50/60 text-xs`}
-                              />
-                            </div>
-                          )}
-                          {verFator && (
-                            <label
-                              className="flex shrink-0 items-center gap-1.5 text-xs text-suave"
-                              title="Quantas unidades do produto do Rise formam 1 unidade do cliente (kit de 10 = fator 10). Preço e custo da linha são do kit."
-                            >
-                              Fator
-                              <input
-                                inputMode="decimal"
-                                value={item.fator}
-                                disabled={!editar}
-                                aria-label="Fator"
-                                aria-invalid={Boolean(erro("fator"))}
-                                onChange={(e) => mudarItem(indice, "fator", soDecimal(e.target.value))}
-                                onBlur={() => confirmarFator(indice)}
-                                className={`${celulaSolta} w-16 py-1 text-xs tabular-nums`}
-                              />
-                              {fator !== 1 && numeros.quantidade > 0 && (
-                                <span className="whitespace-nowrap tabular-nums">= {numeroBR(numeros.quantidade * fator)} un. do Rise</span>
-                              )}
-                            </label>
-                          )}
-                        </div>
-                      )}
-                      {verObs && (
-                        <textarea
-                          rows={1}
-                          autoFocus={obsAberta === item.chave}
-                          value={item.observacao}
-                          disabled={!editar}
-                          placeholder="Observação do item (sai no PDF)"
-                          aria-label="Observação do item"
-                          onChange={(e) => mudarItem(indice, "observacao", e.target.value)}
-                          onBlur={() => setObsAberta(null)}
-                          className={`${celula} field-sizing-content mt-1 min-h-8 resize-none bg-amber-50/60 text-xs italic`}
-                        />
-                      )}
-                      {verLink && (
-                        // Link de compra (pedido do dono em 17/11/2026): digitado a mao, so no Rise; o icone abre numa aba nova.
-                        <div className="mt-1 flex items-center gap-1.5">
-                          <input
-                            type="url"
-                            autoFocus={linkAberto === item.chave}
-                            value={item.linkDeCompra}
-                            disabled={!editar}
-                            placeholder="Link de compra (https://...)"
-                            aria-label="Link de compra"
-                            aria-invalid={Boolean(erro("linkDeCompra"))}
-                            title={erro("linkDeCompra") ?? "Link de compra (só no Rise, não sai no PDF)"}
-                            onChange={(e) => mudarItem(indice, "linkDeCompra", e.target.value.trim().slice(0, 1000))}
-                            onBlur={() => setLinkAberto(null)}
-                            className={`${celula} py-1 text-xs`}
-                          />
-                          {/^https?:\/\//i.test(item.linkDeCompra ?? "") && (
-                            <a
-                              href={item.linkDeCompra}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              aria-label="Abrir o link de compra"
-                              title="Abrir o link de compra"
-                              className="shrink-0 rounded p-1.5 text-suave hover:bg-fundo hover:text-acento"
-                            >
-                              <ExternalLink size={14} />
-                            </a>
-                          )}
-                        </div>
-                      )}
                       {/* A coluna Marca / Modelo saiu (pedido do dono em 17/11/2026); marca e modelo vem do Rise sozinhos. So o
                           padrao que exige (SENAI) mostra os dois campos aqui, porque sem eles o PDF fica travado. */}
                       {exigeMarcaModelo && (
