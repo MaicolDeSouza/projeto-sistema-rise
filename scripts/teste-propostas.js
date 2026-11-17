@@ -70,6 +70,16 @@ conferir(
 );
 conferir("prazo geral todos prontos", regras.prazoGeral([{ prontaEntrega: true }]), "Pronta entrega");
 
+// Prazo da faixa do PDF (17/11/2026, Opcao 2 do dono): itens em prazos diferentes = "Varia por item / Veja a coluna Prazo".
+conferir(
+  "prazo da faixa",
+  [
+    regras.prazoDaFaixa([{ prontaEntrega: true }, { prontaEntrega: false, prazoDiasUteis: 15 }]),
+    regras.prazoDaFaixa([{ prontaEntrega: false, prazoDiasUteis: 10 }, { prontaEntrega: false, prazoDiasUteis: 10 }]),
+    regras.prazoDaFaixa([{ prontaEntrega: true }, { prontaEntrega: true }]),
+  ],
+  ["Varia por item\nVeja a coluna Prazo", "10 dias úteis", "Pronta entrega"],
+);
 conferir("contato hoje", regras.precisaContato({ situacao: "ENVIADA", proximoContato: "2026-11-12" }, "2026-11-12"), true);
 conferir("contato passado", regras.precisaContato({ situacao: "EM_NEGOCIACAO", proximoContato: "2026-11-01" }, "2026-11-12"), true);
 conferir("contato futuro", regras.precisaContato({ situacao: "ENVIADA", proximoContato: "2026-11-13" }, "2026-11-12"), false);

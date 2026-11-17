@@ -1,5 +1,5 @@
 import { formatarTelefone } from "@/lib/telefone";
-import { TEXTO_DO_FRETE, dataBR, garantiaCurta, itensComFreteDiluido, nomeDoItemParaOCliente, numeroDaProposta, prazoGeral, textoDoFaturamentoMinimo, textoDoPagamento, textoDoPrazo, totalDoItem } from "@/lib/propostas/regras";
+import { TEXTO_DO_FRETE, dataBR, garantiaCurta, itensComFreteDiluido, nomeDoItemParaOCliente, numeroDaProposta, prazoDaFaixa, textoDoFaturamentoMinimo, textoDoPagamento, textoDoPrazo, totalDoItem } from "@/lib/propostas/regras";
 
 /**
  * O que o CLIENTE le, igual no PDF e no link publico (spec 2026-11-12, "PDF e link publico"). Aqui se decide o que
@@ -218,7 +218,7 @@ export function conteudoDaProposta(proposta, empresa) {
     faixa: [
       ["Validade da proposta", validadeEmDias(proposta)],
       ["Condições de pagamento", textoDoPagamento(proposta) || "A combinar"],
-      ["Prazo de entrega", prazoGeral(proposta.itens)],
+      ["Prazo de entrega", prazoDaFaixa(proposta.itens)],
       ["Método de envio", metodoDeEnvio(proposta)],
       // Garantia ao lado do metodo de envio (pedido do dono em 13/11/2026); saiu dos blocos de baixo.
       ["Garantia", prazoDaGarantia(proposta.garantia)],

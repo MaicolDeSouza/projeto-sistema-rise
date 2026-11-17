@@ -259,6 +259,15 @@ export function prazoGeral(itens = []) {
   return textoDoPrazo({ prontaEntrega: maior === 0, prazoDiasUteis: maior });
 }
 
+/**
+ * O "Prazo de entrega" da faixa do PDF e do link (pedido do dono em 17/11/2026, Opcao 2): com os itens em prazos
+ * diferentes, "Varia por item" e embaixo "Veja a coluna Prazo"; com todos iguais, o prazo deles.
+ */
+export function prazoDaFaixa(itens = []) {
+  const textos = new Set(itens.map((item) => textoDoPrazo(item)));
+  return textos.size > 1 ? "Varia por item\nVeja a coluna Prazo" : prazoGeral(itens);
+}
+
 export function estaAberta(situacao) {
   return SITUACOES_ABERTAS.includes(situacao);
 }

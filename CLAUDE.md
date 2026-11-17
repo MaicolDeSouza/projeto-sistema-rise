@@ -6346,6 +6346,9 @@ plano `docs/superpowers/plans/2026-11-12-propostas-para-cliente.md`. Menu **Prop
   - **Custo do item sem cadastro e histórico de contatos** (17/11/2026, recomendação aceita pelo dono): o item sem produto no
     Rise ganhou o campo Custo na coluna Lucro (o do Rise segue só leitura), senão o lucro dele e o da proposta ficavam em
     branco; e a janela "Registrar contato" mostra os contatos anteriores (o mais novo primeiro), já que a aba Contatos saiu.
+  - **"Prazo de entrega" da faixa do PDF com prazos diferentes** (17/11/2026, Opção 2 do dono): "Varia por item" e embaixo
+    "Veja a coluna Prazo" (`prazoDaFaixa` em `regras.js`); com todos iguais, o prazo deles. Até ali mostrava o maior. O card
+    Totais da tela segue com o maior (`prazoGeral`).
 - **Foto do item avulso** (pedido do dono em 13/11/2026, na proposta da Fundação Coppetec: itens comprados no ML só para o
   cliente): no editor, a caixa da foto do avulso é um botão (ícone de imagem) que envia JPG/PNG/WebP na hora para
   `dados/propostas/<propostaId>/fotos/<32 hex>.jpg` (`gravarFotoDoItem`, reduzida a 600 px sobre branco); o "x" tira. O
