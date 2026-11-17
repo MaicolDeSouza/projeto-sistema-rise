@@ -104,6 +104,26 @@ function PopupConfirmacao({ produtos, pendente, aoConfirmar, aoCancelar }) {
  * era em lote, por caixa de selecao e uma lixeira fixa ao lado da busca (18/09/2026, no padrao do Bling); a
  * lixeira e as caixas sairam. A confirmacao continua sendo o popup com nome e SKU (`PopupConfirmacao`).
  */
+// Meta do dono (16/11/2026): todos os produtos verificados ("anunciados") ate 30/05/2027. O ritmo e o que falta dividido
+// pelos dias corridos de hoje (inclusive) ate a meta, arredondado para cima; hoje, em Sao Paulo, e o dia de partida.
+const META = { dia: Date.UTC(2027, 4, 30), texto: "30/05/2027" };
+
+function RitmoAteAMeta({ falta }) {
+  const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()).split("-").map(Number);
+  const dias = Math.round((META.dia - Date.UTC(hoje[0], hoje[1] - 1, hoje[2])) / 86400000) + 1;
+  if (falta <= 0 || dias < 1) return null;
+  const porDia = Math.ceil(falta / dias);
+  return (
+    <span
+      suppressHydrationWarning
+      className="rounded border border-borda bg-superficie px-3 py-2 text-xs whitespace-nowrap text-suave"
+      title={`${falta.toLocaleString("pt-BR")} ainda não verificados ÷ ${dias.toLocaleString("pt-BR")} dias corridos (de hoje até ${META.texto}) = ${(falta / dias).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} por dia, arredondado para cima`}
+    >
+      <span className="font-medium tabular-nums text-texto">{porDia.toLocaleString("pt-BR")}</span> por dia até {META.texto}
+    </span>
+  );
+}
+
 export default function TabelaProdutos({
   linhas,
   busca,
@@ -212,6 +232,8 @@ export default function TabelaProdutos({
             </span>
           )}
         </span>
+
+        <RitmoAteAMeta falta={total - totalConferidos} />
 
         {/* Navegacao no canto DIREITO, com o "100 por página" logo acima (padrao com o Scraper, 23/10/2026). */}
         <NavegacaoDoTopo pagina={pagina} totalPaginas={totalPaginas} total={total} porPagina={porPagina} />
