@@ -6392,8 +6392,8 @@ plano `docs/superpowers/plans/2026-11-12-propostas-para-cliente.md`. Menu **Prop
   - **Link público:** a proposta marcada ganha "Baixar PDF assinado" (`/p/proposta/<chave>/pdf`, 404 nas outras); o
     Caddyfile aceita `^/p/proposta/[A-Za-z0-9_-]{43}(/pdf)?$` e o guarda do `teste:acessos` reconhece
     `propostaPelaChavePublica(`.
-  - **Falta medir com o certificado real:** passar o PDF assinado em validar.iti.gov.br e no Adobe Reader. Se o ITI pedir
-    a política ICP-Brasil (atributo sigPolicyId, PA_PAdES_AD_RB), acrescentar no `cmsDaAssinatura`.
+  - **Medido com o certificado real (17/11/2026):** o dono enviou o A1 da 4hobby no Rise do PC, assinou a proposta 2026 e o
+    **validar.iti.gov.br aprovou** o PDF, sem a política ICP-Brasil (sigPolicyId) no CMS.
 - **Foto do item avulso** (pedido do dono em 13/11/2026, na proposta da Fundação Coppetec: itens comprados no ML só para o
   cliente): no editor, a caixa da foto do avulso é um botão (ícone de imagem) que envia JPG/PNG/WebP na hora para
   `dados/propostas/<propostaId>/fotos/<32 hex>.jpg` (`gravarFotoDoItem`, reduzida a 600 px sobre branco); o "x" tira. O
