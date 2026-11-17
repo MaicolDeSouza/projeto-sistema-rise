@@ -9,9 +9,9 @@ import { telefoneParaGravar, telefoneValido } from "@/lib/telefone";
 
 const ID = "empresa";
 // Inscricao municipal e celular/WhatsApp: pedido do dono em 07/11/2026.
-const CAMPOS = ["razaoSocial", "nomeFantasia", "cnpj", "inscricaoEstadual", "inscricaoMunicipal", "endereco", "numero", "complemento", "bairro", "cidade", "uf", "cep", "telefone", "celular", "whatsappTecnico", "site", "email"];
+const CAMPOS = ["razaoSocial", "nomeFantasia", "cnpj", "inscricaoEstadual", "inscricaoMunicipal", "endereco", "numero", "complemento", "bairro", "cidade", "uf", "cep", "telefone", "celular", "whatsappTecnico", "site", "email", "bancoNome", "bancoCodigo", "agencia", "conta", "chavePix"];
 const OBRIGATORIOS = { razaoSocial: "Informe a razão social.", cnpj: "Informe o CNPJ.", endereco: "Informe o endereço.", cidade: "Informe a cidade.", uf: "Informe a UF.", cep: "Informe o CEP." };
-const LIMITES = { razaoSocial: 150, nomeFantasia: 150, inscricaoEstadual: 30, inscricaoMunicipal: 30, endereco: 200, numero: 20, complemento: 100, bairro: 100, cidade: 100, site: 120, email: 150 };
+const LIMITES = { razaoSocial: 150, nomeFantasia: 150, inscricaoEstadual: 30, inscricaoMunicipal: 30, endereco: 200, numero: 20, complemento: 100, bairro: 100, cidade: 100, site: 120, email: 150, bancoNome: 120, bancoCodigo: 10, agencia: 20, conta: 30, chavePix: 150 };
 
 export async function lerDadosDaEmpresa() {
   const dados = await prisma.dadosDaEmpresa.findUnique({ where: { id: ID } });
@@ -63,10 +63,10 @@ export async function salvarDadosDaEmpresa(entrada) {
   if (dados.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dados.email)) erros.email = "E-mail inválido.";
 
   // Faturamento minimo (13/11/2026): sai em toda proposta ("Valor para faturamento minimo: R$ 50,00").
-  const minimo = String(entrada?.faturamentoMinimo ?? "").trim().replace(/^R$s*/i, "");
+  const minimo = String(entrada?.faturamentoMinimo ?? "").trim().replace(/^R\$\s*/i, "");
   if (!minimo) dados.faturamentoMinimo = null;
   else {
-    const valor = Number(minimo.includes(",") ? minimo.replace(/./g, "").replace(",", ".") : minimo);
+    const valor = Number(minimo.includes(",") ? minimo.replace(/\./g, "").replace(",", ".") : minimo);
     if (Number.isFinite(valor) && valor >= 0 && valor < 1_000_000) dados.faturamentoMinimo = Math.round(valor * 100) / 100;
     else erros.faturamentoMinimo = "Valor inválido.";
   }

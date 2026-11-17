@@ -362,10 +362,13 @@ try {
   const { conteudoDaProposta: conteudoDoFrete } = await import("../src/lib/propostas/conteudo.js");
   const doFrete = conteudoDoFrete(comFrete, null);
   conferir(
-    "PDF: frete diluido vira 'Incluso nos produtos' e o total nao muda",
+    "PDF: frete diluido vira 'CIF (Incluso)' e o total nao muda",
     [doFrete.linhasDeTotal.find(([r]) => r === "Frete")?.[1], doFrete.total.replace(/ /g, " ")],
-    ["Incluso nos produtos", `R$ ${comFrete.totais.total.toFixed(2).replace(".", ",")}`],
+    ["CIF (Incluso)", `R$ ${comFrete.totais.total.toFixed(2).replace(".", ",")}`],
   );
+  // Frete no quadro do total (17/11/2026): CIF a parte com o valor, CIF sem valor gratis.
+  const freteDe = (mudanca) => conteudoDoFrete({ ...comFrete, ...mudanca, totais: { ...comFrete.totais, ...(mudanca.totais ?? {}) } }, null).linhasDeTotal.find(([r]) => r === "Frete")[1].replace(/\s/g, " ");
+  conferir("PDF: CIF a parte mostra 'CIF R$ 30,00' e CIF sem valor 'CIF (Grátis)'", [freteDe({ freteDiluido: false }), freteDe({ freteDiluido: false, totais: { frete: 0 } })], ["CIF R$ 30,00", "CIF (Grátis)"]);
   await banco.salvarProposta(p2.numero, { ...comCliente, fretePorConta: "FOB", frete: "30", freteDiluido: true }, { hoje: "2026-11-12" });
   conferir("frete diluido so existe no CIF", (await banco.lerProposta(p2.numero)).freteDiluido, false);
 
@@ -513,8 +516,18 @@ try {
   conferir(
     "PDF: quadro do total com frete e impostos",
     [conteudo.linhasDeTotal.map(([r]) => r).slice(-2), conteudoDaProposta({ ...paraPdf, fretePorConta: "FOB" }, empresaFalsa).linhasDeTotal.find(([r]) => r === "Frete")[1]],
-    [["Frete", "Impostos"], "Por conta do cliente"],
+    [["Frete", "Impostos"], "FOB"],
   );
+  // Dados bancarios e caixa de observacoes (17/11/2026): banco primeiro, campo vazio fora; observacao sai dos blocos.
+  conferir(
+    "PDF: dados bancarios com o banco primeiro e sem campo vazio",
+    [conteudoDaProposta(paraPdf, { ...empresaFalsa, bancoNome: "Banco ZZ", bancoCodigo: "0999", agencia: "0001", conta: "", chavePix: "pix@zz.com" }).bancarios, conteudoDaProposta(paraPdf, empresaFalsa).bancarios],
+    [["Banco ZZ", "Banco: 0999", "Agência: 0001", "Chave Pix: pix@zz.com"], []],
+  );
+  const comObs = conteudoDaProposta({ ...paraPdf, observacoesCliente: "Entrega no portão 2" }, empresaFalsa);
+  conferir("PDF: observacao ao cliente na caixa, fora dos blocos", [comObs.observacoes, comObs.blocos.some(([r]) => r === "Observações")], ["Entrega no portão 2", false]);
+  const semCodigo = conteudoDaProposta({ ...paraPdf, itens: [{ ...paraPdf.itens[0], sku: null, codigoInterno: null }] }, empresaFalsa);
+  conferir("PDF: coluna Codigo sempre, com '-' no item sem codigo", [semCodigo.colunas.some((c) => c.chave === "codigo"), semCodigo.itens[0].celulas.codigo], [true, "-"]);
   const comAc = conteudoDaProposta(
     { ...paraPdf, contatoId: "ct1", contatoNome: "Ana Souza", cliente: { contatos: [{ id: "ct1", nome: "Ana Souza", cargo: "Compras", telefone: "54988990008", email: "ana@zz.com" }] } },
     empresaFalsa,

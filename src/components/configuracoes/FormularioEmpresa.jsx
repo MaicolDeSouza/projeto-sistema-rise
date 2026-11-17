@@ -10,7 +10,7 @@ import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import Card from "@/components/ui/Card";
 import { formatarTelefone } from "@/lib/telefone";
 
-const CAMPOS = ["razaoSocial", "nomeFantasia", "cnpj", "inscricaoEstadual", "inscricaoMunicipal", "endereco", "numero", "complemento", "bairro", "cidade", "uf", "cep", "telefone", "celular", "whatsappTecnico", "site", "email", "faturamentoMinimo"];
+const CAMPOS = ["razaoSocial", "nomeFantasia", "cnpj", "inscricaoEstadual", "inscricaoMunicipal", "endereco", "numero", "complemento", "bairro", "cidade", "uf", "cep", "telefone", "celular", "whatsappTecnico", "site", "email", "faturamentoMinimo", "bancoNome", "bancoCodigo", "agencia", "conta", "chavePix"];
 const TELEFONES = ["telefone", "celular", "whatsappTecnico"];
 
 /**
@@ -196,6 +196,17 @@ export default function FormularioEmpresa({ inicial, logoInicial = null, podeEdi
             {campo("site", "Site", { placeholder: "www.4hobby.com.br" })}
             {/* Sai em toda proposta para cliente (13/11/2026; o SENAI pede "R$ XXX,XX"). */}
             {campo("faturamentoMinimo", "Faturamento mínimo (R$)", { inputMode: "decimal", placeholder: "50,00" })}
+          </div>
+        </Card>
+        {/* Coluna "Dados bancários" da proposta para cliente (17/11/2026); campo vazio nao aparece na proposta. */}
+        <Card>
+          <h2 className="mb-4 font-semibold">Dados bancários</h2>
+          <div className="grid gap-4 sm:grid-cols-6">
+            <div className="sm:col-span-4">{campo("bancoNome", "Banco", { placeholder: "Nu Pagamentos S.A. - Instituição de Pagamento" })}</div>
+            <div className="sm:col-span-2">{campo("bancoCodigo", "Código do banco", { inputMode: "numeric" })}</div>
+            <div className="sm:col-span-2">{campo("agencia", "Agência", { inputMode: "numeric" })}</div>
+            <div className="sm:col-span-2">{campo("conta", "Conta")}</div>
+            <div className="sm:col-span-2">{campo("chavePix", "Chave Pix")}</div>
           </div>
         </Card>
       </fieldset>

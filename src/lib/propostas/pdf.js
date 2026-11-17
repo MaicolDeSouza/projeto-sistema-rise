@@ -22,10 +22,17 @@ const FUNDO_DO_CABECALHO = "#f3f4f6";
 const FUNDO_DA_OBS = "#fffbeb";
 const MARGEM = 36;
 const RESPIRO = 4;
-const FOTO = 30;
-// O logo INTEIRO (o enviado em Dados da empresa) numa caixa a esquerda do cabecalho, como o farol do modelo do dono.
+// Foto e fontes das tabelas um passo acima (pedido do dono em 17/11/2026, "mantendo a proporcionalidade").
+const FOTO = 38;
+const FONTE_DA_FAIXA = 9.3;
+const FONTE_DO_TITULO = 8.5;
+const FONTE_DO_ITEM = 9.5;
+// O logo INTEIRO (o enviado em Dados da empresa) numa caixa a esquerda do cabecalho, como o farol do modelo do dono. A
+// altura termina na linha azul dupla (pedido do dono em 17/11/2026: o logo "passava muito para baixo").
 const LOGO_LARGURA = 132;
-const LOGO_ALTURA = 54;
+const LOGO_ALTURA = 56;
+// Espaco entre os blocos (17/11/2026: o dono pediu mais respiro entre cabecalho, cliente, condicoes e itens).
+const ENTRE_BLOCOS = 22;
 const AZUL = "#1f3d6b";
 const AZUL_LINK = "#1d4ed8";
 const TEXTO_SUAVE = "#374151";
@@ -53,8 +60,10 @@ function desenharIcone(doc, tipo, x, y, tamanho) {
   doc.restore();
 }
 
-const LARGURAS = { item: 22, foto: FOTO + RESPIRO * 2, descricao: 0, codigo: 62, marca: 74, qtde: 36, un: 26, preco: 58, desconto: 34, total: 62, prazo: 68 };
-const ALINHAR = { item: "center", foto: "center", qtde: "right", un: "center", preco: "right", desconto: "right", total: "right" };
+const LARGURAS = { item: 22, foto: FOTO + RESPIRO * 2, descricao: 0, codigo: 56, marca: 74, qtde: 34, un: 26, preco: 62, desconto: 36, total: 66, prazo: 76 };
+// Tudo a esquerda, titulo e dado (pedido do dono em 17/11/2026: "manter um padrao, todas a esquerda"); ate ali numero a
+// direita e #, foto e unidade ao centro.
+const ALINHAR = {};
 
 /**
  * A foto do item em JPEG pequeno sobre branco (o pdfkit so desenha JPEG e PNG; a foto pode ser WebP): a do produto do
@@ -88,6 +97,8 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     quadro: bruto.quadro.map(([r, v]) => [f(r), f(v)]),
     empresa: bruto.empresa.map(f),
     contatos: bruto.contatos.map((c) => ({ ...c, texto: f(c.texto) })),
+    bancarios: bruto.bancarios.map(f),
+    observacoes: bruto.observacoes ? f(bruto.observacoes) : null,
     entrega: bruto.entrega.map(f),
     faixa: bruto.faixa.map(([r, v]) => [f(r), f(v)]),
     cliente: { nome: f(bruto.cliente.nome), linhas: bruto.cliente.linhas.map(f), ac: bruto.cliente.ac ? f(bruto.cliente.ac) : null, acLinha: bruto.cliente.acLinha ? f(bruto.cliente.acLinha) : null },
@@ -121,54 +132,66 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     const larguraDoTexto = MARGEM + largura - xTexto;
     doc.font("Helvetica-Bold").fontSize(20).fillColor(TEXTO).text("PROPOSTA", xTexto, topo - 2, { width: larguraDoTexto, align: "right" });
     const larguraDoTitulo = doc.widthOfString("PROPOSTA");
-    // O nome numa linha so: a fonte encolhe ate caber ao lado do "PROPOSTA" (o pdfkit quebra a linha mesmo sem lineBreak).
-    const espacoDoNome = larguraDoTexto - larguraDoTitulo - 12;
+    // O numero e a data logo abaixo do "PROPOSTA", acima da linha azul (pedido do dono em 17/11/2026, Opcao 1; ate ali
+    // ficavam numa terceira coluna embaixo da linha). O bloco encosta na direita pela linha mais larga.
+    const larguraDaLinha = ([rotulo, valor]) => doc.font("Helvetica-Bold").fontSize(10).widthOfString(`${rotulo}: `) + doc.font("Helvetica").fontSize(10).widthOfString(valor);
+    const larguraDoQuadro = Math.max(larguraDoTitulo, ...conteudo.quadro.map(larguraDaLinha));
+    let yQuadro = topo + 22;
+    for (const [rotulo, valor] of conteudo.quadro) {
+      doc.font("Helvetica-Bold").fontSize(10).fillColor(TEXTO).text(`${rotulo}: `, MARGEM + largura - larguraDaLinha([rotulo, valor]), yQuadro, { continued: true, lineBreak: false });
+      doc.font("Helvetica").text(valor, { lineBreak: false });
+      yQuadro += 13;
+    }
+    // O nome numa linha so: a fonte encolhe ate caber ao lado do bloco do "PROPOSTA" (o pdfkit quebra a linha mesmo sem lineBreak).
+    const espacoDoNome = larguraDoTexto - larguraDoQuadro - 14;
     let tamanhoDoNome = 16;
     doc.font("Helvetica-Bold");
     while (tamanhoDoNome > 10 && doc.fontSize(tamanhoDoNome).widthOfString(conteudo.nomeDaEmpresa) > espacoDoNome) tamanhoDoNome -= 0.5;
-    doc.fontSize(tamanhoDoNome).fillColor(TEXTO).text(conteudo.nomeDaEmpresa, xTexto, topo + 3 + (16 - tamanhoDoNome) / 2, { width: espacoDoNome + 4, lineBreak: false });
-    const yLinha = topo + 25;
+    const yLinha = Math.max(yQuadro + 4, topo + LOGO_ALTURA - 4);
+    doc.fontSize(tamanhoDoNome).fillColor(TEXTO).text(conteudo.nomeDaEmpresa, xTexto, yLinha - tamanhoDoNome - 6, { width: espacoDoNome + 4, lineBreak: false });
     doc.lineWidth(2.6).strokeColor(AZUL).moveTo(xTexto, yLinha).lineTo(MARGEM + largura, yLinha).stroke();
     doc.lineWidth(0.6).moveTo(xTexto, yLinha + 4).lineTo(MARGEM + largura, yLinha + 4).stroke();
 
-    // O logo da 4hobby e largo (engrenagem + nome): as tres colunas comecam embaixo dele e usam a largura toda.
-    const yInfo = Math.max(yLinha + 12, topo + LOGO_ALTURA + 6);
-    // Tres colunas quase iguais (pedido do dono em 13/11/2026: a coluna do meio ficava puxada para a direita); o quadro
-    // encosta na margem direita dentro da dele.
-    // O endereco ganha um pouco mais (a linha do CEP tem ~175 pt e quebrava num terco exato).
-    const terco = 190;
-    const larguraDoQuadro = largura - terco * 2;
-    const larguraDosContatos = terco - 6;
-    const larguraDoEndereco = terco - 8;
+    // Tres colunas com titulo (pedido do dono em 17/11/2026): "Dados da empresa" (o nome na 1a linha), "Dados para
+    // contato" e "Dados bancários"; sem dado bancario a terceira some e as outras duas ficam no lugar.
+    const yInfo = Math.max(yLinha + 4, topo + LOGO_ALTURA) + 14;
+    const terco = largura / 3;
+    const tituloDaColuna = (texto, x) => doc.font("Helvetica-Bold").fontSize(9).fillColor(AZUL).text(texto, x, yInfo, { width: terco - 10, lineBreak: false });
+    const yDasLinhas = yInfo + 14;
+    tituloDaColuna("Dados da empresa", MARGEM);
+    doc.font("Helvetica-Bold").fontSize(7.8).fillColor(TEXTO).text(conteudo.nomeDaEmpresa, MARGEM, yDasLinhas, { width: terco - 10 });
+    let yEndereco = doc.y + 1;
     doc.font("Helvetica").fontSize(7.8).fillColor(TEXTO_SUAVE);
-    let yEndereco = yInfo;
     for (const linha of conteudo.empresa) {
-      doc.text(linha, MARGEM, yEndereco, { width: larguraDoEndereco });
+      doc.text(linha, MARGEM, yEndereco, { width: terco - 10 });
       yEndereco = doc.y + 1;
     }
     if (conteudo.site) {
-      doc.fillColor(AZUL_LINK).text(conteudo.site.texto, MARGEM, yEndereco, { width: larguraDoEndereco, link: conteudo.site.url, underline: true });
+      doc.fillColor(AZUL_LINK).text(conteudo.site.texto, MARGEM, yEndereco, { width: terco - 10, link: conteudo.site.url, underline: true });
       yEndereco = doc.y + 1;
     }
     const xContatos = MARGEM + terco;
-    let yContatos = yInfo;
+    tituloDaColuna("Dados para contato", xContatos);
+    let yContatos = yDasLinhas;
     for (const contato of conteudo.contatos) {
       desenharIcone(doc, contato.tipo, xContatos, yContatos, 8.5);
-      doc.font("Helvetica").fontSize(7.8).fillColor(TEXTO_SUAVE).text(contato.texto, xContatos + 12, yContatos + 0.5, { width: larguraDosContatos - 12, link: contato.url ?? undefined, lineBreak: false, ellipsis: true });
+      doc.font("Helvetica").fontSize(7.8).fillColor(TEXTO_SUAVE).text(contato.texto, xContatos + 12, yContatos + 0.5, { width: terco - 22, link: contato.url ?? undefined, lineBreak: false, ellipsis: true });
       yContatos += 12.5;
     }
-    const xQuadro = MARGEM + largura - larguraDoQuadro;
-    let yQuadro = yInfo;
-    // "Número da proposta: 2026" com o valor logo depois do rotulo, maior e junto (pedido do dono em 13/11/2026: o valor
-    // encostado na margem direita ficava longe do rotulo); o bloco encosta na direita pela linha mais larga.
-    const larguraDaLinha = ([rotulo, valor]) => doc.font("Helvetica-Bold").fontSize(10).widthOfString(`${rotulo}: `) + doc.font("Helvetica").fontSize(10).widthOfString(valor);
-    const xDoBloco = Math.max(xQuadro, MARGEM + largura - Math.max(...conteudo.quadro.map(larguraDaLinha)));
-    for (const [rotulo, valor] of conteudo.quadro) {
-      doc.font("Helvetica-Bold").fontSize(10).fillColor(TEXTO).text(`${rotulo}: `, xDoBloco, yQuadro, { continued: true, lineBreak: false });
-      doc.font("Helvetica").text(valor, { lineBreak: false });
-      yQuadro += 15;
+    let yBancarios = yDasLinhas;
+    if (conteudo.bancarios.length) {
+      const xBancarios = MARGEM + terco * 2;
+      tituloDaColuna("Dados bancários", xBancarios);
+      doc.font("Helvetica").fontSize(7.8).fillColor(TEXTO_SUAVE);
+      for (const linha of conteudo.bancarios) {
+        doc.text(linha, xBancarios, yBancarios, { width: terco - 4 });
+        yBancarios = doc.y + 1;
+      }
     }
-    doc.y = Math.max(topo + LOGO_ALTURA, yEndereco, yContatos, yQuadro) + 14;
+    // Separacao do cabecalho (pedido do dono em 17/11/2026): mais espaco e uma linha fina no meio, da largura da pagina.
+    const ySeparador = Math.max(yEndereco, yContatos, yBancarios) + ENTRE_BLOCOS / 2;
+    doc.lineWidth(0.5).strokeColor(LINHA).moveTo(MARGEM, ySeparador).lineTo(MARGEM + largura, ySeparador).stroke();
+    doc.y = ySeparador + ENTRE_BLOCOS / 2 + 2;
 
     // Cliente e "Entregar em" lado a lado (o "Quoted To / Ship To" do modelo).
     const meia = (largura - 20) / 2;
@@ -189,20 +212,24 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     doc.font("Helvetica-Bold").fontSize(12).fillColor(AZUL).text("Endereço de entrega", xEntrega, yCliente);
     doc.fillColor(TEXTO);
     doc.font("Helvetica").fontSize(8.5).text(conteudo.entrega.join("\n"), xEntrega, doc.y + 2, { width: meia });
-    doc.y = Math.max(fimDoCliente, doc.y) + 12;
+    doc.y = Math.max(fimDoCliente, doc.y) + ENTRE_BLOCOS;
 
     // Faixa de condicoes: validade, pagamento, prazo de entrega, metodo de envio (com o frete por conta) e vendedor.
     const yFaixa = doc.y;
     const totalDosPesos = PESOS_DA_FAIXA.reduce((soma, peso) => soma + peso, 0);
     const larguras = PESOS_DA_FAIXA.map((peso) => (largura * peso) / totalDosPesos);
-    const alturaDoTitulo = 17;
-    doc.font("Helvetica").fontSize(8.3);
+    const alturaDoTitulo = 19;
+    doc.font("Helvetica").fontSize(FONTE_DA_FAIXA);
     const alturaDoValor = Math.max(...conteudo.faixa.map(([, valor], i) => doc.heightOfString(valor, { width: larguras[i] - RESPIRO * 2 }))) + RESPIRO * 2 + 2;
     doc.rect(MARGEM, yFaixa, largura, alturaDoTitulo).fill(FUNDO_DO_CABECALHO);
     let xFaixa = MARGEM;
     conteudo.faixa.forEach(([rotulo, valor], i) => {
-      doc.font("Helvetica-Bold").fontSize(8.3).fillColor(TEXTO).text(rotulo, xFaixa + RESPIRO, yFaixa + 5, { width: larguras[i] - RESPIRO * 2, align: "center", lineBreak: false });
-      doc.font("Helvetica").fontSize(8.3).text(valor, xFaixa + RESPIRO, yFaixa + alturaDoTitulo + RESPIRO + 1, { width: larguras[i] - RESPIRO * 2, align: "center" });
+      // O titulo encolhe so se nao couber numa linha (com a fonte maior, "Condições de pagamento" fica justo).
+      let tamanho = FONTE_DA_FAIXA;
+      doc.font("Helvetica-Bold");
+      while (tamanho > 7.5 && doc.fontSize(tamanho).widthOfString(rotulo) > larguras[i] - RESPIRO * 2) tamanho -= 0.25;
+      doc.fontSize(tamanho).fillColor(TEXTO).text(rotulo, xFaixa + RESPIRO, yFaixa + 5.5, { width: larguras[i] - RESPIRO * 2, align: "center", lineBreak: false });
+      doc.font("Helvetica").fontSize(FONTE_DA_FAIXA).text(valor, xFaixa + RESPIRO, yFaixa + alturaDoTitulo + RESPIRO + 1, { width: larguras[i] - RESPIRO * 2, align: "center" });
       xFaixa += larguras[i];
     });
     doc.lineWidth(0.5).strokeColor(LINHA).rect(MARGEM, yFaixa, largura, alturaDoTitulo + alturaDoValor).stroke();
@@ -213,7 +240,7 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
       doc.moveTo(xFaixa, yFaixa).lineTo(xFaixa, yFaixa + alturaDoTitulo + alturaDoValor).stroke();
     }
     doc.x = MARGEM;
-    doc.y = yFaixa + alturaDoTitulo + alturaDoValor + 14;
+    doc.y = yFaixa + alturaDoTitulo + alturaDoValor + ENTRE_BLOCOS;
 
     // Tabela.
     const fixas = conteudo.colunas.reduce((soma, c) => soma + LARGURAS[c.chave], 0);
@@ -233,10 +260,10 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     };
     const cabecalho = () => {
       const y = doc.y;
-      const altura = 17;
+      const altura = 19;
       doc.rect(MARGEM, y, largura, altura).fill(FUNDO_DO_CABECALHO);
       let x = MARGEM;
-      doc.font("Helvetica-Bold").fontSize(7.5).fillColor(CINZA);
+      doc.font("Helvetica-Bold").fontSize(FONTE_DO_TITULO).fillColor(CINZA);
       for (const coluna of colunas) {
         doc.text(coluna.titulo, x + RESPIRO, y + 5, { width: coluna.largura - RESPIRO * 2, align: coluna.alinhar, lineBreak: false });
         x += coluna.largura;
@@ -247,10 +274,10 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     cabecalho();
 
     for (const item of conteudo.itens) {
-      doc.font("Helvetica").fontSize(8.5);
+      doc.font("Helvetica").fontSize(FONTE_DO_ITEM);
       const alturaDoTexto = Math.max(...colunas.map((c) => doc.heightOfString(item.celulas[c.chave] || " ", { width: c.largura - RESPIRO * 2 })));
       const altura = Math.max(alturaDoTexto + RESPIRO * 2, FOTO + 8);
-      doc.font("Helvetica-Oblique").fontSize(8.5);
+      doc.font("Helvetica-Oblique").fontSize(FONTE_DO_ITEM);
       const alturaDaObs = item.obs ? doc.heightOfString(`Obs.: ${item.obs}`, { width: larguraDaObs }) + RESPIRO * 2 : 0;
       if (doc.y + altura + alturaDaObs > fundo()) {
         doc.addPage();
@@ -260,13 +287,13 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
       const bloco = altura + alturaDaObs;
       if (item.obs) doc.rect(inicioDaObs, y + altura, MARGEM + largura - inicioDaObs, alturaDaObs).fill(FUNDO_DA_OBS);
       let x = MARGEM;
-      doc.font("Helvetica").fontSize(8.5).fillColor(TEXTO);
+      doc.font("Helvetica").fontSize(FONTE_DO_ITEM).fillColor(TEXTO);
       colunas.forEach((coluna, posicao) => {
         const alturaDaCelula = posicao < INTEIRAS ? bloco : altura;
         if (coluna.chave === "foto") {
           if (fotos[item.id]) {
             try {
-              doc.image(fotos[item.id], x + RESPIRO, y + (alturaDaCelula - FOTO) / 2, { fit: [FOTO, FOTO], align: "center", valign: "center" });
+              doc.image(fotos[item.id], x + RESPIRO, y + (alturaDaCelula - FOTO) / 2, { fit: [FOTO, FOTO], align: "left", valign: "center" });
             } catch {
               // Foto ilegivel: celula em branco.
             }
@@ -279,7 +306,7 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
         x += coluna.largura;
       });
       if (item.obs) {
-        doc.font("Helvetica-BoldOblique").fontSize(8.5).fillColor(TEXTO)
+        doc.font("Helvetica-BoldOblique").fontSize(FONTE_DO_ITEM).fillColor(TEXTO)
           .text("Obs.: ", inicioDaObs + RESPIRO, y + altura + RESPIRO, { width: larguraDaObs, continued: true })
           .font("Helvetica-Oblique").text(item.obs);
       }
@@ -315,6 +342,21 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     doc.rect(xCaixa, yCaixa, larguraDaCaixa, alturaDaCaixa).stroke();
     doc.x = MARGEM;
     doc.y = yCaixa + alturaDaCaixa + 16;
+
+    // Observacoes ao cliente numa caixa com titulo (pedido do dono em 17/11/2026); sem observacao, nada.
+    if (conteudo.observacoes) {
+      doc.font("Helvetica").fontSize(9);
+      const alturaDoTexto = doc.heightOfString(conteudo.observacoes, { width: largura - 20 });
+      const alturaDaCaixa = alturaDoTexto + 34;
+      if (doc.y + Math.min(alturaDaCaixa, 120) > fundo()) doc.addPage();
+      const yObs = doc.y;
+      doc.font("Helvetica-Bold").fontSize(10).fillColor(AZUL).text("Observações", MARGEM + 10, yObs + 9, { width: largura - 20 });
+      doc.font("Helvetica").fontSize(9).fillColor(TEXTO).text(conteudo.observacoes, MARGEM + 10, yObs + 25, { width: largura - 20 });
+      // A caixa e desenhada depois do texto (a altura real, mesmo se o texto quebrou de pagina so vale nesta).
+      if (doc.y > yObs) doc.lineWidth(0.5).strokeColor(LINHA).rect(MARGEM, yObs, largura, doc.y - yObs + 8).stroke();
+      doc.x = MARGEM;
+      doc.y += 8 + 14;
+    }
 
     // Condicoes.
     for (const [rotulo, valor] of conteudo.blocos) {

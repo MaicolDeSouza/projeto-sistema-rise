@@ -6201,6 +6201,16 @@ AliExpress, Alibaba, extensão própria e estudo automático ficaram para depois
 
 ## Propostas para cliente (12/11/2026, fase 1, SEM deploy)
 
+**Ajustes do PDF e do link público em 17/11/2026 (lista do dono, 10 tarefas):** o logo termina na linha azul dupla e o
+número/data ficam embaixo de "PROPOSTA"; o cabeçalho tem três colunas com título ("Dados da empresa" com o nome na 1ª linha,
+"Dados para contato" e "Dados bancários", esta lida de `DadosDaEmpresa.bancoNome/bancoCodigo/agencia/conta/chavePix`, migration
+`20261117d`, cartão "Dados bancários" em Configurações > Dados da empresa; sem dado a coluna some; **o dono digita os dados
+bancários**), uma linha fina separa o cabeçalho do cliente, mais espaço entre os blocos (`ENTRE_BLOCOS`), fontes das tabelas e
+foto maiores, a tabela de itens toda à esquerda, a coluna **Código sempre** (`sku`, senão o `codigoInterno`, senão "-"), a
+linha Frete do total diz o tipo ("CIF (Incluso)" diluído, "CIF (Grátis)" sem valor, "CIF R$ 30,00" à parte, "FOB") e as
+observações ao cliente numa caixa com o título "Observações" (`conteudo.observacoes`, fora dos `blocos`). Na mesma leva: o
+faturamento mínimo "50,00" era gravado como 0 (regex `/./g` apagava tudo; corrigido em `compras/empresa.js`).
+
 Pedido do dono em 12/11/2026, decidido no brainstorming do mesmo dia: spec `docs/superpowers/specs/2026-11-12-propostas-para-cliente-design.md`,
 plano `docs/superpowers/plans/2026-11-12-propostas-para-cliente.md`. Menu **Propostas** (logo depois de Vendas), acesso
 `tela.propostas` (ver = lista e PDF; editar = criar e mudar; excluir = só o rascunho) e `acao.propostas.pedidoDeVenda`

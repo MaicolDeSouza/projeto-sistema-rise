@@ -66,6 +66,22 @@ function contatosDaEmpresa(empresa) {
   ].filter(Boolean);
 }
 
+/**
+ * A coluna "Dados bancários" do cabecalho (pedido do dono em 17/11/2026: "mostrando o nome do banco por primeiro e
+ * depois os demais dados e tambem a chave pix"). Campo vazio nao entra; sem nenhum, a coluna some.
+ */
+function bancariosDaEmpresa(empresa) {
+  if (!empresa) return [];
+  const limpo = (valor) => String(valor ?? "").trim();
+  return [
+    limpo(empresa.bancoNome) || null,
+    limpo(empresa.bancoCodigo) ? `Banco: ${limpo(empresa.bancoCodigo)}` : null,
+    limpo(empresa.agencia) ? `Agência: ${limpo(empresa.agencia)}` : null,
+    limpo(empresa.conta) ? `Conta: ${limpo(empresa.conta)}` : null,
+    limpo(empresa.chavePix) ? `Chave Pix: ${limpo(empresa.chavePix)}` : null,
+  ].filter(Boolean);
+}
+
 function linhasDoEndereco(endereco) {
   if (!endereco) return [];
   return [
@@ -131,10 +147,17 @@ export function prazoDaGarantia(garantia) {
   return achado ? `${achado[1]} ${achado[2].toLowerCase()}` : texto;
 }
 
-/** A linha "Frete" do quadro do total: o valor no CIF (zero = por nossa conta) e quem paga nos outros tipos. */
-function freteDoTotal(proposta, totais) {
-  if (proposta.fretePorConta === "CIF") return totais.frete > 0 ? moeda.format(totais.frete) : "Por nossa conta";
-  if (proposta.fretePorConta === "FOB") return "Por conta do cliente";
+/**
+ * A linha "Frete" do quadro do total diz o tipo (pedido do dono em 17/11/2026): CIF diluido nos produtos "CIF (Incluso)",
+ * CIF sem valor "CIF (Grátis)", CIF cobrado a parte "CIF R$ 50,00" (o valor soma no total, entao nao pode dizer gratis) e
+ * "FOB". Ate ali: "Incluso nos produtos", "Por nossa conta", o valor solto e "Por conta do cliente".
+ */
+function freteDoTotal(proposta, totais, diluido) {
+  if (proposta.fretePorConta === "CIF") {
+    if (diluido) return "CIF (Incluso)";
+    return totais.frete > 0 ? `CIF ${moeda.format(totais.frete)}` : "CIF (Grátis)";
+  }
+  if (proposta.fretePorConta === "FOB") return "FOB";
   if (proposta.fretePorConta === "RETIRA") return "Cliente retira";
   return "A combinar";
 }
@@ -157,7 +180,6 @@ export function conteudoDaProposta(proposta, empresa) {
   const temDesconto = proposta.itens.some((item) => Number(item.descontoPercentual) > 0);
   // Marca / Modelo: quando o padrao do cliente exige (SENAI) ou algum item tem; senao a coluna nao ocupa espaco.
   const temMarca = Boolean(proposta.padrao?.exigeMarcaModelo) || proposta.itens.some((item) => item.marca || item.modelo);
-  const temCodigo = proposta.itens.some((item) => item.codigoInterno);
   // Frete diluido (17/11/2026): o cliente ve os precos com o frete dentro e o quadro diz "Incluso nos produtos".
   const diluido = Boolean(proposta.freteDiluido) && proposta.fretePorConta === "CIF" && totais.frete > 0;
   const itensDoCliente = diluido ? itensComFreteDiluido(proposta.itens, totais.frete) : proposta.itens;
@@ -166,15 +188,15 @@ export function conteudoDaProposta(proposta, empresa) {
   if (totais.desconto > 0) linhasDeTotal.push(["Desconto", `− ${moeda.format(totais.desconto)}`]);
   // Frete e impostos sempre no quadro do total (pedido do dono em 13/11/2026, no molde da cotacao da Hope): o valor so
   // soma no CIF (regra do total); nos outros tipos a linha diz quem paga.
-  linhasDeTotal.push(["Frete", diluido ? "Incluso nos produtos" : freteDoTotal(proposta, totais)]);
+  linhasDeTotal.push(["Frete", freteDoTotal(proposta, totais, diluido)]);
   linhasDeTotal.push(["Impostos", "Inclusos"]);
 
   const notaFiscal = [proposta.ocCliente ? `Pedido de compra (OC): ${proposta.ocCliente}` : null, proposta.observacoesNf].filter(Boolean).join("\n");
 
-  // Prazo, pagamento e frete foram para a faixa de baixo do cabecalho (13/11/2026); aqui fica o resto.
+  // Prazo, pagamento e frete foram para a faixa de baixo do cabecalho (13/11/2026); aqui fica o resto. As observacoes ao
+  // cliente sairam daqui para a caixa "Observações" (pedido do dono em 17/11/2026).
   const blocos = [
     ["Para a nota fiscal", notaFiscal],
-    ["Observações", proposta.observacoesCliente],
     // So para cliente com padrao personalizado (SENAI); o cliente comum, sem padrao, nao ve (o dono em 13/11/2026).
     ["Faturamento mínimo", proposta.padrao ? textoDoFaturamentoMinimo(empresa?.faturamentoMinimo) : null],
   ].filter(([, valor]) => String(valor ?? "").trim());
@@ -190,6 +212,8 @@ export function conteudoDaProposta(proposta, empresa) {
     empresa: empresaNoCabecalho.linhas,
     site: empresaNoCabecalho.site,
     contatos: contatosDaEmpresa(empresa),
+    bancarios: bancariosDaEmpresa(empresa),
+    observacoes: String(proposta.observacoesCliente ?? "").trim() || null,
     cliente: { nome: proposta.clienteNome, linhas: linhasDoCliente(proposta), ...contatoDoCliente(proposta) },
     entrega: linhasDaEntrega(proposta),
     // A faixa de colunas embaixo do cabecalho (o "Valid Until / Payment Terms / ..." do modelo do dono, 13/11/2026).
@@ -202,13 +226,15 @@ export function conteudoDaProposta(proposta, empresa) {
       ["Garantia", prazoDaGarantia(proposta.garantia)],
       ["Vendedor", proposta.vendedor || proposta.criadoPorNome || "—"],
     ],
-    colunas: COLUNAS.filter((c) => (c.chave !== "desconto" || temDesconto) && (c.chave !== "marca" || temMarca) && (c.chave !== "codigo" || temCodigo)),
+    colunas: COLUNAS.filter((c) => (c.chave !== "desconto" || temDesconto) && (c.chave !== "marca" || temMarca)),
     itens: itensDoCliente.map((item, indice) => ({
       id: item.id,
       celulas: {
         item: String(indice + 1),
         descricao: nomeDoItemParaOCliente(item),
-        codigo: item.codigoInterno ?? "",
+        // Coluna Codigo sempre (pedido do dono em 17/11/2026): o codigo do produto do Rise, o digitado no avulso, senao "-".
+        // Ate ali so o `codigoInterno`, vazio no item que veio do produto, e a coluna sumia.
+        codigo: item.sku || item.codigoInterno || "-",
         marca: [item.marca, item.modelo].filter(Boolean).join(" / "),
         qtde: quantidade(item.quantidade),
         un: item.unidade,
