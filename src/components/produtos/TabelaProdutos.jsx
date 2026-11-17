@@ -136,6 +136,7 @@ export default function TabelaProdutos({
   porPagina = 25,
   total = linhas.length,
   totalConferidos = 0,
+  faltaVerificar = 0,
   // Produto recem-criado (`?novo=<id>`, pedido do dono em 10/10/2026): a linha dele aparece destacada por alguns segundos.
   destacarId = null,
   // Acessos (lancamento 2): o que a pessoa pode nesta lista (acessosDaListaDeProdutos). Sem ele, tudo liberado, como
@@ -233,7 +234,7 @@ export default function TabelaProdutos({
           )}
         </span>
 
-        <RitmoAteAMeta falta={total - totalConferidos} />
+        <RitmoAteAMeta falta={faltaVerificar} />
 
         {/* Navegacao no canto DIREITO, com o "100 por página" logo acima (padrao com o Scraper, 23/10/2026). */}
         <NavegacaoDoTopo pagina={pagina} totalPaginas={totalPaginas} total={total} porPagina={porPagina} />

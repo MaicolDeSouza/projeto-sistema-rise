@@ -145,6 +145,7 @@ export default async function ProdutosPage({ searchParams }) {
   let produtos = null;
   let total = 0;
   let totalConferidos = 0;
+  let faltaVerificar = 0;
   let pagina = 1;
   let totalPaginas = 1;
   let erro = erroDoFiltro;
@@ -152,6 +153,8 @@ export default async function ProdutosPage({ searchParams }) {
   try {
     total = await prisma.produto.count({ where });
     totalConferidos = await prisma.produto.count({ where: { ...where, conferido: true } });
+    // A meta diaria usa o catalogo INTEIRO, sem busca nem filtro: produto novo entra na conta na hora (16/11/2026).
+    faltaVerificar = await prisma.produto.count({ where: { conferido: false } });
 
     totalPaginas = Math.max(1, Math.ceil(total / porPagina));
     // Pagina fora do intervalo (link velho, ou lista que encolheu com a busca)
@@ -335,6 +338,7 @@ export default async function ProdutosPage({ searchParams }) {
             total={total}
             porPagina={porPagina}
             totalConferidos={totalConferidos}
+            faltaVerificar={faltaVerificar}
             filtroCanais={filtroCanais}
           />
 
