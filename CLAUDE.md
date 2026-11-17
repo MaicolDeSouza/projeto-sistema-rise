@@ -6338,6 +6338,11 @@ plano `docs/superpowers/plans/2026-11-12-propostas-para-cliente.md`. Menu **Prop
     `prazoTransporteDias` fica no banco, sem uso; o PDF já não mostrava os dias desde c88c8ba). Os campos abertos do item
     têm o nome em cima ("Descrição do cliente (sai no PDF)", "Fator", "Observação (sai no PDF)", "Link de compra (só no
     Rise)") e os botões "+" ficam embaixo deles.
+  - **Coluna "Preço" com o frete diluído** (17/11/2026; era "Preço de lista"): com o frete diluído o campo mostra o preço com
+    frete (fundo verde e "com frete diluído" embaixo); clicar para editar mostra e grava o preço SEM o frete ("preço sem o
+    frete"), e volta ao sair. **O preço com frete é em centavos** (`itensComFreteDiluido`; era 4 casas, "R$ 41,888") e o
+    total da proposta é a soma das linhas (`totaisDaProposta({ freteDiluido })`): o frete embutido pode diferir uns centavos do
+    digitado (30 viram 30,01 no teste), mas tela, PDF e pedido do Bling fecham iguais.
 - **Foto do item avulso** (pedido do dono em 13/11/2026, na proposta da Fundação Coppetec: itens comprados no ML só para o
   cliente): no editor, a caixa da foto do avulso é um botão (ícone de imagem) que envia JPG/PNG/WebP na hora para
   `dados/propostas/<propostaId>/fotos/<32 hex>.jpg` (`gravarFotoDoItem`, reduzida a 600 px sobre branco); o "x" tira. O

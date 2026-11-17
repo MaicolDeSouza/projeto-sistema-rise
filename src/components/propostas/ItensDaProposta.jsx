@@ -335,6 +335,7 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
   const [obsAberta, setObsAberta] = useState(null);
   const [descricaoAberta, setDescricaoAberta] = useState(null);
   const [linkAberto, setLinkAberto] = useState(null);
+  const [precoEmEdicao, setPrecoEmEdicao] = useState(null);
   const [focar, setFocar] = useState(null);
   const [estoque, setEstoque] = useState({});
   const vezDoEstoque = useRef(0);
@@ -511,7 +512,7 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                 <th className={`${th} w-24`}>Código</th>
                 <th className={`${th} w-20`}>Qtd.</th>
                 <th className={`${th} w-[76px]`}>Un.</th>
-                <th className={`${th} w-26 whitespace-nowrap`}>Preço de lista</th>
+                <th className={`${th} w-26 whitespace-nowrap`}>Preço</th>
                 <th className={`${th} w-[72px] whitespace-nowrap`}>Desc. %</th>
                 <th className={`${th} w-26`}>Total</th>
                 <th className={`${th} w-42`}>Prazo</th>
@@ -531,6 +532,7 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                   custoUnitario: doTexto(item.custoUnitario),
                 };
                 const markup = markupDoItem(numeros);
+                const comFrete = Boolean(precosComFrete) && precosComFrete[indice] !== numeros.precoUnitario;
                 // Lucro em R$ da linha: o total (sem o frete) menos o custo x quantidade; sem custo, nao ha lucro.
                 const lucro = numeros.custoUnitario === null ? null : Math.round((totalDoItem(numeros) - numeros.custoUnitario * numeros.quantidade) * 100) / 100;
                 const fator = fatorDe(item);
@@ -573,6 +575,7 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                                 value={item.descricaoCliente}
                                 disabled={!editar}
                                 placeholder="Como o cliente descreveu o item"
+                                aria-label="Descrição do cliente"
                                 onChange={(e) => mudarItem(indice, "descricaoCliente", e.target.value)}
                                 onBlur={() => setDescricaoAberta(null)}
                                 className={`${celula} field-sizing-content min-h-8 resize-none border-sky-200 bg-sky-50/60 text-xs`}
@@ -590,6 +593,7 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                                   inputMode="decimal"
                                   value={item.fator}
                                   disabled={!editar}
+                                  aria-label="Fator"
                                   aria-invalid={Boolean(erro("fator"))}
                                   onChange={(e) => mudarItem(indice, "fator", soDecimal(e.target.value))}
                                   onBlur={() => confirmarFator(indice)}
@@ -748,20 +752,22 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                       </select>
                     </td>
                     <td className={td}>
+                      {/* Coluna "Preco" (pedido do dono em 17/11/2026): com o frete diluido o campo MOSTRA o preco com frete (o do
+                          PDF) e diz embaixo; ao clicar para editar, mostra e grava o preco sem o frete, e volta ao sair. */}
                       <input
                         inputMode="decimal"
-                        value={item.precoUnitario}
+                        value={comFrete && precoEmEdicao !== item.chave ? paraTexto(precosComFrete[indice], 2) : item.precoUnitario}
                         disabled={!editar}
-                        aria-label="Preço de lista"
+                        aria-label="Preço"
                         aria-invalid={Boolean(erro("precoUnitario"))}
-                        title={erro("precoUnitario")}
+                        title={erro("precoUnitario") ?? (comFrete ? `Sem o frete: ${moedaUnitaria.format(numeros.precoUnitario)}. Clique para editar o preço sem o frete.` : undefined)}
+                        onFocus={() => setPrecoEmEdicao(item.chave)}
+                        onBlur={() => setPrecoEmEdicao(null)}
                         onChange={(e) => mudarItem(indice, "precoUnitario", soDecimal(e.target.value))}
-                        className={`${celula} tabular-nums`}
+                        className={`${celula} tabular-nums ${comFrete && precoEmEdicao !== item.chave ? "border-emerald-300 bg-emerald-50/60" : ""}`}
                       />
-                      {precosComFrete && precosComFrete[indice] !== numeros.precoUnitario && (
-                        <p className="mt-1 text-xs whitespace-nowrap text-emerald-700 tabular-nums" title="Preço com o frete diluído: é o que sai no PDF">
-                          c/ frete {moedaUnitaria.format(precosComFrete[indice])}
-                        </p>
+                      {comFrete && (
+                        <p className="mt-1 text-xs whitespace-nowrap text-emerald-700">{precoEmEdicao === item.chave ? "preço sem o frete" : "com frete diluído"}</p>
                       )}
                     </td>
                     <td className={td}>

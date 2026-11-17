@@ -132,6 +132,7 @@ export function propostaParaTela(proposta, { hoje = hojeEmSaoPaulo() } = {}) {
     descontoValor: numero(proposta.descontoValor),
     fretePorConta: proposta.fretePorConta,
     frete: numero(proposta.frete),
+    freteDiluido: Boolean(proposta.freteDiluido),
   };
   return {
     id: proposta.id,
@@ -542,6 +543,7 @@ export async function listarPropostas({ busca, situacoes = [], abertas = false, 
       descontoValor: numero(p.descontoValor),
       fretePorConta: p.fretePorConta,
       frete: numero(p.frete),
+      freteDiluido: Boolean(p.freteDiluido),
     }).total,
     itens: p.itens.length,
     validadeAte: dataISO(p.validadeAte),

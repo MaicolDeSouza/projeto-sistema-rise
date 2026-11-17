@@ -121,5 +121,6 @@ export function totaisDoFormulario(formulario) {
     descontoValor: desconto.erro ? 0 : desconto.valor,
     fretePorConta: formulario.fretePorConta,
     frete: doTexto(formulario.frete) ?? 0,
+    freteDiluido: Boolean(formulario.freteDiluido),
   });
 }

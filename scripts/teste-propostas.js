@@ -109,8 +109,23 @@ conferir(
     ],
     30,
   );
-  conferir("frete diluido: precos", diluidos.map((i) => i.precoUnitario), [112.245, 56.1222, 0]);
-  conferir("frete diluido: o total soma o frete", Math.round(diluidos.reduce((s, i) => s + regras.totalDoItem(i), 0) * 100) / 100, 275);
+  // Em centavos (17/11/2026): o frete embutido pode diferir uns centavos (30,01 aqui) e o total da proposta e a soma das linhas.
+  conferir("frete diluido: precos em centavos", diluidos.map((i) => i.precoUnitario), [112.25, 56.12, 0]);
+  const totaisDiluidos = regras.totaisDaProposta({
+    itens: [
+      { quantidade: 2, precoUnitario: 100, descontoPercentual: 0 },
+      { quantidade: 1, precoUnitario: 50, descontoPercentual: 10 },
+      { quantidade: 1, precoUnitario: 0, descontoPercentual: 0 },
+    ],
+    fretePorConta: "CIF",
+    frete: 30,
+    freteDiluido: true,
+  });
+  conferir(
+    "frete diluido: o total e a soma das linhas",
+    [Math.round(diluidos.reduce((s, i) => s + regras.totalDoItem(i), 0) * 100) / 100, totaisDiluidos.total, totaisDiluidos.frete],
+    [275.01, 275.01, 30.01],
+  );
   conferir("frete diluido: sem frete nada muda", regras.itensComFreteDiluido([{ quantidade: 1, precoUnitario: 10 }], 0)[0].precoUnitario, 10);
 }
 // Entrada em R$ (17/11/2026): o valor digitado sai do total, nunca acima dele, e o texto mostra o valor.
@@ -377,8 +392,9 @@ try {
     ["CIF (Incluso)", `R$ ${comFrete.totais.total.toFixed(2).replace(".", ",")}`],
   );
   // Frete no quadro do total (17/11/2026): CIF a parte com o valor, CIF sem valor gratis.
+  // (Os totais de `comFrete` sao os do frete diluido, que em centavos da 30,02; sem diluir o frete e o digitado, 30.)
   const freteDe = (mudanca) => conteudoDoFrete({ ...comFrete, ...mudanca, totais: { ...comFrete.totais, ...(mudanca.totais ?? {}) } }, null).linhasDeTotal.find(([r]) => r === "Frete")[1].replace(/\s/g, " ");
-  conferir("PDF: CIF a parte mostra 'CIF R$ 30,00' e CIF sem valor 'CIF (Grátis)'", [freteDe({ freteDiluido: false }), freteDe({ freteDiluido: false, totais: { frete: 0 } })], ["CIF R$ 30,00", "CIF (Grátis)"]);
+  conferir("PDF: CIF a parte mostra 'CIF R$ 30,00' e CIF sem valor 'CIF (Grátis)'", [freteDe({ freteDiluido: false, totais: { frete: 30 } }), freteDe({ freteDiluido: false, totais: { frete: 0 } })], ["CIF R$ 30,00", "CIF (Grátis)"]);
   await banco.salvarProposta(p2.numero, { ...comCliente, fretePorConta: "FOB", frete: "30", freteDiluido: true }, { hoje: "2026-11-12" });
   conferir("frete diluido so existe no CIF", (await banco.lerProposta(p2.numero)).freteDiluido, false);
 

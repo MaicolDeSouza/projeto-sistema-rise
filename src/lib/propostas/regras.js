@@ -177,7 +177,7 @@ export function totalDoItem({ quantidade, precoUnitario, descontoPercentual = 0 
  * nao tem valor). O desconto geral incide sobre o subtotal; o total nunca fica negativo. Custo e lucro (markup) so
  * quando TODO item tem custo: com um item sem custo o lucro do total mentiria.
  */
-export function totaisDaProposta({ itens = [], descontoTipo = null, descontoValor = 0, fretePorConta = "A_COMBINAR", frete = 0 }) {
+export function totaisDaProposta({ itens = [], descontoTipo = null, descontoValor = 0, fretePorConta = "A_COMBINAR", frete = 0, freteDiluido = false }) {
   let subtotal = 0;
   let custo = 0;
   let todosComCusto = itens.length > 0;
@@ -190,7 +190,13 @@ export function totaisDaProposta({ itens = [], descontoTipo = null, descontoValo
     subtotal,
     descontoTipo === "PERCENTUAL" ? Math.round((subtotal * (Number(descontoValor) || 0)) / 100) : centavos(descontoValor),
   );
-  const freteNoTotal = fretePorConta === "CIF" ? centavos(frete) : 0;
+  // Frete diluido: o frete que entra e o que cabe nos precos arredondados (a soma das linhas com o frete menos o subtotal).
+  const freteNoTotal =
+    fretePorConta !== "CIF"
+      ? 0
+      : freteDiluido && centavos(frete) > 0 && subtotal > 0
+        ? itensComFreteDiluido(itens, frete).reduce((soma, item) => soma + centavos(totalDoItem(item)), 0) - subtotal
+        : centavos(frete);
   const total = Math.max(0, subtotal - desconto + freteNoTotal);
   const vendaSemFrete = subtotal - desconto;
   return {
@@ -224,7 +230,10 @@ export function itensComFreteDiluido(itens = [], frete = 0) {
     distribuido += parte;
     const unidades = (Number(item.quantidade) || 0) * (1 - (Number(item.descontoPercentual) || 0) / 100);
     if (!(unidades > 0)) return item;
-    return { ...item, precoUnitario: Math.round(((totais[indice] + parte) / 100 / unidades) * 10_000) / 10_000 };
+    // Em centavos (o dono, 17/11/2026, ao ver "c/ frete R$ 41,888"): o preco com frete e arredondado para o centavo, e o
+    // total da proposta passa a ser a soma das linhas (totaisDaProposta com freteDiluido), entao o frete embutido pode
+    // diferir uns centavos do digitado, mas tela, PDF e pedido do Bling fecham iguais.
+    return { ...item, precoUnitario: Math.round(((totais[indice] + parte) / unidades) + Number.EPSILON) / 100 };
   });
 }
 
