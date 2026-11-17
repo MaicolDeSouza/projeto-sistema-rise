@@ -6331,6 +6331,13 @@ plano `docs/superpowers/plans/2026-11-12-propostas-para-cliente.md`. Menu **Prop
     fim, o estoque (caixas empilhadas do lucide `Boxes`, como o ícone do Bling; verde atende, vermelho falta) em cima da
     lixeira. `table-fixed` sem largura mínima: o Produto fica com o resto (391 px em 1600 px). A coluna Marca / Modelo saiu;
     marca e modelo vêm do Rise e só aparecem como campos dentro do Produto quando o padrão exige (SENAI).
+  - **Prazo para todos os itens** (17/11/2026, "igual foi feito na seção de compras"): com 2 itens ou mais, a linha "Todos os
+    itens" em cima da coluna Prazo (Pronta entrega / Dias úteis e os dias; "Vários" quando diferem) muda todas as linhas,
+    que seguem editáveis uma a uma. As larguras da tabela moram num `<colgroup>`: com `table-fixed` o navegador mede pela
+    1ª linha, e a "Todos os itens" (colSpan) espremia o Produto. O "Prazo de entrega (dias)" saiu do card Frete (a coluna
+    `prazoTransporteDias` fica no banco, sem uso; o PDF já não mostrava os dias desde c88c8ba). Os campos abertos do item
+    têm o nome em cima ("Descrição do cliente (sai no PDF)", "Fator", "Observação (sai no PDF)", "Link de compra (só no
+    Rise)") e os botões "+" ficam embaixo deles.
 - **Foto do item avulso** (pedido do dono em 13/11/2026, na proposta da Fundação Coppetec: itens comprados no ML só para o
   cliente): no editor, a caixa da foto do avulso é um botão (ícone de imagem) que envia JPG/PNG/WebP na hora para
   `dados/propostas/<propostaId>/fotos/<32 hex>.jpg` (`gravarFotoDoItem`, reduzida a 600 px sobre branco); o "x" tira. O

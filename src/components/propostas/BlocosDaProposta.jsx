@@ -297,9 +297,8 @@ export function CartaoFrete({ formulario, transportadoras, editar, erros, aoMuda
               </div>
             )}
           </div>
-          <Rotulo texto="Prazo de entrega (dias)" erro={erros.prazoTransporteDias}>
-            <input inputMode="numeric" value={formulario.prazoTransporteDias} disabled={!editar} onChange={(e) => aoMudar("prazoTransporteDias", soDigitos(e.target.value, 3))} className={`${campo} tabular-nums`} />
-          </Rotulo>
+          {/* O "Prazo de entrega (dias)" saiu daqui (pedido do dono em 17/11/2026): o prazo e o dos itens, com o campo
+              "Todos os itens" em cima da coluna Prazo. A coluna prazoTransporteDias fica no banco, sem uso na tela. */}
         </div>
       )}
     </SecaoDoAnuncio>

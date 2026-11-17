@@ -404,6 +404,15 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
     });
   }
   /** Ao sair do campo Fator: preco e custo acompanham na proporcao do fator anterior. */
+  // Prazo de TODOS os itens (pedido do dono em 17/11/2026, "igual foi feito na secao de compras"): a linha "Todos os
+  // itens" em cima da coluna Prazo; mudar vale na hora para todas as linhas, que continuam editaveis uma a uma. Mostra o
+  // prazo comum quando todos sao iguais; senao, "Vários".
+  const prazoComum =
+    itens.length > 0 && itens.every((it) => it.prontaEntrega === itens[0].prontaEntrega && (it.prontaEntrega || it.prazoDiasUteis === itens[0].prazoDiasUteis))
+      ? { pronta: itens[0].prontaEntrega, dias: itens[0].prazoDiasUteis }
+      : null;
+  const prazoParaTodos = (pronta, dias) => aoTrocar(itens.map((it) => ({ ...it, prontaEntrega: pronta, prazoDiasUteis: pronta ? "" : dias })));
+
   function confirmarFator(indice) {
     const item = itens[indice];
     const novo = fatorDe(item);
@@ -446,7 +455,54 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
         <div className="-m-4">
           {/* Sem rolagem lateral (pedido do dono em 17/11/2026): table-fixed, as colunas com largura fixa e o Produto com o resto. */}
           <table className="w-full table-fixed border-collapse text-sm">
+            {/* As larguras moram no colgroup: com table-fixed o navegador mede pela PRIMEIRA linha, e a "Todos os itens"
+                (colSpan) vinha antes e espremia o Produto. */}
+            <colgroup>
+              <col className="w-14" />
+              <col />
+              <col className="w-24" />
+              <col className="w-20" />
+              <col className="w-[76px]" />
+              <col className="w-26" />
+              <col className="w-[72px]" />
+              <col className="w-26" />
+              <col className="w-42" />
+              {veCusto && <col className="w-26" />}
+              <col className="w-11" />
+            </colgroup>
             <thead className="bg-fundo/70 text-xs text-suave">
+              {editar && itens.length > 1 && (
+                <tr className="border-b border-borda">
+                  <th colSpan={8} className="px-2 py-1.5 text-right font-medium">
+                    Todos os itens
+                  </th>
+                  <th className="border-l border-borda px-2 py-1.5 font-normal">
+                    <div className="flex items-center gap-1">
+                      <select
+                        value={prazoComum ? (prazoComum.pronta ? "pronta" : "dias") : ""}
+                        onChange={(e) => prazoParaTodos(e.target.value === "pronta", e.target.value === "dias" ? prazoComum?.dias || "5" : "")}
+                        aria-label="Prazo de todos os itens"
+                        title="Prazo de entrega para todos os itens"
+                        className={`${celula} text-sm text-texto`}
+                      >
+                        {!prazoComum && <option value="">Vários</option>}
+                        <option value="pronta">Pronta entrega</option>
+                        <option value="dias">Dias úteis</option>
+                      </select>
+                      {prazoComum && !prazoComum.pronta && (
+                        <input
+                          inputMode="numeric"
+                          value={prazoComum.dias}
+                          onChange={(e) => prazoParaTodos(false, soDigitos(e.target.value, 4))}
+                          aria-label="Dias úteis de todos os itens"
+                          className={`${celulaSolta} w-14 shrink-0 text-sm text-texto tabular-nums`}
+                        />
+                      )}
+                    </div>
+                  </th>
+                  <th colSpan={veCusto ? 2 : 1} className="border-l border-borda" />
+                </tr>
+              )}
               <tr className="border-b border-borda">
                 <th className={`${th} w-14`}>
                   <span className="sr-only">Foto</span>
@@ -507,8 +563,9 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                         <div className="mt-2 flex items-start gap-2">
                           {verDescricao && (
                             <label className="block min-w-0 flex-1">
-                              <span className="mb-0.5 block text-[11px] font-medium text-suave">
-                                Descrição do cliente <span className="font-normal">(sai no PDF no lugar do nome)</span>
+                              {/* Uma linha so (pedido do dono em 17/11/2026): assim a caixa fica na altura da do Fator. */}
+                              <span className="mb-0.5 block truncate text-[11px] font-medium text-suave" title="Sai no PDF no lugar do nome do Rise">
+                                Descrição do cliente <span className="font-normal">(sai no PDF)</span>
                               </span>
                               <textarea
                                 rows={1}
