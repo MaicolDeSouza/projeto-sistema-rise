@@ -3262,6 +3262,9 @@ export default function FormularioProduto({
     if (!acessos.referencias) return;
     const { fornecedores: lista, concorrentes: ids } = JSON.parse(assinaturaVinculos);
     let valido = true;
+    // Sem fornecedor nem concorrente (produto novo) nao ha indicacao a ler: nem chama o servidor, para o Salvar nao esperar
+    // na fila das acoes por uma resposta vazia (16/11/2026).
+    if (lista.length === 0 && ids.length === 0) return undefined;
     // Espera a digitacao parar: o nome de um fornecedor novo muda a cada tecla, e a busca le o acervo.
     const espera = setTimeout(() => {
       buscarPorPalavras(formulario.current?.elements.namedItem("tituloBase")?.value ?? "", {
@@ -3296,7 +3299,8 @@ export default function FormularioProduto({
 
   // Vinculos e marcadas, sem repetir: a marcada vence (e a que o operador acabou de escolher na lupa).
   const referenciasDasIndicacoes = [
-    ...new Map([...vinculosItens.map((item) => [item.id, item]), ...marcados]).values(),
+    // Sem nenhum vinculo agora, as indicacoes lidas antes (de um vinculo ja removido) nao valem mais.
+    ...new Map([...(vinculadosAgora.fornecedores.length + vinculadosAgora.concorrentes.length > 0 ? vinculosItens : []).map((item) => [item.id, item]), ...marcados]).values(),
   ];
   const idsDasIndicacoes = [...new Set([...idsDaLupa, ...vinculosItens.map((item) => item.id)])];
   const chaveDasIndicacoes = [...idsDasIndicacoes].sort().join(",");

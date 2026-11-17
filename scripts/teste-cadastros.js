@@ -350,6 +350,13 @@ try {
   const semTitulo = await buscarReferencias("", vinculos);
   conferir("vinculos: SEM titulo, os vinculos aparecem do mesmo jeito", ids(semTitulo), [pF.id, pC.id].sort());
   conferir("vinculos: sem titulo e sem vinculo, nada", (await buscarReferencias("", { limite: 0 })).itens, []);
+  // Produto novo (16/11/2026): com titulo, mas limite 0 e nenhum vinculo, nao ha o que devolver; ler o acervo inteiro
+  // (70 mil) levava 4 a 5 s na VPS e o Salvar esperava na fila das acoes. Tem de voltar na hora, sem ler nada.
+  {
+    const antes = Date.now();
+    const vazio = await buscarReferencias("Placa Zzvinculo Nano", { limite: 0, fornecedoresLigados: [], idsConcorrentesLigados: [] });
+    conferir("vinculos: com titulo mas limite 0 e sem vinculo, vazio e sem ler o acervo", [vazio.total, vazio.itens, Date.now() - antes < 50], [0, [], true]);
+  }
   const semIdentificador = await buscarReferencias("", { limite: 0, fornecedoresLigados: [{ nome: fonteF.nome, codigo: null, link: null }] });
   conferir("vinculos: fornecedor sem codigo nem link e sem titulo nao escolhe produto no chute", semIdentificador.itens, []);
 

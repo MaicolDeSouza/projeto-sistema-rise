@@ -31,6 +31,12 @@ export async function buscarReferencias(termo, { limite = TETO, fornecedoresLiga
     return { total: 0, itens: [] };
   }
 
+  // Limite 0 pede SO os vinculos (a leitura que roda ao abrir o cadastro). Sem nenhum vinculo, como no produto novo, nao ha o que
+  // devolver: ler o acervo inteiro (70 mil) levava 4 a 5 s na VPS e o Salvar esperava na fila das acoes do servidor (16/11/2026).
+  if (limite === 0 && fornecedoresLigados.length === 0 && idsConcorrentesLigados.length === 0) {
+    return { total: 0, itens: [] };
+  }
+
   // Todos os produtos do banco (07/10/2026), inclusive os concorrentes ligados que a ultima varredura nao viu.
   const todos = await produtosParaLista();
 
