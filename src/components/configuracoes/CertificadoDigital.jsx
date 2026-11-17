@@ -137,7 +137,7 @@ export default function CertificadoDigital({ inicial = null, podeEditar }) {
           </div>
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-suave">Senha do certificado</span>
-            <input type="password" autoComplete="off" value={senha} onChange={(evento) => setSenha(evento.target.value)} className={`${CLASSE_CAMPO} w-56`} />
+            <input type="password" autoComplete="off" aria-label="Senha do certificado" value={senha} onChange={(evento) => setSenha(evento.target.value)} className={`${CLASSE_CAMPO} w-56`} />
           </label>
           <button
             type="submit"
