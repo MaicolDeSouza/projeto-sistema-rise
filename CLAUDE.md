@@ -6343,6 +6343,9 @@ plano `docs/superpowers/plans/2026-11-12-propostas-para-cliente.md`. Menu **Prop
     frete"), e volta ao sair. **O preço com frete é em centavos** (`itensComFreteDiluido`; era 4 casas, "R$ 41,888") e o
     total da proposta é a soma das linhas (`totaisDaProposta({ freteDiluido })`): o frete embutido pode diferir uns centavos do
     digitado (30 viram 30,01 no teste), mas tela, PDF e pedido do Bling fecham iguais.
+  - **Custo do item sem cadastro e histórico de contatos** (17/11/2026, recomendação aceita pelo dono): o item sem produto no
+    Rise ganhou o campo Custo na coluna Lucro (o do Rise segue só leitura), senão o lucro dele e o da proposta ficavam em
+    branco; e a janela "Registrar contato" mostra os contatos anteriores (o mais novo primeiro), já que a aba Contatos saiu.
 - **Foto do item avulso** (pedido do dono em 13/11/2026, na proposta da Fundação Coppetec: itens comprados no ML só para o
   cliente): no editor, a caixa da foto do avulso é um botão (ícone de imagem) que envia JPG/PNG/WebP na hora para
   `dados/propostas/<propostaId>/fotos/<32 hex>.jpg` (`gravarFotoDoItem`, reduzida a 600 px sobre branco); o "x" tira. O

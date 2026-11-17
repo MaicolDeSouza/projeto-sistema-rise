@@ -5,7 +5,7 @@ import { FileUp, Loader2, Paperclip, Trash2 } from "lucide-react";
 
 import { anexarCotacaoAcao, conferirPedidoDeVendaAcao, excluirAnexoAcao } from "@/app/propostas/acoes";
 import Pergunta from "@/components/compras/Pergunta";
-import { MOTIVOS_DE_RECUSA, hojeEmSaoPaulo, somarDias } from "@/lib/propostas/regras";
+import { MOTIVOS_DE_RECUSA, dataBR, hojeEmSaoPaulo, somarDias } from "@/lib/propostas/regras";
 import { campo, Rotulo } from "./CartaoCliente";
 
 /** "Recusar": o motivo e obrigatorio (preco, prazo, comprou de outro, desistiu, outro) e um texto opcional. */
@@ -30,7 +30,7 @@ export function JanelaRecusar({ numero, ocupado, aoRecuar, aoConfirmar }) {
 }
 
 /** "Registrar contato": o que foi falado e a proxima data (atalhos de 2, 7 e 15 dias). */
-export function JanelaContato({ numero, ocupado, aoRecuar, aoConfirmar }) {
+export function JanelaContato({ numero, contatos = [], ocupado, aoRecuar, aoConfirmar }) {
   const hoje = hojeEmSaoPaulo();
   const [texto, setTexto] = useState("");
   const [proximo, setProximo] = useState(somarDias(hoje, 2));
@@ -51,6 +51,24 @@ export function JanelaContato({ numero, ocupado, aoRecuar, aoConfirmar }) {
             Sem data
           </button>
         </div>
+        {/* O historico dos contatos dentro da janela (17/11/2026): saiu da aba Contatos do card "Notas e anexos", e sem
+            isto o que foi registrado nao aparecia em lugar nenhum. O mais novo primeiro. */}
+        {contatos.length > 0 && (
+          <div>
+            <p className="mb-1 text-xs font-medium text-suave">Contatos anteriores ({contatos.length})</p>
+            <ol className="max-h-48 space-y-1.5 overflow-y-auto text-sm">
+              {contatos.map((c) => (
+                <li key={c.id} className="rounded-md border border-borda px-3 py-2">
+                  <p className="text-xs text-suave tabular-nums">
+                    {new Date(c.em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} · {c.quem}
+                    {c.proximoContato && ` · próximo: ${dataBR(c.proximoContato)}`}
+                  </p>
+                  <p className="mt-0.5 whitespace-pre-line">{c.texto}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
       </div>
     </Pergunta>
   );

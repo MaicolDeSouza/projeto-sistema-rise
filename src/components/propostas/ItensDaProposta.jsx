@@ -825,7 +825,22 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                     </td>
                     {veCusto && (
                       // Lucro so de leitura, com a % embaixo (pedido do dono em 17/11/2026); o custo vem do Rise e aparece no mouse.
-                      <td className={`${td} pt-3 tabular-nums`} title={numeros.custoUnitario !== null ? `Custo: ${moedaUnitaria.format(numeros.custoUnitario)} cada` : "Sem custo"}>
+                      // O item SEM cadastro no Rise nao tem de onde tirar o custo: ali o custo se digita (17/11/2026, senao o
+                      // lucro dele e o da proposta inteira ficavam em branco).
+                      <td className={`${td} tabular-nums ${item.produtoId || !editar ? "pt-3" : ""}`} title={numeros.custoUnitario !== null ? `Custo: ${moedaUnitaria.format(numeros.custoUnitario)} cada` : "Sem custo"}>
+                        {!item.produtoId && editar && (
+                          <label className="mb-1 block">
+                            <span className="sr-only">Custo unitário</span>
+                            <input
+                              inputMode="decimal"
+                              value={item.custoUnitario}
+                              placeholder="Custo"
+                              aria-label="Custo unitário"
+                              onChange={(e) => mudarItem(indice, "custoUnitario", soDecimal(e.target.value))}
+                              className={`${celula} py-1 text-xs tabular-nums`}
+                            />
+                          </label>
+                        )}
                         <p className={`font-medium ${lucro === null ? "text-suave" : lucro < 0 ? "text-rose-600" : "text-texto"}`}>{lucro === null ? "—" : moeda.format(lucro)}</p>
                         {markup !== null && (
                           <p className={`text-xs ${markup < 0 ? "text-rose-600" : markup < 60 ? "text-amber-700" : "text-emerald-700"}`}>{Math.round(markup)}%</p>

@@ -414,7 +414,7 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
         </Pergunta>
       )}
       {pergunta === "recusar" && <JanelaRecusar numero={proposta.numero} ocupado={ocupado} aoRecuar={() => setPergunta(null)} aoConfirmar={(extras) => mudarSituacao("RECUSADA", extras)} />}
-      {pergunta === "contato" && <JanelaContato numero={proposta.numero} ocupado={ocupado} aoRecuar={() => setPergunta(null)} aoConfirmar={registrar} />}
+      {pergunta === "contato" && <JanelaContato numero={proposta.numero} contatos={proposta.contatos} ocupado={ocupado} aoRecuar={() => setPergunta(null)} aoConfirmar={registrar} />}
       {pergunta === "pedido" && <JanelaPedidoDeVenda proposta={proposta} moeda={moeda} ocupado={ocupado} aoRecuar={() => setPergunta(null)} aoConfirmar={gerarPedido} />}
     </div>
   );
