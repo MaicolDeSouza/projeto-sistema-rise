@@ -167,6 +167,65 @@ conferir("whatsapp", regras.linkDoWhatsApp("54988990008", "a b"), "https://wa.me
 conferir("frete com explicacao", regras.TEXTO_DO_FRETE.FOB, "FOB (frete por conta do cliente)");
 
 // ---------------------------------------------------------------------------
+// Assinatura digital (plano 2026-11-17): o certificado A1 de teste e o PDF assinado
+// ---------------------------------------------------------------------------
+
+console.log("\nAssinatura digital");
+const forge = (await import("node-forge")).default;
+const { certificadoDeTeste } = await import("./lib/certificadoDeTeste.js");
+const assinatura = await import("../src/lib/propostas/assinatura.js");
+const certTeste = certificadoDeTeste();
+const certComCadeia = certificadoDeTeste({ comCadeia: true });
+const lido = assinatura.lerCertificado(certTeste.pfx, certTeste.senha);
+conferir("certificado: razao social e CNPJ do CN", [lido.razaoSocial, lido.cnpj], ["ZZ TESTE LTDA", "00.000.000/0001-91"]);
+conferir("certificado: validade e uma data futura", lido.validoAte instanceof Date && lido.validoAte > new Date(), true);
+const lidoComCadeia = assinatura.lerCertificado(certComCadeia.pfx, certComCadeia.senha);
+conferir("certificado com a AC junto: o da chave privada", [lidoComCadeia.razaoSocial, lidoComCadeia.cnpj], ["ZZ TESTE LTDA", "00.000.000/0001-91"]);
+const erroDe = (fn) => {
+  try {
+    fn();
+    return null;
+  } catch (erro) {
+    return erro.message;
+  }
+};
+conferir("certificado: senha errada", erroDe(() => assinatura.lerCertificado(certTeste.pfx, "errada")), "Senha do certificado incorreta ou arquivo inválido.");
+const certVencido = certificadoDeTeste({ vencido: true });
+conferir("certificado: vencido", /^Certificado vencido em \d{2}\/\d{2}\/\d{4}\.$/.test(erroDe(() => assinatura.lerCertificado(certVencido.pfx, certVencido.senha)) ?? ""), true);
+conferir("certificado: arquivo grande", erroDe(() => assinatura.lerCertificado(Buffer.alloc(51 * 1024), "x")), "Arquivo maior que 50 KB.");
+conferir("certificado: CN sem CNPJ", (() => {
+  const c = certificadoDeTeste({ cn: "FULANO DE TAL", senha: "abc" });
+  const l = assinatura.lerCertificado(c.pfx, "abc");
+  return [l.razaoSocial, l.cnpj];
+})(), ["FULANO DE TAL", null]);
+
+// Um PDF qualquer do pdfkit (o mesmo gerador da proposta), assinado.
+const PDFKit = (await import("pdfkit")).default;
+const pdfSimples = await new Promise((resolver) => {
+  const doc = new PDFKit({ size: "A4" });
+  const partes = [];
+  doc.on("data", (p) => partes.push(p));
+  doc.on("end", () => resolver(Buffer.concat(partes)));
+  doc.text("Proposta de teste");
+  doc.end();
+});
+const assinado = await assinatura.assinarPdf(pdfSimples, { pfx: certTeste.pfx, senha: certTeste.senha, motivo: "Proposta comercial Nº 1", local: "Caxias do Sul - RS" });
+const textoAssinado = assinado.toString("latin1");
+conferir("PDF assinado: ByteRange e subFilter PAdES", [textoAssinado.includes("/ByteRange"), textoAssinado.includes("ETSI.CAdES.detached")], [true, true]);
+const faixa = textoAssinado.match(/\/ByteRange\s*\[\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\]/).slice(1).map(Number);
+const conteudoAssinado = Buffer.concat([assinado.subarray(faixa[0], faixa[0] + faixa[1]), assinado.subarray(faixa[2], faixa[2] + faixa[3])]);
+const hexDaAssinatura = textoAssinado.slice(faixa[0] + faixa[1] + 1, faixa[2] - 1).replace(/(00)+$/, "");
+const derDaAssinatura = Buffer.from(hexDaAssinatura, "hex");
+const cms = forge.pkcs7.messageFromAsn1(forge.asn1.fromDer(forge.util.createBuffer(derDaAssinatura.toString("binary")), { parseAllBytes: false }));
+conferir("PDF assinado: certificado do signatario", cms.certificates.map((c) => c.subject.getField("CN").value).includes("ZZ TESTE LTDA:00000000000191"), true);
+// messageDigest (OID 1.2.840.113549.1.9.4) seguido de SET { OCTET STRING de 32 bytes } = o SHA-256 das duas faixas.
+const oidDoDigest = Buffer.from("06092a864886f70d01090431220420", "hex");
+const ondeDigest = derDaAssinatura.indexOf(oidDoDigest);
+const digestGravado = ondeDigest >= 0 ? derDaAssinatura.subarray(ondeDigest + oidDoDigest.length, ondeDigest + oidDoDigest.length + 32).toString("hex") : null;
+const { createHash } = await import("node:crypto");
+conferir("PDF assinado: o digest confere com o conteudo", digestGravado, createHash("sha256").update(conteudoAssinado).digest("hex"));
+
+// ---------------------------------------------------------------------------
 // Banco: limpeza e documentos de teste
 // ---------------------------------------------------------------------------
 
