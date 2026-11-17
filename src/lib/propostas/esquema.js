@@ -43,6 +43,8 @@ export function conferirProposta(entrada = {}) {
   dados.clienteDocumento = texto(entrada.clienteDocumento, 30);
   if (dados.clienteEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dados.clienteEmail)) erros.clienteEmail = "E-mail inválido.";
   dados.contatoId = texto(entrada.contatoId, 40);
+  // O A/C digitado a mao (pedido do dono em 17/11/2026): fica so na proposta, sem virar contato do cliente.
+  dados.contatoNome = texto(entrada.contatoNome, 120);
   dados.padraoId = texto(entrada.padraoId, 40);
 
   dados.condicaoPagamentoId = texto(entrada.condicaoPagamentoId, 40);

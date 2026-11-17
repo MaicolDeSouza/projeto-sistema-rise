@@ -70,9 +70,17 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
   const mudar = (campoDoFormulario, valor) => setFormulario((antes) => ({ ...antes, [campoDoFormulario]: valor }));
 
   /** Escolher o padrao copia as regras dele para a proposta (validade, pagamento, frete, garantia, observacoes). */
+  // "Cliente comum" (pedido do dono em 17/11/2026): e a opcao vazia do seletor, e nao um padrao. Escolher aplica as regras
+  // do padrao "Cliente comum" (validade, frete, garantia) mas a proposta fica SEM padrao, como antes: o PDF so mostra o
+  // faturamento minimo a quem tem padrao (SENAI). Por isso o padrao "Cliente comum" nao aparece de novo na lista.
+  const padraoComum = padroes.find((p) => p.id === "padrao-cliente-comum" || p.nome.trim().toLowerCase() === "cliente comum") ?? null;
+  const padroesDaLista = padroes.filter((p) => p.id !== padraoComum?.id);
   function aplicarPadrao(id) {
-    const escolhido = padroes.find((p) => p.id === id);
-    setFormulario((antes) => (escolhido ? { ...antes, ...camposDoPadrao(escolhido) } : { ...antes, padraoId: "" }));
+    const escolhido = id ? padroes.find((p) => p.id === id) : null;
+    setFormulario((antes) => {
+      if (escolhido && escolhido.id !== padraoComum?.id) return { ...antes, ...camposDoPadrao(escolhido) };
+      return { ...antes, ...camposDoPadrao(padraoComum), padraoId: "" };
+    });
   }
 
   function ligarCliente(lido) {
@@ -86,6 +94,7 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
       clienteNome: lido.nome,
       clienteDocumento: lido.documento ?? "",
       contatoId: "",
+      contatoNome: "",
       // So preenche o que esta vazio: trocar de cliente nao apaga o que o operador ja escolheu.
       transportadoraId: antes.transportadoraId || lido.transportadoraId || "",
       condicaoPagamentoId: antes.condicaoPagamentoId || lido.condicoesPreferidas?.[0]?.id || "",
@@ -93,7 +102,7 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
   }
   function desligarCliente() {
     setCliente(null);
-    setFormulario((antes) => ({ ...antes, clienteId: null, contatoId: "", clienteNome: "", clienteDocumento: "", clienteTelefone: "", clienteEmail: "" }));
+    setFormulario((antes) => ({ ...antes, clienteId: null, contatoId: "", contatoNome: "", clienteNome: "", clienteDocumento: "", clienteTelefone: "", clienteEmail: "" }));
   }
 
   /** Grava; devolve a proposta salva ou null (com os erros na tela). */
@@ -147,7 +156,7 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
       if (!(await salvoParaEnviar())) return;
       const resposta = await linkPublicoAcao(proposta.numero);
       if (!resposta?.ok) return setErroGeral(resposta?.erro ?? "Não foi possível criar o link.");
-      const nome = cliente?.contatos?.find((c) => c.id === formulario.contatoId)?.nome ?? formulario.clienteNome;
+      const nome = cliente?.contatos?.find((c) => c.id === formulario.contatoId)?.nome || formulario.contatoNome.trim() || formulario.clienteNome;
       const url = linkDoWhatsApp(telefoneDoWhats, mensagemDoWhatsApp({ numero: proposta.numero, nome, link: resposta.url }));
       if (url) window.open(url, "_blank", "noopener");
       router.refresh();
@@ -301,22 +310,33 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
 
       <div className="space-y-6">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
-          <CartaoCliente formulario={formulario} cliente={formulario.clienteId ? cliente : null} editar={editar} erros={erros} aoMudar={mudar} aoLigarCliente={ligarCliente} aoDesligarCliente={desligarCliente} />
+          <CartaoCliente
+            seletorDoPadrao={
+              // Ao lado do titulo "Cliente" (pedido do dono em 17/11/2026); sem padrao = "Cliente comum".
+              <select
+                value={formulario.padraoId === padraoComum?.id ? "" : formulario.padraoId}
+                disabled={!editar}
+                onChange={(e) => aplicarPadrao(e.target.value)}
+                aria-label="Padrão do cliente"
+                title="Padrão do cliente: aplica validade, pagamento, frete, garantia e observações do padrão"
+                className="rounded-md border border-borda bg-superficie py-1 pr-7 pl-2 text-sm font-normal focus:border-acento focus:ring-2 focus:ring-acento/20 focus:outline-none disabled:bg-fundo disabled:text-suave"
+              >
+                <option value="">Cliente comum</option>
+                {padroesDaLista.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nome}
+                  </option>
+                ))}
+                {padrao && padrao.id !== padraoComum?.id && !padroes.some((p) => p.id === padrao.id) && <option value={padrao.id}>{padrao.nome}</option>}
+              </select>
+            }
+            formulario={formulario}
+            cliente={formulario.clienteId ? cliente : null}
+            editar={editar} erros={erros} aoMudar={mudar} aoLigarCliente={ligarCliente} aoDesligarCliente={desligarCliente} />
           <SecaoDoAnuncio titulo="Validade e contato">
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-1">
               <Rotulo texto="Válida até" erro={erros.validadeAte}>
                 <input type="date" value={formulario.validadeAte} disabled={!podeEditar || (proposta.soLeitura && situacao !== "VENCIDA")} aria-invalid={Boolean(erros.validadeAte)} onChange={(e) => mudar("validadeAte", e.target.value)} className={campo} />
-              </Rotulo>
-              <Rotulo texto="Padrão do cliente" className="col-span-2 lg:col-span-1">
-                <select value={formulario.padraoId} disabled={!editar} onChange={(e) => aplicarPadrao(e.target.value)} className={campo} title="Aplica validade, pagamento, frete, garantia e observações do padrão">
-                  <option value="">Sem padrão</option>
-                  {padroes.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nome}
-                    </option>
-                  ))}
-                  {padrao && !padroes.some((p) => p.id === padrao.id) && <option value={padrao.id}>{padrao.nome}</option>}
-                </select>
               </Rotulo>
               <Rotulo texto="Próximo contato" erro={erros.proximoContato}>
                 <input type="date" value={formulario.proximoContato} disabled={!editar} onChange={(e) => mudar("proximoContato", e.target.value)} className={`${campo} ${contatoAgora ? "border-amber-400 bg-amber-50" : ""}`} />

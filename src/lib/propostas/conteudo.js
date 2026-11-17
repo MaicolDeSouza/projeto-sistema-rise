@@ -73,7 +73,8 @@ function linhasDoEndereco(endereco) {
   ].filter(Boolean);
 }
 
-function linhasDoCliente(proposta) {
+/** As linhas de "Dados do cliente" (documento e IE, endereco Geral, telefone e e-mail); a tela da proposta mostra as mesmas. */
+export function linhasDoCliente(proposta) {
   const cliente = proposta.cliente;
   const geral = cliente?.enderecos?.find((e) => e.tipo === "GERAL");
   const documento = proposta.clienteDocumento ? `${String(proposta.clienteDocumento).length > 14 ? "CNPJ" : "CPF"} ${proposta.clienteDocumento}` : null;
@@ -96,7 +97,7 @@ function contatoDoCliente(proposta) {
  * "Entregar em" (ao lado do cliente, como o "Ship To" do modelo do dono): o endereco de Entrega do cadastro, senao o
  * Geral; cliente que retira, a frase; sem endereco nenhum (provisorio), "A combinar".
  */
-function linhasDaEntrega(proposta) {
+export function linhasDaEntrega(proposta) {
   if (proposta.fretePorConta === "RETIRA") return ["Retirada pelo cliente na 4hobby"];
   const enderecos = proposta.cliente?.enderecos ?? [];
   const linhas = linhasDoEndereco(enderecos.find((e) => e.tipo === "ENTREGA"));

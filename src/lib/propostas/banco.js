@@ -296,13 +296,19 @@ export async function salvarProposta(numeroDaProposta, entrada, { manterCusto = 
     clienteEmail: dados.clienteEmail,
     clienteDocumento: dados.clienteDocumento,
   };
+  // O A/C: um contato do cliente (pelo id ou pelo nome digitado igual ao de um contato) ou um nome digitado a mao, que
+  // fica so na proposta e NAO vira contato do cliente (pedido do dono em 17/11/2026).
   let contatoId = null;
-  let contatoNome = null;
+  let contatoNome = dados.contatoNome;
   if (clienteId) {
     const cliente = await prisma.cliente.findUnique({ where: { id: clienteId }, select: { nome: true, telefone: true, email: true, documento: true } });
     copiaDoCliente = { clienteNome: cliente.nome, clienteTelefone: cliente.telefone, clienteEmail: cliente.email, clienteDocumento: cliente.documento };
-    if (dados.contatoId) {
-      const contato = await prisma.clienteContato.findFirst({ where: { id: dados.contatoId, clienteId }, select: { id: true, nome: true } });
+    if (dados.contatoId || dados.contatoNome) {
+      const contatos = await prisma.clienteContato.findMany({ where: { clienteId }, select: { id: true, nome: true } });
+      const comparavel = (nome) => String(nome ?? "").trim().toLocaleLowerCase("pt-BR");
+      const contato =
+        (dados.contatoId && contatos.find((c) => c.id === dados.contatoId)) ||
+        (dados.contatoNome && contatos.find((c) => comparavel(c.nome) === comparavel(dados.contatoNome)));
       if (contato) [contatoId, contatoNome] = [contato.id, contato.nome];
     }
   }

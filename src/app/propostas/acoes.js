@@ -122,8 +122,12 @@ async function clienteParaProposta(clienteId) {
       nome: true,
       nomeFantasia: true,
       documento: true,
+      tipoPessoa: true,
       telefone: true,
       email: true,
+      inscricaoEstadual: true,
+      // Enderecos: a tela mostra os dados completos e o endereco de entrega, iguais aos do PDF (pedido do dono em 17/11/2026).
+      enderecos: true,
       blingContatoId: true,
       padraoPropostaId: true,
       transportadoraId: true,

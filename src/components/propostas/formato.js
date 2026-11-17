@@ -61,6 +61,7 @@ export function formularioDaProposta(proposta) {
     clienteEmail: proposta.clienteEmail ?? "",
     clienteDocumento: proposta.clienteDocumento ?? "",
     contatoId: proposta.contatoId ?? "",
+    contatoNome: proposta.contatoNome ?? "",
     padraoId: proposta.padraoId ?? "",
     condicaoPagamentoId: proposta.condicaoPagamentoId ?? "",
     formaPagamento: proposta.formaPagamento ?? "",

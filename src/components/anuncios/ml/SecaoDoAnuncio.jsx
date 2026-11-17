@@ -6,7 +6,7 @@ import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
  * achar onde cada grupo de campos comeca. A explicacao vai na bolha "i" (Padrao visual, regra 2), e a acao da secao, se
  * houver, fica a direita do titulo.
  */
-export default function SecaoDoAnuncio({ titulo, ajuda = null, acao = null, children, className = "", semCorpo = false }) {
+export default function SecaoDoAnuncio({ titulo, ajuda = null, aoLadoDoTitulo = null, acao = null, children, className = "", semCorpo = false }) {
   return (
     <section className={`rounded-lg border border-borda bg-superficie ${className}`}>
       {/* `semCorpo`: so a faixa do titulo (o cartao do atacado desligado: o interruptor mora na faixa e nada mais precisa aparecer). */}
@@ -14,6 +14,8 @@ export default function SecaoDoAnuncio({ titulo, ajuda = null, acao = null, chil
         <div className="flex items-center gap-1.5">
           <h3 className="text-sm font-semibold text-texto">{titulo}</h3>
           {ajuda && <BolhaDeAjuda variante="inline" texto={ajuda} />}
+          {/* Um campo colado ao titulo (o "Padrao do cliente" da proposta, pedido do dono em 17/11/2026). */}
+          {aoLadoDoTitulo && <div className="ml-2">{aoLadoDoTitulo}</div>}
         </div>
         {acao}
       </header>

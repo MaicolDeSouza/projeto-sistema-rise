@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { CloudUpload, Loader2, Search, X } from "lucide-react";
+import { ChevronDown, CloudUpload, Loader2, Search, X } from "lucide-react";
 
 import { buscarClienteAcao, clienteParaPropostaAcao, enviarClienteAoBlingAcao, usarContatoDoBlingAcao } from "@/app/propostas/acoes";
 import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
+import { linhasDaEntrega, linhasDoCliente } from "@/lib/propostas/conteudo";
 import { formatarTelefone } from "@/lib/telefone";
 
 export const campo =
@@ -26,7 +27,7 @@ export function Rotulo({ texto, erro, children, className = "" }) {
  * cliente PROVISORIO, que ficam so na proposta; com CPF/CNPJ, o Salvar cadastra no Rise e no Bling (regra do dono).
  * Cliente ligado mostra o cadastro e o A/C (as pessoas do cliente).
  */
-export default function CartaoCliente({ formulario, cliente, editar, erros, aoMudar, aoLigarCliente, aoDesligarCliente }) {
+export default function CartaoCliente({ seletorDoPadrao = null, formulario, cliente, editar, erros, aoMudar, aoLigarCliente, aoDesligarCliente }) {
   const [texto, setTexto] = useState("");
   const [achados, setAchados] = useState(null);
   const [buscando, setBuscando] = useState(false);
@@ -82,6 +83,7 @@ export default function CartaoCliente({ formulario, cliente, editar, erros, aoMu
     return (
       <SecaoDoAnuncio
         titulo="Cliente"
+        aoLadoDoTitulo={seletorDoPadrao}
         acao={
           editar ? (
             <button type="button" onClick={aoDesligarCliente} className="inline-flex items-center gap-1 text-xs text-suave hover:text-texto">
@@ -90,14 +92,17 @@ export default function CartaoCliente({ formulario, cliente, editar, erros, aoMu
           ) : null
         }
       >
-        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,16rem)]">
+        {/* Os dados completos e o endereco de entrega, as MESMAS linhas do PDF (pedido do dono em 17/11/2026). */}
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,16rem)]">
           <div className="min-w-0 space-y-0.5 text-sm">
-            <Link href={`/cadastros/clientes/${cliente.id}`} className="block truncate text-base font-semibold hover:text-acento hover:underline" title="Abrir o cadastro do cliente">
+            <Link href={`/cadastros/clientes/${cliente.id}`} className="block text-base font-semibold break-words hover:text-acento hover:underline" title="Abrir o cadastro do cliente">
               {cliente.nome}
             </Link>
-            <p className="text-suave tabular-nums">
-              {[cliente.documento, cliente.telefone ? formatarTelefone(cliente.telefone) : null, cliente.email].filter(Boolean).join(" · ")}
-            </p>
+            {linhasDoCliente({ cliente, clienteDocumento: cliente.documento, clienteTelefone: cliente.telefone, clienteEmail: cliente.email }).map((linha) => (
+              <p key={linha} className="text-suave tabular-nums">
+                {linha}
+              </p>
+            ))}
             {!cliente.blingContatoId && (
               <p className="flex flex-wrap items-center gap-2 pt-1 text-amber-700">
                 Ainda não está no Bling.
@@ -110,24 +115,22 @@ export default function CartaoCliente({ formulario, cliente, editar, erros, aoMu
             )}
             {erro && <p className="text-rose-600" role="alert">{erro}</p>}
           </div>
-          <Rotulo texto="A/C">
-            <select value={formulario.contatoId} disabled={!editar} onChange={(e) => aoMudar("contatoId", e.target.value)} className={campo}>
-              <option value="">{cliente.contatos?.length ? "Sem A/C" : "O cliente não tem contatos"}</option>
-              {(cliente.contatos ?? []).map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nome}
-                  {c.cargo ? ` (${c.cargo})` : ""}
-                </option>
-              ))}
-            </select>
-          </Rotulo>
+          <div className="min-w-0 space-y-0.5 text-sm">
+            <p className="text-xs font-medium text-suave">Endereço de entrega</p>
+            {linhasDaEntrega({ fretePorConta: formulario.fretePorConta, cliente }).map((linha) => (
+              <p key={linha} className="tabular-nums">
+                {linha}
+              </p>
+            ))}
+          </div>
+          <CampoAC contatos={cliente.contatos ?? []} contatoId={formulario.contatoId} contatoNome={formulario.contatoNome ?? ""} editar={editar} aoMudar={aoMudar} />
         </div>
       </SecaoDoAnuncio>
     );
   }
 
   return (
-    <SecaoDoAnuncio titulo="Cliente" ajuda="Busque pelo nome, CPF ou CNPJ: primeiro no Rise, depois no Bling. Sem CPF/CNPJ o cliente fica só nesta proposta; com o documento, o Salvar cadastra no Rise e no Bling.">
+    <SecaoDoAnuncio titulo="Cliente" aoLadoDoTitulo={seletorDoPadrao} ajuda="Busque pelo nome, CPF ou CNPJ: primeiro no Rise, depois no Bling. Sem CPF/CNPJ o cliente fica só nesta proposta; com o documento, o Salvar cadastra no Rise e no Bling.">
       {editar && (
         <div className="relative mb-4 max-w-xl">
           <Search size={16} className="pointer-events-none absolute top-2.5 left-2.5 text-suave" />
@@ -176,5 +179,120 @@ export default function CartaoCliente({ formulario, cliente, editar, erros, aoMu
       </div>
       {erro && <p className="mt-2 text-sm text-rose-600" role="alert">{erro}</p>}
     </SecaoDoAnuncio>
+  );
+}
+
+const comparavel = (texto) =>
+  String(texto ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .trim()
+    .toLowerCase();
+
+/**
+ * O A/C (pedido do dono em 17/11/2026): escolher um contato do cliente na lista OU digitar um nome. O nome digitado fica
+ * so na proposta (nao vira contato do cliente); igual ao de um contato, liga a ele. A seta abre a lista inteira; digitar
+ * filtra.
+ */
+function CampoAC({ contatos, contatoId, contatoNome, editar, aoMudar }) {
+  const [aberto, setAberto] = useState(false);
+  const [filtrando, setFiltrando] = useState(false);
+  const [marcado, setMarcado] = useState(-1);
+  const caixa = useRef(null);
+  const idDaLista = useId();
+
+  useEffect(() => {
+    if (!aberto) return undefined;
+    const fora = (evento) => {
+      if (!caixa.current?.contains(evento.target)) setAberto(false);
+    };
+    document.addEventListener("mousedown", fora);
+    return () => document.removeEventListener("mousedown", fora);
+  }, [aberto]);
+
+  const termo = comparavel(contatoNome);
+  const lista = filtrando && termo ? contatos.filter((c) => comparavel(c.nome).includes(termo)) : contatos;
+  const abrir = (filtrar) => {
+    if (!contatos.length) return;
+    setFiltrando(filtrar);
+    setMarcado(-1);
+    setAberto(true);
+  };
+  const escolher = (contato) => {
+    aoMudar("contatoNome", contato.nome);
+    aoMudar("contatoId", contato.id);
+    setAberto(false);
+  };
+  const digitar = (valor) => {
+    const igual = contatos.find((c) => comparavel(c.nome) === comparavel(valor));
+    aoMudar("contatoNome", valor);
+    aoMudar("contatoId", igual?.id ?? "");
+    abrir(true);
+  };
+  const tecla = (evento) => {
+    if (evento.key === "Escape" && aberto) {
+      evento.stopPropagation();
+      setAberto(false);
+    } else if (evento.key === "ArrowDown") {
+      evento.preventDefault();
+      if (!aberto) return abrir(false);
+      setMarcado((i) => Math.min(i + 1, lista.length - 1));
+    } else if (evento.key === "ArrowUp" && aberto) {
+      evento.preventDefault();
+      setMarcado((i) => Math.max(i - 1, 0));
+    } else if (evento.key === "Enter" && aberto && lista[marcado]) {
+      evento.preventDefault();
+      escolher(lista[marcado]);
+    }
+  };
+
+  return (
+    // self-start: a coluna do grid estica ate a altura do cartao, e a seta (absolute, bottom) desceria junto.
+    <div ref={caixa} className="relative self-start">
+      <Rotulo texto="A/C">
+        <input
+          value={contatoNome}
+          disabled={!editar}
+          onChange={(e) => digitar(e.target.value.slice(0, 120))}
+          onKeyDown={tecla}
+          placeholder={contatos.length ? "Escolha ou digite um nome" : "Digite um nome"}
+          role="combobox"
+          aria-expanded={aberto}
+          aria-controls={idDaLista}
+          aria-autocomplete="list"
+          title={contatoNome && !contatoId ? "Nome digitado: fica só nesta proposta, sem entrar nos contatos do cliente." : undefined}
+          className={`${campo} ${contatos.length ? "pr-8" : ""}`}
+        />
+      </Rotulo>
+      {editar && contatos.length > 0 && (
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label="Mostrar os contatos do cliente"
+          title="Contatos do cliente"
+          onClick={() => (aberto ? setAberto(false) : abrir(false))}
+          className="absolute right-1 bottom-1 flex size-8 items-center justify-center rounded text-suave hover:text-texto"
+        >
+          <ChevronDown size={16} className={`transition-transform duration-150 ${aberto ? "rotate-180" : ""}`} />
+        </button>
+      )}
+      {aberto && lista.length > 0 && (
+        <ul id={idDaLista} role="listbox" className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-md border border-borda bg-superficie py-1 shadow-lg">
+          {lista.map((c, indice) => (
+            <li key={c.id} role="option" aria-selected={c.id === contatoId}>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => escolher(c)}
+                className={`flex w-full items-baseline justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-fundo ${indice === marcado ? "bg-fundo" : ""} ${c.id === contatoId ? "font-medium text-acento" : ""}`}
+              >
+                <span className="min-w-0 truncate">{c.nome}</span>
+                {c.cargo && <span className="shrink-0 text-xs text-suave">{c.cargo}</span>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

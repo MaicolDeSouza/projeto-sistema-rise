@@ -292,6 +292,21 @@ try {
   const lidaComDoc = await banco.lerProposta(p2.numero);
   conferir("documento cria o cliente e liga", [comDoc.ok, comDoc.avisoBling, Boolean(lidaComDoc.clienteId), Boolean(lidaComDoc.cliente?.blingContatoId)], [true, null, true, true]);
 
+  // O A/C (pedido do dono em 17/11/2026): contato da lista, nome igual ao de um contato ou nome digitado a mao, que fica
+  // so na proposta e nao vira contato do cliente.
+  const ana = await prisma.clienteContato.create({ data: { clienteId: lidaComDoc.clienteId, nome: "Ana Souza", cargo: "Compras" } });
+  const comCliente = { ...entrada, clienteId: lidaComDoc.clienteId };
+  const acDe = async (extra) => {
+    await banco.salvarProposta(p2.numero, { ...comCliente, ...extra }, { hoje: "2026-11-12" });
+    const lidaAc = await banco.lerProposta(p2.numero);
+    return [lidaAc.contatoId, lidaAc.contatoNome];
+  };
+  conferir("A/C pela lista", await acDe({ contatoId: ana.id, contatoNome: "Ana Souza" }), [ana.id, "Ana Souza"]);
+  conferir("A/C digitado igual a um contato liga a ele", await acDe({ contatoId: "", contatoNome: "  ana souza " }), [ana.id, "Ana Souza"]);
+  conferir("A/C digitado a mao fica so na proposta", await acDe({ contatoId: "", contatoNome: "Fulano da Silva" }), [null, "Fulano da Silva"]);
+  conferir("A/C digitado nao vira contato do cliente", await prisma.clienteContato.count({ where: { clienteId: lidaComDoc.clienteId } }), 1);
+  conferir("A/C vazio", await acDe({ contatoId: "", contatoNome: "" }), [null, null]);
+
   conferir("rascunho nao vai para vencida pelo botao", (await banco.mudarSituacao(p1.numero, "VENCIDA")).ok, false);
   conferir("recusar sem motivo", (await banco.mudarSituacao(p1.numero, "RECUSADA")).erro, "Escolha o motivo da recusa.");
   await banco.marcarEnviada(p1.numero);
