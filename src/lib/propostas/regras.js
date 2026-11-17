@@ -339,7 +339,8 @@ export function textoDoPagamento({ condicaoNome, formaPagamento, parcelas, entra
   const valores = Number.isFinite(valorTotal) && valorTotal > 0 ? valoresDoPagamento({ total: valorTotal, parcelas, entradaPercentual, entradaTipo, entradaValor }) : null;
   const emReaisNaEntrada = entradaTipo === "VALOR";
   const temEntrada = emReaisNaEntrada ? Number(entradaValor) > 0 : Number(entradaPercentual) > 0;
-  if (condicaoNome) partes.push(condicaoNome);
+  // Condicao em dias ("7 dias", "28/56 dias"): conta da emissao da nota fiscal (melhoria 7 aprovada pelo dono em 17/11/2026).
+  if (condicaoNome) partes.push(/^\s*\d+(\s*\/\s*\d+)*\s*dias?\s*$/i.test(condicaoNome) ? `${condicaoNome.trim()} após a emissão da nota fiscal` : condicaoNome);
   if (formaPagamento) partes.push(formaPagamento);
   if (temEntrada && emReaisNaEntrada) partes.push(`entrada de ${emReais.format(valores ? valores.entrada : Number(entradaValor))}`);
   else if (temEntrada) {

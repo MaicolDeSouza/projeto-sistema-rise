@@ -27,6 +27,11 @@ const FOTO = 38;
 const FONTE_DA_FAIXA = 9.3;
 const FONTE_DO_TITULO = 8.5;
 const FONTE_DO_ITEM = 9.5;
+// As areas da empresa e do cliente com a MESMA fonte (pedido do dono em 17/11/2026: a da empresa estava menor, 7,8 contra
+// 8,5): titulo de cada bloco, nome (empresa e cliente) e as linhas de dado.
+const FONTE_DO_TITULO_DO_BLOCO = 10.5;
+const FONTE_DO_NOME = 9.5;
+const FONTE_DO_DADO = 8.5;
 // O logo INTEIRO (o enviado em Dados da empresa) numa caixa a esquerda do cabecalho, como o farol do modelo do dono. A
 // altura termina na linha azul dupla (pedido do dono em 17/11/2026: o logo "passava muito para baixo").
 const LOGO_LARGURA = 132;
@@ -158,12 +163,13 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     // contato" e "Dados bancários"; sem dado bancario a terceira some e as outras duas ficam no lugar.
     const yInfo = Math.max(yLinha + 4, topo + LOGO_ALTURA) + 14;
     const terco = largura / 3;
-    const tituloDaColuna = (texto, x) => doc.font("Helvetica-Bold").fontSize(9).fillColor(AZUL).text(texto, x, yInfo, { width: terco - 10, lineBreak: false });
-    const yDasLinhas = yInfo + 14;
+    const tituloDaColuna = (texto, x) =>
+      doc.font("Helvetica-Bold").fontSize(FONTE_DO_TITULO_DO_BLOCO).fillColor(AZUL).text(texto, x, yInfo, { width: terco - 10, lineBreak: false });
+    const yDasLinhas = yInfo + 16;
     tituloDaColuna("Dados da empresa", MARGEM);
-    doc.font("Helvetica-Bold").fontSize(7.8).fillColor(TEXTO).text(conteudo.nomeDaEmpresa, MARGEM, yDasLinhas, { width: terco - 10 });
+    doc.font("Helvetica-Bold").fontSize(FONTE_DO_NOME).fillColor(TEXTO).text(conteudo.nomeDaEmpresa, MARGEM, yDasLinhas, { width: terco - 10 });
     let yEndereco = doc.y + 1;
-    doc.font("Helvetica").fontSize(7.8).fillColor(TEXTO_SUAVE);
+    doc.font("Helvetica").fontSize(FONTE_DO_DADO).fillColor(TEXTO);
     for (const linha of conteudo.empresa) {
       doc.text(linha, MARGEM, yEndereco, { width: terco - 10 });
       yEndereco = doc.y + 1;
@@ -176,15 +182,15 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     tituloDaColuna("Dados para contato", xContatos);
     let yContatos = yDasLinhas;
     for (const contato of conteudo.contatos) {
-      desenharIcone(doc, contato.tipo, xContatos, yContatos, 8.5);
-      doc.font("Helvetica").fontSize(7.8).fillColor(TEXTO_SUAVE).text(contato.texto, xContatos + 12, yContatos + 0.5, { width: terco - 22, link: contato.url ?? undefined, lineBreak: false, ellipsis: true });
-      yContatos += 12.5;
+      desenharIcone(doc, contato.tipo, xContatos, yContatos, 9);
+      doc.font("Helvetica").fontSize(FONTE_DO_DADO).fillColor(TEXTO).text(contato.texto, xContatos + 13, yContatos + 0.5, { width: terco - 23, link: contato.url ?? undefined, lineBreak: false, ellipsis: true });
+      yContatos += 13.5;
     }
     let yBancarios = yDasLinhas;
     if (conteudo.bancarios.length) {
       const xBancarios = MARGEM + terco * 2;
       tituloDaColuna("Dados bancários", xBancarios);
-      doc.font("Helvetica").fontSize(7.8).fillColor(TEXTO_SUAVE);
+      doc.font("Helvetica").fontSize(FONTE_DO_DADO).fillColor(TEXTO);
       for (const linha of conteudo.bancarios) {
         doc.text(linha, xBancarios, yBancarios, { width: terco - 4 });
         yBancarios = doc.y + 1;
@@ -199,21 +205,21 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     const meia = (largura - 20) / 2;
     const yCliente = doc.y;
     // Titulos maiores e em azul (pedido do dono em 13/11/2026: "mais evidente"), com os nomes que ele escolheu.
-    doc.font("Helvetica-Bold").fontSize(12).fillColor(AZUL).text("Dados do cliente", MARGEM, yCliente);
+    doc.font("Helvetica-Bold").fontSize(FONTE_DO_TITULO_DO_BLOCO).fillColor(AZUL).text("Dados do cliente", MARGEM, yCliente);
     doc.fillColor(TEXTO);
     // O A/C vem primeiro, logo abaixo do titulo (desenho do dono em 13/11/2026), com os dados do contato.
     if (conteudo.cliente.ac) {
-      doc.font("Helvetica-Bold").fontSize(9.5).text(conteudo.cliente.ac, MARGEM, doc.y + 2, { width: meia });
-      if (conteudo.cliente.acLinha) doc.font("Helvetica").fontSize(8.5).text(conteudo.cliente.acLinha, MARGEM, doc.y, { width: meia });
+      doc.font("Helvetica-Bold").fontSize(FONTE_DO_DADO).text(conteudo.cliente.ac, MARGEM, doc.y + 2, { width: meia });
+      if (conteudo.cliente.acLinha) doc.font("Helvetica").fontSize(FONTE_DO_DADO).text(conteudo.cliente.acLinha, MARGEM, doc.y, { width: meia });
     }
-    doc.font("Helvetica-Bold").fontSize(10.5).text(conteudo.cliente.nome, MARGEM, doc.y + 2, { width: meia });
-    doc.font("Helvetica").fontSize(8.5);
+    doc.font("Helvetica-Bold").fontSize(FONTE_DO_NOME).text(conteudo.cliente.nome, MARGEM, doc.y + 2, { width: meia });
+    doc.font("Helvetica").fontSize(FONTE_DO_DADO);
     for (const linha of conteudo.cliente.linhas) doc.text(linha, MARGEM, doc.y, { width: meia });
     const fimDoCliente = doc.y;
     const xEntrega = MARGEM + meia + 20;
-    doc.font("Helvetica-Bold").fontSize(12).fillColor(AZUL).text("Endereço de entrega", xEntrega, yCliente);
+    doc.font("Helvetica-Bold").fontSize(FONTE_DO_TITULO_DO_BLOCO).fillColor(AZUL).text("Endereço de entrega", xEntrega, yCliente);
     doc.fillColor(TEXTO);
-    doc.font("Helvetica").fontSize(8.5).text(conteudo.entrega.join("\n"), xEntrega, doc.y + 2, { width: meia });
+    doc.font("Helvetica").fontSize(FONTE_DO_DADO).text(conteudo.entrega.join("\n"), xEntrega, doc.y + 2, { width: meia });
     doc.y = Math.max(fimDoCliente, doc.y) + ENTRE_BLOCOS;
 
     // Faixa de condicoes: validade, pagamento, prazo de entrega, metodo de envio (com o frete por conta) e vendedor.
@@ -324,7 +330,7 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     // A caixa do tamanho do conteudo (o dono em 13/11/2026: sobrava espaco a direita dos valores): rotulo mais largo, 12 pt e o
     // valor mais largo, com 10 pt de cada lado.
     const larguraDoMaior = (textos, fonte, tamanho) => Math.max(...textos.map((texto) => doc.font(fonte).fontSize(tamanho).widthOfString(texto)));
-    const COLUNA_DO_VALOR = 10 + Math.max(larguraDoMaior(conteudo.linhasDeTotal.map(([r]) => r), "Helvetica-Bold", 9.5), larguraDoMaior(["Total (R$)"], "Helvetica-Bold", 12)) + 14;
+    const COLUNA_DO_VALOR = 10 + Math.max(larguraDoMaior(conteudo.linhasDeTotal.map(([r]) => r), "Helvetica-Bold", 9.5), larguraDoMaior(["Total"], "Helvetica-Bold", 12)) + 14;
     const larguraDaCaixa = COLUNA_DO_VALOR + Math.max(larguraDoMaior(conteudo.linhasDeTotal.map(([, v]) => v), "Helvetica", 9.5), larguraDoMaior([conteudo.total], "Helvetica-Bold", 12)) + 12;
     const xCaixa = MARGEM + largura - larguraDaCaixa;
     const alturaDaCaixa = conteudo.linhasDeTotal.length * LINHA_DO_TOTAL + 26;
@@ -338,7 +344,8 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     conteudo.linhasDeTotal.forEach(([rotulo, valor], i) => linhaDoQuadro(rotulo, valor, yCaixa + i * LINHA_DO_TOTAL, LINHA_DO_TOTAL, 9.5));
     const yDoTotal = yCaixa + conteudo.linhasDeTotal.length * LINHA_DO_TOTAL;
     doc.rect(xCaixa, yDoTotal, larguraDaCaixa, 26).fill(FUNDO_DO_CABECALHO);
-    linhaDoQuadro("Total (R$)", conteudo.total, yDoTotal, 26, 12);
+    // "Total" (melhoria 8 aprovada em 17/11/2026: "Total (R$) R$ 758,94" repetia o R$).
+    linhaDoQuadro("Total", conteudo.total, yDoTotal, 26, 12);
     doc.lineWidth(0.5).strokeColor(LINHA);
     for (let i = 1; i <= conteudo.linhasDeTotal.length; i++) doc.moveTo(xCaixa, yCaixa + i * LINHA_DO_TOTAL).lineTo(xCaixa + larguraDaCaixa, yCaixa + i * LINHA_DO_TOTAL).stroke();
     doc.rect(xCaixa, yCaixa, larguraDaCaixa, alturaDaCaixa).stroke();

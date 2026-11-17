@@ -6349,6 +6349,13 @@ plano `docs/superpowers/plans/2026-11-12-propostas-para-cliente.md`. Menu **Prop
   - **"Prazo de entrega" da faixa do PDF com prazos diferentes** (17/11/2026, Opção 2 do dono): "Varia por item" e embaixo
     "Veja a coluna Prazo" (`prazoDaFaixa` em `regras.js`); com todos iguais, o prazo deles. Até ali mostrava o maior. O card
     Totais da tela segue com o maior (`prazoGeral`).
+  - **Melhorias 1 a 8 do PDF aprovadas em 17/11/2026** (a 6, dados bancários, já existia: a coluna aparece quando os dados
+    estão em Dados da empresa): validade com a data embaixo ("15 dias / até 02/12/2026"); método de envio sem "A combinar"
+    quando não há transportadora; coluna Prazo só com prazos diferentes; "O mesmo do cliente" quando a entrega é o endereço
+    do cliente; CEP da 4hobby numa linha própria (o `paraFonteDoPdf` normaliza com NFKC e troca o espaço que não quebra por
+    espaço comum, então não dá para segurar a quebra assim); condição em dias com "após a emissão da nota fiscal"
+    (`textoDoPagamento`, vale também no resumo da tela); "Total" sem "(R$)"; e as áreas da empresa e do cliente com a mesma
+    fonte (títulos 10,5, nomes 9,5 e dados 8,5; a da empresa era 7,8).
 - **Foto do item avulso** (pedido do dono em 13/11/2026, na proposta da Fundação Coppetec: itens comprados no ML só para o
   cliente): no editor, a caixa da foto do avulso é um botão (ícone de imagem) que envia JPG/PNG/WebP na hora para
   `dados/propostas/<propostaId>/fotos/<32 hex>.jpg` (`gravarFotoDoItem`, reduzida a 600 px sobre branco); o "x" tira. O

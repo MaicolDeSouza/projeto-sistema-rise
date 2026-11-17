@@ -37,12 +37,15 @@ const soDigitos = (texto) => String(texto ?? "").replace(/\D/g, "");
 function dadosDaEmpresa(empresa) {
   if (!empresa) return { linhas: [], site: null };
   const endereco = [empresa.endereco, empresa.numero, empresa.complemento].filter(Boolean).join(", ");
-  const cidade = [empresa.bairro, `${empresa.cidade} - ${empresa.uf}`, empresa.cep ? `CEP ${empresa.cep}` : null].filter(Boolean).join(" · ");
+  // O CEP numa linha propria (melhoria 5 aprovada em 17/11/2026): no fim da linha da cidade ele quebrava ("CEP" numa linha
+  // e o numero na outra), e a fonte do PDF troca o espaco que nao quebra por um espaco comum.
+  const cidade = [empresa.bairro, `${empresa.cidade} - ${empresa.uf}`].filter(Boolean).join(" · ");
   const site = String(empresa.site ?? "").trim();
   return {
     linhas: [
       endereco,
       cidade,
+      empresa.cep ? `CEP ${empresa.cep}` : null,
       [`CNPJ ${empresa.cnpj}`, empresa.inscricaoEstadual ? `IE ${empresa.inscricaoEstadual}` : null].filter(Boolean).join(" · "),
     ].filter(Boolean),
     site: site ? { texto: site, url: /^https?:\/\//i.test(site) ? site : `https://${site}` } : null,
@@ -133,7 +136,8 @@ export function validadeEmDias(proposta) {
   if (!ate) return "";
   const dias = Math.round((Date.parse(ate) - Date.parse(emitida)) / 86_400_000);
   if (dias < 1) return `Vencida em ${dataBR(ate)}`;
-  return `${dias} ${dias === 1 ? "dia" : "dias"}`;
+  // Com a data embaixo (melhoria 1 aprovada em 17/11/2026: o cliente nao precisa fazer a conta).
+  return `${dias} ${dias === 1 ? "dia" : "dias"}\naté ${dataBR(ate)}`;
 }
 
 /**
@@ -166,7 +170,8 @@ function freteDoTotal(proposta, totais, diluido) {
  */
 function metodoDeEnvio(proposta) {
   if (!["CIF", "FOB"].includes(proposta.fretePorConta)) return TEXTO_DO_FRETE[proposta.fretePorConta] ?? "A combinar";
-  return `${proposta.fretePorConta}\n${String(proposta.transportadoraNome ?? "").trim() || "A combinar"}`;
+  // Sem transportadora, so "CIF"/"FOB" (melhoria 2 aprovada em 17/11/2026: "A combinar" embaixo parecia o frete a combinar).
+  return [proposta.fretePorConta, String(proposta.transportadoraNome ?? "").trim()].filter(Boolean).join("\n");
 }
 
 /**
@@ -183,6 +188,11 @@ export function conteudoDaProposta(proposta, empresa) {
   const itensDoCliente = diluido ? itensComFreteDiluido(proposta.itens, totais.frete) : proposta.itens;
   const subtotalDoCliente = diluido ? Math.round((totais.subtotal + totais.frete) * 100) / 100 : totais.subtotal;
   const linhasDeTotal = [["Subtotal", moeda.format(subtotalDoCliente)]];
+  const prazosVariam = new Set(proposta.itens.map((item) => textoDoPrazo(item))).size > 1;
+  // Entrega igual ao endereco do cliente: "O mesmo do cliente" (melhoria 4 aprovada em 17/11/2026: repetia 4 linhas).
+  const entrega = linhasDaEntrega(proposta);
+  const enderecoDoCliente = linhasDoEndereco(proposta.cliente?.enderecos?.find((e) => e.tipo === "GERAL"));
+  const entregaIgualAoCliente = enderecoDoCliente.length > 0 && entrega.join("\n") === enderecoDoCliente.join("\n");
   if (totais.desconto > 0) linhasDeTotal.push(["Desconto", `− ${moeda.format(totais.desconto)}`]);
   // Frete e impostos sempre no quadro do total (pedido do dono em 13/11/2026, no molde da cotacao da Hope): o valor so
   // soma no CIF (regra do total); nos outros tipos a linha diz quem paga.
@@ -213,7 +223,7 @@ export function conteudoDaProposta(proposta, empresa) {
     bancarios: bancariosDaEmpresa(empresa),
     observacoes: String(proposta.observacoesCliente ?? "").trim() || null,
     cliente: { nome: proposta.clienteNome, linhas: linhasDoCliente(proposta), ...contatoDoCliente(proposta) },
-    entrega: linhasDaEntrega(proposta),
+    entrega: entregaIgualAoCliente ? ["O mesmo do cliente"] : entrega,
     // A faixa de colunas embaixo do cabecalho (o "Valid Until / Payment Terms / ..." do modelo do dono, 13/11/2026).
     faixa: [
       ["Validade da proposta", validadeEmDias(proposta)],
@@ -224,7 +234,8 @@ export function conteudoDaProposta(proposta, empresa) {
       ["Garantia", prazoDaGarantia(proposta.garantia)],
       ["Vendedor", proposta.vendedor || proposta.criadoPorNome || "—"],
     ],
-    colunas: COLUNAS.filter((c) => (c.chave !== "desconto" || temDesconto) && (c.chave !== "marca" || temMarca)),
+    // A coluna Prazo so aparece com prazos diferentes (melhoria 3 aprovada em 17/11/2026): iguais, a faixa ja diz.
+    colunas: COLUNAS.filter((c) => (c.chave !== "desconto" || temDesconto) && (c.chave !== "marca" || temMarca) && (c.chave !== "prazo" || prazosVariam)),
     itens: itensDoCliente.map((item, indice) => ({
       id: item.id,
       celulas: {

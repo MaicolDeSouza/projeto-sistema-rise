@@ -93,7 +93,7 @@ conferir("aprovada -> recusada nao", regras.podeIrPara("APROVADA", "RECUSADA"), 
 conferir(
   "texto do pagamento",
   regras.textoDoPagamento({ condicaoNome: "28/56 dias", formaPagamento: "Boleto", parcelas: 2, entradaPercentual: 30, pagamentoTexto: " Sem juros " }),
-  "28/56 dias · Boleto · entrada de 30% · 2x\nSem juros",
+  "28/56 dias após a emissão da nota fiscal · Boleto · entrada de 30% · 2x\nSem juros",
 );
 // Parcelas e entrada pela condicao, com os valores (pedido do dono em 17/11/2026).
 conferir(
@@ -146,7 +146,7 @@ conferir(
     regras.valoresDoPagamento({ total: 100, parcelas: 1, entradaTipo: "VALOR", entradaValor: 500 }).entrada,
     regras.textoDoPagamento({ condicaoNome: "28/56 dias", parcelas: 2, entradaTipo: "VALOR", entradaValor: 300, total: 1000 }).replace(/\u00a0/g, " "),
   ],
-  [{ entrada: 300, restante: 700, parcela: 350, parcelas: 2 }, 100, "28/56 dias · entrada de R$ 300,00 · 2x de R$ 350,00"],
+  [{ entrada: 300, restante: 700, parcela: 350, parcelas: 2 }, 100, "28/56 dias após a emissão da nota fiscal · entrada de R$ 300,00 · 2x de R$ 350,00"],
 );
 conferir("valores: entrada sai das parcelas", regras.valoresDoPagamento({ total: 1182, parcelas: 3, entradaPercentual: 10 }), { entrada: 118.2, restante: 1063.8, parcela: 354.6, parcelas: 3 });
 conferir(
@@ -155,7 +155,7 @@ conferir(
     regras.textoDoPagamento({ condicaoNome: "30/60/90 dias", parcelas: 3, entradaPercentual: 0, total: 1182 }),
     regras.textoDoPagamento({ condicaoNome: "50% de entrada + 50% na entrega", parcelas: 1, entradaPercentual: 50, totais: { total: 1182 } }),
   ].map((texto) => texto.replace(/\u00a0/g, " ")), // o Intl poe espaco nao separavel depois do R$
-  ["30/60/90 dias · 3x de R$ 394,00", "50% de entrada + 50% na entrega · entrada de 50% (R$ 591,00) · saldo de R$ 591,00"],
+  ["30/60/90 dias após a emissão da nota fiscal · 3x de R$ 394,00", "50% de entrada + 50% na entrega · entrada de 50% (R$ 591,00) · saldo de R$ 591,00"],
 );
 conferir(
   "pendencias do PDF",
@@ -531,7 +531,7 @@ try {
   const tudo = JSON.stringify(conteudo);
   conferir(
     "PDF: descricao do cliente e codigo do Rise, OC e frete com explicacao",
-    [conteudo.itens[0].celulas.descricao, conteudo.itens[0].celulas.codigo, /OC-77/.test(tudo), conteudo.faixa[3][1].startsWith("CIF\n"), conteudo.colunas.find((c) => c.chave === "codigo")?.titulo],
+    [conteudo.itens[0].celulas.descricao, conteudo.itens[0].celulas.codigo, /OC-77/.test(tudo), /^CIF/.test(conteudo.faixa[3][1]), conteudo.colunas.find((c) => c.chave === "codigo")?.titulo],
     ["Módulo relé 5V conforme cotação", "ZZ-PROP-CLI-1", true, true, "Código"],
   );
   conferir("PDF: sem descricao do cliente sai o nome do Rise", conteudoDaProposta({ ...paraPdf, itens: [{ ...paraPdf.itens[0], descricaoCliente: "" }] }, empresaFalsa).itens[0].celulas.descricao, paraPdf.itens[0].nomeInterno);
@@ -583,7 +583,7 @@ try {
       validadeEmDias({ atualizadoEm: new Date("2026-11-26T15:00:00Z"), validadeAte: "2026-11-27" }),
       validadeEmDias({ atualizadoEm: new Date("2026-11-28T15:00:00Z"), validadeAte: "2026-11-27" }),
     ],
-    ["15 dias", "1 dia", "Vencida em 27/11/2026"],
+    ["15 dias\naté 27/11/2026", "1 dia\naté 27/11/2026", "Vencida em 27/11/2026"],
   );
   // Metodo de envio (17/11/2026): so CIF/FOB e a transportadora embaixo ("A combinar" sem ela), sem dias nem valor.
   conferir(
@@ -593,9 +593,24 @@ try {
       conteudoDaProposta({ ...paraPdf, fretePorConta: "FOB", transportadoraNome: "", frete: 30 }, empresaFalsa).faixa[3][1],
       conteudoDaProposta({ ...paraPdf, fretePorConta: "RETIRA" }, empresaFalsa).faixa[3][1],
     ],
-    ["CIF\nTransportes ZZ", "FOB\nA combinar", "Cliente retira"],
+    ["CIF\nTransportes ZZ", "FOB", "Cliente retira"],
   );
   conferir("PDF: entregar em sem endereco = a combinar", conteudo.entrega, ["A combinar"]);
+  // Melhorias aprovadas em 17/11/2026: entrega igual = "O mesmo do cliente"; Prazo so com prazos diferentes; CEP na linha dele.
+  const enderecoGeral = { tipo: "GERAL", logradouro: "Rua A", numero: "1", bairro: "Centro", cidade: "Caxias", uf: "RS", cep: "95000-000" };
+  const comEndereco = (enderecos) => conteudoDaProposta({ ...paraPdf, fretePorConta: "CIF", cliente: { ...(paraPdf.cliente ?? {}), enderecos } }, empresaFalsa);
+  conferir(
+    "PDF: entrega igual ao cliente e entrega diferente",
+    [comEndereco([enderecoGeral]).entrega, comEndereco([enderecoGeral, { ...enderecoGeral, tipo: "ENTREGA", logradouro: "Rua B" }]).entrega[0]],
+    [["O mesmo do cliente"], "Rua B, 1"],
+  );
+  const comPrazos = (prazos) => conteudoDaProposta({ ...paraPdf, itens: paraPdf.itens.slice(0, 2).map((item, i) => ({ ...item, ...prazos[i] })) }, empresaFalsa).colunas.some((c) => c.chave === "prazo");
+  conferir(
+    "PDF: coluna Prazo so com prazos diferentes",
+    [comPrazos([{ prontaEntrega: true }, { prontaEntrega: true }]), comPrazos([{ prontaEntrega: true }, { prontaEntrega: false, prazoDiasUteis: 10 }])],
+    [false, true],
+  );
+  conferir("PDF: CEP da empresa numa linha propria", conteudo.empresa.includes("CEP 95000-000"), true);
   conferir("PDF: entregar em de quem retira", conteudoDaProposta({ ...paraPdf, fretePorConta: "RETIRA" }, empresaFalsa).entrega, ["Retirada pelo cliente na 4hobby"]);
   conferir(
     "PDF: entregar em usa o endereco de entrega",
