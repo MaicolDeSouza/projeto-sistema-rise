@@ -130,6 +130,16 @@ export function linhasDaEntrega(proposta) {
 }
 
 /**
+ * O "Endereço de entrega" como o cliente le (PDF, link e a tela da proposta, pedido do dono em 17/11/2026): igual ao
+ * endereco do cliente vira "O mesmo do cliente" (melhoria 4: repetia 4 linhas); senao, as linhas da entrega.
+ */
+export function entregaParaMostrar(proposta) {
+  const entrega = linhasDaEntrega(proposta);
+  const enderecoDoCliente = linhasDoEndereco(proposta.cliente?.enderecos?.find((e) => e.tipo === "GERAL"));
+  return enderecoDoCliente.length > 0 && entrega.join("\n") === enderecoDoCliente.join("\n") ? ["O mesmo do cliente"] : entrega;
+}
+
+/**
  * "Validade da proposta" em dias (pedido do dono em 13/11/2026: "15 dias"), contados da "Data da proposta" que o PDF mostra
  * ate a data de validade; a proposta que ja venceu mostra a data.
  */
@@ -193,9 +203,6 @@ export function conteudoDaProposta(proposta, empresa) {
   const linhasDeTotal = [["Subtotal", moeda.format(subtotalDoCliente)]];
   const prazosVariam = new Set(proposta.itens.map((item) => textoDoPrazo(item))).size > 1;
   // Entrega igual ao endereco do cliente: "O mesmo do cliente" (melhoria 4 aprovada em 17/11/2026: repetia 4 linhas).
-  const entrega = linhasDaEntrega(proposta);
-  const enderecoDoCliente = linhasDoEndereco(proposta.cliente?.enderecos?.find((e) => e.tipo === "GERAL"));
-  const entregaIgualAoCliente = enderecoDoCliente.length > 0 && entrega.join("\n") === enderecoDoCliente.join("\n");
   if (totais.desconto > 0) linhasDeTotal.push(["Desconto", `− ${moeda.format(totais.desconto)}`]);
   // Frete e impostos sempre no quadro do total (pedido do dono em 13/11/2026, no molde da cotacao da Hope): o valor so
   // soma no CIF (regra do total); nos outros tipos a linha diz quem paga.
@@ -226,7 +233,7 @@ export function conteudoDaProposta(proposta, empresa) {
     bancarios: bancariosDaEmpresa(empresa),
     observacoes: String(proposta.observacoesCliente ?? "").trim() || null,
     cliente: { nome: proposta.clienteNome, linhas: linhasDoCliente(proposta), ...contatoDoCliente(proposta) },
-    entrega: entregaIgualAoCliente ? ["O mesmo do cliente"] : entrega,
+    entrega: entregaParaMostrar(proposta),
     // A faixa de colunas embaixo do cabecalho (o "Valid Until / Payment Terms / ..." do modelo do dono, 13/11/2026).
     faixa: [
       ["Validade da proposta", validadeEmDias(proposta)],

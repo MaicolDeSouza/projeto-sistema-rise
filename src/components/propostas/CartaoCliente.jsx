@@ -6,7 +6,7 @@ import { CloudUpload, Loader2, Search, X } from "lucide-react";
 
 import { buscarClienteAcao, clienteParaPropostaAcao, enviarClienteAoBlingAcao, usarContatoDoBlingAcao } from "@/app/propostas/acoes";
 import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
-import { linhasDaEntrega, linhasDoCliente } from "@/lib/propostas/conteudo";
+import { entregaParaMostrar, linhasDoCliente } from "@/lib/propostas/conteudo";
 import { formatarTelefone } from "@/lib/telefone";
 import CampoComLista from "./CampoComLista";
 
@@ -94,7 +94,28 @@ export default function CartaoCliente({ seletorDoPadrao = null, formulario, clie
         }
       >
         {/* Os dados completos e o endereco de entrega, as MESMAS linhas do PDF (pedido do dono em 17/11/2026). */}
-        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,16rem)]">
+        {/* "Aos cuidados de:" em cima, com o campo ao lado (pedido do dono em 17/11/2026, o mesmo nome do PDF): um contato do
+            cliente ou um nome digitado, que fica so na proposta. */}
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <span className="text-sm font-medium text-texto">Aos cuidados de:</span>
+          <div className="w-72 max-w-full">
+            <CampoComLista
+              opcoes={(cliente.contatos ?? []).map((c) => ({ id: c.id, nome: c.nome, detalhe: c.cargo }))}
+              id={formulario.contatoId}
+              texto={formulario.contatoNome ?? ""}
+              editar={editar}
+              aoMudar={({ id, texto }) => {
+                aoMudar("contatoNome", texto);
+                aoMudar("contatoId", id);
+              }}
+              placeholder={cliente.contatos?.length ? "Escolha ou digite um nome" : "Digite um nome"}
+              rotuloDaSeta="Mostrar os contatos do cliente"
+              tituloDoLivre="Nome digitado: fica só nesta proposta, sem entrar nos contatos do cliente."
+              className={`${campo} w-full`}
+            />
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
           <div className="min-w-0 space-y-0.5 text-sm">
             <Link href={`/cadastros/clientes/${cliente.id}`} className="block text-base font-semibold break-words hover:text-acento hover:underline" title="Abrir o cadastro do cliente">
               {cliente.nome}
@@ -118,29 +139,13 @@ export default function CartaoCliente({ seletorDoPadrao = null, formulario, clie
           </div>
           <div className="min-w-0 space-y-0.5 text-sm">
             <p className="text-xs font-medium text-suave">Endereço de entrega</p>
-            {linhasDaEntrega({ fretePorConta: formulario.fretePorConta, cliente }).map((linha) => (
+            {/* O mesmo texto do PDF ("O mesmo do cliente" quando e o endereco do cliente; 17/11/2026). */}
+            {entregaParaMostrar({ fretePorConta: formulario.fretePorConta, cliente }).map((linha) => (
               <p key={linha} className="tabular-nums">
                 {linha}
               </p>
             ))}
           </div>
-          {/* A/C (pedido do dono em 17/11/2026): um contato do cliente ou um nome digitado, que fica so na proposta. */}
-          <Rotulo texto="A/C">
-            <CampoComLista
-              opcoes={(cliente.contatos ?? []).map((c) => ({ id: c.id, nome: c.nome, detalhe: c.cargo }))}
-              id={formulario.contatoId}
-              texto={formulario.contatoNome ?? ""}
-              editar={editar}
-              aoMudar={({ id, texto }) => {
-                aoMudar("contatoNome", texto);
-                aoMudar("contatoId", id);
-              }}
-              placeholder={cliente.contatos?.length ? "Escolha ou digite um nome" : "Digite um nome"}
-              rotuloDaSeta="Mostrar os contatos do cliente"
-              tituloDoLivre="Nome digitado: fica só nesta proposta, sem entrar nos contatos do cliente."
-              className={campo}
-            />
-          </Rotulo>
         </div>
       </SecaoDoAnuncio>
     );

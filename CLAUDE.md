@@ -6365,7 +6365,12 @@ plano `docs/superpowers/plans/2026-11-12-propostas-para-cliente.md`. Menu **Prop
     medidas no pdfkit, `PESOS_DA_FAIXA` 102/152/83/81/55/50); "CNPJ:", "CPF:", "IE:" e "CEP:" com dois pontos; a coluna
     "Código 4hobby" e o item sem código com "—" centralizado. No mesmo dia o A/C virou **"Aos cuidados de:"** (rótulo em negrito,
     nome normal) e foi para **logo abaixo do logo**, à esquerda (`contatoDoCliente` em `conteudo.js`; o link público segue
-    com ele na área do cliente).
+    com ele na área do cliente). Depois, em evidência ("o cliente deve bater o olho e saber para quem é"): 12 pt, o nome em
+    negrito azul, e 12 pt de espaço em cima (até o logo) e embaixo (até a caixa "Dados da 4hobby").
+  - **Tela igual ao PDF (17/11/2026):** no card Cliente do editor, "Aos cuidados de:" fica no topo com o campo do contato ao
+    lado (`CartaoCliente.jsx`; a coluna "A/C" saiu); o endereço da tela usa as mesmas linhas do PDF ("CNPJ:", "CEP:") e a
+    entrega igual ao endereço do cliente mostra "O mesmo do cliente" (`entregaParaMostrar` em `conteudo.js`, usada pelo PDF,
+    pelo link e pela tela).
 - **Foto do item avulso** (pedido do dono em 13/11/2026, na proposta da Fundação Coppetec: itens comprados no ML só para o
   cliente): no editor, a caixa da foto do avulso é um botão (ícone de imagem) que envia JPG/PNG/WebP na hora para
   `dados/propostas/<propostaId>/fotos/<32 hex>.jpg` (`gravarFotoDoItem`, reduzida a 600 px sobre branco); o "x" tira. O

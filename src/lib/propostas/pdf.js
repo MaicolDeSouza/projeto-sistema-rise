@@ -161,13 +161,18 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
     doc.lineWidth(0.6).moveTo(xTexto, yLinha + 4).lineTo(MARGEM + largura, yLinha + 4).stroke();
     // "Aos cuidados de:" logo abaixo do logo, a esquerda (pedidos do dono em 17/11/2026; saiu da caixa do cliente): o
     // rotulo em negrito e o nome normal.
+    // Em evidencia (o dono, 17/11/2026: "o cliente deve bater o olho e saber para quem e"): 12 pt, o nome em negrito azul, e
+    // o mesmo espaco (12 pt) em cima, ate o logo, e embaixo, ate a caixa "Dados da 4hobby".
+    const FONTE_DO_AC = 12;
+    const ESPACO_DO_AC = 12;
     let yDoAc = yLinha + 4;
     if (conteudo.cliente.ac) {
-      const yAc = topo + LOGO_ALTURA + 6;
+      const yAc = topo + LOGO_ALTURA + ESPACO_DO_AC;
       const [rotuloDoAc, ...resto] = conteudo.cliente.ac.split(": ");
-      doc.font("Helvetica-Bold").fontSize(FONTE_DO_NOME).fillColor(TEXTO).text(`${rotuloDoAc}: `, MARGEM, yAc, { continued: true, lineBreak: false });
-      doc.font("Helvetica").text(resto.join(": "), { lineBreak: false });
-      yDoAc = yAc + FONTE_DO_NOME + 2;
+      doc.font("Helvetica-Bold").fontSize(FONTE_DO_AC).fillColor(TEXTO).text(`${rotuloDoAc}: `, MARGEM, yAc, { continued: true, lineBreak: false });
+      doc.fillColor(AZUL).text(resto.join(": "), { lineBreak: false });
+      doc.fillColor(TEXTO);
+      yDoAc = yAc + FONTE_DO_AC;
     }
 
     // As duas areas em caixas com faixa de titulo, no estilo da faixa de condicoes (pedido do dono em 17/11/2026: "dividir
@@ -189,7 +194,7 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
 
     // Caixa "4hobby": tres colunas com titulo, "Dados da empresa" (o nome na 1a linha), "Dados para contato" e "Dados
     // bancários"; sem dado bancario a terceira some e as outras duas ficam no lugar.
-    const yCaixaDaEmpresa = Math.max(yDoAc, topo + LOGO_ALTURA) + 12;
+    const yCaixaDaEmpresa = Math.max(yDoAc, topo + LOGO_ALTURA) + (conteudo.cliente.ac ? ESPACO_DO_AC : 12);
     // Titulo da caixa "Dados da 4hobby" e sem o "Dados da empresa" dentro (pedido do dono em 17/11/2026): o nome abre a coluna.
     const yInfo = abrirCaixa("Dados da 4hobby", yCaixaDaEmpresa);
     // Colunas 37/33/30 (17/11/2026): com a margem da caixa, em tercos iguais o endereco da empresa quebrava ("2135" sozinho).
