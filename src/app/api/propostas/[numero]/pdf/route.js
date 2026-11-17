@@ -1,7 +1,6 @@
 import { recusarRota, sessaoDeAcessos } from "@/lib/acessos/servidor";
-import { lerDadosDaEmpresa } from "@/lib/compras/empresa";
 import { lerProposta } from "@/lib/propostas/banco";
-import { dadosDoPdfDaProposta, pdfDaProposta } from "@/lib/propostas/pdf";
+import { pdfParaEnviar } from "@/lib/propostas/pdfParaEnviar";
 
 const paraNomeDeArquivo = (texto) =>
   String(texto ?? "")
@@ -19,9 +18,9 @@ export async function GET(_requisicao, { params }) {
   const { numero } = await params;
   const proposta = await lerProposta(numero);
   if (!proposta) return new Response("Não encontrado", { status: 404 });
-  const [empresa, extras] = await Promise.all([lerDadosDaEmpresa(), dadosDoPdfDaProposta(proposta)]);
-  const bytes = await pdfDaProposta(proposta, empresa, extras);
-  const nome = `proposta-${proposta.numero}-${paraNomeDeArquivo(proposta.clienteNome) || "cliente"}.pdf`;
+  // Assinado na hora quando a proposta esta marcada e ha certificado valido (17/11/2026); senao, o PDF de sempre.
+  const { bytes, assinado } = await pdfParaEnviar(proposta);
+  const nome = `proposta-${proposta.numero}-${paraNomeDeArquivo(proposta.clienteNome) || "cliente"}${assinado ? "-assinada" : ""}.pdf`;
   return new Response(bytes, {
     headers: {
       "Content-Type": "application/pdf",

@@ -834,6 +834,19 @@ try {
     const depoisDeVencer = new Date(new Date(situacao.validoAte).getTime() + 60_000);
     conferir("cofre: vencido nao assina", await cofre.certificadoParaAssinar(depoisDeVencer), null);
     conferir("cofre: vencido aparece na situacao", (await cofre.situacaoDoCertificado(depoisDeVencer)).vencido, true);
+
+    // O PDF que sai (tarefa 4): assinado so na marcada e com certificado valido; qualquer falha = o PDF de sempre.
+    const { pdfParaEnviar } = await import("../src/lib/propostas/pdfParaEnviar.js");
+    // A p2 foi gravada de novo depois (sem a marca): marcada aqui, so na memoria.
+    const marcada = { ...(await banco.lerProposta(p2.numero)), assinarDigitalmente: true };
+    const saiu = await pdfParaEnviar(marcada);
+    const textoQueSaiu = saiu.bytes.toString("latin1");
+    conferir("PDF da marcada sai assinado", [saiu.assinado, textoQueSaiu.includes("/ByteRange"), textoQueSaiu.includes(`(Proposta comercial ${p2.numero})`)], [true, true, true]);
+    const naoMarcada = await pdfParaEnviar({ ...marcada, assinarDigitalmente: false });
+    conferir("PDF da nao marcada sai sem assinatura", [naoMarcada.assinado, naoMarcada.bytes.toString("latin1").includes("/ByteRange")], [false, false]);
+    const comVencido = await pdfParaEnviar(marcada, depoisDeVencer);
+    conferir("PDF com o certificado vencido sai sem assinatura", [comVencido.assinado, comVencido.bytes.toString("latin1").includes("/ByteRange")], [false, false]);
+    conferir("PDF sem selo e menor que o com selo", naoMarcada.bytes.length < saiu.bytes.length, true);
     let recusou = null;
     try {
       await cofre.gravarCertificado({ pfx: certTeste.pfx, senha: "errada" });
@@ -843,6 +856,7 @@ try {
     conferir("cofre: senha errada nao grava", recusou, "Senha do certificado incorreta ou arquivo inválido.");
     await prisma.conexao.update({ where: { servico: "CERTIFICADO_DIGITAL" }, data: { segredoCifrado: "a.b.c" } });
     conferir("cofre: segredo corrompido nao assina (nem lanca)", await cofre.certificadoParaAssinar(), null);
+    conferir("PDF com o segredo corrompido sai sem assinatura", (await pdfParaEnviar(marcada)).assinado, false);
     await cofre.removerCertificado();
     conferir("cofre: removido", [await cofre.situacaoDoCertificado(), await cofre.certificadoParaAssinar()], [null, null]);
   } finally {

@@ -414,6 +414,38 @@ export function pdfDaProposta(proposta, empresa, extras = {}) {
       doc.moveDown(0.5);
     }
 
+    // Selo da assinatura digital (17/11/2026): so na proposta marcada e com certificado valido (`extras.selo`, montado por
+    // `pdfParaEnviar`). E so o que o cliente ve; a assinatura que vale vai dentro do arquivo.
+    if (extras.selo) {
+      const VERDE = "#047857";
+      const quando = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
+        .format(extras.selo.quando)
+        .replace(",", "");
+      const linhas = [
+        [f(extras.selo.razaoSocial), "Helvetica-Bold", TEXTO],
+        ...(extras.selo.cnpj ? [[`CNPJ: ${extras.selo.cnpj}`, "Helvetica", TEXTO]] : []),
+        [`Data: ${quando} (horário de Brasília)`, "Helvetica", TEXTO],
+        ["Verifique em validar.iti.gov.br", "Helvetica", TEXTO_SUAVE],
+      ];
+      const larguraDoSelo = 290;
+      const alturaDoSelo = 26 + linhas.length * 11 + 8;
+      doc.y += 10;
+      if (doc.y + alturaDoSelo > fundo()) doc.addPage();
+      const ySelo = doc.y;
+      doc.lineWidth(0.8).strokeColor(VERDE).roundedRect(MARGEM, ySelo, larguraDoSelo, alturaDoSelo, 4).stroke();
+      // Circulo verde com o visto.
+      doc.circle(MARGEM + 17, ySelo + 17, 8).fill(VERDE);
+      doc.save().lineWidth(1.6).lineCap("round").lineJoin("round").strokeColor("#ffffff").moveTo(MARGEM + 13, ySelo + 17.5).lineTo(MARGEM + 16, ySelo + 20.5).lineTo(MARGEM + 21.5, ySelo + 14).stroke().restore();
+      const xTextoDoSelo = MARGEM + 32;
+      doc.font("Helvetica-Bold").fontSize(9.5).fillColor(VERDE).text("Documento assinado digitalmente", xTextoDoSelo, ySelo + 12, { width: larguraDoSelo - 40, lineBreak: false });
+      linhas.forEach(([texto, fonte, cor], i) => {
+        doc.font(fonte).fontSize(8.5).fillColor(cor).text(texto, xTextoDoSelo, ySelo + 26 + i * 11, { width: larguraDoSelo - 40, lineBreak: false });
+      });
+      doc.fillColor(TEXTO);
+      doc.x = MARGEM;
+      doc.y = ySelo + alturaDoSelo + 8;
+    }
+
     doc.end();
   });
 }
