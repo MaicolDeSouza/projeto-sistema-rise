@@ -13,7 +13,8 @@ export async function GET(_requisicao, { params }) {
     headers: {
       "Content-Type": anexo.tipo,
       "Content-Length": String(anexo.bytes.length),
-      "Content-Disposition": `inline; filename="${nome.replace(/[^\x20-\x7e]/g, "_")}"; filename*=UTF-8''${encodeURIComponent(nome)}`,
+      // E-mail e texto (anexos gerais, 17/11/2026) vao para baixar; o resto (PDF, imagem) abre na aba.
+      "Content-Disposition": `${/^(message|text)\/|ms-outlook/.test(anexo.tipo) ? "attachment" : "inline"}; filename="${nome.replace(/[^\x20-\x7e]/g, "_")}"; filename*=UTF-8''${encodeURIComponent(nome)}`,
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
     },

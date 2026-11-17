@@ -183,7 +183,7 @@ export async function anexarCotacaoAcao(formData) {
   const negado = await negarSemAcesso("tela.propostas", "editar");
   if (negado) return negado;
   const { anexarCotacao } = await import("@/lib/propostas/arquivos");
-  const resultado = await anexarCotacao(String(formData.get("numero") ?? ""), formData.getAll("arquivo"));
+  const resultado = await anexarCotacao(String(formData.get("numero") ?? ""), formData.getAll("arquivo"), { tipo: String(formData.get("tipo") ?? "GERAL") });
   if (!resultado.ok) return resultado;
   revalidar();
   return { ok: true, proposta: await propostaParaQuemVe(formData.get("numero")) };

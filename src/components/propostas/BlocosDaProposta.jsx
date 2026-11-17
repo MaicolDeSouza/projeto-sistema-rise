@@ -63,9 +63,9 @@ function CampoDeDias({ opcoes, data, editar, aoMudarData, rotuloDaSeta, permitir
  * proximo contato e vendedor, cada um com as opcoes e o campo aberto para digitar. Substituiu o card "Validade e contato"
  * e tirou a garantia e o vendedor da aba "Observacoes para o cliente".
  */
-export function CartaoCondicoesDaProposta({ formulario, editar, editarValidade, vencida, venceuEm, contatoAgora, erros, aoMudar }) {
+export function CartaoCondicoesDaProposta({ formulario, editar, editarValidade, vencida, venceuEm, contatoAgora, erros, aoMudar, className = "" }) {
   return (
-    <SecaoDoAnuncio titulo="Condições da proposta" ajuda="Validade, garantia e vendedor saem no PDF; o próximo contato é só interno (o “!” da lista).">
+    <SecaoDoAnuncio className={className} titulo="Condições da proposta" ajuda="Validade, garantia e vendedor saem no PDF; o próximo contato é só interno (o “!” da lista).">
       <div className="grid gap-3 sm:grid-cols-2">
         <Rotulo texto="Validade da cotação" erro={erros.validadeAte}>
           <CampoDeDias opcoes={DIAS_DE_VALIDADE} data={formulario.validadeAte} editar={editarValidade} aoMudarData={(d) => aoMudar("validadeAte", d)} rotuloDaSeta="Opções de validade" sufixo={(d) => `(até ${dataBR(d)})`} />
@@ -122,7 +122,7 @@ export function camposDaCondicao(condicoes, id) {
  * condicao preenche as parcelas e a entrada (17/11/2026), e ao lado de cada uma vai o valor em reais, com a entrada ja
  * descontada das parcelas.
  */
-export function CartaoPagamento({ formulario, condicoes, total = 0, editar, erros, aoMudar }) {
+export function CartaoPagamento({ formulario, condicoes, total = 0, editar, erros, aoMudar, className = "" }) {
   const condicaoNome = condicoes.find((c) => c.id === formulario.condicaoPagamentoId)?.nome ?? null;
   const parcelas = doTexto(formulario.parcelas);
   const entradaPercentual = doTexto(formulario.entradaPercentual);
@@ -133,7 +133,7 @@ export function CartaoPagamento({ formulario, condicoes, total = 0, editar, erro
     for (const [campoDoFormulario, valor] of Object.entries(camposDaCondicao(condicoes, id))) aoMudar(campoDoFormulario, valor);
   };
   return (
-    <SecaoDoAnuncio titulo="Pagamento" ajuda="A condição vem da preferida do cliente. O texto livre vai no PDF depois do resumo.">
+    <SecaoDoAnuncio className={className} titulo="Pagamento" ajuda="A condição vem da preferida do cliente. O texto livre vai no PDF depois do resumo.">
       <div className="grid gap-3 sm:grid-cols-2">
         <Rotulo texto="Condição">
           <select value={formulario.condicaoPagamentoId} disabled={!editar} onChange={(e) => escolherCondicao(e.target.value)} className={campo}>
@@ -205,10 +205,10 @@ function Interruptor({ ligado, aoMudar, rotulo, desabilitado = false }) {
  * em 17/11/2026: a transportadora e uma das cadastradas OU digitada; no CIF, o interruptor dilui o frete nos produtos; o
  * prazo se chama "Prazo de entrega".
  */
-export function CartaoFrete({ formulario, transportadoras, editar, erros, aoMudar }) {
+export function CartaoFrete({ formulario, transportadoras, editar, erros, aoMudar, className = "" }) {
   const comTransporte = formulario.fretePorConta === "CIF" || formulario.fretePorConta === "FOB";
   return (
-    <SecaoDoAnuncio titulo="Frete" ajuda="O valor do frete soma no total só no CIF. A transportadora vem da preferida do cliente.">
+    <SecaoDoAnuncio className={className} titulo="Frete" ajuda="O valor do frete soma no total só no CIF. A transportadora vem da preferida do cliente.">
       <div className="mb-3 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Frete por conta de">
         {Object.entries(TEXTO_DO_FRETE).map(([valor, texto]) => (
           <label
@@ -304,22 +304,27 @@ export function CartaoTotais({ formulario, totais, editar, erros, aoMudar, veCus
   );
 }
 
+// Card "Notas e anexos" (pedido do dono em 17/11/2026). "Contatos" (o historico do Registrar contato) ficou no fim.
 const ABAS = [
-  ["nf", "Para a nota fiscal"],
-  ["cliente", "Observações para o cliente"],
-  ["internas", "Internas"],
+  ["nf", "Dados para NF"],
+  ["cliente", "Observações para a proposta"],
+  ["internas", "Observações internas"],
+  ["anexos", "Anexos"],
   ["contatos", "Contatos"],
-  ["cotacao", "Cotação do cliente"],
 ];
 
 /**
- * As abas de baixo (Padrao visual, regra 5): todas montadas e so escondidas, para o Salvar nunca perder o digitado.
- * `contatos` e `cotacao` sao componentes proprios (gravam na hora, fora do Salvar).
+ * "Notas e anexos" (pedido do dono em 17/11/2026, um card do tamanho dos outros tres): as abas Dados para NF (OC e texto
+ * da NF), Observacoes para a proposta, Observacoes internas, Anexos (a OC do cliente e os gerais) e Contatos. Todas
+ * montadas e so escondidas, para o Salvar nunca perder o digitado; `anexos` e `contatos` gravam na hora, fora do Salvar.
  */
-export function AbasDaProposta({ formulario, editar, aoMudar, contatos, cotacao, quantos }) {
+export function CartaoNotasEAnexos({ formulario, editar, aoMudar, contatos, anexos, quantos, className = "" }) {
   const [aba, setAba] = useState("nf");
   return (
-    <section className="rounded-lg border border-borda bg-superficie">
+    <section className={`flex flex-col rounded-lg border border-borda bg-superficie ${className}`}>
+      <header className="flex min-h-10 items-center rounded-t-lg border-b border-borda bg-fundo/70 px-4 py-2">
+        <h3 className="text-sm font-semibold text-texto">Notas e anexos</h3>
+      </header>
       <div className="flex overflow-x-auto border-b border-borda" role="tablist">
         {ABAS.map(([id, rotulo]) => (
           <button
@@ -328,7 +333,7 @@ export function AbasDaProposta({ formulario, editar, aoMudar, contatos, cotacao,
             role="tab"
             aria-selected={aba === id}
             onClick={() => setAba(id)}
-            className={`-mb-px border-b-2 px-4 py-2.5 text-sm whitespace-nowrap ${aba === id ? "border-acento font-medium text-texto" : "border-transparent text-suave hover:text-texto"}`}
+            className={`-mb-px border-b-2 px-3 py-2.5 text-[13px] whitespace-nowrap ${aba === id ? "border-acento font-medium text-texto" : "border-transparent text-suave hover:text-texto"}`}
           >
             {rotulo}
             {quantos?.[id] > 0 && <span className="ml-1.5 text-xs text-suave tabular-nums">{quantos[id]}</span>}
@@ -336,17 +341,17 @@ export function AbasDaProposta({ formulario, editar, aoMudar, contatos, cotacao,
         ))}
       </div>
       <div className="p-4">
-        <div hidden={aba !== "nf"} className="grid gap-3 sm:grid-cols-[12rem_1fr]">
+        <div hidden={aba !== "nf"} className="grid gap-3">
           <Rotulo texto="Nº do pedido do cliente (OC)">
             <input value={formulario.ocCliente} disabled={!editar} onChange={(e) => aoMudar("ocCliente", e.target.value.slice(0, 60))} className={campo} />
           </Rotulo>
-          <Rotulo texto="Texto para a nota fiscal">
+          <Rotulo texto="Observações da NF">
             <textarea rows={2} value={formulario.observacoesNf} disabled={!editar} onChange={(e) => aoMudar("observacoesNf", e.target.value)} className={`${campo} field-sizing-content min-h-16`} />
           </Rotulo>
         </div>
         {/* A garantia e o vendedor foram para o card "Condicoes da proposta" (17/11/2026). */}
         <div hidden={aba !== "cliente"}>
-          <Rotulo texto="Observações para o cliente (saem no PDF)">
+          <Rotulo texto="Observações para a proposta (saem no PDF)">
             <textarea rows={3} value={formulario.observacoesCliente} disabled={!editar} onChange={(e) => aoMudar("observacoesCliente", e.target.value)} className={`${campo} field-sizing-content min-h-20`} />
           </Rotulo>
         </div>
@@ -355,8 +360,8 @@ export function AbasDaProposta({ formulario, editar, aoMudar, contatos, cotacao,
             <textarea rows={3} value={formulario.observacoesInternas} disabled={!editar} onChange={(e) => aoMudar("observacoesInternas", e.target.value)} className={`${campo} field-sizing-content min-h-20 bg-amber-50/40`} />
           </Rotulo>
         </div>
+        <div hidden={aba !== "anexos"}>{anexos}</div>
         <div hidden={aba !== "contatos"}>{contatos}</div>
-        <div hidden={aba !== "cotacao"}>{cotacao}</div>
       </div>
     </section>
   );

@@ -89,8 +89,11 @@ export function JanelaPedidoDeVenda({ proposta, ocupado, aoRecuar, aoConfirmar, 
   );
 }
 
-/** A aba "Cotação do cliente": anexar (varios de uma vez), baixar e excluir. Grava na hora, fora do Salvar. */
-export function AnexosDaCotacao({ numero, anexos, editar, aoAtualizar }) {
+/**
+ * Uma lista de anexos da proposta (aba "Anexos" do card "Notas e anexos", 17/11/2026): a OC do cliente ou os gerais.
+ * Anexar (varios de uma vez), baixar e excluir; grava na hora, fora do Salvar.
+ */
+export function AnexosDaProposta({ numero, tipo = "GERAL", titulo, rotuloDoBotao, aceita, anexos, editar, aoAtualizar }) {
   const [erro, setErro] = useState(null);
   const [excluindo, setExcluindo] = useState(null);
   const [ocupado, iniciar] = useTransition();
@@ -100,6 +103,7 @@ export function AnexosDaCotacao({ numero, anexos, editar, aoAtualizar }) {
     iniciar(async () => {
       const dados = new FormData();
       dados.set("numero", String(numero));
+      dados.set("tipo", tipo);
       for (const arquivo of arquivos) dados.append("arquivo", arquivo);
       const resposta = await anexarCotacaoAcao(dados);
       if (entrada.current) entrada.current.value = "";
@@ -109,8 +113,9 @@ export function AnexosDaCotacao({ numero, anexos, editar, aoAtualizar }) {
     });
 
   return (
-    <div className="space-y-3">
-      {anexos.length === 0 && <p className="text-sm text-suave">Nenhum arquivo anexado.</p>}
+    <div className="space-y-2">
+      <p className="text-xs font-medium text-suave">{titulo}</p>
+      {anexos.length === 0 && <p className="text-sm text-suave">Nenhum arquivo.</p>}
       <ul className="space-y-1.5">
         {anexos.map((a) => (
           <li key={a.id} className="flex items-center gap-2 text-sm">
@@ -129,8 +134,8 @@ export function AnexosDaCotacao({ numero, anexos, editar, aoAtualizar }) {
       </ul>
       {editar && (
         <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-borda px-3 py-2 text-sm hover:bg-fundo">
-          {ocupado ? <Loader2 size={15} className="animate-spin" /> : <FileUp size={15} />} Anexar cotação
-          <input ref={entrada} type="file" multiple accept=".pdf,image/*,.xlsx,.xls,.ods,.docx" className="sr-only" onChange={(e) => e.target.files?.length && enviar([...e.target.files])} />
+          {ocupado ? <Loader2 size={15} className="animate-spin" /> : <FileUp size={15} />} {rotuloDoBotao}
+          <input ref={entrada} type="file" multiple accept={aceita} className="sr-only" onChange={(e) => e.target.files?.length && enviar([...e.target.files])} />
         </label>
       )}
       {erro && <p className="text-sm text-rose-600" role="alert">{erro}</p>}

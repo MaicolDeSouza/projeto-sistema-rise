@@ -431,8 +431,10 @@ try {
   const arquivos = await import("../src/lib/propostas/arquivos.js");
   const pdfFalso = new File([Buffer.from("%PDF-1.4 cotacao")], "cotacao do cliente.pdf");
   const xlsxFalso = new File([Buffer.from([0x50, 0x4b, 0x03, 0x04, 1, 2, 3])], "itens.xlsx");
-  const txt = new File([Buffer.from("texto")], "x.txt");
-  conferir("anexo recusa formato", (await arquivos.anexarCotacao(p2.numero, [txt])).ok, false);
+  // Desde 17/11/2026 o anexo geral aceita texto e e-mail; o que nao e nenhum formato conhecido continua recusado.
+  const binarioQualquer = new File([Buffer.from([0x00, 0x01, 0x02, 0x03, 0x04])], "x.bin");
+  conferir("anexo recusa formato", (await arquivos.anexarCotacao(p2.numero, [binarioQualquer])).ok, false);
+  conferir("anexo: texto com byte nulo nao passa por .txt", (await arquivos.anexarCotacao(p2.numero, [new File([Buffer.from([0x61, 0x00, 0x62])], "falso.txt")])).ok, false);
   conferir("anexa pdf e planilha", (await arquivos.anexarCotacao(p2.numero, [pdfFalso, xlsxFalso])).anexados, 2);
   const anexos = (await banco.lerProposta(p2.numero)).anexos;
   conferir("planilha guarda a extensao", anexos.map((a) => a.arquivo.split(".").pop()).sort(), ["pdf", "xlsx"]);
@@ -440,6 +442,13 @@ try {
   conferir("le o anexo de volta", [lidoAnexo.nomeOriginal, lidoAnexo.tipo], ["cotacao do cliente.pdf", "application/pdf"]);
   await arquivos.excluirAnexo(p2.numero, anexos[0].id);
   conferir("exclui o anexo", (await banco.lerProposta(p2.numero)).anexos.length, 1);
+  // Card "Notas e anexos" (17/11/2026): a OC do cliente e os gerais (conversas e e-mails) separados pelo tipo.
+  const eml = new File([Buffer.from("From: cliente@zz.test\r\nSubject: Pedido\r\n\r\nSegue a OC.")], "conversa.eml");
+  conferir("anexa a OC e um e-mail", [(await arquivos.anexarCotacao(p2.numero, [pdfFalso], { tipo: "OC" })).ok, (await arquivos.anexarCotacao(p2.numero, [eml])).ok], [true, true]);
+  const porTipo = (await banco.lerProposta(p2.numero)).anexos.map((a) => [a.tipo, a.arquivo.split(".").pop()]);
+  conferir("anexos com o tipo", porTipo.sort(), [["GERAL", "eml"], ["GERAL", "xlsx"], ["OC", "pdf"]]);
+  const lidoEml = await arquivos.lerAnexo((await banco.lerProposta(p2.numero)).anexos.find((a) => a.arquivo.endsWith(".eml")).id);
+  conferir("e-mail volta como message/rfc822", lidoEml.tipo, "message/rfc822");
 
   // Foto do item AVULSO (13/11/2026): vai para a pasta da proposta, o Salvar guarda no avulso, e o PDF a desenha.
   const { default: sharpTeste } = await import("sharp");

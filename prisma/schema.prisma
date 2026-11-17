@@ -3288,6 +3288,8 @@ model AnexoDaProposta {
   arquivo      String
   nomeOriginal String
   tamanho      Int
+  /// "OC" (a ordem de compra do cliente) ou "GERAL" (conversas, e-mails, a cotacao). 17/11/2026, card "Notas e anexos".
+  tipo         String   @default("GERAL")
   criadoEm     DateTime @default(now())
 
   @@index([propostaId])

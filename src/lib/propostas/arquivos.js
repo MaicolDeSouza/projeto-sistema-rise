@@ -28,6 +28,10 @@ const ASSINATURAS = [
   { extensao: ".xls", confere: (b) => b.subarray(0, 8).equals(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])) },
 ];
 const DO_ZIP = [".xlsx", ".ods", ".docx"];
+// Conversas e e-mails (anexos gerais da proposta, 17/11/2026): texto sem byte nulo com o nome .eml ou .txt, e o .msg do
+// Outlook (o mesmo formato OLE do .xls antigo, separado pelo nome). So quando quem chama pede (`textos`).
+const DE_TEXTO = [".eml", ".txt"];
+const semByteNulo = (b) => !b.subarray(0, 8192).includes(0);
 
 export const TIPO_DO_ARQUIVO = {
   ".pdf": "application/pdf",
@@ -39,18 +43,24 @@ export const TIPO_DO_ARQUIVO = {
   ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ".zip": "application/zip",
   ".xls": "application/vnd.ms-excel",
+  ".eml": "message/rfc822",
+  ".msg": "application/vnd.ms-outlook",
+  ".txt": "text/plain; charset=utf-8",
 };
 
 /**
  * Confere um arquivo enviado (tamanho e formato pelos BYTES) e devolve os bytes com o nome gerado. Usado tambem pela
  * ficha cadastral do cliente (lib/clientes/arquivos.js, 13/11/2026).
  */
-export async function prepararArquivo(arquivo, nomePadrao = "arquivo") {
+export async function prepararArquivo(arquivo, nomePadrao = "arquivo", { textos = false } = {}) {
   const nomeOriginal = String(arquivo.name ?? "").slice(0, 200) || nomePadrao;
   if (arquivo.size > TAMANHO_MAXIMO) return { erro: `${nomeOriginal} tem ${(arquivo.size / 1024 / 1024).toFixed(1)} MB; o limite é 20 MB.` };
   const bytes = Buffer.from(await arquivo.arrayBuffer());
+  const pedida = path.extname(nomeOriginal).toLowerCase();
   let extensao = ASSINATURAS.find((a) => a.confere(bytes))?.extensao;
-  if (!extensao) return { erro: `${nomeOriginal}: envie PDF, imagem ou planilha.` };
+  if (textos && extensao === ".xls" && pedida === ".msg") extensao = ".msg";
+  if (textos && !extensao && DE_TEXTO.includes(pedida) && semByteNulo(bytes)) extensao = pedida;
+  if (!extensao) return { erro: textos ? `${nomeOriginal}: envie PDF, imagem, planilha, e-mail (.eml ou .msg) ou texto.` : `${nomeOriginal}: envie PDF, imagem ou planilha.` };
   if (extensao === ".zip") {
     const pedida = path.extname(nomeOriginal).toLowerCase();
     if (DO_ZIP.includes(pedida)) extensao = pedida;
@@ -58,7 +68,7 @@ export async function prepararArquivo(arquivo, nomePadrao = "arquivo") {
   return { bytes, nome: `${randomUUID().replaceAll("-", "")}${extensao}`, nomeOriginal, tamanho: bytes.length };
 }
 
-export const NOME_GERADO_DO_ARQUIVO = /^[0-9a-f]{32}\.(pdf|jpg|png|webp|xlsx|ods|docx|zip|xls)$/;
+export const NOME_GERADO_DO_ARQUIVO = /^[0-9a-f]{32}\.(pdf|jpg|png|webp|xlsx|ods|docx|zip|xls|eml|msg|txt)$/;
 const ID = /^[a-z0-9]{10,40}$/;
 
 export function caminhoDoAnexo(propostaId, nome) {
@@ -127,8 +137,14 @@ export async function apagarPastaDaProposta(propostaId) {
   await rm(path.join(RAIZ_PROPOSTAS, propostaId), { recursive: true, force: true });
 }
 
-/** Grava os arquivos enviados e as linhas do banco. Um arquivo recusado nao grava nenhum (a mensagem diz qual). */
-export async function anexarCotacao(numeroDaProposta, arquivos) {
+export const TIPOS_DE_ANEXO = ["OC", "GERAL"];
+
+/**
+ * Grava os arquivos enviados e as linhas do banco. Um arquivo recusado nao grava nenhum (a mensagem diz qual). `tipo`:
+ * "OC" (a ordem de compra do cliente) ou "GERAL" (conversas, e-mails, a cotacao; aceita tambem .eml, .msg e .txt).
+ */
+export async function anexarCotacao(numeroDaProposta, arquivos, { tipo = "GERAL" } = {}) {
+  const tipoDoAnexo = TIPOS_DE_ANEXO.includes(tipo) ? tipo : "GERAL";
   const proposta = await prisma.propostaParaCliente.findUnique({ where: { numero: Number(numeroDaProposta) || 0 }, select: { id: true } });
   if (!proposta) return { ok: false, erro: "Proposta não encontrada." };
   const lista = (arquivos ?? []).filter((a) => a && typeof a.arrayBuffer === "function" && a.size);
@@ -137,7 +153,7 @@ export async function anexarCotacao(numeroDaProposta, arquivos) {
 
   const preparados = [];
   for (const arquivo of lista) {
-    const preparado = await prepararArquivo(arquivo, "cotacao");
+    const preparado = await prepararArquivo(arquivo, tipoDoAnexo === "OC" ? "oc-do-cliente" : "anexo", { textos: true });
     if (preparado.erro) return { ok: false, erro: preparado.erro };
     preparados.push(preparado);
   }
@@ -147,7 +163,7 @@ export async function anexarCotacao(numeroDaProposta, arquivos) {
     await writeFile(destino, item.bytes);
   }
   await prisma.anexoDaProposta.createMany({
-    data: preparados.map((item) => ({ propostaId: proposta.id, arquivo: item.nome, nomeOriginal: item.nomeOriginal, tamanho: item.tamanho })),
+    data: preparados.map((item) => ({ propostaId: proposta.id, arquivo: item.nome, nomeOriginal: item.nomeOriginal, tamanho: item.tamanho, tipo: tipoDoAnexo })),
   });
   return { ok: true, anexados: preparados.length };
 }

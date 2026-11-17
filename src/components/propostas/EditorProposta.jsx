@@ -10,12 +10,12 @@ import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
 import { marcarTelaIniciada } from "@/components/mercados/NavegacaoDoTopo";
 import { MOTIVOS_DE_RECUSA, camposDoPadrao, dataBR, linhasDasExigencias, linkDoWhatsApp, mensagemDoWhatsApp, numeroDaProposta, pendenciasDoPdf, precisaContato } from "@/lib/propostas/regras";
 import { lerListaDaTela, pedirVoltaNaRolagem } from "@/lib/ultimaListaDaTela";
-import { AbasDaProposta, CartaoCondicoesDaProposta, CartaoFrete, CartaoPagamento, CartaoTotais, HistoricoDeContatos } from "./BlocosDaProposta";
+import { CartaoCondicoesDaProposta, CartaoFrete, CartaoNotasEAnexos, CartaoPagamento, CartaoTotais, HistoricoDeContatos } from "./BlocosDaProposta";
 import CartaoCliente, { campo, Rotulo } from "./CartaoCliente";
 import { entradaDoFormulario, formularioDaProposta, moeda, totaisDoFormulario } from "./formato";
 import ItensDaProposta from "./ItensDaProposta";
 import { AlertaDeContato, SeloDaSituacao } from "./TabelaPropostas";
-import { AnexosDaCotacao, JanelaContato, JanelaPedidoDeVenda, JanelaRecusar } from "./JanelasDaProposta";
+import { AnexosDaProposta, JanelaContato, JanelaPedidoDeVenda, JanelaRecusar } from "./JanelasDaProposta";
 
 /**
  * O editor da proposta. Linha-guia (Padrao visual): o operador ve primeiro o CLIENTE, os ITENS e o TOTAL; a acao
@@ -351,8 +351,9 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
 
         <CartaoTotais formulario={formulario} totais={totais} editar={editar} erros={erros} aoMudar={mudar} veCusto={veCusto} />
 
-        {/* Dois por linha: tres lado a lado em ~1600 px apertavam a validade ("10 d..."); o Frete vai para baixo. */}
-        <div className="grid gap-6 lg:grid-cols-2">
+        {/* Os 4 cards em 2 x 2, todos do mesmo tamanho (pedido do dono em 17/11/2026): auto-rows-fr iguala as linhas e
+            cada card ocupa a celula inteira (h-full). Tres lado a lado em ~1600 px apertavam a validade ("10 d..."). */}
+        <div className="grid gap-6 lg:auto-rows-fr lg:grid-cols-2">
           <CartaoCondicoesDaProposta
             formulario={formulario}
             editar={editar}
@@ -362,19 +363,44 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
             contatoAgora={contatoAgora}
             erros={erros}
             aoMudar={mudar}
+            className="h-full"
           />
-          <CartaoPagamento formulario={formulario} condicoes={condicoes} total={totais.total} editar={editar} erros={erros} aoMudar={mudar} />
-          <CartaoFrete formulario={formulario} transportadoras={transportadoras} editar={editar} erros={erros} aoMudar={mudar} />
+          <CartaoPagamento className="h-full" formulario={formulario} condicoes={condicoes} total={totais.total} editar={editar} erros={erros} aoMudar={mudar} />
+          <CartaoFrete className="h-full" formulario={formulario} transportadoras={transportadoras} editar={editar} erros={erros} aoMudar={mudar} />
+          <CartaoNotasEAnexos
+            className="h-full"
+            formulario={formulario}
+            editar={editar}
+            aoMudar={mudar}
+            quantos={{ contatos: proposta.contatos.length, anexos: proposta.anexos.length }}
+            contatos={<HistoricoDeContatos contatos={proposta.contatos} />}
+            anexos={
+              <div className="grid gap-4 sm:grid-cols-2">
+                <AnexosDaProposta
+                  numero={proposta.numero}
+                  tipo="OC"
+                  titulo="OC do cliente"
+                  rotuloDoBotao="Anexar OC"
+                  aceita=".pdf,image/*,.xlsx,.xls,.ods,.docx"
+                  anexos={proposta.anexos.filter((a) => a.tipo === "OC")}
+                  editar={podeEditar}
+                  aoAtualizar={(nova) => setProposta((antes) => ({ ...antes, anexos: nova.anexos }))}
+                />
+                <AnexosDaProposta
+                  numero={proposta.numero}
+                  tipo="GERAL"
+                  titulo="Geral (conversas, e-mails, cotação)"
+                  rotuloDoBotao="Anexar arquivo"
+                  aceita=".pdf,image/*,.xlsx,.xls,.ods,.docx,.eml,.msg,.txt"
+                  anexos={proposta.anexos.filter((a) => a.tipo !== "OC")}
+                  editar={podeEditar}
+                  aoAtualizar={(nova) => setProposta((antes) => ({ ...antes, anexos: nova.anexos }))}
+                />
+              </div>
+            }
+          />
         </div>
 
-        <AbasDaProposta
-          formulario={formulario}
-          editar={editar}
-          aoMudar={mudar}
-          quantos={{ contatos: proposta.contatos.length, cotacao: proposta.anexos.length }}
-          contatos={<HistoricoDeContatos contatos={proposta.contatos} />}
-          cotacao={<AnexosDaCotacao numero={proposta.numero} anexos={proposta.anexos} editar={podeEditar} aoAtualizar={(nova) => setProposta((antes) => ({ ...antes, anexos: nova.anexos }))} />}
-        />
       </div>
 
       {pergunta === "sair" && (
