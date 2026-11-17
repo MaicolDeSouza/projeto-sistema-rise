@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ExternalLink, ImagePlus, Loader2, PackagePlus, Plus, Search, Trash2, X } from "lucide-react";
+import { Boxes, ExternalLink, ImagePlus, Loader2, PackagePlus, Plus, Search, Trash2, X } from "lucide-react";
 
 import { buscarProdutosAcao, enviarFotoDoItemAcao, estoqueDosItensAcao, produtoParaPropostaAcao } from "@/app/propostas/acoes";
 import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
@@ -238,7 +238,12 @@ function EstoqueDoItem({ info, produtoId }) {
       ))}
     </>
   );
-  return <BolhaDeAjuda variante="inline-direita" cor={info.atende ? "text-emerald-600" : "text-rose-600"} className="mt-2.5" texto={texto} />;
+  // Caixas empilhadas, o icone de estoque do Bling (pedido do dono em 17/11/2026); a cor diz se atende.
+  return (
+    <BolhaDeAjuda variante="inline-direita" texto={texto}>
+      <Boxes size={18} aria-label={info.atende ? "Estoque atende" : "Falta estoque"} className={info.atende ? "text-emerald-600" : "text-rose-600"} />
+    </BolhaDeAjuda>
+  );
 }
 
 /**
@@ -438,24 +443,26 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
       {itens.length === 0 ? (
         <p className="py-6 text-center text-sm text-suave">Nenhum item ainda.</p>
       ) : (
-        <div className="-m-4 overflow-x-auto">
-          {/* table-fixed: as larguras do cabecalho valem e o Produto fica com o resto (sem isso o nome longo espremia o resto). */}
-          <table className="w-full min-w-[1440px] table-fixed border-collapse text-sm">
+        <div className="-m-4">
+          {/* Sem rolagem lateral (pedido do dono em 17/11/2026): table-fixed, as colunas com largura fixa e o Produto com o resto. */}
+          <table className="w-full table-fixed border-collapse text-sm">
             <thead className="bg-fundo/70 text-xs text-suave">
               <tr className="border-b border-borda">
                 <th className={`${th} w-14`}>
                   <span className="sr-only">Foto</span>
                 </th>
-                <th className={`${th} w-24`}>Código</th>
                 <th className={th}>Produto</th>
-                <th className={`${th} w-40`}>Marca / Modelo</th>
-                <th className={`${th} w-24`}>Qtd.</th>
-                <th className={`${th} w-[136px]`}>Un.</th>
-                <th className={`${th} w-24`}>Unitário</th>
+                <th className={`${th} w-24`}>Código</th>
+                <th className={`${th} w-20`}>Qtd.</th>
+                <th className={`${th} w-[76px]`}>Un.</th>
+                <th className={`${th} w-26 whitespace-nowrap`}>Preço de lista</th>
                 <th className={`${th} w-[72px] whitespace-nowrap`}>Desc. %</th>
                 <th className={`${th} w-26`}>Total</th>
                 <th className={`${th} w-42`}>Prazo</th>
-                {veCusto && <th className={`${th} w-38 whitespace-nowrap`}>Custo (lucro)</th>}
+                {veCusto && <th className={`${th} w-26`}>Lucro</th>}
+                <th className={`${th} w-11`}>
+                  <span className="sr-only">Estoque e excluir</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -468,6 +475,8 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                   custoUnitario: doTexto(item.custoUnitario),
                 };
                 const markup = markupDoItem(numeros);
+                // Lucro em R$ da linha: o total (sem o frete) menos o custo x quantidade; sem custo, nao ha lucro.
+                const lucro = numeros.custoUnitario === null ? null : Math.round((totalDoItem(numeros) - numeros.custoUnitario * numeros.quantidade) * 100) / 100;
                 const fator = fatorDe(item);
                 const verDescricao = Boolean(item.descricaoCliente) || descricaoAberta === item.chave;
                 const verObs = Boolean(item.observacao) || obsAberta === item.chave;
@@ -483,28 +492,6 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                       ) : (
                         <span className="block h-10 w-10 rounded bg-fundo" />
                       )}
-                      {/* A lixeira embaixo da foto (pedido do dono em 17/11/2026): na ultima coluna ela sumia na rolagem lateral. */}
-                      {editar && (
-                        <button
-                          type="button"
-                          onClick={() => remover(indice)}
-                          aria-label="Remover o item"
-                          title="Remover o item"
-                          className="mt-1.5 flex h-8 w-10 items-center justify-center rounded text-suave hover:bg-rose-50 hover:text-rose-600"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      )}
-                    </td>
-                    <td className={td}>
-                      {/* Coluna Codigo (pedido do dono em 17/11/2026): sempre o codigo do Rise, e digitar busca por ele. */}
-                      <CampoDoProduto
-                        item={item}
-                        editar={editar}
-                        modo="codigo"
-                        aoEscolher={(produtoId) => escolherProduto(indice, produtoId)}
-                        aoNomeLivre={(texto, desligar) => nomeLivre(indice, texto, desligar)}
-                      />
                     </td>
                     <td className={td}>
                       <CampoDoProduto
@@ -629,34 +616,40 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                           )}
                         </div>
                       )}
-                    </td>
-                    <td className={td}>
-                      {/* Coluna propria (pedido do dono em 17/11/2026: "Marca: xxxx e logo abaixo Modelo: xxxx"). Vem do produto
-                          do Rise e se corrige aqui; sai no PDF (o SENAI exige; 13/11/2026). */}
-                      <div className="space-y-1.5">
-                        <label className="flex items-center gap-1.5 text-xs text-suave">
-                          <span className="w-12 shrink-0">Marca:</span>
+                      {/* A coluna Marca / Modelo saiu (pedido do dono em 17/11/2026); marca e modelo vem do Rise sozinhos. So o
+                          padrao que exige (SENAI) mostra os dois campos aqui, porque sem eles o PDF fica travado. */}
+                      {exigeMarcaModelo && (
+                        <div className="mt-1.5 flex gap-2">
                           <input
                             value={item.marca}
                             disabled={!editar}
+                            placeholder="Marca"
                             aria-label="Marca"
-                            aria-invalid={exigeMarcaModelo && !item.marca.trim()}
+                            aria-invalid={!item.marca.trim()}
                             onChange={(e) => mudarItem(indice, "marca", e.target.value.slice(0, 100))}
-                            className={`${celula} py-1 text-xs text-texto`}
+                            className={`${celula} py-1 text-xs`}
                           />
-                        </label>
-                        <label className="flex items-center gap-1.5 text-xs text-suave">
-                          <span className="w-12 shrink-0">Modelo:</span>
                           <input
                             value={item.modelo}
                             disabled={!editar}
+                            placeholder="Modelo"
                             aria-label="Modelo"
-                            aria-invalid={exigeMarcaModelo && !item.modelo.trim()}
+                            aria-invalid={!item.modelo.trim()}
                             onChange={(e) => mudarItem(indice, "modelo", e.target.value.slice(0, 150))}
-                            className={`${celula} py-1 text-xs text-texto`}
+                            className={`${celula} py-1 text-xs`}
                           />
-                        </label>
-                      </div>
+                        </div>
+                      )}
+                    </td>
+                    <td className={td}>
+                      {/* Coluna Codigo (pedido do dono em 17/11/2026): sempre o codigo do Rise, e digitar busca por ele. */}
+                      <CampoDoProduto
+                        item={item}
+                        editar={editar}
+                        modo="codigo"
+                        aoEscolher={(produtoId) => escolherProduto(indice, produtoId)}
+                        aoNomeLivre={(texto, desligar) => nomeLivre(indice, texto, desligar)}
+                      />
                     </td>
                     <td className={td}>
                       <input
@@ -669,22 +662,20 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                         onChange={(e) => mudarItem(indice, "quantidade", soDecimal(e.target.value))}
                         className={`${celula} tabular-nums`}
                       />
-                      {/* O "i" de estoque ao lado da quantidade que ele confere (saiu da ultima coluna em 17/11/2026). */}
-                      <span className="mt-1.5 flex justify-center">
-                        <EstoqueDoItem info={estoque[item.chave]} produtoId={item.produtoId} />
-                      </span>
                     </td>
                     <td className={td}>
+                      {/* So a sigla; o significado aparece no mouse (pedido do dono em 17/11/2026). */}
                       <select
                         value={item.unidade}
                         disabled={!editar}
                         aria-label="Unidade"
+                        title={`${item.unidade} = ${UNIDADE_POR_EXTENSO[item.unidade] ?? item.unidade}`}
                         onChange={(e) => mudarItem(indice, "unidade", e.target.value)}
                         className={celula}
                       >
                         {UNIDADES_DA_PROPOSTA.map((u) => (
-                          <option key={u} value={u}>
-                            {u} ({UNIDADE_POR_EXTENSO[u]})
+                          <option key={u} value={u} title={UNIDADE_POR_EXTENSO[u]}>
+                            {u}
                           </option>
                         ))}
                       </select>
@@ -694,7 +685,7 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                         inputMode="decimal"
                         value={item.precoUnitario}
                         disabled={!editar}
-                        aria-label="Preço unitário"
+                        aria-label="Preço de lista"
                         aria-invalid={Boolean(erro("precoUnitario"))}
                         title={erro("precoUnitario")}
                         onChange={(e) => mudarItem(indice, "precoUnitario", soDecimal(e.target.value))}
@@ -760,26 +751,31 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                       </div>
                     </td>
                     {veCusto && (
-                      <td className={td}>
-                        {/* Custo e lucro juntos (pedido do dono em 17/11/2026): o markup sai ao lado, entre parenteses. */}
-                        <div className="flex items-center gap-2">
-                          <input
-                            inputMode="decimal"
-                            value={item.custoUnitario}
-                            disabled={!editar}
-                            aria-label="Custo unitário"
-                            onChange={(e) => mudarItem(indice, "custoUnitario", soDecimal(e.target.value))}
-                            className={`${celulaSolta} w-24 tabular-nums`}
-                          />
-                          <span
-                            className={`shrink-0 font-medium tabular-nums ${markup === null ? "text-suave" : markup < 0 ? "text-rose-600" : markup < 60 ? "text-amber-700" : "text-emerald-700"}`}
-                            title="Lucro sobre o custo (markup)"
-                          >
-                            ({markup === null ? "—" : `${Math.round(markup)}%`})
-                          </span>
-                        </div>
+                      // Lucro so de leitura, com a % embaixo (pedido do dono em 17/11/2026); o custo vem do Rise e aparece no mouse.
+                      <td className={`${td} pt-3 tabular-nums`} title={numeros.custoUnitario !== null ? `Custo: ${moedaUnitaria.format(numeros.custoUnitario)} cada` : "Sem custo"}>
+                        <p className={`font-medium ${lucro === null ? "text-suave" : lucro < 0 ? "text-rose-600" : "text-texto"}`}>{lucro === null ? "—" : moeda.format(lucro)}</p>
+                        {markup !== null && (
+                          <p className={`text-xs ${markup < 0 ? "text-rose-600" : markup < 60 ? "text-amber-700" : "text-emerald-700"}`}>{Math.round(markup)}%</p>
+                        )}
                       </td>
                     )}
+                    {/* Estoque e excluir no fim da linha, um embaixo do outro (pedido do dono em 17/11/2026). */}
+                    <td className={`${td} px-1`}>
+                      <div className="flex flex-col items-center gap-2 pt-2">
+                        <EstoqueDoItem info={estoque[item.chave]} produtoId={item.produtoId} />
+                        {editar && (
+                          <button
+                            type="button"
+                            onClick={() => remover(indice)}
+                            aria-label="Remover o item"
+                            title="Remover o item"
+                            className="rounded p-1 text-suave hover:bg-rose-50 hover:text-rose-600"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 );
               })}

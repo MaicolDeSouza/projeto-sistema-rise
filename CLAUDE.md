@@ -6325,6 +6325,12 @@ plano `docs/superpowers/plans/2026-11-12-propostas-para-cliente.md`. Menu **Prop
     o Total do item com o frete e os Totais com "Subtotal (com frete)"; o preço digitado continua sem o frete. **Entrada em
     R$ ou %** (`entradaTipo`, `entradaValor`; trocar converte o digitado; `valoresDoPagamento` e `textoDoPagamento` seguem o
     tipo; a condição com "% de entrada" volta para %). Folga de 45vh no fim da página, para o Frete chegar ao meio da tela.
+  - **Tabela de itens sem rolagem lateral** (último ajuste de 17/11/2026, substitui o desenho acima): colunas Foto, Produto,
+    Código, Qtd., Un. (só a sigla; o significado no `title`), Preço de lista (era "Unitário"), Desc. %, Total, Prazo, Lucro
+    (R$ só de leitura com a % embaixo; o custo vem do Rise e aparece no mouse; não se edita mais o custo na tabela) e, no
+    fim, o estoque (caixas empilhadas do lucide `Boxes`, como o ícone do Bling; verde atende, vermelho falta) em cima da
+    lixeira. `table-fixed` sem largura mínima: o Produto fica com o resto (391 px em 1600 px). A coluna Marca / Modelo saiu;
+    marca e modelo vêm do Rise e só aparecem como campos dentro do Produto quando o padrão exige (SENAI).
 - **Foto do item avulso** (pedido do dono em 13/11/2026, na proposta da Fundação Coppetec: itens comprados no ML só para o
   cliente): no editor, a caixa da foto do avulso é um botão (ícone de imagem) que envia JPG/PNG/WebP na hora para
   `dados/propostas/<propostaId>/fotos/<32 hex>.jpg` (`gravarFotoDoItem`, reduzida a 600 px sobre branco); o "x" tira. O
