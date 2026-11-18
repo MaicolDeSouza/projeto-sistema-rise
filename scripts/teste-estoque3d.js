@@ -35,28 +35,34 @@ conferir("texto da localizacao", [textoDaLocalizacao("m", 2), textoDaLocalizacao
 console.log("\nPecas que cabem na caixinha");
 const P = { nome: "P", larguraCm: 10, alturaCm: 8, profundidadeCm: 20, fatorUtil: 0.7 };
 const G = { nome: "G", larguraCm: 20, alturaCm: 15, profundidadeCm: 35, fatorUtil: 0.7 };
-// P: 1600 cm3 x 0,7 x 0,85 = 952 cm3 uteis.
-conferir("peca de 1 cm3", pecasQueCabem(P, { larguraCm: 1, alturaCm: 1, comprimentoCm: 1 }), { pecas: 952, motivo: null });
-conferir("peca de 2x3x4 (24 cm3)", pecasQueCabem(P, { larguraCm: 2, alturaCm: 3, comprimentoCm: 4 }).pecas, 39);
-conferir("peca comprida entra deitada (rotacao)", pecasQueCabem(P, { larguraCm: 18, alturaCm: 2, comprimentoCm: 2 }).pecas, 13);
+// Arrumacao em bloco com 2 mm de folga em cada medida da peca (Opcao 1 do dono, 18/11/2026).
+// P sem medida interna: arruma nas de fora (10 x 8 x 20) e multiplica pelo fatorUtil. 1x1x1 -> 8 x 6 x 16 = 768 x 0,7 = 537.
+conferir("peca de 1 cm3", pecasQueCabem(P, { larguraCm: 1, alturaCm: 1, comprimentoCm: 1 }), { pecas: 537, motivo: null });
+// 2,2 x 3,2 x 4,2 na melhor rotacao: 3 x 3 x 4 = 36 x 0,7 = 25.
+conferir("peca de 2x3x4 na melhor rotacao", pecasQueCabem(P, { larguraCm: 2, alturaCm: 3, comprimentoCm: 4 }).pecas, 25);
+// 18,2 so cabe na profundidade de 20: 4 x 3 x 1 = 12 x 0,7 = 8.
+conferir("peca comprida entra deitada (rotacao)", pecasQueCabem(P, { larguraCm: 18, alturaCm: 2, comprimentoCm: 2 }).pecas, 8);
 conferir("peca maior que a caixinha nao entra", pecasQueCabem(P, { larguraCm: 25, alturaCm: 2, comprimentoCm: 2 }), { pecas: 0, motivo: "A peça não entra nesta caixinha." });
 conferir("peca que passa cabe ao menos uma", pecasQueCabem(P, { larguraCm: 9, alturaCm: 7, comprimentoCm: 19 }).pecas, 1);
 conferir("produto sem medida", pecasQueCabem(P, { larguraCm: 2, alturaCm: null, comprimentoCm: 4 }), { pecas: null, motivo: "Produto sem medidas no cadastro." });
 conferir("sem caixinha", pecasQueCabem(null, { larguraCm: 2, alturaCm: 3, comprimentoCm: 4 }).pecas, null);
-// N3 da Siplas (18/11/2026): fora 10,2 x 7,5 x 18; dentro 9 x 7 x 14,5 = 913,5 cm3 x 0,85 = 776 (o fatorUtil nao entra).
+// N3 da Siplas (18/11/2026): fora 10,2 x 7,5 x 18; dentro 9 x 7 x 14,5 (o fatorUtil nao entra com a interna).
 const N3 = { nome: "N3", larguraCm: 10.2, alturaCm: 7.5, profundidadeCm: 18, larguraInternaCm: 9, alturaInternaCm: 7, profundidadeInternaCm: 14.5, fatorUtil: 0.7 };
-conferir("medida interna: o volume de dentro, sem o fatorUtil", pecasQueCabem(N3, { larguraCm: 1, alturaCm: 1, comprimentoCm: 1 }), { pecas: 776, motivo: null });
-conferir("sem a interna, o de fora x fatorUtil (1377 x 0,7 x 0,85)", pecasQueCabem({ ...N3, larguraInternaCm: null }, { larguraCm: 1, alturaCm: 1, comprimentoCm: 1 }).pecas, 819);
+conferir("medida interna: arruma nas de dentro, sem o fatorUtil (7 x 5 x 12)", pecasQueCabem(N3, { larguraCm: 1, alturaCm: 1, comprimentoCm: 1 }), { pecas: 420, motivo: null });
+conferir("sem a interna, nas de fora x fatorUtil (8 x 6 x 15 = 720 x 0,7)", pecasQueCabem({ ...N3, larguraInternaCm: null }, { larguraCm: 1, alturaCm: 1, comprimentoCm: 1 }).pecas, 504);
 conferir("interna incompleta nao vale", medidasInternas({ larguraInternaCm: 9, alturaInternaCm: 7 }), null);
 conferir("passa por fora mas nao por dentro: nao entra", pecasQueCabem(N3, { larguraCm: 16, alturaCm: 2, comprimentoCm: 2 }), { pecas: 0, motivo: "A peça não entra nesta caixinha." });
-conferir("peca de 2x3x4 na N3 (776 / 24)", pecasQueCabem(N3, { larguraCm: 2, alturaCm: 3, comprimentoCm: 4 }).pecas, 32);
+conferir("peca de 2x3x4 na N3 (4 x 2 x 3)", pecasQueCabem(N3, { larguraCm: 2, alturaCm: 3, comprimentoCm: 4 }).pecas, 24);
+// O caso do dono: o UNO R3 (5,3 x 1 x 6,8) dava 21 pelo volume; em pe, 1,2 cm cada, 7 lado a lado x 2 de fundo = 14.
+conferir("UNO R3 na N3: 14, em pe", pecasQueCabem(N3, { larguraCm: 5.3, alturaCm: 1, comprimentoCm: 6.8 }).pecas, 14);
+conferir("peca do tamanho exato de dentro: 1, mesmo sem folga", pecasQueCabem(N3, { larguraCm: 9, alturaCm: 7, comprimentoCm: 14.5 }).pecas, 1);
 conferir("digitado vence a estimativa", capacidadeDoProduto({ pecasPorCaixinha: 50, larguraCm: 1, alturaCm: 1, comprimentoCm: 1 }, P), { pecas: 50, origem: "digitado", motivo: null });
 conferir("sem digitado vale a estimativa", capacidadeDoProduto({ larguraCm: 2, alturaCm: 3, comprimentoCm: 4 }, P).origem, "estimado");
 conferir("digitado vale mesmo sem medida", capacidadeDoProduto({ pecasPorCaixinha: 7 }, null).pecas, 7);
 
 console.log("\nCaixinha certa e peso");
-const peca = { larguraCm: 2, alturaCm: 3, comprimentoCm: 4, estoque: 10, estoqueMaximo: 30 };
-conferir("guarda o estoque maximo; sem ele, o estoque", [quantidadeAGuardar(peca), quantidadeAGuardar({ estoque: 12 }), quantidadeAGuardar({})], [30, 12, 0]);
+const peca = { larguraCm: 2, alturaCm: 3, comprimentoCm: 4, estoque: 10, estoqueMaximo: 20 };
+conferir("guarda o estoque maximo; sem ele, o estoque", [quantidadeAGuardar(peca), quantidadeAGuardar({ estoque: 12 }), quantidadeAGuardar({})], [20, 12, 0]);
 conferir("cabe na menor", [menorCaixinha([G, P], peca).modelo.nome, menorCaixinha([G, P], peca).cabe], ["P", true]);
 conferir("nao coube na P: a maior", [menorCaixinha([G, P], { ...peca, estoqueMaximo: 100 }).modelo.nome, menorCaixinha([G, P], { ...peca, estoqueMaximo: 100 }).cabe], ["G", true]);
 conferir("nao cabe em nenhuma: a maior, avisando", [menorCaixinha([G, P], { ...peca, estoqueMaximo: 5000 }).modelo.nome, menorCaixinha([G, P], { ...peca, estoqueMaximo: 5000 }).cabe], ["G", false]);
@@ -102,7 +108,7 @@ conferir("em fila: a M comeca depois da A (90 + 3)", [estoque1.colunas[0].xCm, c
 conferir("a ordem digitada vem primeiro, depois o codigo", m2.caixinhas.map((caixinha) => caixinha.sku), ["100300", "100100", "100200"]);
 conferir("lado a lado pela largura do modelo", m2.caixinhas.map((caixinha) => caixinha.xCm), [0, 20, 30]);
 conferir("o que passa do vao e avisado", [m2.ocupadoCm, m2.excedeCm], [50, 0]);
-conferir("estoque maior que o que cabe pede caixinha maior", m2.caixinhas[1].avisos, ["Estoque (80) maior que o que cabe (39): caixinha maior."]);
+conferir("estoque maior que o que cabe pede caixinha maior", m2.caixinhas[1].avisos, ["Estoque (80) maior que o que cabe (25): caixinha maior."]);
 conferir("peso da prateleira", m2.pesoKg, 0.8);
 conferir("prateleira citada alem do cadastro existe", [colunaM.prateleiras.length, colunaM.prateleiras.find((p) => p.numero === 5).caixinhas[0].sku], [5, "100400"]);
 conferir("a 1 em cima: nivel mais alto vem primeiro", [colunaM.prateleiras[0].numero, colunaM.prateleiras[0].nivel, colunaM.prateleiras.at(-1).numero], [1, 4, 5]);
@@ -242,7 +248,7 @@ try {
   const lido = await lerMapa();
   const zz = lido.mapa.locais[0].colunas.find((coluna) => coluna.letra === "ZZ");
   const zz3 = zz.prateleiras.find((prateleira) => prateleira.numero === 3);
-  conferir("o mapa traz a caixinha com o modelo, a estimativa e a posicao", [zz3.caixinhas.map((c) => c.sku), zz3.caixinhas[0].modelo, zz3.caixinhas[0].capacidade, zz3.caixinhas[0].origemDaCapacidade], [["ZZ-E3D-1"], "ZZ E3D P", 39, "estimado"]);
+  conferir("o mapa traz a caixinha com o modelo, a estimativa e a posicao", [zz3.caixinhas.map((c) => c.sku), zz3.caixinhas[0].modelo, zz3.caixinhas[0].capacidade, zz3.caixinhas[0].origemDaCapacidade], [["ZZ-E3D-1"], "ZZ E3D P", 25, "estimado"]);
   conferir("o inativo fica fora e a minuscula entra", [zz.caixinhas, zz.prateleiras.find((p) => p.numero === 1).caixinhas[0].sku], [2, "ZZ-E3D-2"]);
   conferir("a lista de colunas conta os produtos", lido.colunas.find((coluna) => coluna.letra === "ZZ").produtos, 2);
   conferir("a lista de modelos conta os produtos", lido.modelos.find((item) => item.nome === "ZZ E3D P").produtos, 1);

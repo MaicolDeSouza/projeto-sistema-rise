@@ -361,7 +361,7 @@ const SALVAR_MODELO = {
   nome: "salvarModeloDeCaixinha",
   descricao: [
     "Cria ou altera um modelo de caixinha (pelo nome). Medidas de FORA em cm; volumeUtil = a parte do volume que guarda peças (padrão 0,70, porque a caixinha é afunilada).",
-    "Medidas de DENTRO (larguraInternaCm, alturaInternaCm, profundidadeInternaCm), opcionais e as três juntas: com elas as peças que cabem são contadas pelo volume de dentro e o volumeUtil não entra; null nas três apaga.",
+    "Medidas de DENTRO (larguraInternaCm, alturaInternaCm, profundidadeInternaCm), opcionais e as três juntas: com elas as peças que cabem são contadas pelas medidas de dentro (em fileiras, com 2 mm de folga em cada peça) e o volumeUtil não entra; null nas três apaga.",
     "No modelo novo, largura, altura e profundidade são obrigatórias. No que existe, mande só o que muda; nomeNovo renomeia; ativo: false tira o modelo da escolha sem apagar.",
   ].join(" "),
   esquema: z.object({

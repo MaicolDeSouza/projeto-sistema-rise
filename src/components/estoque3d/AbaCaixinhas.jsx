@@ -208,7 +208,7 @@ export default function AbaCaixinhas({ modelos, podeEditar }) {
             titulo={
               <span className="inline-flex items-center gap-1">
                 Medidas de dentro (cm)
-                <BolhaDeAjuda variante="inline" texto="Opcional. Com as três, as peças que cabem são contadas pelo volume de dentro e o Volume útil não entra. As de fora continuam valendo para o desenho e a prateleira." />
+                <BolhaDeAjuda variante="inline" texto="Opcional. Com as três, as peças que cabem são contadas pelas medidas de dentro (em fileiras, com 2 mm de folga em cada peça) e o Volume útil não entra. As de fora continuam valendo para o desenho e a prateleira." />
               </span>
             }
             sufixo="Interna"
@@ -220,7 +220,7 @@ export default function AbaCaixinhas({ modelos, podeEditar }) {
             rotulo={
               <span className="inline-flex items-center gap-1">
                 Volume útil (%)
-                <BolhaDeAjuda variante="inline" texto="Só vale sem as medidas de dentro. A caixinha é afunilada e tem a boca rebaixada: quanto do volume de fora serve para guardar peça. 70% é o usual." />
+                <BolhaDeAjuda variante="inline" texto="Só vale sem as medidas de dentro. A caixinha é afunilada e tem a boca rebaixada: as peças contadas pelas medidas de fora são multiplicadas por este número. 70% é o usual." />
               </span>
             }
             type="number"

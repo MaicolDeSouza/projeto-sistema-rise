@@ -20,8 +20,15 @@ export const PADRAO = Object.freeze({
 export const COLUNAS_POR_FILA = 8;
 const CORREDOR_CM = 120;
 
-/** Folga da peca solta dentro da caixinha: nao se enche ate a borda nem se encaixa peca a peca. */
-export const FOLGA_DAS_PECAS = 0.85;
+/**
+ * Folga de cada peca em CADA medida (2 mm): o saquinho, a placa que nao e reta e o dedo para pegar. Ate 18/11/2026 a
+ * folga era 15% do volume, e a conta por volume enchia a caixinha como areia: 21 UNO R3 na N3, onde arrumados cabem 18
+ * (o dono achou demais).
+ */
+export const FOLGA_DA_PECA_CM = 0.2;
+
+/** As 6 maneiras de virar a peca: qual medida dela vai na largura, na altura e na profundidade da caixinha. */
+const ROTACOES = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]];
 
 const numero = (valor) => {
   const lido = Number(valor);
@@ -57,8 +64,8 @@ function medidasDaCaixinha(modelo) {
 }
 
 /**
- * As tres medidas de DENTRO da caixinha, ou null se faltar alguma. Com elas a conta de pecas usa o volume de dentro;
- * sem elas, o de fora vezes o `fatorUtil` (pedido do dono em 18/11/2026, N3 da Siplas).
+ * As tres medidas de DENTRO da caixinha, ou null se faltar alguma. Com elas a conta de pecas arruma nas de dentro;
+ * sem elas, nas de fora vezes o `fatorUtil` (pedido do dono em 18/11/2026, N3 da Siplas).
  */
 export function medidasInternas(modelo) {
   const largura = numero(modelo?.larguraInternaCm);
@@ -76,10 +83,24 @@ function medidasDaPeca(produto) {
 }
 
 /**
- * Quantas pecas cabem na caixinha, ESTIMADO: volume util da caixinha com a folga da peca solta, dividido pelo volume da
- * peca. Volume util = o de DENTRO quando o modelo tem as medidas internas; senao o de fora vezes o `fatorUtil` (a
- * caixinha e afunilada). A peca precisa PASSAR na caixinha em alguma rotacao (a maior medida dela na maior da caixinha,
- * e assim por diante; pelas medidas de dentro quando existem); senao e 0.
+ * Arrumacao em bloco: todas as pecas viradas do mesmo jeito, em fileiras x colunas x camadas, cada medida da peca com a
+ * folga. Fica a melhor das 6 rotacoes. Peca rigida nao se divide: o que sobra de uma fileira fica vazio.
+ */
+function pecasArrumadas(espaco, peca, folgaCm) {
+  let melhor = 0;
+  for (const rotacao of ROTACOES) {
+    // 1e-9: 14,5 / 7,25 tem de dar 2, e o ponto flutuante as vezes da 1,9999999.
+    const porMedida = espaco.map((medida, indice) => Math.floor(medida / (peca[rotacao[indice]] + folgaCm) + 1e-9));
+    melhor = Math.max(melhor, porMedida[0] * porMedida[1] * porMedida[2]);
+  }
+  return melhor;
+}
+
+/**
+ * Quantas pecas cabem na caixinha, ESTIMADO pela arrumacao (escolha do dono em 18/11/2026, Opcao 1): fileiras x colunas
+ * x camadas na melhor posicao da peca, com 2 mm de folga em cada medida dela. Com as medidas de DENTRO, a conta e nelas;
+ * sem elas, nas de fora e o resultado vezes o `fatorUtil` (a caixinha e afunilada). A peca precisa PASSAR na caixinha em
+ * alguma rotacao (a maior medida dela na maior da caixinha, e assim por diante); senao e 0.
  * @returns {{ pecas: number|null, motivo: string|null }} pecas null = sem como estimar (motivo diz o que falta).
  */
 export function pecasQueCabem(modelo, produto) {
@@ -89,16 +110,16 @@ export function pecasQueCabem(modelo, produto) {
   if (!peca) return { pecas: null, motivo: "Produto sem medidas no cadastro." };
   const deDentro = medidasInternas(modelo);
   const caixinha = deDentro ?? deFora;
-  const daCaixinha = [caixinha.largura, caixinha.altura, caixinha.profundidade].sort((a, b) => b - a);
+  const espaco = [caixinha.largura, caixinha.altura, caixinha.profundidade];
+  const daCaixinha = [...espaco].sort((a, b) => b - a);
   const daPeca = [...peca].sort((a, b) => b - a);
   if (daPeca.some((medida, indice) => medida > daCaixinha[indice])) return { pecas: 0, motivo: "A peça não entra nesta caixinha." };
-  // O volume de dentro ja desconta a parede e o afunilado: o fatorUtil (que existe para descontar isso do volume de
-  // fora) nao entra, senao o desconto seria contado duas vezes.
+  // As medidas de dentro ja descontam a parede e o afunilado: o fatorUtil (que existe para descontar isso das de fora)
+  // nao entra, senao o desconto seria contado duas vezes.
   const fator = deDentro ? 1 : Math.min(numero(modelo?.fatorUtil) ?? 0.7, 1);
-  const volumeUtil = caixinha.largura * caixinha.altura * caixinha.profundidade * fator * FOLGA_DAS_PECAS;
-  const volumeDaPeca = peca[0] * peca[1] * peca[2];
-  // A peca que passa cabe ao menos uma vez, mesmo quando o volume util (com as folgas) da menos de 1.
-  return { pecas: Math.max(1, Math.floor(volumeUtil / volumeDaPeca + 1e-9)), motivo: null };
+  const arrumadas = Math.floor(pecasArrumadas(espaco, peca, FOLGA_DA_PECA_CM) * fator + 1e-9);
+  // A peca que passa cabe ao menos uma vez, mesmo quando com a folga nenhuma fileira fecha (peca do tamanho da caixinha).
+  return { pecas: Math.max(1, arrumadas), motivo: null };
 }
 
 /**
