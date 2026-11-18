@@ -6175,8 +6175,19 @@ plano anterior do mesmo dia, rua-prateleira-nível-posição, foi DESCARTADO pel
   janela, coluna "Interna L×A×P" só quando algum modelo a tem e "interna" no lugar do %; MCP `salvarModeloDeCaixinha` aceita as
   três (null nas três apaga). **A N3 da Siplas:** fora 10,2 × 7,5 × 18 cm (o site escreve "cm" e são mm), dentro 9 × 7 × 14,5
   (913 ml; o fabricante diz 900 ml), 82 g; o UNO R3 (5,3 × 1 × 6,8) dá 14 por caixinha (em pé, 7 lado a lado × 2 de fundo).
-- **Próximo:** as fotos da coluna A; medidas dos vãos, colunas dos Estoques 2 e 3 e modelos de caixinha. Fase 3: reorganizar
-  em lote.
+  **NO AR desde 18.11.2026.129** (`bca65ec`, com a conta por fileiras).
+- **Dados gravados no PC e na VPS em 18/11/2026 (pedidos do dono, sem mudar código):**
+  - 9 modelos Siplas pelas fotos do site (A × L × P em mm): N3, N4, N5, N6, N7, "N8 Nacional", N9, AF20 e AF50, com as
+    medidas de fora e de dentro e o peso; cor azul ou preta como na foto. A abertura da frente da AF20/AF50 não é guardada.
+  - A estante das colunas A a F tem um padrão só: prateleiras 1-6 = N5, 7-9 = N7, 10-12 = N8 Nacional (só o
+    `modeloCaixinhaId` dos produtos, por SQL). Fica no lado DIREITO do Estoque 1, A perto da entrada e F no fundo:
+    `xCm` 864, `zCm` 0, −(largura + 3), …, giro 270. **No 3D, +z é a entrada** (a câmera começa lá) e +x a direita; com giro
+    270 a frente olha para o meio e a largura do vão corre para a entrada.
+  - Vão de A a F DEDUZIDO das caixinhas (o dono pediu "ajustar os vãos para caber"), não medido: largura = a prateleira
+    mais cheia de 5 em 5 cm (PC 125 cm, D4 com 8 N5; VPS 130 cm, C12 com 4 N8), fundo 45 (a N8 tem 44), altura livre 20.
+  - Na VPS as colunas B a Y foram criadas pelo "Criar pela Localização" (só a A existia). G a Y seguem sem posição.
+- **Próximo:** as fotos da coluna A; medidas reais dos vãos, onde ficam G a Y, colunas dos Estoques 2 e 3. Fase 3:
+  reorganizar em lote.
 
 ## Estudo de viabilidade de produto (12/11/2026, fase 1: Mercado Livre, NO AR na VPS desde 12.11.2026.112)
 
