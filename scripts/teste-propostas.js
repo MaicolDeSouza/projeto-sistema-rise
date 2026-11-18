@@ -764,6 +764,15 @@ try {
     [true, "GENÉRICA / HTS-315", true],
   );
   conferir("PDF: sem marca e sem padrao, a coluna nao aparece", conteudoDaProposta({ ...relida, padrao: null, itens: relida.itens.map((i) => ({ ...i, marca: null, modelo: null })) }, empresaFalsa).colunas.some((c) => c.chave === "marca"), false);
+  // Item com marca (a do cadastro do Rise) mas padrao que nao pede: a coluna nao sai (regra do dono em 17/11/2026, 2032).
+  conferir(
+    "PDF: item com marca, padrao sem a exigencia, a coluna nao aparece",
+    [
+      conteudoDaProposta({ ...relida, padrao: null }, empresaFalsa).colunas.some((c) => c.chave === "marca"),
+      conteudoDaProposta({ ...relida, padrao: { ...relida.padrao, exigeMarcaModelo: false } }, empresaFalsa).colunas.some((c) => c.chave === "marca"),
+    ],
+    [false, false],
+  );
   conferir(
     "PDF: cliente comum (sem padrao) nao ve o faturamento minimo",
     conteudoDaProposta({ ...relida, padrao: null }, { ...empresaFalsa, faturamentoMinimo: 50 }).blocos.some(([titulo]) => titulo === "Faturamento mínimo"),

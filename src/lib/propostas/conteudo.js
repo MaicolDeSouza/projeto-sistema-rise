@@ -202,8 +202,10 @@ function metodoDeEnvio(proposta) {
 export function conteudoDaProposta(proposta, empresa) {
   const totais = proposta.totais;
   const temDesconto = proposta.itens.some((item) => Number(item.descontoPercentual) > 0);
-  // Marca / Modelo: quando o padrao do cliente exige (SENAI) ou algum item tem; senao a coluna nao ocupa espaco.
-  const temMarca = Boolean(proposta.padrao?.exigeMarcaModelo) || proposta.itens.some((item) => item.marca || item.modelo);
+  // Marca / Modelo SO quando o padrao do cliente exige (SENAI). Regra do dono em 17/11/2026, na 2032 da FUNPEC: "Nao deve
+  // aparecer marca e modelo no PDF nas propostas, apenas quando o cliente solicitar" (ate ali saia tambem quando algum item
+  // tinha marca, e o item do Rise traz a marca do cadastro).
+  const temMarca = Boolean(proposta.padrao?.exigeMarcaModelo);
   // Frete diluido (17/11/2026): o cliente ve os precos com o frete dentro e o quadro diz "Incluso nos produtos".
   const diluido = Boolean(proposta.freteDiluido) && proposta.fretePorConta === "CIF" && totais.frete > 0;
   const itensDoCliente = diluido ? itensComFreteDiluido(proposta.itens, totais.frete) : proposta.itens;

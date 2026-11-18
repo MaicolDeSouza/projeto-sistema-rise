@@ -6426,7 +6426,7 @@ plano `docs/superpowers/plans/2026-11-12-propostas-para-cliente.md`. Menu **Prop
   do cliente): ligar o cliente à proposta aplica o padrão dele se a proposta ainda não tem um; o select "Padrão do cliente"
   no editor aplica na hora (`camposDoPadrao` em `regras.js`: validade = hoje + dias, pagamento, frete, garantia, observações;
   campo vazio do padrão não apaga). As exigências aparecem num quadro âmbar no editor e **nunca vão ao PDF**. O item ganhou
-  **marca e modelo** (copiados do produto, editáveis): coluna "Marca / Modelo" no PDF quando o padrão exige ou algum item tem,
+  **marca e modelo** (copiados do produto, editáveis): coluna "Marca / Modelo" no PDF **só quando o padrão exige** (regra do dono em 17/11/2026, na 2032: "apenas quando o cliente solicitar"; até ali saía também quando algum item tinha marca),
   e o "Gerar PDF" trava com item sem marca ou modelo quando o padrão exige. A coluna "Cód. cliente" some sem código.
   **Faturamento mínimo** em Dados da empresa (`faturamentoMinimo`, R$ 50,00 pela migration, dono: "Nosso faturamento mínimo
   é R$50"): bloco "Faturamento mínimo" ("Valor para faturamento mínimo: R$ 50,00") **só na proposta com padrão personalizado** (SENAI); cliente comum, sem padrão, não vê (dono em 13/11/2026). A migration semeia os
