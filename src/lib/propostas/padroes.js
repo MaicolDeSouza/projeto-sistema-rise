@@ -37,6 +37,8 @@ export function conferirPadrao(entrada = {}) {
       observacoesCliente: texto(entrada.observacoesCliente, 4000),
       exigeMarcaModelo: entrada.exigeMarcaModelo === true || entrada.exigeMarcaModelo === "on" || entrada.exigeMarcaModelo === "true",
       exigencias: texto(entrada.exigencias, 6000),
+      // A proposta com este padrao ja nasce com "Assinar digitalmente" (17/11/2026, FUNPEC).
+      assinarDigitalmente: entrada.assinarDigitalmente === true || entrada.assinarDigitalmente === "on" || entrada.assinarDigitalmente === "true",
     },
   };
 }
@@ -53,6 +55,7 @@ const SELECAO = {
   observacoesCliente: true,
   exigeMarcaModelo: true,
   exigencias: true,
+  assinarDigitalmente: true,
   atualizadoEm: true,
   _count: { select: { clientes: true, propostas: true } },
 };

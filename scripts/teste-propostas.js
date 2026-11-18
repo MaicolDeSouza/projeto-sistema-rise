@@ -647,6 +647,17 @@ try {
     ],
     ["15 dias\naté 27/11/2026", "1 dia\naté 27/11/2026", "Vencida em 27/11/2026"],
   );
+  // Data da proposta no horario de Brasilia (17/11/2026: a 2031, salva as 21h10, saiu com 18/11 porque era o dia em UTC).
+  const { dataDaProposta } = await import("../src/lib/propostas/conteudo.js");
+  conferir(
+    "PDF: data da proposta no dia de Brasilia, nao no de UTC",
+    [
+      dataDaProposta({ atualizadoEm: new Date("2026-11-18T00:10:00Z") }),
+      dataDaProposta({ atualizadoEm: "2026-11-18T03:10:00.000Z" }),
+      validadeEmDias({ atualizadoEm: new Date("2026-11-18T00:10:00Z"), validadeAte: "2026-12-17" }),
+    ],
+    ["2026-11-17", "2026-11-18", "30 dias\naté 17/12/2026"],
+  );
   // Metodo de envio (17/11/2026): so CIF/FOB e a transportadora embaixo ("A combinar" sem ela), sem dias nem valor.
   conferir(
     "PDF: metodo de envio so com CIF/FOB e a transportadora",
@@ -715,6 +726,16 @@ try {
     { padraoId: salvoPadrao.id, validadeAte: "2026-12-13", fretePorConta: "CIF", formaPagamento: "Transferência", pagamentoTexto: "Depósito, 15 dias da entrega" },
   );
   conferir("padrao: exigencias uma por linha, sem vazias", regras.linhasDasExigencias(lidoPadrao.exigencias), ["1. Marca e modelo", "2. Impostos inclusos"]);
+  // Padrao que ja assina (17/11/2026, FUNPEC): grava, le e liga a marca da proposta; sem a marca nao desliga.
+  conferir("padrao: le a marca de assinar", [padroes.conferirPadrao({ nome: "X", validadeDias: "30", assinarDigitalmente: "on" }).dados.assinarDigitalmente, padroes.conferirPadrao({ nome: "X", validadeDias: "30" }).dados.assinarDigitalmente], [true, false]);
+  const salvoQueAssina = await padroes.salvarPadrao(null, { nome: "ZZ Proposta Padrao que assina", validadeDias: "30", assinarDigitalmente: true });
+  const lidoQueAssina = await padroes.lerPadrao(salvoQueAssina.id);
+  conferir(
+    "padrao: a marca de assinar vai para a proposta",
+    [lidoQueAssina.assinarDigitalmente, regras.camposDoPadrao(lidoQueAssina, { hoje: "2026-11-17" }).assinarDigitalmente, "assinarDigitalmente" in regras.camposDoPadrao(lidoPadrao)],
+    [true, true, false],
+  );
+  await padroes.excluirPadrao(salvoQueAssina.id);
   conferir(
     "pendencia: sem marca ou modelo quando o padrao exige",
     regras.pendenciasDoPdf({ clienteNome: "X", itens: [{ descricaoCliente: "a", marca: "OEM", modelo: "" }], exigeMarcaModelo: true }),

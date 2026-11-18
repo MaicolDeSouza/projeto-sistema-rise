@@ -3329,6 +3329,8 @@ model PadraoDeProposta {
   exigeMarcaModelo   Boolean         @default(false)
   /// O que o cliente pede para a proposta (texto livre, uma regra por linha). So na tela.
   exigencias         String?
+  /// A proposta com este padrao ja nasce com "Assinar digitalmente" marcado (pedido do dono em 17/11/2026, FUNPEC).
+  assinarDigitalmente Boolean        @default(false)
 
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt

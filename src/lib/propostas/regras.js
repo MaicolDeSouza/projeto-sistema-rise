@@ -408,6 +408,8 @@ export function camposDoPadrao(padrao, { hoje = hojeEmSaoPaulo() } = {}) {
   if (padrao.pagamentoTexto) campos.pagamentoTexto = padrao.pagamentoTexto;
   if (padrao.garantia) campos.garantia = garantiaCurta(padrao.garantia);
   if (padrao.observacoesCliente) campos.observacoesCliente = padrao.observacoesCliente;
+  // So liga (17/11/2026, FUNPEC): como os outros campos vazios do padrao, o padrao sem a marca nao desmarca a proposta.
+  if (padrao.assinarDigitalmente) campos.assinarDigitalmente = true;
   return campos;
 }
 

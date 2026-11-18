@@ -6394,6 +6394,14 @@ plano `docs/superpowers/plans/2026-11-12-propostas-para-cliente.md`. Menu **Prop
     `propostaPelaChavePublica(`.
   - **Medido com o certificado real (17/11/2026):** o dono enviou o A1 da 4hobby no Rise do PC, assinou a proposta 2026 e o
     **validar.iti.gov.br aprovou** o PDF, sem a política ICP-Brasil (sigPolicyId) no CMS.
+  - **Padrão que já assina** (pedido do dono em 17/11/2026, padrão FUNPEC; migration `20261117h_padrao_assinar_digitalmente`):
+    `PadraoDeProposta.assinarDigitalmente`, caixa "Assinar digitalmente as propostas" na janela do padrão e coluna
+    "Assinatura" na lista de Padrões. `camposDoPadrao` só LIGA a marca da proposta (escolher o padrão ou ligar o cliente
+    com ele); padrão sem a marca não desmarca, como os outros campos vazios do padrão. Na VPS o padrão FUNPEC fica sem a
+    marca até o dono marcar na tela (o dono pediu para não mexer nos dados).
+- **"Data da proposta" no dia de Brasília** (17/11/2026): o PDF e o link mostravam o dia da última alteração em UTC, e a
+  proposta salva depois das 21h saía com o dia seguinte (a 2031 da FUNPEC, salva às 21h, mostrou 18/11). `dataDaProposta`
+  em `conteudo.js` usa `hojeEmSaoPaulo`, e o `validadeEmDias` conta a partir dela.
 - **Foto do item avulso** (pedido do dono em 13/11/2026, na proposta da Fundação Coppetec: itens comprados no ML só para o
   cliente): no editor, a caixa da foto do avulso é um botão (ícone de imagem) que envia JPG/PNG/WebP na hora para
   `dados/propostas/<propostaId>/fotos/<32 hex>.jpg` (`gravarFotoDoItem`, reduzida a 600 px sobre branco); o "x" tira. O

@@ -20,6 +20,7 @@ const VAZIO = {
   observacoesCliente: "",
   exigeMarcaModelo: false,
   exigencias: "",
+  assinarDigitalmente: false,
 };
 
 const paraFormulario = (padrao) =>
@@ -31,6 +32,7 @@ const COLUNAS = [
   { chave: "pagamento", rotulo: "Pagamento", valor: (p) => (p.formaPagamento ?? "").toLocaleLowerCase("pt-BR") },
   { chave: "frete", rotulo: "Frete", valor: (p) => p.fretePorConta },
   { chave: "marca", rotulo: "Marca / Modelo", valor: (p) => (p.exigeMarcaModelo ? 1 : 0) },
+  { chave: "assinatura", rotulo: "Assinatura", valor: (p) => (p.assinarDigitalmente ? 1 : 0) },
   { chave: "exigencias", rotulo: "Exigências", valor: (p) => linhasDasExigencias(p.exigencias).length, direita: true },
   { chave: "clientes", rotulo: "Clientes", valor: (p) => p.clientes, direita: true },
   { chave: "ativo", rotulo: "Situação", valor: (p) => (p.ativo ? 0 : 1) },
@@ -121,6 +123,10 @@ function JanelaPadrao({ padrao, podeEditar, aoFechar, aoSalvo }) {
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={formulario.exigeMarcaModelo} onChange={(e) => mudar("exigeMarcaModelo", e.target.checked)} className="h-4 w-4 accent-acento" />
               Exige marca e modelo de cada item
+            </label>
+            <label className="flex items-center gap-2 text-sm" title="A proposta com este padrão já vem com “Assinar digitalmente” marcado (o PDF sai assinado pelo certificado da empresa).">
+              <input type="checkbox" checked={formulario.assinarDigitalmente} onChange={(e) => mudar("assinarDigitalmente", e.target.checked)} className="h-4 w-4 accent-acento" />
+              Assinar digitalmente as propostas
             </label>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={formulario.ativo} onChange={(e) => mudar("ativo", e.target.checked)} className="h-4 w-4 accent-acento" />
@@ -226,6 +232,7 @@ export default function PadroesDeProposta({ padroesIniciais, podeEditar }) {
                 <td className="max-w-xs truncate px-3 py-2.5" title={p.pagamentoTexto ?? ""}>{[p.formaPagamento, p.pagamentoTexto].filter(Boolean).join(" · ") || "—"}</td>
                 <td className="px-3 py-2.5">{p.fretePorConta === "A_COMBINAR" ? "A combinar" : p.fretePorConta === "RETIRA" ? "Retira" : p.fretePorConta}</td>
                 <td className="px-3 py-2.5">{p.exigeMarcaModelo ? "Exige" : "—"}</td>
+                <td className="px-3 py-2.5">{p.assinarDigitalmente ? "Assina" : "—"}</td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{linhasDasExigencias(p.exigencias).length || "—"}</td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{p.clientes}</td>
                 <td className="px-3 py-2.5">

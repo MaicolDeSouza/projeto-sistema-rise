@@ -1,5 +1,5 @@
 import { formatarTelefone } from "@/lib/telefone";
-import { TEXTO_DO_FRETE, dataBR, garantiaCurta, itensComFreteDiluido, nomeDoItemParaOCliente, numeroDaProposta, prazoDaFaixa, textoDoFaturamentoMinimo, textoDoPagamento, textoDoPrazo, totalDoItem } from "@/lib/propostas/regras";
+import { TEXTO_DO_FRETE, dataBR, garantiaCurta, hojeEmSaoPaulo, itensComFreteDiluido, nomeDoItemParaOCliente, numeroDaProposta, prazoDaFaixa, textoDoFaturamentoMinimo, textoDoPagamento, textoDoPrazo, totalDoItem } from "@/lib/propostas/regras";
 
 /**
  * O que o CLIENTE le, igual no PDF e no link publico (spec 2026-11-12, "PDF e link publico"). Aqui se decide o que
@@ -140,11 +140,19 @@ export function entregaParaMostrar(proposta) {
 }
 
 /**
+ * A "Data da proposta" (AAAA-MM-DD): o dia da ultima alteracao NO HORARIO DE BRASILIA. Ate 17/11/2026 era o dia em UTC,
+ * e a proposta salva depois das 21h saia com o dia seguinte (a 2031 da FUNPEC, salva as 21h, mostrou 18/11).
+ */
+export function dataDaProposta(proposta) {
+  return hojeEmSaoPaulo(new Date(proposta.atualizadoEm ?? proposta.criadoEm));
+}
+
+/**
  * "Validade da proposta" em dias (pedido do dono em 13/11/2026: "15 dias"), contados da "Data da proposta" que o PDF mostra
  * ate a data de validade; a proposta que ja venceu mostra a data.
  */
 export function validadeEmDias(proposta) {
-  const emitida = new Date(proposta.atualizadoEm ?? proposta.criadoEm).toISOString().slice(0, 10);
+  const emitida = dataDaProposta(proposta);
   const ate = String(proposta.validadeAte instanceof Date ? proposta.validadeAte.toISOString() : proposta.validadeAte ?? "").slice(0, 10);
   if (!ate) return "";
   const dias = Math.round((Date.parse(ate) - Date.parse(emitida)) / 86_400_000);
@@ -225,7 +233,7 @@ export function conteudoDaProposta(proposta, empresa) {
     nomeDaEmpresa: NOME_NO_CABECALHO,
     quadro: [
       ["Número da proposta", String(proposta.numero)],
-      ["Data da proposta", dataBR(new Date(proposta.atualizadoEm ?? proposta.criadoEm))],
+      ["Data da proposta", dataBR(dataDaProposta(proposta))],
     ],
     empresa: empresaNoCabecalho.linhas,
     site: empresaNoCabecalho.site,
