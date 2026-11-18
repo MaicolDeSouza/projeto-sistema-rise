@@ -56,6 +56,17 @@ function medidasDaCaixinha(modelo) {
   return largura && altura && profundidade ? { largura, altura, profundidade } : null;
 }
 
+/**
+ * As tres medidas de DENTRO da caixinha, ou null se faltar alguma. Com elas a conta de pecas usa o volume de dentro;
+ * sem elas, o de fora vezes o `fatorUtil` (pedido do dono em 18/11/2026, N3 da Siplas).
+ */
+export function medidasInternas(modelo) {
+  const largura = numero(modelo?.larguraInternaCm);
+  const altura = numero(modelo?.alturaInternaCm);
+  const profundidade = numero(modelo?.profundidadeInternaCm);
+  return largura && altura && profundidade ? { largura, altura, profundidade } : null;
+}
+
 /** As tres medidas da PECA (as de envio do cadastro), ou null se faltar alguma. */
 function medidasDaPeca(produto) {
   const largura = numero(produto?.larguraCm);
@@ -65,21 +76,26 @@ function medidasDaPeca(produto) {
 }
 
 /**
- * Quantas pecas cabem na caixinha, ESTIMADO: volume util da caixinha (afunilada: `fatorUtil`) com a folga da peca solta,
- * dividido pelo volume da peca. A peca precisa PASSAR na caixinha em alguma rotacao (a maior medida dela na maior da
- * caixinha, e assim por diante); senao e 0.
+ * Quantas pecas cabem na caixinha, ESTIMADO: volume util da caixinha com a folga da peca solta, dividido pelo volume da
+ * peca. Volume util = o de DENTRO quando o modelo tem as medidas internas; senao o de fora vezes o `fatorUtil` (a
+ * caixinha e afunilada). A peca precisa PASSAR na caixinha em alguma rotacao (a maior medida dela na maior da caixinha,
+ * e assim por diante; pelas medidas de dentro quando existem); senao e 0.
  * @returns {{ pecas: number|null, motivo: string|null }} pecas null = sem como estimar (motivo diz o que falta).
  */
 export function pecasQueCabem(modelo, produto) {
-  const caixinha = medidasDaCaixinha(modelo);
-  if (!caixinha) return { pecas: null, motivo: "Caixinha sem medidas." };
+  const deFora = medidasDaCaixinha(modelo);
+  if (!deFora) return { pecas: null, motivo: "Caixinha sem medidas." };
   const peca = medidasDaPeca(produto);
   if (!peca) return { pecas: null, motivo: "Produto sem medidas no cadastro." };
+  const deDentro = medidasInternas(modelo);
+  const caixinha = deDentro ?? deFora;
   const daCaixinha = [caixinha.largura, caixinha.altura, caixinha.profundidade].sort((a, b) => b - a);
   const daPeca = [...peca].sort((a, b) => b - a);
   if (daPeca.some((medida, indice) => medida > daCaixinha[indice])) return { pecas: 0, motivo: "A peça não entra nesta caixinha." };
-  const fator = numero(modelo?.fatorUtil) ?? 0.7;
-  const volumeUtil = caixinha.largura * caixinha.altura * caixinha.profundidade * Math.min(fator, 1) * FOLGA_DAS_PECAS;
+  // O volume de dentro ja desconta a parede e o afunilado: o fatorUtil (que existe para descontar isso do volume de
+  // fora) nao entra, senao o desconto seria contado duas vezes.
+  const fator = deDentro ? 1 : Math.min(numero(modelo?.fatorUtil) ?? 0.7, 1);
+  const volumeUtil = caixinha.largura * caixinha.altura * caixinha.profundidade * fator * FOLGA_DAS_PECAS;
   const volumeDaPeca = peca[0] * peca[1] * peca[2];
   // A peca que passa cabe ao menos uma vez, mesmo quando o volume util (com as folgas) da menos de 1.
   return { pecas: Math.max(1, Math.floor(volumeUtil / volumeDaPeca + 1e-9)), motivo: null };

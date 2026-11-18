@@ -38,6 +38,9 @@ function modeloParaTela(modelo) {
     larguraCm: Number(modelo.larguraCm),
     alturaCm: Number(modelo.alturaCm),
     profundidadeCm: Number(modelo.profundidadeCm),
+    larguraInternaCm: numeroOuNull(modelo.larguraInternaCm),
+    alturaInternaCm: numeroOuNull(modelo.alturaInternaCm),
+    profundidadeInternaCm: numeroOuNull(modelo.profundidadeInternaCm),
     fatorUtil: Number(modelo.fatorUtil),
     pesoVazioKg: numeroOuNull(modelo.pesoVazioKg),
     ativo: modelo.ativo,
@@ -195,19 +198,32 @@ export async function salvarLocal(id, { primeiraEmbaixo }, db = prisma) {
   return { ok: true };
 }
 
-const ESQUEMA_DO_MODELO = z.object({
-  nome: z.string().trim().min(1, "Informe o nome do modelo.").max(60),
-  cor: z
-    .string()
-    .trim()
-    .regex(/^#[0-9a-fA-F]{6}$/, "Cor inválida."),
-  larguraCm: medidaObrigatoria,
-  alturaCm: medidaObrigatoria,
-  profundidadeCm: medidaObrigatoria,
-  fatorUtil: z.coerce.number().min(0.1, "O volume útil vai de 10% a 100%.").max(1, "O volume útil vai de 10% a 100%."),
-  pesoVazioKg: medida,
-  ativo: z.coerce.boolean().default(true),
-});
+const ESQUEMA_DO_MODELO = z
+  .object({
+    nome: z.string().trim().min(1, "Informe o nome do modelo.").max(60),
+    cor: z
+      .string()
+      .trim()
+      .regex(/^#[0-9a-fA-F]{6}$/, "Cor inválida."),
+    larguraCm: medidaObrigatoria,
+    alturaCm: medidaObrigatoria,
+    profundidadeCm: medidaObrigatoria,
+    larguraInternaCm: medida,
+    alturaInternaCm: medida,
+    profundidadeInternaCm: medida,
+    fatorUtil: z.coerce.number().min(0.1, "O volume útil vai de 10% a 100%.").max(1, "O volume útil vai de 10% a 100%."),
+    pesoVazioKg: medida,
+    ativo: z.coerce.boolean().default(true),
+  })
+  .superRefine((modelo, contexto) => {
+    // A conta de pecas so usa a medida interna com as tres: uma ou duas soltas seriam ignoradas sem aviso.
+    const internas = [modelo.larguraInternaCm, modelo.alturaInternaCm, modelo.profundidadeInternaCm];
+    const preenchidas = internas.filter((valor) => valor !== null).length;
+    if (preenchidas > 0 && preenchidas < 3) contexto.addIssue({ code: "custom", message: "Informe as três medidas internas, ou nenhuma." });
+    else if (preenchidas === 3 && (modelo.larguraInternaCm > modelo.larguraCm || modelo.alturaInternaCm > modelo.alturaCm || modelo.profundidadeInternaCm > modelo.profundidadeCm)) {
+      contexto.addIssue({ code: "custom", message: "A medida interna não pode ser maior que a de fora." });
+    }
+  });
 
 /** Cria (sem id) ou altera um modelo de caixinha. */
 export async function salvarModelo(id, dados, db = prisma) {

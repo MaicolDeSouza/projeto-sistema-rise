@@ -21,7 +21,7 @@ function conferir(nome, obtido, esperado) {
   console.log(`${ok ? "ok   " : "FALHA"} ${nome}${ok ? "" : ` -> obtido ${JSON.stringify(obtido)}, esperado ${JSON.stringify(esperado)}`}`);
 }
 
-const { capacidadeDoProduto, colunasPelaLocalizacao, lerLocalizacao, menorCaixinha, montarMapa, nivelDaPrateleira, pecasQueCabem, pesoDaCaixinha, quantidadeAGuardar, textoDaLocalizacao } = await import(
+const { capacidadeDoProduto, colunasPelaLocalizacao, lerLocalizacao, medidasInternas, menorCaixinha, montarMapa, nivelDaPrateleira, pecasQueCabem, pesoDaCaixinha, quantidadeAGuardar, textoDaLocalizacao } = await import(
   "../src/lib/estoque3d/regras.js"
 );
 
@@ -43,6 +43,13 @@ conferir("peca maior que a caixinha nao entra", pecasQueCabem(P, { larguraCm: 25
 conferir("peca que passa cabe ao menos uma", pecasQueCabem(P, { larguraCm: 9, alturaCm: 7, comprimentoCm: 19 }).pecas, 1);
 conferir("produto sem medida", pecasQueCabem(P, { larguraCm: 2, alturaCm: null, comprimentoCm: 4 }), { pecas: null, motivo: "Produto sem medidas no cadastro." });
 conferir("sem caixinha", pecasQueCabem(null, { larguraCm: 2, alturaCm: 3, comprimentoCm: 4 }).pecas, null);
+// N3 da Siplas (18/11/2026): fora 10,2 x 7,5 x 18; dentro 9 x 7 x 14,5 = 913,5 cm3 x 0,85 = 776 (o fatorUtil nao entra).
+const N3 = { nome: "N3", larguraCm: 10.2, alturaCm: 7.5, profundidadeCm: 18, larguraInternaCm: 9, alturaInternaCm: 7, profundidadeInternaCm: 14.5, fatorUtil: 0.7 };
+conferir("medida interna: o volume de dentro, sem o fatorUtil", pecasQueCabem(N3, { larguraCm: 1, alturaCm: 1, comprimentoCm: 1 }), { pecas: 776, motivo: null });
+conferir("sem a interna, o de fora x fatorUtil (1377 x 0,7 x 0,85)", pecasQueCabem({ ...N3, larguraInternaCm: null }, { larguraCm: 1, alturaCm: 1, comprimentoCm: 1 }).pecas, 819);
+conferir("interna incompleta nao vale", medidasInternas({ larguraInternaCm: 9, alturaInternaCm: 7 }), null);
+conferir("passa por fora mas nao por dentro: nao entra", pecasQueCabem(N3, { larguraCm: 16, alturaCm: 2, comprimentoCm: 2 }), { pecas: 0, motivo: "A peça não entra nesta caixinha." });
+conferir("peca de 2x3x4 na N3 (776 / 24)", pecasQueCabem(N3, { larguraCm: 2, alturaCm: 3, comprimentoCm: 4 }).pecas, 32);
 conferir("digitado vence a estimativa", capacidadeDoProduto({ pecasPorCaixinha: 50, larguraCm: 1, alturaCm: 1, comprimentoCm: 1 }, P), { pecas: 50, origem: "digitado", motivo: null });
 conferir("sem digitado vale a estimativa", capacidadeDoProduto({ larguraCm: 2, alturaCm: 3, comprimentoCm: 4 }, P).origem, "estimado");
 conferir("digitado vale mesmo sem medida", capacidadeDoProduto({ pecasPorCaixinha: 7 }, null).pecas, 7);
@@ -218,6 +225,13 @@ try {
   conferir("modelo novo", (await salvarModelo(null, { nome: "ZZ E3D P", cor: "#112233", larguraCm: 10, alturaCm: 8, profundidadeCm: 20, fatorUtil: 0.7, pesoVazioKg: "" })).ok, true);
   conferir("nome repetido recusa", (await salvarModelo(null, { nome: "zz e3d p", cor: "#112233", larguraCm: 10, alturaCm: 8, profundidadeCm: 20, fatorUtil: 0.7 })).erro, 'Já existe um modelo "zz e3d p".');
   const modelo = await prisma.modeloDeCaixinha.findUnique({ where: { nome: "ZZ E3D P" } });
+  const n3 = { nome: "ZZ E3D N3", cor: "#1f2937", larguraCm: 10.2, alturaCm: 7.5, profundidadeCm: 18, fatorUtil: 0.7, pesoVazioKg: 0.082 };
+  conferir("interna pela metade recusa", (await salvarModelo(null, { ...n3, larguraInternaCm: 9, alturaInternaCm: "", profundidadeInternaCm: 14.5 })).erro, "Informe as três medidas internas, ou nenhuma.");
+  conferir("interna maior que a de fora recusa", (await salvarModelo(null, { ...n3, larguraInternaCm: 9, alturaInternaCm: 8, profundidadeInternaCm: 14.5 })).erro, "A medida interna não pode ser maior que a de fora.");
+  conferir("modelo com a interna", (await salvarModelo(null, { ...n3, larguraInternaCm: "9", alturaInternaCm: "7", profundidadeInternaCm: "14,5".replace(",", ".") })).ok, true);
+  const n3Gravado = await prisma.modeloDeCaixinha.findUnique({ where: { nome: "ZZ E3D N3" } });
+  conferir("interna gravada", [Number(n3Gravado.larguraInternaCm), Number(n3Gravado.alturaInternaCm), Number(n3Gravado.profundidadeInternaCm)], [9, 7, 14.5]);
+  conferir("modelo sem a interna grava nulo", [modelo.larguraInternaCm, modelo.alturaInternaCm, modelo.profundidadeInternaCm], [null, null, null]);
 
   conferir("caixinha do produto", (await salvarCaixinhaDoProduto(um.id, { modeloCaixinhaId: modelo.id, pecasPorCaixinha: "", ordemNaPrateleira: "2" })).ok, true);
   conferir("modelo que nao existe recusa", (await salvarCaixinhaDoProduto(um.id, { modeloCaixinhaId: "nao-existe" })).erro, "Modelo de caixinha não encontrado.");
@@ -232,6 +246,8 @@ try {
   conferir("o inativo fica fora e a minuscula entra", [zz.caixinhas, zz.prateleiras.find((p) => p.numero === 1).caixinhas[0].sku], [2, "ZZ-E3D-2"]);
   conferir("a lista de colunas conta os produtos", lido.colunas.find((coluna) => coluna.letra === "ZZ").produtos, 2);
   conferir("a lista de modelos conta os produtos", lido.modelos.find((item) => item.nome === "ZZ E3D P").produtos, 1);
+  const n3Lido = lido.modelos.find((item) => item.nome === "ZZ E3D N3");
+  conferir("a lista de modelos traz a interna", [n3Lido.larguraInternaCm, n3Lido.alturaInternaCm, n3Lido.profundidadeInternaCm], [9, 7, 14.5]);
 
   console.log("\nMover, historico e ordem pelas fotos");
   const { lerParaMover, moverProduto, sugerirLugarParaProduto } = await import("../src/lib/estoque3d/mover.js");

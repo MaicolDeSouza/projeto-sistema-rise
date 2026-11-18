@@ -7,10 +7,54 @@ import { useState, useTransition } from "react";
 import { excluirModeloAcao, salvarModeloAcao } from "@/app/estoque/mapa/acoes";
 import PopupExclusao from "@/components/cadastros/PopupExclusao";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
+import { medidasInternas } from "@/lib/estoque3d/regras";
 
 import { CampoDaJanela, Coluna, JanelaDeFormulario, cm, useOrdemDaTabela } from "./Pecas";
 
-const NOVO = { id: null, nome: "", cor: "#2f5d8a", larguraCm: "", alturaCm: "", profundidadeCm: "", fatorUtil: 0.7, pesoVazioKg: "", ativo: true };
+const NOVO = {
+  id: null,
+  nome: "",
+  cor: "#2f5d8a",
+  larguraCm: "",
+  alturaCm: "",
+  profundidadeCm: "",
+  larguraInternaCm: "",
+  alturaInternaCm: "",
+  profundidadeInternaCm: "",
+  fatorUtil: 0.7,
+  pesoVazioKg: "",
+  ativo: true,
+};
+
+/** As tres medidas lado a lado (largura, altura, profundidade), com um titulo para o grupo. */
+function Medidas({ titulo, sufixo = "", valores, obrigatorias }) {
+  return (
+    <fieldset className="col-span-2">
+      <legend className="text-sm font-semibold">{titulo}</legend>
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          ["largura", "Largura"],
+          ["altura", "Altura"],
+          ["profundidade", "Profundidade"],
+        ].map(([campo, rotulo]) => {
+          const nome = `${campo}${sufixo}Cm`;
+          return (
+            <CampoDaJanela
+              key={nome}
+              nome={nome}
+              rotulo={<span className="text-xs font-normal text-suave">{rotulo}</span>}
+              type="number"
+              step="0.1"
+              min={0}
+              defaultValue={valores[nome] ?? ""}
+              required={obrigatorias}
+            />
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
 
 /**
  * Aba Caixinhas do Mapa do estoque: os modelos de caixinha plastica. Linha-guia: o operador ve primeiro os modelos com as
@@ -22,7 +66,14 @@ export default function AbaCaixinhas({ modelos, podeEditar }) {
   const [excluindo, setExcluindo] = useState(null);
   const [erro, setErro] = useState(null);
   const [pendente, iniciar] = useTransition();
-  const { ordenadas, cabecalho } = useOrdemDaTabela(modelos);
+  // "interna" ordena pelo volume de dentro; sem as tres medidas fica vazio (vai para o fim na ordenacao).
+  const linhas = modelos.map((modelo) => {
+    const deDentro = medidasInternas(modelo);
+    return { ...modelo, interna: deDentro ? deDentro.largura * deDentro.altura * deDentro.profundidade : null };
+  });
+  const { ordenadas, cabecalho } = useOrdemDaTabela(linhas);
+  // Regra 4 do padrao visual: a coluna da medida interna so aparece quando algum modelo a tem.
+  const temInterna = linhas.some((modelo) => modelo.interna !== null);
   const motivoSemEdicao = podeEditar ? undefined : "Sem permissão para editar o Mapa do estoque.";
 
   function executar(acao, depois) {
@@ -60,6 +111,7 @@ export default function AbaCaixinhas({ modelos, podeEditar }) {
               <Coluna cabecalho={cabecalho} campo="larguraCm" rotulo="Largura (cm)" className="text-right" />
               <Coluna cabecalho={cabecalho} campo="alturaCm" rotulo="Altura (cm)" className="text-right" />
               <Coluna cabecalho={cabecalho} campo="profundidadeCm" rotulo="Profund. (cm)" className="text-right" />
+              {temInterna && <Coluna cabecalho={cabecalho} campo="interna" rotulo="Interna L×A×P (cm)" className="text-right" />}
               <Coluna cabecalho={cabecalho} campo="fatorUtil" rotulo="Volume útil" className="text-right" />
               <Coluna cabecalho={cabecalho} campo="pesoVazioKg" rotulo="Peso vazia (kg)" className="text-right" />
               <Coluna cabecalho={cabecalho} campo="produtos" rotulo="Produtos" className="text-right" />
@@ -79,8 +131,22 @@ export default function AbaCaixinhas({ modelos, podeEditar }) {
                 <td className="px-3 py-2 text-right tabular-nums">{cm(modelo.larguraCm)}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{cm(modelo.alturaCm)}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{cm(modelo.profundidadeCm)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{Math.round(modelo.fatorUtil * 100)}%</td>
-                <td className="px-3 py-2 text-right tabular-nums">{cm(modelo.pesoVazioKg)}</td>
+                {temInterna && (
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {modelo.interna === null ? "—" : `${cm(modelo.larguraInternaCm)} × ${cm(modelo.alturaInternaCm)} × ${cm(modelo.profundidadeInternaCm)}`}
+                  </td>
+                )}
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {modelo.interna === null ? (
+                    `${Math.round(modelo.fatorUtil * 100)}%`
+                  ) : (
+                    <span className="text-suave" title="As peças que cabem são contadas pelas medidas internas.">
+                      interna
+                    </span>
+                  )}
+                </td>
+                {/* Peso em gramas cabe em 3 casas: com as 2 do cm(), 0,082 kg aparecia como 0,08. */}
+                <td className="px-3 py-2 text-right tabular-nums">{modelo.pesoVazioKg === null ? "—" : modelo.pesoVazioKg.toLocaleString("pt-BR", { maximumFractionDigits: 3 })}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{modelo.produtos}</td>
                 <td className="px-3 py-2">
                   <div className="flex justify-end gap-1">
@@ -116,7 +182,7 @@ export default function AbaCaixinhas({ modelos, podeEditar }) {
             ))}
             {ordenadas.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-3 py-10 text-center text-suave">
+                <td colSpan={temInterna ? 9 : 8} className="px-3 py-10 text-center text-suave">
                   Nenhum modelo de caixinha cadastrado.
                 </td>
               </tr>
@@ -137,16 +203,24 @@ export default function AbaCaixinhas({ modelos, podeEditar }) {
           <CampoDaJanela rotulo="Cor no desenho">
             <input type="color" name="cor" defaultValue={janela.cor} className="mt-1 block h-9 w-full cursor-pointer rounded border border-borda" />
           </CampoDaJanela>
-          <CampoDaJanela nome="larguraCm" rotulo="Largura (cm)" type="number" step="0.1" min={0} defaultValue={janela.larguraCm} required />
-          <CampoDaJanela nome="alturaCm" rotulo="Altura (cm)" type="number" step="0.1" min={0} defaultValue={janela.alturaCm} required />
-          <CampoDaJanela nome="profundidadeCm" rotulo="Profundidade (cm)" type="number" step="0.1" min={0} defaultValue={janela.profundidadeCm} required />
+          <Medidas titulo="Medidas de fora (cm)" valores={janela} obrigatorias />
+          <Medidas
+            titulo={
+              <span className="inline-flex items-center gap-1">
+                Medidas de dentro (cm)
+                <BolhaDeAjuda variante="inline" texto="Opcional. Com as três, as peças que cabem são contadas pelo volume de dentro e o Volume útil não entra. As de fora continuam valendo para o desenho e a prateleira." />
+              </span>
+            }
+            sufixo="Interna"
+            valores={janela}
+          />
           <CampoDaJanela nome="pesoVazioKg" rotulo="Peso vazia (kg)" type="number" step="0.001" min={0} defaultValue={janela.pesoVazioKg ?? ""} />
           <CampoDaJanela
             nome="fatorUtil"
             rotulo={
               <span className="inline-flex items-center gap-1">
                 Volume útil (%)
-                <BolhaDeAjuda variante="inline" texto="A caixinha é afunilada e tem a boca rebaixada: quanto do volume de fora serve para guardar peça. 70% é o usual." />
+                <BolhaDeAjuda variante="inline" texto="Só vale sem as medidas de dentro. A caixinha é afunilada e tem a boca rebaixada: quanto do volume de fora serve para guardar peça. 70% é o usual." />
               </span>
             }
             type="number"

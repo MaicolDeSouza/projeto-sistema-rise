@@ -3021,17 +3021,22 @@ model ColunaDeEstoque {
 
 /// Modelo de caixinha plastica (gaveteiro tipo bico). As medidas sao as de FORA; a caixinha e afunilada e tem a boca
 /// rebaixada, entao o volume que serve e `fatorUtil` do volume de fora.
+/// Com as medidas INTERNAS (as tres), a conta de pecas usa o volume de dentro e o `fatorUtil` nao entra (pedido do dono
+/// em 18/11/2026, com a N3 da Siplas: o fabricante da as duas). As de fora continuam valendo para o desenho e o vao.
 model ModeloDeCaixinha {
-  id             String   @id @default(cuid())
-  nome           String   @unique
+  id                    String   @id @default(cuid())
+  nome                  String   @unique
   /// Cor do desenho (#rrggbb).
-  cor            String   @default("#2f5d8a")
-  larguraCm      Decimal  @db.Decimal(10, 2)
-  alturaCm       Decimal  @db.Decimal(10, 2)
-  profundidadeCm Decimal  @db.Decimal(10, 2)
-  fatorUtil      Decimal  @default(0.70) @db.Decimal(3, 2)
-  pesoVazioKg    Decimal? @db.Decimal(10, 3)
-  ativo          Boolean  @default(true)
+  cor                   String   @default("#2f5d8a")
+  larguraCm             Decimal  @db.Decimal(10, 2)
+  alturaCm              Decimal  @db.Decimal(10, 2)
+  profundidadeCm        Decimal  @db.Decimal(10, 2)
+  larguraInternaCm      Decimal? @db.Decimal(10, 2)
+  alturaInternaCm       Decimal? @db.Decimal(10, 2)
+  profundidadeInternaCm Decimal? @db.Decimal(10, 2)
+  fatorUtil             Decimal  @default(0.70) @db.Decimal(3, 2)
+  pesoVazioKg           Decimal? @db.Decimal(10, 3)
+  ativo                 Boolean  @default(true)
 
   produtos Produto[]
 

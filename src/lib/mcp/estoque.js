@@ -101,7 +101,7 @@ export const ROTEIRO_DO_ESTOQUE = [
   "OUTRAS TAREFAS:",
   "- Onde está / quanto cabe: lerCaixinhaDoProduto. Onde guardar um produto: sugerirLugarNoEstoque (3 sugestões pelas regras); grave só a escolhida, com moverProdutoNoEstoque.",
   "- Colunas: salvarColunaDeEstoque cria ou altera (estoque, prateleiras, medidas do vão em cm, peso máximo); excluirColunaDeEstoque só a vazia. criarColunasPelaLocalizacao cria no Estoque 1 as letras que as Localizações usam e ainda não existem.",
-  "- Caixinhas: salvarModeloDeCaixinha (medidas de FORA em cm; volume útil 0,70 porque é afunilada); definirCaixinhaDoProduto liga o modelo ao produto e, se a pessoa contou, as peças que cabem.",
+  "- Caixinhas: salvarModeloDeCaixinha (medidas de FORA em cm; volume útil 0,70 porque é afunilada; se o fabricante dá as medidas de DENTRO, mande as três: a conta de peças passa a usá-las); definirCaixinhaDoProduto liga o modelo ao produto e, se a pessoa contou, as peças que cabem.",
   "- configurarEstoque: se a prateleira 1 é a de baixo.",
   "",
   "CUIDADOS: excluir só depois de a pessoa confirmar com todas as letras (confirmo: true). Mover muda a Localização do produto: ela vai ao Bling quando a pessoa sincronizar o produto (sincronizarComBling), nunca sozinha; avise isso depois de mover. Mostre sempre o resultado que a ferramenta devolveu.",
@@ -188,6 +188,9 @@ const LER_MAPA = {
         larguraCm: modelo.larguraCm,
         alturaCm: modelo.alturaCm,
         profundidadeCm: modelo.profundidadeCm,
+        larguraInternaCm: modelo.larguraInternaCm,
+        alturaInternaCm: modelo.alturaInternaCm,
+        profundidadeInternaCm: modelo.profundidadeInternaCm,
         volumeUtil: modelo.fatorUtil,
         pesoVazioKg: modelo.pesoVazioKg,
         cor: modelo.cor,
@@ -358,6 +361,7 @@ const SALVAR_MODELO = {
   nome: "salvarModeloDeCaixinha",
   descricao: [
     "Cria ou altera um modelo de caixinha (pelo nome). Medidas de FORA em cm; volumeUtil = a parte do volume que guarda peças (padrão 0,70, porque a caixinha é afunilada).",
+    "Medidas de DENTRO (larguraInternaCm, alturaInternaCm, profundidadeInternaCm), opcionais e as três juntas: com elas as peças que cabem são contadas pelo volume de dentro e o volumeUtil não entra; null nas três apaga.",
     "No modelo novo, largura, altura e profundidade são obrigatórias. No que existe, mande só o que muda; nomeNovo renomeia; ativo: false tira o modelo da escolha sem apagar.",
   ].join(" "),
   esquema: z.object({
@@ -366,7 +370,10 @@ const SALVAR_MODELO = {
     larguraCm: z.number().positive().max(1000).optional(),
     alturaCm: z.number().positive().max(1000).optional(),
     profundidadeCm: z.number().positive().max(1000).optional(),
-    volumeUtil: z.number().min(0.1).max(1).optional().describe("De 0,1 a 1; padrão 0,70"),
+    larguraInternaCm: z.number().positive().max(1000).nullable().optional(),
+    alturaInternaCm: z.number().positive().max(1000).nullable().optional(),
+    profundidadeInternaCm: z.number().positive().max(1000).nullable().optional(),
+    volumeUtil: z.number().min(0.1).max(1).optional().describe("De 0,1 a 1; padrão 0,70. Só vale sem as medidas de dentro"),
     pesoVazioKg: z.number().positive().max(100).nullable().optional(),
     cor: z
       .string()
@@ -377,7 +384,7 @@ const SALVAR_MODELO = {
     ativo: z.boolean().optional(),
   }),
   anotacoes: ESCRITA,
-  async executar({ nome, nomeNovo, larguraCm, alturaCm, profundidadeCm, volumeUtil, pesoVazioKg, cor, ativo }, contexto) {
+  async executar({ nome, nomeNovo, larguraCm, alturaCm, profundidadeCm, larguraInternaCm, alturaInternaCm, profundidadeInternaCm, volumeUtil, pesoVazioKg, cor, ativo }, contexto) {
     exigirCadastro(contexto);
     const atual = await prisma.modeloDeCaixinha.findFirst({ where: { nome: { equals: nome, mode: "insensitive" } } });
     if (!atual && (!larguraCm || !alturaCm || !profundidadeCm)) throw new ErroDeFerramenta(`O modelo "${nome}" não existe: para criá-lo, diga a largura, a altura e a profundidade em cm.`);
@@ -387,6 +394,10 @@ const SALVAR_MODELO = {
       larguraCm: larguraCm ?? numeroDe(atual.larguraCm),
       alturaCm: alturaCm ?? numeroDe(atual.alturaCm),
       profundidadeCm: profundidadeCm ?? numeroDe(atual.profundidadeCm),
+      // undefined = nao mexe (fica a do modelo); null = apaga.
+      larguraInternaCm: larguraInternaCm === undefined ? numeroDe(atual?.larguraInternaCm) : larguraInternaCm,
+      alturaInternaCm: alturaInternaCm === undefined ? numeroDe(atual?.alturaInternaCm) : alturaInternaCm,
+      profundidadeInternaCm: profundidadeInternaCm === undefined ? numeroDe(atual?.profundidadeInternaCm) : profundidadeInternaCm,
       fatorUtil: volumeUtil ?? numeroDe(atual?.fatorUtil) ?? 0.7,
       pesoVazioKg: pesoVazioKg === undefined ? numeroDe(atual?.pesoVazioKg) : pesoVazioKg,
       ativo: ativo ?? atual?.ativo ?? true,

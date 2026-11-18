@@ -1547,6 +1547,14 @@ try {
       const modelo = json(await chamar("salvarModeloDeCaixinha", { nome: "ZZ MCP E P", larguraCm: 10, alturaCm: 8, profundidadeCm: 20 }));
       conferir("modelo novo com o volume util padrao", [modelo.criado, modelo.modelo?.volumeUtil, modelo.modelo?.ativo], [true, 0.7, true]);
       conferir("modelo novo sem medidas: recusa", (await chamar("salvarModeloDeCaixinha", { nome: "ZZ MCP E sem" }))?.isError, true);
+      const interna = json(await chamar("salvarModeloDeCaixinha", { nome: "ZZ MCP E P", larguraInternaCm: 9, alturaInternaCm: 7, profundidadeInternaCm: 18 }));
+      conferir("medida interna entra e o resto fica", [interna.criado, interna.modelo?.larguraInternaCm, interna.modelo?.profundidadeInternaCm, interna.modelo?.larguraCm], [false, 9, 18, 10]);
+      const soCor = json(await chamar("salvarModeloDeCaixinha", { nome: "ZZ MCP E P", cor: "#123456" }));
+      conferir("alterar outra coisa mantem a interna", [soCor.modelo?.alturaInternaCm, soCor.modelo?.cor], [7, "#123456"]);
+      conferir("interna pela metade: recusa", (await chamar("salvarModeloDeCaixinha", { nome: "ZZ MCP E P", larguraInternaCm: null }))?.isError, true);
+      // Volta sem a interna: as contas de capacidade abaixo sao pelo volume de fora.
+      const semInterna = json(await chamar("salvarModeloDeCaixinha", { nome: "ZZ MCP E P", larguraInternaCm: null, alturaInternaCm: null, profundidadeInternaCm: null }));
+      conferir("null nas tres apaga a interna", [semInterna.modelo?.larguraInternaCm, semInterna.modelo?.alturaInternaCm], [null, null]);
 
       for (const [sku, localizacao] of [["ZZ-MCP-E1", "ZW1"], ["ZZ-MCP-E2", "ZW1"], ["ZZ-MCP-E3", "ZW2"]]) {
         await prisma.produto.create({ data: { sku, tituloBase: `ZZMCP ESTOQUE ${sku}`, localizacao, estoque: 3 } });
