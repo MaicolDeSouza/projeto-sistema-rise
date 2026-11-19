@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 const APELIDOS = {
   bling: "BLING",
   mercadolivre: "MERCADO_LIVRE",
+  melhorenvio: "MELHOR_ENVIO",
 };
 
 export async function GET(requisicao, { params }) {

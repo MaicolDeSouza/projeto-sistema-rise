@@ -14,6 +14,75 @@ const { register } = await import("node:module");
 const { pathToFileURL } = await import("node:url");
 register(new URL("./resolver-alias.js", import.meta.url), pathToFileURL("./"));
 
+// ---------------------------------------------------------------------------
+// Melhor Envio falso (antes de qualquer import que leia o config: o endereco vem do ambiente)
+// ---------------------------------------------------------------------------
+
+const http = await import("node:http");
+const { readFileSync } = await import("node:fs");
+const lerFixture = (nome) => JSON.parse(readFileSync(new URL(`./fixtures/frete/${nome}`, import.meta.url), "utf8"));
+const COTACAO_SP = lerFixture("calculate-sp.json");
+const CEP_INVALIDO = lerFixture("calculate-cep-invalido.json");
+
+const falso = {
+  pedidosDeToken: 0,
+  pedidosDeCarrinho: 0,
+  ultimoPedido: null,
+  ultimoCorpo: null,
+  proxima: null,
+  /** A proxima resposta de cotacao sai com este status e corpo (uma vez so). */
+  responderCom(status, corpo) {
+    this.proxima = { status, corpo };
+  },
+};
+
+const servidor = http.createServer((pedido, resposta) => {
+  let texto = "";
+  pedido.on("data", (parte) => (texto += parte));
+  pedido.on("end", () => {
+    const corpo = texto ? JSON.parse(texto) : null;
+    falso.ultimoPedido = { metodo: pedido.method, caminho: pedido.url, headers: pedido.headers };
+    falso.ultimoCorpo = corpo;
+    const responder = (status, dados) => {
+      resposta.writeHead(status, { "Content-Type": "application/json" });
+      resposta.end(typeof dados === "string" ? dados : JSON.stringify(dados));
+    };
+    const caminho = pedido.url.split("?")[0];
+    if (caminho === "/oauth/token") {
+      falso.pedidosDeToken++;
+      const n = falso.pedidosDeToken;
+      return responder(200, { token_type: "Bearer", expires_in: 2592000, access_token: `acesso-${n}`, refresh_token: `renova-${n}` });
+    }
+    if (caminho === "/api/v2/me") return responder(200, { id: "zz", firstname: "ZZ", lastname: "Frete", email: "zz-frete@exemplo.test" });
+    if (caminho === "/api/v2/me/balance") return responder(200, { balance: 123.45, reserved: 0, debts: 0 });
+    if (caminho === "/api/v2/me/shipment/calculate") {
+      if (falso.proxima) {
+        const { status, corpo: dados } = falso.proxima;
+        falso.proxima = null;
+        return responder(status, dados);
+      }
+      return responder(200, COTACAO_SP);
+    }
+    if (caminho === "/api/v2/me/cart") {
+      falso.pedidosDeCarrinho++;
+      return responder(201, { id: "zz-carrinho" });
+    }
+    return responder(404, { message: "Não encontrado no falso." });
+  });
+});
+await new Promise((pronto) => servidor.listen(0, "127.0.0.1", pronto));
+process.env.MELHOR_ENVIO_URL = `http://127.0.0.1:${servidor.address().port}`;
+process.env.MELHOR_ENVIO_CLIENT_ID = "zz-cliente";
+process.env.MELHOR_ENVIO_CLIENT_SECRET = "zz-segredo";
+process.env.MELHOR_ENVIO_CONTATO = "zz-frete@exemplo.test";
+process.env.FRETE_COMPRA = "false";
+
+// `--servir`: so o falso no ar, para conferir as telas sem o Melhor Envio de verdade (Ctrl+C encerra).
+if (process.argv.includes("--servir")) {
+  console.log(`Melhor Envio falso em ${process.env.MELHOR_ENVIO_URL} (MELHOR_ENVIO_URL no .env para usar).`);
+  await new Promise(() => {});
+}
+
 const {
   nomeDaCaixa,
   medidasInternas,
@@ -149,7 +218,64 @@ try {
 }
 
 // ---------------------------------------------------------------------------
+// Conector do Melhor Envio (OAuth, leitura e trava de compra)
+// ---------------------------------------------------------------------------
 
+const { iniciarAutorizacao, concluirAutorizacao, obterAccessToken, meGet, meLer, mePost, testar } = await import(
+  "../src/lib/integracoes/melhorenvio.js"
+);
+const { lerConexao, lerSegredo } = await import("../src/lib/integracoes/conexoes.js");
+const conexaoDoDono = await prisma.conexao.findUnique({ where: { servico: "MELHOR_ENVIO" } });
+
+try {
+  console.log("\nConector do Melhor Envio");
+  await prisma.conexao.deleteMany({ where: { servico: "MELHOR_ENVIO" } });
+  const endereco = iniciarAutorizacao("abc");
+  conferir("autorizar leva client_id, redirect, state e escopos", ["client_id=", "redirect_uri=", "state=abc", "scope=", "/oauth/authorize"].every((p) => endereco.includes(p)), true);
+  conferir("pede o escopo de cotar", decodeURIComponent(endereco).includes("shipping-calculate"), true);
+  await concluirAutorizacao("codigo-de-teste");
+  conferir(
+    "token guardado cifrado",
+    [(await lerConexao("MELHOR_ENVIO")).status, (await lerSegredo("MELHOR_ENVIO")).refreshToken],
+    ["CONECTADO", "renova-1"],
+  );
+  conferir("pedido do token em JSON", [falso.ultimoCorpo?.grant_type, falso.ultimoCorpo?.client_id], ["authorization_code", "zz-cliente"]);
+  await meGet("/api/v2/me");
+  conferir("user-agent com o contato", falso.ultimoPedido.headers["user-agent"], "Rise 4hobby (zz-frete@exemplo.test)");
+  conferir("bearer", falso.ultimoPedido.headers.authorization, "Bearer acesso-1");
+  conferir("token que ainda vale nao renova", [await obterAccessToken(), falso.pedidosDeToken], ["acesso-1", 1]);
+  await prisma.conexao.update({ where: { servico: "MELHOR_ENVIO" }, data: { expiraEm: new Date(Date.now() + 2 * 24 * 3600 * 1000) } });
+  conferir("renova com menos de 5 dias", [await obterAccessToken(), falso.pedidosDeToken], ["acesso-2", 2]);
+  conferir("renovacao manda o refresh antigo", [falso.ultimoCorpo?.grant_type, falso.ultimoCorpo?.refresh_token], ["refresh_token", "renova-1"]);
+  conferir("cotacao e leitura: passa com a trava fechada", (await meLer("/api/v2/me/shipment/calculate", {})).ok, true);
+  let barrou = null;
+  try {
+    await mePost("/api/v2/me/cart", {});
+  } catch (erro) {
+    barrou = erro.message;
+  }
+  conferir("escrita barrada pela trava", [/FRETE_COMPRA/.test(barrou ?? ""), falso.pedidosDeCarrinho], [true, 0]);
+  const teste = await testar();
+  conferir("testar", [teste.ok, /saldo/i.test(teste.detalhe ?? "")], [true, true]);
+  await prisma.conexao.deleteMany({ where: { servico: "MELHOR_ENVIO" } });
+  let semConexao = null;
+  try {
+    await obterAccessToken();
+  } catch (erro) {
+    semConexao = erro.message;
+  }
+  conferir("sem conexao diz para conectar", /não conectado/i.test(semConexao ?? ""), true);
+} finally {
+  await prisma.conexao.deleteMany({ where: { servico: "MELHOR_ENVIO" } });
+  if (conexaoDoDono) {
+    const { id: _id, servico: _servico, ...dados } = conexaoDoDono;
+    await prisma.conexao.create({ data: { servico: "MELHOR_ENVIO", ...dados } });
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+servidor.close();
 await prisma.$disconnect();
 console.log(falhas ? `\n${falhas} falha(s)` : "\nTudo certo.");
 process.exit(falhas ? 1 : 0);

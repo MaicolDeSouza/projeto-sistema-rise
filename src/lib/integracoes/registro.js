@@ -1,5 +1,6 @@
 import { conector as bling } from "./bling";
 import { conector as lojaIntegrada } from "./lojaintegrada";
+import { conector as melhorEnvio } from "./melhorenvio";
 import { conector as mercadoLivre } from "./mercadolivre";
 
 /**
@@ -7,7 +8,7 @@ import { conector as mercadoLivre } from "./mercadolivre";
  * leem daqui — adicionar um marketplace novo (Shopee, Amazon) e criar o arquivo
  * do conector e acrescentar uma linha nesta lista. A tela nao muda.
  */
-export const conectores = [bling, mercadoLivre, lojaIntegrada];
+export const conectores = [bling, mercadoLivre, lojaIntegrada, melhorEnvio];
 
 export function obterConector(id) {
   return conectores.find((conector) => conector.id === id) ?? null;

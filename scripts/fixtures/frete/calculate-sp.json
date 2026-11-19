@@ -1,0 +1,13 @@
+[
+  { "id": 1, "name": "PAC", "price": "18.40", "custom_price": "18.40", "discount": "0.00", "currency": "R$", "delivery_time": 6, "custom_delivery_time": 6, "company": { "id": 1, "name": "Correios" } },
+  { "id": 2, "name": "SEDEX", "price": "28.85", "custom_price": "28.85", "discount": "0.00", "currency": "R$", "delivery_time": 2, "custom_delivery_time": 2, "company": { "id": 1, "name": "Correios" } },
+  { "id": 3, "name": ".Package", "price": "21.68", "custom_price": "21.68", "discount": "0.00", "currency": "R$", "delivery_time": 8, "custom_delivery_time": 8, "company": { "id": 2, "name": "Jadlog" } },
+  { "id": 12, "name": "éFácil", "price": "19.67", "custom_price": "19.67", "discount": "0.00", "currency": "R$", "delivery_time": 2, "custom_delivery_time": 2, "company": { "id": 6, "name": "LATAM Cargo" } },
+  { "id": 16, "name": "e-commerce", "price": "20.31", "custom_price": "20.31", "discount": "0.00", "currency": "R$", "delivery_time": 4, "custom_delivery_time": 4, "company": { "id": 9, "name": "Azul Cargo Express" } },
+  { "id": 17, "name": "Mini Envios", "price": "14.53", "custom_price": "14.53", "discount": "0.00", "currency": "R$", "delivery_time": 9, "custom_delivery_time": 9, "company": { "id": 1, "name": "Correios" } },
+  { "id": 31, "name": "Express", "price": "18.97", "custom_price": "18.97", "discount": "0.00", "currency": "R$", "delivery_time": 3, "custom_delivery_time": 3, "company": { "id": 14, "name": "Loggi" } },
+  { "id": 33, "name": "Standard", "price": "49.46", "custom_price": "49.46", "discount": "0.00", "currency": "R$", "delivery_time": 4, "custom_delivery_time": 4, "company": { "id": 15, "name": "JeT" } },
+  { "id": 22, "name": "Rodoviário", "error": "Transportadora não atende este trecho.", "company": { "id": 12, "name": "Buslog" } },
+  { "id": 32, "name": "Coleta", "error": "Transportadora não atende este trecho.", "company": { "id": 14, "name": "Loggi" } },
+  { "id": 35, "name": "Standard", "error": "Não é possível realizar cotações, pois o trecho está temporariamente indisponível.", "company": { "id": 16, "name": "Total Express" } }
+]

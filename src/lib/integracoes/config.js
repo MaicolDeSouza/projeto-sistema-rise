@@ -73,6 +73,19 @@ export const config = {
     dominio: ler("LI_DOMINIO"),
   },
 
+  // Frete pelo Melhor Envio (modulo de frete, 18/11/2026). SANDBOX ligado por padrao: no PC a cotacao e a compra vao ao
+  // ambiente de teste (saldo falso) ate o .env dizer o contrario. MELHOR_ENVIO_URL so o teste usa (o servidor falso).
+  // O contato vai no User-Agent de toda chamada, como a API exige.
+  melhorEnvio: {
+    clientId: ler("MELHOR_ENVIO_CLIENT_ID"),
+    clientSecret: ler("MELHOR_ENVIO_CLIENT_SECRET"),
+    redirectUri: ler("MELHOR_ENVIO_REDIRECT_URI", "https://localhost:3000/api/oauth/melhorenvio/callback"),
+    sandbox: lerBooleano("MELHOR_ENVIO_SANDBOX", true),
+    contato: ler("MELHOR_ENVIO_CONTATO"),
+    urlBase:
+      ler("MELHOR_ENVIO_URL") || (lerBooleano("MELHOR_ENVIO_SANDBOX", true) ? "https://sandbox.melhorenvio.com.br" : "https://melhorenvio.com.br"),
+  },
+
   // Pedidos de venda (04/11/2026): o Rise so le pedidos criados a partir desta data (00:00 de Sao Paulo).
   // Pedido anterior e ignorado, inclusive uma alteracao dele. Fica no .env para um dia mudar sem codigo.
   pedidos: {
@@ -101,6 +114,9 @@ export const config = {
     // SKUs desta lista podem ser escritos. Vazia = todos liberados. A loja tem 725 produtos
     // reais e a NF-e sai dela: o primeiro envio e com UM produto de teste.
     liCodigosLiberados: separarLista(ler("LI_ESCRITA_CODIGOS")),
+    // Comprar, cancelar e gerar reverso no Melhor Envio gasta o saldo da carteira: fechada, nada sai (modulo de frete).
+    // Cotar nao passa por ela (e leitura).
+    freteCompra: lerBooleano("FRETE_COMPRA"),
   },
 };
 
@@ -113,6 +129,7 @@ export function exigirTravaLiberada(servico) {
     MERCADO_LIVRE: ["mlPublicacao", "ML_PUBLICACAO"],
     BLING: ["blingEscrita", "BLING_ESCRITA"],
     LOJA_INTEGRADA: ["liEscrita", "LI_ESCRITA"],
+    MELHOR_ENVIO: ["freteCompra", "FRETE_COMPRA"],
   };
 
   const [chave, variavel] = travas[servico] ?? [];

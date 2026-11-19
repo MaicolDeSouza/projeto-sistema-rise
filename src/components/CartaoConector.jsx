@@ -211,7 +211,7 @@ export default function CartaoConector({
       <div className="mt-auto flex flex-wrap gap-2 pt-4">
         {podeEditar && conector.tipoAuth === "oauth2" && !conectado && (
           <a
-            href={`${conector.origemOAuth}/api/oauth/${conector.id === "BLING" ? "bling" : "mercadolivre"}/iniciar`}
+            href={`${conector.origemOAuth}/api/oauth/${conector.slugOAuth ?? (conector.id === "BLING" ? "bling" : "mercadolivre")}/iniciar`}
             className="rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
           >
             Conectar

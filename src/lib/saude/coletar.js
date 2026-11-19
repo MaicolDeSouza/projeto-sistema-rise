@@ -43,6 +43,8 @@ const INTEGRACOES = [
   { servico: "LOJA_INTEGRADA", rotulo: "Loja Integrada", obrigatoria: true },
   { servico: "TELEGRAM", rotulo: "Telegram", obrigatoria: false },
   { servico: "OPENAI", rotulo: "OpenAI", obrigatoria: false },
+  // Frete (18/11/2026): opcional ate o dono conectar; o token de 30 dias renova sozinho, mas uma recusa aparece aqui.
+  { servico: "MELHOR_ENVIO", rotulo: "Melhor Envio", obrigatoria: false },
 ];
 
 const ROTULO_DO_ESCOPO = { CLIENTES: "Orçamento da IA dos clientes", INTERNO: "Orçamento da IA interna" };

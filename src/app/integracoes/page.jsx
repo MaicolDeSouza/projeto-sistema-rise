@@ -92,6 +92,7 @@ export default async function IntegracoesPage({ searchParams }) {
     descricao: conector.descricao,
     tipoAuth: conector.tipoAuth,
     origemOAuth: conector.origemOAuth,
+    slugOAuth: conector.slugOAuth ?? null,
     campos: conector.campos ?? [],
     configurado: conector.configurado,
     faltando: conector.faltando,
