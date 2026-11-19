@@ -60,6 +60,8 @@ const LISTA = [
   sub("tela.cadastros.transportadoras", "Cadastros › Transportadoras", "tela.cadastros"),
   sub("tela.cadastros.marcas", "Cadastros › Marcas", "tela.cadastros"),
   sub("tela.cadastros.condicoes", "Cadastros › Condições de pagamento", "tela.cadastros"),
+  // Modulo de frete (spec 2026-11-18): as caixas em que a loja despacha, para a cotacao sugerir a caixa.
+  sub("tela.cadastros.caixasDeEnvio", "Cadastros › Caixas de envio", "tela.cadastros"),
 
   tela("tela.anuncios", "Anúncios", "/anuncios"),
 
@@ -132,6 +134,8 @@ const LISTA = [
   tela("tela.ferramentas", "Ferramentas", "/ferramentas"),
   sub("tela.ferramentas.imagemParaSvg", "Ferramentas › Imagem para SVG", "tela.ferramentas"),
   sub("tela.ferramentas.cotacaoDolar", "Ferramentas › Cotação do dólar", "tela.ferramentas"),
+  // Cotar frete sem pedido nem proposta (modulo de frete): nao grava nada nem gasta saldo.
+  sub("tela.ferramentas.frete", "Ferramentas › Cotar frete", "tela.ferramentas"),
   // Licencas Softwares (spec 2026-11-05): com so `ver` tudo e visivel e nada e editavel; o arquivo da licenca (Mach3)
   // e o produto em si, por isso baixar e uma acao a parte.
   sub("tela.ferramentas.licencas", "Ferramentas › Licenças Softwares", "tela.ferramentas"),
@@ -140,6 +144,8 @@ const LISTA = [
   tela("tela.configuracoes", "Configurações", "/configuracoes"),
   sub("tela.configuracoes.usuarios", "Configurações › Usuários e funções", "tela.configuracoes", { delegavel: false }),
   sub("tela.integracoes", "Configurações › Integrações", "tela.configuracoes"),
+  // O acrescimo de embalagem e o peso extra da cotacao (modulo de frete); o texto do aviso ao cliente vem na fase 2.
+  sub("tela.configuracoes.envios", "Configurações › Envios", "tela.configuracoes"),
   acao("acao.vps.deploy", "Atualizar a VPS e o banco do PC", "tela.integracoes", "Só no Rise do PC."),
 
   dado("dado.custo", "Custo e fornecedores", "Cadastro, lista de Produtos, kit, indicadores, lupa de referências, custos do Mercado Livre e chat do Rise AI."),

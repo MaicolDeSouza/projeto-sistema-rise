@@ -333,6 +333,83 @@ try {
 }
 
 // ---------------------------------------------------------------------------
+// Cotacao e pacote sugerido
+// ---------------------------------------------------------------------------
+
+const { validarPedidoDeCotacao, pacoteSugerido, cotarFrete } = await import("../src/lib/frete/cotacao.js");
+const limparProdutos = async () => {
+  await prisma.produtoComponente.deleteMany({ where: { kit: { sku: { startsWith: "ZZ-FRETE-" } } } });
+  await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-FRETE-" } } });
+};
+
+try {
+  console.log("\nCotação e pacote sugerido");
+  await limparProdutos();
+  await prisma.conexao.deleteMany({ where: { servico: "MELHOR_ENVIO" } });
+  await concluirAutorizacao("codigo-de-teste");
+  const cx3 = await prisma.caixaDeEnvio.findUnique({ where: { nome: "CX 16x11x3" } });
+  const novo = (sku, extra) => prisma.produto.create({ data: { sku, tituloBase: `Produto ${sku}`, tipo: "SIMPLES", ...extra } });
+  const p1 = await novo("ZZ-FRETE-1", { pesoKg: 0.055, alturaCm: 2, larguraCm: 8, comprimentoCm: 6 });
+  const p2 = await novo("ZZ-FRETE-2", { pesoKg: null, alturaCm: 1, larguraCm: 1, comprimentoCm: 1 });
+  const peca = await novo("ZZ-FRETE-P", { pesoKg: 0.01, alturaCm: 1, larguraCm: 2, comprimentoCm: 3 });
+  const kit = await prisma.produto.create({ data: { sku: "ZZ-FRETE-K", tituloBase: "Kit ZZ", tipo: "COMPOSICAO" } });
+  await prisma.produtoComponente.create({ data: { kitId: kit.id, componenteId: peca.id, quantidade: 2 } });
+  await prisma.produtoComponente.create({ data: { kitId: kit.id, componenteId: p1.id, quantidade: 1, ordem: 1 } });
+
+  conferir("valida CEP", "cepDestino" in (validarPedidoDeCotacao({ cepDestino: "123", pesoKg: "0,3", valorDeclarado: "10", caixaId: cx3.id }).erros ?? {}), true);
+  conferir("valida peso", "pesoKg" in (validarPedidoDeCotacao({ cepDestino: "01001-000", pesoKg: "0", valorDeclarado: "10", caixaId: cx3.id }).erros ?? {}), true);
+  conferir("sem caixa exige medidas", "comprimentoCm" in (validarPedidoDeCotacao({ cepDestino: "01001000", pesoKg: "0,3", valorDeclarado: "10" }).erros ?? {}), true);
+  conferir("valor invalido", "valorDeclarado" in (validarPedidoDeCotacao({ cepDestino: "01001000", pesoKg: "0,3", valorDeclarado: "abc", caixaId: cx3.id }).erros ?? {}), true);
+  conferir(
+    "aceita a brasileira",
+    validarPedidoDeCotacao({ cepDestino: "01001-000", pesoKg: "0,3", valorDeclarado: "1.250,00", comprimentoCm: "16", larguraCm: "11", alturaCm: "3" }).pedido,
+    { cepDestino: "01001000", pesoKg: 0.3, valorDeclarado: 1250, comprimentoCm: 16, larguraCm: 11, alturaCm: 3, caixaId: null },
+  );
+  conferir("sugere pelo produto", await pacoteSugerido([{ produtoId: p1.id, quantidade: 2, valorUnitario: 24.85 }]), {
+    caixaId: cx3.id,
+    motivo: null,
+    pesoKg: 0.16,
+    incompletos: 0,
+    valorDeclarado: 49.7,
+  });
+  conferir("produto sem peso", await pacoteSugerido([{ produtoId: p2.id, quantidade: 1, valorUnitario: 5 }]), {
+    caixaId: null,
+    motivo: "ITENS_INCOMPLETOS",
+    pesoKg: null,
+    incompletos: 1,
+    valorDeclarado: 5,
+  });
+  const doKit = await pacoteSugerido([{ produtoId: kit.id, quantidade: 1, valorUnitario: 30 }]);
+  // (2 x 0,01 + 0,055 + 0,035 da caixa) x 1,10 = 0,121
+  conferir("kit pelas pecas", [doKit.incompletos, doKit.caixaId, doKit.pesoKg], [0, cx3.id, 0.121]);
+  conferir("produto que nao existe conta como incompleto", (await pacoteSugerido([{ produtoId: "nao-existe", quantidade: 1, valorUnitario: 1 }])).incompletos, 1);
+
+  const boa = await cotarFrete({ cepDestino: "01001000", caixaId: cx3.id, pesoKg: "0,3", valorDeclarado: "24,85" });
+  const acrescimo = (await lerConfigDeFrete()).acrescimoDeEmbalagem;
+  conferir(
+    "cota com a origem da empresa e o acrescimo",
+    [boa.ok, boa.origemCep?.length, Math.round((boa.atendem?.[0].valorACobrar - boa.atendem?.[0].preco) * 100) / 100],
+    [true, 8, acrescimo],
+  );
+  conferir("medidas vem da caixa", [falso.ultimoCorpo.package.length, falso.ultimoCorpo.package.width, falso.ultimoCorpo.package.height], [16, 11, 3]);
+  conferir("o pacote volta com o nome da caixa", [boa.pacote?.caixaNome, boa.pacote?.pesoKg], ["CX 16x11x3", 0.3]);
+  conferir("recusados separados", boa.recusados?.length, 3);
+  conferir("caixa que nao existe", "caixaId" in ((await cotarFrete({ cepDestino: "01001000", caixaId: "nao-existe", pesoKg: "0,3", valorDeclarado: "1" })).erros ?? {}), true);
+  conferir("invalido nao chama o provedor", (await cotarFrete({ cepDestino: "1", caixaId: cx3.id, pesoKg: "0,3", valorDeclarado: "1" })).ok, false);
+  falso.responderCom(503, "");
+  conferir("provedor fora do ar nao lanca", await cotarFrete({ cepDestino: "01001000", caixaId: cx3.id, pesoKg: "0,3", valorDeclarado: "24,85" }), {
+    ok: false,
+    codigo: "FORA_DO_AR",
+    erro: "O Melhor Envio não respondeu. Tente de novo em instantes.",
+  });
+  falso.responderCom(422, CEP_INVALIDO);
+  conferir("CEP recusado", (await cotarFrete({ cepDestino: "01001000", caixaId: cx3.id, pesoKg: "0,3", valorDeclarado: "1" })).codigo, "CEP_INVALIDO");
+} finally {
+  await limparProdutos();
+  await devolverConexaoDoDono();
+}
+
+// ---------------------------------------------------------------------------
 
 servidor.close();
 await prisma.$disconnect();
