@@ -1,4 +1,4 @@
-import { Building2, Cable, HeartPulse, Sparkles, SpellCheck, UsersRound } from "lucide-react";
+import { Building2, Cable, HeartPulse, PackageCheck, Sparkles, SpellCheck, UsersRound } from "lucide-react";
 
 /**
  * Os cartoes da pagina Configuracoes (spec de Acessos, §5.2), no desenho de Ferramentas: o cartao inteiro e o link.
@@ -46,6 +46,14 @@ export const CARTOES_DE_CONFIGURACOES = [
     rotulo: "Dados da empresa",
     icone: Building2,
     resumo: "Razão social, CNPJ e endereço que vão no pedido de compra.",
+  },
+  {
+    // Modulo de frete (18/11/2026): o acrescimo de embalagem e o peso extra da cotacao.
+    href: "/configuracoes/envios",
+    recurso: "tela.configuracoes.envios",
+    rotulo: "Envios",
+    icone: PackageCheck,
+    resumo: "O acréscimo de embalagem e a folga de peso usados na cotação do frete.",
   },
   {
     // So o Administrador: mostra as travas e o estado das conexoes da conta inteira (recurso nao delegavel).

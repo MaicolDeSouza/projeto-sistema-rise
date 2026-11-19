@@ -1,4 +1,4 @@
-import { CreditCard, Factory, Globe, Package, Tag, Truck, Users } from "lucide-react";
+import { Box, CreditCard, Factory, Globe, Package, Tag, Truck, Users } from "lucide-react";
 
 /**
  * Fonte unica das secoes de Cadastros. A pagina `/cadastros` desenha um cartao
@@ -68,6 +68,14 @@ export const SECOES_DE_CADASTROS = [
     rotulo: "Condições de pagamento",
     icone: CreditCard,
     resumo: "Os prazos de pagamento (à vista, 28 dias, 30/60/90) que a proposta e o cliente usam.",
+  },
+  {
+    // Modulo de frete (18/11/2026): rota fixa, fora da [tipo].
+    href: "/cadastros/caixas-de-envio",
+    recurso: "tela.cadastros.caixasDeEnvio",
+    rotulo: "Caixas de envio",
+    icone: Box,
+    resumo: "As caixas em que a loja despacha, com medidas e peso, para o Rise sugerir a caixa na cotação do frete.",
   },
 ];
 
