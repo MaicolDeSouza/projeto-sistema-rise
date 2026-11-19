@@ -30,6 +30,13 @@ const falso = {
   ultimoPedido: null,
   ultimoCorpo: null,
   proxima: null,
+  /** Fase 2: os pedidos do Melhor Envio (id -> pedido como a API devolve) e as falhas sob comando. */
+  pedidos: new Map(),
+  ultimoCarrinho: null,
+  precoDaEtiqueta: 25.84,
+  /** "checkout" | "generate" | "tracking" | null */
+  falharEm: null,
+  recusarCancelamento: false,
   /** A proxima resposta de cotacao sai com este status e corpo (uma vez so). */
   responderCom(status, corpo) {
     this.proxima = { status, corpo };
@@ -63,10 +70,43 @@ const servidor = http.createServer((pedido, resposta) => {
       }
       return responder(200, COTACAO_SP);
     }
+    // Fase 2: carrinho, pagamento, geracao, impressao, rastreio e cancelamento, com o estado em memoria.
+    const agoraME = () => new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 19).replace("T", " ");
     if (caminho === "/api/v2/me/cart") {
       falso.pedidosDeCarrinho++;
-      return responder(201, { id: "zz-carrinho" });
+      falso.ultimoCarrinho = corpo;
+      const id = `zz00000${falso.pedidosDeCarrinho}-0000-4000-8000-${String(falso.pedidosDeCarrinho).padStart(12, "0")}`;
+      falso.pedidos.set(id, { id, protocol: `ORD-ZZ${falso.pedidosDeCarrinho}`, status: "pending", price: falso.precoDaEtiqueta, tracking: null, created_at: agoraME() });
+      return responder(201, falso.pedidos.get(id));
     }
+    const ids = corpo?.orders ?? [];
+    if (caminho === "/api/v2/me/shipment/checkout") {
+      if (falso.falharEm === "checkout") return responder(500, { message: "Erro interno do falso." });
+      for (const id of ids) Object.assign(falso.pedidos.get(id) ?? {}, { status: "released", paid_at: agoraME() });
+      return responder(200, { purchase: { id: "zz-compra", protocol: "PUR-ZZ", total: falso.precoDaEtiqueta, status: "paid" } });
+    }
+    if (caminho === "/api/v2/me/shipment/generate") {
+      if (falso.falharEm === "generate") return responder(500, { message: "Erro interno do falso." });
+      const resposta = {};
+      for (const id of ids) {
+        Object.assign(falso.pedidos.get(id) ?? {}, { generated_at: agoraME(), tracking: `ZZ${id.slice(-4)}BR` });
+        resposta[id] = { status: true, message: "Envio gerado com sucesso" };
+      }
+      return responder(200, resposta);
+    }
+    if (caminho === "/api/v2/me/shipment/print") return responder(200, { url: `https://falso.melhorenvio.test/imprimir/${ids.join(",")}` });
+    if (caminho === "/api/v2/me/shipment/tracking") {
+      if (falso.falharEm === "tracking") return responder(503, "");
+      return responder(200, Object.fromEntries(ids.filter((id) => falso.pedidos.has(id)).map((id) => [id, falso.pedidos.get(id)])));
+    }
+    if (caminho === "/api/v2/me/shipment/cancel") {
+      if (falso.recusarCancelamento) return responder(422, { error: "Envio já postado não pode ser cancelado." });
+      const id = corpo?.order?.id;
+      Object.assign(falso.pedidos.get(id) ?? {}, { status: "canceled", canceled_at: agoraME() });
+      return responder(200, { [id]: { canceled: true } });
+    }
+    const doPedido = caminho.match(/^\/api\/v2\/me\/orders\/([\w-]+)$/);
+    if (doPedido) return falso.pedidos.has(doPedido[1]) ? responder(200, falso.pedidos.get(doPedido[1])) : responder(404, { message: "Pedido não encontrado." });
     return responder(404, { message: "Não encontrado no falso." });
   });
 });
@@ -373,12 +413,110 @@ try {
   conferir("fora do ar", await erroDe(() => falso.responderCom(503, "")), ["ErroDoProvedor", "FORA_DO_AR"]);
   conferir("401", await erroDe(() => falso.responderCom(401, { message: "Unauthenticated." })), ["ErroDoProvedor", "NAO_CONECTADO"]);
   conferir("outro 4xx", await erroDe(() => falso.responderCom(400, { message: "Peso inválido." })), ["ErroDoProvedor", "RECUSADO"]);
-  conferir("fase 2 ainda nao", await obterProvedor("MELHOR_ENVIO").comprar({}).catch((e) => e.message), "Disponível na fase 2 do módulo de frete.");
   conferir("saldo", await obterProvedor("MELHOR_ENVIO").saldo(), { saldo: 123.45, reservado: 0 });
   conferir("provedor desconhecido", obterProvedor("XPTO"), null);
   await prisma.conexao.deleteMany({ where: { servico: "MELHOR_ENVIO" } });
   conferir("sem conexao", await erroDe(() => {}), ["ErroDoProvedor", "NAO_CONECTADO"]);
 } finally {
+  await devolverConexaoDoDono();
+}
+
+// ---------------------------------------------------------------------------
+// Provedor: comprar, imprimir, rastrear e cancelar (fase 2)
+// ---------------------------------------------------------------------------
+
+const { config } = await import("../src/lib/integracoes/config.js");
+const REMETENTE_ZZ = {
+  nome: "ZZ Loja",
+  documento: "12.345.678/0001-95",
+  inscricaoEstadual: "0123456789",
+  email: "zz-loja@exemplo.test",
+  telefone: "54988990008",
+  endereco: { cep: "95090970", logradouro: "Rua ZZ", numero: "10", complemento: "", bairro: "Centro", cidade: "Caxias do Sul", uf: "RS" },
+};
+const DESTINATARIO_ZZ = {
+  nome: "ZZ Comprador",
+  documento: "123.456.789-09",
+  email: "zz-comprador@exemplo.test",
+  telefone: "(11) 98888-7777",
+  endereco: { cep: "01001000", logradouro: "Praça da Sé", numero: "1", complemento: "", bairro: "Sé", cidade: "São Paulo", uf: "SP" },
+};
+const envioZZ = {
+  numero: 9001,
+  servicoId: "1",
+  remetente: REMETENTE_ZZ,
+  destinatario: DESTINATARIO_ZZ,
+  comprimentoCm: 16,
+  larguraCm: 11,
+  alturaCm: 3,
+  pesoKg: 0.165,
+  valorDeclarado: 98,
+  tipoDeDocumento: "NFE",
+  chaveNfe: "4".repeat(44),
+  itensDaDeclaracao: [{ descricao: "ZZ item", quantidade: 1, valorUnitario: 98 }],
+  idNoProvedor: null,
+};
+const liberarTrava = (liberada = true) => (config.travas.freteCompra = liberada);
+
+try {
+  console.log("\nProvedor: compra, impressão, rastreio e cancelamento");
+  await prisma.conexao.deleteMany({ where: { servico: "MELHOR_ENVIO" } });
+  await concluirAutorizacao("codigo-de-teste");
+  const me = obterProvedor("MELHOR_ENVIO");
+  const corpo = me.corpoDoCarrinho(envioZZ);
+  conferir("carrinho: serviço numérico e um volume", [corpo.service, corpo.volumes.length, corpo.volumes[0].weight], [1, 1, 0.165]);
+  conferir("carrinho: nota", [corpo.options.invoice?.key, corpo.options.non_commercial, corpo.from.state_register], ["4".repeat(44), false, "0123456789"]);
+  conferir("carrinho: sem agency", "agency" in corpo, false);
+  const declaracao = me.corpoDoCarrinho({ ...envioZZ, tipoDeDocumento: "DECLARACAO", chaveNfe: null });
+  conferir("carrinho: declaração", [declaracao.options.invoice, declaracao.options.non_commercial, declaracao.from.state_register], [undefined, true, undefined]);
+  conferir("carrinho: CNPJ e CPF", [corpo.from.company_document, corpo.from.document, corpo.to.document], ["12345678000195", undefined, "12345678909"]);
+  conferir("carrinho: produtos e seguro", [corpo.products, corpo.options.insurance_value], [[{ name: "ZZ item", quantity: 1, unitary_value: 98 }], 98]);
+  conferir("carrinho: tag do envio", [corpo.options.tags[0].tag, me.corpoDoCarrinho({ ...envioZZ, pedidoNumero: "1234" }).options.tags[0].tag], ["ENV-9001", "Pedido 1234"]);
+  conferir("carrinho: telefone só dígitos", corpo.to.phone, "11988887777");
+
+  liberarTrava(false);
+  conferir("trava fechada", await me.comprar(envioZZ, {}).catch((e) => e.codigo), "TRAVADO");
+  liberarTrava();
+  let criado = null;
+  const compra = await me.comprar(envioZZ, { aoCriarNoCarrinho: (id) => (criado = id) });
+  conferir(
+    "compra completa",
+    [Boolean(criado), compra.idNoProvedor === criado, compra.custo, Boolean(compra.validoAte), Boolean(compra.rastreio), compra.eventos.map((e) => e.descricao)],
+    [true, true, 25.84, true, true, ["Etiqueta paga", "Etiqueta gerada"]],
+  );
+  falso.falharEm = "checkout";
+  let idPelaMetade = null;
+  conferir("queda no pagamento lança", await me.comprar(envioZZ, { aoCriarNoCarrinho: (id) => (idPelaMetade = id) }).catch((e) => e.codigo), "FORA_DO_AR");
+  falso.falharEm = null;
+  const carrinhosAntes = falso.pedidosDeCarrinho;
+  const retomada = await me.comprar({ ...envioZZ, idNoProvedor: idPelaMetade }, { aoCriarNoCarrinho: () => { throw new Error("não devia criar"); } });
+  conferir("retoma sem novo carrinho", [falso.pedidosDeCarrinho, retomada.idNoProvedor, retomada.custo], [carrinhosAntes, idPelaMetade, 25.84]);
+  falso.falharEm = "generate";
+  let idSemGerar = null;
+  await me.comprar(envioZZ, { aoCriarNoCarrinho: (id) => (idSemGerar = id) }).catch(() => {});
+  falso.falharEm = null;
+  const pagoAntes = falso.pedidos.get(idSemGerar).paid_at;
+  const gerada = await me.comprar({ ...envioZZ, idNoProvedor: idSemGerar }, {});
+  conferir("pago e não gerado: só gera", [Boolean(gerada.rastreio), falso.pedidos.get(idSemGerar).paid_at === pagoAntes], [true, true]);
+  conferir("já gerado: só devolve", (await me.comprar({ ...envioZZ, idNoProvedor: criado }, {})).rastreio, compra.rastreio);
+
+  const rastreio = await me.rastrear([criado, "nao-existe"]);
+  conferir("rastrear mapeia", [rastreio.get(criado)?.status, rastreio.has("nao-existe")], ["A_POSTAR", false]);
+  falso.pedidos.get(criado).status = "something_new";
+  conferir("rastrear: desconhecido", (await me.rastrear([criado])).get(criado)?.desconhecido, true);
+  falso.pedidos.get(criado).status = "released";
+  conferir("imprimir devolve link", (await me.imprimir({ idNoProvedor: criado })).url.includes(criado), true);
+  falso.recusarCancelamento = true;
+  conferir("cancelar recusado traz o texto", await me.cancelar({ idNoProvedor: criado }, "teste").catch((e) => e.message), "O Melhor Envio recusou: Envio já postado não pode ser cancelado.");
+  falso.recusarCancelamento = false;
+  conferir("cancelar", [(await me.cancelar({ idNoProvedor: criado }, "teste")).ok, falso.pedidos.get(criado).status], [true, "canceled"]);
+  conferir("cancelado não retoma", await me.comprar({ ...envioZZ, idNoProvedor: criado }, {}).catch((e) => e.codigo), "RECUSADO");
+  falso.falharEm = "tracking";
+  conferir("rastrear fora do ar", await me.rastrear([criado]).catch((e) => e.codigo), "FORA_DO_AR");
+  falso.falharEm = null;
+} finally {
+  liberarTrava(false);
+  falso.falharEm = null;
   await devolverConexaoDoDono();
 }
 
