@@ -221,9 +221,12 @@ Cada fase com teste automático, roteiro de testes do dono e deploy só com o "s
 8. Lançamento em duas etapas (`?assistente=1` primeiro).
 9. ~~Nome "Assistente 4hobby", sem mascote~~ **Decidido pelo dono em 19/11/2026: o assistente se chama Hobi** (vale no
    site e no WhatsApp: "Oi, eu sou o Hobi, assistente da 4hobby") **e tem um mascote futurista**, um robozinho que o dono
-   gera fora do Rise (Google Flow) e envia. O widget usa a cabeça no botão flutuante e o corpo inteiro na saudação; os
-   arquivos (PNG com fundo transparente) entram como imagens do serviço `ia`, servidas com o widget. Sem a imagem, o
-   botão usa um ícone de conversa. O nome é texto da configuração (§9), não fixo no código.
+   gerou no Google Flow e enviou em 19/11/2026 (`docs/mascote-hobi/`: corpo, cabeça e folha de expressões, em JPG com
+   fundo branco; o construtor recorta o fundo). O widget usa a cabeça no botão flutuante e o corpo inteiro na saudação;
+   as expressões servem para "pensando" e "feliz". Os arquivos recortados (PNG com fundo transparente) entram como
+   imagens do serviço `ia`, servidas com o widget. Sem a imagem, o botão usa um ícone de conversa. O nome é texto da
+   configuração (§9), não fixo no código. **O mascote é só do site: no WhatsApp a foto do perfil continua sendo o logo
+   da 4hobby** (decisão do dono em 19/11/2026); lá o Hobi aparece só no nome com que a IA se apresenta.
 
 ## 14. O que depende do dono
 
