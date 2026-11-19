@@ -356,6 +356,7 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Estoque | Ordens de produção dos produtos com peças próprias (26/10/2026, sem deploy): baixa das peças, conclusão com perda, cancelamento que devolve. Saldo e movimentações ainda não. Ver "Peças próprias e ordem de produção (26/10/2026)". **Mapa do estoque (12/11/2026, fase 1, SEM deploy):** os três estoques em 3D e de frente, colunas, modelos de caixinha e a caixinha do produto; ver "Mapa do estoque (12/11/2026)" |
 | Pedidos | **Pedidos de venda, fase 1 (04/11/2026, NO AR na VPS desde 04.11.2026.60):** o worker lê a cada 5 min os pedidos do ML, da LI e do Bling (desde 01/11/2026), cria o cliente pelo CPF/CNPJ, casa os itens com os produtos, calcula status, peças em falta e lucro estimado × real; lista `/pedidos`, tela do pedido com abas, taxas da LI e nível do cliente. Ver "Pedidos de venda (04/11/2026)" |
 | Propostas | **Propostas para cliente, fase 1 (12/11/2026, SEM deploy):** proposta comercial que vive só no Rise (nº 2026, 2027…), cliente do Rise ou do Bling (ou provisório, sem cadastro), itens com a descrição e o código do cliente, prazo por item, pagamento, frete, OC/obs. da NF, validade de 15 dias que vence sozinha, "!" de contato, PDF, link público com WhatsApp, cotação anexada e pedido de venda no Bling na aprovada. Ver "Propostas para cliente (12/11/2026)" |
+| Frete | **Módulo de frete, fase 1 (cotação, 18/11/2026, SEM deploy):** Melhor Envio pela API (OAuth, provedor trocável para a SuperFrete depois), caixas de envio, cotação na Proposta (CIF), no Pedido do Bling (rascunho do envio) e em Ferramentas › Cotar frete. Etiqueta, rastreio e aviso ao cliente são a fase 2; reverso, a 3. Ver "Módulo de frete (18/11/2026)" |
 | Financeiro | Esqueleto |
 
 **O que está no ar (24/10/2026):** o deploy 24.10.2026.29 (commit `5ede491`) subiu TUDO o que estava na main até esse commit
@@ -431,7 +432,8 @@ npm run teste:aliexpress          # 153 asserções do AliExpress no Compras: re
 npm run teste:compras-ml           # 50 asserções das compras do Mercado Livre no Compras e da nota fiscal do pedido de compra: regras puras (pack, situação, totais, variação, 1ª leitura, envio e fases), XML da NF-e, leitura contra um ML falso (rascunho que vira enviado, rastreio que aparece, cancelada, sem duplicar), casamento pelo MLB, Virtual contra o Bling falso, busca pelo rastreio e pela nota e a guarda que impede a compra de virar venda. Postgres local, SEM rede; só escreve ZZ-CML-*, "ZZ CML Fornecedor" e compras 98…; `-- --manter` deixa os dados
 npm run teste:estoque3d            # 110 asserções do Mapa do estoque: leitura da localização ("M2"), peças que cabem na caixinha (arrumadas em fileiras com 2 mm de folga, pela medida interna quando existe), caixinha certa, peso, a cena montada (ordem, largura, o que passa do vão, a 1 em cima ou embaixo, fora das prateleiras), as regras da fase 2 (parecidos, vizinhos, pesado em cima, Onde guardar) e o banco (colunas pela localização, coluna, modelo, caixinha do produto, Mover com renumeração e histórico, ordem pelas fotos). Postgres local, SEM rede; só escreve ZZ-E3D-*, as colunas ZY/ZZ e os modelos "ZZ E3D *", e apaga
 npm run teste:estudos             # 51 asserções do estudo de viabilidade: regras puras (mediana, piso dos vendidos, demanda, preço por unidade, quantidade, vendas por mês entre estudos, veredito), banco (fila sem repetir, contas contra um ML falso, gravar, estudar de novo, lista) e as 5 ferramentas do MCP com o acesso. Postgres local, SEM rede; só escreve "ZZ-EST *" e ZZ-EST-*, e apaga
-npm run teste:propostas           # 204 asserções das Propostas para cliente (com a assinatura digital: certificado de teste gerado na hora, senha com acento, cadeia, cofre cifrado, PDF assinado conferido pelo digest, link público /pdf e o Caddy) (com o nome/código do Rise no PDF, o fator, o estoque do item, as parcelas pela condição e o frete diluído) (com o cabeçalho no molde da cotação: contatos com link, faixa e "Entregar em", e o A/C da lista ou digitado): regras puras (totais, desconto, frete só no CIF, prazo geral, "!", vencer), cliente (busca Rise/Bling, cópia, provisório, cadastro nos dois, Bling travado), gravação e numeração (duas ao mesmo tempo), situação, contatos, lista, pedido de venda contra o Bling falso (recusa avulso, não duplica), anexos, link público, PDF e página pública (nunca nosso código, custo nem internas) e as ferramentas do MCP. Postgres local, SEM rede; só escreve "ZZ Proposta *" e ZZ-PROP-CLI-*, e apaga
+npm run teste:frete               # 97 asserções do módulo de frete (fase 1): regras de caixa, peso e valor a cobrar, caixas e configuração, o conector do Melhor Envio (OAuth, renovação com 5 dias de folga, User-Agent, trava FRETE_COMPRA), o provedor (CEP recusado, fora do ar, não conectado), a cotação com o pacote sugerido (kit pelas peças) e o rascunho do envio do pedido (dois cliques, um envio). Melhor Envio FALSO nesta máquina (SEM rede); Postgres local, só escreve "CX 9*"/"CX ZZ*", ZZ-FRETE-* e devolve a ConfigDeFrete e a Conexao MELHOR_ENVIO do dono. `-- --servir --porta=4599` deixa só o falso no ar, para conferir a tela com MELHOR_ENVIO_URL apontando para ele
+npm run teste:propostas           # 215 asserções (com a cotação do frete gravada no CIF) das Propostas para cliente (com a assinatura digital: certificado de teste gerado na hora, senha com acento, cadeia, cofre cifrado, PDF assinado conferido pelo digest, link público /pdf e o Caddy) (com o nome/código do Rise no PDF, o fator, o estoque do item, as parcelas pela condição e o frete diluído) (com o cabeçalho no molde da cotação: contatos com link, faixa e "Entregar em", e o A/C da lista ou digitado): regras puras (totais, desconto, frete só no CIF, prazo geral, "!", vencer), cliente (busca Rise/Bling, cópia, provisório, cadastro nos dois, Bling travado), gravação e numeração (duas ao mesmo tempo), situação, contatos, lista, pedido de venda contra o Bling falso (recusa avulso, não duplica), anexos, link público, PDF e página pública (nunca nosso código, custo nem internas) e as ferramentas do MCP. Postgres local, SEM rede; só escreve "ZZ Proposta *" e ZZ-PROP-CLI-*, e apaga
 npm run teste:pedidos             # 312 asserções dos Pedidos de venda (com o envio do ML entregue na agência pelo substatus): falsos (ML, LI, Bling), normalizadores, status, cliente automático, itens e custo congelado, lucro e devolução, peças, aplicarPedidoLido, a leitura com cursor, acessos e taxas da LI. Postgres local, SEM rede; só escreve ZZ-PED-*, "ZZ Ped *" e os documentos de teste, e devolve a linha "pedidos" de RotinaDoWorker e as taxas da LI; `-- --manter` deixa os pedidos para conferir a tela
 npm run teste:extensao-aliexpress # 15 asserções da leitura da extensão (extensao-aliexpress/leitura.js) com as respostas da página Meus pedidos medidas em 28/10/2026. Puro: sem banco, sem rede, sem Chrome
 npm run teste:licencas            # 109 asserções das Licenças Softwares: regras (vagas, casamento por nome do PC, situação, frescor, ordem), zip e upload do arquivo, banco (programas, licenças, linhas, versões do arquivo, download), leitura do portal (esquema, aplicação, incompleta, sumidos, chave da extensão) e a importação das planilhas (fixtures em scripts/fixtures/licencas/). Postgres local, SEM rede; só escreve ZZ-LIC-*, zz-lic-* e "ZZ LIC *" e devolve a Conexao LIGHTBURN; `-- --manter` deixa os dados para conferir a tela
@@ -7998,6 +8000,45 @@ com o roteiro v2** (título inventado no rascunho do ML): refazer a proposta do 
 - **Visto na tela (servidor do PC):** o "P" nos dois ícones, a faixa com o Relatório (o Esc fecha só o relatório), as
   marcas e a linha "Usar". **Não visto:** uma proposta de verdade pelo claude.ai, o bloco "Da proposta" das categorias da
   LI e o Adicionar dos catálogos sugeridos.
+
+## Módulo de frete (18/11/2026)
+
+Spec `docs/superpowers/specs/2026-11-18-modulo-de-frete-design.md` (aprovada pelo dono), plano da fase 1
+`docs/superpowers/plans/2026-11-18-modulo-de-frete-fase-1.md`. **Fase 1 (cotação) pronta, SEM deploy.** O Mercado Livre
+continua no Mercado Envios e a Loja Integrada no Enviali (a etiqueta do Enviali só existe para pedido da loja).
+
+- **Melhor Envio, medido na documentação em 18/11/2026:** OAuth por aplicativo (`/oauth/authorize`, `POST /oauth/token`
+  com corpo JSON), token de 30 dias e renovação de 45 (uso único: renova sob a trava do banco, `conexao:MELHOR_ENVIO`,
+  com 5 dias de folga); `User-Agent` obrigatório com nome e e-mail (`MELHOR_ENVIO_CONTATO`); cotação em
+  `POST /api/v2/me/shipment/calculate` (é LEITURA: não passa pela trava), saldo em `GET /api/v2/me/balance`. Os escopos da
+  fase 1 a 3 já são pedidos na primeira conexão. `MELHOR_ENVIO_SANDBOX` nasce `true`: na VPS, pôr `false`.
+- **Resposta medida na calculadora pública:** lista de `{ id, name, price, custom_price, delivery_time,
+  custom_delivery_time, company }`; o serviço que não atende traz só `error`; CEP inválido = HTTP 422
+  `{ errors: { postal_code } }`. O Rise usa `custom_*` (o preço com as regras da conta).
+- **Provedor trocável:** `src/lib/frete/provedores/registro.js` (lista e `obterProvedor`), `melhorEnvio.js` (o único, com
+  `integracoes/melhorenvio.js`, que conhece campo do Melhor Envio) e `erro.js` (`ErroDoProvedor` com o código e a frase da
+  tela). A SuperFrete entra como outro arquivo com a mesma forma. Comprar, imprimir, rastrear, cancelar e reverso lançam
+  "Disponível na fase 2" por enquanto.
+- **Regras puras** (`src/lib/frete/regras.js`): nome da caixa pela medida (`CX 16x11x3`), interna = externa − 0,5 cm de
+  cada lado sem a cadastrada, peso = (itens + caixa vazia) × (1 + peso extra %) subindo no grama, caixa sugerida = a menor
+  ativa em que cada item cabe e o volume não passa de 70% do interno, valor a cobrar = cotado + acréscimo de embalagem.
+  Ponto flutuante: 6 casas antes do arredondamento final (0,15 × 1,1 dava 0,166).
+- **Tabelas** (migration `20261118b_frete_fase_1`, os DROP INDEX do `migrate diff` tirados): `CaixaDeEnvio` (semeadas as
+  três do dono com o peso vazio ESTIMADO: 35, 45 e 70 g), `ConfigDeFrete` (id "frete": R$ 1,00 e 10%), `Envio` (inteiro;
+  na fase 1 só `RASCUNHO`), `PropostaParaCliente.cotacaoDoFrete` e `MELHOR_ENVIO` no enum `Servico`.
+- **Telas:** Cadastros › Caixas de envio, Configurações › Envios, Ferramentas › Cotar frete (com Copiar para o WhatsApp),
+  "Cotar frete" no frete CIF da Proposta (a cotação some se o frete for trocado a mão ou sair do CIF; regra no servidor,
+  `conferirProposta`) e "Envio pelo Rise" na aba Envio do pedido do Bling (o rascunho `ENV-0001`, sob trava: dois cliques,
+  um envio; "Comprar etiqueta" desabilitado até a fase 2). O cotador é um só (`CotadorDeFrete`, na `JanelaDeCotacao`).
+- **Acessos:** `tela.cadastros.caixasDeEnvio`, `tela.ferramentas.frete`, `tela.configuracoes.envios` e
+  `acao.envios.cotarNoPedido`; cotar aceita quem vê a Proposta, o Pedido ou a ferramenta (não grava nem gasta).
+- **Conferido na tela** (cópia em worktree na porta 3006 contra o Melhor Envio falso, `teste:frete -- --servir`): as quatro
+  telas e as janelas, a proposta 2026 do PC sem salvar e o pedido de teste ZZ-PED-24. **Não conferido:** o Melhor Envio de
+  verdade (falta o aplicativo do dono: `MELHOR_ENVIO_CLIENT_ID`, `_SECRET` e `_CONTATO`), o "Conectar" pelo OAuth real e
+  um pedido do Bling real.
+- **Falta do dono:** criar o aplicativo no painel do Melhor Envio (produção e teste) com o retorno
+  `https://rise.4hobby.com.br/api/oauth/melhorenvio/callback` (e o do PC), pesar as três caixas e decidir os tamanhos novos
+  (115 produtos não cabem em nenhuma: 68 numa 30×20×15 e 38 com um lado maior que 30 cm).
 
 ## Trabalho em paralelo: worktrees
 
