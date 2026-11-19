@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { negarSemAcesso, sessaoDeAcessos } from "@/lib/acessos/servidor";
+import { salvarRascunhoDoPedido } from "@/lib/frete/envios";
 import { projetarClientesDaBusca } from "@/lib/pedidos/projecao";
 import {
   aceitarDivergenciaDoLucro,
@@ -36,6 +37,18 @@ function revalidar(id, resultado) {
     revalidatePath("/pedidos");
   }
   return resultado;
+}
+
+/** Guarda a cotacao escolhida como rascunho do envio do pedido (modulo de frete, fase 1). */
+export async function salvarRascunhoDoEnvioAcao(id, dados) {
+  const negado = await negarSemAcesso("acao.envios.cotarNoPedido", "executar");
+  if (negado) return negado;
+  if (!ehId(id)) return INVALIDO;
+  return protegendo(async () => {
+    const login = (await sessaoDeAcessos()).login ?? null;
+    const resultado = await salvarRascunhoDoPedido(id, { pacote: dados?.pacote, servico: dados?.servico, cotadoEm: dados?.cotadoEm }, login);
+    return revalidar(id, resultado.ok ? { ok: true } : resultado);
+  });
 }
 
 export async function marcarEmSeparacaoAcao(id, ligado) {

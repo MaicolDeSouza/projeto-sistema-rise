@@ -412,6 +412,95 @@ try {
 }
 
 // ---------------------------------------------------------------------------
+// Envio em rascunho no pedido de venda
+// ---------------------------------------------------------------------------
+
+const { numeroDoEnvio, lerEnvioDoPedido, salvarRascunhoDoPedido, cotacaoDaPropostaDoPedido } = await import("../src/lib/frete/envios.js");
+const { criarProposta } = await import("../src/lib/propostas/banco.js");
+const limparEnvios = async () => {
+  await prisma.envio.deleteMany({ where: { OR: [{ servicoNome: { startsWith: "ZZ " } }, { pedidoDeVenda: { numero: { startsWith: "ZZ-FRETE-" } } }] } });
+  await prisma.pedidoDeVenda.deleteMany({ where: { numero: { startsWith: "ZZ-FRETE-" } } });
+  await prisma.propostaParaCliente.deleteMany({ where: { clienteNome: "ZZ Frete Proposta" } });
+};
+const pedidoDeTeste = (numero, extra = {}) =>
+  prisma.pedidoDeVenda.create({
+    data: {
+      origem: "BLING",
+      canal: "BLING",
+      idExterno: numero,
+      numero,
+      dataDaVenda: new Date(),
+      atualizadoNaOrigemEm: new Date(),
+      statusDaOrigem: "Em aberto",
+      status: "PAGO",
+      nomeDoComprador: "ZZ Comprador",
+      emailDoComprador: "zz-comprador@exemplo.test",
+      enderecoDeEntrega: { nome: "ZZ Comprador", endereco: "Praça da Sé", numero: "1", bairro: "Sé", cidade: "São Paulo", uf: "SP", cep: "01001000" },
+      pagamento: [],
+      envio: {},
+      historico: [],
+      totalProdutos: 49.7,
+      desconto: 0,
+      freteCobrado: 0,
+      total: 49.7,
+      ...extra,
+    },
+  });
+
+try {
+  console.log("\nEnvio em rascunho no pedido");
+  await limparEnvios();
+  const cx3 = await prisma.caixaDeEnvio.findUnique({ where: { nome: "CX 16x11x3" } });
+  const pacote = { cepDestino: "01001000", caixaId: cx3.id, caixaNome: cx3.nome, pesoKg: 0.165, comprimentoCm: 16, larguraCm: 11, alturaCm: 3, valorDeclarado: 49.7 };
+  const servico = { servicoId: "2", servicoNome: "SEDEX", transportadora: "Correios", preco: 28.85, prazoDias: 2, valorACobrar: 29.85 };
+  const cotadoEm = "2026-11-18T22:00:00.000Z";
+  const pedido = await pedidoDeTeste("ZZ-FRETE-PED");
+  const outro = await pedidoDeTeste("ZZ-FRETE-PED-2");
+
+  conferir("numero", [numeroDoEnvio(1), numeroDoEnvio(12345)], ["ENV-0001", "ENV-12345"]);
+  conferir("sem envio ainda", await lerEnvioDoPedido(pedido.id), null);
+  const primeiro = await salvarRascunhoDoPedido(pedido.id, { pacote, servico, cotadoEm }, "zz-frete");
+  conferir(
+    "cria o rascunho",
+    [primeiro.ok, primeiro.envio?.status, primeiro.envio?.direcao, primeiro.envio?.medidaConferida, primeiro.envio?.servicoNome, primeiro.envio?.precoCotado],
+    [true, "RASCUNHO", "IDA", false, "SEDEX", 28.85],
+  );
+  conferir("destinatario copiado do pedido", [primeiro.envio?.destinatario?.endereco?.cep, primeiro.envio?.destinatario?.nome], ["01001000", "ZZ Comprador"]);
+  conferir("remetente e a empresa", primeiro.envio?.remetente?.endereco?.cep?.replace(/\D/g, "").length, 8);
+  conferir("lido de volta", (await lerEnvioDoPedido(pedido.id))?.id, primeiro.envio?.id);
+  const segundo = await salvarRascunhoDoPedido(pedido.id, { pacote, servico: { ...servico, servicoNome: "PAC", servicoId: "1" }, cotadoEm }, "zz-frete");
+  conferir(
+    "cotar de novo atualiza o mesmo",
+    [segundo.envio?.id === primeiro.envio?.id, segundo.envio?.servicoNome, await prisma.envio.count({ where: { pedidoDeVendaId: pedido.id } })],
+    [true, "PAC", 1],
+  );
+  const [a, b] = await Promise.all([
+    salvarRascunhoDoPedido(outro.id, { pacote, servico, cotadoEm }, "zz"),
+    salvarRascunhoDoPedido(outro.id, { pacote, servico, cotadoEm }, "zz"),
+  ]);
+  conferir("dois cliques criam um envio so", [a.ok && b.ok, await prisma.envio.count({ where: { pedidoDeVendaId: outro.id } })], [true, 1]);
+  conferir("numeros diferentes por envio", primeiro.envio?.numero !== a.envio?.numero, true);
+  conferir("pacote invalido", (await salvarRascunhoDoPedido(pedido.id, { pacote: { ...pacote, pesoKg: 0 }, servico, cotadoEm }, "zz")).ok, false);
+  conferir("pedido que nao existe", (await salvarRascunhoDoPedido("nao-existe", { pacote, servico, cotadoEm }, "zz")).ok, false);
+  await prisma.envio.update({ where: { id: primeiro.envio.id }, data: { status: "A_POSTAR" } });
+  conferir("comprado nao volta a rascunho", (await salvarRascunhoDoPedido(pedido.id, { pacote, servico, cotadoEm }, "zz-frete")).ok, false);
+  await prisma.pedidoDeVenda.delete({ where: { id: pedido.id } });
+  conferir("apagar o pedido mantem o envio", (await prisma.envio.findUnique({ where: { id: primeiro.envio.id } }))?.pedidoDeVendaId, null);
+  await prisma.envio.update({ where: { id: primeiro.envio.id }, data: { servicoNome: "ZZ apagar" } });
+
+  const proposta = await criarProposta({ login: "zz" });
+  await prisma.propostaParaCliente.update({
+    where: { id: proposta.id },
+    data: { clienteNome: "ZZ Frete Proposta", pedidoDeVendaBlingId: "zz-bling-777", cotacaoDoFrete: { caixaNome: "CX 16x11x3", pesoKg: 0.165, valorCobrado: 29.85 } },
+  });
+  const comProposta = await pedidoDeTeste("ZZ-FRETE-PED-3", { blingPedidoId: "zz-bling-777" });
+  conferir("cotacao da proposta de origem", (await cotacaoDaPropostaDoPedido(comProposta))?.caixaNome, "CX 16x11x3");
+  conferir("pedido sem proposta", await cotacaoDaPropostaDoPedido(outro), null);
+} finally {
+  await limparEnvios();
+}
+
+// ---------------------------------------------------------------------------
 
 servidor.close();
 await prisma.$disconnect();

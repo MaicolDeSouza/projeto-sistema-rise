@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Check, ExternalLink } from "lucide-react";
 
 import { salvarCustoDoFreteManualAcao } from "@/app/pedidos/acoes";
+import EnvioDoPedido from "@/components/frete/EnvioDoPedido";
 
 import { Dado, enderecoEmLinhas, Secao } from "./AbaGeral";
 import { dataCompleta, linkDoRastreio, moeda } from "./formato";
@@ -88,7 +89,7 @@ function CampoDoFreteManual({ pedido, podeEditar }) {
  * Aba Envio: o tipo, o servico, o rastreio com link, o status com as datas e o custo do frete para o vendedor, com a
  * fonte em cinza ("estimativa, até postar"). No pedido do Bling o custo e digitado pelo operador.
  */
-export default function AbaEnvio({ pedido, podeEditarFrete }) {
+export default function AbaEnvio({ pedido, podeEditarFrete, frete = null, podeCotarFrete = false }) {
   const envio = pedido.envio ?? {};
   const link = linkDoRastreio(pedido);
   const passos = PASSOS.filter(([chave]) => envio.historico?.[chave]);
@@ -173,6 +174,8 @@ export default function AbaEnvio({ pedido, podeEditarFrete }) {
         </dl>
         {pedido.origem === "BLING" && <CampoDoFreteManual pedido={pedido} podeEditar={podeEditarFrete} />}
       </Secao>
+
+      {frete && <EnvioDoPedido pedido={pedido} envio={frete.envio} caixas={frete.caixas} cotacaoDaProposta={frete.cotacaoDaProposta} podeCotar={podeCotarFrete} />}
     </div>
   );
 }

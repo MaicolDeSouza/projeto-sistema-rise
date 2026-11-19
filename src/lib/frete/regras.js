@@ -113,6 +113,11 @@ export function textoDaCotacao({ cidadeDestino, servicos }) {
   return [titulo, ...linhas].join("\n");
 }
 
+/** ENV-0001: o numero do envio que o operador ve. Aqui, e nao em envios.js, porque a tela tambem o usa. */
+export function numeroDoEnvio(numero) {
+  return `ENV-${String(numero).padStart(4, "0")}`;
+}
+
 /** "0,3", "1.250,00" e "0.3" viram numero; vazio, negativo e texto viram null (o campo mostra o erro). */
 export function lerDecimal(texto) {
   if (typeof texto === "number") return Number.isFinite(texto) && texto >= 0 ? texto : null;

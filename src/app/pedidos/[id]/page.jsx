@@ -9,6 +9,8 @@ import { SetaParaLista } from "@/components/ui/ListaLembrada";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { config } from "@/lib/integracoes/config";
+import { listarCaixas } from "@/lib/frete/caixas";
+import { cotacaoDaPropostaDoPedido, lerEnvioDoPedido } from "@/lib/frete/envios";
 import { lerPedidoDeVenda } from "@/lib/pedidos/banco";
 import { projetarPedido } from "@/lib/pedidos/projecao";
 
@@ -39,7 +41,15 @@ export default async function PedidoDeVendaPage({ params, searchParams }) {
     vincularCliente: acesso.pode("acao.pedidos.vincularCliente", "executar"),
     aceitarDivergencia: acesso.pode("acao.pedidos.aceitarDivergencia", "executar"),
     baixarNF: acesso.pode("acao.pedidos.baixarNF", "executar"),
+    cotarFrete: acesso.pode("acao.envios.cotarNoPedido", "executar"),
   };
+  // O envio pelo Rise (modulo de frete, fase 1): so no pedido do Bling (o ML usa o Mercado Envios e a LI o Enviali).
+  const frete =
+    pedido.origem === "BLING"
+      ? await Promise.all([lerEnvioDoPedido(pedido.id), listarCaixas({ soAtivas: true }), cotacaoDaPropostaDoPedido(pedido)]).then(([envio, caixas, cotacaoDaProposta]) =>
+          JSON.parse(JSON.stringify({ envio, caixas, cotacaoDaProposta })),
+        )
+      : null;
 
   return (
     <>
@@ -63,7 +73,14 @@ export default async function PedidoDeVendaPage({ params, searchParams }) {
           </span>
         }
       />
-      <PedidoDeVenda pedido={pedido} veCusto={acesso.pode("dado.custo", "ver")} pode={pode} nfeLigada={Boolean(config.travas.nfe)} abaInicial={typeof abaInicial === "string" ? abaInicial : null} />
+      <PedidoDeVenda
+        pedido={pedido}
+        veCusto={acesso.pode("dado.custo", "ver")}
+        pode={pode}
+        frete={frete}
+        nfeLigada={Boolean(config.travas.nfe)}
+        abaInicial={typeof abaInicial === "string" ? abaInicial : null}
+      />
     </>
   );
 }

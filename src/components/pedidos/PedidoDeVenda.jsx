@@ -24,7 +24,7 @@ const semErro = () => false;
  * molde do cadastro de Cliente) e o rodape com a unica acao de estado. Peças so aparece com falta ou Aguardando peças;
  * Lucro so para quem ve custo.
  */
-export default function PedidoDeVenda({ pedido, veCusto, pode, nfeLigada, abaInicial = null }) {
+export default function PedidoDeVenda({ pedido, veCusto, pode, frete = null, nfeLigada, abaInicial = null }) {
   const [vinculando, setVinculando] = useState(false);
   const mostrarPecas = pedido.status === "AGUARDANDO_PECAS" || Boolean(pedido.pecas?.falta);
   // O "!" ao lado da aba onde mora cada aviso (pedido do dono em 09/11/2026); a faixa do topo continua dizendo qual e.
@@ -101,7 +101,7 @@ export default function PedidoDeVenda({ pedido, veCusto, pode, nfeLigada, abaIni
           </Painel>
         )}
         <Painel id="envio" aba={aba}>
-          <AbaEnvio pedido={pedido} podeEditarFrete={pode.editarCustoDoFrete} />
+          <AbaEnvio pedido={pedido} podeEditarFrete={pode.editarCustoDoFrete} frete={frete} podeCotarFrete={Boolean(pode.cotarFrete)} />
         </Painel>
         {veCusto && (
           <Painel id="lucro" aba={aba}>
