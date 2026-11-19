@@ -266,11 +266,70 @@ try {
   }
   conferir("sem conexao diz para conectar", /não conectado/i.test(semConexao ?? ""), true);
 } finally {
+  await devolverConexaoDoDono();
+}
+
+async function devolverConexaoDoDono() {
   await prisma.conexao.deleteMany({ where: { servico: "MELHOR_ENVIO" } });
   if (conexaoDoDono) {
     const { id: _id, servico: _servico, ...dados } = conexaoDoDono;
     await prisma.conexao.create({ data: { servico: "MELHOR_ENVIO", ...dados } });
   }
+}
+
+// ---------------------------------------------------------------------------
+// Provedor de frete
+// ---------------------------------------------------------------------------
+
+const { obterProvedor, PROVEDOR_PADRAO } = await import("../src/lib/frete/provedores/registro.js");
+const PEDIDO = {
+  origem: { cep: "95090970" },
+  destino: { cep: "01001000" },
+  pacote: { pesoKg: 0.3, comprimentoCm: 16, larguraCm: 11, alturaCm: 3 },
+  valorDeclarado: 24.85,
+};
+
+try {
+  console.log("\nProvedor de frete");
+  await prisma.conexao.deleteMany({ where: { servico: "MELHOR_ENVIO" } });
+  await concluirAutorizacao("codigo-de-teste");
+  conferir("padrao", PROVEDOR_PADRAO, "MELHOR_ENVIO");
+  const servicos = await obterProvedor("MELHOR_ENVIO").cotar(PEDIDO);
+  conferir("mapeia o servico", servicos.find((s) => s.servicoNome === "SEDEX"), {
+    servicoId: "2",
+    servicoNome: "SEDEX",
+    transportadora: "Correios",
+    preco: 28.85,
+    prazoDias: 2,
+    motivoDaRecusa: null,
+  });
+  conferir("recusado traz o motivo", servicos.find((s) => s.transportadora === "Buslog")?.motivoDaRecusa, "Transportadora não atende este trecho.");
+  conferir("recusado sem preco", servicos.find((s) => s.transportadora === "Buslog")?.preco, null);
+  conferir(
+    "manda so digitos e numeros",
+    [falso.ultimoCorpo.from.postal_code, falso.ultimoCorpo.to.postal_code, falso.ultimoCorpo.package.weight, falso.ultimoCorpo.options.insurance_value],
+    ["95090970", "01001000", 0.3, 24.85],
+  );
+  const erroDe = async (preparar) => {
+    preparar();
+    try {
+      await obterProvedor("MELHOR_ENVIO").cotar(PEDIDO);
+      return null;
+    } catch (erro) {
+      return [erro.name, erro.codigo];
+    }
+  };
+  conferir("422 de CEP", await erroDe(() => falso.responderCom(422, CEP_INVALIDO)), ["ErroDoProvedor", "CEP_INVALIDO"]);
+  conferir("fora do ar", await erroDe(() => falso.responderCom(503, "")), ["ErroDoProvedor", "FORA_DO_AR"]);
+  conferir("401", await erroDe(() => falso.responderCom(401, { message: "Unauthenticated." })), ["ErroDoProvedor", "NAO_CONECTADO"]);
+  conferir("outro 4xx", await erroDe(() => falso.responderCom(400, { message: "Peso inválido." })), ["ErroDoProvedor", "RECUSADO"]);
+  conferir("fase 2 ainda nao", await obterProvedor("MELHOR_ENVIO").comprar({}).catch((e) => e.message), "Disponível na fase 2 do módulo de frete.");
+  conferir("saldo", await obterProvedor("MELHOR_ENVIO").saldo(), { saldo: 123.45, reservado: 0 });
+  conferir("provedor desconhecido", obterProvedor("XPTO"), null);
+  await prisma.conexao.deleteMany({ where: { servico: "MELHOR_ENVIO" } });
+  conferir("sem conexao", await erroDe(() => {}), ["ErroDoProvedor", "NAO_CONECTADO"]);
+} finally {
+  await devolverConexaoDoDono();
 }
 
 // ---------------------------------------------------------------------------
