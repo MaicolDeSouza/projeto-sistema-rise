@@ -134,7 +134,7 @@ caminho 404; sem `forward_auth`; `reverse_proxy ia:<porta>`. CORS só para a ori
 - **Nunca quebra a loja:** tudo em `try/catch`; `/status` fora do ar ou desligado = o botão não aparece. **Não roda no
   carrinho nem no checkout.**
 - **Tela** (desenho do print da Mamute, nas cores da 4hobby; o construtor mostra ao dono antes de instalar): botão
-  flutuante; cabeçalho "Assistente 4hobby · assistente virtual"; linha fixa "Este é um assistente de IA. Preço e estoque
+  flutuante com a cabeça do mascote; cabeçalho "Hobi · assistente virtual da 4hobby"; linha fixa "Este é um assistente de IA. Preço e estoque
   vêm da loja. Não envie senha nem dados de cartão."; atalhos (Encontrar um componente, Colar lista de peças, Acompanhar
   meu pedido, Falar no WhatsApp); conversa; cartões numerados com foto, nome, preço, faixa de estoque, "Ver produto",
   quantidade e "Adicionar"; 👍/👎 na resposta; campo de texto com Enter.
@@ -219,7 +219,11 @@ Cada fase com teste automático, roteiro de testes do dono e deploy só com o "s
 6. Pedido só dos canais LI e Bling (o do Mercado Livre se acompanha no Mercado Livre).
 7. Widget fora do carrinho e do checkout.
 8. Lançamento em duas etapas (`?assistente=1` primeiro).
-9. Nome "Assistente 4hobby", sem mascote por enquanto.
+9. ~~Nome "Assistente 4hobby", sem mascote~~ **Decidido pelo dono em 19/11/2026: o assistente se chama Hobi** (vale no
+   site e no WhatsApp: "Oi, eu sou o Hobi, assistente da 4hobby") **e tem um mascote futurista**, um robozinho que o dono
+   gera fora do Rise (Google Flow) e envia. O widget usa a cabeça no botão flutuante e o corpo inteiro na saudação; os
+   arquivos (PNG com fundo transparente) entram como imagens do serviço `ia`, servidas com o widget. Sem a imagem, o
+   botão usa um ícone de conversa. O nome é texto da configuração (§9), não fixo no código.
 
 ## 14. O que depende do dono
 
