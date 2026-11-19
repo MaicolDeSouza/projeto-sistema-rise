@@ -127,6 +127,22 @@ export async function salvarRascunhoDoPedido(pedidoDeVendaId, { pacote, servico,
   return { ok: true, envio: await lerEnvioDoPedido(pedido.id) };
 }
 
+/**
+ * O envio como vai ao navegador: sem remetente e destinatario (CPF, endereco). A aba Envio nao os mostra, e a pagina do
+ * pedido corta o dado pessoal no servidor para quem nao tem `dado.pessoalDoCliente` (revisao final, 18/11/2026).
+ */
+export function envioParaATela(envio) {
+  if (!envio) return null;
+  const { remetente: _remetente, destinatario: _destinatario, ...resto } = envio;
+  return resto;
+}
+
+/** Da cotacao da proposta, a janela do pedido so usa a caixa e o peso. */
+export function cotacaoParaATela(cotacao) {
+  if (!cotacao) return null;
+  return { caixaId: cotacao.caixaId ?? null, pesoKg: cotacao.pesoKg ?? null };
+}
+
 /** A cotacao gravada na proposta que gerou este pedido do Bling (para a janela abrir com a mesma caixa e peso). */
 export async function cotacaoDaPropostaDoPedido(pedido) {
   if (!pedido?.blingPedidoId) return null;

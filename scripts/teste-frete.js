@@ -415,7 +415,9 @@ try {
 // Envio em rascunho no pedido de venda
 // ---------------------------------------------------------------------------
 
-const { numeroDoEnvio, lerEnvioDoPedido, salvarRascunhoDoPedido, cotacaoDaPropostaDoPedido } = await import("../src/lib/frete/envios.js");
+const { numeroDoEnvio, lerEnvioDoPedido, salvarRascunhoDoPedido, cotacaoDaPropostaDoPedido, envioParaATela, cotacaoParaATela } = await import(
+  "../src/lib/frete/envios.js"
+);
 const { criarProposta } = await import("../src/lib/propostas/banco.js");
 const limparEnvios = async () => {
   await prisma.envio.deleteMany({ where: { OR: [{ servicoNome: { startsWith: "ZZ " } }, { pedidoDeVenda: { numero: { startsWith: "ZZ-FRETE-" } } }] } });
@@ -468,6 +470,13 @@ try {
   conferir("destinatario copiado do pedido", [primeiro.envio?.destinatario?.endereco?.cep, primeiro.envio?.destinatario?.nome], ["01001000", "ZZ Comprador"]);
   conferir("remetente e a empresa", primeiro.envio?.remetente?.endereco?.cep?.replace(/\D/g, "").length, 8);
   conferir("lido de volta", (await lerEnvioDoPedido(pedido.id))?.id, primeiro.envio?.id);
+  // O que vai ao navegador: sem remetente e destinatario (CPF, endereco), que a aba Envio nao mostra e quem nao ve dado
+  // pessoal do cliente nao pode receber (revisao final, 18/11/2026).
+  const naTela = envioParaATela(primeiro.envio);
+  conferir("tela sem dado pessoal", ["remetente", "destinatario"].some((campo) => campo in naTela), false);
+  conferir("tela com o que a aba mostra", [naTela.servicoNome, naTela.pesoKg, naTela.numero], ["SEDEX", 0.165, primeiro.envio.numero]);
+  conferir("cotacao da proposta so com caixa e peso", cotacaoParaATela({ caixaId: "x", pesoKg: 0.2, cepDestino: "01001000", valorCobrado: 9 }), { caixaId: "x", pesoKg: 0.2 });
+  conferir("sem envio nem cotacao", [envioParaATela(null), cotacaoParaATela(null)], [null, null]);
   const segundo = await salvarRascunhoDoPedido(pedido.id, { pacote, servico: { ...servico, servicoNome: "PAC", servicoId: "1" }, cotadoEm }, "zz-frete");
   conferir(
     "cotar de novo atualiza o mesmo",
