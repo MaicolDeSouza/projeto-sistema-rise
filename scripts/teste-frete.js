@@ -100,6 +100,56 @@ conferir(
 );
 
 // ---------------------------------------------------------------------------
+// Banco: caixas de envio e configuracao
+// ---------------------------------------------------------------------------
 
+const { prisma } = await import("../src/lib/db.js");
+const { listarCaixas, salvarCaixa, excluirCaixa } = await import("../src/lib/frete/caixas.js");
+const { lerConfigDeFrete, salvarConfigDeFrete } = await import("../src/lib/frete/configuracao.js");
+
+const configDoDono = await prisma.configDeFrete.findUnique({ where: { id: "frete" } });
+const limparCaixas = () => prisma.caixaDeEnvio.deleteMany({ where: { OR: [{ nome: { startsWith: "CX 9" } }, { nome: { startsWith: "CX ZZ" } }] } });
+
+try {
+  await limparCaixas();
+  console.log("\nBanco: caixas e configuração");
+  const nomes = (await listarCaixas()).map((c) => c.nome);
+  conferir("semeadas", ["CX 16x11x3", "CX 16x11x6", "CX 19x12x12"].every((nome) => nomes.includes(nome)), true);
+  conferir(
+    "ordenadas pelo volume",
+    nomes.indexOf("CX 16x11x3") < nomes.indexOf("CX 16x11x6") && nomes.indexOf("CX 16x11x6") < nomes.indexOf("CX 19x12x12"),
+    true,
+  );
+  const nova = await salvarCaixa({ comprimentoCm: "99", larguraCm: "98,5", alturaCm: "97", pesoVazioKg: "0,2" });
+  conferir("cria com o nome das medidas", [nova.ok, nova.caixa?.nome, nova.caixa?.pesoVazioKg], [true, "CX 99x98,5x97", 0.2]);
+  conferir("medidas repetidas", (await salvarCaixa({ comprimentoCm: "99", larguraCm: "98,5", alturaCm: "97", pesoVazioKg: "0,2" })).ok, false);
+  conferir("medida zero", "comprimentoCm" in ((await salvarCaixa({ comprimentoCm: "0", larguraCm: "10", alturaCm: "10", pesoVazioKg: "0,1" })).erros ?? {}), true);
+  conferir(
+    "interna maior que a externa",
+    "comprimentoInternoCm" in ((await salvarCaixa({ comprimentoCm: "96", larguraCm: "95", alturaCm: "94", pesoVazioKg: "0,1", comprimentoInternoCm: "97" })).erros ?? {}),
+    true,
+  );
+  const editada = await salvarCaixa({ comprimentoCm: "99", larguraCm: "98,5", alturaCm: "97", pesoVazioKg: "0,25", ativo: false }, nova.caixa.id);
+  conferir("edita o peso e desativa", [editada.ok, editada.caixa?.pesoVazioKg, editada.caixa?.ativo], [true, 0.25, false]);
+  conferir("so ativas", (await listarCaixas({ soAtivas: true })).every((c) => c.ativo), true);
+  conferir("exclui a sem uso", (await excluirCaixa(nova.caixa.id)).ok, true);
+  conferir("excluida some", (await listarCaixas()).some((c) => c.id === nova.caixa.id), false);
+  const config = await lerConfigDeFrete();
+  conferir("config padrao", [config.acrescimoDeEmbalagem, config.percentualDePesoExtra], [1, 10]);
+  conferir("config invalida", (await salvarConfigDeFrete({ acrescimoDeEmbalagem: "-1", percentualDePesoExtra: "10" })).ok, false);
+  conferir("config acima de 100%", (await salvarConfigDeFrete({ acrescimoDeEmbalagem: "1", percentualDePesoExtra: "120" })).ok, false);
+  conferir(
+    "config salva",
+    [(await salvarConfigDeFrete({ acrescimoDeEmbalagem: "1,50", percentualDePesoExtra: "12" })).ok, (await lerConfigDeFrete()).acrescimoDeEmbalagem],
+    [true, 1.5],
+  );
+} finally {
+  await limparCaixas();
+  if (configDoDono) await prisma.configDeFrete.update({ where: { id: "frete" }, data: { ...configDoDono, atualizadoEm: undefined } });
+}
+
+// ---------------------------------------------------------------------------
+
+await prisma.$disconnect();
 console.log(falhas ? `\n${falhas} falha(s)` : "\nTudo certo.");
 process.exit(falhas ? 1 : 0);

@@ -64,6 +64,8 @@ enum Servico {
   /// Certificado digital e-CNPJ A1 da empresa (spec 2026-11-17-assinatura-digital-proposta-design.md): o .pfx e a senha
   /// cifrados no segredo; contaExterna = razao social e CNPJ; expiraEm = fim da validade. Assina o PDF da proposta marcada.
   CERTIFICADO_DIGITAL
+  /// Frete pelo Melhor Envio (spec 2026-11-18-modulo-de-frete-design.md): OAuth por aplicativo, token de 30 dias.
+  MELHOR_ENVIO
 }
 
 enum TipoPessoa {
@@ -2411,6 +2413,8 @@ model PedidoDeCompra {
   comprovantes ComprovanteDePagamentoCompra[]
   /// Notas fiscais anexadas (11/11/2026), em qualquer situacao do pedido.
   notasFiscais NotaFiscalCompra[]
+  /// Codigos reversos: o fornecedor posta para a 4hobby com o frete da 4hobby (modulo de frete, fase 3).
+  envios       Envio[]
 
   @@index([status])
   @@index([fornecedorId, status])
@@ -2826,6 +2830,8 @@ model PedidoDeVenda {
   itens           ItemDoPedidoDeVenda[]
   /// Vagas de licenca de software vendidas neste pedido (Ferramentas > Licencas Softwares).
   linhasDeLicenca LinhaDeLicenca[]
+  /// Envios feitos pelo Rise (modulo de frete, 18/11/2026): no maximo um de ida vivo; reversos, quantos precisar.
+  envios          Envio[]
 
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
@@ -3171,8 +3177,8 @@ model PropostaParaCliente {
   /// Texto livre que vai no PDF depois do resumo do pagamento.
   pagamentoTexto      String?
   /// A entrada em % (entradaPercentual) ou em R$ (entradaValor); vale a do tipo (pedido do dono em 17/11/2026).
-  entradaTipo         String          @default("PERCENTUAL")
-  entradaValor        Decimal         @default(0) @db.Decimal(12, 2)
+  entradaTipo         String             @default("PERCENTUAL")
+  entradaValor        Decimal            @default(0) @db.Decimal(12, 2)
 
   fretePorConta       FreteDaProposta @default(A_COMBINAR)
   transportadoraId    String?
@@ -3222,12 +3228,18 @@ model PropostaParaCliente {
   pedidoDeVendaBlingId String?
   pedidoDeVendaEm      DateTime?
 
+  /// A cotacao de frete que gerou o valor do frete (modulo de frete, 18/11/2026): { cotadoEm, provedor, servicoId,
+  /// servicoNome, transportadora, prazoDias, preco, valorCobrado, cepDestino, caixaId, caixaNome, pesoKg, comprimentoCm,
+  /// larguraCm, alturaCm, valorDeclarado }. Some quando o frete e trocado a mao ou sai do CIF.
+  cotacaoDoFrete Json?
+
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
   itens    ItemDaPropostaParaCliente[]
   contatos ContatoDaProposta[]
   anexos   AnexoDaProposta[]
+  envios   Envio[]
 
   @@index([situacao])
   @@index([clienteId])
@@ -3273,7 +3285,7 @@ model ItemDaPropostaParaCliente {
   prazoDiasUteis Int?
 
   /// O "+Obs." do item: vai no PDF logo abaixo da linha.
-  observacao String?
+  observacao   String?
   /// "+ Link de compra" (17/11/2026): onde comprar o item, digitado a mao. So no Rise, nunca no PDF.
   linkDeCompra String?
 
@@ -3324,18 +3336,18 @@ model PadraoDeProposta {
   nome  String  @unique
   ativo Boolean @default(true)
 
-  validadeDias       Int             @default(15)
-  formaPagamento     String?
-  pagamentoTexto     String?
-  fretePorConta      FreteDaProposta @default(A_COMBINAR)
-  garantia           String?
-  observacoesCliente String?
+  validadeDias        Int             @default(15)
+  formaPagamento      String?
+  pagamentoTexto      String?
+  fretePorConta       FreteDaProposta @default(A_COMBINAR)
+  garantia            String?
+  observacoesCliente  String?
   /// Coluna Marca / Modelo no PDF e o "!" do item sem marca.
-  exigeMarcaModelo   Boolean         @default(false)
+  exigeMarcaModelo    Boolean         @default(false)
   /// O que o cliente pede para a proposta (texto livre, uma regra por linha). So na tela.
-  exigencias         String?
+  exigencias          String?
   /// A proposta com este padrao ja nasce com "Assinar digitalmente" marcado (pedido do dono em 17/11/2026, FUNPEC).
-  assinarDigitalmente Boolean        @default(false)
+  assinarDigitalmente Boolean         @default(false)
 
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
@@ -3359,4 +3371,139 @@ model ArquivoDoCliente {
   criadoEm     DateTime @default(now())
 
   @@index([clienteId])
+}
+
+// ---------------------------------------------------------------------------
+// Modulo de frete (spec 2026-11-18-modulo-de-frete-design.md)
+// ---------------------------------------------------------------------------
+
+/// Caixa em que a loja despacha (Cadastros > Caixas de envio). O nome e a medida ("CX 16x11x3"), montado pelo Rise,
+/// para nunca ficar ambiguo. Sem as internas, a conta usa a externa menos 0,5 cm de cada lado.
+model CaixaDeEnvio {
+  id                   String   @id @default(cuid())
+  nome                 String   @unique
+  comprimentoCm        Decimal  @db.Decimal(10, 2)
+  larguraCm            Decimal  @db.Decimal(10, 2)
+  alturaCm             Decimal  @db.Decimal(10, 2)
+  comprimentoInternoCm Decimal? @db.Decimal(10, 2)
+  larguraInternaCm     Decimal? @db.Decimal(10, 2)
+  alturaInternaCm      Decimal? @db.Decimal(10, 2)
+  pesoVazioKg          Decimal  @db.Decimal(10, 3)
+  ativo                Boolean  @default(true)
+  envios               Envio[]
+  criadoEm             DateTime @default(now())
+  atualizadoEm         DateTime @updatedAt
+}
+
+/// Uma linha so (id "frete"): o que a cotacao soma e o texto do aviso ao cliente (Configuracoes > Envios).
+model ConfigDeFrete {
+  id                    String   @id
+  /// Somado ao frete cotado no valor cobrado do cliente (a caixinha e o plastico bolha; dono, 18/11/2026).
+  acrescimoDeEmbalagem  Decimal  @default(1) @db.Decimal(12, 2)
+  /// Folga de peso de embalagem sobre itens + caixa vazia, em %.
+  percentualDePesoExtra Decimal  @default(10) @db.Decimal(5, 2)
+  /// Quando o cliente e avisado: "POSTADO" (fase 2).
+  momentoDoAviso        String   @default("POSTADO")
+  assuntoDoEmail        String?
+  textoDoEmail          String?
+  textoDoWhatsapp       String?
+  /// "TERMICA" (10x15) ou "A4".
+  formatoDeImpressao    String?
+  atualizadoEm          DateTime @updatedAt
+}
+
+enum DirecaoDoEnvio {
+  IDA
+  REVERSO
+}
+
+enum ProvedorDeFrete {
+  MELHOR_ENVIO
+}
+
+/// O envio feito pelo Rise. Outro nome que o StatusDoEnvio dos Pedidos, que le o envio de cada origem.
+enum StatusDoEnvioRise {
+  RASCUNHO
+  A_POSTAR
+  POSTADO
+  ENTREGUE
+  NAO_ENTREGUE
+  COM_PROBLEMA
+  CANCELADO
+  EXPIRADO
+}
+
+/// Um pacote enviado pelo Rise (ENV-0001). Registro proprio, e nao parte do pedido do Bling: o pedido vai passar a nascer
+/// no Rise. Ligado a um pedido de venda, a uma proposta, a um pedido de compra (reverso) ou a nada (avulso); apagar o pai
+/// nao apaga o envio nem o custo dele. Remetente e destinatario sao COPIA da hora do envio (o cadastro muda).
+model Envio {
+  id       String            @id @default(cuid())
+  numero   Int               @unique
+  direcao  DirecaoDoEnvio    @default(IDA)
+  provedor ProvedorDeFrete   @default(MELHOR_ENVIO)
+  status   StatusDoEnvioRise @default(RASCUNHO)
+
+  pedidoDeVendaId  String?
+  pedidoDeVenda    PedidoDeVenda?       @relation(fields: [pedidoDeVendaId], references: [id], onDelete: SetNull)
+  propostaId       String?
+  proposta         PropostaParaCliente? @relation(fields: [propostaId], references: [id], onDelete: SetNull)
+  pedidoDeCompraId String?
+  pedidoDeCompra   PedidoDeCompra?      @relation(fields: [pedidoDeCompraId], references: [id], onDelete: SetNull)
+
+  /// { nome, documento, email, telefone, endereco: { cep, logradouro, numero, complemento, bairro, cidade, uf } }
+  remetente    Json
+  destinatario Json
+
+  caixaDeEnvioId  String?
+  caixaDeEnvio    CaixaDeEnvio? @relation(fields: [caixaDeEnvioId], references: [id], onDelete: SetNull)
+  comprimentoCm   Decimal       @db.Decimal(10, 2)
+  larguraCm       Decimal       @db.Decimal(10, 2)
+  alturaCm        Decimal       @db.Decimal(10, 2)
+  pesoKg          Decimal       @db.Decimal(10, 3)
+  valorDeclarado  Decimal       @db.Decimal(12, 2)
+  /// Falso enquanto caixa e peso sao estimativa: a etiqueta so e comprada com o pacote medido e pesado.
+  medidaConferida Boolean       @default(false)
+
+  /// "NFE" ou "DECLARACAO".
+  tipoDeDocumento   String?
+  chaveNfe          String?
+  /// [{ descricao, quantidade, valorUnitario }]
+  itensDaDeclaracao Json?
+
+  servicoId          String?
+  servicoNome        String?
+  transportadoraNome String?
+  prazoDias          Int?
+  precoCotado        Decimal?  @db.Decimal(12, 2)
+  cotadoEm           DateTime?
+
+  idNoProvedor   String?
+  protocolo      String?
+  custo          Decimal?  @db.Decimal(12, 2)
+  compradoEm     DateTime?
+  compradoPor    String?
+  rastreio       String?
+  linkDoRastreio String?
+  validoAte      DateTime?
+
+  postadoEm        DateTime?
+  entregueEm       DateTime?
+  canceladoEm      DateTime?
+  /// [{ em, status, descricao, local }]
+  eventos          Json?
+  ultimaConsultaEm DateTime?
+  ultimoErro       String?
+
+  avisoEmailEm    DateTime?
+  avisoEmailErro  String?
+  avisoWhatsappEm DateTime?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([status])
+  @@index([pedidoDeVendaId])
+  @@index([propostaId])
+  @@index([pedidoDeCompraId])
+  @@index([caixaDeEnvioId])
 }
