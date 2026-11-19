@@ -315,6 +315,37 @@ export async function comprarEtiqueta(envioId, login, { aoComprar } = {}) {
   return { ok: true, envio: await lerEnvio(envio.id) };
 }
 
+/** O link da pagina de impressao do provedor, pedido a cada clique (o Rise nao guarda a etiqueta). */
+export async function linkDaEtiqueta(envioId) {
+  const envio = await prisma.envio.findUnique({ where: { id: String(envioId ?? "") } });
+  if (!envio) return { ok: false, erro: "Envio não encontrado." };
+  if (!["A_POSTAR", "POSTADO"].includes(envio.status) || !envio.idNoProvedor) return { ok: false, erro: "A etiqueta ainda não foi comprada." };
+  try {
+    return { ok: true, url: (await provedorDo(envio).imprimir(envio)).url };
+  } catch (erro) {
+    return { ok: false, erro: mensagemDe(erro) };
+  }
+}
+
+/**
+ * Cancela a etiqueta ainda nao postada: o valor volta a carteira (em ate 12 h quando ja gerada) e o pedido volta a aceitar
+ * cotacao. `aoMudarCusto(pedidoId)` refaz o lucro do pedido (a action passa `recalcularLucroDoPedido`).
+ */
+export async function cancelarEtiqueta(envioId, motivo, login, { aoMudarCusto } = {}) {
+  const envio = await prisma.envio.findUnique({ where: { id: String(envioId ?? "") } });
+  if (!envio) return { ok: false, erro: "Envio não encontrado." };
+  if (envio.status !== "A_POSTAR" || !envio.idNoProvedor) return { ok: false, erro: "Só a etiqueta a postar pode ser cancelada." };
+  try {
+    await provedorDo(envio).cancelar(envio, motivo);
+  } catch (erro) {
+    return { ok: false, erro: mensagemDe(erro) };
+  }
+  await prisma.envio.update({ where: { id: envio.id }, data: { status: "CANCELADO", canceladoEm: new Date(), ultimoErro: null } });
+  console.info(`[frete] etiqueta do envio ${envio.numero} cancelada por ${login ?? "?"}`);
+  if (envio.pedidoDeVendaId && aoMudarCusto) await aoMudarCusto(envio.pedidoDeVendaId).catch((erro) => console.error("[frete] lucro do pedido:", erro?.message ?? erro));
+  return { ok: true, envio: await lerEnvio(envio.id) };
+}
+
 /** A cotacao gravada na proposta que gerou este pedido do Bling (para a janela abrir com a mesma caixa e peso). */
 export async function cotacaoDaPropostaDoPedido(pedido) {
   if (!pedido?.blingPedidoId) return null;

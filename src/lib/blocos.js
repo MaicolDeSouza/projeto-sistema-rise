@@ -13,6 +13,7 @@ import {
   ShoppingCart,
   FileText,
   Store,
+  Truck,
   Wallet,
   Wrench,
 } from "lucide-react";
@@ -134,6 +135,14 @@ export const blocos = [
     rotulo: "Propostas",
     icone: FileText,
     resumo: "Propostas comerciais para cliente, com PDF e contato",
+    pronto: true,
+  },
+  {
+    // Modulo de frete, fase 2 (19/11/2026): as etiquetas compradas pelo Rise, o rastreio e o aviso ao cliente.
+    href: "/envios",
+    rotulo: "Envios",
+    icone: Truck,
+    resumo: "Etiquetas, rastreio e aviso ao cliente",
     pronto: true,
   },
   {

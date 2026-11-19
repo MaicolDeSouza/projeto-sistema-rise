@@ -700,7 +700,7 @@ try {
 // Fase 2: conferir o pacote e comprar a etiqueta
 // ---------------------------------------------------------------------------
 
-const { conferirPacote, comprarEtiqueta, lerEnvio } = await import("../src/lib/frete/envios.js");
+const { conferirPacote, comprarEtiqueta, lerEnvio, linkDaEtiqueta, cancelarEtiqueta } = await import("../src/lib/frete/envios.js");
 
 try {
   console.log("\nConferir o pacote e comprar a etiqueta");
@@ -774,12 +774,69 @@ try {
   await conferirPacote(envio4.id, medido, "zz");
   await prisma.envio.update({ where: { id: envio4.id }, data: { status: "COMPRANDO" } });
   conferir("comprando agora não é retomado", (await comprarEtiqueta(envio4.id, "zz")).erro, "Esta etiqueta já está sendo comprada.");
+
+  console.log("\nImprimir e cancelar");
+  conferir("imprimir rascunho recusa", (await linkDaEtiqueta(envio4.id)).erro, "A etiqueta ainda não foi comprada.");
+  const link = await linkDaEtiqueta(envio.id);
+  conferir("imprimir devolve o link", [link.ok, link.url?.includes((await lerEnvio(envio.id)).idNoProvedor)], [true, true]);
+  conferir("cancelar rascunho recusa", (await cancelarEtiqueta(envio4.id, "teste", "zz")).erro, "Só a etiqueta a postar pode ser cancelada.");
+  falso.recusarCancelamento = true;
+  const recusado = await cancelarEtiqueta(envio.id, "teste", "zz");
+  falso.recusarCancelamento = false;
+  conferir("cancelamento recusado fica a postar", [recusado.erro, (await lerEnvio(envio.id)).status], ["O Melhor Envio recusou: Envio já postado não pode ser cancelado.", "A_POSTAR"]);
+  const mudados = [];
+  const cancelado = await cancelarEtiqueta(envio.id, "teste", "zz", { aoMudarCusto: async (pedidoId) => mudados.push(pedidoId) });
+  conferir(
+    "cancelado",
+    [cancelado.ok, cancelado.envio?.status, Boolean(cancelado.envio?.canceladoEm), mudados.length],
+    [true, "CANCELADO", true, 1],
+  );
+  conferir("cancelado pode cotar de novo", (await salvarRascunhoDoPedido(envio.pedidoDeVendaId, { pacote, servico: sedex, cotadoEm: new Date().toISOString() }, "zz")).ok, true);
 } finally {
   liberarTrava(false);
   falso.falharEm = null;
   falso.saldo = 123.45;
   await limparEnvios();
   await devolverConexaoDoDono();
+}
+
+// ---------------------------------------------------------------------------
+// Fase 2: o custo da etiqueta no lucro do pedido
+// ---------------------------------------------------------------------------
+
+const { parcelasDoReal } = await import("../src/lib/pedidos/lucro.js");
+const { recalcularLucroDoPedido, salvarCustoDoFreteManual } = await import("../src/lib/pedidos/banco.js");
+const { custoDaEtiquetaDoPedido } = await import("../src/lib/frete/lucro.js");
+
+try {
+  console.log("\nCusto da etiqueta no lucro do pedido");
+  await limparEnvios();
+  const itensLucro = [{ quantidade: 2, precoUnitario: 24.85, total: 49.7, custoUnitarioCongelado: 10 }];
+  const totaisLucro = { totalProdutos: 49.7, total: 49.7 };
+  conferir("etiqueta vence o manual", parcelasDoReal({ origem: "BLING", itens: itensLucro, totais: totaisLucro, custoDoFreteManual: 30, custoDaEtiqueta: 25.84 }).frete, 25.84);
+  conferir("fonte da etiqueta", parcelasDoReal({ origem: "BLING", itens: itensLucro, totais: totaisLucro, custoDoFreteManual: 30, custoDaEtiqueta: 25.84 }).fontes.frete, "etiqueta");
+  conferir("sem etiqueta fica o manual", parcelasDoReal({ origem: "BLING", itens: itensLucro, totais: totaisLucro, custoDoFreteManual: 30 }).fontes.frete, "manual");
+
+  const pedido = await pedidoDeTeste("ZZ-FRETE-LUCRO");
+  await prisma.itemDoPedidoDeVenda.create({ data: { pedidoId: pedido.id, ordem: 0, titulo: "ZZ Display LCD", quantidade: 2, precoUnitario: 24.85, desconto: 0, total: 49.7, custoUnitarioCongelado: 10 } });
+  await salvarCustoDoFreteManual(pedido.id, 30);
+  const base = { numero: 99001, pedidoDeVendaId: pedido.id, direcao: "IDA", remetente: {}, destinatario: {}, comprimentoCm: 16, larguraCm: 11, alturaCm: 3, pesoKg: 0.2, valorDeclarado: 49.7, servicoNome: "ZZ SEDEX" };
+  const envio = await prisma.envio.create({ data: { ...base, status: "A_POSTAR", custo: 25.84 } });
+  conferir("custo da etiqueta do pedido", await custoDaEtiquetaDoPedido(prisma, pedido.id), 25.84);
+  await recalcularLucroDoPedido(pedido.id);
+  const comEtiqueta = await prisma.pedidoDeVenda.findUnique({ where: { id: pedido.id } });
+  conferir("real com a etiqueta", [comEtiqueta.real.frete, comEtiqueta.real.fontes.frete], [25.84, "etiqueta"]);
+  await salvarCustoDoFreteManual(pedido.id, 31);
+  conferir("digitar o frete não tira a etiqueta", (await prisma.pedidoDeVenda.findUnique({ where: { id: pedido.id } })).real.fontes.frete, "etiqueta");
+  await prisma.envio.update({ where: { id: envio.id }, data: { status: "CANCELADO" } });
+  conferir("cancelado não conta", await custoDaEtiquetaDoPedido(prisma, pedido.id), null);
+  await recalcularLucroDoPedido(pedido.id);
+  const semEtiqueta = await prisma.pedidoDeVenda.findUnique({ where: { id: pedido.id } });
+  conferir("cancelado volta ao manual", [semEtiqueta.real.frete, semEtiqueta.real.fontes.frete], [31, "manual"]);
+  await prisma.envio.update({ where: { id: envio.id }, data: { status: "RASCUNHO", custo: null } });
+  conferir("rascunho não conta", await custoDaEtiquetaDoPedido(prisma, pedido.id), null);
+} finally {
+  await limparEnvios();
 }
 
 // ---------------------------------------------------------------------------
