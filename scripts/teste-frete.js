@@ -170,6 +170,54 @@ conferir(
   [0.3, 1250, 0.3, null, null, null],
 );
 
+console.log("\nRegras da fase 2");
+const {
+  statusDoProvedor,
+  servicoCompravel,
+  motivosParaNaoComprar,
+  linkDoRastreio,
+  dataDoProvedor,
+  eventosDasDatas,
+  validadeDaEtiqueta,
+  TEXTOS_DO_AVISO,
+  preencherTexto,
+} = await import("../src/lib/frete/regras.js");
+conferir("status: generated", statusDoProvedor("generated"), { status: "A_POSTAR", desconhecido: false });
+conferir("status: paused", statusDoProvedor("paused").status, "COM_PROBLEMA");
+conferir("status: pending", statusDoProvedor("pending").status, "RASCUNHO");
+conferir("status: desconhecido", statusDoProvedor("waiting_xyz"), { status: null, desconhecido: true });
+conferir("azul não compra", servicoCompravel({ transportadora: "Azul Cargo Express" }).ok, false);
+conferir("jadlog compra", servicoCompravel({ transportadora: "Jadlog" }).ok, true);
+const pronto = { status: "RASCUNHO", medidaConferida: true, tipoDeDocumento: "NFE", chaveNfe: "4".repeat(44), precoCotado: 25.84, transportadoraNome: "Correios" };
+conferir("pronto para comprar", motivosParaNaoComprar({ envio: pronto, saldo: 100, travaLiberada: true }), []);
+conferir("trava vem primeiro", motivosParaNaoComprar({ envio: pronto, saldo: 100, travaLiberada: false })[0], "A compra de etiquetas está travada (FRETE_COMPRA).");
+conferir("já comprada", motivosParaNaoComprar({ envio: { ...pronto, status: "A_POSTAR" }, saldo: 100, travaLiberada: true }), ["Esta etiqueta já foi comprada."]);
+conferir("saldo curto", motivosParaNaoComprar({ envio: pronto, saldo: 10, travaLiberada: true }), ["Saldo insuficiente: R$ 10,00 na carteira para R$ 25,84."]);
+conferir("chave curta", motivosParaNaoComprar({ envio: { ...pronto, chaveNfe: "123" }, saldo: 100, travaLiberada: true }), ["Informe a chave da NF-e ou use declaração de conteúdo."]);
+conferir("sem documento", motivosParaNaoComprar({ envio: { ...pronto, tipoDeDocumento: null }, saldo: 100, travaLiberada: true }), ["Informe a chave da NF-e ou use declaração de conteúdo."]);
+conferir(
+  "declaração sem itens",
+  motivosParaNaoComprar({ envio: { ...pronto, tipoDeDocumento: "DECLARACAO", chaveNfe: null, itensDaDeclaracao: [] }, saldo: 100, travaLiberada: true }),
+  ["Declaração de conteúdo sem itens."],
+);
+conferir(
+  "declaração com itens",
+  motivosParaNaoComprar({ envio: { ...pronto, tipoDeDocumento: "DECLARACAO", chaveNfe: null, itensDaDeclaracao: [{ descricao: "x", quantidade: 1, valorUnitario: 5 }] }, saldo: 100, travaLiberada: true }),
+  [],
+);
+conferir("medida não conferida", motivosParaNaoComprar({ envio: { ...pronto, medidaConferida: false }, saldo: 100, travaLiberada: true }), ["Confira a caixa e o peso medidos antes de comprar."]);
+conferir("azul nos motivos", motivosParaNaoComprar({ envio: { ...pronto, transportadoraNome: "Azul Cargo Express" }, saldo: 100, travaLiberada: true }), ["A Azul Cargo não se compra pela API: escolha outro serviço."]);
+conferir("link", [linkDoRastreio("ME23002OWZ7BR"), linkDoRastreio("")], ["https://melhorrastreio.com.br/rastreio/ME23002OWZ7BR", null]);
+conferir("data de Brasília", [dataDoProvedor("2026-11-19 14:05:00")?.toISOString(), dataDoProvedor(null)], ["2026-11-19T17:05:00.000Z", null]);
+conferir(
+  "eventos",
+  eventosDasDatas({ paid_at: "2026-11-19 10:00:00", generated_at: "2026-11-19 10:01:00", posted_at: null }).map((e) => e.descricao),
+  ["Etiqueta paga", "Etiqueta gerada"],
+);
+conferir("validade 20 dias", validadeDaEtiqueta(new Date("2026-11-19T12:00:00Z")).toISOString(), "2026-12-09T12:00:00.000Z");
+conferir("texto preenchido", preencherTexto("Pedido {pedido} via {transportadora}. {rastreio}", { pedido: "1234", transportadora: "Jadlog" }), "Pedido 1234 via Jadlog.");
+conferir("textos padrão", [TEXTOS_DO_AVISO.assunto, TEXTOS_DO_AVISO.whatsapp.includes("{rastreio}")], ["Seu pedido {pedido} foi postado", true]);
+
 // ---------------------------------------------------------------------------
 // Banco: caixas de envio e configuracao
 // ---------------------------------------------------------------------------

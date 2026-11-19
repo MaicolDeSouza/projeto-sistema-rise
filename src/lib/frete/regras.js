@@ -118,6 +118,111 @@ export function numeroDoEnvio(numero) {
   return `ENV-${String(numero).padStart(4, "0")}`;
 }
 
+// ---------------------------------------------------------------------------
+// Fase 2: compra, rastreio e aviso
+// ---------------------------------------------------------------------------
+
+/** O status do Melhor Envio no do Rise. O que nao esta aqui e "desconhecido": o envio fica como estava, com o aviso. */
+const STATUS_DO_PROVEDOR = {
+  pending: "RASCUNHO",
+  released: "A_POSTAR",
+  generated: "A_POSTAR",
+  posted: "POSTADO",
+  delivered: "ENTREGUE",
+  undelivered: "NAO_ENTREGUE",
+  paused: "COM_PROBLEMA",
+  suspended: "COM_PROBLEMA",
+  canceled: "CANCELADO",
+  expired: "EXPIRADO",
+};
+
+export function statusDoProvedor(statusME) {
+  const status = STATUS_DO_PROVEDOR[String(statusME ?? "").toLowerCase()] ?? null;
+  return { status, desconhecido: status === null };
+}
+
+/** A Azul Cargo so se cota pela API (documentacao do Melhor Envio, 19/11/2026): a etiqueta dela sai so pelo painel. */
+export function servicoCompravel({ transportadora }) {
+  if (/azul/i.test(String(transportadora ?? ""))) return { ok: false, motivo: "A Azul Cargo não se compra pela API: escolha outro serviço." };
+  return { ok: true, motivo: null };
+}
+
+const reais = (valor) => `R$ ${moeda.format(Number(valor ?? 0))}`;
+const chaveValida = (chave) => String(chave ?? "").replace(/\D/g, "").length === 44;
+
+/**
+ * Por que a etiqueta ainda nao pode ser comprada, na ordem em que o operador resolve. Lista vazia = pode. A tela usa
+ * para desabilitar o botao e o servidor confere de novo antes de gastar o saldo.
+ */
+export function motivosParaNaoComprar({ envio, saldo, travaLiberada }) {
+  if (!travaLiberada) return ["A compra de etiquetas está travada (FRETE_COMPRA)."];
+  if (envio?.status !== "RASCUNHO") return ["Esta etiqueta já foi comprada."];
+  const motivos = [];
+  if (!envio.medidaConferida) motivos.push("Confira a caixa e o peso medidos antes de comprar.");
+  if (envio.tipoDeDocumento === "DECLARACAO") {
+    if (!Array.isArray(envio.itensDaDeclaracao) || envio.itensDaDeclaracao.length === 0) motivos.push("Declaração de conteúdo sem itens.");
+  } else if (envio.tipoDeDocumento !== "NFE" || !chaveValida(envio.chaveNfe)) {
+    motivos.push("Informe a chave da NF-e ou use declaração de conteúdo.");
+  }
+  const compravel = servicoCompravel({ transportadora: envio.transportadoraNome });
+  if (!compravel.ok) motivos.push(compravel.motivo);
+  if (Number(saldo ?? 0) < Number(envio.precoCotado ?? 0)) motivos.push(`Saldo insuficiente: ${reais(saldo)} na carteira para ${reais(envio.precoCotado)}.`);
+  return motivos;
+}
+
+export function linkDoRastreio(codigo) {
+  const limpo = String(codigo ?? "").trim();
+  return limpo ? `https://melhorrastreio.com.br/rastreio/${encodeURIComponent(limpo)}` : null;
+}
+
+/** "2026-11-19 14:05:00" do Melhor Envio e horario de Brasilia (sem fuso no texto). */
+export function dataDoProvedor(texto) {
+  const bruto = String(texto ?? "").trim();
+  if (!bruto) return null;
+  const data = new Date(`${bruto.replace(" ", "T")}${/[zZ]|[+-]\d\d:?\d\d$/.test(bruto) ? "" : "-03:00"}`);
+  return Number.isNaN(data.getTime()) ? null : data;
+}
+
+const EVENTOS = [
+  ["paid_at", "PAGO", "Etiqueta paga"],
+  ["generated_at", "A_POSTAR", "Etiqueta gerada"],
+  ["posted_at", "POSTADO", "Postado"],
+  ["delivered_at", "ENTREGUE", "Entregue"],
+  ["undelivered_at", "NAO_ENTREGUE", "Não entregue"],
+  ["canceled_at", "CANCELADO", "Cancelado"],
+  ["expired_at", "EXPIRADO", "Expirado"],
+];
+
+/** O rastreio do Melhor Envio so traz datas: a linha do tempo do Rise sai delas. */
+export function eventosDasDatas(rastreio) {
+  return EVENTOS.map(([campo, status, descricao]) => ({ data: dataDoProvedor(rastreio?.[campo]), status, descricao }))
+    .filter((evento) => evento.data)
+    .sort((a, b) => a.data - b.data)
+    .map(({ data, status, descricao }) => ({ em: data.toISOString(), status, descricao }));
+}
+
+/** A etiqueta gerada vale 20 dias para postar (documentacao do Melhor Envio). */
+export function validadeDaEtiqueta(geradoEm) {
+  return new Date(new Date(geradoEm).getTime() + 20 * 24 * 60 * 60 * 1000);
+}
+
+/** Usados quando a configuracao tem o campo vazio. Marcadores: {cliente} {pedido} {transportadora} {servico} {rastreio} {link}. */
+export const TEXTOS_DO_AVISO = {
+  assunto: "Seu pedido {pedido} foi postado",
+  email:
+    "Olá, {cliente}!\n\nSeu pedido {pedido} foi postado pela {transportadora} ({servico}).\nCódigo de rastreio: {rastreio}\nAcompanhe a entrega: {link}\n\nObrigado pela compra!\nEquipe 4hobby",
+  whatsapp: "Olá, {cliente}! Seu pedido {pedido} foi postado pela {transportadora}. Código de rastreio: {rastreio}. Acompanhe: {link}",
+};
+
+/** Troca os marcadores; o que nao tem dado some, e o espaco que sobra nao fica dobrado. */
+export function preencherTexto(modelo, dados) {
+  return String(modelo ?? "")
+    .replace(/\{(\w+)\}/g, (_, chave) => String(dados?.[chave] ?? ""))
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/ +([.,;:!?])/g, "$1")
+    .trim();
+}
+
 /** "0,3", "1.250,00" e "0.3" viram numero; vazio, negativo e texto viram null (o campo mostra o erro). */
 export function lerDecimal(texto) {
   if (typeof texto === "number") return Number.isFinite(texto) && texto >= 0 ? texto : null;
