@@ -278,8 +278,12 @@ function Interruptor({ ligado, aoMudar, rotulo, desabilitado = false }) {
  * em 17/11/2026: a transportadora e uma das cadastradas OU digitada; no CIF, o interruptor dilui o frete nos produtos; o
  * prazo se chama "Prazo de entrega".
  */
-export function CartaoFrete({ formulario, transportadoras, editar, erros, aoMudar, className = "" }) {
+export function CartaoFrete({ formulario, transportadoras, editar, erros, aoMudar, aoCotar = null, className = "" }) {
   const comTransporte = formulario.fretePorConta === "CIF" || formulario.fretePorConta === "FOB";
+  // A linha da cotacao so vale enquanto o frete e o cotado: trocado a mao, o servidor apaga a cotacao no Salvar.
+  const cotacao = formulario.cotacaoDoFrete;
+  const cotacaoVale =
+    formulario.fretePorConta === "CIF" && cotacao && Math.round(Number(String(formulario.frete).replace(/\./g, "").replace(",", ".")) * 100) === Math.round(cotacao.valorCobrado * 100);
   return (
     <SecaoDoAnuncio className={className} titulo="Frete" ajuda="O valor do frete soma no total só no CIF. A transportadora vem da preferida do cliente.">
       <div className="mb-3 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Frete por conta de">
@@ -313,8 +317,28 @@ export function CartaoFrete({ formulario, transportadoras, editar, erros, aoMuda
           </Rotulo>
           <div>
             <Rotulo texto="Valor do frete (R$)" erro={erros.frete}>
-              <input inputMode="decimal" value={formulario.frete} disabled={!editar} aria-invalid={Boolean(erros.frete)} onChange={(e) => aoMudar("frete", soDecimal(e.target.value))} className={`${campo} tabular-nums`} />
+              <div className="flex gap-1.5">
+                <input inputMode="decimal" value={formulario.frete} disabled={!editar} aria-invalid={Boolean(erros.frete)} onChange={(e) => aoMudar("frete", soDecimal(e.target.value))} className={`${campo} tabular-nums`} />
+                {formulario.fretePorConta === "CIF" && aoCotar && (
+                  <button
+                    type="button"
+                    onClick={aoCotar}
+                    disabled={!editar}
+                    title={editar ? "Cotar no Melhor Envio com a caixa sugerida pelos itens" : "Proposta só para leitura"}
+                    className="shrink-0 rounded-md border border-acento px-2.5 text-sm font-medium whitespace-nowrap text-acento hover:bg-acento hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Cotar frete
+                  </button>
+                )}
+              </div>
             </Rotulo>
+            {cotacaoVale && (
+              <p className="mt-1 text-xs text-suave tabular-nums">
+                Cotado em {new Date(cotacao.cotadoEm).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" })} ·{" "}
+                {cotacao.caixaNome ?? "medida digitada"} · {String(cotacao.pesoKg).replace(".", ",")} kg · {cotacao.servicoNome}
+                {cotacao.prazoDias ? `, ${cotacao.prazoDias} ${cotacao.prazoDias === 1 ? "dia útil" : "dias úteis"}` : ""}
+              </p>
+            )}
             {formulario.fretePorConta === "CIF" && (
               <div className="mt-2 flex items-center gap-2 text-sm" title="Ligado: no PDF e no pedido do Bling o frete entra no preço de cada produto, proporcional ao valor do item. O total não muda.">
                 <Interruptor ligado={Boolean(formulario.freteDiluido)} desabilitado={!editar} rotulo="Diluir o frete nos produtos" aoMudar={(ligado) => aoMudar("freteDiluido", ligado)} />

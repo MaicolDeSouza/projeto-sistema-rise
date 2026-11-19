@@ -32,6 +32,50 @@ function conferirNumero(erros, campo, valor, { minimo = 0, maximo = 9_999_999, i
   return numero;
 }
 
+// Os campos da cotacao de frete gravada na proposta (modulo de frete, 18/11/2026). Campo fora da lista recusa a
+// gravacao: o JSON vem do navegador e nao pode virar deposito de qualquer coisa.
+const CAMPOS_DA_COTACAO = {
+  cotadoEm: "texto",
+  provedor: "texto",
+  servicoId: "texto",
+  servicoNome: "texto",
+  transportadora: "texto",
+  prazoDias: "numero",
+  preco: "numero",
+  valorCobrado: "numero",
+  cepDestino: "texto",
+  caixaId: "texto",
+  caixaNome: "texto",
+  pesoKg: "numero",
+  comprimentoCm: "numero",
+  larguraCm: "numero",
+  alturaCm: "numero",
+  valorDeclarado: "numero",
+};
+
+/**
+ * A cotacao que gerou o frete. Some (null) quando a proposta sai do CIF ou quando o frete digitado deixa de ser o valor
+ * cobrado da cotacao: a linha "Cotado em ..." nao pode descrever um frete que o operador trocou a mao.
+ */
+function conferirCotacaoDoFrete(erros, valor, dados) {
+  if (valor === null || valor === undefined || valor === "") return null;
+  const valido =
+    typeof valor === "object" &&
+    !Array.isArray(valor) &&
+    Object.keys(valor).every((chave) => chave in CAMPOS_DA_COTACAO) &&
+    Object.entries(valor).every(([chave, item]) =>
+      item === null || (CAMPOS_DA_COTACAO[chave] === "numero" ? Number.isFinite(item) : typeof item === "string" && item.length <= 200),
+    ) &&
+    Number.isFinite(valor.valorCobrado);
+  if (!valido) {
+    erros.cotacaoDoFrete = "Cotação de frete inválida.";
+    return null;
+  }
+  if (dados.fretePorConta !== "CIF") return null;
+  if (Math.round(Number(dados.frete) * 100) !== Math.round(valor.valorCobrado * 100)) return null;
+  return valor;
+}
+
 export function conferirProposta(entrada = {}) {
   const erros = {};
   const dados = {};
@@ -65,6 +109,7 @@ export function conferirProposta(entrada = {}) {
   dados.freteDiluido = dados.fretePorConta === "CIF" && (entrada.freteDiluido === true || entrada.freteDiluido === "true");
   dados.frete = conferirNumero(erros, "frete", entrada.frete, { mensagem: "Frete inválido." }) ?? 0;
   dados.prazoTransporteDias = conferirNumero(erros, "prazoTransporteDias", entrada.prazoTransporteDias, { maximo: 365, inteiro: true, mensagem: "Prazo em dias inteiros." });
+  dados.cotacaoDoFrete = conferirCotacaoDoFrete(erros, entrada.cotacaoDoFrete, dados);
 
   const desconto = lerDesconto(entrada.desconto);
   if (desconto.erro) erros.desconto = desconto.erro;

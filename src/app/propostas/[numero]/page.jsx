@@ -4,6 +4,7 @@ import EditorProposta from "@/components/propostas/EditorProposta";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { prisma } from "@/lib/db";
 import { ordenarCondicoes } from "@/lib/condicoesDePagamento";
+import { listarCaixas } from "@/lib/frete/caixas";
 import { lerProposta, semCusto } from "@/lib/propostas/banco";
 import { situacaoDoCertificado } from "@/lib/propostas/certificado";
 import { listarPadroes } from "@/lib/propostas/padroes";
@@ -25,7 +26,7 @@ export default async function PropostaPage({ params }) {
   const proposta = acesso.pode("dado.custo", "ver") ? lida : semCusto(lida);
 
   // O vendedor tem as opcoes fixas do card "Condicoes da proposta" (17/11/2026); a lista dos usuarios do Rise saiu.
-  const [transportadoras, condicoes, padroes, certificado] = await Promise.all([
+  const [transportadoras, condicoes, padroes, certificado, caixas] = await Promise.all([
     prisma.transportadora.findMany({
       where: { OR: [{ ativo: true }, ...(proposta.transportadoraId ? [{ id: proposta.transportadoraId }] : [])] },
       orderBy: { nome: "asc" },
@@ -40,6 +41,8 @@ export default async function PropostaPage({ params }) {
     listarPadroes({ soAtivos: true }),
     // Quem assina e ate quando, para a chave "Assinar digitalmente" (nunca o segredo).
     situacaoDoCertificado(),
+    // As caixas de envio para o "Cotar frete" do frete CIF (modulo de frete, 18/11/2026).
+    listarCaixas({ soAtivas: true }),
   ]);
 
   return (
@@ -50,6 +53,7 @@ export default async function PropostaPage({ params }) {
       condicoes={condicoes}
       padroes={JSON.parse(JSON.stringify(padroes))}
       certificado={certificado}
+      caixas={caixas}
       podeEditar={acesso.pode("tela.propostas", "editar")}
       podePedidoDeVenda={acesso.pode("acao.propostas.pedidoDeVenda", "executar")}
     />

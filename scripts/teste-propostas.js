@@ -470,6 +470,37 @@ try {
   await banco.salvarProposta(p2.numero, { ...comCliente, fretePorConta: "FOB", frete: "30", freteDiluido: true }, { hoje: "2026-11-12" });
   conferir("frete diluido so existe no CIF", (await banco.lerProposta(p2.numero)).freteDiluido, false);
 
+  // Cotacao do frete pelo Melhor Envio (modulo de frete, 18/11/2026): gravada junto do frete CIF; some quando o frete e
+  // trocado a mao ou sai do CIF.
+  const esquema = await import("../src/lib/propostas/esquema.js");
+  const cotacao = {
+    cotadoEm: "2026-11-18T22:00:00.000Z",
+    provedor: "MELHOR_ENVIO",
+    servicoId: "2",
+    servicoNome: "SEDEX",
+    transportadora: "Correios",
+    prazoDias: 2,
+    preco: 28.85,
+    valorCobrado: 29.85,
+    cepDestino: "01001000",
+    caixaId: "cxenvio16x11x3",
+    caixaNome: "CX 16x11x3",
+    pesoKg: 0.165,
+    comprimentoCm: 16,
+    larguraCm: 11,
+    alturaCm: 3,
+    valorDeclarado: 49.7,
+  };
+  const comCotacao = { ...comCliente, fretePorConta: "CIF", frete: "29,85", transportadoraNome: "Correios SEDEX", cotacaoDoFrete: cotacao };
+  conferir("cotacao gravada com a proposta", (await banco.salvarProposta(p2.numero, comCotacao, { hoje: "2026-11-12" })).ok, true);
+  conferir("cotacao lida de volta", (await banco.lerProposta(p2.numero)).cotacaoDoFrete?.servicoNome, "SEDEX");
+  conferir("cotacao com campo a mais e recusada", (await banco.salvarProposta(p2.numero, { ...comCotacao, cotacaoDoFrete: { ...cotacao, lixo: 1 } }, { hoje: "2026-11-12" })).ok, false);
+  conferir("frete trocado a mao apaga a cotacao", esquema.conferirProposta({ ...comCotacao, frete: "40,00" }).dados?.cotacaoDoFrete, null);
+  conferir("frete igual ao cotado mantem", esquema.conferirProposta(comCotacao).dados?.cotacaoDoFrete?.valorCobrado, 29.85);
+  conferir("sair do CIF apaga a cotacao", esquema.conferirProposta({ ...comCotacao, fretePorConta: "FOB" }).dados?.cotacaoDoFrete, null);
+  await banco.salvarProposta(p2.numero, { ...comCotacao, fretePorConta: "FOB" }, { hoje: "2026-11-12" });
+  conferir("no banco tambem some", (await banco.lerProposta(p2.numero)).cotacaoDoFrete, null);
+
   conferir("rascunho nao vai para vencida pelo botao", (await banco.mudarSituacao(p1.numero, "VENCIDA")).ok, false);
   conferir("recusar sem motivo", (await banco.mudarSituacao(p1.numero, "RECUSADA")).erro, "Escolha o motivo da recusa.");
   await banco.marcarEnviada(p1.numero);

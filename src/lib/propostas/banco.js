@@ -1,3 +1,4 @@
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { urlDe } from "@/lib/arquivos";
 import { fotosDaProposta, urlDaFotoDoItem } from "@/lib/propostas/arquivos";
@@ -163,6 +164,7 @@ export function propostaParaTela(proposta, { hoje = hojeEmSaoPaulo() } = {}) {
     transportadoraNome: proposta.transportadoraNome,
     prazoTransporteDias: proposta.prazoTransporteDias,
     freteDiluido: Boolean(proposta.freteDiluido),
+    cotacaoDoFrete: proposta.cotacaoDoFrete ?? null,
     assinarDigitalmente: Boolean(proposta.assinarDigitalmente),
     ocCliente: proposta.ocCliente,
     observacoesNf: proposta.observacoesNf,
@@ -398,6 +400,8 @@ export async function salvarProposta(numeroDaProposta, entrada, { manterCusto = 
             : null,
         frete: dados.fretePorConta === "CIF" || dados.fretePorConta === "FOB" ? dados.frete : 0,
         freteDiluido: dados.freteDiluido,
+        // Json nulo no Prisma e DbNull (null puro e recusado).
+        cotacaoDoFrete: dados.cotacaoDoFrete ?? Prisma.DbNull,
         assinarDigitalmente: dados.assinarDigitalmente,
         prazoTransporteDias: dados.prazoTransporteDias,
         descontoTipo: dados.descontoTipo,

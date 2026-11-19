@@ -12,7 +12,9 @@ import { MOTIVOS_DE_RECUSA, camposDoPadrao, dataBR, linhasDasExigencias, linkDoW
 import { lerListaDaTela, pedirVoltaNaRolagem } from "@/lib/ultimaListaDaTela";
 import { CartaoCondicoesDaProposta, CartaoFrete, CartaoNotasEAnexos, CartaoPagamento, CartaoTotais } from "./BlocosDaProposta";
 import CartaoCliente, { campo, Rotulo } from "./CartaoCliente";
-import { entradaDoFormulario, formularioDaProposta, moeda, totaisDoFormulario } from "./formato";
+import { pacoteSugeridoAcao } from "@/app/frete/acoes";
+import JanelaDeCotacao from "@/components/frete/JanelaDeCotacao";
+import { doTexto, entradaDoFormulario, formularioDaProposta, moeda, totaisDoFormulario } from "./formato";
 import ItensDaProposta from "./ItensDaProposta";
 import { AlertaDeContato, SeloDaSituacao } from "./TabelaPropostas";
 import { AnexosDaProposta, JanelaContato, JanelaPedidoDeVenda, JanelaRecusar } from "./JanelasDaProposta";
@@ -22,7 +24,7 @@ import { AnexosDaProposta, JanelaContato, JanelaPedidoDeVenda, JanelaRecusar } f
  * principal e Salvar, e o "Gerar PDF" fecha a linha de botoes. Aprovar, Recusar, Reabrir e o pedido de venda moram no
  * menu da situacao. Aprovada e Recusada ficam so leitura (Reabrir volta a Em negociacao).
  */
-export default function EditorProposta({ propostaInicial, transportadoras, condicoes, padroes = [], certificado = null, podeEditar, podePedidoDeVenda }) {
+export default function EditorProposta({ propostaInicial, transportadoras, condicoes, padroes = [], certificado = null, caixas = [], podeEditar, podePedidoDeVenda }) {
   const router = useRouter();
   const [proposta, setProposta] = useState(propostaInicial);
   const [cliente, setCliente] = useState(propostaInicial.cliente);
@@ -68,6 +70,59 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
     setFormulario(f);
   }
   const mudar = (campoDoFormulario, valor) => setFormulario((antes) => ({ ...antes, [campoDoFormulario]: valor }));
+
+  // Cotar frete (modulo de frete, 18/11/2026): a janela abre com o CEP de entrega do cliente e a caixa e o peso que o Rise
+  // sugere pelos itens com produto. Escolher um servico preenche o frete, a transportadora e grava a cotacao.
+  const [cotacao, setCotacao] = useState(null);
+  async function abrirCotacao() {
+    const endereco = cliente?.enderecos?.find((e) => e.tipo === "ENTREGA") ?? cliente?.enderecos?.find((e) => e.tipo === "GERAL") ?? null;
+    // Valor por unidade do produto: o fator e quantas unidades do produto vao em cada linha (a quantidade da proposta e
+    // de linhas), entao o peso conta quantidade x fator e o valor declarado continua o total dos produtos.
+    const itens = formulario.itens
+      .filter((item) => item.produtoId)
+      .map((item) => {
+        const quantidade = (doTexto(item.quantidade) ?? 0) * (doTexto(item.fator) || 1);
+        const preco = (doTexto(item.precoUnitario) ?? 0) * (1 - (doTexto(item.descontoPercentual) ?? 0) / 100);
+        return { produtoId: item.produtoId, quantidade, valorUnitario: quantidade ? (preco * (doTexto(item.quantidade) ?? 0)) / quantidade : 0 };
+      });
+    const sugerido = itens.length ? await pacoteSugeridoAcao(itens) : null;
+    setCotacao({
+      cepDestino: endereco?.cep ?? "",
+      cidadeDestino: endereco?.cidade ? `${endereco.cidade}${endereco.uf ? ` (${endereco.uf})` : ""}` : null,
+      caixaId: sugerido?.ok ? (sugerido.caixaId ?? undefined) : undefined,
+      pesoKg: sugerido?.ok ? sugerido.pesoKg : null,
+      valorDeclarado: sugerido?.ok && sugerido.valorDeclarado ? sugerido.valorDeclarado : totais.subtotal,
+      incompletos: sugerido?.ok ? sugerido.incompletos + formulario.itens.filter((item) => !item.produtoId).length : formulario.itens.length,
+      motivo: sugerido?.ok ? sugerido.motivo : null,
+    });
+  }
+  function usarFrete(servico, pacote, cotadoEm) {
+    setFormulario((antes) => ({
+      ...antes,
+      frete: String(servico.valorACobrar.toFixed(2)).replace(".", ","),
+      transportadoraId: "",
+      transportadoraNome: `${servico.transportadora} ${servico.servicoNome}`,
+      cotacaoDoFrete: {
+        cotadoEm,
+        provedor: "MELHOR_ENVIO",
+        servicoId: servico.servicoId,
+        servicoNome: servico.servicoNome,
+        transportadora: servico.transportadora,
+        prazoDias: servico.prazoDias,
+        preco: servico.preco,
+        valorCobrado: servico.valorACobrar,
+        cepDestino: pacote.cepDestino,
+        caixaId: pacote.caixaId,
+        caixaNome: pacote.caixaNome,
+        pesoKg: pacote.pesoKg,
+        comprimentoCm: pacote.comprimentoCm,
+        larguraCm: pacote.larguraCm,
+        alturaCm: pacote.alturaCm,
+        valorDeclarado: pacote.valorDeclarado,
+      },
+    }));
+    setCotacao(null);
+  }
 
   /** Escolher o padrao copia as regras dele para a proposta (validade, pagamento, frete, garantia, observacoes). */
   // "Cliente comum" (pedido do dono em 17/11/2026): e a opcao vazia do seletor, e nao um padrao. Escolher aplica as regras
@@ -367,7 +422,7 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
             className="h-full"
           />
           <CartaoPagamento className="h-full" formulario={formulario} condicoes={condicoes} total={totais.total} editar={editar} erros={erros} aoMudar={mudar} />
-          <CartaoFrete className="h-full" formulario={formulario} transportadoras={transportadoras} editar={editar} erros={erros} aoMudar={mudar} />
+          <CartaoFrete className="h-full" formulario={formulario} transportadoras={transportadoras} editar={editar} erros={erros} aoMudar={mudar} aoCotar={abrirCotacao} />
           <CartaoNotasEAnexos
             className="h-full"
             formulario={formulario}
@@ -417,6 +472,15 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
       {pergunta === "recusar" && <JanelaRecusar numero={proposta.numero} ocupado={ocupado} aoRecuar={() => setPergunta(null)} aoConfirmar={(extras) => mudarSituacao("RECUSADA", extras)} />}
       {pergunta === "contato" && <JanelaContato numero={proposta.numero} contatos={proposta.contatos} ocupado={ocupado} aoRecuar={() => setPergunta(null)} aoConfirmar={registrar} />}
       {pergunta === "pedido" && <JanelaPedidoDeVenda proposta={proposta} moeda={moeda} ocupado={ocupado} aoRecuar={() => setPergunta(null)} aoConfirmar={gerarPedido} />}
+      <JanelaDeCotacao
+        aberta={Boolean(cotacao)}
+        aoFechar={() => setCotacao(null)}
+        titulo={`Cotar frete · ${numeroDaProposta(proposta.numero)}`}
+        caixas={caixas}
+        inicial={cotacao ?? {}}
+        aoEscolher={usarFrete}
+        rotuloDaEscolha="Usar este frete"
+      />
     </div>
   );
 }

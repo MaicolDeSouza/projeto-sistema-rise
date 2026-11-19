@@ -80,6 +80,8 @@ export function formularioDaProposta(proposta) {
     prazoTransporteDias: proposta.prazoTransporteDias ? String(proposta.prazoTransporteDias) : "",
     transportadoraNome: proposta.transportadoraNome ?? "",
     freteDiluido: Boolean(proposta.freteDiluido),
+    // A cotacao do Melhor Envio que gerou o frete (modulo de frete); o servidor a apaga se o frete mudou ou saiu do CIF.
+    cotacaoDoFrete: proposta.cotacaoDoFrete ?? null,
     assinarDigitalmente: Boolean(proposta.assinarDigitalmente),
     desconto: !proposta.descontoValor ? "" : proposta.descontoTipo === "PERCENTUAL" ? `${paraTexto(proposta.descontoValor)}%` : paraTexto(proposta.descontoValor),
     ocCliente: proposta.ocCliente ?? "",
