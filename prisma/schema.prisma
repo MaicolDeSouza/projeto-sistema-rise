@@ -3427,6 +3427,8 @@ enum ProvedorDeFrete {
 /// O envio feito pelo Rise. Outro nome que o StatusDoEnvio dos Pedidos, que le o envio de cada origem.
 enum StatusDoEnvioRise {
   RASCUNHO
+  /// Carrinho, pagamento e geracao em andamento (fase 2). Passar de RASCUNHO para ca e a trava contra a compra em dobro.
+  COMPRANDO
   A_POSTAR
   POSTADO
   ENTREGUE

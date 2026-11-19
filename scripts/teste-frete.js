@@ -34,6 +34,7 @@ const falso = {
   pedidos: new Map(),
   ultimoCarrinho: null,
   precoDaEtiqueta: 25.84,
+  saldo: 123.45,
   /** "checkout" | "generate" | "tracking" | null */
   falharEm: null,
   recusarCancelamento: false,
@@ -61,7 +62,7 @@ const servidor = http.createServer((pedido, resposta) => {
       return responder(200, { token_type: "Bearer", expires_in: 2592000, access_token: `acesso-${n}`, refresh_token: `renova-${n}` });
     }
     if (caminho === "/api/v2/me") return responder(200, { id: "zz", firstname: "ZZ", lastname: "Frete", email: "zz-frete@exemplo.test" });
-    if (caminho === "/api/v2/me/balance") return responder(200, { balance: 123.45, reserved: 0, debts: 0 });
+    if (caminho === "/api/v2/me/balance") return responder(200, { balance: falso.saldo, reserved: 0, debts: 0 });
     if (caminho === "/api/v2/me/shipment/calculate") {
       if (falso.proxima) {
         const { status, corpo: dados } = falso.proxima;
@@ -693,6 +694,92 @@ try {
   conferir("pedido sem proposta", await cotacaoDaPropostaDoPedido(outro), null);
 } finally {
   await limparEnvios();
+}
+
+// ---------------------------------------------------------------------------
+// Fase 2: conferir o pacote e comprar a etiqueta
+// ---------------------------------------------------------------------------
+
+const { conferirPacote, comprarEtiqueta, lerEnvio } = await import("../src/lib/frete/envios.js");
+
+try {
+  console.log("\nConferir o pacote e comprar a etiqueta");
+  await limparEnvios();
+  await prisma.conexao.deleteMany({ where: { servico: "MELHOR_ENVIO" } });
+  await concluirAutorizacao("codigo-de-teste");
+  const cx3 = await prisma.caixaDeEnvio.findUnique({ where: { nome: "CX 16x11x3" } });
+  const pacote = { cepDestino: "01001000", caixaId: cx3.id, caixaNome: cx3.nome, pesoKg: 0.165, comprimentoCm: 16, larguraCm: 11, alturaCm: 3, valorDeclarado: 49.7 };
+  const sedex = { servicoId: "2", servicoNome: "SEDEX", transportadora: "Correios", preco: 28.85, prazoDias: 2, valorACobrar: 29.85 };
+  const comItens = async (numero) => {
+    const pedido = await pedidoDeTeste(numero);
+    await prisma.itemDoPedidoDeVenda.create({ data: { pedidoId: pedido.id, ordem: 0, titulo: "ZZ Display LCD", quantidade: 2, precoUnitario: 24.85, desconto: 0, total: 49.7 } });
+    const { envio } = await salvarRascunhoDoPedido(pedido.id, { pacote, servico: sedex, cotadoEm: new Date().toISOString() }, "zz");
+    return envio;
+  };
+  const medido = { caixaId: cx3.id, pesoKg: "0,2", tipoDeDocumento: "NFE", chaveNfe: "4".repeat(44) };
+
+  const envio = await comItens("ZZ-FRETE-COMPRA-1");
+  conferir("rascunho leva os itens como declaração", envio.itensDaDeclaracao, [{ descricao: "ZZ Display LCD", quantidade: 2, valorUnitario: 24.85 }]);
+  conferir("remetente com a inscrição estadual", "inscricaoEstadual" in (await prisma.envio.findUnique({ where: { id: envio.id } })).remetente, true);
+  conferir("comprar sem conferir recusa", (await comprarEtiqueta(envio.id, "zz")).erro, "A compra de etiquetas está travada (FRETE_COMPRA).");
+  const conferido = await conferirPacote(envio.id, medido, "zz");
+  conferir(
+    "conferir recota e marca medida",
+    [conferido.ok, conferido.envio?.medidaConferida, conferido.envio?.pesoKg, conferido.preco, conferido.saldo, conferido.envio?.tipoDeDocumento],
+    [true, true, 0.2, 28.85, 123.45, "NFE"],
+  );
+  conferir("trava fechada aparece nos motivos", conferido.motivos, ["A compra de etiquetas está travada (FRETE_COMPRA)."]);
+  conferir("chave curta", (await conferirPacote(envio.id, { ...medido, chaveNfe: "123" }, "zz")).erros?.chaveNfe, "A chave da NF-e tem 44 dígitos.");
+  conferir("sem documento", "tipoDeDocumento" in ((await conferirPacote(envio.id, { ...medido, tipoDeDocumento: "" }, "zz")).erros ?? {}), true);
+  await prisma.envio.update({ where: { id: envio.id }, data: { servicoId: "999" } });
+  conferir("serviço que sumiu", (await conferirPacote(envio.id, medido, "zz")).erro, "O serviço escolhido não atende o pacote medido: cote de novo.");
+  await prisma.envio.update({ where: { id: envio.id }, data: { servicoId: "2" } });
+  conferir("trava fechada recusa", (await comprarEtiqueta(envio.id, "zz")).erro, "A compra de etiquetas está travada (FRETE_COMPRA).");
+
+  liberarTrava();
+  const carrinhosAntes = falso.pedidosDeCarrinho;
+  const [a, b] = await Promise.all([comprarEtiqueta(envio.id, "zz"), comprarEtiqueta(envio.id, "zz")]);
+  conferir("clique duplo: um compra", [a.ok, b.ok].filter(Boolean).length, 1);
+  conferir("clique duplo: o outro sabe por quê", [a.erro, b.erro].filter(Boolean)[0], "Esta etiqueta já está sendo comprada.");
+  conferir("clique duplo: um carrinho", falso.pedidosDeCarrinho - carrinhosAntes, 1);
+  const comprado = await lerEnvio(envio.id);
+  conferir(
+    "comprado",
+    [comprado.status, comprado.compradoPor, comprado.custo, Boolean(comprado.rastreio), comprado.linkDoRastreio?.startsWith("https://melhorrastreio.com.br/rastreio/"), Boolean(comprado.validoAte)],
+    ["A_POSTAR", "zz", 25.84, true, true, true],
+  );
+  conferir("o carrinho levou a tag do pedido", falso.ultimoCarrinho.options.tags[0].tag, "Pedido ZZ-FRETE-COMPRA-1");
+  conferir("comprado não compra de novo", (await comprarEtiqueta(envio.id, "zz")).erro, "Esta etiqueta já foi comprada.");
+  conferir("comprado não reconfere", (await conferirPacote(envio.id, medido, "zz")).erro, "Esta etiqueta já foi comprada.");
+
+  const envio2 = await comItens("ZZ-FRETE-COMPRA-2");
+  await conferirPacote(envio2.id, medido, "zz");
+  falso.falharEm = "checkout";
+  const caiu = await comprarEtiqueta(envio2.id, "zz");
+  falso.falharEm = null;
+  const depoisDaQueda = await lerEnvio(envio2.id);
+  conferir("queda: volta a rascunho com o id", [caiu.ok, depoisDaQueda.status, Boolean(depoisDaQueda.idNoProvedor), Boolean(depoisDaQueda.ultimoErro)], [false, "RASCUNHO", true, true]);
+  const antesDaRetomada = falso.pedidosDeCarrinho;
+  const retomou = await comprarEtiqueta(envio2.id, "zz");
+  conferir("retomada não cria carrinho", [retomou.ok, falso.pedidosDeCarrinho - antesDaRetomada, retomou.envio?.status], [true, 0, "A_POSTAR"]);
+
+  const envio3 = await comItens("ZZ-FRETE-COMPRA-3");
+  await conferirPacote(envio3.id, medido, "zz");
+  falso.saldo = 5;
+  conferir("saldo curto recusa", (await comprarEtiqueta(envio3.id, "zz")).erro, "Saldo insuficiente: R$ 5,00 na carteira para R$ 28,85.");
+  falso.saldo = 123.45;
+  await prisma.$executeRaw`UPDATE "Envio" SET status = 'COMPRANDO', "atualizadoEm" = now() - interval '10 minutes' WHERE id = ${envio3.id}`;
+  conferir("comprando parado é retomado", (await comprarEtiqueta(envio3.id, "zz")).envio?.status, "A_POSTAR");
+  const envio4 = await comItens("ZZ-FRETE-COMPRA-4");
+  await conferirPacote(envio4.id, medido, "zz");
+  await prisma.envio.update({ where: { id: envio4.id }, data: { status: "COMPRANDO" } });
+  conferir("comprando agora não é retomado", (await comprarEtiqueta(envio4.id, "zz")).erro, "Esta etiqueta já está sendo comprada.");
+} finally {
+  liberarTrava(false);
+  falso.falharEm = null;
+  falso.saldo = 123.45;
+  await limparEnvios();
+  await devolverConexaoDoDono();
 }
 
 // ---------------------------------------------------------------------------
