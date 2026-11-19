@@ -1,4 +1,4 @@
-import { KeyRound, Shapes, TrendingUp } from "lucide-react";
+import { KeyRound, Shapes, TrendingUp, Truck } from "lucide-react";
 
 /**
  * Fonte unica das ferramentas. A pagina `/ferramentas` desenha um cartao por
@@ -40,5 +40,13 @@ export const FERRAMENTAS = [
     icone: KeyRound,
     resumo: "As chaves do LightBurn e os arquivos do Mach3, com os clientes de cada licença, as vagas livres e o último uso lido do portal.",
     detalhe: "LightBurn · Mach3 · extensão do Chrome",
+  },
+  {
+    href: "/ferramentas/frete",
+    recurso: "tela.ferramentas.frete",
+    rotulo: "Cotar frete",
+    icone: Truck,
+    resumo: "Cota o frete de um pacote pelo CEP, com as caixas da loja, e copia o resultado para mandar ao cliente.",
+    detalhe: "Melhor Envio · sem gravar nada",
   },
 ];

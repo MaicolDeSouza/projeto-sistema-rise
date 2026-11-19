@@ -70,7 +70,9 @@ const servidor = http.createServer((pedido, resposta) => {
     return responder(404, { message: "Não encontrado no falso." });
   });
 });
-await new Promise((pronto) => servidor.listen(0, "127.0.0.1", pronto));
+// `--servir --porta=4599`: porta fixa, para o .env de quem confere a tela apontar para ela.
+const portaFixa = Number(process.argv.find((arg) => arg.startsWith("--porta="))?.slice(8) ?? 0);
+await new Promise((pronto) => servidor.listen(portaFixa, "127.0.0.1", pronto));
 process.env.MELHOR_ENVIO_URL = `http://127.0.0.1:${servidor.address().port}`;
 process.env.MELHOR_ENVIO_CLIENT_ID = "zz-cliente";
 process.env.MELHOR_ENVIO_CLIENT_SECRET = "zz-segredo";
