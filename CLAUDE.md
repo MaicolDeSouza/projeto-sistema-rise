@@ -356,7 +356,7 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Estoque | Ordens de produção dos produtos com peças próprias (26/10/2026, sem deploy): baixa das peças, conclusão com perda, cancelamento que devolve. Saldo e movimentações ainda não. Ver "Peças próprias e ordem de produção (26/10/2026)". **Mapa do estoque (12/11/2026, fase 1, SEM deploy):** os três estoques em 3D e de frente, colunas, modelos de caixinha e a caixinha do produto; ver "Mapa do estoque (12/11/2026)" |
 | Pedidos | **Pedidos de venda, fase 1 (04/11/2026, NO AR na VPS desde 04.11.2026.60):** o worker lê a cada 5 min os pedidos do ML, da LI e do Bling (desde 01/11/2026), cria o cliente pelo CPF/CNPJ, casa os itens com os produtos, calcula status, peças em falta e lucro estimado × real; lista `/pedidos`, tela do pedido com abas, taxas da LI e nível do cliente. Ver "Pedidos de venda (04/11/2026)" |
 | Propostas | **Propostas para cliente, fase 1 (12/11/2026, SEM deploy):** proposta comercial que vive só no Rise (nº 2026, 2027…), cliente do Rise ou do Bling (ou provisório, sem cadastro), itens com a descrição e o código do cliente, prazo por item, pagamento, frete, OC/obs. da NF, validade de 15 dias que vence sozinha, "!" de contato, PDF, link público com WhatsApp, cotação anexada e pedido de venda no Bling na aprovada. Ver "Propostas para cliente (12/11/2026)" |
-| Frete | **Módulo de frete, fase 1 (cotação, 18/11/2026, SEM deploy):** Melhor Envio pela API (OAuth, provedor trocável para a SuperFrete depois), caixas de envio, cotação na Proposta (CIF), no Pedido do Bling (rascunho do envio) e em Ferramentas › Cotar frete. Etiqueta, rastreio e aviso ao cliente são a fase 2; reverso, a 3. Ver "Módulo de frete (18/11/2026)" |
+| Frete | **Módulo de frete, fase 1 (cotação, 18/11/2026, NO AR na VPS desde 19.11.2026.130; falta o aplicativo do Melhor Envio no `.env`):** Melhor Envio pela API (OAuth, provedor trocável para a SuperFrete depois), caixas de envio, cotação na Proposta (CIF), no Pedido do Bling (rascunho do envio) e em Ferramentas › Cotar frete. Etiqueta, rastreio e aviso ao cliente são a fase 2; reverso, a 3. Ver "Módulo de frete (18/11/2026)" |
 | Financeiro | Esqueleto |
 
 **O que está no ar (24/10/2026):** o deploy 24.10.2026.29 (commit `5ede491`) subiu TUDO o que estava na main até esse commit
@@ -8004,7 +8004,10 @@ com o roteiro v2** (título inventado no rascunho do ML): refazer a proposta do 
 ## Módulo de frete (18/11/2026)
 
 Spec `docs/superpowers/specs/2026-11-18-modulo-de-frete-design.md` (aprovada pelo dono), plano da fase 1
-`docs/superpowers/plans/2026-11-18-modulo-de-frete-fase-1.md`. **Fase 1 (cotação) pronta, SEM deploy.** O Mercado Livre
+`docs/superpowers/plans/2026-11-18-modulo-de-frete-fase-1.md`. **Fase 1 (cotação) NO AR na VPS desde o deploy 19.11.2026.130 (commit `b7af093`, 19/11/2026,
+migrations `20261118b_frete_fase_1` e `20261118c_cliente_emails_nota_fiscal`).** Sem o aplicativo do Melhor Envio no `.env` da VPS
+(`MELHOR_ENVIO_CLIENT_ID`, `_SECRET`, `_CONTATO` e `MELHOR_ENVIO_SANDBOX=false`, depois `docker compose up -d --force-recreate app
+worker`) o cartão fica "não configurado" e a cotação responde "não conectado". O Mercado Livre
 continua no Mercado Envios e a Loja Integrada no Enviali (a etiqueta do Enviali só existe para pedido da loja).
 
 - **Melhor Envio, medido na documentação em 18/11/2026:** OAuth por aplicativo (`/oauth/authorize`, `POST /oauth/token`
