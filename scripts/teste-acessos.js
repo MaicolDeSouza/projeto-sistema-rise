@@ -410,12 +410,13 @@ try {
   {
     const { CARTOES_DE_CONFIGURACOES } = await import("../src/lib/configuracoes/catalogo.js");
     const { detalheDeUsuarios, detalheDeIntegracoes, detalheDoRiseAi } = await import("../src/lib/configuracoes/detalhes.js");
-    conferir("os seis cartoes, cada um com o seu recurso (Dados da empresa e Saude so para o Administrador; Correcoes da descricao para quem ve o cadastro de Produtos)", CARTOES_DE_CONFIGURACOES.map((cartao) => [cartao.href, cartao.recurso]), [
+    conferir("os sete cartoes, cada um com o seu recurso (Dados da empresa e Saude so para o Administrador; Correcoes da descricao para quem ve o cadastro de Produtos; Envios com o seu, modulo de frete)", CARTOES_DE_CONFIGURACOES.map((cartao) => [cartao.href, cartao.recurso]), [
       ["/configuracoes/usuarios", "tela.configuracoes.usuarios"],
       ["/integracoes", "tela.integracoes"],
       ["/rise-ai/configuracoes", "riseAi.configuracoes"],
       ["/configuracoes/correcoes-da-descricao", "tela.produtos.cadastro"],
       ["/configuracoes/empresa", "tela.configuracoes.usuarios"],
+      ["/configuracoes/envios", "tela.configuracoes.envios"],
       ["/configuracoes/saude", "tela.configuracoes.usuarios"],
     ]);
     conferir("usuarios e funcoes, no plural e no singular", [detalheDeUsuarios({ usuarios: 2, funcoes: 2 }), detalheDeUsuarios({ usuarios: 1, funcoes: 1 }), detalheDeUsuarios({ usuarios: 0, funcoes: 2 })], ["2 usuários · 2 funções", "1 usuário · 1 função", "0 usuários · 2 funções"]);
