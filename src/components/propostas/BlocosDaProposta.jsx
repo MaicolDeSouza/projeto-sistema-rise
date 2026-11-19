@@ -315,7 +315,8 @@ export function CartaoFrete({ formulario, transportadoras, editar, erros, aoMuda
               className={campo}
             />
           </Rotulo>
-          <div>
+          {/* Duas colunas: o valor e o botao "Cotar frete" lado a lado (numa so, o valor ficava com 3 digitos visiveis). */}
+          <div className="sm:col-span-2">
             <Rotulo texto="Valor do frete (R$)" erro={erros.frete}>
               <div className="flex gap-1.5">
                 <input inputMode="decimal" value={formulario.frete} disabled={!editar} aria-invalid={Boolean(erros.frete)} onChange={(e) => aoMudar("frete", soDecimal(e.target.value))} className={`${campo} tabular-nums`} />

@@ -181,7 +181,7 @@ export default function CotadorDeFrete({ caixas, inicial = {}, aoEscolher, rotul
                     {cabecalho("prazo", "Prazo")}
                     {cabecalho("custo", "Custo", "text-right")}
                     {cabecalho("cobrar", "Cobrar do cliente", "text-right")}
-                    {aoEscolher && <th className="w-24 px-3 py-2.5" aria-label="Escolher" />}
+                    {aoEscolher && <th className="px-3 py-2.5" aria-label="Escolher" />}
                   </tr>
                 </thead>
                 <tbody>
@@ -198,7 +198,7 @@ export default function CotadorDeFrete({ caixas, inicial = {}, aoEscolher, rotul
                           <button
                             type="button"
                             onClick={() => aoEscolher(servico, resultado.pacote, resultado.cotadoEm)}
-                            className="rounded border border-acento px-2.5 py-1 text-xs font-medium text-acento hover:bg-acento hover:text-white"
+                            className="rounded border border-acento px-2.5 py-1 text-xs font-medium whitespace-nowrap text-acento hover:bg-acento hover:text-white"
                           >
                             {rotuloDaEscolha}
                           </button>
