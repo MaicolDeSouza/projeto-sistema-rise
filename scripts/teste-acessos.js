@@ -465,7 +465,13 @@ try {
       [["ZZ-AC Leitura", 1, { liberados: 2, total: totalTelas }], ["ZZ-AC Vazia", 0, { liberados: 0, total: totalTelas }]],
     );
     const funcao = await carregarFuncao(leitura.id);
-    conferir("carregar funcao: permissoes como objeto e quem a tem", [funcao.permissoes, funcao.usuarios.map((u) => u.nome)], [{ "tela.produtos": "ver", "tela.produtos.cadastro": "ver", "dado.custo": "ver" }, ["ZZ Um"]]);
+    // Ordenado: o include sem orderBy devolve as linhas na ordem fisica da tabela, que muda com o uso do banco (18/11/2026 o
+    // teste passou a falhar so pela ordem das chaves, com o mesmo conteudo).
+    conferir(
+      "carregar funcao: permissoes como objeto e quem a tem",
+      [Object.entries(funcao.permissoes).sort(([a], [b]) => a.localeCompare(b)), funcao.usuarios.map((u) => u.nome)],
+      [[["dado.custo", "ver"], ["tela.produtos", "ver"], ["tela.produtos.cadastro", "ver"]], ["ZZ Um"]],
+    );
     conferir("carregar funcao que nao existe", await carregarFuncao("nao-existe"), null);
   }
 
