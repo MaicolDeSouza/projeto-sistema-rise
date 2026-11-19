@@ -682,7 +682,7 @@ try {
     const comPessoal = () => true;
     const semPessoal = (id) => id !== "dado.pessoalDoCliente";
     const cliente = {
-      id: "c1", nome: "ZZ", tipoPessoa: "FISICA", documento: "123", telefones: ["54988990008"], emails: ["a@b.c"],
+      id: "c1", nome: "ZZ", tipoPessoa: "FISICA", documento: "123", telefones: ["54988990008"], emails: ["a@b.c"], emailsNotaFiscal: ["nf@b.c"],
       enderecos: { geral: { cep: "1" }, entrega: null }, contatos: [{ nome: "X" }], observacoes: "obs", contato: "54 · a@b.c", sexo: "MASCULINO",
     };
     conferir("com o dado pessoal o cliente segue igual", projetarCliente(cliente, comPessoal), cliente);
@@ -692,10 +692,10 @@ try {
       { id: "c1", nome: "ZZ", tipoPessoa: "FISICA", sexo: "MASCULINO" },
     );
     conferir("o cliente recebido nao e alterado", cliente.documento, "123");
-    const doBanco = { documento: "111.444.777-35", observacoes: "do banco", telefone: "54988990008", telefonesAdicionais: ["5433334444"], email: "b@b.c", emailsAdicionais: [] };
-    const doFormulario = { documento: "", observacoes: null, telefone: null, telefonesAdicionais: [], email: null, emailsAdicionais: [] };
+    const doBanco = { documento: "111.444.777-35", observacoes: "do banco", telefone: "54988990008", telefonesAdicionais: ["5433334444"], email: "b@b.c", emailsAdicionais: [], emailsNotaFiscal: ["nf@b.c"] };
+    const doFormulario = { documento: "", observacoes: null, telefone: null, telefonesAdicionais: [], email: null, emailsAdicionais: [], emailsNotaFiscal: [] };
     conferir("sem o dado: os campos pessoais vem do banco, nunca do formulario", pessoalPreservado(doBanco, { ...doFormulario, nome: "Novo" }, semPessoal), { ...doBanco, nome: "Novo" });
-    conferir("sem o dado e sem cliente no banco: nada pessoal entra", pessoalPreservado(null, { ...doBanco, nome: "N" }, semPessoal), { documento: null, observacoes: null, telefone: null, telefonesAdicionais: [], email: null, emailsAdicionais: [], nome: "N" });
+    conferir("sem o dado e sem cliente no banco: nada pessoal entra", pessoalPreservado(null, { ...doBanco, nome: "N" }, semPessoal), { documento: null, observacoes: null, telefone: null, telefonesAdicionais: [], email: null, emailsAdicionais: [], emailsNotaFiscal: [], nome: "N" });
     conferir("com o dado: valem os do formulario", pessoalPreservado(doBanco, doFormulario, comPessoal), doFormulario);
   }
 

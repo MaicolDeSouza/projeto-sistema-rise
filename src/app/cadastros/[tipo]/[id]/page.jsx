@@ -84,6 +84,7 @@ async function carregarCliente(id) {
       // Grava-se so os digitos; a tela mostra "(54) 98899-0008" (src/lib/telefone.js).
       telefones: [cliente.telefone, ...cliente.telefonesAdicionais].filter(Boolean).map(formatarTelefone),
       emails: [cliente.email, ...cliente.emailsAdicionais].filter(Boolean),
+      emailsNotaFiscal: cliente.emailsNotaFiscal ?? [],
       observacoes: texto(cliente.observacoes),
       ativo: cliente.ativo,
       transportadoraId: texto(cliente.transportadoraId),

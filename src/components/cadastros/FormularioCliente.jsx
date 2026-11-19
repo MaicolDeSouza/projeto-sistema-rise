@@ -50,6 +50,7 @@ const ABA_DO_CAMPO = {
   nivel: "cadastro",
   telefones: "contato",
   emails: "contato",
+  emailsNotaFiscal: "contato",
   contatos: "contato",
   sexo: "contato",
   naturalidade: "contato",
@@ -326,6 +327,15 @@ export default function FormularioCliente({ cliente, transportadoras, condicoes 
             rotuloIncluir="incluir e-mail"
             inicial={cliente?.emails}
             erro={erros.emails}
+            type="email"
+          />
+          {/* Onde o cliente recebe a nota fiscal eletronica (ex.: o almoxarifado da FUNPEC); a lista e separada do e-mail principal. */}
+          <ListaDeValores
+            nome="emailsNotaFiscal"
+            rotulo="E-mail para nota fiscal"
+            rotuloIncluir="incluir e-mail da nota"
+            inicial={cliente?.emailsNotaFiscal}
+            erro={erros.emailsNotaFiscal}
             type="email"
           />
         </div>

@@ -1354,6 +1354,9 @@ model Cliente {
   telefonesAdicionais String[] @default([])
   email               String?
   emailsAdicionais    String[] @default([])
+  /// E-mails para onde o cliente quer receber a nota fiscal eletronica (o almoxarifado da FUNPEC, por exemplo). E uma lista a
+  /// parte de `email`, porque a finalidade e outra: quem recebe a nota nao e quem compra (pedido do dono em 18/11/2026).
+  emailsNotaFiscal    String[] @default([])
   observacoes         String?
   ativo               Boolean  @default(true)
 

@@ -55,8 +55,8 @@ export function lerTelefones(formData) {
 }
 
 /** E-mails do campo `emails`. O primeiro e o principal; repetido (sem caixa) vira um so. */
-export function lerEmails(formData) {
-  const emails = lerLista(formData, "emails", (valor) => valor.toLowerCase());
+export function lerEmails(formData, campo = "emails") {
+  const emails = lerLista(formData, campo, (valor) => valor.toLowerCase());
   const invalido = emails.find((email) => !EMAIL.safeParse(email).success);
   if (invalido) return { emails: [], erro: `E-mail inválido: ${invalido}` };
   if (emails.length > MAXIMO_EMAILS) return { emails: [], erro: `No máximo ${MAXIMO_EMAILS} e-mails.` };

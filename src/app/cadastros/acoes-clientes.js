@@ -98,7 +98,7 @@ export async function salvarCliente(id, _anterior, formData) {
   if (!comPessoal) {
     atual = await prisma.cliente.findUnique({
       where: { id },
-      select: { documento: true, observacoes: true, telefone: true, telefonesAdicionais: true, email: true, emailsAdicionais: true },
+      select: { documento: true, observacoes: true, telefone: true, telefonesAdicionais: true, email: true, emailsAdicionais: true, emailsNotaFiscal: true },
     });
     if (!atual) return { ok: false, erro: "Este cliente não existe mais. Volte para a lista." };
   }
@@ -126,6 +126,9 @@ export async function salvarCliente(id, _anterior, formData) {
   if (erroTelefones) erros.telefones = erroTelefones;
   const { emails, erro: erroEmails } = comPessoal ? lerEmails(formData) : { emails: [], erro: null };
   if (erroEmails) erros.emails = erroEmails;
+  // Onde o cliente recebe a nota fiscal (18/11/2026): lista a parte, a mesma leitura dos e-mails; sem permissao nao muda.
+  const { emails: emailsNotaFiscal, erro: erroEmailsNf } = comPessoal ? lerEmails(formData, "emailsNotaFiscal") : { emails: [], erro: null };
+  if (erroEmailsNf) erros.emailsNotaFiscal = erroEmailsNf;
 
   // So a pessoa juridica tem pessoas de contato: para fisica a lista nem e lida (ela
   // pode chegar com o que ficou montado e oculto na tela), e a que estava gravada e
@@ -151,6 +154,7 @@ export async function salvarCliente(id, _anterior, formData) {
       telefonesAdicionais: telefones.slice(1),
       email: emails[0] ?? null,
       emailsAdicionais: emails.slice(1),
+      emailsNotaFiscal,
     },
     pode,
   );

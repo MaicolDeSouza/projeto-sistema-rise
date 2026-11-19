@@ -53,7 +53,7 @@ export function pastaPublica(pasta) {
  * `telefones`, `emails`, `enderecos`, `contatos`, `observacoes`) e o `contato` da linha da lista (telefone e e-mail
  * juntos). Sem o dado, nada disso sai do servidor.
  */
-const PESSOAIS_NA_TELA = ["documento", "telefones", "emails", "enderecos", "contatos", "observacoes", "contato"];
+const PESSOAIS_NA_TELA = ["documento", "telefones", "emails", "emailsNotaFiscal", "enderecos", "contatos", "observacoes", "contato"];
 
 /** O cliente (da tela ou da lista) sem o dado pessoal quando a pessoa nao o ve. Devolve uma copia. */
 export function projetarCliente(cliente, pode) {
@@ -71,6 +71,7 @@ const PESSOAIS_GRAVADOS = {
   telefonesAdicionais: [],
   email: null,
   emailsAdicionais: [],
+  emailsNotaFiscal: [],
 };
 
 /**

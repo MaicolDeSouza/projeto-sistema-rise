@@ -36,6 +36,35 @@ function conferir(nome, obtido, esperado) {
 // CPF e CNPJ
 // ---------------------------------------------------------------------------
 
+console.log("\nE-mails para nota fiscal (18/11/2026)");
+{
+  const { lerEmails } = await import("../src/lib/formularios.js");
+  const formulario = new FormData();
+  formulario.append("emails", "Compras@Cliente.com");
+  for (const nf of ["Almox1@Cliente.com", "almox2@cliente.com", "ALMOX1@cliente.com", "  "]) formulario.append("emailsNotaFiscal", nf);
+  conferir("lista de NF lida do campo proprio, sem repetir (maiuscula nao conta) e sem linha em branco", lerEmails(formulario, "emailsNotaFiscal"), {
+    emails: ["Almox1@Cliente.com", "almox2@cliente.com"],
+    erro: null,
+  });
+  conferir("o campo padrao continua sendo o e-mail principal", lerEmails(formulario), { emails: ["Compras@Cliente.com"], erro: null });
+  const ruim = new FormData();
+  ruim.append("emailsNotaFiscal", "isto-nao-e-email");
+  conferir("e-mail de NF invalido recusa a lista", lerEmails(ruim, "emailsNotaFiscal"), { emails: [], erro: "E-mail inválido: isto-nao-e-email" });
+
+  const criado = await prisma.cliente.create({
+    data: { nome: "ZZ-CAD-NF teste", tipoPessoa: "JURIDICA", emailsNotaFiscal: ["almox1@cliente.com", "almox2@cliente.com"] },
+  });
+  try {
+    const lido = await prisma.cliente.findUnique({ where: { id: criado.id }, select: { email: true, emailsNotaFiscal: true } });
+    conferir("o banco guarda os e-mails de NF e deixa o principal em paz", lido, {
+      email: null,
+      emailsNotaFiscal: ["almox1@cliente.com", "almox2@cliente.com"],
+    });
+  } finally {
+    await prisma.cliente.delete({ where: { id: criado.id } });
+  }
+}
+
 console.log("\nCPF");
 conferir("CPF valido com pontuacao", validarCpf("529.982.247-25"), true);
 conferir("CPF valido so digitos", validarCpf("52998224725"), true);
