@@ -66,8 +66,11 @@ const { lerComprasDoML } = await import("../src/lib/compras/mercadoLivre/compras
 const { vencerPropostas } = await import("../src/lib/propostas/banco.js");
 
 /// Os avisos do Telegram (Rise AI, Entrega C1): a cada minuto, so o worker normal. A rotina nao faz nada com o bot
-/// desligado, sem token ou sem ninguem vinculado, e nunca lanca.
-let avisosTelegramEm = 0;
+/// desligado, sem token ou sem ninguem vinculado, e nunca lanca. Desde 19/11/2026 roda num relogio PROPRIO
+/// (`ligarRelogioDosAvisos`, ligado na partida), e nao dentro da volta: o monitor da LI segurava a volta ~8 min e o
+/// aviso do 130506 saiu 7 min atrasado.
+const { ligarRelogioDosAvisos } = await import("../src/lib/telegram/relogio.js");
+let relogioDosAvisos = null;
 
 /// A batida do healthchecks.io (HEALTHCHECKS_WORKER_URL, opcional): a pane do proprio worker nao tem como avisar pelo
 /// Telegram, entao quem avisa e o e-mail do healthchecks quando a batida para. So o worker normal.
@@ -652,13 +655,6 @@ async function laco() {
         if (loja.parou) logErro(`loja integrada: rodada parada (${loja.parou}); tenta de novo na proxima rodada`);
         else if (loja.conferidos) log(`loja integrada: ${loja.conferidos} conferido(s), ${loja.mudaram} mudaram, ${loja.falhas} falha(s)`);
       }
-      // Os avisos do Telegram (fora do `coletaPausada`: pausar a coleta nao cala os avisos). So o worker normal.
-      if (!FONTES && !SO_NO_PC && Date.now() - avisosTelegramEm >= AVISOS_TELEGRAM_MS) {
-        avisosTelegramEm = Date.now();
-        const avisos = await rodarRotina("telegram", AVISOS_TELEGRAM_MS, () => rodarAvisosDoTelegram());
-        if (avisos.mandados || avisos.falhas) log(`telegram: ${avisos.mandados} aviso(s) mandado(s), ${avisos.falhas} falha(s)`);
-        else if (avisos.motivo === "erro") logErro("telegram: a rotina de avisos falhou (ver o log acima)");
-      }
       if (!FONTES && !SO_NO_PC && process.env.HEALTHCHECKS_WORKER_URL && Date.now() - healthchecksBatidoEm >= PING_HEALTHCHECKS_MS) {
         healthchecksBatidoEm = Date.now();
         fetch(process.env.HEALTHCHECKS_WORKER_URL, { signal: AbortSignal.timeout(10000) }).catch(() => {});
@@ -717,6 +713,8 @@ function sair(codigo, motivo) {
       if (!controle.signal.aborted) controle.abort({ tipo: "encerrando" });
     }
     while (emCurso.size > 0) await dormir(250);
+    // A rodada de avisos em curso termina antes de o banco ser solto (senao gravaria "enviado" sem conexao).
+    await relogioDosAvisos?.parar();
 
     try {
       await fila.encerrarWorker(WORKER_ID);
@@ -880,4 +878,18 @@ if (SO_NO_PC && process.env.COLETA_PC_SO_PEDIDOS === "1") {
   );
 }
 sinalDeVida();
+// Os avisos do Telegram, no relogio proprio (fora do `coletaPausada`: pausar a coleta nao cala os avisos). So o worker
+// normal: o do PC e o de teste (FONTES) nao mandam aviso.
+if (!FONTES && !SO_NO_PC) {
+  relogioDosAvisos = ligarRelogioDosAvisos({
+    intervaloMs: AVISOS_TELEGRAM_MS,
+    rodar: async () => {
+      if (encerrando) return;
+      const avisos = await rodarRotina("telegram", AVISOS_TELEGRAM_MS, () => rodarAvisosDoTelegram());
+      if (avisos.mandados || avisos.falhas) log(`telegram: ${avisos.mandados} aviso(s) mandado(s), ${avisos.falhas} falha(s)`);
+      else if (avisos.motivo === "erro") logErro("telegram: a rotina de avisos falhou (ver o log acima)");
+    },
+    aoErro: (erro) => logErro(`telegram: rodada nao registrada: ${mensagem(erro)}`),
+  });
+}
 await laco();

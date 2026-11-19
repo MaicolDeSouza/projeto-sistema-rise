@@ -383,6 +383,62 @@ try {
     conferir("teto de mensagens por volta", a.MAXIMO_POR_VOLTA, 10);
   }
 
+  {
+    // 19/11/2026: o aviso do 130506 saiu 7 min atrasado porque a rotina rodava dentro da volta do worker, atras do
+    // monitor da Loja Integrada (~8 min). O relogio proprio roda enquanto outra coisa demora, sem sobrepor rodadas.
+    console.log("\nRelogio proprio dos avisos");
+    const { ligarRelogioDosAvisos } = await import("../src/lib/telegram/relogio.js");
+    const esperarMs = (ms) => new Promise((resolver) => setTimeout(resolver, ms));
+
+    let rodadas = 0;
+    let emCurso = 0;
+    let sobrepostas = 0;
+    const relogio = ligarRelogioDosAvisos({
+      intervaloMs: 10,
+      rodar: async () => {
+        emCurso++;
+        if (emCurso > 1) sobrepostas++;
+        rodadas++;
+        await esperarMs(15);
+        emCurso--;
+      },
+    });
+    // A "volta lenta" do worker: espera longa que nao deixa de ser assincrona, como o monitor da LI.
+    await esperarMs(200);
+    conferir("roda varias vezes enquanto outra rotina demora", rodadas >= 4, true);
+    conferir("nunca roda duas rodadas ao mesmo tempo", sobrepostas, 0);
+    await relogio.parar();
+    const depoisDeParar = rodadas;
+    await esperarMs(60);
+    conferir("parar desliga o relogio", rodadas, depoisDeParar);
+
+    let tentativas = 0;
+    const erros = [];
+    const comErro = ligarRelogioDosAvisos({
+      intervaloMs: 5,
+      rodar: async () => {
+        tentativas++;
+        throw new Error("zz-tg banco fora");
+      },
+      aoErro: (erro) => erros.push(erro.message),
+    });
+    await esperarMs(60);
+    await comErro.parar();
+    conferir("erro numa rodada nao desliga o relogio", [tentativas >= 3, erros[0]], [true, "zz-tg banco fora"]);
+
+    let terminou = false;
+    const lento = ligarRelogioDosAvisos({
+      intervaloMs: 1000,
+      rodar: async () => {
+        await esperarMs(40);
+        terminou = true;
+      },
+    });
+    await esperarMs(5);
+    await lento.parar();
+    conferir("parar espera a rodada em curso terminar", terminou, true);
+  }
+
   // MARCADOR: blocos novos entram acima desta linha.
 } finally {
   await limpar();
