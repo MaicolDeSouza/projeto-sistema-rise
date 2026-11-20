@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 
 import { registrarChamadaDoProvedor } from "./auditoria";
+import { CANAIS_DE_CLIENTE } from "./cliente/canais";
 import { lerChave, lerConfiguracao } from "./configuracao";
 import { criarConhecimento, normalizarSkus, recuperarConhecimento, textoDoConhecimentoParaPrompt } from "./conhecimento";
 import { ErroDeUso } from "./erros";
@@ -297,7 +298,7 @@ export async function listarSugestoes({ status = "PENDENTE" } = {}) {
     where: { status },
     orderBy: { criadoEm: "desc" },
     take: 200,
-    include: { conversa: { select: { id: true, titulo: true, usuario: true } } },
+    include: { conversa: { select: { id: true, titulo: true, usuario: true, canal: true } } },
   });
   const ids = sugestoes.map((sugestao) => sugestao.mensagemId).filter(Boolean);
   const respostas = new Map((await prisma.mensagemIA.findMany({ where: { id: { in: ids } } })).map((mensagem) => [mensagem.id, mensagem]));
@@ -327,6 +328,8 @@ export async function listarSugestoes({ status = "PENDENTE" } = {}) {
       criadoEm: sugestao.criadoEm.toISOString(),
       conversa: sugestao.conversa,
       mensagemId: sugestao.mensagemId,
+      // Veio de conversa com CLIENTE (chat da loja; depois, WhatsApp): a tela marca, e a nota aprovada nasce interna.
+      deCliente: CANAIS_DE_CLIENTE.includes(sugestao.conversa?.canal),
       pergunta: doUsuario?.conteudo ?? null,
       resposta: resposta ? resposta.estruturado?.respostaCliente || resposta.conteudo : null,
       produtosDaResposta: resposta?.estruturado?.produtos?.map(({ sku, nome }) => ({ sku, nome })) ?? [],

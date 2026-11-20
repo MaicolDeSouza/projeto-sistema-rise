@@ -955,6 +955,45 @@ try {
     for (const segredo of segredosDoDono) await prisma.segredoDoAssistente.upsert({ where: { nome: segredo.nome }, create: segredo, update: segredo });
     await prisma.auditoriaDeAcesso.deleteMany({ where: { quem: QUEM } });
   }
+
+  // ---------- Fase 2, tarefa 6: as conversas da loja na Revisao do dia ----------
+  const { resumoDaRespostaDaLoja } = await import("../src/lib/riseAi/revisaoDaLoja.js");
+  const { conversasDoDia, hojeEmSaoPaulo } = await import("../src/lib/riseAi/revisao.js");
+  const { listarSugestoes, aprovarSugestao } = await import("../src/lib/riseAi/sugestoes.js");
+  const { criarConversasDoCanal } = await import("../src/lib/riseAi/cliente/conversasDoCanal.js");
+
+  const resumoVazio = { cartoes: [], lista: null, passagem: null, barrada: null };
+  conferir(
+    "resumo da resposta da loja: so o que a Revisao mostra dos cartoes",
+    resumoDaRespostaDaLoja({ cartoes: [{ sku: "ZZ-1", nome: "ZZ placa", preco: 10, faixa: "disponível", papel: "placa", foto: "x", liId: "1", link: "l" }], lista: null, passagem: null }),
+    { ...resumoVazio, cartoes: [{ sku: "ZZ-1", nome: "ZZ placa", preco: 10, faixa: "disponível", papel: "placa" }] },
+  );
+  conferir(
+    "resumo: a lista orcada, com o que foi e o que nao foi achado",
+    resumoDaRespostaDaLoja({ cartoes: [], lista: { linhas: [{ pedido: "led", quantidade: 2, achado: { sku: "ZZ-2", nome: "ZZ LED", liId: "9" }, subtotal: 0.4, alternativas: [] }, { pedido: "x", quantidade: 1, achado: null, subtotal: null }], total: 0.4 } }).lista,
+    { linhas: [{ pedido: "led", quantidade: 2, sku: "ZZ-2", nome: "ZZ LED", subtotal: 0.4 }, { pedido: "x", quantidade: 1, sku: null, nome: null, subtotal: null }], total: 0.4 },
+  );
+  const barrada = resumoDaRespostaDaLoja({ passagem: { motivo: "filtro", url: "u", foraDoHorario: false }, reprovado: { motivo: "preco", texto: "O LED sai por R$ 59,90" } });
+  conferir("resumo: a resposta barrada traz o texto que o visitante NAO viu", [barrada.passagem, barrada.barrada], ["filtro", { motivo: "preco", texto: "O LED sai por R$ 59,90" }]);
+  conferir("resumo: nulo ou de outro formato", [resumoDaRespostaDaLoja(null), resumoDaRespostaDaLoja({ anexos: [] }), resumoDaRespostaDaLoja("x"), resumoDaRespostaDaLoja({ cartoes: "x", lista: 5 })], [resumoVazio, resumoVazio, resumoVazio, resumoVazio]);
+  const daReprovada = resumoDaRespostaDaLoja(reprovada.estruturado);
+  conferir("resumo de uma resposta barrada de verdade (a do preco inventado)", [daReprovada.barrada?.motivo, daReprovada.barrada?.texto.includes("59,90"), daReprovada.passagem, daReprovada.cartoes.length], ["preco", true, "filtro", 1]);
+
+  conferir("o visitante avalia a propria resposta", await criarConversasDoCanal().avaliar(r.mensagemId, pedido.sessaoId, -1), true);
+  const doDia = await conversasDoDia(hojeEmSaoPaulo(), { administrador: true });
+  const daLoja = doDia.find((conversa) => conversa.id === r.conversaId);
+  conferir("Revisao: a conversa da loja vem com o canal, o visitante e sinalizada pelo 👎 dele", [daLoja?.canal, daLoja?.visitante, daLoja?.sinalizada, daLoja?.cliente], ["LOJA", "zz-aaa", true, null]);
+  conferir("Revisao: conversa de outro canal nao tem visitante", doDia.filter((conversa) => conversa.canal !== "LOJA").every((conversa) => conversa.visitante === null), true);
+
+  // Sugestao vinda de conversa de cliente: leva a marca, e a nota aprovada nasce INTERNA (so o dono a torna publica).
+  const conversaInterna = await prisma.conversaIA.create({ data: { titulo: "ZZ LOJA conversa interna", usuario: "loja:zz-interna", canal: "MCP", perfil: "ADMIN" } });
+  const sugestaoDaLoja = await prisma.sugestaoIA.create({ data: { conversaId: r.conversaId, mensagemId: r.mensagemId, origem: "SINALIZACAO", problema: "ZZ LOJA resposta errada sobre o LED", correcaoSugerida: "ZZ LOJA: o LED vermelho de 5 mm pede um resistor de 220 ohms quando ligado em 5 V." } });
+  const sugestaoInterna = await prisma.sugestaoIA.create({ data: { conversaId: conversaInterna.id, origem: "SINALIZACAO", problema: "ZZ LOJA duvida interna", correcaoSugerida: "ZZ LOJA: regra interna de teste, sem cliente nenhum na conversa." } });
+  const pendentes = await listarSugestoes();
+  conferir("sugestao de conversa de cliente leva a marca", [pendentes.find((sugestao) => sugestao.id === sugestaoDaLoja.id)?.deCliente, pendentes.find((sugestao) => sugestao.id === sugestaoInterna.id)?.deCliente], [true, false]);
+  const aprovada = await aprovarSugestao(sugestaoDaLoja.id, { usuario: "zz-loja" });
+  conferir("a nota de uma sugestao de cliente nasce interna", (await prisma.conhecimentoIA.findUnique({ where: { id: aprovada.conhecimentoId } }))?.visibilidade, "ADMIN");
+  conferir("nota interna nao chega ao chat da loja", (await dados.conhecimento("LED vermelho resistor 220 ohms")).some((nota) => nota.assunto.startsWith("ZZ LOJA resposta errada")), false);
 } catch (erro) {
   falhas++;
   console.error("ERRO NAO ESPERADO:", erro);

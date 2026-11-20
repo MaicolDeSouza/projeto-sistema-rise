@@ -94,6 +94,8 @@ export async function conversasDoDia(dia, { administrador = false } = {}) {
       usuario: conversa.usuario,
       canal: conversa.canal,
       cliente: conversa.canal === "MCP" ? (respostas.find((mensagem) => mensagem.modelo)?.modelo ?? null) : null,
+      // Conversa do chat da loja: o visitante nao tem login; o comeco da sessao basta para distinguir um do outro.
+      visitante: conversa.canal === "LOJA" ? String(conversa.usuario).replace(/^loja:/, "").slice(0, 6) : null,
       horaInicio: horaDeSaoPaulo(conversa.mensagens[0].criadoEm),
       respostas: respostas.length,
       modelos,

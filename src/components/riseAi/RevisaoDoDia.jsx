@@ -10,6 +10,7 @@ import ConsultasDoDia from "./ConsultasDoDia";
 import MensagemDaIA from "./MensagemDaIA";
 import ProporCorrecao from "./ProporCorrecao";
 import SugestoesDaIA from "./SugestoesDaIA";
+import { ROTULO_DA_PASSAGEM, ROTULO_DO_FILTRO, resumoDaRespostaDaLoja } from "@/lib/riseAi/revisaoDaLoja";
 import { custoEmTexto, rotuloDoProvedor } from "./formatos";
 
 const ROTULOS_DA_SUSPEITA = {
@@ -29,10 +30,77 @@ const SELO = "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs";
 /** De onde veio a dúvida: só as do MCP têm (o chat interno saiu em 20/10/2026). */
 const SeloDoCliente = ({ cliente }) => (cliente ? <span className={`${SELO} bg-violet-100 text-violet-800`}>pelo {cliente}</span> : null);
 
+/** A conversa veio do chat do site da loja (o Hobi): quem escreveu foi um visitante, nao a equipe. */
+const SeloDaLoja = () => <span className={`${SELO} bg-teal-100 text-teal-800`}>pela loja</span>;
+
+/** Quem conversou: o login da equipe, ou "Visitante" + o comeco da sessao (o visitante da loja nao tem login). */
+const quemConversou = (conversa) => (conversa.visitante ? `Visitante ${conversa.visitante}` : conversa.usuario);
+
+/**
+ * O que o visitante da loja VIU junto do texto (os cartoes, a lista orcada, o botao do WhatsApp), a nota que ele deu e,
+ * quando o filtro barrou, o texto que ele NAO viu. Resposta que nao e da loja nao tem nada disto e o bloco some.
+ */
+function RespostaDaLoja({ mensagem }) {
+  const { cartoes, lista, passagem, barrada } = resumoDaRespostaDaLoja(mensagem.estruturado);
+  const notaDoVisitante = mensagem.avaliadoPor === "visitante" && mensagem.avaliacao ? mensagem.avaliacao : 0;
+  if (cartoes.length === 0 && !lista && !passagem && !barrada && !notaDoVisitante) return null;
+  const reais = (valor) => (valor == null ? "" : Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }));
+  return (
+    <div className="flex flex-col gap-2 rounded-md border border-borda bg-fundo px-3 py-2.5 text-xs">
+      {barrada && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 px-2.5 py-2 text-amber-900">
+          <p className="font-semibold">Barrada pelo filtro ({ROTULO_DO_FILTRO[barrada.motivo] ?? barrada.motivo}). O visitante não viu este texto:</p>
+          <p className="mt-1 whitespace-pre-line">{barrada.texto}</p>
+        </div>
+      )}
+      {cartoes.length > 0 && (
+        <div>
+          <p className="font-semibold">
+            {cartoes.length === 1 ? "1 cartão mostrado" : `${cartoes.length} cartões mostrados`}
+          </p>
+          <ul className="mt-1 flex flex-col gap-0.5">
+            {cartoes.map((cartao, indice) => (
+              <li key={`${cartao.sku}-${indice}`} className="flex gap-2 tabular-nums">
+                <span className="shrink-0 font-mono text-suave">{cartao.sku}</span>
+                <span className="min-w-0 flex-1 truncate">
+                  {cartao.nome}
+                  {cartao.papel ? <span className="text-suave"> · {cartao.papel}</span> : null}
+                </span>
+                <span className="shrink-0">{reais(cartao.preco)}</span>
+                <span className="shrink-0 text-suave">{cartao.faixa}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {lista && (
+        <div>
+          <p className="font-semibold">Lista orçada · total {reais(lista.total)}</p>
+          <ul className="mt-1 flex flex-col gap-0.5">
+            {lista.linhas.map((linha, indice) => (
+              <li key={indice} className="flex gap-2 tabular-nums">
+                <span className="shrink-0 text-suave">{linha.quantidade}×</span>
+                <span className="min-w-0 flex-1 truncate">
+                  {linha.pedido}
+                  <span className="text-suave"> → {linha.sku ? `${linha.sku} ${linha.nome ?? ""}` : "não achou"}</span>
+                </span>
+                <span className="shrink-0">{reais(linha.subtotal)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {passagem && <p>Passou para o WhatsApp: {ROTULO_DA_PASSAGEM[passagem] ?? passagem}.</p>}
+      {notaDoVisitante !== 0 && <p className={notaDoVisitante === -1 ? "font-semibold text-red-700" : "text-emerald-700"}>{notaDoVisitante === -1 ? "👎" : "👍"} do visitante</p>}
+    </div>
+  );
+}
+
 function Selos({ conversa }) {
   const selo = SELO;
   return (
     <div className="flex flex-wrap gap-1">
+      {conversa.canal === "LOJA" && <SeloDaLoja />}
       <SeloDoCliente cliente={conversa.cliente} />
       {conversa.sinalizada && (
         <span className={`${selo} bg-red-100 text-red-800`}>
@@ -67,7 +135,8 @@ function LeituraDaConversa({ leitura, resumo, aoMarcar, marcando }) {
         <div className="min-w-0">
           <h2 className="truncate text-sm font-semibold">{leitura.conversa.titulo}</h2>
           <p className="flex items-center gap-1.5 text-xs text-suave">
-            de {leitura.conversa.usuario} <SeloDoCliente cliente={resumo?.cliente} />
+            de {resumo ? quemConversou(resumo) : leitura.conversa.usuario} <SeloDoCliente cliente={resumo?.cliente} />
+            {resumo?.canal === "LOJA" && <SeloDaLoja />}
           </p>
         </div>
         <button
@@ -95,9 +164,12 @@ function LeituraDaConversa({ leitura, resumo, aoMarcar, marcando }) {
               ))}
             </div>
           ) : (
-            <MensagemDaIA key={mensagem.id} mensagem={mensagem}>
-              <ProporCorrecao mensagem={mensagem} />
-            </MensagemDaIA>
+            <div key={mensagem.id} className="flex flex-col gap-2">
+              <RespostaDaLoja mensagem={mensagem} />
+              <MensagemDaIA mensagem={mensagem}>
+                <ProporCorrecao mensagem={mensagem} />
+              </MensagemDaIA>
+            </div>
           ),
         )}
       </div>
@@ -187,7 +259,7 @@ export default function RevisaoDoDia({ dia, hoje, conversas, resumo, sugestoes, 
                 >
                   <span className="truncate text-sm font-medium">{conversa.titulo}</span>
                   <span className="text-xs text-suave">
-                    {conversa.usuario} · {conversa.horaInicio} · {conversa.respostas} {conversa.respostas === 1 ? "resposta" : "respostas"} · {custoEmTexto(conversa.custoBrl)}
+                    {quemConversou(conversa)} · {conversa.horaInicio} · {conversa.respostas} {conversa.respostas === 1 ? "resposta" : "respostas"} · {custoEmTexto(conversa.custoBrl)}
                   </span>
                   <span className="truncate text-xs text-suave">{conversa.modelos.map(rotuloDoModelo).join(", ")}</span>
                   <Selos conversa={conversa} />

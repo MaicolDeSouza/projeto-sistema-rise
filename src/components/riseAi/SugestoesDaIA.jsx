@@ -70,6 +70,11 @@ function CartaoDeSugestao({ sugestao }) {
         {sugestao.tipo && <span className="rounded-full bg-superficie px-2 py-0.5">{ROTULOS_DO_TIPO[sugestao.tipo] ?? sugestao.tipo}</span>}
         <Confianca valor={sugestao.confianca} />
         {geradaPor && <span title="Quem propôs esta sugestão">proposta por {geradaPor}</span>}
+        {sugestao.deCliente && (
+          <span className="rounded-full bg-teal-100 px-2 py-0.5 font-medium text-teal-800" title="A nota aprovada nasce interna. Para ela valer nas respostas ao cliente, mude a visibilidade da nota para Pública.">
+            veio de conversa com cliente
+          </span>
+        )}
       </header>
 
       {sugestao.pergunta && (
