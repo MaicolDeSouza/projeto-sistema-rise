@@ -372,6 +372,18 @@ sessões até esse commit, conferido com `git merge-base --is-ancestor`: o cadas
 canais, a Saúde do Rise, categorias e SEO no produto, preço e ficha editáveis no ML publicado, o estado e o catálogo do ML de hora
 em hora, e a migration `20261025c_fonte_cidade_uf`. As seções abaixo que dizem "SEM deploy" para esses itens estão obsoletas.
 
+**Deploy 20.11.2026.131 (commit `176532b`, 20/11/2026, 04:17-04:24):** subiu tudo até ali, com o ok das sessões do frete e do
+chat da loja. **Telegram:** o relógio próprio dos avisos, a nova venda com foto, a venda da Loja Integrada só com pagamento
+aprovado e o resumo das 20h (vendas por canal, valor e lucro, das 20h da véspera às 20h, sem a linha das varreduras, LI pelo
+pagamento). **Frete fase 2** (migration `20261119_frete_fase_2`): bloco Envios e rotina `envios` no ar, mas `FRETE_COMPRA` e
+`EMAIL_ENVIO` **não estão no `.env` da VPS**, então comprar etiqueta e o e-mail seguem travados. **Chat da loja, fase 1**
+(migrations `20261120_ia_enums` e `20261120b_ia_papel_e_visoes`): o banco e o Caddy foram recriados uma vez com as redes novas,
+o `caddy validate` aceitou o `import ligado-*.caddy` sem arquivo, o papel `rise_ia` existe **sem login** e o serviço `ia`
+**não subiu** (sem `IA_DATABASE_URL`; falta o `preparar-ia.sh`, com o ok do dono). Conferido depois: os 5 contêineres de pé,
+as 6 respostas de fora do script, as rotinas `telegram`, `pedidos` e `envios` rodando e nenhum aviso com erro ou pendente.
+**Não visto ainda:** uma venda real com foto no celular, o resumo das 20h real e uma venda da LI paga depois de criada. As
+seções abaixo que dizem "SEM deploy" para esses itens estão obsoletas.
+
 **Travas de escrita na VPS (decisão do dono em 22/10/2026):** o dono mandou liberar **o Mercado Livre e o Bling para todos os
 códigos** (`ML_PUBLICACAO=true`, `ML_PUBLICACAO_CODIGOS` ausente, `BLING_ESCRITA=true`, `BLING_ESCRITA_CODIGOS` vazio) depois
 de o Publicar recusar com "ML_PUBLICACAO está false"; aplicado só no `.env` da VPS (cópia `.env.bak-AAAAMMDD-HHMMSS` ao lado),
