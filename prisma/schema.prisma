@@ -886,6 +886,25 @@ model ConfiguracaoIA {
   atualizadoPor String?
 }
 
+/// Os segredos do SERVICO `ia` (o chat da loja): a chave de IA dedicada ao chat e o segredo do Turnstile, cifrados com o
+/// `IA_SEGREDO` (src/lib/riseAi/cliente/segredos.js), e nao com a ENCRYPTION_KEY do Rise, que o servico nunca recebe.
+/// O Rise grava (tela Canais); o usuario de banco `rise_ia` so le. `nome`: openai | anthropic | turnstile.
+model SegredoDoAssistente {
+  nome          String   @id
+  cifrado       String
+  atualizadoEm  DateTime @default(now()) @updatedAt
+  atualizadoPor String?
+}
+
+/// O sinal de vida do servico `ia` (uma linha, `unico`): a Saude do Rise le daqui se o chat da loja esta no ar.
+model SinalDoAssistente {
+  id          String   @id @default("unico")
+  sinalEm     DateTime
+  versao      String?
+  emAndamento Int      @default(0)
+  ultimoErro  String?
+}
+
 model ConversaIA {
   id      String   @id @default(cuid())
   titulo  String
