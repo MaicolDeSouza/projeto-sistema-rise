@@ -97,13 +97,14 @@ export function linkDaLoja(url, origemDaPagina) {
   return daPagina || daLoja ? lido.href : null;
 }
 
-/** A foto de um cartao: so do Rise. Na loja de mentira do PC (servico em 127.0.0.1) vale qualquer https. */
+/** A foto de um cartao: so do Rise. Na loja de mentira do PC (servico em 127.0.0.1) vale tambem a dela mesma e qualquer https. */
 export function fotoPermitida(url, origemDoServico) {
   if (typeof url !== "string") return null;
   if (url.startsWith(ORIGEM_DAS_FOTOS)) return url;
   const servico = comoUrl(origemDoServico);
-  const local = servico && (servico.hostname === "127.0.0.1" || servico.hostname === "localhost");
-  return local && url.startsWith("https://") && comoUrl(url) ? url : null;
+  const lida = comoUrl(url);
+  if (!lida || !servico || (servico.hostname !== "127.0.0.1" && servico.hostname !== "localhost")) return null;
+  return lida.protocol === "https:" || lida.origin === servico.origin ? url : null;
 }
 
 export function linkDoWhatsApp(url) {

@@ -87,6 +87,11 @@ conferir(
   ["https://rise.4hobby.com.br/api/arquivos/x.webp", null, null, null, null],
 );
 conferir("na loja de mentira a foto pode vir de outro https", [fotoPermitida("https://exemplo.test/x.png", "http://127.0.0.1:8790"), fotoPermitida("http://exemplo.test/x.png", "http://127.0.0.1:8790")], ["https://exemplo.test/x.png", null]);
+conferir(
+  "na loja de mentira a foto pode vir dela mesma (e so la)",
+  [fotoPermitida("http://127.0.0.1:8790/api/arquivos/100101/imagens/x.jpg", "http://127.0.0.1:8790"), fotoPermitida("http://127.0.0.1:9999/x.jpg", "http://127.0.0.1:8790"), fotoPermitida("http://127.0.0.1:8790/x.jpg", HOBI)],
+  ["http://127.0.0.1:8790/api/arquivos/100101/imagens/x.jpg", null, null],
+);
 conferir("whatsapp", [linkDoWhatsApp("https://wa.me/5554999990000"), linkDoWhatsApp("https://wa.me/5554999990000?text=oi"), linkDoWhatsApp("https://wa.me.outro.site/1"), linkDoWhatsApp("")], ["https://wa.me/5554999990000", "https://wa.me/5554999990000?text=oi", null, null]);
 conferir(
   "carrinho",

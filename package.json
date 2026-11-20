@@ -62,6 +62,7 @@
     "teste:widget": "node scripts/teste-widget.js",
     "hobi:mascote": "node scripts/recortar-mascote.js",
     "hobi:montar": "node scripts/montar-widget.js",
+    "hobi:demo": "node scripts/hobi-demo.js",
     "teste:ia-isolamento": "node scripts/teste-ia-isolamento.js",
     "teste:saude": "node scripts/teste-saude.js",
     "acessos:admin": "node scripts/acessos-admin.js",
