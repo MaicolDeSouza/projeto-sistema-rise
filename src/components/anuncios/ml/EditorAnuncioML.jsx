@@ -17,6 +17,7 @@ import { NOMES_DAS_PARTES, textoDasPartes } from "@/lib/canaisDeVenda/ml/acompan
 import { divergenciasDoAnuncioML } from "@/lib/canaisDeVenda/ml/divergencias";
 import { AGUARDANDO_BLING, AGUARDANDO_ESTOQUE, REUTILIZADO, STATUS_ML, linkDoAnuncioML, linkDoPainelML, reutilizadoPendente } from "@/lib/canaisDeVenda/ml/rotulos";
 import { ABAS_ML, validarRascunhoML } from "@/lib/canaisDeVenda/ml/validacao";
+import { FORMATO_DA_DESCRICAO } from "@/lib/canaisDeVenda/ml/descricao";
 import AbaDescricao from "./AbaDescricao";
 import AbaDivergenciasML from "./AbaDivergenciasML";
 import AbaEnvio from "./AbaEnvio";
@@ -602,6 +603,7 @@ export default function EditorAnuncioML({
                 : {})}
               {...(id === "catalogo" ? { visivel: abaVisivel === "catalogo", idExterno: infoDoML.idExterno ?? null } : {})}
               {...(id === "ficha" ? { completarPelaDescricao: !bloqueado } : {})}
+              {...(id === "descricao" ? { formatoAntigo: publicado && publicacao?.enviado?.formato !== FORMATO_DA_DESCRICAO } : {})}
               {...(id === "preco" ? { precoDaLojaEnviado: publicacao?.enviado?.precoDaLoja ?? null, mudancas } : {})}
             />
             </div>

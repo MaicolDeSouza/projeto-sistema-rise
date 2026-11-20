@@ -33,13 +33,15 @@ export default async function MercadoLivrePage({ searchParams }) {
   const busca = textoDe(params?.q);
   const ordenar = textoDe(params?.ordenar);
   const direcao = textoDe(params?.direcao) === "desc" ? "desc" : "asc";
+  // "Descricao no formato antigo" (20/11/2026): so os publicados que ainda nao foram ao ML com as boas-vindas e o bloco dos kits.
+  const formato = textoDe(params?.formato) === "antigo" ? "antigo" : "";
 
   let lista = null;
   let erro = null;
   // A ultima "Verificar anuncios antigos" (09/11/2026), so para o `title` do botao: sem ela o botao funciona igual.
   let ultima = null;
   try {
-    [lista, ultima] = await Promise.all([listarAnunciosML({ busca, pagina: textoDe(params?.pagina), ordenar, direcao }), podeEditar ? ultimaVerificacaoML().catch(() => null) : null]);
+    [lista, ultima] = await Promise.all([listarAnunciosML({ busca, pagina: textoDe(params?.pagina), ordenar, direcao, formato }), podeEditar ? ultimaVerificacaoML().catch(() => null) : null]);
   } catch (e) {
     erro = e;
   }
@@ -74,7 +76,21 @@ export default async function MercadoLivrePage({ searchParams }) {
       {lista && (
         <>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <CampoBusca valorInicial={busca} rotulo="Buscar por título ou código" className="w-full max-w-sm" />
+            <div className="flex w-full max-w-2xl flex-wrap items-center gap-3">
+              <CampoBusca valorInicial={busca} rotulo="Buscar por título ou código" className="w-full max-w-sm" />
+              {/* O filtro do formato antigo (pedido do dono em 20/11/2026, para voltar depois nos que faltam): some quando todos
+                  ja foram convertidos (regra 4), menos enquanto esta ligado. */}
+              {(lista.formatoAntigo > 0 || formato) && (
+                <Link
+                  href={formato ? "/canais-de-venda/mercado-livre" : "/canais-de-venda/mercado-livre?formato=antigo"}
+                  aria-pressed={Boolean(formato)}
+                  title="Anúncios publicados cuja descrição ainda não foi ao Mercado Livre com as boas-vindas e o bloco dos kits. Abra o anúncio e sincronize para converter."
+                  className={`rounded border px-2.5 py-1.5 text-xs whitespace-nowrap tabular-nums transition-colors duration-150 ${formato ? "border-emerald-500 bg-emerald-50 font-medium text-emerald-800" : "border-borda text-suave hover:bg-fundo"}`}
+                >
+                  Descrição no formato antigo ({lista.formatoAntigo})
+                </Link>
+              )}
+            </div>
             <Paginacao
               compacto
               pagina={lista.pagina}

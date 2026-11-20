@@ -9,6 +9,7 @@ import { custoDaComposicao } from "@/lib/canaisDeVenda/composicao";
 import { precoPelaFaixaMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { custosDoAnuncio, custosValem, freteQueConta, precoPorMargem } from "@/lib/canaisDeVenda/ml/custos";
 import { DESCONTO_ADICIONAL_MAXIMO, LUCRO_MINIMO_ML, descontoAdicionalValido, lucroPorUnidade } from "@/lib/canaisDeVenda/ml/faixas";
+import { kitForaDoBloco, unidadesDoAnuncio } from "@/lib/canaisDeVenda/ml/kitsNaDescricao";
 import { calcularMarkup, corDoMarkup, lucroLiquido } from "@/lib/margem";
 import CalculadoraDeMargem, { taxasUsaveis } from "./CalculadoraDeMargem";
 import AtacadoDoML from "./AtacadoDoML";
@@ -235,6 +236,16 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
               </dd>
             </dl>
           )}
+          {/* Kit que nao sai mais barato por unidade que um anuncio menor do mesmo produto (spec 2026-11-20): ele fica fora do
+              bloco "Compre em kit e economize" dos menores. Em ambar porque e preco (regra 2); o Rise nao mexe no preco. */}
+          {(() => {
+            const perde = emKit ? kitForaDoBloco({ unidades: unidadesDoAnuncio(rascunho), preco, irmaos: contexto.kitsDoProduto ?? [] }) : null;
+            return perde === null ? null : (
+              <p className="mt-1 text-[11px] font-medium text-amber-700">
+                Por unidade este kit não sai mais barato que o {perde.unidades === 1 ? "anúncio de 1 unidade" : `kit de ${perde.unidades}`} ({MOEDA.format(perde.unitario)}): fica fora do “Compre em kit”.
+              </p>
+            );
+          })()}
           {/* Anuncio simples (pedido do dono em 28/10/2026, "assim como e mostrado no kit"): o preco de venda do produto, o do
               site da loja, para comparar com o do ML. */}
           {!emKit && Number(contexto.produtos?.[rascunho.produtoId]?.precoVenda) > 0 && (
