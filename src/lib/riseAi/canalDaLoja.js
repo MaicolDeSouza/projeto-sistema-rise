@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { PROVEDORES_DO_CANAL } from "./cliente/configuracaoDoCanal";
 import { cifrarSegredo, decifrarSegredo, derivarChave } from "./cliente/segredos";
 import { etiquetaDoWidget, lerPublicados } from "./cliente/widgetPublicado";
-import { endpointPadrao, provedorPorId } from "./modelos";
+import { PRECOS_USD_POR_MILHAO, endpointPadrao, provedorPorId } from "./modelos";
 import { criarProvedor as criarProvedorReal } from "./provedores/index";
 
 /**
@@ -92,6 +92,17 @@ export function faltasParaLigar({ preparado, segredos, canal }) {
   if (!String(canal?.turnstileSiteKey ?? "").trim()) faltas.push("a chave pública do Turnstile");
   if (!String(canal?.whatsapp ?? "").trim()) faltas.push("o link do WhatsApp");
   return faltas;
+}
+
+/**
+ * Os modelos que o chat pode usar: so os que tem preco cadastrado (sem preco o teto de gasto nao somaria), cada um com o
+ * provedor que o atende. `valor` e o que o formulario manda: "<provedor>/<modelo>".
+ */
+export function modelosDoCanal() {
+  return Object.keys(PRECOS_USD_POR_MILHAO).map((modelo) => {
+    const provedor = modelo.startsWith("claude-") ? "anthropic" : "openai";
+    return { valor: `${provedor}/${modelo}`, rotulo: `${modelo} (${rotuloDoProvedor(provedor)})` };
+  });
 }
 
 /** "a", "a e b", "a, b e c". */

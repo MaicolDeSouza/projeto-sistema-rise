@@ -10,6 +10,7 @@ import { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
 import Badge from "@/components/ui/Badge";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { ROTULO_DO_AVISO, TIPOS_DE_AVISO } from "@/lib/telegram/avisosTipos";
+import CanalChatDaLoja from "./CanalChatDaLoja";
 import { useAlteracaoDaAba } from "./ConfiguracoesEmAbas";
 import { MOTIVO_SO_LEITURA, RodapeDaAba, useSalvarAba } from "./salvarDaAba";
 
@@ -177,13 +178,16 @@ function CartaoDoBot({ estado, podeEditar }) {
  *   estado: { token: { cadastrada: boolean, em: string|null }, bot: { usuario: string|null, testadoEm: string|null, ok: boolean|null, erro: string|null },
  *     vinculados: { usuarioId: string, login: string, nome: string, ativo: boolean }[], urlPublica: boolean } }} props
  */
-export default function AbaCanais({ podeEditar, inicial, estado }) {
+export default function AbaCanais({ podeEditar, inicial, estado, chat }) {
+  const [canal, setCanal] = useState("telegram");
+  const [sujoDoChat, setSujoDoChat] = useState(false);
   const [ligado, setLigado] = useState(inicial.ligado);
   const [avisos, setAvisos] = useState(inicial.avisos);
   const { aviso, pendente, salvar } = useSalvarAba("canais");
 
   const sujo = ligado !== inicial.ligado || TIPOS_DE_AVISO.some((tipo) => avisos[tipo] !== inicial.avisos[tipo]);
-  useAlteracaoDaAba("canais", sujo);
+  // A aba tem dois formularios (Telegram e chat da loja): alteracao em qualquer um conta.
+  useAlteracaoDaAba("canais", sujo || sujoDoChat);
 
   function aoEnviar(evento) {
     evento.preventDefault();
@@ -195,35 +199,60 @@ export default function AbaCanais({ podeEditar, inicial, estado }) {
 
   return (
     <div className="flex max-w-2xl flex-col gap-5">
-      <CartaoDoBot estado={estado} podeEditar={podeEditar} />
+      {/* Os dois canais, um por vez (regra 5: nao empilhar). Os dois ficam montados: trocar de canal nao perde o digitado. */}
+      <div role="tablist" aria-label="Canal" className="flex w-fit overflow-hidden rounded-md border border-borda text-sm">
+        {[
+          { id: "telegram", rotulo: "Telegram" },
+          { id: "loja", rotulo: "Chat da loja" },
+        ].map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            aria-selected={canal === item.id}
+            onClick={() => setCanal(item.id)}
+            className={`px-4 py-2 transition-[background-color] duration-150 focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none ${canal === item.id ? "bg-acento font-medium text-white" : "hover:bg-fundo"}`}
+          >
+            {item.rotulo}
+          </button>
+        ))}
+      </div>
 
-      <form onSubmit={aoEnviar}>
-        <fieldset disabled={!podeEditar} title={podeEditar ? undefined : MOTIVO_SO_LEITURA} className="flex min-w-0 flex-col gap-4">
-          <section className="flex flex-col gap-3 rounded-lg border border-borda p-4">
-            <div className="flex items-center justify-between gap-3">
-              <span className="flex items-center gap-1 text-base font-semibold">
-                Bot ligado
-                <BolhaDeAjuda variante="inline" texto="Desligado, nenhum aviso sai (o token e os vínculos ficam guardados)." />
-              </span>
-              <Interruptor ligado={ligado} aoMudar={setLigado} rotulo="Bot ligado" />
-            </div>
-            <div className="flex flex-col gap-2 border-t border-borda pt-3">
-              <span className="flex items-center gap-1 text-sm font-medium">
-                Avisos
-                <BolhaDeAjuda variante="inline" texto={AJUDA_DOS_AVISOS} />
-              </span>
-              {TIPOS_DE_AVISO.map((tipo) => (
-                <div key={tipo} className={`flex items-center justify-between gap-3 text-sm ${ligado ? "" : "text-suave"}`}>
-                  <span>{ROTULO_DO_AVISO[tipo]}</span>
-                  <Interruptor ligado={Boolean(avisos[tipo])} aoMudar={(valor) => setAvisos((atual) => ({ ...atual, [tipo]: valor }))} rotulo={ROTULO_DO_AVISO[tipo]} />
-                </div>
-              ))}
-            </div>
-            {!estado.urlPublica && <p className="text-xs text-amber-800">Sem APP_URL_PUBLICA o aviso vai sem o botão Abrir no Rise (é o caso do PC).</p>}
-          </section>
-          <RodapeDaAba pendente={pendente} aviso={aviso} podeEditar={podeEditar} sujo={sujo} />
-        </fieldset>
-      </form>
+      <div hidden={canal !== "loja"}>
+        <CanalChatDaLoja podeEditar={podeEditar} inicial={chat.inicial} estado={chat.estado} modelos={chat.modelos} aoMudarSujo={setSujoDoChat} />
+      </div>
+
+      <div hidden={canal !== "telegram"} className="flex flex-col gap-5">
+        <CartaoDoBot estado={estado} podeEditar={podeEditar} />
+
+        <form onSubmit={aoEnviar}>
+          <fieldset disabled={!podeEditar} title={podeEditar ? undefined : MOTIVO_SO_LEITURA} className="flex min-w-0 flex-col gap-4">
+            <section className="flex flex-col gap-3 rounded-lg border border-borda p-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-1 text-base font-semibold">
+                  Bot ligado
+                  <BolhaDeAjuda variante="inline" texto="Desligado, nenhum aviso sai (o token e os vínculos ficam guardados)." />
+                </span>
+                <Interruptor ligado={ligado} aoMudar={setLigado} rotulo="Bot ligado" />
+              </div>
+              <div className="flex flex-col gap-2 border-t border-borda pt-3">
+                <span className="flex items-center gap-1 text-sm font-medium">
+                  Avisos
+                  <BolhaDeAjuda variante="inline" texto={AJUDA_DOS_AVISOS} />
+                </span>
+                {TIPOS_DE_AVISO.map((tipo) => (
+                  <div key={tipo} className={`flex items-center justify-between gap-3 text-sm ${ligado ? "" : "text-suave"}`}>
+                    <span>{ROTULO_DO_AVISO[tipo]}</span>
+                    <Interruptor ligado={Boolean(avisos[tipo])} aoMudar={(valor) => setAvisos((atual) => ({ ...atual, [tipo]: valor }))} rotulo={ROTULO_DO_AVISO[tipo]} />
+                  </div>
+                ))}
+              </div>
+              {!estado.urlPublica && <p className="text-xs text-amber-800">Sem APP_URL_PUBLICA o aviso vai sem o botão Abrir no Rise (é o caso do PC).</p>}
+            </section>
+            <RodapeDaAba pendente={pendente} aviso={aviso} podeEditar={podeEditar} sujo={sujo} />
+          </fieldset>
+        </form>
+      </div>
     </div>
   );
 }

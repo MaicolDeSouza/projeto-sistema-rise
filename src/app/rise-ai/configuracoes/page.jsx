@@ -10,6 +10,7 @@ import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { cotacaoDoDolar } from "@/lib/cotacaoDolar";
 import { garantirCotacaoDoDia } from "@/lib/cotacaoDoDia";
 import { ABAS, RECURSO_DA_ABA } from "@/lib/riseAi/abasDeConfiguracao";
+import { estadoDoChatDaLoja, modelosDoCanal } from "@/lib/riseAi/canalDaLoja";
 import { estadoDasChaves, lerConfiguracao } from "@/lib/riseAi/configuracao";
 import { MODELOS_SUGERIDOS, PROVEDORES, endpointPadrao } from "@/lib/riseAi/modelos";
 import { estadoDoOrcamento } from "@/lib/riseAi/orcamento";
@@ -130,7 +131,7 @@ export default async function ConfiguracoesPage() {
   }
 
   if (visiveis.includes("canais")) {
-    const telegram = await estadoDoTelegram();
+    const [telegram, chat] = await Promise.all([estadoDoTelegram(), estadoDoChatDaLoja({ config: configuracao })]);
     paineis.canais = (
       <AbaCanais
         podeEditar={podeEditar("canais")}
@@ -139,6 +140,16 @@ export default async function ConfiguracoesPage() {
           ...telegram,
           token: { cadastrada: telegram.token.cadastrada, em: comoTexto(telegram.token.em) },
           bot: { ...telegram.bot, testadoEm: comoTexto(telegram.bot.testadoEm) },
+        }}
+        chat={{
+          inicial: configuracao.chatDaLoja,
+          modelos: modelosDoCanal(),
+          // Datas viram texto para atravessar ate o navegador; nenhum segredo sai daqui (so "cadastrado" e desde quando).
+          estado: {
+            ...chat,
+            segredos: Object.fromEntries(Object.entries(chat.segredos).map(([nome, segredo]) => [nome, { cadastrado: segredo.cadastrado, em: comoTexto(segredo.em) }])),
+            sinal: chat.sinal ? { versao: chat.sinal.versao, emAndamento: chat.sinal.emAndamento, ultimoErro: chat.sinal.ultimoErro } : null,
+          },
         }}
       />
     );
