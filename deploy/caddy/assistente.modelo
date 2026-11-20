@@ -1,0 +1,51 @@
+# O endereco do chat da loja (o Hobi): hobi.4hobby.com.br -> o servico `ia` do compose.
+#
+# Este arquivo e o MODELO: o Caddy nao o le. Quem o liga e o deploy/preparar-ia.sh, que o copia para
+# `ligado-assistente.caddy` (fora do git), e o Caddyfile importa `ligado-*.caddy`. Assim o endereco so passa a existir
+# na VPS quando o dono der o ok, e um deploy comum nao muda nada.
+#
+# Endereco IRMAO de rise.4hobby.com.br, nunca debaixo dele: o cookie de login do painel vale para rise.4hobby.com.br, e
+# um servico publico nesse nome poderia recebe-lo.
+#
+# E o unico bloco do Rise sem login NENHUM, entao so passa o que a janela do chat usa: tres rotas, tres metodos, corpo
+# de ate 16 KB. Todo o resto e 404 aqui mesmo, sem chegar ao servico. Sem forward_auth e sem o segredo de borda: o
+# servico `ia` nao le login e nao alcanca o app.
+hobi.4hobby.com.br {
+	import seguranca
+
+	# IP mascarado (/24 e /48), como no Rise: o bastante para ver de onde vem um abuso, sem guardar o IP inteiro de
+	# cada visitante da loja.
+	log {
+		format filter {
+			wrap json
+			fields {
+				request>remote_ip ip_mask {
+					ipv4 24
+					ipv6 48
+				}
+				request>client_ip ip_mask {
+					ipv4 24
+					ipv6 48
+				}
+			}
+		}
+	}
+
+	@rotas {
+		method GET POST OPTIONS
+		path /status /chat /avaliar
+	}
+	handle @rotas {
+		request_body {
+			max_size 16KB
+		}
+		# flush_interval -1: a resposta do chat e um fluxo de eventos, e nao pode ficar retida no Caddy.
+		reverse_proxy ia:8787 {
+			flush_interval -1
+		}
+	}
+
+	handle {
+		respond 404
+	}
+}

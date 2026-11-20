@@ -600,7 +600,50 @@ try {
   conferir("o processo recusa subir com ENCRYPTION_KEY", [recusado.status, /ENCRYPTION_KEY/.test(recusado.stderr), recusado.stderr.includes("valor-secreto-zz")], [2, true, false]);
   conferir("o processo recusa subir sem o IA_SEGREDO", rodarProcesso({ ...ambienteBom, IA_SEGREDO: "" }).status, 2);
 
-  // MARCADOR-T7 (as tarefas seguintes acrescentam os seus blocos acima desta linha)
+  // ---------- Tarefa 7: conteiner, redes, endereco e deploy (arquivos lidos como texto) ----------
+  const { readFileSync, existsSync } = await import("node:fs");
+  const ler = (caminho) => readFileSync(new URL(`../${caminho}`, import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  const compose = ler("docker-compose.yml");
+  /** O bloco de um servico do compose: da linha "  nome:" ate o proximo servico ou a proxima secao. */
+  const blocoDoServico = (texto, nome) => (new RegExp(`\\n  ${nome}:\\n([\\s\\S]*?)(?=\\n  [a-z_-]+:\\n|\\n[a-z]+:\\n|$)`).exec(texto)?.[1] ?? "");
+  const redesDe = (bloco) => (/\n    networks:\n((?:      - .+\n?)+)/.exec(`${bloco}\n`)?.[1] ?? "").split("\n").map((linha) => linha.replace(/^\s*-\s*/, "").trim()).filter(Boolean);
+  const ia = blocoDoServico(compose, "ia");
+  conferir("o servico ia existe no compose", ia.includes("scripts/ia-processo.js"), true);
+  conferir("ia nao herda o .env nem o volume do Rise", [/\*rise/.test(ia), /env_file/.test(ia), /volumes:/.test(ia), /dados/.test(ia.replace(/dados_ia/g, ""))], [false, false, false, false]);
+  conferir("ia so recebe as variaveis dele", [...ia.matchAll(/^      ([A-Z_]+):/gm)].map((achado) => achado[1]).sort(), ["DATABASE_URL", "IA_BASE_DAS_FOTOS", "IA_ORIGENS", "IA_PORTA", "IA_SEGREDO", "NODE_OPTIONS", "TZ"]);
+  conferir("a URL do banco da ia e a do usuario restrito", /DATABASE_URL: \$\{IA_DATABASE_URL:-\}/.test(ia), true);
+  conferir("ia tem perfil proprio (um deploy comum nao o sobe)", /profiles:\s*\["ia"\]/.test(ia), true);
+  conferir("ia endurecido", ["read_only: true", "no-new-privileges:true", "pids_limit: 128", "mem_limit: 512m", "- ALL", "- /tmp"].filter((trecho) => !ia.includes(trecho)), []);
+  conferir("ia nao publica porta no servidor", /\n    ports:/.test(`\n${ia}`), false);
+  conferir("ia so nas duas redes dele", redesDe(ia), ["borda_ia", "dados_ia"]);
+  conferir("a rede do banco da ia e interna", /\n  dados_ia:\n(?:    #.*\n)*    internal: true/.test(compose), true);
+  conferir("app, worker e auth fora das redes da ia", ["app", "worker", "auth"].filter((servico) => /_ia/.test(blocoDoServico(compose, servico))), []);
+  conferir("o banco e o caddy alcancam a ia, cada um por uma rede", [redesDe(blocoDoServico(compose, "db")), redesDe(blocoDoServico(compose, "caddy"))], [["default", "dados_ia"], ["default", "borda_ia"]]);
+
+  const modeloDoCaddy = existsSync(new URL("../deploy/caddy/assistente.modelo", import.meta.url)) ? ler("deploy/caddy/assistente.modelo") : "";
+  conferir("o modelo do Caddy e do endereco do Hobi", /^hobi\.4hobby\.com\.br \{/m.test(modeloDoCaddy), true);
+  conferir("o modelo do Caddy so tem as tres rotas", (/\n\t\tpath ([^\n]+)\n/.exec(modeloDoCaddy)?.[1] ?? "").split(/\s+/), ["/status", "/chat", "/avaliar"]);
+  conferir("o modelo manda so essas rotas ao servico, e o resto e 404", [/handle @rotas \{[\s\S]*reverse_proxy ia:8787/.test(modeloDoCaddy), /\n\thandle \{\n\t\trespond 404\n\t\}/.test(modeloDoCaddy), (modeloDoCaddy.match(/reverse_proxy/g) ?? []).length], [true, true, 1]);
+  conferir("o modelo limita o corpo e nao segura o fluxo", [/max_size 16KB/.test(modeloDoCaddy), /flush_interval -1/.test(modeloDoCaddy)], [true, true]);
+  // So as diretivas contam: o comentario do modelo explica justamente que ele NAO tem login.
+  conferir("o modelo nao tem login nem o segredo de borda", /forward_auth|X-Rise-Borda|app:3000|auth:3000/.test(modeloDoCaddy.replace(/^\s*#.*$/gm, "")), false);
+  const caddyfile = ler("deploy/caddy/Caddyfile");
+  conferir("o Caddyfile importa so o que foi ligado na VPS", [caddyfile.includes("\nimport ligado-*.caddy\n"), caddyfile.includes("hobi.4hobby.com.br {")], [true, false]);
+  conferir("o arquivo ligado fica fora do git", ler(".gitignore").includes("deploy/caddy/ligado-*.caddy"), true);
+
+  const prepararIa = existsSync(new URL("../deploy/preparar-ia.sh", import.meta.url)) ? ler("deploy/preparar-ia.sh") : "";
+  conferir("o preparo gera a senha e o segredo na propria VPS", (prepararIa.match(/openssl rand -hex/g) ?? []).length, 2);
+  conferir("o preparo nunca imprime a senha nem o segredo", /(echo|printf)[^\n]*\$\{?(SENHA|SEGREDO)/.test(prepararIa.replace(/>> ?"?\$?\{?ENV[^\n]*/g, "")), false);
+  conferir(
+    "o preparo guarda uma copia do .env antes de mexer",
+    [prepararIa.includes('COPIA=".env.bak-$(date'), prepararIa.includes('cp -p .env "${COPIA}"'), prepararIa.indexOf("cp -p .env") < prepararIa.indexOf("cat >> .env")],
+    [true, true, true],
+  );
+  conferir("o preparo recusa sem o usuario do banco criado", /rise_ia/.test(prepararIa) && /exit 1/.test(prepararIa), true);
+  const deployVps = ler("deploy/deploy-vps.sh");
+  conferir("o deploy so sobe a ia onde o preparo ja rodou", /grep -qE '\^\[\[:space:\]\]\*IA_DATABASE_URL=' \.env[^\n]*\n[^\n]*\n?[^\n]*--profile ia up -d ia/.test(deployVps), true);
+
+  // MARCADOR-T8 (as tarefas seguintes acrescentam os seus blocos acima desta linha)
 } catch (erro) {
   falhas++;
   console.error("ERRO NAO ESPERADO:", erro);

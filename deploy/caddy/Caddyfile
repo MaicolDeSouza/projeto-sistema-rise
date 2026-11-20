@@ -164,3 +164,8 @@ rise.4hobby.com.br {
 		}
 	}
 }
+
+# O endereco do chat da loja (hobi.4hobby.com.br) so existe na VPS depois de o dono dar o ok: o deploy/preparar-ia.sh
+# copia o `assistente.modelo` desta pasta para `ligado-assistente.caddy` (fora do git). Sem arquivo com esse nome este
+# import nao traz nada (padrao sem arquivo nao e erro para o Caddy), e ele nem pede certificado para o endereco.
+import ligado-*.caddy

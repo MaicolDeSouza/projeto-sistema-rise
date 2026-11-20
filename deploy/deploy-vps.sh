@@ -131,6 +131,13 @@ docker run --rm --user 0 -v "${PWD}/dados:/app/dados" --entrypoint sh rise:lates
 PASSO="trocando os conteineres"
 docker compose up -d
 
+# O servico do chat da loja (perfil `ia`) so sobe onde o deploy/preparar-ia.sh ja rodou: e ele que poe a URL do usuario
+# de banco restrito no .env. O `up -d` de cima nao toca em servico de perfil; este o recria com a imagem nova.
+if grep -qE '^[[:space:]]*IA_DATABASE_URL=' .env; then
+  PASSO="subindo o servico do chat da loja"
+  docker compose --profile ia up -d ia
+fi
+
 # O Caddy so le o Caddyfile na partida ou no reload, e o `up -d` nao recria um conteiner so porque o conteudo de um
 # arquivo montado mudou. Recarregar aqui e o que faz uma mudanca no Caddyfile valer. O conteiner pode ter acabado
 # de ser recriado: algumas tentativas.
@@ -219,6 +226,15 @@ if ! docker builder prune -f --filter "until=168h" >/dev/null || ! docker image 
   echo "AVISO: a limpeza do cache do Docker falhou. O deploy esta no ar; confira o disco com 'df -h /'."
 fi
 echo "== Disco: $(df -h / | awk 'NR==2 {print $4 " livres de " $2}')"
+
+# O chat da loja e conferido por dentro e so AVISA: se ele nao subiu, o Rise continua no ar e o deploy nao para.
+if grep -qE '^[[:space:]]*IA_DATABASE_URL=' .env; then
+  if docker compose exec -T ia node -e "fetch('http://localhost:8787/status').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" 2>/dev/null; then
+    echo "   chat da loja: o servico responde"
+  else
+    echo "   AVISO: o servico do chat da loja nao respondeu (veja: docker compose logs --tail 40 ia). O Rise esta no ar."
+  fi
+fi
 
 docker compose ps
 echo "== No ar: Versao ${VERSAO} (commit ${COMMIT})"

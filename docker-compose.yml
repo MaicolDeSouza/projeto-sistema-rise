@@ -71,6 +71,11 @@ services:
       timeout: 5s
       retries: 10
     mem_limit: 1536m
+    # Duas redes: a `default` (app, worker, auth e caddy, como sempre) e a `dados_ia`, a UNICA por onde o servico do chat
+    # da loja chega ao banco.
+    networks:
+      - default
+      - dados_ia
     logging: *logs
 
   app:
@@ -144,9 +149,60 @@ services:
     depends_on:
       - app
       - auth
+    # A `borda_ia` e a rede por onde o Caddy entrega ao servico do chat da loja (hobi.4hobby.com.br).
+    networks:
+      - default
+      - borda_ia
+    logging: *logs
+
+  # O chat da loja (o Hobi): o UNICO servico do Rise que atende a internet sem login. Regras do dono (19/11/2026): nao
+  # pode haver vazamento de dados e nao pode por o Rise em risco. Por isso ele NAO usa a ancora `*rise`:
+  #  - nao recebe o .env (so as variaveis abaixo, pela interpolacao do compose, como o segredo de borda do Caddy):
+  #    nenhuma chave do Bling, do Mercado Livre ou da Loja Integrada, nem a ENCRYPTION_KEY. O processo se recusa a
+  #    subir se achar alguma (src/lib/riseAi/cliente/ambiente.js);
+  #  - fala com o banco como `rise_ia`, o usuario restrito (so visoes publicas e as conversas do canal);
+  #  - nao monta `dados/`, nao escreve em disco (read_only) e nao publica porta: so o Caddy o alcanca;
+  #  - mora em duas redes proprias e nao alcanca app, worker nem auth.
+  # Perfil `ia`: um deploy comum NAO o sobe. So o deploy-vps.sh, e so depois de o deploy/preparar-ia.sh ter rodado
+  # (com o ok do dono), que e quem poe IA_DATABASE_URL e IA_SEGREDO no .env.
+  ia:
+    image: rise:latest
+    profiles: ["ia"]
+    restart: unless-stopped
+    command: ["node", "scripts/ia-processo.js"]
+    environment:
+      TZ: America/Sao_Paulo
+      NODE_OPTIONS: --max-old-space-size=384
+      DATABASE_URL: ${IA_DATABASE_URL:-}
+      IA_SEGREDO: ${IA_SEGREDO:-}
+      IA_ORIGENS: https://www.4hobby.com.br,https://4hobby.com.br
+      IA_BASE_DAS_FOTOS: https://rise.4hobby.com.br
+      IA_PORTA: "8787"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    pids_limit: 128
+    networks:
+      - borda_ia
+      - dados_ia
+    depends_on:
+      db:
+        condition: service_healthy
     logging: *logs
 
 volumes:
   rise-pgdata:
   caddy-data:
   caddy-config:
+
+networks:
+  # Caddy <-> servico do chat. Tem saida para a internet: o servico chama a API da IA e a Cloudflare.
+  borda_ia:
+  # Servico do chat <-> banco. Interna: nada sai por ela.
+  dados_ia:
+    internal: true

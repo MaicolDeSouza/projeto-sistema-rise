@@ -60,3 +60,6 @@ next-env.d.ts
 # Mockups do companion visual do brainstorming (skill superpowers): material de
 # conversa, nao do sistema.
 /.superpowers/
+
+# O endereco do chat da loja no Caddy: ligado so na VPS pelo deploy/preparar-ia.sh (copia do assistente.modelo).
+deploy/caddy/ligado-*.caddy
