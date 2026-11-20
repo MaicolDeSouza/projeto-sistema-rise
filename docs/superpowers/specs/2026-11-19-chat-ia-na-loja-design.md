@@ -130,7 +130,16 @@ Turnstile. O dono cola os dois **na tela do Rise** (§9), como todo token; o app
 /widget-<versão>.js`, `GET /status`, `POST /chat`, `POST /pedido` e `POST /avaliar`; corpo de até 16 KB; qualquer outro
 caminho 404; sem `forward_auth`; `reverse_proxy ia:<porta>`. CORS só para a origem da loja. IP mascarado no log, como já é.
 
+**Como ficou na fase 2 (20/11/2026):** o arquivo se chama `widget-<10 hexadecimais do conteúdo>.js` e responde a qualquer origem
+(a conferência de integridade exige); `/pedido` entra na fase 3. `/status` devolve também `publico` (o campo "Quem vê").
+
 ## 6. O widget na Loja Integrada
+
+**Como ficou na fase 2 (20/11/2026), decisões da execução:** as imagens do mascote vão **embutidas** no arquivo (um arquivo só, tudo
+coberto pela integridade); o publicado antigo nunca é apagado depois que a etiqueta estiver na loja; o carrinho foi **medido** (o
+endereço de comprar aceita `/adicionar/<quantidade>` e responde JSON; vários itens = um pedido por item, em fila); o atalho
+"Acompanhar meu pedido" só aparece na fase 3; "Quem vê" (`?assistente=1` ou todos) já está no widget; a janela foi conferida numa
+loja de mentira no PC (`npm run hobi:demo`), não na Loja Integrada.
 
 - **Um arquivo**, JavaScript puro, Shadow DOM (o CSS da loja não o afeta, nem o contrário), carregado com `defer`.
 - **Fixado por integridade:** a etiqueta colada na LI traz `integrity="sha384-…"` e o nome do arquivo com a versão. Se o

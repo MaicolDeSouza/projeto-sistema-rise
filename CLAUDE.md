@@ -349,7 +349,7 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Cadastros | Clientes (física/jurídica, endereço Geral/Entrega com lupa de CEP, contatos), fornecedores, concorrentes, transportadoras e marcas, numa página de **cartões** (sem cascata no menu); a seção Produtos abre o mesmo formulário de Produtos. Grava só no banco local |
 | Mercados | Teste de fonte, importação de arquivo (HTML/PDF/XLSX) e coleta gravando **no Postgres**, com série de preço |
 | Ferramentas | Conversor de imagem para SVG (PNG/JPG/WebP em vetor colorido, motor VTracer) e cotação do dólar (PTAX do Banco Central, com gráfico), que não gravam nada. **Licenças Softwares (NO AR na VPS desde 06.11.2026.72, importação feita lá):** chaves do LightBurn e arquivos do Mach3 com os clientes de cada licença, vagas livres e último uso lidos do portal pela extensão "Rise LightBurn"; ver "Ferramentas: Licenças Softwares" |
-| Rise AI | **Mudança de rumo em 20/10/2026:** o chat interno saiu da tela e a equipe consulta o Rise pelo **Claude ou pelo ChatGPT**, pelo servidor MCP (`/mcp`, OAuth próprio, só leitura, nunca chama IA paga), pronto e **sem deploy**. Ficam a aba Conexões (o endereço e as conexões de cada pessoa), a Revisão do dia (com as dúvidas que o Claude e o ChatGPT anotam), o Consumo e as Configurações (Modelos, orçamento dos clientes e o prompt do cliente); a lib `src/lib/riseAi/` fica inteira como o motor do WhatsApp. A Entrega 1 está na VPS desde 13/10/2026; o chat da A1 nunca subiu e saiu. **Entrega C1 (avisos no Telegram) pronta em 23/10/2026, SEM deploy:** aba Canais com o bot, vínculo por código na tela do usuário e cinco avisos pelo worker. Ver "Servidor MCP (20/10/2026)", "Rise AI (Entrega 1)" e "Rise AI (Entrega C1, avisos no Telegram)". **Chat da loja (o Hobi), fase 1 pronta em 19/11/2026, SEM deploy e sem nada visível na loja:** o serviço `ia` isolado (usuário de banco `rise_ia` só com visões públicas, sem as chaves do Rise), o cérebro do cliente e a porta `hobi.4hobby.com.br` desligada; ver "Chat da loja (o Hobi), fase 1" |
+| Rise AI | **Mudança de rumo em 20/10/2026:** o chat interno saiu da tela e a equipe consulta o Rise pelo **Claude ou pelo ChatGPT**, pelo servidor MCP (`/mcp`, OAuth próprio, só leitura, nunca chama IA paga), pronto e **sem deploy**. Ficam a aba Conexões (o endereço e as conexões de cada pessoa), a Revisão do dia (com as dúvidas que o Claude e o ChatGPT anotam), o Consumo e as Configurações (Modelos, orçamento dos clientes e o prompt do cliente); a lib `src/lib/riseAi/` fica inteira como o motor do WhatsApp. A Entrega 1 está na VPS desde 13/10/2026; o chat da A1 nunca subiu e saiu. **Entrega C1 (avisos no Telegram) pronta em 23/10/2026, SEM deploy:** aba Canais com o bot, vínculo por código na tela do usuário e cinco avisos pelo worker. Ver "Servidor MCP (20/10/2026)", "Rise AI (Entrega 1)" e "Rise AI (Entrega C1, avisos no Telegram)". **Chat da loja (o Hobi), fase 1 pronta em 19/11/2026, SEM deploy e sem nada visível na loja:** o serviço `ia` isolado (usuário de banco `rise_ia` só com visões públicas, sem as chaves do Rise), o cérebro do cliente e a porta `hobi.4hobby.com.br` desligada; ver "Chat da loja (o Hobi), fase 1". **Fase 2 pronta em 20/11/2026, SEM deploy:** a janela do chat com o mascote (conferida numa loja de mentira no PC), a tela Canais › Chat da loja (ligar, textos, limites, chaves cifradas, etiqueta), as conversas da loja na Revisão do dia, o Consumo sem o gasto em dobro e a linha "Assistente da loja" na Saúde; ver "Chat da loja (o Hobi), fase 2" |
 | Configurações (Acessos) | Lançamento 1 pronto em 12/10/2026 e **no ar na VPS desde 13/10/2026**: usuários, funções com a matriz de permissões, exceções, quebra-vidro `RISE_AI_ADMINS` e segredo de borda; o Rise AI e Configurações conferem o acesso no servidor. Integrações virou cartão de Configurações. **Lançamento 2 pronto em 22/10/2026, SEM deploy:** o Rise inteiro confere o acesso (menu e Painel filtrados, telas em `ver` com o selo "Somente leitura", dados sensíveis cortados no servidor), "Ver como" e a aba Histórico. Ver "Acessos (lançamento 1)" e "Acessos (lançamento 2)" |
 | Relatórios | **Relatório semanal da coleta** em PDF (tela `/relatorios`, 20/10/2026, sem deploy): lista das rodadas, "Gerar agora" e baixar o PDF. Ver "Relatório semanal da coleta" |
 | Compras | Pedidos de compra e reposição do estoque mínimo (26/10/2026, sem deploy): lista dos conferidos abaixo do mínimo com popup de fornecedores e rascunho automático por fornecedor, editor do pedido no molde do Bling, estoque a caminho calculado, lançar estoque no Bling por item com Desfazer, proposta anexada e PDF para o fornecedor. Ver "Compras (26/10/2026)". **AliExpress (28/10/2026):** extensão do Chrome "Enviar ao Rise" importa os pedidos do site com rastreio por item e depósito Virtual do Bling; ver "AliExpress no Compras (28/10/2026)". **Mercado Livre (11/11/2026):** as compras da conta da loja entram sozinhas pela API, mais a busca pelo rastreio e a nota fiscal do pedido; ver "Compras do Mercado Livre, busca pelo rastreio e nota fiscal (11/11/2026)". **Estudos de viabilidade (12/11/2026, NO AR em 12.11.2026.112):** produtos marcados no Scraper estudados no Mercado Livre pelo Claude Desktop (MCP), com veredito e quantidade; ver "Estudo de viabilidade de produto" |
@@ -452,9 +452,13 @@ npm run teste:licencas            # 109 asserções das Licenças Softwares: reg
 npm run teste:extensao-lightburn  # 13 asserções da leitura da extensão "Rise LightBurn" (extensao-lightburn/leitura.js) com as respostas da API do portal medidas em 05/11/2026 (fixtures anonimizadas em scripts/fixtures/lightburn/). Puro: sem banco, sem rede, sem Chrome
 npm run teste:analise-fornecedor  # 73 asserções do modelo padrão da análise de lista de fornecedor (src/lib/analiseFornecedor/): formato dos dados, montagem e a página com DOM falso em US$ dentro do claude.ai (com a lista "vincular" do item sem vínculo), em R$ fora dele (Copiar escolhas) e em R$ com fator. Puro: sem banco, sem rede, sem navegador
 node scripts/importar-licencas.js --lightburn=<xlsx> --mach3=<xlsx> --pasta=<pasta> --pdf=<pdf> --simular   # importação das planilhas antigas de licenças e da pasta do Mach3 (uma vez; idempotente); --confirmo grava
-npm run teste:assistente          # 217 asserções do chat da loja (o Hobi), fase 1: configuração do canal, segredos do serviço, leitura só pelas visões públicas, lista de peças, filtro de saída, limites, verificação de robô, as 8 ferramentas (com a conta pelo `calcularTotal`), o cérebro (cartões, reserva, orçamento, passagem ao WhatsApp), a porta HTTP (status, chat em SSE, avaliar) e, como texto, o compose, o Caddy e o deploy. Provedor e Turnstile FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve ZZ-LOJA-*, loja:zz-* e "ZZ LOJA *" e devolve a ConfiguracaoIA do dono
+npm run teste:assistente          # 293 asserções do chat da loja (o Hobi), fases 1 e 2 (com o widget montado e servido, o canal gravado pelo Rise com os segredos cifrados, a Revisão e o Consumo sem dobra): configuração do canal, segredos do serviço, leitura só pelas visões públicas, lista de peças, filtro de saída, limites, verificação de robô, as 8 ferramentas (com a conta pelo `calcularTotal`), o cérebro (cartões, reserva, orçamento, passagem ao WhatsApp), a porta HTTP (status, chat em SSE, avaliar) e, como texto, o compose, o Caddy e o deploy. Provedor e Turnstile FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve ZZ-LOJA-*, loja:zz-* e "ZZ LOJA *" e devolve a ConfiguracaoIA do dono
+npm run teste:widget              # 45 asserções do núcleo da janela do chat da loja (assistente/widget/nucleo.js): sessão, leitor do fluxo, que link e que foto podem aparecer, carrinho, aviso de CPF/cartão, estado da conversa e o que fica guardado na aba. Puro: sem banco, sem rede, sem navegador
+npm run hobi:demo                 # a LOJA DE MENTIRA do chat (http://127.0.0.1:8790): a janela de verdade numa página que imita a Loja Integrada, com o banco do PC e respostas de roteiro (sem IA e sem gasto). `-- --real` usa a chave da OpenAI do Rise do PC e GASTA (só com o ok do dono)
+npm run hobi:montar               # monta e publica a janela do chat em assistente/publicado/ (nome pelo conteúdo + integridade). Rodar depois de mexer em assistente/widget/ ou no mascote e commitar o publicado junto; nunca apagar publicado antigo depois que a etiqueta estiver na loja
+npm run hobi:mascote              # recorta o fundo das imagens do mascote (docs/mascote-hobi/) e grava os .webp de assistente/mascote/; `-- --conferir` grava também cada recorte sobre fundo escuro em dados/diag/
 npm run teste:ia-isolamento       # 73 asserções do usuário de banco `rise_ia`: veste o papel no Postgres de verdade e tenta ler o proibido (18 tabelas negadas, nenhuma coluna sensível nas visões, conversas e orçamento só do canal de cliente), a migration igual ao gerador, uma conversa inteira e o serviço de verdade (`scripts/ia-processo.js`) rodando como `rise_ia` num ambiente sem as chaves do Rise. Postgres local, SEM rede; dá ao papel uma senha de uso único e a tira no fim; recusa rodar na produção e onde o papel já tem login
-npm run teste:saude               # 72 asserções da Saúde do Rise: regras (rotinas, worker, disco, backup, memória, banco, integrações, orçamento, varreduras, PC, healthchecks, certificado digital), o aviso do Telegram, a gravação em RotinaDoWorker e a coleta nos modos PC e VPS. Postgres local, SEM rede; só escreve zz-saude-*
+npm run teste:saude               # 80 asserções da Saúde do Rise (com a linha "Assistente da loja"): regras (rotinas, worker, disco, backup, memória, banco, integrações, orçamento, varreduras, PC, healthchecks, certificado digital), o aviso do Telegram, a gravação em RotinaDoWorker e a coleta nos modos PC e VPS. Postgres local, SEM rede; só escreve zz-saude-*
 npm run teste:acessos             # 207 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição, as projeções do lançamento 2 (Painel, lista de Produtos, Cadastros, canais, Scraper, Indicadores), "Ver como", Histórico e o guarda estático de src/app (sem lista de exceções). Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
 npm run teste:proposta            # 339 asserções da proposta automática de produto (com as seções de categorias e SEO da loja e as Correções da descrição no banco): regras de preço/medidas/NCM, validação do plano, gravação por seção (fotos padronizadas em proposta/), aplicar ao formulário, Salvar marcando aplicadas, fotos para a reserva, Conferido com pergunta e o script de verdade (Postgres local, SEM rede; só escreve produtos ZZ-PROP-* e as pastas deles)
 npm run acessos:admin -- <login>  # torna um login Administrador do Rise (cria ou reativa e liga à função). Na VPS, por SSH, dentro do contêiner do app
@@ -5583,7 +5587,74 @@ fase 2 (tela Canais, chaves coladas pelo dono) e aparece na loja na fase 4.
 **Restaurar o dump num servidor novo** exige criar antes o papel (`CREATE ROLE rise_ia NOLOGIN`), senão as concessões e políticas
 do dump falham. **Não visto:** nada disto rodou na VPS; o Caddyfile com o `import` e o modelo do endereço só são validados no deploy
 (`caddy validate`, antes de trocar qualquer coisa); o provedor de verdade e o Turnstile de verdade nunca foram chamados (os testes
-usam falsos). Até a fase 2, o gasto `CONVERSA` aparece em "Outros" no Consumo e o 👎 do visitante só fica gravado.
+usam falsos). Até a fase 2, o gasto `CONVERSA` aparece em "Outros" no Consumo e o 👎 do visitante só fica gravado (os dois resolvidos na fase 2, abaixo).
+
+## Chat da loja (o Hobi), fase 2: a janela do chat e as telas (20/11/2026)
+
+Plano `docs/superpowers/plans/2026-11-20-chat-da-loja-fase-2-widget-e-telas.md` (8 tarefas, executado inline na `main`). **SEM deploy
+e nada visível na loja de verdade:** a etiqueta só é colada na Loja Integrada na fase 4. Faltam a fase 3 (acompanhar pedido) e a 4
+(DNS, Cloudflare, chaves, etiqueta).
+
+**A janela (widget)** é um arquivo JavaScript só, montado de duas fontes:
+- `assistente/widget/nucleo.js`: a lógica que não depende de tela (sessão, leitor do fluxo SSE, que link e que foto podem aparecer,
+  endereço do carrinho, aviso de CPF/cartão, o estado da conversa). **Só `export function`/`export const`, sem `import`, sem
+  `window`/`document`:** o montador tira os `export`. Testado em Node (`npm run teste:widget`).
+- `assistente/widget/tela.js`: a tela em Shadow DOM (o CSS da loja não entra e o dela não sai). **Dado do servidor é sempre
+  `textContent`**; link passa por `linkDaLoja`, foto por `fotoPermitida`, WhatsApp por `linkDoWhatsApp`. Tudo em `try/catch`; o
+  `/status` tem 4 s; o script do Turnstile só é carregado na primeira mensagem; não roda em `body.pagina-carrinho`, `/carrinho` nem
+  `/checkout`. O endereço do serviço é a origem do próprio script.
+- `assistente/mascote/*.webp`: o mascote recortado de `docs/mascote-hobi/` por `npm run hobi:mascote` (fundo claro tirado a partir
+  das bordas, tolerância baixa; **só fica bem sobre superfície clara**, e a janela o põe sempre sobre branco). Vai embutido no arquivo.
+
+**Publicar uma versão da janela:** `npm run hobi:montar` grava `assistente/publicado/widget-<10 hex>.js` e o `manifesto.json`
+(versão = 10 hexadecimais do SHA-256 do conteúdo; integridade `sha384`). O `teste:assistente` falha se o publicado não for o que as
+fontes de agora montam. **Regras:** (1) depois de mexer em `nucleo.js`, `tela.js` ou no mascote, montar e commitar o publicado junto;
+(2) **depois que a etiqueta estiver colada na loja, nunca apagar um publicado antigo** (a etiqueta antiga aponta para ele; o serviço
+serve todos os arquivos da pasta); (3) versão nova só vale na loja depois de colar a etiqueta nova, que a tela Canais mostra; (4)
+`assistente/publicado/** -text` no `.gitattributes` e o montador normalizando `\r\n`: a integridade é byte a byte, e o git do PC
+converte fim de linha.
+
+**O serviço** (`cliente/servidorHttp.js`) ganhou `GET /widget-<10 hex>.js` (qualquer origem, `Access-Control-Allow-Origin: *` porque
+a conferência de integridade exige, cache de 1 ano) e `/status` devolve `publico`. O modelo do Caddy ganhou o matcher `@widget`, e o
+`deploy-vps.sh` copia o modelo por cima do `ligado-assistente.caddy` quando eles diferem (antes do `caddy validate`).
+
+**"Quem vê" (`chatDaLoja.publico`, nasce `false`):** `false` = só quem abre a loja com `?assistente=1` (fica lembrado na aba);
+`true` = todos. É como o dono testa na loja de verdade na fase 4 sem os clientes verem.
+
+**Carrinho da Loja Integrada, medido em 20/11/2026 no código da própria loja:** comprar é
+`GET /carrinho/produto/<id da LI>/adicionar/<quantidade>` com `X-Requested-With: XMLHttpRequest` → JSON `{ status: "sucesso",
+mensagem, carrinho_id, produto: { id, sku, nome, preco, quantidade } }`; a loja então faz `$("#carrinho-mini").load("/carrinho/mini")`
+e `atualizarCarrinhoMini()`, e se a chamada falha navega para o endereço. A janela faz o mesmo (um item por vez, também no "Adicionar
+os N itens" da lista orçada). Página de produto = `body.pagina-produto` + `[itemprop=sku]`.
+
+**Loja de mentira:** `npm run hobi:demo` (`scripts/hobi-demo.js`, `http://127.0.0.1:8790`, configuração `hobi-demo` do preview em
+`C:\00-Dev\Projeto_sistema_Rise\.claude\launch.json`, a pasta de CIMA, que é a que o `preview_start` lê). Usa o banco do PC, a chave de
+teste do Turnstile (sempre passa) e respostas de ROTEIRO (sem IA e sem gasto); `-- --real` usa a chave da OpenAI do Rise do PC e
+**gasta** (só com o ok do dono). "#barrada" ou "#marcacao" na mensagem pedem o roteiro do preço inventado e o da marcação HTML. As
+conversas dela ficam no banco do PC e aparecem na Revisão do dia. **Depois de `hobi:montar`, reiniciar a loja de mentira** (ela lê os
+publicados na partida).
+
+**No Rise:**
+- `src/lib/riseAi/canalDaLoja.js` (lado do Rise; fora de `cliente/`, que é o que o serviço público carrega): `guardarSegredoDoChat`,
+  `removerSegredoDoChat`, `testarChaveDoChat`, `faltasParaLigar`, `estadoDoChatDaLoja`, `modelosDoCanal`. Segredo cifrado com
+  `derivarChave(IA_SEGREDO, "segredos")`; a trilha (`rise-ai.chatDaLoja.segredo`) guarda só o nome e "cadastrado".
+- Tela **Rise AI › Configurações › Canais › Chat da loja** (`CanalChatDaLoja.jsx`; a aba Canais troca Telegram | Chat da loja por
+  botões, os dois montados): estado no topo, interruptor, "Quem vê" e três abas internas (Atendimento, Chaves e instalação, Limites e
+  modelos). Campos `chat.*` no `salvarAba("canais")`; erro por campo com o nome da validação (`chatDaLoja.whatsapp`). **Ligar com algo
+  faltando é recusado dizendo o que falta** (serviço preparado, chave do provedor principal, segredo e chave pública do Turnstile,
+  WhatsApp). Sem `<fieldset disabled>`: quem só lê precisa trocar de aba interna.
+- **Revisão do dia:** conversa da loja com "Visitante <6 caracteres>", selo "pela loja", e sob cada resposta os cartões, a lista
+  orçada, a passagem ao WhatsApp, a nota do visitante e o quadro âmbar "Barrada pelo filtro" com o texto que o visitante NÃO viu
+  (`riseAi/revisaoDaLoja.js`). O 👎 do visitante sinaliza a conversa e **não chama a IA sozinho** (qualquer pessoa gastaria o
+  orçamento); sugestão de conversa de cliente leva o selo "veio de conversa com cliente" e a nota aprovada nasce interna.
+- **Consumo:** `gastosOutrosPorDia` não soma o tipo `CONVERSA` (a resposta da loja já está na linha do modelo; aparecia em dobro);
+  barra "Clientes (loja e WhatsApp)". **Saúde:** linha "Assistente da loja" (`avaliarAssistente`: desligado = informação; ligado
+  sem sinal há 2 min = vermelho; ligado com algo faltando = amarelo; no PC, "só roda na VPS").
+
+**Não visto:** nada disto rodou na VPS; Guardar/Remover/Testar de um segredo e o Copiar da etiqueta não foram clicados na tela (no PC
+os campos ficam travados sem o `IA_SEGREDO`; a regra tem teste); IA de verdade na janela (`--real` não rodou); o desafio do Turnstile
+quando ele exige clique; `/status` fora do ar na carga da página (só por teste do núcleo); leitor de tela; a janela dentro da Loja
+Integrada de verdade. No painel do navegador em segundo plano as animações param (por isso a abertura anima só o deslocamento).
 
 ## Rise AI (Entrega C1, avisos no Telegram, 23/10/2026)
 
