@@ -106,7 +106,7 @@ const LISTA = [
   capacidade("riseAi.configuracoes.orcamentos", "Rise AI › Configurações › Orçamentos", "riseAi.configuracoes", "Quanto a IA pode gastar por mês com os clientes."),
   // A aba Canais da internet saiu com o chat (20/10/2026) e voltou em 22/10/2026 só com o Telegram (Entrega C1), não
   // delegável: o bot manda avisos com dado da loja a quem estiver vinculado, e isso é só do Administrador.
-  naoDelegavel("riseAi.configuracoes.canais", "Rise AI › Configurações › Canais (Telegram)", "riseAi.configuracoes", "O bot do Telegram, o vínculo das pessoas e quais avisos saem. Só do Administrador."),
+  naoDelegavel("riseAi.configuracoes.canais", "Rise AI › Configurações › Canais (Telegram e chat da loja)", "riseAi.configuracoes", "O bot do Telegram (vínculo das pessoas e avisos) e o chat da loja (ligar, textos, limites e chaves). Só do Administrador."),
   capacidade("riseAi.configuracoes.atendimento", "Rise AI › Configurações › Atendimento", "riseAi.configuracoes", "O prompt das respostas ao cliente."),
   naoDelegavel("riseAi.configuracoes.promptCliente", "Rise AI › Configurações › Atendimento › Prompt das respostas ao cliente", "riseAi.configuracoes.atendimento"),
 

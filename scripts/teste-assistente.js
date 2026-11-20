@@ -822,6 +822,139 @@ try {
     ],
     [true, true, true],
   );
+
+  // ---------- Fase 2, tarefa 4: o Rise grava o canal (configuracao, segredos cifrados, o que falta para ligar) ----------
+  const { parcialDaConfiguracao } = await import("../src/lib/riseAi/formularios.js");
+  const { salvarAba } = await import("../src/lib/riseAi/abasDeConfiguracao.js");
+  const { NOMES_DOS_SEGREDOS, servicoPreparado, guardarSegredoDoChat, removerSegredoDoChat, testarChaveDoChat, faltasParaLigar, estadoDoChatDaLoja } = await import("../src/lib/riseAi/canalDaLoja.js");
+  const formulario = (campos) => {
+    const dadosDoFormulario = new FormData();
+    for (const [nome, valor] of Object.entries(campos)) for (const item of Array.isArray(valor) ? valor : [valor]) dadosDoFormulario.append(nome, item);
+    return dadosDoFormulario;
+  };
+  const QUEM = "zz-loja";
+  const ambienteDoRise = { IA_SEGREDO: chave };
+  const todos = { usuario: QUEM, pode: () => true, env: ambienteDoRise };
+  const segredosDoDono = await prisma.segredoDoAssistente.findMany();
+  try {
+    // O grupo do chat parte do padrao de fabrica, seja o que for que o dono tenha salvo neste PC (devolvido no fim).
+    await prisma.configuracaoIA.upsert({ where: { id: "unica" }, create: { id: "unica", dados: { chatDaLoja: chatDaLojaPadrao() } }, update: { dados: { ...(configuracaoDoDono?.dados ?? {}), chatDaLoja: chatDaLojaPadrao() } } });
+    await prisma.segredoDoAssistente.deleteMany({});
+    const formularioInteiro = {
+      "chat.ligado": "false",
+      "chat.publico": "true",
+      "chat.nome": " ZZ Hobi ",
+      "chat.boasVindas": "ZZ oi",
+      "chat.whatsapp": WHATSAPP,
+      "chat.turnstileSiteKey": "zz-site-key",
+      "chat.horario": "1",
+      "chat.dias": ["1", "3", "5"],
+      "chat.turno1De": "08:00",
+      "chat.turno1Ate": "12:00",
+      "chat.turno2De": "",
+      "chat.turno2Ate": "",
+      "chat.principal": "openai/gpt-4.1-mini",
+      "chat.reserva": "",
+      "chat.limite.mensagensPorSessaoPorHora": "30",
+      "chat.limite.caracteresPorMensagem": "2000",
+      "chat.limite.brlPorSessaoPorDia": "0,50",
+      "chat.limite.mensagensPorIpPorHora": "60",
+      "chat.limite.respostasAoMesmoTempo": "5",
+      "chat.limite.brlPorDia": "7",
+    };
+    conferir("formulario do chat vira o grupo chatDaLoja", parcialDaConfiguracao(formulario(formularioInteiro)), {
+      chatDaLoja: {
+        ligado: false,
+        publico: true,
+        nome: "ZZ Hobi",
+        boasVindas: "ZZ oi",
+        whatsapp: WHATSAPP,
+        turnstileSiteKey: "zz-site-key",
+        horario: { dias: [1, 3, 5], turnos: [["08:00", "12:00"]] },
+        principal: { provedor: "openai", modelo: "gpt-4.1-mini" },
+        reserva: null,
+        limites: { mensagensPorSessaoPorHora: 30, caracteresPorMensagem: 2000, brlPorSessaoPorDia: 0.5, mensagensPorIpPorHora: 60, respostasAoMesmoTempo: 5, brlPorDia: 7 },
+      },
+    });
+    conferir("formulario so do Telegram nao toca no chat", "chatDaLoja" in parcialDaConfiguracao(formulario({ telegramLigado: "true" })), false);
+    conferir("formulario so do chat nao toca no Telegram", Object.keys(parcialDaConfiguracao(formulario({ "chat.nome": "ZZ" }))), ["chatDaLoja"]);
+    conferir("horario sem nenhum dia marcado", parcialDaConfiguracao(formulario({ "chat.horario": "1", "chat.turno1De": "09:00", "chat.turno1Ate": "12:00" })).chatDaLoja.horario, { dias: [], turnos: [["09:00", "12:00"]] });
+
+    const telegramAntes = (await lerConfiguracao()).telegram;
+    conferir("salvar o chat grava", await salvarAba("canais", formulario({ "chat.nome": "ZZ Hobi", "chat.boasVindas": "ZZ oi" }), todos), { ok: true });
+    const salva = await lerConfiguracao();
+    conferir("o chat salvo vale e o Telegram nao mudou", [salva.chatDaLoja.nome, salva.chatDaLoja.boasVindas, salva.chatDaLoja.ligado, JSON.stringify(salva.telegram) === JSON.stringify(telegramAntes)], ["ZZ Hobi", "ZZ oi", false, true]);
+    conferir("a mudanca do chat entra na trilha", await prisma.auditoriaDeAcesso.count({ where: { quem: QUEM, oQue: "rise-ai.chatDaLoja" } }), 1);
+    conferir("sem permissao na aba Canais nada e salvo", (await salvarAba("canais", formulario({ "chat.nome": "ZZ outro" }), { ...todos, pode: () => false })).ok, false);
+    conferir("valor invalido volta no campo e nao grava", [(await salvarAba("canais", formulario({ "chat.whatsapp": "https://exemplo.com/x" }), todos)).erros?.["chatDaLoja.whatsapp"] !== undefined, (await lerConfiguracao()).chatDaLoja.whatsapp], [true, ""]);
+
+    // Os segredos: cifrados com a chave "segredos" derivada do IA_SEGREDO; nunca o valor na trilha.
+    const SEGREDO = "sk-zz-segredo-de-teste-0123456789";
+    conferir("os segredos do chat", NOMES_DOS_SEGREDOS, ["openai", "anthropic", "turnstile"]);
+    conferir("servico preparado = IA_SEGREDO com 64 hexadecimais", [servicoPreparado(ambienteDoRise), servicoPreparado({}), servicoPreparado({ IA_SEGREDO: "abc" })], [true, false, false]);
+    conferir("sem o IA_SEGREDO nao guarda", await guardarSegredoDoChat("openai", SEGREDO, { usuario: QUEM, env: {} }), { ok: false, erro: "O serviço do chat ainda não foi preparado na VPS." });
+    conferir("segredo curto demais", (await guardarSegredoDoChat("openai", "abc", { usuario: QUEM, env: ambienteDoRise })).ok, false);
+    conferir("nome de segredo desconhecido", (await guardarSegredoDoChat("outro", SEGREDO, { usuario: QUEM, env: ambienteDoRise })).ok, false);
+    conferir("guarda o segredo", await guardarSegredoDoChat("openai", `  ${SEGREDO}  `, { usuario: QUEM, env: ambienteDoRise }), { ok: true });
+    const gravado = await prisma.segredoDoAssistente.findUnique({ where: { nome: "openai" } });
+    conferir(
+      "o segredo fica cifrado e so a chave 'segredos' o abre",
+      [gravado.cifrado.includes(SEGREDO), gravado.atualizadoPor, decifrarSegredo(gravado.cifrado, chaveDosSegredos), lancou(() => decifrarSegredo(gravado.cifrado, chaveDoPasse)), lancou(() => decifrarSegredo(gravado.cifrado, chave))],
+      [false, QUEM, SEGREDO, true, true],
+    );
+    conferir("o servico le o que o Rise gravou", (await criarDadosDoCliente({ baseDasFotos: "https://rise.exemplo", chaveHex: chaveDosSegredos }).segredos()).openai, SEGREDO);
+    const trilhaDosSegredos = await prisma.auditoriaDeAcesso.findMany({ where: { quem: QUEM, oQue: "rise-ai.chatDaLoja.segredo" } });
+    conferir("a trilha diz qual segredo mudou, nunca o valor", [trilhaDosSegredos.length, trilhaDosSegredos[0]?.depois, JSON.stringify(trilhaDosSegredos).includes(SEGREDO)], [1, { nome: "openai", cadastrado: true }, false]);
+
+    // O que falta para ligar (Review Focus 4).
+    const canalPronto = { ...chatDaLojaPadrao(), whatsapp: WHATSAPP, turnstileSiteKey: "zz-site-key" };
+    const tudoCadastrado = { openai: { cadastrado: true }, anthropic: { cadastrado: false }, turnstile: { cadastrado: true } };
+    conferir("nada falta", faltasParaLigar({ preparado: true, segredos: tudoCadastrado, canal: canalPronto }), []);
+    conferir(
+      "tudo falta, na ordem",
+      faltasParaLigar({ preparado: false, segredos: { openai: { cadastrado: false }, anthropic: { cadastrado: false }, turnstile: { cadastrado: false } }, canal: chatDaLojaPadrao() }),
+      ["o serviço do chat ainda não foi preparado na VPS", "a chave da IA (OpenAI)", "o segredo do Turnstile", "a chave pública do Turnstile", "o link do WhatsApp"],
+    );
+    conferir("a chave que conta e a do provedor principal", faltasParaLigar({ preparado: true, segredos: tudoCadastrado, canal: { ...canalPronto, principal: { provedor: "anthropic", modelo: "claude-haiku-5-5" } } }), ["a chave da IA (Anthropic)"]);
+    const ligar = () => salvarAba("canais", formulario({ "chat.ligado": "true" }), todos);
+    const semTurnstile = await ligar();
+    conferir("ligar sem tudo no lugar e recusado, dizendo o que falta", [semTurnstile.ok, semTurnstile.erros?.["chatDaLoja.ligado"], (await lerConfiguracao()).chatDaLoja.ligado], [false, "Para ligar falta: o segredo do Turnstile, a chave pública do Turnstile e o link do WhatsApp.", false]);
+    await guardarSegredoDoChat("turnstile", "zz-segredo-do-turnstile", { usuario: QUEM, env: ambienteDoRise });
+    await salvarAba("canais", formulario({ "chat.whatsapp": WHATSAPP, "chat.turnstileSiteKey": "zz-site-key" }), todos);
+    conferir("com tudo no lugar, liga", [(await ligar()).ok, (await lerConfiguracao()).chatDaLoja.ligado], [true, true]);
+    conferir("ligar e salvar outro campo junto tambem confere", (await salvarAba("canais", formulario({ "chat.ligado": "true", "chat.turnstileSiteKey": "" }), todos)).ok, false);
+
+    const sinalAntesDoEstado = await prisma.sinalDoAssistente.findUnique({ where: { id: "unico" } });
+    const agoraDoEstado = Date.parse("2026-11-20T15:00:00Z");
+    await prisma.sinalDoAssistente.upsert({ where: { id: "unico" }, create: { id: "unico", sinalEm: new Date(agoraDoEstado - 30000), versao: "zz-teste", emAndamento: 2 }, update: { sinalEm: new Date(agoraDoEstado - 30000), versao: "zz-teste", emAndamento: 2, ultimoErro: null } });
+    const estado = await estadoDoChatDaLoja({ config: await lerConfiguracao(), env: ambienteDoRise, agora: agoraDoEstado });
+    conferir(
+      "estado do canal: preparado, segredos (sem valor), sinal e nada faltando",
+      [estado.preparado, estado.segredos.openai.cadastrado, estado.segredos.openai.em instanceof Date, estado.segredos.anthropic, estado.segredos.turnstile.cadastrado, estado.noAr, estado.sinal.versao, estado.sinal.emAndamento, estado.faltas, JSON.stringify(estado).includes(SEGREDO)],
+      [true, true, true, { cadastrado: false, em: null }, true, true, "zz-teste", 2, [], false],
+    );
+    conferir("estado: a etiqueta e a do widget publicado", [estado.widget?.versao, estado.widget?.etiqueta], [publicados.atual.versao, etiquetaDoWidget(publicados.atual)]);
+    conferir("sinal com mais de 2 minutos = fora do ar", (await estadoDoChatDaLoja({ config: await lerConfiguracao(), env: ambienteDoRise, agora: agoraDoEstado + 5 * 60 * 1000 })).noAr, false);
+    if (sinalAntesDoEstado) await prisma.sinalDoAssistente.update({ where: { id: "unico" }, data: sinalAntesDoEstado });
+    else await prisma.sinalDoAssistente.deleteMany({ where: { id: "unico" } });
+
+    // Testar a chave: so lista modelos (nao gasta). O provedor aqui e falso.
+    const provedorQueTesta = (resultado) => async (id, opcoes) => ({ testar: async () => ({ ...resultado, recebeuAChave: opcoes.chave === SEGREDO }) });
+    conferir("testar a chave do chat", await testarChaveDoChat("openai", { env: ambienteDoRise, criarProvedor: provedorQueTesta({ ok: true, latenciaMs: 12, erro: null }) }), { ok: true, latenciaMs: 12, erro: null });
+    conferir("teste que falha volta o erro, sem a chave", await testarChaveDoChat("openai", { env: ambienteDoRise, criarProvedor: provedorQueTesta({ ok: false, latenciaMs: 5, erro: "401" }) }), { ok: false, latenciaMs: 5, erro: "401" });
+    conferir("testar sem chave cadastrada", await testarChaveDoChat("anthropic", { env: ambienteDoRise, criarProvedor: provedorQueTesta({ ok: true }) }), { ok: false, latenciaMs: 0, erro: "Cadastre a chave antes de testar." });
+    conferir("testar o que nao e provedor", (await testarChaveDoChat("turnstile", { env: ambienteDoRise, criarProvedor: provedorQueTesta({ ok: true }) })).ok, false);
+
+    // Review Focus 4: a chave sai com o chat ligado -> a tela volta a dizer o que falta (o servico ja responde desligado sozinho).
+    conferir("remove o segredo", await removerSegredoDoChat("openai", { usuario: QUEM }), { ok: true });
+    const semChave = await estadoDoChatDaLoja({ config: await lerConfiguracao(), env: ambienteDoRise, agora: agoraDoEstado });
+    conferir("chave removida com o chat ligado: falta a chave", [(await lerConfiguracao()).chatDaLoja.ligado, semChave.segredos.openai.cadastrado, semChave.faltas], [true, false, ["a chave da IA (OpenAI)"]]);
+    conferir("a remocao tambem entra na trilha", (await prisma.auditoriaDeAcesso.findMany({ where: { quem: QUEM, oQue: "rise-ai.chatDaLoja.segredo" }, orderBy: { quando: "asc" } })).at(-1)?.depois, { nome: "openai", cadastrado: false });
+  } finally {
+    await prisma.segredoDoAssistente.deleteMany({ where: { atualizadoPor: QUEM } });
+    for (const segredo of segredosDoDono) await prisma.segredoDoAssistente.upsert({ where: { nome: segredo.nome }, create: segredo, update: segredo });
+    await prisma.auditoriaDeAcesso.deleteMany({ where: { quem: QUEM } });
+  }
 } catch (erro) {
   falhas++;
   console.error("ERRO NAO ESPERADO:", erro);

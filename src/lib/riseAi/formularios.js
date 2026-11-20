@@ -87,6 +87,30 @@ export function parcialDaConfiguracao(dados) {
   for (const tipo of TIPOS_DE_AVISO) if (tem(dados, `telegramAviso.${tipo}`)) avisos[tipo] = booleanoDoCampo(dados, `telegramAviso.${tipo}`);
   if (Object.keys(avisos).length) telegram.avisos = avisos;
   if (Object.keys(telegram).length) parcial.telegram = telegram;
+  // A aba Canais, chat da loja (o Hobi): os campos `chat.*`. So entra o que veio; o Salvar do Telegram nao toca aqui.
+  const chat = {};
+  for (const nome of ["ligado", "publico"]) if (tem(dados, `chat.${nome}`)) chat[nome] = booleanoDoCampo(dados, `chat.${nome}`);
+  for (const nome of ["nome", "boasVindas", "whatsapp", "turnstileSiteKey"]) if (tem(dados, `chat.${nome}`)) chat[nome] = texto(dados, `chat.${nome}`);
+  // `chat.horario` marca que o bloco do horario veio: caixa de dia desmarcada nao manda nada, e "nenhum dia" e um valor.
+  if (tem(dados, "chat.horario")) {
+    const dias = [...new Set(dados.getAll("chat.dias").map((dia) => Number(dia)))].sort((a, b) => a - b);
+    const turnos = [1, 2].map((numero) => [texto(dados, `chat.turno${numero}De`), texto(dados, `chat.turno${numero}Ate`)]).filter(([de, ate]) => de || ate);
+    chat.horario = { dias, turnos };
+  }
+  // "<provedor>/<modelo>": o nome do modelo pode ter barra, o do provedor nao.
+  const escolha = (valor) => {
+    const corte = valor.indexOf("/");
+    return corte === -1 ? { provedor: valor, modelo: "" } : { provedor: valor.slice(0, corte), modelo: valor.slice(corte + 1) };
+  };
+  if (tem(dados, "chat.principal")) chat.principal = escolha(texto(dados, "chat.principal"));
+  if (tem(dados, "chat.reserva")) chat.reserva = texto(dados, "chat.reserva") ? escolha(texto(dados, "chat.reserva")) : null;
+  const limites = {};
+  // Os dois limites em dinheiro aceitam "0,50"; os outros sao numeros inteiros.
+  for (const nome of ["mensagensPorSessaoPorHora", "caracteresPorMensagem", "brlPorSessaoPorDia", "mensagensPorIpPorHora", "respostasAoMesmoTempo", "brlPorDia"]) {
+    if (tem(dados, `chat.limite.${nome}`)) limites[nome] = (nome.startsWith("brl") ? reaisDoCampo : numeroDoCampo)(dados, `chat.limite.${nome}`);
+  }
+  if (Object.keys(limites).length) chat.limites = limites;
+  if (Object.keys(chat).length) parcial.chatDaLoja = chat;
   if (tem(dados, "internet")) {
     // O interruptor manda "true" ou "false"; qualquer outra coisa segue como veio e a validacao recusa no campo.
     const valor = texto(dados, "internet");

@@ -1,6 +1,8 @@
 import { registrarAuditoria } from "@/lib/acessos/banco";
 import { recursoPorId } from "@/lib/acessos/recursos";
-import { gravarConfiguracao } from "./configuracao";
+import { faltasParaLigar, listaEmTexto, segredosCadastrados, servicoPreparado } from "./canalDaLoja";
+import { mesclarChatDaLoja } from "./cliente/configuracaoDoCanal";
+import { gravarConfiguracao, lerConfiguracao } from "./configuracao";
 import { ErroDeUso } from "./erros";
 import { parcialDaConfiguracao } from "./formularios";
 import { PROMPT_ATENDIMENTO_PADRAO, PROMPT_INTERNO_PADRAO } from "./prompt";
@@ -40,7 +42,8 @@ const CAMPOS_DA_ABA = {
   atendimento: ["promptCliente"],
 };
 
-const ehCampoDaAba = (aba, nome) => CAMPOS_DA_ABA[aba].includes(nome) || (aba === "modelos" && nome.startsWith("endpoint."));
+// Os campos do chat da loja (`chat.*`, lidos em formularios.js) tambem sao da aba Canais.
+const ehCampoDaAba = (aba, nome) => CAMPOS_DA_ABA[aba].includes(nome) || (aba === "modelos" && nome.startsWith("endpoint.")) || (aba === "canais" && nome.startsWith("chat."));
 
 /** Só os campos da aba, com o do prompt do cliente no nome que `parcialDaConfiguracao` lê. Arquivo ou campo de outra aba não entra. */
 function dadosDaAba(aba, dados) {
@@ -72,6 +75,10 @@ async function registrarMudancas(tx, parcial, { antes, depois }, quem) {
   if (parcial.telegram && !iguais(antes.telegram, depois.telegram)) {
     await registrarAuditoria(tx, { quem, oQue: "rise-ai.telegram", alvo: "ConfiguracaoIA", antes: antes.telegram, depois: depois.telegram });
   }
+  // O grupo do chat da loja nao tem segredo (as chaves ficam em SegredoDoAssistente): vai inteiro para a trilha.
+  if (parcial.chatDaLoja && !iguais(antes.chatDaLoja, depois.chatDaLoja)) {
+    await registrarAuditoria(tx, { quem, oQue: "rise-ai.chatDaLoja", alvo: "ConfiguracaoIA", antes: antes.chatDaLoja, depois: depois.chatDaLoja });
+  }
   if ("internet" in parcial && antes.internet !== depois.internet) {
     await registrarAuditoria(tx, { quem, oQue: "rise-ai.internet", alvo: "ConfiguracaoIA", antes: { internet: antes.internet }, depois: { internet: depois.internet } });
   }
@@ -95,7 +102,7 @@ async function registrarMudancas(tx, parcial, { antes, depois }, quem) {
  * @param {{ usuario: string, pode: (id: string, nivel: string) => boolean }} sessao
  * @returns {Promise<{ ok: true } | { ok: false, erro: string, erros?: Record<string, string> }>}
  */
-export async function salvarAba(aba, dados, { usuario, pode }) {
+export async function salvarAba(aba, dados, { usuario, pode, env = process.env }) {
   if (!ABAS.includes(aba)) throw new ErroDeUso("Aba desconhecida.");
   const recurso = RECURSO_DA_ABA[aba];
   if (!pode?.(recurso, "editar")) return { ok: false, erro: `Sem permissão para ${recursoPorId(recurso)?.rotulo ?? "isso"}.` };
@@ -106,6 +113,16 @@ export async function salvarAba(aba, dados, { usuario, pode }) {
 
   const parcial = parcialDaConfiguracao(dadosDaAba(aba, dados));
   if (Object.keys(parcial).length === 0) throw new ErroDeUso("Nada para salvar.");
+  // Ligar o chat da loja so com tudo no lugar (chaves, Turnstile, WhatsApp): a conta e sobre o que VAI valer depois deste
+  // Salvar. O servico ja responderia desligado sozinho; aqui o dono fica sabendo o que falta, em vez de achar que ligou.
+  if (parcial.chatDaLoja?.ligado === true) {
+    const canal = mesclarChatDaLoja((await lerConfiguracao()).chatDaLoja, parcial.chatDaLoja);
+    const faltas = faltasParaLigar({ preparado: servicoPreparado(env), segredos: await segredosCadastrados(), canal });
+    if (faltas.length) {
+      const erro = `Para ligar falta: ${listaEmTexto(faltas)}.`;
+      return { ok: false, erro, erros: { "chatDaLoja.ligado": erro } };
+    }
+  }
   const resultado = await gravarConfiguracao(parcial, { usuario, auditoria: (tx, quadro) => registrarMudancas(tx, parcial, quadro, usuario) });
   if (!resultado.ok) return { ok: false, erro: "Corrija os campos marcados.", erros: resultado.erros };
   return { ok: true };

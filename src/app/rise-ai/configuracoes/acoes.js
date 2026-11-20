@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { desconectar, lerSegredo, registrarTeste, salvarConexao } from "@/lib/integracoes/conexoes";
 import { RECURSO_DA_ABA, salvarAba } from "@/lib/riseAi/abasDeConfiguracao";
+import { guardarSegredoDoChat, removerSegredoDoChat, testarChaveDoChat } from "@/lib/riseAi/canalDaLoja";
 import { SERVICO_DO_PROVEDOR, gravarChave, gravarConfiguracao, lerChave, lerConfiguracao } from "@/lib/riseAi/configuracao";
 import { ErroDeUso } from "@/lib/riseAi/erros";
 import { idsDosModelos } from "@/lib/riseAi/formularios";
@@ -143,5 +144,36 @@ export async function testarTelegramAcao() {
     await registrarTeste(SERVICO_TELEGRAM, { ok: resposta.ok, conta: usuario, erro: resposta.erro });
     atualizarTelas();
     return { ok: resposta.ok, usuario, erro: resposta.ok ? null : resposta.erro };
+  }));
+}
+
+// ------------------------------------------------------------------------------------- Chat da loja (o Hobi, fase 2)
+// Os segredos do servico do chat (a chave de IA dedicada e o segredo do Turnstile) sao da aba Canais, so do
+// Administrador. O valor chega num FormData (campo `valor`, so de escrita), fica cifrado em `SegredoDoAssistente` com a
+// chave derivada do IA_SEGREDO e nunca volta para a tela. A regra mora em `src/lib/riseAi/canalDaLoja.js`.
+
+export async function guardarSegredoDoChatAcao(nome, formData) {
+  return executarComAcesso("riseAi.configuracoes.canais", "editar", comSessaoDoRiseAi(async (sessao) => {
+    const resultado = await guardarSegredoDoChat(String(nome ?? ""), formData.get("valor"), { usuario: sessao.usuario });
+    if (!resultado.ok) throw new ErroDeUso(resultado.erro);
+    atualizarTelas();
+    return {};
+  }));
+}
+
+export async function removerSegredoDoChatAcao(nome) {
+  return executarComAcesso("riseAi.configuracoes.canais", "editar", comSessaoDoRiseAi(async (sessao) => {
+    const resultado = await removerSegredoDoChat(String(nome ?? ""), { usuario: sessao.usuario });
+    if (!resultado.ok) throw new ErroDeUso(resultado.erro);
+    atualizarTelas();
+    return {};
+  }));
+}
+
+/** Confere a chave de IA do chat no provedor (so lista modelos: nao gasta). O teste que falha volta `ok: false` com o erro. */
+export async function testarChaveDoChatAcao(provedor) {
+  return executarComAcesso("riseAi.configuracoes.canais", "editar", comSessaoDoRiseAi(async () => {
+    const teste = await testarChaveDoChat(String(provedor ?? ""));
+    return { ok: teste.ok, latenciaMs: teste.latenciaMs, erro: teste.erro };
   }));
 }
