@@ -5,6 +5,7 @@ import { ErroDoAtendimento } from "./cerebro";
 import { foraDoHorario } from "./configuracaoDoCanal";
 import { criarLimites } from "./limites";
 import { emitirPasse, passeVale } from "./turnstile";
+import { NOME_DO_WIDGET } from "./widgetPublicado";
 
 /**
  * A PORTA do chat da loja: as tres rotas que a janela do chat usa (spec de 19/11/2026, §5.4 e §8). E o unico pedaco
@@ -62,7 +63,7 @@ function lerCorpo(requisicao) {
  * }} dependencias
  * @returns {http.Server & { limites: object }}
  */
-export function criarServidorDoAssistente({ dados, responder, avaliar, verificarRobo, chaveHex, origens, versao = "dev", agora = Date.now }) {
+export function criarServidorDoAssistente({ dados, responder, avaliar, verificarRobo, chaveHex, origens, versao = "dev", agora = Date.now, widgets = new Map() }) {
   // Os limites vivem na memoria deste processo; os NUMEROS acompanham o que o dono salvar (relidos junto com a configuracao).
   const numerosDosLimites = {};
   const limites = criarLimites({ limites: numerosDosLimites, agora });
@@ -117,7 +118,7 @@ export function criarServidorDoAssistente({ dados, responder, avaliar, verificar
     json(
       resposta,
       200,
-      { ligado, nome: canal.nome, boasVindas: canal.boasVindas, whatsapp: canal.whatsapp || null, foraDoHorario: foraDoHorario(canal.horario, agora()), turnstileSiteKey: canal.turnstileSiteKey || null, versao },
+      { ligado, nome: canal.nome, boasVindas: canal.boasVindas, whatsapp: canal.whatsapp || null, foraDoHorario: foraDoHorario(canal.horario, agora()), turnstileSiteKey: canal.turnstileSiteKey || null, publico: canal.publico === true, versao },
       { ...cors, "Cache-Control": "public, max-age=60" },
     );
   }
@@ -207,6 +208,24 @@ export function criarServidorDoAssistente({ dados, responder, avaliar, verificar
       const cors = cabecalhosDaOrigem(origemDaLoja);
       const rota = `${requisicao.method} ${caminho}`;
 
+      // O arquivo da janela do chat: publico por natureza, entao responde a qualquer origem (a conferencia de
+      // integridade do navegador EXIGE o CORS aberto). So GET, so o nome no formato certo, so o que foi publicado; como o
+      // nome traz a versao, o navegador pode guardar para sempre.
+      if (NOME_DO_WIDGET.test(caminho.slice(1))) {
+        const arquivo = requisicao.method === "GET" ? widgets.get(caminho.slice(1)) : null;
+        if (!arquivo) {
+          resposta.writeHead(404);
+          return resposta.end();
+        }
+        resposta.writeHead(200, {
+          "Content-Type": "text/javascript; charset=utf-8",
+          "Content-Length": arquivo.length,
+          "Cache-Control": "public, max-age=31536000, immutable",
+          "Access-Control-Allow-Origin": "*",
+          "X-Content-Type-Options": "nosniff",
+        });
+        return resposta.end(arquivo);
+      }
       if (!["/status", "/chat", "/avaliar"].includes(caminho)) {
         resposta.writeHead(404);
         return resposta.end();

@@ -45,6 +45,15 @@ hobi.4hobby.com.br {
 		}
 	}
 
+	# O arquivo da janela do chat (o nome traz a versao). E publico por natureza: so GET, e so esse formato de nome.
+	@widget {
+		method GET
+		path_regexp ^/widget-[a-f0-9]{10}\.js$
+	}
+	handle @widget {
+		reverse_proxy ia:8787
+	}
+
 	handle {
 		respond 404
 	}

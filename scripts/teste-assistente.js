@@ -536,6 +536,7 @@ try {
       chaveHex: chave,
       origens: [ORIGEM],
       versao: "zz-teste",
+      widgets: opcoes.widgets,
     });
     await new Promise((resolver) => servidor.listen(0, "127.0.0.1", resolver));
     const base = `http://127.0.0.1:${servidor.address().port}`;
@@ -562,7 +563,7 @@ try {
 
   const porta = await subir();
   const status = await porta.pegar("/status");
-  conferir("status ligado com tudo no lugar", [status.status, status.corpo], [200, { ligado: true, nome: "Hobi", boasVindas: chatDaLojaPadrao().boasVindas, whatsapp: WHATSAPP, foraDoHorario: status.corpo.foraDoHorario, turnstileSiteKey: "site-key-zz", versao: "zz-teste" }]);
+  conferir("status ligado com tudo no lugar", [status.status, status.corpo], [200, { ligado: true, nome: "Hobi", boasVindas: chatDaLojaPadrao().boasVindas, whatsapp: WHATSAPP, foraDoHorario: status.corpo.foraDoHorario, turnstileSiteKey: "site-key-zz", publico: false, versao: "zz-teste" }]);
   conferir("status: CORS so para a loja e cache de 1 minuto", [status.cabecalhos.get("access-control-allow-origin"), status.cabecalhos.get("cache-control")], [ORIGEM, "public, max-age=60"]);
   conferir("status sem Origin responde (o deploy confere assim)", (await porta.pegar("/status", { origem: null })).status, 200);
   conferir("rota desconhecida", (await porta.pegar("/widget.js")).status, 404);
@@ -701,7 +702,7 @@ try {
   const modeloDoCaddy = existsSync(new URL("../deploy/caddy/assistente.modelo", import.meta.url)) ? ler("deploy/caddy/assistente.modelo") : "";
   conferir("o modelo do Caddy e do endereco do Hobi", /^hobi\.4hobby\.com\.br \{/m.test(modeloDoCaddy), true);
   conferir("o modelo do Caddy so tem as tres rotas", (/\n\t\tpath ([^\n]+)\n/.exec(modeloDoCaddy)?.[1] ?? "").split(/\s+/), ["/status", "/chat", "/avaliar"]);
-  conferir("o modelo manda so essas rotas ao servico, e o resto e 404", [/handle @rotas \{[\s\S]*reverse_proxy ia:8787/.test(modeloDoCaddy), /\n\thandle \{\n\t\trespond 404\n\t\}/.test(modeloDoCaddy), (modeloDoCaddy.match(/reverse_proxy/g) ?? []).length], [true, true, 1]);
+  conferir("o modelo manda so essas rotas ao servico, e o resto e 404", [/handle @rotas \{[\s\S]*reverse_proxy ia:8787/.test(modeloDoCaddy), /\n\thandle \{\n\t\trespond 404\n\t\}/.test(modeloDoCaddy), (modeloDoCaddy.match(/reverse_proxy/g) ?? []).length], [true, true, 2]);
   conferir("o modelo limita o corpo e nao segura o fluxo", [/max_size 16KB/.test(modeloDoCaddy), /flush_interval -1/.test(modeloDoCaddy)], [true, true]);
   // So as diretivas contam: o comentario do modelo explica justamente que ele NAO tem login.
   conferir("o modelo nao tem login nem o segredo de borda", /forward_auth|X-Rise-Borda|app:3000|auth:3000/.test(modeloDoCaddy.replace(/^\s*#.*$/gm, "")), false);
@@ -728,6 +729,98 @@ try {
     "o deploy para o worker antes de recriar o banco pela primeira vez",
     [/docker inspect rise-postgres[^\n]*\| grep -q dados_ia/.test(antesDoBanco), /if ! docker inspect rise-postgres[\s\S]*?docker compose stop worker\nfi\n/.test(antesDoBanco)],
     [true, true],
+  );
+
+  // ---------- Fase 2, tarefa 2: o widget montado, publicado e servido; `publico` na configuracao ----------
+  const { createHash } = await import("node:crypto");
+  const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const caminhoDe = (await import("node:path")).default;
+  const { montarWidget, lerFontesDoWidget } = await import("./montar-widget.js");
+  const { lerPublicados, etiquetaDoWidget } = await import("../src/lib/riseAi/cliente/widgetPublicado.js");
+
+  const fontesDeTeste = { nucleo: "export const DOIS = 2;\r\nexport function dobro(x) {\r\n  return x * DOIS;\r\n}\n", tela: "var imagens = __HOBI_IMAGENS__;\nwindow.__zzHobi = [dobro(4), Object.keys(imagens)];\n", imagens: { cabeca: Buffer.from("zz-cabeca"), corpo: Buffer.from("zz-corpo") } };
+  const montado = montarWidget(fontesDeTeste);
+  conferir("montador: nome pelo conteudo", [montado.arquivo === `widget-${montado.versao}.js`, /^[a-f0-9]{10}$/.test(montado.versao), montado.versao === createHash("sha256").update(montado.conteudo).digest("hex").slice(0, 10)], [true, true, true]);
+  conferir("montador: as mesmas fontes dao a mesma versao", montarWidget(fontesDeTeste).versao, montado.versao);
+  conferir("montador: fim de linha do Windows nao muda a versao", montarWidget({ ...fontesDeTeste, nucleo: fontesDeTeste.nucleo.replace(/\r\n/g, "\n") }).versao, montado.versao);
+  conferir("montador: um caractere a mais na tela, outra versao", montarWidget({ ...fontesDeTeste, tela: `${fontesDeTeste.tela} ` }).versao === montado.versao, false);
+  conferir("montador: integridade sha384 do conteudo", montado.integridade, `sha384-${createHash("sha384").update(montado.conteudo).digest("base64")}`);
+  conferir("montador: sem export, sem marcador e sem \\r", [/(^|\n)export /.test(montado.conteudo), montado.conteudo.includes("__HOBI_IMAGENS__"), montado.conteudo.includes("\r")], [false, false, false]);
+  conferir("montador: as imagens entram como data:image/webp", montado.conteudo.includes(`"cabeca":"data:image/webp;base64,${Buffer.from("zz-cabeca").toString("base64")}"`), true);
+  const janelaFalsa = {};
+  new Function("window", montado.conteudo)(janelaFalsa);
+  conferir("montador: o arquivo roda e o nucleo alcanca a tela", janelaFalsa.__zzHobi, [8, ["cabeca", "corpo"]]);
+
+  const publicados = lerPublicados();
+  const fontesDeVerdade = lerFontesDoWidget();
+  const esperadoAgora = montarWidget(fontesDeVerdade);
+  conferir("guarda: o publicado e o que as fontes de agora montam (rode `npm run hobi:montar`)", [publicados.atual?.arquivo, publicados.atual?.versao, publicados.atual?.integridade, publicados.atual?.bytes], [esperadoAgora.arquivo, esperadoAgora.versao, esperadoAgora.integridade, Buffer.byteLength(esperadoAgora.conteudo)]);
+  conferir("guarda: o arquivo publicado tem os mesmos bytes", publicados.arquivos.get(esperadoAgora.arquivo)?.equals(Buffer.from(esperadoAgora.conteudo)) ?? false, true);
+  conferir("o publicado nao passa por conversao de fim de linha no git", ler(".gitattributes").includes("assistente/publicado/** -text"), true);
+  conferir(
+    "a etiqueta para colar na loja",
+    etiquetaDoWidget(publicados.atual),
+    `<script defer src="https://hobi.4hobby.com.br/${esperadoAgora.arquivo}" integrity="${esperadoAgora.integridade}" crossorigin="anonymous"></script>`,
+  );
+  conferir("sem publicado nao ha etiqueta", etiquetaDoWidget(null), null);
+
+  // Review Focus 5: versao nova publicada e a loja ainda com a etiqueta antiga -> o arquivo antigo continua sendo servido.
+  const pastaDeTeste = mkdtempSync(caminhoDe.join(tmpdir(), "zz-hobi-"));
+  try {
+    writeFileSync(caminhoDe.join(pastaDeTeste, "widget-aaaaaaaaaa.js"), "/* antigo */");
+    writeFileSync(caminhoDe.join(pastaDeTeste, "widget-bbbbbbbbbb.js"), "/* novo */");
+    writeFileSync(caminhoDe.join(pastaDeTeste, "widget-ruim.js"), "/* nome fora do padrao */");
+    writeFileSync(caminhoDe.join(pastaDeTeste, "manifesto.json"), JSON.stringify({ atual: { arquivo: "widget-bbbbbbbbbb.js", versao: "bbbbbbbbbb", integridade: "sha384-zz", bytes: 10 } }));
+    const dois = lerPublicados(pastaDeTeste);
+    conferir("os publicados antigos continuam disponiveis", [[...dois.arquivos.keys()].sort(), dois.atual.versao], [["widget-aaaaaaaaaa.js", "widget-bbbbbbbbbb.js"], "bbbbbbbbbb"]);
+    conferir("pasta que nao existe: nada publicado, sem erro", [lerPublicados(caminhoDe.join(pastaDeTeste, "nao-existe")).atual, lerPublicados(caminhoDe.join(pastaDeTeste, "nao-existe")).arquivos.size], [null, 0]);
+
+    const portaDoWidget = await subir({ widgets: dois.arquivos });
+    const buscarWidget = async (caminho, opcoes = {}) => {
+      const resposta = await fetch(portaDoWidget.base + caminho, opcoes);
+      return { status: resposta.status, corpo: await resposta.text(), cabecalhos: resposta.headers };
+    };
+    const servido = await buscarWidget("/widget-aaaaaaaaaa.js");
+    conferir(
+      "o widget e servido sem Origin, com cache longo e CORS aberto",
+      [servido.status, servido.corpo, servido.cabecalhos.get("content-type"), servido.cabecalhos.get("cache-control"), servido.cabecalhos.get("access-control-allow-origin"), servido.cabecalhos.get("x-content-type-options")],
+      [200, "/* antigo */", "text/javascript; charset=utf-8", "public, max-age=31536000, immutable", "*", "nosniff"],
+    );
+    conferir("o widget e servido a outra origem (a integridade exige CORS)", (await buscarWidget("/widget-bbbbbbbbbb.js", { headers: { Origin: "https://outro.site" } })).status, 200);
+    conferir("versao que nao existe", (await buscarWidget("/widget-cccccccccc.js")).status, 404);
+    conferir("nome fora do padrao nao e servido", [(await buscarWidget("/widget-ruim.js")).status, (await buscarWidget("/widget-aaaaaaaaaa.js.map")).status, (await buscarWidget("/manifesto.json")).status], [404, 404, 404]);
+    conferir("POST no caminho do widget", (await buscarWidget("/widget-aaaaaaaaaa.js", { method: "POST", headers: { Origin: ORIGEM } })).status, 404);
+    await portaDoWidget.fechar();
+    const portaSemWidget = await subir();
+    conferir("sem widgets o caminho nao existe", (await fetch(portaSemWidget.base + "/widget-aaaaaaaaaa.js")).status, 404);
+    await portaSemWidget.fechar();
+  } finally {
+    rmSync(pastaDeTeste, { recursive: true, force: true });
+  }
+
+  conferir("o chat nasce visivel so com ?assistente=1", chatDaLojaPadrao().publico, false);
+  conferir("publico tem de ser verdadeiro ou falso", [EsquemaDoChatDaLoja.safeParse({ ...chatDaLojaPadrao(), publico: "sim" }).success, EsquemaDoChatDaLoja.safeParse({ ...chatDaLojaPadrao(), publico: true }).success], [false, true]);
+  const portaPublica = await subir({ canal: { publico: true } });
+  conferir("status leva o publico que o dono salvou", (await portaPublica.pegar("/status")).corpo.publico, true);
+  await portaPublica.fechar();
+  conferir("o processo entrega os publicados a porta", /widgets: lerPublicados\(\)\.arquivos/.test(processoDoServico.replace(/\r\n/g, "\n")), true);
+
+  const modeloNovo = ler("deploy/caddy/assistente.modelo");
+  conferir(
+    "o Caddy deixa passar so o arquivo do widget, e so por GET",
+    [/\n\t@widget \{\n\t\tmethod GET\n\t\tpath_regexp \^\/widget-\[a-f0-9\]\{10\}\\\.js\$\n\t\}\n/.test(modeloNovo), /handle @widget \{\n\t\treverse_proxy ia:8787\n\t\}/.test(modeloNovo)],
+    [true, true],
+  );
+  const deployNovo = ler("deploy/deploy-vps.sh");
+  conferir(
+    "o deploy atualiza o endereco ligado pelo modelo, antes de validar o Caddy",
+    [
+      /if \[ -f deploy\/caddy\/ligado-assistente\.caddy \] && ! cmp -s deploy\/caddy\/assistente\.modelo deploy\/caddy\/ligado-assistente\.caddy; then\n\s+cp deploy\/caddy\/assistente\.modelo deploy\/caddy\/ligado-assistente\.caddy\n/.test(deployNovo),
+      deployNovo.indexOf("cp deploy/caddy/assistente.modelo deploy/caddy/ligado-assistente.caddy") < deployNovo.indexOf("caddy validate"),
+      deployNovo.indexOf("cp deploy/caddy/assistente.modelo deploy/caddy/ligado-assistente.caddy") > deployNovo.indexOf('git checkout --quiet --detach "$REF"'),
+    ],
+    [true, true, true],
   );
 } catch (erro) {
   falhas++;

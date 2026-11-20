@@ -5,3 +5,6 @@
 deploy/crontab  text eol=lf
 deploy/caddy/Caddyfile text eol=lf
 Dockerfile      text eol=lf
+# A janela do chat da loja ja montada: a etiqueta da loja confere o arquivo byte a byte (integrity), entao o git nao
+# pode trocar o fim de linha dele em maquina nenhuma.
+assistente/publicado/** -text

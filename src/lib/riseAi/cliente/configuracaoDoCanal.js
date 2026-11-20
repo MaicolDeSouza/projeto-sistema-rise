@@ -16,6 +16,9 @@ export const PROVEDORES_DO_CANAL = ["openai", "anthropic"];
 export function chatDaLojaPadrao() {
   return {
     ligado: false,
+    // Quem ve o chat ligado: `false` = so quem abre a loja com `?assistente=1` (o dono testa na loja de verdade sem os
+    // clientes verem); `true` = todos os visitantes.
+    publico: false,
     nome: "Hobi",
     boasVindas: "Oi! Sou o Hobi, assistente da 4hobby. Precisa de ajuda para achar um componente?",
     // Link wa.me da loja; vazio = sem botao de WhatsApp.
@@ -69,6 +72,7 @@ const reais = (rotulo) =>
 
 export const EsquemaDoChatDaLoja = z.object({
   ligado: z.boolean({ message: "Use ligado ou desligado." }),
+  publico: z.boolean({ message: "Escolha quem vê o chat." }),
   nome: z.string().trim().min(1, "Informe o nome do assistente.").max(40, "O nome passa de 40 caracteres."),
   boasVindas: z.string().max(300, "A saudação passa de 300 caracteres."),
   whatsapp: z.string().refine((link) => link === "" || /^https:\/\/wa\.me\/\d{10,15}(\?\S*)?$/.test(link), "Use um link https://wa.me/ com o número da loja."),

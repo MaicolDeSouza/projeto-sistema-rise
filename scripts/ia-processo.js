@@ -38,6 +38,7 @@ const { criarOrcamentoDoCliente } = await import("../src/lib/riseAi/cliente/orca
 const { derivarChave } = await import("../src/lib/riseAi/cliente/segredos.js");
 const { criarServidorDoAssistente } = await import("../src/lib/riseAi/cliente/servidorHttp.js");
 const { verificarTurnstile } = await import("../src/lib/riseAi/cliente/turnstile.js");
+const { lerPublicados } = await import("../src/lib/riseAi/cliente/widgetPublicado.js");
 
 const SINAL_MS = 15 * 1000;
 const ESPERA_AO_SAIR_MS = 30 * 1000;
@@ -57,6 +58,8 @@ const servidor = criarServidorDoAssistente({
   chaveHex: derivarChave(ambiente.chaveHex, "passe"),
   origens: ambiente.origens,
   versao,
+  // A janela do chat, lida da imagem uma vez na partida (o conteiner so le o disco).
+  widgets: lerPublicados().arquivos,
 });
 
 let ultimoErro = null;

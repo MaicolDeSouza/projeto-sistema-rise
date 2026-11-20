@@ -54,6 +54,14 @@ PASSO="baixando o codigo"
 git fetch --quiet --tags origin
 git checkout --quiet --detach "$REF"
 
+# O endereco do chat da loja ja ligado nesta VPS (deploy/preparar-ia.sh) acompanha o modelo do codigo novo: sem isto,
+# uma rota nova do modelo (o arquivo da janela do chat) nunca chegaria ao Caddy. Antes da validacao, para ela conferir
+# o que vai valer. Onde o preparo nunca rodou o arquivo nao existe, e nada acontece.
+if [ -f deploy/caddy/ligado-assistente.caddy ] && ! cmp -s deploy/caddy/assistente.modelo deploy/caddy/ligado-assistente.caddy; then
+  cp deploy/caddy/assistente.modelo deploy/caddy/ligado-assistente.caddy
+  echo "Endereco do chat da loja atualizado pelo modelo."
+fi
+
 # O Caddyfile NOVO e conferido antes de trocar qualquer coisa: um erro de sintaxe aqui para o deploy com o site
 # antigo no ar, em vez de derrubar o Caddy depois (e com ele o login e o site).
 PASSO="validando o Caddyfile"
