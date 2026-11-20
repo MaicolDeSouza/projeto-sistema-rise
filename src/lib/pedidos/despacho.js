@@ -56,15 +56,26 @@ const PAGO_NA_LI = new Set(["pedido_pago", "pedido_em_separacao", "pedido_pronto
 const SEM_PACOTE_NA_LI = new Set(["retirada", "combinar", "a_combinar", "sem_envio"]);
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * Quando o pedido da LI foi pago: a 1a vez que o historico de situacoes (`[{ em, statusDaOrigem }]`) mostra o pedido
+ * pago ou ja adiante. `null` sem esse passo. O prazo de despacho e o aviso de nova venda do Telegram leem daqui. Pura.
+ * @returns {Date|null}
+ */
+export function pagoEmNoHistoricoDaLI(historico) {
+  return (
+    (Array.isArray(historico) ? historico : [])
+      .filter((h) => PAGO_NA_LI.has(h?.statusDaOrigem) && h?.em)
+      .map((h) => new Date(h.em))
+      .filter((d) => !Number.isNaN(d.getTime()))
+      .sort((a, b) => a - b)[0] ?? null
+  );
+}
+
 export function prazoDeDespachoLI({ historico = [], statusDaOrigem = null, dataDaVenda = null, tipoDeEnvio = null } = {}) {
   const nada = { despacharAte: null, despachoEstimado: null };
   const tipo = String(tipoDeEnvio ?? "").toLowerCase();
   if (!tipo || SEM_PACOTE_NA_LI.has(tipo)) return nada;
-  const pagoNoHistorico = (historico ?? [])
-    .filter((h) => PAGO_NA_LI.has(h?.statusDaOrigem) && h?.em)
-    .map((h) => new Date(h.em))
-    .filter((d) => !Number.isNaN(d.getTime()))
-    .sort((a, b) => a - b)[0];
+  const pagoNoHistorico = pagoEmNoHistoricoDaLI(historico);
   const pagoEm = pagoNoHistorico ?? (PAGO_NA_LI.has(statusDaOrigem) && dataDaVenda ? new Date(dataDaVenda) : null);
   if (!pagoEm || Number.isNaN(pagoEm.getTime())) return nada;
   return { despacharAte: new Date(pagoEm.getTime() + UM_DIA_MS).toISOString(), despachoEstimado: !pagoNoHistorico };

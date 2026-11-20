@@ -536,6 +536,32 @@ try {
     conferir("o resumo que chega tem 8 linhas e nenhuma de varredura", [falsoR.mensagens.find((m) => m.text.startsWith("Resumo de 20/03"))?.text.split("\n").length, falsoR.mensagens.some((m) => m.text.includes("Varredura"))], [8, false]);
     await gravarConfiguracao({ telegram: { ligado: true, avisos: { ...soVenda, novaVenda: true } } }, { usuario: "zz-tg-admin" });
 
+    // Loja Integrada so avisa com o pagamento aprovado (pedido do dono em 20/11/2026: "Nos pedidos da Li apenas me enviar
+    // se o pagamento tiver sido aprovado"). L1 nasce aguardando pagamento e nao avisa; pago, avisa na volta seguinte. L2
+    // foi vendido ha 3 dias e pago agora (boleto): avisa, embora lido pelo Rise ha muito tempo. L3 foi pago ha 2 dias e
+    // enviado agora (carga antiga): nao avisa. L4 e do Mercado Livre aguardando pagamento: continua avisando como antes.
+    const HORA = 60 * 60 * 1000;
+    const ha = (ms) => new Date(agoraReal - ms);
+    const vendaComSituacao = (numero, { canal = "LOJA_INTEGRADA", status, statusDaOrigem, vendidaHa, historico = [] }) =>
+      prisma.pedidoDeVenda.create({
+        data: { origem: canal, canal, idExterno: numero, numero, dataDaVenda: ha(vendidaHa), criadoEm: ha(vendidaHa), atualizadoNaOrigemEm: new Date(agoraReal), statusDaOrigem, status, enderecoDeEntrega: {}, pagamento: [], envio: {}, historico, totalProdutos: 10, desconto: 0, freteCobrado: 0, total: 10, nomeDoComprador: "ZZ TG Cliente" },
+      });
+    const l1 = await vendaComSituacao("ZZ-TG-L1", { status: "AGUARDANDO_PAGAMENTO", statusDaOrigem: "aguardando_pagamento", vendidaHa: HORA / 2 });
+    await vendaComSituacao("ZZ-TG-L2", { status: "PAGO", statusDaOrigem: "pedido_pago", vendidaHa: 72 * HORA, historico: [{ em: ha(72 * HORA).toISOString(), statusDaOrigem: "aguardando_pagamento" }, { em: ha(HORA / 2).toISOString(), statusDaOrigem: "pedido_pago" }] });
+    await vendaComSituacao("ZZ-TG-L3", { status: "ENVIADO", statusDaOrigem: "pedido_enviado", vendidaHa: 72 * HORA, historico: [{ em: ha(48 * HORA).toISOString(), statusDaOrigem: "pedido_pago" }, { em: ha(HORA).toISOString(), statusDaOrigem: "pedido_enviado" }] });
+    await vendaComSituacao("ZZ-TG-L4", { canal: "MERCADO_LIVRE", status: "AGUARDANDO_PAGAMENTO", statusDaOrigem: "payment_required", vendidaHa: HORA / 2 });
+    const quaisChegaram = (falso) => ["ZZ-TG-L1", "ZZ-TG-L2", "ZZ-TG-L3", "ZZ-TG-L4"].map((numero) => falso.mensagens.filter((m) => m.text.includes(numero)).length);
+    const falsoL = criarTelegramFalso();
+    await a.rodarAvisosDoTelegram({ agora: agoraReal + 90000, ...comFoto, cliente: criarClienteTelegram({ token: TOKEN, requisitar: falsoL.requisitar }) });
+    conferir("LI aguardando pagamento nao avisa; paga agora avisa, mesmo vendida ha 3 dias; paga ha 2 dias nao; o ML segue igual", quaisChegaram(falsoL), [0, 1, 0, 1]);
+    await prisma.pedidoDeVenda.update({ where: { id: l1.id }, data: { status: "PAGO", statusDaOrigem: "pedido_pago", historico: [{ em: new Date(agoraReal + 95000).toISOString(), statusDaOrigem: "pedido_pago" }] } });
+    const falsoL2 = criarTelegramFalso();
+    await a.rodarAvisosDoTelegram({ agora: agoraReal + 100000, ...comFoto, cliente: criarClienteTelegram({ token: TOKEN, requisitar: falsoL2.requisitar }) });
+    conferir("LI: o pagamento aprovado dispara o aviso, e os ja avisados nao repetem", quaisChegaram(falsoL2), [1, 0, 0, 0]);
+    conferir("LI: o aviso do pedido pago e o de nova venda", falsoL2.mensagens.find((m) => m.text.includes("ZZ-TG-L1"))?.text, "Nova venda Loja Integrada ZZ-TG-L1\nCliente: ZZ TG Cliente\nTotal: R$ 10,00");
+    const { pagoEmNoHistoricoDaLI } = await import("../src/lib/pedidos/despacho.js");
+    conferir("LI: o pagamento e o 1o passo pago do historico; sem ele, nulo", [pagoEmNoHistoricoDaLI([{ em: "2026-11-20T15:00:00.000Z", statusDaOrigem: "pedido_enviado" }, { em: "2026-11-19T12:00:00.000Z", statusDaOrigem: "pedido_pago" }, { em: "2026-11-18T12:00:00.000Z", statusDaOrigem: "aguardando_pagamento" }])?.toISOString(), pagoEmNoHistoricoDaLI([{ em: "2026-11-18T12:00:00.000Z", statusDaOrigem: "aguardando_pagamento" }]), pagoEmNoHistoricoDaLI(null)], ["2026-11-19T12:00:00.000Z", null, null]);
+
     // O Telegram recusa o album (foto fora do padrao dele): a venda chega em texto na mesma volta.
     await criarVenda("ZZ-TG-V4", "MERCADO_LIVRE", 30, [item(0, foto1, "Recusada A", 1, 10), item(1, foto2, "Recusada B", 1, 20)]);
     const recusa = criarTelegramFalso({ falhas: { sendMediaGroup: { status: 400, description: "Bad Request: PHOTO_INVALID_DIMENSIONS" } } });

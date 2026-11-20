@@ -6,6 +6,7 @@ import { pcSemResposta, sinalDoVigiaDoPc } from "@/lib/coleta/fila";
 import { hojeEmSaoPaulo } from "@/lib/ferramentas/cotacao";
 import { lerSegredo } from "@/lib/integracoes/conexoes";
 import { lucroQueConta } from "@/lib/pedidos/banco";
+import { pagoEmNoHistoricoDaLI } from "@/lib/pedidos/despacho";
 import { lerConfiguracao } from "@/lib/riseAi/configuracao";
 import { ESCOPOS, estadoDoOrcamento, mesDeSaoPaulo } from "@/lib/riseAi/orcamento";
 import { limitesDoDia } from "@/lib/riseAi/revisao";
@@ -248,19 +249,38 @@ async function catalogosDoML() {
 const DUAS_HORAS_MS = 2 * 60 * 60 * 1000;
 const SETE_DIAS_MS = 7 * UM_DIA_MS;
 
+/// Loja Integrada: o aviso so sai com o pagamento aprovado (pedido do dono em 20/11/2026: "Nos pedidos da Li apenas me
+/// enviar se o pagamento tiver sido aprovado"). O pedido da LI nasce "aguardando pagamento" (pix, boleto) e pode ser pago
+/// dias depois, ou nunca; a regra do "lido ha pouco" o avisaria sem pagamento e perderia o que foi pago mais tarde. Por
+/// isso a LI vai por outra consulta: pedido ja pago (ou adiante) cujo pagamento foi nas ultimas 24 h, pelo historico de
+/// situacoes da LI (`pagoEmNoHistoricoDaLI`); sem o passo no historico vale a data da venda. O que foi pago ha mais
+/// tempo (carga inicial, releitura) nao avisa, e a chave do aviso impede a repeticao. O teto de 15 dias so limita a
+/// consulta: a LI cancela bem antes o pedido que ninguem pagou.
+const SEM_PAGAMENTO = ["AGUARDANDO_PAGAMENTO", "CANCELADO"];
+const QUINZE_DIAS_MS = 15 * UM_DIA_MS;
+
 async function novasVendas({ agora }) {
-  const pedidos = await prisma.pedidoDeVenda.findMany({
-    where: { criadoEm: { gte: new Date(agora - DUAS_HORAS_MS) }, dataDaVenda: { gte: new Date(agora - UM_DIA_MS) }, status: { not: "CANCELADO" } },
-    select: {
-      id: true,
-      canal: true,
-      numero: true,
-      nomeDoComprador: true,
-      total: true,
-      itens: { orderBy: { ordem: "asc" }, select: { titulo: true, quantidade: true, quantidadeDoKit: true, total: true, produto: { select: { sku: true } } } },
-    },
-    orderBy: { dataDaVenda: "asc" },
-  });
+  const select = {
+    id: true,
+    canal: true,
+    numero: true,
+    nomeDoComprador: true,
+    total: true,
+    dataDaVenda: true,
+    itens: { orderBy: { ordem: "asc" }, select: { titulo: true, quantidade: true, quantidadeDoKit: true, total: true, produto: { select: { sku: true } } } },
+  };
+  const [lidasHaPouco, daLojaIntegrada] = await Promise.all([
+    prisma.pedidoDeVenda.findMany({
+      where: { canal: { not: "LOJA_INTEGRADA" }, criadoEm: { gte: new Date(agora - DUAS_HORAS_MS) }, dataDaVenda: { gte: new Date(agora - UM_DIA_MS) }, status: { not: "CANCELADO" } },
+      select,
+    }),
+    prisma.pedidoDeVenda.findMany({
+      where: { canal: "LOJA_INTEGRADA", dataDaVenda: { gte: new Date(agora - QUINZE_DIAS_MS) }, status: { notIn: SEM_PAGAMENTO } },
+      select: { ...select, historico: true },
+    }),
+  ]);
+  const pagasHaPouco = daLojaIntegrada.filter((p) => (pagoEmNoHistoricoDaLI(p.historico) ?? p.dataDaVenda).getTime() >= agora - UM_DIA_MS);
+  const pedidos = [...lidasHaPouco, ...pagasHaPouco].sort((a, b) => a.dataDaVenda - b.dataDaVenda);
   return pedidos.map((p) => ({
     chave: `nova-venda:${p.id}`,
     dados: { pedidoId: p.id, canal: p.canal, numero: p.numero, cliente: p.nomeDoComprador, total: Number(p.total), itens: p.itens.map(itemDoAviso) },
