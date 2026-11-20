@@ -212,7 +212,62 @@ try {
   conferir("o papel voltou a ficar sem login", (await dono.query(`SELECT rolcanlogin FROM pg_roles WHERE rolname = $1`, [PAPEL])).rows[0].rolcanlogin, false);
   await comoPapel.query(`SET ROLE ${PAPEL}`);
 
-  // MARCADOR-T6 (as tarefas seguintes acrescentam os seus blocos acima desta linha)
+  // ---------- Tarefa 6: o SERVICO de verdade (scripts/ia-processo.js), como rise_ia, num ambiente limpo ----------
+  await comoPapel.query("RESET ROLE");
+  const { spawn } = await import("node:child_process");
+  const sinalDoDono = (await dono.query(`SELECT * FROM "SinalDoAssistente" WHERE "id" = 'unico'`)).rows[0] ?? null;
+  const senhaDoServico = randomBytes(24).toString("hex");
+  await dono.query(`ALTER ROLE ${PAPEL} LOGIN PASSWORD '${senhaDoServico}'`);
+  papelComLogin = true;
+  const urlDoServico = new URL(process.env.DATABASE_URL);
+  urlDoServico.username = PAPEL;
+  urlDoServico.password = senhaDoServico;
+  const PORTA = 18787;
+  const ORIGEM_DA_LOJA = "https://www.4hobby.com.br";
+  const servico = spawn(process.execPath, ["scripts/ia-processo.js"], {
+    env: {
+      PATH: process.env.PATH,
+      SystemRoot: process.env.SystemRoot,
+      TEMP: process.env.TEMP,
+      TMP: process.env.TMP,
+      DATABASE_URL: urlDoServico.toString(),
+      IA_SEGREDO: "ab".repeat(32),
+      IA_ORIGENS: ORIGEM_DA_LOJA,
+      IA_BASE_DAS_FOTOS: "https://rise.4hobby.com.br",
+      IA_PORTA: String(PORTA),
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let saidaDoServico = "";
+  servico.stdout.on("data", (pedaco) => (saidaDoServico += pedaco));
+  servico.stderr.on("data", (pedaco) => (saidaDoServico += pedaco));
+  try {
+    let status = null;
+    for (let tentativa = 0; tentativa < 80 && !status; tentativa++) {
+      await new Promise((resolver) => setTimeout(resolver, 250));
+      status = await fetch(`http://127.0.0.1:${PORTA}/status`).then((r) => r.json()).catch(() => null);
+    }
+    conferir("o servico sobe e responde /status", status !== null, true);
+    // No PC o dono nunca ligou o chat nem colou as chaves: o servico TEM de dizer desligado.
+    conferir("de fabrica, o servico diz desligado", [status?.ligado, status?.nome], [false, (await prisma.configuracaoIA.findUnique({ where: { id: "unica" } }))?.dados?.chatDaLoja?.nome ?? "Hobi"]);
+    const chat = await fetch(`http://127.0.0.1:${PORTA}/chat`, { method: "POST", headers: { "Content-Type": "application/json", Origin: ORIGEM_DA_LOJA }, body: JSON.stringify({ sessaoId: "0".repeat(32), mensagem: "oi" }) });
+    conferir("desligado, o /chat responde 503", [chat.status, (await chat.json()).erro], [503, "desligado"]);
+    conferir("de outra origem, 403", (await fetch(`http://127.0.0.1:${PORTA}/chat`, { method: "POST", headers: { Origin: "https://outro.site" }, body: "{}" })).status, 403);
+    conferir("qualquer outro caminho, 404", (await fetch(`http://127.0.0.1:${PORTA}/mcp`)).status, 404);
+    const sinalDoServico = (await dono.query(`SELECT "versao", "sinalEm" FROM "SinalDoAssistente" WHERE "id" = 'unico'`)).rows[0];
+    conferir("o servico deu o sinal de vida", [sinalDoServico?.versao, Date.now() - new Date(`${sinalDoServico?.sinalEm?.toISOString?.().replace("Z", "") ?? ""}Z`).getTime() < 120000], ["dev", true]);
+  } finally {
+    servico.kill();
+    await new Promise((resolver) => servico.once("exit", resolver));
+    if (falhas) console.log(`--- saida do servico ---\n${saidaDoServico.slice(-1500)}`);
+    await dono.query(`ALTER ROLE ${PAPEL} NOLOGIN PASSWORD NULL`);
+    papelComLogin = false;
+    if (sinalDoDono) await dono.query(`UPDATE "SinalDoAssistente" SET "sinalEm" = $1, "versao" = $2, "emAndamento" = $3, "ultimoErro" = $4 WHERE "id" = 'unico'`, [sinalDoDono.sinalEm, sinalDoDono.versao, sinalDoDono.emAndamento, sinalDoDono.ultimoErro]);
+    else await dono.query(`DELETE FROM "SinalDoAssistente" WHERE "id" = 'unico'`);
+  }
+  await comoPapel.query(`SET ROLE ${PAPEL}`);
+
+  // MARCADOR-T7 (as tarefas seguintes acrescentam os seus blocos acima desta linha)
 } catch (erro) {
   falhas++;
   console.error("ERRO NAO ESPERADO:", erro);

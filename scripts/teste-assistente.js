@@ -415,7 +415,192 @@ try {
   conferir("pedido de pessoa fora do horario", r6.passagem, { motivo: "pediu_pessoa", url: WHATSAPP, foraDoHorario: true });
   conferir("a passagem sai como evento, depois do texto", eventosDaPassagem.filter((n) => n !== "status"), ["texto", "passagem", "fim"]);
 
-  // MARCADOR-T6 (as tarefas seguintes acrescentam os seus blocos acima desta linha)
+  // ---------- Tarefa 6: a porta HTTP e o processo ----------
+  const http = await import("node:http");
+  const { spawnSync } = await import("node:child_process");
+  const { conferirAmbiente, lerAmbiente } = await import("../src/lib/riseAi/cliente/ambiente.js");
+  const { criarServidorDoAssistente } = await import("../src/lib/riseAi/cliente/servidorHttp.js");
+
+  const ambienteBom = {
+    DATABASE_URL: "postgresql://rise_ia:senha@db:5432/sistema_rise",
+    IA_SEGREDO: chave,
+    IA_ORIGENS: "https://www.4hobby.com.br,https://4hobby.com.br",
+    IA_BASE_DAS_FOTOS: "https://rise.4hobby.com.br",
+  };
+  conferir("ambiente certo passa", conferirAmbiente(ambienteBom), []);
+  conferir("recusa a chave do Rise", conferirAmbiente({ ...ambienteBom, ENCRYPTION_KEY: "x" }).length, 1);
+  conferir("recusa token do Bling", conferirAmbiente({ ...ambienteBom, BLING_CLIENT_SECRET: "x" }).length, 1);
+  conferir("recusa o segredo de borda e a senha do banco do Rise", conferirAmbiente({ ...ambienteBom, RISE_SEGREDO_DE_BORDA: "x", POSTGRES_PASSWORD: "y" }).length, 2);
+  conferir("recusa o usuario dono do banco", conferirAmbiente({ ...ambienteBom, DATABASE_URL: "postgresql://rise:x@db:5432/sistema_rise" }).length, 1);
+  conferir("exige o IA_SEGREDO com 64 hexadecimais", conferirAmbiente({ ...ambienteBom, IA_SEGREDO: "abc" }).length, 1);
+  conferir("exige origens https", conferirAmbiente({ ...ambienteBom, IA_ORIGENS: "http://outro.site" }).length, 1);
+  conferir("o problema nunca repete o valor", conferirAmbiente({ ...ambienteBom, ENCRYPTION_KEY: "valor-secreto-zz" }).join(" ").includes("valor-secreto-zz"), false);
+  conferir("le o ambiente", lerAmbiente(ambienteBom), { porta: 8787, origens: ["https://www.4hobby.com.br", "https://4hobby.com.br"], baseDasFotos: "https://rise.4hobby.com.br", chaveHex: chave });
+
+  const ORIGEM = "https://www.4hobby.com.br";
+  const SESSAO = "0123456789abcdef0123456789abcdef";
+  const pedidoBom = { sessaoId: SESSAO, mensagem: "tem arduino?", turnstileToken: "token-bom" };
+  const canalLigado = { ...chatDaLojaPadrao(), ligado: true, whatsapp: WHATSAPP, turnstileSiteKey: "site-key-zz" };
+  const esperar = (ms) => new Promise((resolver) => setTimeout(resolver, ms));
+  let respostasTerminadas = 0;
+
+  /** Sobe a porta com dependencias FALSAS numa porta livre do proprio computador. */
+  async function subir(opcoes = {}) {
+    const dadosFalsos = {
+      configuracaoDoCanal: async () => {
+        if (opcoes.bancoFora) throw new Error("banco fora do ar");
+        return { ...configuracaoReal, canal: { ...canalLigado, ...(opcoes.canal ?? {}) } };
+      },
+      segredos: async () => {
+        if (opcoes.bancoFora) throw new Error("banco fora do ar");
+        return { openai: "sk-zz", anthropic: null, turnstile: "ts-zz", ...(opcoes.segredos ?? {}) };
+      },
+    };
+    const servidor = criarServidorDoAssistente({
+      dados: dadosFalsos,
+      responder: async ({ aoEvento }) => {
+        if (opcoes.atrasoMs) await esperar(opcoes.atrasoMs);
+        if (opcoes.erroDoCerebro) throw opcoes.erroDoCerebro;
+        aoEvento("cartoes", { itens: [{ sku: "ZZ-LOJA-LED" }] });
+        aoEvento("texto", { texto: "Veja acima." });
+        aoEvento("fim", { mensagemId: "zz-m1" });
+        respostasTerminadas++;
+      },
+      avaliar: async (...argumentos) => {
+        (opcoes.avaliacoes ?? []).push(argumentos);
+        return true;
+      },
+      verificarRobo: async ({ token }) => token === "token-bom",
+      chaveHex: chave,
+      origens: [ORIGEM],
+      versao: "zz-teste",
+    });
+    await new Promise((resolver) => servidor.listen(0, "127.0.0.1", resolver));
+    const base = `http://127.0.0.1:${servidor.address().port}`;
+    const lerSse = (texto) =>
+      texto
+        .split("\n\n")
+        .filter((bloco) => bloco.trim())
+        .map((bloco) => ({ event: /^event: (.*)$/m.exec(bloco)?.[1], data: JSON.parse(/^data: (.*)$/m.exec(bloco)?.[1] ?? "null") }));
+    return {
+      base,
+      async pegar(caminho, { origem = ORIGEM } = {}) {
+        const resposta = await fetch(base + caminho, { headers: origem ? { Origin: origem } : {} });
+        return { status: resposta.status, corpo: await resposta.json().catch(() => null), cabecalhos: resposta.headers };
+      },
+      async postar(caminho, corpo, { origem = ORIGEM, cru = null } = {}) {
+        const resposta = await fetch(base + caminho, { method: "POST", headers: { "Content-Type": "application/json", ...(origem ? { Origin: origem } : {}) }, body: cru ?? JSON.stringify(corpo) });
+        const texto = await resposta.text();
+        const ehSse = (resposta.headers.get("content-type") ?? "").startsWith("text/event-stream");
+        return { status: resposta.status, corpo: ehSse ? null : JSON.parse(texto || "null"), eventos: ehSse ? lerSse(texto) : [], cabecalhos: resposta.headers };
+      },
+      fechar: () => new Promise((resolver) => servidor.close(resolver)),
+    };
+  }
+
+  const porta = await subir();
+  const status = await porta.pegar("/status");
+  conferir("status ligado com tudo no lugar", [status.status, status.corpo], [200, { ligado: true, nome: "Hobi", boasVindas: chatDaLojaPadrao().boasVindas, whatsapp: WHATSAPP, foraDoHorario: status.corpo.foraDoHorario, turnstileSiteKey: "site-key-zz", versao: "zz-teste" }]);
+  conferir("status: CORS so para a loja e cache de 1 minuto", [status.cabecalhos.get("access-control-allow-origin"), status.cabecalhos.get("cache-control")], [ORIGEM, "public, max-age=60"]);
+  conferir("status sem Origin responde (o deploy confere assim)", (await porta.pegar("/status", { origem: null })).status, 200);
+  conferir("rota desconhecida", (await porta.pegar("/widget.js")).status, 404);
+  conferir("GET no /chat nao existe", (await porta.pegar("/chat")).status, 404);
+  conferir("origem de fora", (await porta.postar("/chat", pedidoBom, { origem: "https://outro.site" })).status, 403);
+  conferir("POST sem Origin", (await porta.postar("/chat", pedidoBom, { origem: null })).status, 403);
+  const preflight = await fetch(porta.base + "/chat", { method: "OPTIONS", headers: { Origin: ORIGEM, "Access-Control-Request-Method": "POST" } });
+  conferir("preflight da loja", [preflight.status, preflight.headers.get("access-control-allow-origin"), preflight.headers.get("access-control-allow-methods")], [204, ORIGEM, "GET, POST, OPTIONS"]);
+  conferir("corpo acima de 16 KB", (await porta.postar("/chat", { ...pedidoBom, mensagem: "a".repeat(20000) })).status, 413);
+  conferir("corpo que nao e JSON", (await porta.postar("/chat", null, { cru: "{nao e json" })).status, 400);
+  conferir("sessao malformada", (await porta.postar("/chat", { ...pedidoBom, sessaoId: "abc" })).status, 400);
+  conferir("mensagem vazia", (await porta.postar("/chat", { ...pedidoBom, mensagem: "   " })).corpo, { erro: "vazia" });
+  conferir("mensagem acima do limite de caracteres", (await porta.postar("/chat", { ...pedidoBom, mensagem: "a".repeat(2001) })).corpo, { erro: "longa" });
+  conferir("sem passe e sem token", (await porta.postar("/chat", { ...pedidoBom, turnstileToken: undefined })).corpo, { erro: "robo" });
+  conferir("token reprovado", (await porta.postar("/chat", { ...pedidoBom, turnstileToken: "token-ruim" })).status, 403);
+  const fluxo = await porta.postar("/chat", pedidoBom);
+  conferir("fluxo SSE com o passe primeiro", [fluxo.status, fluxo.eventos.map((e) => e.event)], [200, ["passe", "cartoes", "texto", "fim"]]);
+  conferir("o fluxo nao e guardado nem bufferizado", [fluxo.cabecalhos.get("cache-control"), fluxo.cabecalhos.get("x-accel-buffering")], ["no-store", "no"]);
+  const comPasse = await porta.postar("/chat", { ...pedidoBom, turnstileToken: undefined, passe: fluxo.eventos[0].data.passe });
+  conferir("com o passe, sem novo token e sem novo passe", [comPasse.status, comPasse.eventos.map((e) => e.event)], [200, ["cartoes", "texto", "fim"]]);
+  conferir("passe de outra sessao nao vale", (await porta.postar("/chat", { ...pedidoBom, sessaoId: "f".repeat(32), turnstileToken: undefined, passe: fluxo.eventos[0].data.passe })).status, 403);
+  const avaliacoes = [];
+  const portaDaNota = await subir({ avaliacoes });
+  conferir("avaliar devolve 204", (await portaDaNota.postar("/avaliar", { sessaoId: SESSAO, mensagemId: "zz-m1", nota: -1 })).status, 204);
+  conferir("avaliar chega ao banco com a sessao", avaliacoes, [["zz-m1", SESSAO, -1]]);
+  conferir("nota fora de 1 e -1", (await portaDaNota.postar("/avaliar", { sessaoId: SESSAO, mensagemId: "zz-m1", nota: 5 })).status, 400);
+  await portaDaNota.fechar();
+  await porta.fechar();
+
+  const portaDesligada = await subir({ canal: { ligado: false } });
+  conferir("status desligado de fabrica", (await portaDesligada.pegar("/status")).corpo.ligado, false);
+  conferir("chat desligado", [(await portaDesligada.postar("/chat", pedidoBom)).status, (await portaDesligada.postar("/chat", pedidoBom)).corpo], [503, { erro: "desligado", whatsapp: WHATSAPP }]);
+  await portaDesligada.fechar();
+  const portaSemChave = await subir({ segredos: { openai: null } });
+  conferir("sem a chave da IA o chat fica desligado", [(await portaSemChave.pegar("/status")).corpo.ligado, (await portaSemChave.postar("/chat", pedidoBom)).status], [false, 503]);
+  await portaSemChave.fechar();
+  const portaSemTurnstile = await subir({ segredos: { turnstile: null } });
+  conferir("sem o segredo do Turnstile o chat fica desligado", (await portaSemTurnstile.pegar("/status")).corpo.ligado, false);
+  await portaSemTurnstile.fechar();
+
+  const portaLimitada = await subir({ canal: { limites: { ...chatDaLojaPadrao().limites, mensagensPorSessaoPorHora: 1 } } });
+  await portaLimitada.postar("/chat", pedidoBom);
+  const acimaDoLimite = await portaLimitada.postar("/chat", pedidoBom);
+  conferir("limite por sessao", [acimaDoLimite.status, acimaDoLimite.corpo], [429, { erro: "limite", whatsapp: WHATSAPP }]);
+  await portaLimitada.fechar();
+
+  // O cerebro avisa que nao pode responder: sai como evento `erro`, com o WhatsApp, e a vaga e liberada.
+  const portaComErro = await subir({ erroDoCerebro: new ErroDoAtendimento("orcamento", { mensagem: "O assistente está indisponível agora.", whatsapp: WHATSAPP }) });
+  const comErro = await portaComErro.postar("/chat", pedidoBom);
+  conferir("erro do cerebro vira evento", comErro.eventos.map((e) => [e.event, e.data.motivo ?? null, e.data.whatsapp ?? null]).filter(([nome]) => nome !== "passe"), [["erro", "orcamento", WHATSAPP]]);
+  conferir("depois do erro a vaga esta livre", (await portaComErro.postar("/chat", pedidoBom)).status, 200);
+  await portaComErro.fechar();
+  const portaComDefeito = await subir({ erroDoCerebro: new Error("defeito interno com detalhe do banco zz") });
+  const comDefeito = await portaComDefeito.postar("/chat", pedidoBom);
+  conferir("defeito interno nao vaza no evento", [comDefeito.eventos.at(-1).event, JSON.stringify(comDefeito.eventos).includes("detalhe do banco")], ["erro", false]);
+  await portaComDefeito.fechar();
+
+  // Review Focus 4: duas abas da mesma sessao mandam mensagem juntas.
+  const portaLenta = await subir({ atrasoMs: 200 });
+  const [abaA, abaB] = await Promise.all([portaLenta.postar("/chat", pedidoBom), portaLenta.postar("/chat", pedidoBom)]);
+  conferir("a segunda aba recebe 409", [abaA.status, abaB.status].sort(), [200, 409]);
+
+  // Review Focus 1: o visitante fecha a aba no meio da resposta.
+  const antesDeFechar = respostasTerminadas;
+  await new Promise((resolver) => {
+    const corpo = JSON.stringify({ ...pedidoBom, sessaoId: "1".repeat(32) });
+    const requisicao = http.request(portaLenta.base + "/chat", { method: "POST", headers: { "Content-Type": "application/json", Origin: ORIGEM, "Content-Length": Buffer.byteLength(corpo) } }, (resposta) => {
+      resposta.once("data", () => {
+        requisicao.destroy();
+        resolver();
+      });
+    });
+    requisicao.on("error", () => resolver());
+    requisicao.end(corpo);
+  });
+  await esperar(500);
+  conferir("a resposta terminou mesmo com a aba fechada", respostasTerminadas, antesDeFechar + 1);
+  conferir("a vaga foi liberada", (await portaLenta.postar("/chat", { ...pedidoBom, sessaoId: "1".repeat(32) })).status, 200);
+  await portaLenta.fechar();
+
+  // Capacidade: com uma vaga so, a segunda sessao recebe "lotado".
+  const portaCheia = await subir({ atrasoMs: 200, canal: { limites: { ...chatDaLojaPadrao().limites, respostasAoMesmoTempo: 1 } } });
+  const [vaga1, vaga2] = await Promise.all([portaCheia.postar("/chat", pedidoBom), portaCheia.postar("/chat", { ...pedidoBom, sessaoId: "2".repeat(32) })]);
+  conferir("casa cheia: lotado com o WhatsApp", [[vaga1.status, vaga2.status].sort(), (vaga1.corpo ?? vaga2.corpo)], [[200, 503], { erro: "lotado", whatsapp: WHATSAPP }]);
+  await portaCheia.fechar();
+
+  // Review Focus 5: banco fora do ar.
+  const portaSemBanco = await subir({ bancoFora: true });
+  conferir("status com o banco fora: desligado", [(await portaSemBanco.pegar("/status")).status, (await portaSemBanco.pegar("/status")).corpo], [200, { ligado: false }]);
+  conferir("chat com o banco fora: 503", (await portaSemBanco.postar("/chat", pedidoBom)).status, 503);
+  conferir("o servidor continua de pe depois do banco fora", (await portaSemBanco.pegar("/nada")).status, 404);
+  await portaSemBanco.fechar();
+
+  // O processo de verdade: recusa subir com chave do Rise no ambiente, ANTES de tocar no banco.
+  const rodarProcesso = (ambiente) => spawnSync(process.execPath, ["scripts/ia-processo.js"], { env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, ...ambiente }, encoding: "utf8", timeout: 30000 });
+  const recusado = rodarProcesso({ ...ambienteBom, ENCRYPTION_KEY: "valor-secreto-zz" });
+  conferir("o processo recusa subir com ENCRYPTION_KEY", [recusado.status, /ENCRYPTION_KEY/.test(recusado.stderr), recusado.stderr.includes("valor-secreto-zz")], [2, true, false]);
+  conferir("o processo recusa subir sem o IA_SEGREDO", rodarProcesso({ ...ambienteBom, IA_SEGREDO: "" }).status, 2);
+
+  // MARCADOR-T7 (as tarefas seguintes acrescentam os seus blocos acima desta linha)
 } catch (erro) {
   falhas++;
   console.error("ERRO NAO ESPERADO:", erro);
