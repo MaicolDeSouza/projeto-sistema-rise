@@ -953,6 +953,38 @@ try {
 }
 
 // ---------------------------------------------------------------------------
+// Fase 2: lista de Envios
+// ---------------------------------------------------------------------------
+
+const { listarEnvios } = await import("../src/lib/frete/envios.js");
+
+try {
+  console.log("\nLista de Envios");
+  await limparEnvios();
+  const pedido = await pedidoDeTeste("ZZ-FRETE-LISTA");
+  const base = { remetente: REMETENTE_ZZ, comprimentoCm: 16, larguraCm: 11, alturaCm: 3, pesoKg: 0.2, valorDeclarado: 49.7, transportadoraNome: "Correios" };
+  const criar = (numero, extra) => prisma.envio.create({ data: { ...base, numero, destinatario: DESTINATARIO_ZZ, servicoNome: "ZZ PAC", ...extra } });
+  await criar(99201, { status: "A_POSTAR", custo: 20, rastreio: "ZZRAST1BR", pedidoDeVendaId: pedido.id });
+  await criar(99202, { status: "POSTADO", custo: 30, rastreio: "ZZRAST2BR", destinatario: { ...DESTINATARIO_ZZ, nome: "José Antônio" } });
+  await criar(99203, { status: "POSTADO", custo: 10, avisoWhatsappEm: new Date() });
+  await criar(99204, { status: "RASCUNHO" });
+  const soZZ = (resultado) => resultado.linhas.filter((linha) => linha.servicoNome === "ZZ PAC");
+  conferir("filtro por situação", soZZ(await listarEnvios({ status: ["POSTADO"], busca: "", por: 100 })).map((l) => l.numero).sort(), [99202, 99203]);
+  conferir("busca pelo rastreio", soZZ(await listarEnvios({ busca: "zzrast2" })).map((l) => l.numero), [99202]);
+  conferir("busca pelo nome sem acento", soZZ(await listarEnvios({ busca: "jose antonio" })).map((l) => l.numero), [99202]);
+  conferir("busca pelo número do envio", soZZ(await listarEnvios({ busca: "ENV-99203" })).map((l) => l.numero), [99203]);
+  conferir("busca pelo pedido", soZZ(await listarEnvios({ busca: "ZZ-FRETE-LISTA" })).map((l) => [l.numero, l.pedido?.numero]), [[99201, "ZZ-FRETE-LISTA"]]);
+  conferir("ordem por custo, nulos no fim", soZZ(await listarEnvios({ busca: "ZZ PAC", ordenar: "custo", sentido: "asc", por: 100 })).map((l) => l.custo), [10, 20, 30, null]);
+  const pagina2 = await listarEnvios({ busca: "ZZ PAC", ordenar: "numero", sentido: "asc", pagina: 2, por: 1 });
+  conferir("página 2 de 1 por página", [pagina2.linhas.map((l) => l.numero), pagina2.total], [[99202], 4]);
+  conferir("pendente de aviso", soZZ(await listarEnvios({ busca: "ZZ PAC", por: 100 })).filter((l) => l.pendenteDeAviso).map((l) => l.numero), [99202]);
+  conferir("contagem por situação", (await listarEnvios({ busca: "ZZ PAC" })).contagemPorStatus.POSTADO >= 2, true);
+} finally {
+  await prisma.envio.deleteMany({ where: { servicoNome: "ZZ PAC" } });
+  await limparEnvios();
+}
+
+// ---------------------------------------------------------------------------
 // Fase 2: o custo da etiqueta no lucro do pedido
 // ---------------------------------------------------------------------------
 

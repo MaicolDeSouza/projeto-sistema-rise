@@ -346,6 +346,88 @@ export async function cancelarEtiqueta(envioId, motivo, login, { aoMudarCusto } 
   return { ok: true, envio: await lerEnvio(envio.id) };
 }
 
+// ---------------------------------------------------------------------------
+// Lista de Envios
+// ---------------------------------------------------------------------------
+
+export const COLUNAS_DOS_ENVIOS = ["numero", "data", "status", "custo", "postado"];
+const ORDEM_DA_COLUNA = { numero: "numero", data: "criadoEm", status: "status", custo: "custo", postado: "postadoEm" };
+const COM_ACENTO = "áàâãäéèêëíìîïóòôõöúùûüçÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ";
+const SEM_ACENTO = "aaaaaeeeeiiiiooooouuuucAAAAAEEEEIIIIOOOOOUUUUC";
+const semAcento = (texto) => [...String(texto)].map((letra) => SEM_ACENTO[COM_ACENTO.indexOf(letra)] ?? letra).join("");
+const POSTADOS = ["POSTADO", "ENTREGUE", "NAO_ENTREGUE", "COM_PROBLEMA"];
+
+/**
+ * Os ids que casam com a busca: o numero (ENV-0012 ou 12), o rastreio, o nome de quem recebe (sem acento nem caixa), o
+ * servico e o numero do pedido vinculado. SQL cru porque o nome mora dentro do JSON do destinatario.
+ */
+async function idsDaBusca(busca) {
+  const termo = semAcento(busca.trim()).toLowerCase();
+  const padrao = `%${termo.replace(/[\\%_]/g, (letra) => `\\${letra}`)}%`;
+  const numero = /^(?:env-?)?0*(\d{1,9})$/i.exec(busca.trim())?.[1];
+  const linhas = await prisma.$queryRaw`
+    SELECT e.id FROM "Envio" e LEFT JOIN "PedidoDeVenda" p ON p.id = e."pedidoDeVendaId"
+    WHERE lower(coalesce(e.rastreio, '')) LIKE ${padrao}
+       OR lower(translate(coalesce(e.destinatario->>'nome', ''), ${COM_ACENTO}, ${SEM_ACENTO})) LIKE ${padrao}
+       OR lower(translate(coalesce(e."servicoNome", ''), ${COM_ACENTO}, ${SEM_ACENTO})) LIKE ${padrao}
+       OR lower(coalesce(p.numero, '')) LIKE ${padrao}
+       OR e.numero = ${numero ? Number(numero) : -1}`;
+  return linhas.map((linha) => linha.id);
+}
+
+/**
+ * A lista de Envios, com o filtro, a ordem e a pagina feitos no banco. `contagemPorStatus` conta com a busca e a direcao,
+ * sem o filtro de situacao (os chips mostram quantos ha em cada uma).
+ */
+export async function listarEnvios({ status = [], direcao = null, busca = "", ordenar = null, sentido = "desc", pagina = 1, por = 25 } = {}) {
+  const base = {};
+  if (direcao === "IDA" || direcao === "REVERSO") base.direcao = direcao;
+  if (String(busca ?? "").trim()) base.id = { in: await idsDaBusca(String(busca)) };
+  const onde = { ...base, ...(status.length ? { status: { in: status } } : {}) };
+
+  const campo = ORDEM_DA_COLUNA[ordenar] ?? "numero";
+  const lado = ordenar ? (sentido === "asc" ? "asc" : "desc") : "desc";
+  const orderBy = campo === "custo" || campo === "postadoEm" ? [{ [campo]: { sort: lado, nulls: "last" } }, { numero: "desc" }] : [{ [campo]: lado }, { numero: "desc" }];
+
+  const [total, envios, porStatus] = await Promise.all([
+    prisma.envio.count({ where: onde }),
+    prisma.envio.findMany({
+      where: onde,
+      orderBy,
+      skip: (Math.max(1, pagina) - 1) * por,
+      take: por,
+      include: { pedidoDeVenda: { select: { id: true, numero: true } } },
+    }),
+    prisma.envio.groupBy({ by: ["status"], where: base, _count: { _all: true } }),
+  ]);
+
+  const linhas = envios.map((envio) => {
+    // No reverso quem importa e quem manda (o fornecedor ou o cliente); na ida, quem recebe.
+    const parte = envio.direcao === "REVERSO" ? envio.remetente : envio.destinatario;
+    return {
+      id: envio.id,
+      numero: envio.numero,
+      criadoEm: envio.criadoEm,
+      direcao: envio.direcao,
+      status: envio.status,
+      nome: parte?.nome ?? null,
+      cidade: parte?.endereco?.cidade ? `${parte.endereco.cidade}${parte.endereco.uf ? ` (${parte.endereco.uf})` : ""}` : null,
+      pedido: envio.pedidoDeVenda ? { id: envio.pedidoDeVenda.id, numero: envio.pedidoDeVenda.numero } : null,
+      transportadoraNome: envio.transportadoraNome,
+      servicoNome: envio.servicoNome,
+      rastreio: envio.rastreio,
+      linkDoRastreio: envio.linkDoRastreio,
+      custo: envio.custo === null ? null : Number(envio.custo),
+      postadoEm: envio.postadoEm,
+      avisoEmailEm: envio.avisoEmailEm,
+      avisoEmailErro: envio.avisoEmailErro,
+      avisoWhatsappEm: envio.avisoWhatsappEm,
+      pendenteDeAviso: POSTADOS.includes(envio.status) && !envio.avisoEmailEm && !envio.avisoWhatsappEm,
+    };
+  });
+  return { linhas, total, contagemPorStatus: Object.fromEntries(porStatus.map((linha) => [linha.status, linha._count._all])) };
+}
+
 /** A cotacao gravada na proposta que gerou este pedido do Bling (para a janela abrir com a mesma caixa e peso). */
 export async function cotacaoDaPropostaDoPedido(pedido) {
   if (!pedido?.blingPedidoId) return null;
