@@ -95,6 +95,9 @@ export async function gastosOutrosPorDia({ de, ate }) {
            coalesce(sum("valorUsd"), 0)::float8 AS "usd"
     FROM "GastoIA"
     WHERE "criadoEm" >= ${inicio} AND "criadoEm" < ${fim}
+      -- A conversa com cliente (chat da loja) grava o custo na resposta E num GastoIA "CONVERSA" (e por ele que o
+      -- orcamento dos clientes soma). Na tabela ela ja aparece na linha do modelo: aqui apareceria em dobro.
+      AND "tipo" <> 'CONVERSA'::"TipoDeGastoIA"
     GROUP BY 1, 2
     ORDER BY 1 DESC`;
 

@@ -110,6 +110,14 @@ conferir("PC sem fontes: aguardando", regras.avaliarPc({ fontesNoPc: 0, pedidosS
 conferir("PC com pedido sem resposta: falha", regras.avaliarPc({ fontesNoPc: 2, pedidosSemResposta: 1, sinalEm: antes(HORA) }, AGORA).estado, "falha");
 conferir("PC com fontes e sem pedido: ok", regras.avaliarPc({ fontesNoPc: 2, pedidosSemResposta: 0, sinalEm: null }, AGORA).estado, "ok");
 
+// O servico do chat da loja (o Hobi): desligado nao e problema; ligado, tem de dar sinal a cada 15 s.
+conferir("assistente desligado: informacao, nao problema", regras.avaliarAssistente({ ligado: false, sinalEm: null }, AGORA), { estado: "info", detalhe: "Chat da loja desligado." });
+conferir("assistente ligado que nunca deu sinal: falha", regras.avaliarAssistente({ ligado: true, sinalEm: null }, AGORA).estado, "falha");
+conferir("assistente ligado sem sinal ha 5 min: falha", regras.avaliarAssistente({ ligado: true, sinalEm: antes(5 * MIN) }, AGORA).estado, "falha");
+conferir("assistente no ar", regras.avaliarAssistente({ ligado: true, sinalEm: antes(20 * 1000), emAndamento: 2, versao: "20.11.2026.131" }, AGORA), { estado: "ok", detalhe: "No ar, versão 20.11.2026.131, 2 respostas agora." });
+conferir("assistente no ar com erro recente: atencao", regras.avaliarAssistente({ ligado: true, sinalEm: antes(20 * 1000), emAndamento: 0, versao: "x", ultimoErro: "zz erro" }, AGORA), { estado: "atencao", detalhe: "No ar, com erro recente: zz erro" });
+conferir("assistente ligado com algo faltando: atencao, dizendo o que", regras.avaliarAssistente({ ligado: true, sinalEm: antes(20 * 1000), faltas: ["a chave da IA (OpenAI)", "o link do WhatsApp"] }, AGORA), { estado: "atencao", detalhe: "Ligado, mas fora do ar: falta a chave da IA (OpenAI) e o link do WhatsApp." });
+
 conferir("healthchecks na VPS sem a URL do worker: atencao", regras.avaliarHealthchecks({ naVps: true, worker: false, backup: true, site: false }).estado, "atencao");
 conferir("healthchecks com worker e site: ok", regras.avaliarHealthchecks({ naVps: true, worker: true, backup: true, site: true }).estado, "ok");
 conferir("healthchecks no PC: aguardando", regras.avaliarHealthchecks({ naVps: false, worker: false, backup: false, site: false }).estado, "aguardando");
@@ -160,6 +168,9 @@ try {
   const naVps = await coletarSaude({ agora: Date.now(), env: { ...process.env, RISE_PRODUCAO: "1" } });
   conferir("na VPS cada rotina tem a sua linha", regras.ROTINAS_DO_WORKER.every((rotina) => idsDoGrupo(naVps).includes(`rotina-${rotina.id}`)), true);
   conferir("na VPS sem batida do worker o healthchecks pede atencao", naVps.grupos[1].itens.find((item) => item.id === "healthchecks")?.estado, process.env.HEALTHCHECKS_WORKER_URL && process.env.HEALTHCHECKS_SITE_URL ? "ok" : "atencao");
+  const itemDoAssistente = (resultado) => resultado.grupos.flatMap((grupo) => grupo.itens).find((item) => item.id === "assistente");
+  conferir("no PC o assistente da loja aparece como informacao (so roda na VPS)", [itemDoAssistente(noPc)?.rotulo, itemDoAssistente(noPc)?.estado], ["Assistente da loja", "aguardando"]);
+  conferir("na VPS o assistente da loja tem a sua linha, com estado conhecido", ["ok", "atencao", "falha", "info"].includes(itemDoAssistente(naVps)?.estado), true);
   conferir("o banco aparece e responde", saude.grupos.flatMap((grupo) => grupo.itens).find((item) => item.id === "banco")?.estado !== "falha", true);
 } finally {
   await prisma.rotinaDoWorker.deleteMany({ where: { id: { startsWith: "zz-saude-" } } });

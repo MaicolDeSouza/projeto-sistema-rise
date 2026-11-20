@@ -4,6 +4,7 @@ import path from "node:path";
 import { prisma } from "@/lib/db";
 import { config as configDasIntegracoes } from "@/lib/integracoes/config";
 import { situacaoDoCertificado } from "@/lib/propostas/certificado";
+import { estadoDoChatDaLoja } from "@/lib/riseAi/canalDaLoja";
 import { lerConfiguracao } from "@/lib/riseAi/configuracao";
 import { ESCOPOS, estadoDoOrcamento } from "@/lib/riseAi/orcamento";
 import { ambienteDoRise } from "@/lib/sessao";
@@ -21,6 +22,7 @@ import {
   avaliarOrcamento,
   avaliarPc,
   avaliarRotina,
+  avaliarAssistente,
   avaliarWorker,
   estadoGeral,
 } from "./regras";
@@ -180,7 +182,7 @@ async function itensDasIntegracoes({ agora }) {
   });
 }
 
-async function itensDaOperacao({ agora }) {
+async function itensDaOperacao({ agora, naVps, env }) {
   const configuracao = await lerConfiguracao();
   const itens = [];
   for (const escopo of ESCOPOS) {
@@ -202,6 +204,15 @@ async function itensDaOperacao({ agora }) {
     await seguro({ id: "certificado", rotulo: "Certificado digital", caminho: "/configuracoes/empresa" }, async () =>
       avaliarCertificado(await situacaoDoCertificado(new Date(agora)), agora),
     ),
+    // O servico do chat da loja (o Hobi) so existe na VPS; la, ligado e sem sinal de vida e vermelho.
+    await seguro({ id: "assistente", rotulo: "Assistente da loja", caminho: "/rise-ai/configuracoes" }, async () => {
+      if (!naVps) return { estado: "aguardando", detalhe: "O serviço do chat da loja só roda na VPS." };
+      const estado = await estadoDoChatDaLoja({ config: configuracao, env, agora });
+      return avaliarAssistente(
+        { ligado: Boolean(configuracao.chatDaLoja?.ligado), sinalEm: estado.sinal?.em ?? null, emAndamento: estado.sinal?.emAndamento ?? 0, versao: estado.sinal?.versao ?? null, ultimoErro: estado.sinal?.ultimoErro ?? null, faltas: estado.faltas },
+        agora,
+      );
+    }),
   );
   return itens;
 }
@@ -215,7 +226,7 @@ export async function coletarSaude({ agora = Date.now(), env = process.env } = {
     itensDosWorkers({ agora, naVps }),
     itensDoServidor({ agora, naVps, env }),
     seguro({ id: "integracoes", rotulo: "Integrações" }, async () => ({ lista: await itensDasIntegracoes({ agora }) })),
-    seguro({ id: "operacao", rotulo: "IA e varreduras" }, async () => ({ lista: await itensDaOperacao({ agora }) })),
+    seguro({ id: "operacao", rotulo: "IA e varreduras" }, async () => ({ lista: await itensDaOperacao({ agora, naVps, env }) })),
   ]);
   const lista = (resultado) => resultado.lista ?? [resultado];
   const grupos = [

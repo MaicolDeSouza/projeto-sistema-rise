@@ -994,6 +994,19 @@ try {
   const aprovada = await aprovarSugestao(sugestaoDaLoja.id, { usuario: "zz-loja" });
   conferir("a nota de uma sugestao de cliente nasce interna", (await prisma.conhecimentoIA.findUnique({ where: { id: aprovada.conhecimentoId } }))?.visibilidade, "ADMIN");
   conferir("nota interna nao chega ao chat da loja", (await dados.conhecimento("LED vermelho resistor 220 ohms")).some((nota) => nota.assunto.startsWith("ZZ LOJA resposta errada")), false);
+
+  // ---------- Fase 2, tarefa 7: o gasto do chat nao aparece em dobro no Consumo ----------
+  const { gastosOutrosPorDia, consumoPorDia } = await import("../src/lib/riseAi/consumo.js");
+  const { limitesDoDia } = await import("../src/lib/riseAi/revisao.js");
+  const hoje = hojeEmSaoPaulo();
+  const { inicio: inicioDeHoje, fim: fimDeHoje } = limitesDoDia(hoje);
+  await prisma.gastoIA.create({ data: { tipo: "BUSCA", escopo: "INTERNO", provedor: "zz-loja", valorBrl: 0.1234, valorUsd: 0.02, referencia: r.conversaId } });
+  const somaDeHoje = async (onde) => Number((await prisma.gastoIA.aggregate({ where: { criadoEm: { gte: inicioDeHoje, lt: fimDeHoje }, ...onde }, _sum: { valorBrl: true } }))._sum.valorBrl ?? 0);
+  const outrosDeHoje = (await gastosOutrosPorDia({ de: hoje, ate: hoje })).find((gasto) => gasto.dia === hoje);
+  conferir("ha gasto de conversa da loja hoje (o que apareceria em dobro)", (await somaDeHoje({ tipo: "CONVERSA" })) > 0, true);
+  conferir("Outros nao soma as conversas da loja", Math.round((outrosDeHoje?.brl ?? 0) * 10000), Math.round((await somaDeHoje({ tipo: { not: "CONVERSA" } })) * 10000));
+  conferir("a busca continua em Outros", (outrosDeHoje?.porTipo.BUSCA ?? 0) >= 0.1234, true);
+  conferir("a resposta da loja esta na linha do modelo", (await consumoPorDia({ de: hoje, ate: hoje })).some((linha) => linha.modelo === "gpt-4.1-mini" && linha.custoBrl > 0), true);
 } catch (erro) {
   falhas++;
   console.error("ERRO NAO ESPERADO:", erro);

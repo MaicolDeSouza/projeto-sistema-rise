@@ -61,7 +61,7 @@ export default async function ConsumoPage({ searchParams }) {
       <section className="flex flex-col gap-3 rounded-lg border border-borda bg-superficie p-4">
         <h2 className="text-sm font-semibold">Orçamento de {mes}</h2>
         <div className="max-w-xl">
-          <BarraDeOrcamento rotulo="Clientes (WhatsApp)" {...paraABarra(clientes)} />
+          <BarraDeOrcamento rotulo="Clientes (loja e WhatsApp)" {...paraABarra(clientes)} />
         </div>
       </section>
       <TabelaDeConsumo linhas={linhasComOutros(respostas, outros)} totais={totaisDoPeriodo(respostas, outros)} />

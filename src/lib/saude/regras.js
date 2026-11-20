@@ -75,6 +75,22 @@ export function avaliarWorker(sinalEm, agora) {
   return { estado: "ok", detalhe: `No ar, último sinal há ${Math.max(1, Math.round(ms / 1000))} s.` };
 }
 
+/**
+ * O servico do chat da loja (o Hobi), pelo sinal de vida dele (`SinalDoAssistente`, a cada 15 s; sem sinal em 2 min,
+ * caiu). Desligado nao e problema. Ligado com algo faltando (chave removida, por exemplo) o servico esta de pe mas
+ * responde "desligado" a loja: amarelo, dizendo o que falta.
+ *
+ * @param {{ ligado: boolean, sinalEm?: Date | string | null, emAndamento?: number, versao?: string | null, ultimoErro?: string | null, faltas?: string[] }} situacao
+ */
+export function avaliarAssistente({ ligado, sinalEm = null, emAndamento = 0, versao = null, ultimoErro = null, faltas = [] } = {}, agora) {
+  if (!ligado) return { estado: "info", detalhe: "Chat da loja desligado." };
+  if (faltas.length) return { estado: "atencao", detalhe: `Ligado, mas fora do ar: falta ${faltas.length > 1 ? `${faltas.slice(0, -1).join(", ")} e ${faltas.at(-1)}` : faltas[0]}.` };
+  if (!sinalEm) return { estado: "falha", detalhe: "O serviço do chat da loja não está no ar." };
+  if (agora - tempo(sinalEm) > 2 * MIN) return { estado: "falha", detalhe: `Sem sinal ${quandoFoi(sinalEm, agora)}: o serviço do chat da loja caiu ou travou.` };
+  if (ultimoErro) return { estado: "atencao", detalhe: `No ar, com erro recente: ${ultimoErro}` };
+  return { estado: "ok", detalhe: `No ar${versao ? `, versão ${versao}` : ""}, ${emAndamento} ${emAndamento === 1 ? "resposta" : "respostas"} agora.` };
+}
+
 /** O disco onde mora `dados/`: abaixo de 15% livre pede olhar, abaixo de 10% e falha (backup e fotos param). */
 export function avaliarDisco(disco) {
   if (!disco?.totalBytes) return { estado: "aguardando", detalhe: "Não foi possível ler o disco." };
