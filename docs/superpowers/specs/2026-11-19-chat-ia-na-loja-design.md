@@ -84,6 +84,12 @@ visitante ── loja (LI) ── widget fixado ──► hobi.4hobby.com.br (Ca
 - **Ambiente próprio** (`deploy/ia.env`, fora do git), **nunca o `.env` do Rise**: só a URL do banco do `rise_ia`, o
   `IA_SEGREDO` (decifra os dois segredos dele, §5.3) e as origens permitidas. Sem `ENCRYPTION_KEY`, sem tokens, sem
   `RISE_SEGREDO_DE_BORDA`.
+  **Como ficou na fase 1 (19/11/2026, decisão da execução, a conferir pelo dono):** o arquivo `deploy/ia.env` não existe. As
+  duas variáveis (`IA_DATABASE_URL` e `IA_SEGREDO`) ficam no `.env` da VPS e chegam ao contêiner `ia` pela interpolação do
+  compose, uma a uma, como o segredo de borda já chega ao Caddy: um `env_file` ausente quebraria o deploy das outras sessões.
+  O que esta regra protege continua valendo e é testado: o contêiner `ia` recebe só 7 variáveis nomeadas, nunca o `.env`, e o
+  processo se recusa a subir se achar uma chave do Rise. O custo: o app e o worker passam a ter no ambiente a URL do usuário
+  restrito (menos poder do que já têm) e o `IA_SEGREDO` (que o app usa para cifrar as chaves do chat).
 - Endurecido: usuário sem root, `read_only`, `cap_drop: ALL`, `no-new-privileges`, sem volume (não monta `dados/`),
   `/tmp` em memória, `mem_limit` e limite de processos próprios, reinício automático.
 - **Redes:** `borda_ia` (só caddy e ia) e `dados_ia` (só ia e db). O `ia` **não alcança** `app`, `auth` nem `worker`.

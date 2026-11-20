@@ -168,7 +168,8 @@ try {
   conferir("sob o papel: conhecimento publico", (await dadosDoPapel.conhecimento("zz loja garantia de 90 dias")).map((n) => n.assunto), ["ZZ LOJA publica"]);
   conferir("sob o papel: configuracao do canal", (await dadosDoPapel.configuracaoDoCanal()).canal.nome.length > 0, true);
   conferir("sob o papel: segredos (nenhum de teste)", Object.keys(await dadosDoPapel.segredos()).sort(), ["anthropic", "openai", "turnstile"]);
-  const sinalAntes = (await dono.query(`SELECT * FROM "SinalDoAssistente" WHERE "id" = 'unico'`)).rows[0] ?? null;
+  // (Linha com versao "zz-..." e sobra de um teste antigo, nao do dono: essa sai.)
+  const sinalAntes = (await dono.query(`SELECT * FROM "SinalDoAssistente" WHERE "id" = 'unico' AND coalesce("versao", '') NOT LIKE 'zz-%'`)).rows[0] ?? null;
   await dadosDoPapel.darSinal({ emAndamento: 1, versao: "zz-isolamento" });
   conferir("sob o papel: da o sinal", (await linhas(`SELECT "versao" FROM "SinalDoAssistente" WHERE "id" = 'unico'`))[0]?.versao, "zz-isolamento");
   await comoPapel.query("RESET ROLE");
@@ -215,7 +216,7 @@ try {
   // ---------- Tarefa 6: o SERVICO de verdade (scripts/ia-processo.js), como rise_ia, num ambiente limpo ----------
   await comoPapel.query("RESET ROLE");
   const { spawn } = await import("node:child_process");
-  const sinalDoDono = (await dono.query(`SELECT * FROM "SinalDoAssistente" WHERE "id" = 'unico'`)).rows[0] ?? null;
+  const sinalDoDono = (await dono.query(`SELECT * FROM "SinalDoAssistente" WHERE "id" = 'unico' AND coalesce("versao", '') NOT LIKE 'zz-%'`)).rows[0] ?? null;
   const senhaDoServico = randomBytes(24).toString("hex");
   await dono.query(`ALTER ROLE ${PAPEL} LOGIN PASSWORD '${senhaDoServico}'`);
   papelComLogin = true;

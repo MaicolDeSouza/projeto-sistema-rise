@@ -182,9 +182,15 @@ try {
   await prisma.segredoDoAssistente.create({ data: { nome: "turnstile", cifrado: cifrarSegredo("ts-zz", "cd".repeat(32)), atualizadoPor: "zz-loja" } });
   conferir("segredos: o que abre vem, o de outra chave vira nulo", await dados.segredos(), { openai: "sk-zz-loja", anthropic: null, turnstile: null });
   await prisma.segredoDoAssistente.deleteMany({ where: { atualizadoPor: "zz-loja" } });
+  // O sinal de vida e UMA linha (`unico`), a do servico de verdade: o teste a devolve como estava.
+  // (Linha com versao "zz-..." e sobra de um teste antigo, nao do dono: essa sai.)
+  const sinalAchado = await prisma.sinalDoAssistente.findUnique({ where: { id: "unico" } });
+  const sinalDoDono = sinalAchado && !String(sinalAchado.versao ?? "").startsWith("zz-") ? sinalAchado : null;
   await dados.darSinal({ emAndamento: 2, versao: "zz-teste" });
   const sinal = await prisma.sinalDoAssistente.findUnique({ where: { id: "unico" } });
   conferir("o sinal de vida e gravado em UTC, agora", [sinal.versao, sinal.emAndamento, Math.abs(Date.now() - sinal.sinalEm.getTime()) < 60000], ["zz-teste", 2, true]);
+  if (sinalDoDono) await prisma.sinalDoAssistente.update({ where: { id: "unico" }, data: sinalDoDono });
+  else await prisma.sinalDoAssistente.deleteMany({ where: { id: "unico" } });
 
   // ---------- Tarefa 4: as pecas puras (lista, filtro de saida, limites, robo) ----------
   const { lerLinhasDaLista } = await import("../src/lib/riseAi/cliente/lista.js");
@@ -643,7 +649,14 @@ try {
   const deployVps = ler("deploy/deploy-vps.sh");
   conferir("o deploy so sobe a ia onde o preparo ja rodou", /grep -qE '\^\[\[:space:\]\]\*IA_DATABASE_URL=' \.env[^\n]*\n[^\n]*\n?[^\n]*--profile ia up -d ia/.test(deployVps), true);
 
-  // MARCADOR-T8 (as tarefas seguintes acrescentam os seus blocos acima desta linha)
+  // Revisao final: o primeiro deploy recria o conteiner do banco (ele ganha a rede `dados_ia`). O worker tem de estar
+  // PARADO antes disso, senao as varreduras em curso perdem a conexao e gastam uma tentativa cada.
+  const antesDoBanco = deployVps.slice(0, deployVps.indexOf("docker compose up -d --wait db"));
+  conferir(
+    "o deploy para o worker antes de recriar o banco pela primeira vez",
+    [/docker inspect rise-postgres[^\n]*\| grep -q dados_ia/.test(antesDoBanco), /if ! docker inspect rise-postgres[\s\S]*?docker compose stop worker\nfi\n/.test(antesDoBanco)],
+    [true, true],
+  );
 } catch (erro) {
   falhas++;
   console.error("ERRO NAO ESPERADO:", erro);

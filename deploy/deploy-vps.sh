@@ -85,6 +85,15 @@ fi
 PASSO="construindo a imagem"
 docker compose build --build-arg RISE_VERSAO="${VERSAO}" --build-arg RISE_COMMIT="${COMMIT}" app
 
+# O conteiner do banco ganhou a rede `dados_ia` (chat da loja, 19/11/2026): na PRIMEIRA vez o `up` abaixo o RECRIA, e o
+# banco fica alguns segundos fora. O worker precisa estar parado antes disso (como antes de uma migration): com ele no ar,
+# as varreduras em curso perderiam a conexao e gastariam uma tentativa cada. Nas vezes seguintes a rede ja esta la e este
+# passo nao faz nada. O `docker compose up -d` do fim religa o worker.
+if ! docker inspect rise-postgres --format '{{json .NetworkSettings.Networks}}' 2>/dev/null | grep -q dados_ia; then
+  PASSO="parando o worker antes de recriar o conteiner do banco"
+  docker compose stop worker
+fi
+
 # --wait: o banco precisa estar SAUDAVEL (healthcheck do compose), e nao so ligado, antes da pergunta abaixo.
 PASSO="subindo o banco"
 docker compose up -d --wait db

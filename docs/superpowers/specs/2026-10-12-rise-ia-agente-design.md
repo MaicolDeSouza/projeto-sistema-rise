@@ -1,5 +1,10 @@
 # Rise IA, fase 2: o agente da 4hobby
 
+> **Mudança em 19/11/2026:** o "chat de IA dentro da loja da LI" deixou de ser não objetivo (§2). O dono pediu o chat no site
+> da loja (o Hobi) como o **primeiro canal de cliente**, antes do WhatsApp, e o serviço `ia` separado (§2a) nasce por ele:
+> spec `2026-11-19-chat-ia-na-loja-design.md`, fase 1 no plano `2026-11-19-chat-da-loja-fase-1-fundacao-segura.md`. O WhatsApp
+> (Entrega B) reaproveita o cérebro do cliente (`src/lib/riseAi/cliente/`) e o usuário de banco `rise_ia`.
+
 > **Mudança de rumo em 20/10/2026** (plano `docs/superpowers/plans/2026-10-20-mcp-rise-e-rumo-do-rise-ai.md`): o chat interno
 > da Entrega A saiu da tela antes de subir; a equipe consulta o Rise pelo Claude ou pelo ChatGPT, pelo servidor MCP do Rise
 > (`/mcp`, só leitura, sem IA paga), e as dúvidas que eles anotam entram na Revisão do dia. A **Entrega E** (produto e anúncio

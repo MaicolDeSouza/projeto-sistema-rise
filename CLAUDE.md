@@ -349,7 +349,7 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Cadastros | Clientes (física/jurídica, endereço Geral/Entrega com lupa de CEP, contatos), fornecedores, concorrentes, transportadoras e marcas, numa página de **cartões** (sem cascata no menu); a seção Produtos abre o mesmo formulário de Produtos. Grava só no banco local |
 | Mercados | Teste de fonte, importação de arquivo (HTML/PDF/XLSX) e coleta gravando **no Postgres**, com série de preço |
 | Ferramentas | Conversor de imagem para SVG (PNG/JPG/WebP em vetor colorido, motor VTracer) e cotação do dólar (PTAX do Banco Central, com gráfico), que não gravam nada. **Licenças Softwares (NO AR na VPS desde 06.11.2026.72, importação feita lá):** chaves do LightBurn e arquivos do Mach3 com os clientes de cada licença, vagas livres e último uso lidos do portal pela extensão "Rise LightBurn"; ver "Ferramentas: Licenças Softwares" |
-| Rise AI | **Mudança de rumo em 20/10/2026:** o chat interno saiu da tela e a equipe consulta o Rise pelo **Claude ou pelo ChatGPT**, pelo servidor MCP (`/mcp`, OAuth próprio, só leitura, nunca chama IA paga), pronto e **sem deploy**. Ficam a aba Conexões (o endereço e as conexões de cada pessoa), a Revisão do dia (com as dúvidas que o Claude e o ChatGPT anotam), o Consumo e as Configurações (Modelos, orçamento dos clientes e o prompt do cliente); a lib `src/lib/riseAi/` fica inteira como o motor do WhatsApp. A Entrega 1 está na VPS desde 13/10/2026; o chat da A1 nunca subiu e saiu. **Entrega C1 (avisos no Telegram) pronta em 23/10/2026, SEM deploy:** aba Canais com o bot, vínculo por código na tela do usuário e cinco avisos pelo worker. Ver "Servidor MCP (20/10/2026)", "Rise AI (Entrega 1)" e "Rise AI (Entrega C1, avisos no Telegram)" |
+| Rise AI | **Mudança de rumo em 20/10/2026:** o chat interno saiu da tela e a equipe consulta o Rise pelo **Claude ou pelo ChatGPT**, pelo servidor MCP (`/mcp`, OAuth próprio, só leitura, nunca chama IA paga), pronto e **sem deploy**. Ficam a aba Conexões (o endereço e as conexões de cada pessoa), a Revisão do dia (com as dúvidas que o Claude e o ChatGPT anotam), o Consumo e as Configurações (Modelos, orçamento dos clientes e o prompt do cliente); a lib `src/lib/riseAi/` fica inteira como o motor do WhatsApp. A Entrega 1 está na VPS desde 13/10/2026; o chat da A1 nunca subiu e saiu. **Entrega C1 (avisos no Telegram) pronta em 23/10/2026, SEM deploy:** aba Canais com o bot, vínculo por código na tela do usuário e cinco avisos pelo worker. Ver "Servidor MCP (20/10/2026)", "Rise AI (Entrega 1)" e "Rise AI (Entrega C1, avisos no Telegram)". **Chat da loja (o Hobi), fase 1 pronta em 19/11/2026, SEM deploy e sem nada visível na loja:** o serviço `ia` isolado (usuário de banco `rise_ia` só com visões públicas, sem as chaves do Rise), o cérebro do cliente e a porta `hobi.4hobby.com.br` desligada; ver "Chat da loja (o Hobi), fase 1" |
 | Configurações (Acessos) | Lançamento 1 pronto em 12/10/2026 e **no ar na VPS desde 13/10/2026**: usuários, funções com a matriz de permissões, exceções, quebra-vidro `RISE_AI_ADMINS` e segredo de borda; o Rise AI e Configurações conferem o acesso no servidor. Integrações virou cartão de Configurações. **Lançamento 2 pronto em 22/10/2026, SEM deploy:** o Rise inteiro confere o acesso (menu e Painel filtrados, telas em `ver` com o selo "Somente leitura", dados sensíveis cortados no servidor), "Ver como" e a aba Histórico. Ver "Acessos (lançamento 1)" e "Acessos (lançamento 2)" |
 | Relatórios | **Relatório semanal da coleta** em PDF (tela `/relatorios`, 20/10/2026, sem deploy): lista das rodadas, "Gerar agora" e baixar o PDF. Ver "Relatório semanal da coleta" |
 | Compras | Pedidos de compra e reposição do estoque mínimo (26/10/2026, sem deploy): lista dos conferidos abaixo do mínimo com popup de fornecedores e rascunho automático por fornecedor, editor do pedido no molde do Bling, estoque a caminho calculado, lançar estoque no Bling por item com Desfazer, proposta anexada e PDF para o fornecedor. Ver "Compras (26/10/2026)". **AliExpress (28/10/2026):** extensão do Chrome "Enviar ao Rise" importa os pedidos do site com rastreio por item e depósito Virtual do Bling; ver "AliExpress no Compras (28/10/2026)". **Mercado Livre (11/11/2026):** as compras da conta da loja entram sozinhas pela API, mais a busca pelo rastreio e a nota fiscal do pedido; ver "Compras do Mercado Livre, busca pelo rastreio e nota fiscal (11/11/2026)". **Estudos de viabilidade (12/11/2026, NO AR em 12.11.2026.112):** produtos marcados no Scraper estudados no Mercado Livre pelo Claude Desktop (MCP), com veredito e quantidade; ver "Estudo de viabilidade de produto" |
@@ -440,6 +440,8 @@ npm run teste:licencas            # 109 asserções das Licenças Softwares: reg
 npm run teste:extensao-lightburn  # 13 asserções da leitura da extensão "Rise LightBurn" (extensao-lightburn/leitura.js) com as respostas da API do portal medidas em 05/11/2026 (fixtures anonimizadas em scripts/fixtures/lightburn/). Puro: sem banco, sem rede, sem Chrome
 npm run teste:analise-fornecedor  # 73 asserções do modelo padrão da análise de lista de fornecedor (src/lib/analiseFornecedor/): formato dos dados, montagem e a página com DOM falso em US$ dentro do claude.ai (com a lista "vincular" do item sem vínculo), em R$ fora dele (Copiar escolhas) e em R$ com fator. Puro: sem banco, sem rede, sem navegador
 node scripts/importar-licencas.js --lightburn=<xlsx> --mach3=<xlsx> --pasta=<pasta> --pdf=<pdf> --simular   # importação das planilhas antigas de licenças e da pasta do Mach3 (uma vez; idempotente); --confirmo grava
+npm run teste:assistente          # 197 asserções do chat da loja (o Hobi), fase 1: configuração do canal, segredos do serviço, leitura só pelas visões públicas, lista de peças, filtro de saída, limites, verificação de robô, as 7 ferramentas, o cérebro (cartões, reserva, orçamento, passagem ao WhatsApp), a porta HTTP (status, chat em SSE, avaliar) e, como texto, o compose, o Caddy e o deploy. Provedor e Turnstile FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve ZZ-LOJA-*, loja:zz-* e "ZZ LOJA *" e devolve a ConfiguracaoIA do dono
+npm run teste:ia-isolamento       # 73 asserções do usuário de banco `rise_ia`: veste o papel no Postgres de verdade e tenta ler o proibido (18 tabelas negadas, nenhuma coluna sensível nas visões, conversas e orçamento só do canal de cliente), a migration igual ao gerador, uma conversa inteira e o serviço de verdade (`scripts/ia-processo.js`) rodando como `rise_ia` num ambiente sem as chaves do Rise. Postgres local, SEM rede; dá ao papel uma senha de uso único e a tira no fim; recusa rodar na produção e onde o papel já tem login
 npm run teste:saude               # 72 asserções da Saúde do Rise: regras (rotinas, worker, disco, backup, memória, banco, integrações, orçamento, varreduras, PC, healthchecks, certificado digital), o aviso do Telegram, a gravação em RotinaDoWorker e a coleta nos modos PC e VPS. Postgres local, SEM rede; só escreve zz-saude-*
 npm run teste:acessos             # 207 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição, as projeções do lançamento 2 (Painel, lista de Produtos, Cadastros, canais, Scraper, Indicadores), "Ver como", Histórico e o guarda estático de src/app (sem lista de exceções). Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
 npm run teste:proposta            # 339 asserções da proposta automática de produto (com as seções de categorias e SEO da loja e as Correções da descrição no banco): regras de preço/medidas/NCM, validação do plano, gravação por seção (fotos padronizadas em proposta/), aplicar ao formulário, Salvar marcando aplicadas, fotos para a reserva, Conferido com pergunta e o script de verdade (Postgres local, SEM rede; só escreve produtos ZZ-PROP-* e as pastas deles)
@@ -5502,6 +5504,59 @@ com backup antes); nenhuma variável nova no `.env`. O passo 10 do roteiro preci
 10. **Troca para o GPT-4.1 mini** (quando a chave da OpenAI existir na VPS): Configurações › Modelos › cartão OpenAI → colar a chave →
     Testar conexão → habilitar `gpt-4.1-mini` → Padrão = OpenAI / `gpt-4.1-mini`, Reserva = Anthropic / `claude-haiku-5-5` → Salvar →
     perguntar de novo e conferir o selo do modelo e o custo.
+
+## Chat da loja (o Hobi), fase 1: fundação segura (19/11/2026)
+
+Pedido do dono: um chat com IA no site da loja (Loja Integrada), no molde do Assistente Mamute, com a mesma inteligência que vai
+atender o WhatsApp. O assistente se chama **Hobi** (mascote em `docs/mascote-hobi/`, só do site: no WhatsApp a foto continua o logo).
+Spec `docs/superpowers/specs/2026-11-19-chat-ia-na-loja-design.md`; plano
+`docs/superpowers/plans/2026-11-19-chat-da-loja-fase-1-fundacao-segura.md` (8 tarefas, inline, commits `5f0842d` a o do fechamento).
+**SEM deploy, e nada visível na loja:** o chat nasce desligado. Fases 2 (janela e telas), 3 (acompanhar pedido) e 4 (ligar) sem plano.
+
+**As duas regras do dono, que valem para toda sessão que mexer aqui:** "não pode haver vazamento de dados e não pode colocar todo o
+sistema do Rise em risco". Elas são garantidas por construção, não por cuidado:
+
+- **Usuário de banco `rise_ia`** (migration `20261120b_ia_papel_e_visoes`, gerada de `src/lib/riseAi/cliente/sqlDoPapel.js`): não lê
+  tabela nenhuma do Rise. Só as visões `ia_produto_publico` (preço de venda e **faixa** de estoque, nunca a quantidade; sem custo,
+  localização, fornecedor, NCM), `ia_kit_publico`, `ia_conhecimento_publico` e `ia_configuracao`; as conversas e o orçamento por linha
+  (RLS: só canal `LOJA` e escopo `CLIENTES`); não apaga nem reescreve mensagem. Limite de 12 conexões e 8 s por consulta.
+  **Tabela nova nasce fechada para ele; para abrir algo, mexa no `sqlDoPapel.js` e gere a migration, nunca um `GRANT` solto.**
+- **Serviço `ia` separado** (`scripts/ia-processo.js`, `node:http`, sem Next): no compose tem perfil `ia`, não usa a âncora `*rise`
+  (não recebe o `.env` nem monta `dados/`), é `read_only`, mora nas redes `borda_ia` e `dados_ia` e não alcança `app`, `worker` nem
+  `auth`. **O processo se recusa a subir** se achar no ambiente `ENCRYPTION_KEY`, o segredo de borda ou qualquer `BLING_*`, `ML_*`,
+  `LI_*` (`cliente/ambiente.js`), ou se a `DATABASE_URL` não for a do `rise_ia`.
+- **Endereço `hobi.4hobby.com.br`**, irmão de `rise.4hobby.com.br` (nunca debaixo dele: o cookie do login do painel vazaria). O
+  bloco do Caddy é o `deploy/caddy/assistente.modelo`, que só passa a valer quando o `deploy/preparar-ia.sh` o copia para
+  `ligado-assistente.caddy` (fora do git; o Caddyfile importa `ligado-*.caddy`). Só três rotas: `GET /status`, `POST /chat` (SSE) e
+  `POST /avaliar`; o resto é 404.
+
+**O cérebro** (`src/lib/riseAi/cliente/`, o mesmo que o WhatsApp vai usar): `cerebro.js` (`responderAoCliente`: mascara a mensagem,
+roda o laço com o modelo principal e a reserva, reserva o orçamento antes de cada chamada), `ferramentas.js` (7 ferramentas, todas
+de leitura; `mostrarProdutos` só aceita SKU que veio de busca e relê o cartão do banco), `filtroDeSaida.js` (todo "R$" tem de ter
+vindo de ferramenta; link e telefone só da loja; sem termo interno), `limites.js` (em memória), `turnstile.js`, `dados.js` (só as
+visões), `segredos.js` (as duas chaves do serviço, cifradas com o `IA_SEGREDO`, não com a `ENCRYPTION_KEY`).
+
+- **O texto NÃO sai letra a letra:** sai inteiro, uma vez, depois do filtro (a spec exige o filtro antes de qualquer texto chegar
+  ao visitante). Enquanto isso saem eventos `status`.
+- **Custo:** a resposta a cliente grava um `GastoIA` de tipo `CONVERSA`, escopo `CLIENTES` (é o que o orçamento dos clientes soma);
+  as mensagens do canal ficam **fora** do orçamento interno (`orcamento.js`). O serviço usa a cotação fixa do dólar.
+- **Configuração:** grupo `chatDaLoja` de `ConfiguracaoIA.dados` (`cliente/configuracaoDoCanal.js`); o serviço a relê a cada 30 s.
+  Sem a chave da IA, sem o segredo do Turnstile ou com o banco fora do ar, `/status` responde desligado (falha fechada).
+- **Diferenças da spec, decididas na execução:** não existe `deploy/ia.env`: `IA_DATABASE_URL` e `IA_SEGREDO` ficam no `.env` da VPS
+  e chegam ao contêiner `ia` pela interpolação do compose (como o segredo de borda chega ao Caddy), porque um `env_file` ausente
+  quebraria o deploy das outras sessões; e a revisão final foi feita pelo autor (sem subagente, escolha do dono).
+
+**Subida na VPS (só com o ok e o "sobe" do dono):** (1) um deploy comum aplica as duas migrations e **recria uma vez os contêineres do
+banco e do Caddy** (ganharam uma rede: alguns segundos fora do ar; o `deploy-vps.sh` para o worker antes, para as varreduras em
+curso voltarem à fila sem gastar tentativa); o serviço `ia` não sobe; (2) com o ok do dono: registro DNS `hobi`
+na Hostinger, `./deploy/preparar-ia.sh` (gera na própria VPS a senha do `rise_ia` e o `IA_SEGREDO`, com cópia do `.env`) e outro
+deploy; (3) conferir `https://hobi.4hobby.com.br/status` → `{"ligado":false,…}` e qualquer outro caminho → 404. O chat só liga na
+fase 2 (tela Canais, chaves coladas pelo dono) e aparece na loja na fase 4.
+
+**Restaurar o dump num servidor novo** exige criar antes o papel (`CREATE ROLE rise_ia NOLOGIN`), senão as concessões e políticas
+do dump falham. **Não visto:** nada disto rodou na VPS; o Caddyfile com o `import` e o modelo do endereço só são validados no deploy
+(`caddy validate`, antes de trocar qualquer coisa); o provedor de verdade e o Turnstile de verdade nunca foram chamados (os testes
+usam falsos). Até a fase 2, o gasto `CONVERSA` aparece em "Outros" no Consumo e o 👎 do visitante só fica gravado.
 
 ## Rise AI (Entrega C1, avisos no Telegram, 23/10/2026)
 
