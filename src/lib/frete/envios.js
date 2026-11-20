@@ -347,6 +347,128 @@ export async function cancelarEtiqueta(envioId, motivo, login, { aoMudarCusto } 
 }
 
 // ---------------------------------------------------------------------------
+// Envio avulso (sem pedido: garantia, troca, amostra, devolucao a fornecedor)
+// ---------------------------------------------------------------------------
+
+const enderecoDoCliente = (enderecos) => {
+  // O de entrega vale mais que o geral: e para onde o pacote vai.
+  const endereco = enderecos.find((item) => item.tipo === "ENTREGA") ?? enderecos.find((item) => item.tipo === "GERAL") ?? null;
+  if (!endereco) return null;
+  return {
+    cep: String(endereco.cep ?? "").replace(/\D/g, ""),
+    logradouro: endereco.logradouro ?? null,
+    numero: endereco.numero ?? null,
+    complemento: endereco.complemento ?? null,
+    bairro: endereco.bairro ?? null,
+    cidade: endereco.cidade ?? null,
+    uf: endereco.uf ?? null,
+  };
+};
+
+/**
+ * Clientes e fornecedores do cadastro para o destinatario do envio avulso. O cliente traz o endereco (o de entrega, ou o
+ * geral); o fornecedor nao tem endereco no cadastro, e o operador digita.
+ */
+export async function buscarDestinatarios(texto) {
+  const termo = String(texto ?? "").trim();
+  if (termo.length < 2) return [];
+  const contem = { contains: termo, mode: "insensitive" };
+  const [clientes, fornecedores] = await Promise.all([
+    prisma.cliente.findMany({
+      where: { OR: [{ nome: contem }, { nomeFantasia: contem }, { documento: { contains: termo } }] },
+      select: { id: true, nome: true, documento: true, email: true, telefone: true, enderecos: true },
+      orderBy: { nome: "asc" },
+      take: 8,
+    }),
+    prisma.fornecedor.findMany({
+      where: { OR: [{ nome: contem }, { cnpj: { contains: termo } }] },
+      select: { id: true, nome: true, cnpj: true, email: true, telefone: true },
+      orderBy: { nome: "asc" },
+      take: 5,
+    }),
+  ]);
+  return [
+    ...clientes.map((c) => ({ tipo: "CLIENTE", id: c.id, nome: c.nome, documento: c.documento, email: c.email, telefone: c.telefone, endereco: enderecoDoCliente(c.enderecos) })),
+    ...fornecedores.map((f) => ({ tipo: "FORNECEDOR", id: f.id, nome: f.nome, documento: f.cnpj, email: f.email, telefone: f.telefone, endereco: null })),
+  ];
+}
+
+const CAMPOS_DO_ENDERECO = { cep: "CEP com 8 dígitos.", logradouro: "Informe a rua.", numero: "Informe o número.", bairro: "Informe o bairro.", cidade: "Informe a cidade.", uf: "UF com 2 letras." };
+
+/**
+ * Cria o envio avulso em RASCUNHO, com a cotacao escolhida e a declaracao de conteudo (sem pedido nao ha nota). Daqui em
+ * diante e o mesmo caminho do envio do pedido: conferir o pacote, comprar, imprimir.
+ * @returns {Promise<{ ok: true, envio } | { ok: false, erro?, erros? }>}
+ */
+export async function criarEnvioAvulso({ destinatario, pacote, servico, cotadoEm, itensDaDeclaracao }, login) {
+  const erros = {};
+  const endereco = destinatario?.endereco ?? {};
+  if (!String(destinatario?.nome ?? "").trim()) erros.nome = "Informe o nome.";
+  for (const [campo, mensagem] of Object.entries(CAMPOS_DO_ENDERECO)) {
+    const valor = String(endereco[campo] ?? "").trim();
+    const ok = campo === "cep" ? valor.replace(/\D/g, "").length === 8 : campo === "uf" ? /^[A-Za-z]{2}$/.test(valor) : valor.length > 0;
+    if (!ok) erros[campo] = mensagem;
+  }
+  const itens = (Array.isArray(itensDaDeclaracao) ? itensDaDeclaracao : [])
+    .map((item) => ({ descricao: String(item?.descricao ?? "").trim().slice(0, 100), quantidade: Math.round(Number(item?.quantidade)), valorUnitario: Number(item?.valorUnitario) }))
+    .filter((item) => item.descricao);
+  if (!itens.length || itens.some((item) => !(item.quantidade > 0) || !(item.valorUnitario >= 0))) erros.itensDaDeclaracao = "Informe ao menos um item com quantidade e valor.";
+  if (!pacote || !["comprimentoCm", "larguraCm", "alturaCm", "pesoKg"].every((campo) => positivo(pacote[campo]))) erros.pacote = "Cote o frete antes.";
+  if (!servico?.servicoId || !Number.isFinite(Number(servico.preco))) erros.servico = "Escolha um serviço.";
+  if (Object.keys(erros).length) return { ok: false, erros };
+
+  const empresa = await lerDadosDaEmpresa();
+  const caixa = pacote.caixaId ? await prisma.caixaDeEnvio.findUnique({ where: { id: String(pacote.caixaId) }, select: { id: true } }) : null;
+  const quando = new Date(cotadoEm ?? Date.now());
+  const valorDeclarado = Math.round(itens.reduce((soma, item) => soma + item.quantidade * item.valorUnitario, 0) * 100) / 100;
+
+  const criado = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('envio.numero'))`;
+    const maior = await tx.envio.aggregate({ _max: { numero: true } });
+    return tx.envio.create({
+      data: {
+        numero: (maior._max.numero ?? 0) + 1,
+        direcao: "IDA",
+        status: "RASCUNHO",
+        remetente: remetenteDaEmpresa(empresa),
+        destinatario: {
+          nome: String(destinatario.nome).trim().slice(0, 100),
+          documento: destinatario.documento ? String(destinatario.documento) : null,
+          email: destinatario.email ? String(destinatario.email).trim() : null,
+          telefone: destinatario.telefone ? String(destinatario.telefone).replace(/\D/g, "") : null,
+          endereco: {
+            cep: String(endereco.cep).replace(/\D/g, ""),
+            logradouro: String(endereco.logradouro).trim(),
+            numero: String(endereco.numero).trim(),
+            complemento: endereco.complemento ? String(endereco.complemento).trim() : null,
+            bairro: String(endereco.bairro).trim(),
+            cidade: String(endereco.cidade).trim(),
+            uf: String(endereco.uf).trim().toUpperCase(),
+          },
+        },
+        caixaDeEnvioId: caixa?.id ?? null,
+        comprimentoCm: Number(pacote.comprimentoCm),
+        larguraCm: Number(pacote.larguraCm),
+        alturaCm: Number(pacote.alturaCm),
+        pesoKg: Number(pacote.pesoKg),
+        valorDeclarado,
+        medidaConferida: false,
+        tipoDeDocumento: "DECLARACAO",
+        itensDaDeclaracao: itens,
+        servicoId: String(servico.servicoId),
+        servicoNome: String(servico.servicoNome ?? ""),
+        transportadoraNome: servico.transportadora ? String(servico.transportadora) : null,
+        prazoDias: Number.isFinite(Number(servico.prazoDias)) ? Math.round(Number(servico.prazoDias)) : null,
+        precoCotado: Number(servico.preco),
+        cotadoEm: Number.isNaN(quando.getTime()) ? new Date() : quando,
+      },
+    });
+  });
+  console.info(`[frete] envio avulso ${criado.numero} criado por ${login ?? "?"}`);
+  return { ok: true, envio: await lerEnvio(criado.id) };
+}
+
+// ---------------------------------------------------------------------------
 // Lista de Envios
 // ---------------------------------------------------------------------------
 

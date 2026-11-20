@@ -44,7 +44,8 @@ export default function PainelDoEnvio({ envio, caixas, travaLiberada, pode, aoCo
   const [ocupado, iniciar] = useTransition();
   const [agora] = useState(() => Date.now());
 
-  const botaoCotar = (principal, rotulo = "Cotar frete") => (
+  // Sem `aoCotar` (detalhe do envio avulso) nao ha cotar de novo: o servico foi escolhido ao criar o envio.
+  const botaoCotar = (principal, rotulo = "Cotar frete") => !aoCotar ? null : (
     <button
       type="button"
       onClick={aoCotar}

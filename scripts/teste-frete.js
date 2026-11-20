@@ -985,6 +985,50 @@ try {
 }
 
 // ---------------------------------------------------------------------------
+// Fase 2: envio avulso
+// ---------------------------------------------------------------------------
+
+const { criarEnvioAvulso, buscarDestinatarios } = await import("../src/lib/frete/envios.js");
+
+try {
+  console.log("\nEnvio avulso");
+  await prisma.envio.deleteMany({ where: { servicoNome: "ZZ AVULSO" } });
+  await prisma.cliente.deleteMany({ where: { nome: { startsWith: "ZZ Frete Cliente" } } });
+  const cliente = await prisma.cliente.create({
+    data: {
+      tipoPessoa: "FISICA",
+      nome: "ZZ Frete Cliente Avulso",
+      email: "zz-avulso@exemplo.test",
+      telefone: "54988990008",
+      enderecos: { create: [{ tipo: "ENTREGA", cep: "95020-000", uf: "RS", cidade: "Caxias do Sul", bairro: "Centro", logradouro: "Rua ZZ", numero: "50" }] },
+    },
+  });
+  const achados = await buscarDestinatarios("zz frete cliente");
+  const doCliente = achados.find((item) => item.id === cliente.id);
+  conferir("busca o cliente com o endereço de entrega", [doCliente?.tipo, doCliente?.endereco?.cep, doCliente?.endereco?.cidade], ["CLIENTE", "95020000", "Caxias do Sul"]);
+  conferir("busca curta não procura", await buscarDestinatarios("z"), []);
+
+  const destinatario = { nome: "ZZ Frete Cliente Avulso", email: "zz-avulso@exemplo.test", telefone: "54988990008", endereco: doCliente.endereco };
+  const pacote = { caixaId: null, comprimentoCm: 16, larguraCm: 11, alturaCm: 3, pesoKg: 0.2 };
+  const servico = { servicoId: "1", servicoNome: "ZZ AVULSO", transportadora: "Correios", preco: 18.4, prazoDias: 6 };
+  const itens = [{ descricao: "ZZ Placa em garantia", quantidade: 1, valorUnitario: 80 }];
+  const semCep = await criarEnvioAvulso({ destinatario: { ...destinatario, endereco: { ...destinatario.endereco, cep: "123" } }, pacote, servico, itensDaDeclaracao: itens }, "zz");
+  conferir("destinatário incompleto recusa o campo", [semCep.ok, "cep" in (semCep.erros ?? {})], [false, true]);
+  conferir("sem itens recusa", "itensDaDeclaracao" in ((await criarEnvioAvulso({ destinatario, pacote, servico, itensDaDeclaracao: [] }, "zz")).erros ?? {}), true);
+  const maior = (await prisma.envio.aggregate({ _max: { numero: true } }))._max.numero ?? 0;
+  const criado = await criarEnvioAvulso({ destinatario, pacote, servico, cotadoEm: new Date().toISOString(), itensDaDeclaracao: itens }, "zz");
+  conferir(
+    "avulso criado",
+    [criado.ok, criado.envio?.status, criado.envio?.pedidoDeVendaId, criado.envio?.tipoDeDocumento, criado.envio?.numero, criado.envio?.valorDeclarado],
+    [true, "RASCUNHO", null, "DECLARACAO", maior + 1, 80],
+  );
+  conferir("lido com o vínculo vazio", (await lerEnvio(criado.envio.id))?.pedidoDeVenda, null);
+} finally {
+  await prisma.envio.deleteMany({ where: { servicoNome: "ZZ AVULSO" } });
+  await prisma.cliente.deleteMany({ where: { nome: { startsWith: "ZZ Frete Cliente" } } });
+}
+
+// ---------------------------------------------------------------------------
 // Fase 2: o custo da etiqueta no lucro do pedido
 // ---------------------------------------------------------------------------
 

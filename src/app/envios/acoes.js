@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { negarSemAcesso, podeAgora, sessaoDeAcessos } from "@/lib/acessos/servidor";
 import { marcarWhatsapp, reenviarEmail } from "@/lib/frete/aviso";
-import { cancelarEtiqueta, comprarEtiqueta, conferirPacote, linkDaEtiqueta } from "@/lib/frete/envios";
+import { buscarDestinatarios, cancelarEtiqueta, comprarEtiqueta, conferirPacote, criarEnvioAvulso, linkDaEtiqueta } from "@/lib/frete/envios";
 import { obterProvedor, PROVEDOR_PADRAO } from "@/lib/frete/provedores/registro";
 import { recalcularLucroDoPedido } from "@/lib/pedidos/banco";
 
@@ -94,6 +94,25 @@ export async function imprimirEtiquetaAcao(id) {
   if (negado) return negado;
   if (!ehId(id)) return INVALIDO;
   return protegendo(() => linkDaEtiqueta(id));
+}
+
+/** Clientes e fornecedores para o destinatario do envio avulso (quem cria envio pode ver o endereco de quem recebe). */
+export async function buscarDestinatariosAcao(texto) {
+  const negado = await negarSemAcesso("acao.envios.comprarEtiqueta", "executar");
+  if (negado) return { ...negado, itens: [] };
+  return protegendo(async () => ({ ok: true, itens: await buscarDestinatarios(String(texto ?? "").slice(0, 80)) }));
+}
+
+/** O envio avulso: grava o rascunho com a cotacao escolhida; o resto e o mesmo caminho do envio do pedido. */
+export async function criarEnvioAvulsoAcao(dados) {
+  const negado = await negarSemAcesso("acao.envios.comprarEtiqueta", "executar");
+  if (negado) return negado;
+  return protegendo(async () => {
+    const resultado = await criarEnvioAvulso(dados ?? {}, await loginAtual());
+    if (!resultado.ok) return resultado;
+    revalidatePath("/envios");
+    return { ok: true, id: resultado.envio.id };
+  });
 }
 
 /** "Reenviar e-mail" do aviso de postagem (so quando o anterior nao saiu). */
