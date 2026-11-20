@@ -5,6 +5,7 @@ import { Check, ExternalLink } from "lucide-react";
 
 import { salvarCustoDoFreteManualAcao } from "@/app/pedidos/acoes";
 import EnvioDoPedido from "@/components/frete/EnvioDoPedido";
+import { quadroDoEnvio } from "@/lib/frete/regras";
 
 import { Dado, enderecoEmLinhas, Secao } from "./AbaGeral";
 import { dataCompleta, linkDoRastreio, moeda } from "./formato";
@@ -85,6 +86,43 @@ function CampoDoFreteManual({ pedido, podeEditar }) {
   );
 }
 
+/** O quadro "Envio" com a etiqueta comprada pelo Rise (`quadroDoEnvio`), no lugar dos dados do Bling. */
+function QuadroDaEtiqueta({ quadro }) {
+  return (
+    <>
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-3">
+        <Dado rotulo="Situação">
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden="true" className={`h-2 w-2 rounded-full ${quadro.situacao.cor}`} />
+            {quadro.situacao.texto}
+          </span>
+        </Dado>
+        <Dado rotulo="Serviço">{quadro.servico}</Dado>
+        <Dado rotulo="Rastreio" className="col-span-2">
+          {quadro.rastreio ? (
+            <a href={quadro.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-mono hover:text-acento hover:underline">
+              {quadro.rastreio}
+              <ExternalLink size={13} aria-hidden="true" />
+            </a>
+          ) : null}
+        </Dado>
+        <Dado rotulo="Previsão de entrega">{quadro.prazoDias ? `${quadro.prazoDias} ${quadro.prazoDias === 1 ? "dia útil" : "dias úteis"}` : null}</Dado>
+        <Dado rotulo="Logística">{quadro.logistica}</Dado>
+      </dl>
+      {quadro.passos.length > 0 && (
+        <ol className="mt-5 space-y-1.5 border-l border-borda pl-4 text-sm">
+          {quadro.passos.map(([rotulo, data]) => (
+            <li key={rotulo} className="relative">
+              <span aria-hidden="true" className="absolute top-1.5 -left-[21px] h-2 w-2 rounded-full bg-sky-500 ring-2 ring-superficie" />
+              {rotulo} <span className="text-suave tabular-nums">em {dataCompleta(data)}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </>
+  );
+}
+
 /**
  * Aba Envio: o tipo, o servico, o rastreio com link, o status com as datas e o custo do frete para o vendedor, com a
  * fonte em cinza ("estimativa, até postar"). No pedido do Bling o custo e digitado pelo operador.
@@ -96,45 +134,53 @@ export default function AbaEnvio({ pedido, podeEditarFrete, frete = null, podeCo
   const custo = envio.custoDoVendedor;
   // A etiqueta comprada pelo Rise que ainda conta (nao cancelada nem expirada: `lerEnvioDoPedido` so traz o envio vivo).
   const etiqueta = frete?.envio && frete.envio.custo !== null && frete.envio.custo !== undefined && !["RASCUNHO", "COMPRANDO"].includes(frete.envio.status) ? frete.envio : null;
+  // Com a etiqueta do Rise, o quadro mostra ela: o Bling nao sabe dela e dizia "Sem envio" com o pacote postado.
+  const quadro = quadroDoEnvio(frete?.envio);
 
   return (
     <div className="grid gap-x-10 gap-y-7 p-5 md:grid-cols-2">
       <Secao titulo="Envio">
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-3">
-          <Dado rotulo="Situação">
-            <span className="inline-flex items-center gap-1.5">
-              <span aria-hidden="true" className={`h-2 w-2 rounded-full ${COR_DO_STATUS_DO_ENVIO[pedido.statusDoEnvio] ?? "bg-zinc-300"}`} />
-              {TEXTO_DO_STATUS_DO_ENVIO[pedido.statusDoEnvio] ?? pedido.statusDoEnvio}
-            </span>
-          </Dado>
-          <Dado rotulo="Serviço">{envio.servico ?? envio.transportadora ?? null}</Dado>
-          <Dado rotulo="Rastreio" className="col-span-2">
-            {envio.rastreio ? (
-              link ? (
-                <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-mono hover:text-acento hover:underline">
-                  {envio.rastreio}
-                  <ExternalLink size={13} aria-hidden="true" />
-                </a>
-              ) : (
-                <span className="font-mono">{envio.rastreio}</span>
-              )
-            ) : null}
-          </Dado>
-          {/* O ML manda a data; a LI e o Bling, o prazo em dias (um numero virava 31/12/1969). */}
-          <Dado rotulo="Previsão de entrega">
-            {typeof envio.prazo === "number" ? `${envio.prazo} ${envio.prazo === 1 ? "dia" : "dias"}` : envio.prazo ? dataCompleta(envio.prazo) : null}
-          </Dado>
-          <Dado rotulo="Logística">{envio.tipo ?? null}</Dado>
-        </dl>
-        {passos.length > 0 && (
-          <ol className="mt-5 space-y-1.5 border-l border-borda pl-4 text-sm">
-            {passos.map(([chave, rotulo]) => (
-              <li key={chave} className="relative">
-                <span aria-hidden="true" className="absolute top-1.5 -left-[21px] h-2 w-2 rounded-full bg-sky-500 ring-2 ring-superficie" />
-                {rotulo} <span className="text-suave tabular-nums">em {dataCompleta(envio.historico[chave])}</span>
-              </li>
-            ))}
-          </ol>
+        {quadro ? (
+          <QuadroDaEtiqueta quadro={quadro} />
+        ) : (
+          <>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-3">
+              <Dado rotulo="Situação">
+                <span className="inline-flex items-center gap-1.5">
+                  <span aria-hidden="true" className={`h-2 w-2 rounded-full ${COR_DO_STATUS_DO_ENVIO[pedido.statusDoEnvio] ?? "bg-zinc-300"}`} />
+                  {TEXTO_DO_STATUS_DO_ENVIO[pedido.statusDoEnvio] ?? pedido.statusDoEnvio}
+                </span>
+              </Dado>
+              <Dado rotulo="Serviço">{envio.servico ?? envio.transportadora ?? null}</Dado>
+              <Dado rotulo="Rastreio" className="col-span-2">
+                {envio.rastreio ? (
+                  link ? (
+                    <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-mono hover:text-acento hover:underline">
+                      {envio.rastreio}
+                      <ExternalLink size={13} aria-hidden="true" />
+                    </a>
+                  ) : (
+                    <span className="font-mono">{envio.rastreio}</span>
+                  )
+                ) : null}
+              </Dado>
+              {/* O ML manda a data; a LI e o Bling, o prazo em dias (um numero virava 31/12/1969). */}
+              <Dado rotulo="Previsão de entrega">
+                {typeof envio.prazo === "number" ? `${envio.prazo} ${envio.prazo === 1 ? "dia" : "dias"}` : envio.prazo ? dataCompleta(envio.prazo) : null}
+              </Dado>
+              <Dado rotulo="Logística">{envio.tipo ?? null}</Dado>
+            </dl>
+            {passos.length > 0 && (
+              <ol className="mt-5 space-y-1.5 border-l border-borda pl-4 text-sm">
+                {passos.map(([chave, rotulo]) => (
+                  <li key={chave} className="relative">
+                    <span aria-hidden="true" className="absolute top-1.5 -left-[21px] h-2 w-2 rounded-full bg-sky-500 ring-2 ring-superficie" />
+                    {rotulo} <span className="text-suave tabular-nums">em {dataCompleta(envio.historico[chave])}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </>
         )}
       </Secao>
 

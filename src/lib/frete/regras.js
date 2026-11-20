@@ -188,6 +188,34 @@ export function linkDoRastreio(codigo) {
   return limpo ? `https://melhorrastreio.com.br/rastreio/${encodeURIComponent(limpo)}` : null;
 }
 
+/** Envio do Rise ainda sem etiqueta valendo: o quadro "Envio" do pedido segue com o que o Bling disse. */
+const SEM_ETIQUETA = new Set(["RASCUNHO", "COMPRANDO", "CANCELADO", "EXPIRADO"]);
+
+/**
+ * O quadro "Envio" da aba Envio do pedido quando a etiqueta foi comprada pelo Rise. O Bling nao sabe dela (o pedido
+ * continuava "Sem envio" com o pacote postado), entao a etiqueta, que e o envio de verdade, toma o lugar dos dados dele.
+ * null = nao ha etiqueta: a tela mostra o do Bling como antes.
+ */
+export function quadroDoEnvio(envio) {
+  if (!envio || SEM_ETIQUETA.has(envio.status) || envio.custo === null || envio.custo === undefined) return null;
+  const passos = [
+    ["Etiqueta comprada", envio.compradoEm],
+    ["Postado", envio.postadoEm],
+    ["Entregue", envio.entregueEm],
+  ]
+    .filter(([, data]) => data)
+    .map(([rotulo, data]) => [rotulo, new Date(data).toISOString()]);
+  return {
+    situacao: SITUACAO_DO_ENVIO[envio.status] ?? { texto: envio.status, cor: "bg-zinc-300" },
+    servico: [envio.transportadoraNome, envio.servicoNome].filter(Boolean).join(" ") || null,
+    rastreio: envio.rastreio || null,
+    link: envio.linkDoRastreio || linkDoRastreio(envio.rastreio),
+    prazoDias: envio.prazoDias ?? null,
+    logistica: "Melhor Envio",
+    passos,
+  };
+}
+
 /** "2026-11-19 14:05:00" do Melhor Envio e horario de Brasilia (sem fuso no texto). */
 export function dataDoProvedor(texto) {
   const bruto = String(texto ?? "").trim();

@@ -222,6 +222,7 @@ const {
   validadeDaEtiqueta,
   TEXTOS_DO_AVISO,
   preencherTexto,
+  quadroDoEnvio,
 } = await import("../src/lib/frete/regras.js");
 conferir("status: generated", statusDoProvedor("generated"), { status: "A_POSTAR", desconhecido: false });
 conferir("status: paused", statusDoProvedor("paused").status, "COM_PROBLEMA");
@@ -258,6 +259,48 @@ conferir(
 conferir("validade 20 dias", validadeDaEtiqueta(new Date("2026-11-19T12:00:00Z")).toISOString(), "2026-12-09T12:00:00.000Z");
 conferir("texto preenchido", preencherTexto("Pedido {pedido} via {transportadora}. {rastreio}", { pedido: "1234", transportadora: "Jadlog" }), "Pedido 1234 via Jadlog.");
 conferir("textos padrão", [TEXTOS_DO_AVISO.assunto, TEXTOS_DO_AVISO.whatsapp.includes("{rastreio}")], ["Seu pedido {pedido} foi postado", true]);
+
+// O quadro "Envio" do pedido mostra a etiqueta do Rise quando ela foi comprada (o Bling dizia "Sem envio").
+const postadoNoRise = {
+  status: "POSTADO",
+  custo: 25.84,
+  transportadoraNome: "Jadlog",
+  servicoNome: ".Package",
+  rastreio: "JD123",
+  linkDoRastreio: "https://melhorrastreio.com.br/rastreio/JD123",
+  prazoDias: 4,
+  compradoEm: "2026-11-19T13:00:00.000Z",
+  postadoEm: "2026-11-20T15:00:00.000Z",
+  entregueEm: null,
+};
+conferir("quadro: postado", quadroDoEnvio(postadoNoRise), {
+  situacao: { texto: "Postado", cor: "bg-sky-500" },
+  servico: "Jadlog .Package",
+  rastreio: "JD123",
+  link: "https://melhorrastreio.com.br/rastreio/JD123",
+  prazoDias: 4,
+  logistica: "Melhor Envio",
+  passos: [
+    ["Etiqueta comprada", "2026-11-19T13:00:00.000Z"],
+    ["Postado", "2026-11-20T15:00:00.000Z"],
+  ],
+});
+conferir(
+  "quadro: link pelo rastreio",
+  quadroDoEnvio({ ...postadoNoRise, status: "A_POSTAR", linkDoRastreio: null, postadoEm: null }).link,
+  "https://melhorrastreio.com.br/rastreio/JD123",
+);
+conferir("quadro: a postar sem rastreio", quadroDoEnvio({ ...postadoNoRise, status: "A_POSTAR", rastreio: null, linkDoRastreio: null }).rastreio, null);
+conferir(
+  "quadro: sem etiqueta fica o do Bling",
+  [
+    quadroDoEnvio(null),
+    quadroDoEnvio({ ...postadoNoRise, status: "RASCUNHO", custo: null }),
+    quadroDoEnvio({ ...postadoNoRise, status: "COMPRANDO" }),
+    quadroDoEnvio({ ...postadoNoRise, status: "CANCELADO" }),
+  ],
+  [null, null, null, null],
+);
 
 // ---------------------------------------------------------------------------
 // Banco: caixas de envio e configuracao
