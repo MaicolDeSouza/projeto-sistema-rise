@@ -154,7 +154,7 @@ function taxaDoPagamento(taxas, tipo) {
  * etiqueta ou digitado (Bling). Parcela que a origem ainda nao deu fica "estimado", com o valor da estimativa, e o
  * lucro nao fecha enquanto houver uma.
  */
-export function parcelasDoReal({ origem, itens, totais, envio = {}, pagamento = [], custoDoFreteManual = null, taxas = null, estimativa = {} }) {
+export function parcelasDoReal({ origem, itens, totais, envio = {}, pagamento = [], custoDoFreteManual = null, custoDaEtiqueta = null, taxas = null, estimativa = {} }) {
   const linhas = lista(itens);
   const receita = receitaDe(linhas, totais);
   const custo = custoDe(linhas);
@@ -197,7 +197,12 @@ export function parcelasDoReal({ origem, itens, totais, envio = {}, pagamento = 
   } else {
     fontes.comissao = "pedido";
     const manual = numeroOuNulo(custoDoFreteManual);
-    if (manual !== null) {
+    // A etiqueta comprada pelo Rise (modulo de frete) e o que se pagou de fato: vence o valor digitado.
+    const daEtiqueta = numeroOuNulo(custoDaEtiqueta);
+    if (daEtiqueta !== null) {
+      frete = dinheiro(daEtiqueta);
+      fontes.frete = "etiqueta";
+    } else if (manual !== null) {
       frete = dinheiro(manual);
       fontes.frete = "manual";
     } else {

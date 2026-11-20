@@ -10,6 +10,7 @@ import { codigoVendido } from "@/lib/pedidos/codigo";
 import { conferirComMercadoPago, mercadoPagoParaTela } from "@/lib/pedidos/mercadoPago";
 import { calcularPecas } from "@/lib/pedidos/pecas";
 import { fimDoDiaEmSaoPaulo } from "@/lib/pedidos/despacho";
+import { custoDaEtiquetaDoPedido } from "@/lib/frete/lucro";
 
 /**
  * O pedido de venda no banco (spec 5.8): aplicar uma leitura (ML, LI ou Bling) sem duplicar, a lista, a leitura de um
@@ -120,6 +121,8 @@ async function recalcular(tx, pedido, { normalizado, taxas, agora, avisosDosIten
       envio: n.envio,
       pagamento: n.pagamento,
       custoDoFreteManual: numero(pedido.custoDoFreteManual),
+      // Sem isto, a leitura do Bling a cada 5 min apagaria do lucro a etiqueta comprada pelo Rise.
+      custoDaEtiqueta: await custoDaEtiquetaDoPedido(tx, pedido.id),
       taxas,
       estimativa,
     });
@@ -619,6 +622,28 @@ export async function marcarEmSeparacao(id, ligado) {
   return { ok: true, status };
 }
 
+/** O real do pedido do Bling com o frete digitado e a etiqueta do Rise, gravado com o aviso de divergencia. */
+async function refazerRealDoBling(tx, pedido, custoDoFreteManual) {
+  const real = parcelasDoReal({
+    origem: pedido.origem,
+    itens: pedido.itens,
+    totais: { totalProdutos: numero(pedido.totalProdutos), total: numero(pedido.total) },
+    envio: pedido.envio,
+    pagamento: pedido.pagamento,
+    custoDoFreteManual,
+    custoDaEtiqueta: await custoDaEtiquetaDoPedido(tx, pedido.id),
+    taxas: await taxasDoCanal(tx, pedido.origem),
+    estimativa: pedido.estimativa ?? {},
+  });
+  const avisos = new Set(pedido.avisos.filter((aviso) => aviso !== "lucroDivergente"));
+  if (lucroDivergente(pedido.estimativa?.lucro, real.lucro)) avisos.add("lucroDivergente");
+  await tx.pedidoDeVenda.update({
+    where: { id: pedido.id },
+    data: { custoDoFreteManual, real, lucroReal: real.lucro, lucroFechado: lucroFechado({ status: pedido.status, real }), avisos: [...avisos] },
+  });
+  return real;
+}
+
 /** So no Bling: grava o frete que o operador pagou e refaz o lucro real. */
 export async function salvarCustoDoFreteManual(id, valor) {
   const custo = valor === null || valor === undefined || valor === "" ? null : Number(valor);
@@ -627,23 +652,20 @@ export async function salvarCustoDoFreteManual(id, valor) {
     const pedido = await tx.pedidoDeVenda.findUnique({ where: { id }, include: { itens: { orderBy: { ordem: "asc" } } } });
     if (!pedido) return { ok: false, erro: "Pedido não encontrado." };
     if (pedido.origem !== "BLING") return { ok: false, erro: "O frete manual só vale para pedido do Bling." };
-    const real = parcelasDoReal({
-      origem: pedido.origem,
-      itens: pedido.itens,
-      totais: { totalProdutos: numero(pedido.totalProdutos), total: numero(pedido.total) },
-      envio: pedido.envio,
-      pagamento: pedido.pagamento,
-      custoDoFreteManual: custo,
-      taxas: await taxasDoCanal(tx, pedido.origem),
-      estimativa: pedido.estimativa ?? {},
-    });
-    const avisos = new Set(pedido.avisos.filter((aviso) => aviso !== "lucroDivergente"));
-    if (lucroDivergente(pedido.estimativa?.lucro, real.lucro)) avisos.add("lucroDivergente");
-    await tx.pedidoDeVenda.update({
-      where: { id },
-      data: { custoDoFreteManual: custo, real, lucroReal: real.lucro, lucroFechado: lucroFechado({ status: pedido.status, real }), avisos: [...avisos] },
-    });
-    return { ok: true, real };
+    return { ok: true, real: await refazerRealDoBling(tx, pedido, custo) };
+  });
+}
+
+/**
+ * Depois de comprar ou cancelar a etiqueta pelo Rise (modulo de frete): refaz o real do pedido MESMO com o lucro
+ * fechado, porque o custo do frete mudou. So o pedido do Bling usa o envio do Rise; os outros nao mudam.
+ */
+export async function recalcularLucroDoPedido(id) {
+  return transacao(async (tx) => {
+    const pedido = await tx.pedidoDeVenda.findUnique({ where: { id }, include: { itens: { orderBy: { ordem: "asc" } } } });
+    if (!pedido) return { ok: false, erro: "Pedido não encontrado." };
+    if (pedido.origem !== "BLING" || pedido.status === "DEVOLVIDO") return { ok: true, real: pedido.real ?? null };
+    return { ok: true, real: await refazerRealDoBling(tx, pedido, numero(pedido.custoDoFreteManual)) };
   });
 }
 
