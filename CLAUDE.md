@@ -429,7 +429,7 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 1339 asserções do anúncio do Mercado Livre (com o Desconto adicional do preço pelo lucro da loja, o lucro mínimo de R$ 5 do "Preço pelo lucro da loja", o Microcontrolador da descrição no "Preencher com IA", o apto a faturar lido de hora em hora, os anúncios antigos fora do Rise e o botão que os verifica, a proposta do ML, o kit no ML, o preço pelo lucro da loja, o reaproveitar (com os kits do código na conta, as fotos do kit reaproveitado, que o 1º Salvar não dá por enviadas, e o selo "Reutilizado" com o "!" até o Publicar), o atacado com a espera da sugestão no Publicar, o kit sem atacado e o atacado desligado sem frete grátis e o popup do produto: o "!" de cada anúncio e a ordem fixa): composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 1375 asserções do anúncio do Mercado Livre (com o "Compre em kit e economize" da descrição: boas-vindas, garantia fora, bloco dos kits, o "!" dos kits e o formato antigo, o Desconto adicional do preço pelo lucro da loja, o lucro mínimo de R$ 5 do "Preço pelo lucro da loja", o Microcontrolador da descrição no "Preencher com IA", o apto a faturar lido de hora em hora, os anúncios antigos fora do Rise e o botão que os verifica, a proposta do ML, o kit no ML, o preço pelo lucro da loja, o reaproveitar (com os kits do código na conta, as fotos do kit reaproveitado, que o 1º Salvar não dá por enviadas, e o selo "Reutilizado" com o "!" até o Publicar), o atacado com a espera da sugestão no Publicar, o kit sem atacado e o atacado desligado sem frete grátis e o popup do produto: o "!" de cada anúncio e a ordem fixa): composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # 420 asserções da sincronização Rise -> Loja Integrada (com o cadastro automático, o estoque acertado pelo Bling no Sincronizar e as categorias e o SEO que vêm do produto): slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio, ícone e as etapas do Cadastrar (LI falsa e Bling de mentira, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
@@ -8222,6 +8222,32 @@ com o roteiro v2** (título inventado no rascunho do ML): refazer a proposta do 
   da loja ou categoria) o valor só fica guardado. O desconto vale no botão e no clone de variante (`clonarVarianteML` herda o %
   da origem e o preço já sai com ele); digitar o preço à mão, a calculadora e a proposta do ML não o aplicam. Conferido no PC
   no rascunho do 100101 (sem salvar). Testes no `teste:anuncios-ml`.
+- **Descrição do ML no formato 2 e o bloco "Compre em kit e economize" (20/11/2026, pedido do dono; spec
+  `docs/superpowers/specs/2026-11-20-compre-em-kit-na-descricao-ml-design.md`):** o texto que vai ao ML
+  (`montarDescricaoCompletaML`, `ml/descricao.js`) é as **boas-vindas** (`BOAS_VINDAS_ML`, fixas no código: mudar o texto
+  muda a descrição de todo anúncio já convertido), a descrição **sem a seção "Garantia:"** (`semGarantia`; o ML já a mostra;
+  o cadastro e a LI não mudam) e, quando há kit maior do mesmo produto no ML, o **bloco dos kits** (`blocoDosKits`: "Kit com
+  3 unidades por R$60,00 (R$20,00 por unidade) + frete grátis" e o link embaixo; linha de 40 hifens, só Latin-1, preço sem
+  espaço depois do R$).
+  - **Quais kits** (`ml/kitsNaDescricao.js`, puro): os anúncios do mesmo produto base com MAIS unidades (simples = 1; kit
+    `{sku}_{N}` = N; kit misto fica de fora), publicados e ativos ou pausados (encerrado sai; a pausa por estoque não tira,
+    senão o "!" piscaria), um por quantidade (o mais barato entre Clássico e Premium), pelo preço que ESTÁ no ML
+    (`publicacao.enviado.preco`), e **só o que sai mais barato por unidade** que o próprio anúncio e que o kit anterior
+    listado. O Rise nunca mexe no preço: o kit que perde fica fora e o editor dele avisa em âmbar (`kitForaDoBloco`, aba
+    Preço e custos); o dono acerta pelo "Desconto adicional".
+  - **O "!":** a impressão ganhou `kits` (as linhas do bloco), `formato` (2) e `formatoEm`. `mudancasDoAnuncio` devolve a
+    parte **`kits`** ("kits da descrição") quando a lista muda (kit novo publicado, preço de kit enviado, kit encerrado), **só
+    no anúncio cuja impressão já tem a chave**. O `descricao` da impressão continua o md5 do texto BASE
+    (`montarDescricaoML`), então o anúncio publicado antes **não acende** por causa do formato novo (decisão C do dono). Os
+    irmãos vêm de `irmaosDosProdutosML` (`banco.js`) e entram no `conteudoAtualDoAnuncio(rascunho, produtos, irmaos)`, no
+    `contexto.kitsDoProduto` do editor, no Publicar e no Sincronizar (que sempre manda a descrição, então qualquer envio
+    converte o anúncio). `comChavesEmOrdem` passou a ordenar as chaves dentro de listas (sem isso o "!" dos kits não apagava).
+  - **"Salvo de onde começamos"** (pedido do dono): a lista do ML tem o filtro **"Descrição no formato antigo (N)"**
+    (`?formato=antigo`, `descricaoNoFormatoAntigo`), que some quando zera; a aba Descrição do publicado antigo diz "No ML ainda
+    está o formato antigo: sincronize para enviar este texto".
+  - **Não confirmado:** se o ML aceita link para outro anúncio próprio na descrição (o link não é clicável, é texto). O
+    primeiro envio real é no 901202, antes de converter outros. Conferido no PC só o rascunho do 100101 (boas-vindas e
+    garantia fora; não há kit publicado no PC para ver o bloco). Testes no `teste:anuncios-ml`.
 - **Preço do ML** (`precoDaPropostaML`), **regra desde 05/11/2026** (pedido do dono ao ver o MQ-4 100253 a R$ 27,50 no ML com R$ 6,34
   de lucro contra R$ 4,93 na loja a R$ 14,90: "o valor de venda deve respeitar para que o lucro no ML seja similar ao lucro na LI, não
   olhar mais para regra de % no ML"): o preço é o que deixa no ML, com as taxas relidas no próprio preço (comissão, tarifa, frete do
