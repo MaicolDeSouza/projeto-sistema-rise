@@ -94,6 +94,8 @@ export default function AbaEnvio({ pedido, podeEditarFrete, frete = null, podeCo
   const link = linkDoRastreio(pedido);
   const passos = PASSOS.filter(([chave]) => envio.historico?.[chave]);
   const custo = envio.custoDoVendedor;
+  // A etiqueta comprada pelo Rise que ainda conta (nao cancelada nem expirada: `lerEnvioDoPedido` so traz o envio vivo).
+  const etiqueta = frete?.envio && frete.envio.custo !== null && frete.envio.custo !== undefined && !["RASCUNHO", "COMPRANDO"].includes(frete.envio.status) ? frete.envio : null;
 
   return (
     <div className="grid gap-x-10 gap-y-7 p-5 md:grid-cols-2">
@@ -171,11 +173,34 @@ export default function AbaEnvio({ pedido, podeEditarFrete, frete = null, podeCo
               </dd>
             </div>
           )}
+          {/* Etiqueta comprada pelo Rise: o custo dela vale no lucro e o campo digitado sai (modulo de frete, fase 2). */}
+          {etiqueta && (
+            <div className="flex justify-between gap-4">
+              <dt className="text-suave">Pago pela loja</dt>
+              <dd className="text-right tabular-nums">
+                {moeda.format(etiqueta.custo)}
+                <span className="block text-xs text-suave">da etiqueta do Melhor Envio</span>
+              </dd>
+            </div>
+          )}
         </dl>
-        {pedido.origem === "BLING" && <CampoDoFreteManual pedido={pedido} podeEditar={podeEditarFrete} />}
+        {pedido.origem === "BLING" && !etiqueta && <CampoDoFreteManual pedido={pedido} podeEditar={podeEditarFrete} />}
       </Secao>
 
-      {frete && <EnvioDoPedido pedido={pedido} envio={frete.envio} caixas={frete.caixas} cotacaoDaProposta={frete.cotacaoDaProposta} podeCotar={podeCotarFrete} />}
+      {frete && (
+        <EnvioDoPedido
+          pedido={pedido}
+          envio={frete.envio}
+          caixas={frete.caixas}
+          cotacaoDaProposta={frete.cotacaoDaProposta}
+          podeCotar={podeCotarFrete}
+          podeComprar={Boolean(frete.podeComprar)}
+          podeAvisar={Boolean(frete.podeAvisar)}
+          travaLiberada={Boolean(frete.travaLiberada)}
+          whatsapp={frete.whatsapp ?? null}
+          temEmail={Boolean(frete.temEmail)}
+        />
+      )}
     </div>
   );
 }

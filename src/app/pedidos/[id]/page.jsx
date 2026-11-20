@@ -9,7 +9,9 @@ import { SetaParaLista } from "@/components/ui/ListaLembrada";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { config } from "@/lib/integracoes/config";
+import { linkDoWhatsappDoEnvio } from "@/lib/frete/aviso";
 import { listarCaixas } from "@/lib/frete/caixas";
+import { lerConfigDeFrete } from "@/lib/frete/configuracao";
 import { cotacaoDaPropostaDoPedido, cotacaoParaATela, envioParaATela, lerEnvioDoPedido } from "@/lib/frete/envios";
 import { lerPedidoDeVenda } from "@/lib/pedidos/banco";
 import { projetarPedido } from "@/lib/pedidos/projecao";
@@ -46,9 +48,22 @@ export default async function PedidoDeVendaPage({ params, searchParams }) {
   // O envio pelo Rise (modulo de frete, fase 1): so no pedido do Bling (o ML usa o Mercado Envios e a LI o Enviali).
   const frete =
     pedido.origem === "BLING"
-      ? await Promise.all([lerEnvioDoPedido(pedido.id), listarCaixas({ soAtivas: true }), cotacaoDaPropostaDoPedido(pedido)]).then(([envio, caixas, cotacaoDaProposta]) =>
-          // So o que a aba mostra vai ao navegador: o envio sem remetente/destinatario, a cotacao so com caixa e peso.
-          JSON.parse(JSON.stringify({ envio: envioParaATela(envio), caixas, cotacaoDaProposta: cotacaoParaATela(cotacaoDaProposta) })),
+      ? await Promise.all([lerEnvioDoPedido(pedido.id), listarCaixas({ soAtivas: true }), cotacaoDaPropostaDoPedido(pedido), lerConfigDeFrete()]).then(
+          ([envio, caixas, cotacaoDaProposta, configDeFrete]) =>
+            // So o que a aba mostra vai ao navegador: o envio sem remetente/destinatario (o link do WhatsApp sai pronto daqui,
+            // e do e-mail so se diz se existe), a cotacao so com caixa e peso.
+            JSON.parse(
+              JSON.stringify({
+                envio: envioParaATela(envio),
+                caixas,
+                cotacaoDaProposta: cotacaoParaATela(cotacaoDaProposta),
+                podeComprar: acesso.pode("acao.envios.comprarEtiqueta", "executar"),
+                podeAvisar: acesso.pode("acao.envios.avisarCliente", "executar"),
+                travaLiberada: Boolean(config.travas.freteCompra),
+                whatsapp: envio ? linkDoWhatsappDoEnvio(envio, pedido, configDeFrete) : null,
+                temEmail: Boolean(envio?.destinatario?.email),
+              }),
+            ),
         )
       : null;
 

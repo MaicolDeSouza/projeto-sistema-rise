@@ -122,6 +122,19 @@ export function numeroDoEnvio(numero) {
 // Fase 2: compra, rastreio e aviso
 // ---------------------------------------------------------------------------
 
+/** O texto e a cor de cada situacao do envio do Rise (painel do pedido, detalhe e lista de Envios). */
+export const SITUACAO_DO_ENVIO = {
+  RASCUNHO: { texto: "Rascunho", cor: "bg-zinc-300" },
+  COMPRANDO: { texto: "Comprando", cor: "bg-sky-400" },
+  A_POSTAR: { texto: "A postar", cor: "bg-amber-400" },
+  POSTADO: { texto: "Postado", cor: "bg-sky-500" },
+  ENTREGUE: { texto: "Entregue", cor: "bg-emerald-500" },
+  NAO_ENTREGUE: { texto: "Não entregue", cor: "bg-red-500" },
+  COM_PROBLEMA: { texto: "Com problema", cor: "bg-red-500" },
+  CANCELADO: { texto: "Cancelado", cor: "bg-zinc-400" },
+  EXPIRADO: { texto: "Expirado", cor: "bg-zinc-400" },
+};
+
 /** O status do Melhor Envio no do Rise. O que nao esta aqui e "desconhecido": o envio fica como estava, com o aviso. */
 const STATUS_DO_PROVEDOR = {
   pending: "RASCUNHO",

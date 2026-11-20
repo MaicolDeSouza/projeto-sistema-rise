@@ -2,24 +2,19 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
 
 import { pacoteSugeridoAcao } from "@/app/frete/acoes";
 import { salvarRascunhoDoEnvioAcao } from "@/app/pedidos/acoes";
-import { Dado, Secao } from "@/components/pedidos/AbaGeral";
-import { numeroDoEnvio } from "@/lib/frete/regras";
+import { Secao } from "@/components/pedidos/AbaGeral";
 
 import JanelaDeCotacao from "./JanelaDeCotacao";
-
-const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-const prazo = (dias) => (dias ? `${dias} ${dias === 1 ? "dia útil" : "dias úteis"}` : null);
-const BOTAO = "inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50";
+import PainelDoEnvio from "./PainelDoEnvio";
 
 /**
- * "Envio pelo Rise" na aba Envio do pedido do Bling (modulo de frete, fase 1). Linha-guia: o operador ve primeiro em que
- * passo o envio esta; a acao principal e o proximo passo (cotar; com o rascunho, comprar a etiqueta, que chega na fase 2).
+ * "Envio pelo Rise" na aba Envio do pedido do Bling (modulo de frete). Aqui fica o cotar (com a caixa da proposta de
+ * origem ou a sugerida pelos itens); o resto do caminho (comprar, imprimir, acompanhar, avisar) e o `PainelDoEnvio`.
  */
-export default function EnvioDoPedido({ pedido, envio, caixas, cotacaoDaProposta, podeCotar }) {
+export default function EnvioDoPedido({ pedido, envio, caixas, cotacaoDaProposta, podeCotar, podeComprar = false, podeAvisar = false, travaLiberada = false, whatsapp = null, temEmail = false }) {
   const router = useRouter();
   const [inicial, setInicial] = useState(null);
   const [erro, setErro] = useState(null);
@@ -59,52 +54,19 @@ export default function EnvioDoPedido({ pedido, envio, caixas, cotacaoDaProposta
     });
   }
 
-  const botaoCotar = (principal) => (
-    <button
-      type="button"
-      onClick={abrir}
-      disabled={!podeCotar || abrindo}
-      title={podeCotar ? undefined : "Sem permissão para cotar o frete do pedido"}
-      className={`${BOTAO} ${principal ? "bg-acento text-white hover:opacity-90" : "border border-borda hover:bg-fundo"}`}
-    >
-      {abrindo && <Loader2 size={14} className="animate-spin" />}
-      {envio ? "Cotar de novo" : "Cotar frete"}
-    </button>
-  );
-
   return (
     <Secao titulo="Envio pelo Rise">
-      {!envio ? (
-        <div className="flex items-center gap-3">
-          {botaoCotar(true)}
-          <span className="text-sm text-suave">Nenhum serviço escolhido.</span>
-        </div>
-      ) : (
-        <>
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-3">
-            <Dado rotulo="Envio">
-              <span className="tabular-nums">{numeroDoEnvio(envio.numero)}</span> <span className="text-suave">· rascunho</span>
-            </Dado>
-            <Dado rotulo="Serviço">{[envio.transportadoraNome, envio.servicoNome].filter(Boolean).join(" ")}</Dado>
-            <Dado rotulo="Prazo">{prazo(envio.prazoDias)}</Dado>
-            <Dado rotulo="Custo cotado">{envio.precoCotado !== null ? moeda.format(envio.precoCotado) : null}</Dado>
-            <Dado rotulo="Caixa e peso">
-              <span className="tabular-nums">
-                {envio.caixaDeEnvio?.nome ?? `${envio.comprimentoCm} × ${envio.larguraCm} × ${envio.alturaCm} cm`} · {String(envio.pesoKg).replace(".", ",")} kg
-              </span>
-            </Dado>
-            <Dado rotulo="Cotado em">
-              <span className="tabular-nums">{new Date(envio.cotadoEm).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}</span>
-            </Dado>
-          </dl>
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <button type="button" disabled title="Disponível na próxima entrega do módulo de frete" className={`${BOTAO} bg-acento text-white`}>
-              Comprar etiqueta
-            </button>
-            {botaoCotar(false)}
-          </div>
-        </>
-      )}
+      <PainelDoEnvio
+        envio={envio}
+        caixas={caixas}
+        travaLiberada={travaLiberada}
+        pode={{ cotar: podeCotar, comprar: podeComprar, avisar: podeAvisar }}
+        aoCotar={abrir}
+        cotando={abrindo}
+        whatsapp={whatsapp}
+        temEmail={temEmail}
+        chaveDaNota={pedido.nf?.chave ?? null}
+      />
       {erro && (
         <p role="alert" className="mt-2 text-sm text-red-600">
           {erro}
