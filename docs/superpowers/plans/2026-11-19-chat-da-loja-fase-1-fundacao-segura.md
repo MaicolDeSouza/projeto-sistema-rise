@@ -427,11 +427,11 @@ conferir("o processo recusa subir com ENCRYPTION_KEY", (await rodarProcesso({ ..
 - Create: `deploy/caddy/assistente.modelo`, `deploy/preparar-ia.sh`
 - Modify: `docker-compose.yml`, `deploy/caddy/Caddyfile`, `deploy/deploy-vps.sh`, `.dockerignore`, `.gitignore`, `scripts/teste-assistente.js`
 
-**Interfaces (Produces):** o serviço `ia` do compose (perfil `ia`); o bloco `assistente.4hobby.com.br` desligado até o dono dar o ok; `deploy/ia.env` (só na VPS, fora do git e fora da imagem).
+**Interfaces (Produces):** o serviço `ia` do compose (perfil `ia`); o bloco `hobi.4hobby.com.br` desligado até o dono dar o ok; `deploy/ia.env` (só na VPS, fora do git e fora da imagem).
 
 O que muda, exatamente:
 - **`docker-compose.yml`:** serviço `ia` com `image: rise:latest`, `profiles: ["ia"]` (um deploy comum não o sobe), `command: ["node", "scripts/ia-processo.js"]`, `env_file` apontando **só** para `deploy/ia.env` (`required: false`), `environment` com `TZ` e `NODE_OPTIONS: --max-old-space-size=384`, `read_only: true`, `tmpfs: [/tmp]`, `cap_drop: [ALL]`, `security_opt: [no-new-privileges:true]`, `mem_limit: 512m`, `pids_limit: 128`, `networks: [borda_ia, dados_ia]`, `depends_on` do `db` saudável, o mesmo `logging`. **Não** usa a âncora `*rise` (ela traz o `.env` e o volume `dados/`). Redes novas: `borda_ia` e `dados_ia` (`internal: true`); `db` passa a listar `default` e `dados_ia`; `caddy` passa a listar `default` e `borda_ia`.
-- **`deploy/caddy/assistente.modelo`:** o bloco `assistente.4hobby.com.br { import seguranca; log (o mesmo filtro de IP mascarado); @rotas { method GET POST OPTIONS; path /status /chat /avaliar }; handle @rotas { request_body { max_size 16KB }; reverse_proxy ia:8787 { flush_interval -1 } }; handle { respond 404 } }`.
+- **`deploy/caddy/assistente.modelo`:** o bloco `hobi.4hobby.com.br { import seguranca; log (o mesmo filtro de IP mascarado); @rotas { method GET POST OPTIONS; path /status /chat /avaliar }; handle @rotas { request_body { max_size 16KB }; reverse_proxy ia:8787 { flush_interval -1 } }; handle { respond 404 } }`.
 - **`Caddyfile`:** no fim, `import ligado-*.caddy` (sem arquivo com esse nome, nada muda; o `preparar-ia.sh` copia o modelo para `ligado-assistente.caddy`, que fica fora do git).
 - **`deploy/preparar-ia.sh`** (uma vez, na VPS, com o ok do dono; idempotente): recusa se o papel `rise_ia` não existe; gera com `openssl rand -hex` a senha do papel e o `IA_SEGREDO`, **sem imprimir**; grava `deploy/ia.env` (modo 600) com `DATABASE_URL` do `rise_ia`, `IA_SEGREDO`, `IA_ORIGENS=https://www.4hobby.com.br,https://4hobby.com.br`, `IA_BASE_DAS_FOTOS=https://rise.4hobby.com.br`, `IA_PORTA=8787`; aplica `ALTER ROLE rise_ia LOGIN PASSWORD` pelo `psql` do contêiner `db` passando a senha por variável do `psql` (nunca na linha de comando); acrescenta o `IA_SEGREDO` ao `.env` do Rise (a tela da fase 2 cifra com ele); copia o modelo do Caddy; diz o que falta (DNS).
 - **`deploy/deploy-vps.sh`:** depois do `docker compose up -d`, se existe `deploy/ia.env`: `docker compose --profile ia up -d ia` e confere `GET /status` de dentro do contêiner (falhou = aviso, não derruba o deploy do Rise).
@@ -476,8 +476,8 @@ conferir("o deploy so sobe a ia com o ia.env", /-f deploy\/ia\.env[^\n]*\n[^\n]*
 ## Subida na VPS (fora das tarefas: só com o ok e o "sobe" do dono)
 
 1. "sobe" comum: as duas migrations entram; o serviço `ia` **não** sobe (não há `deploy/ia.env`) e o Rise segue igual. Conferir, numa conexão SSH só, que o papel `rise_ia` existe e que o painel abre.
-2. Com o ok do dono para o contêiner e o usuário de banco: o registro DNS `assistente` apontando para a VPS (dono, na Hostinger); depois `bash deploy/preparar-ia.sh` e um novo deploy.
-3. Conferir de fora: `https://assistente.4hobby.com.br/status` → `{"ligado":false,…}`; qualquer outro caminho → 404; `https://rise.4hobby.com.br` continua pedindo login. De dentro: o contêiner `ia` sem `ENCRYPTION_KEY` no ambiente e sem alcançar `app:3000`.
+2. Com o ok do dono para o contêiner e o usuário de banco: o registro DNS `hobi` apontando para a VPS (dono, na Hostinger); depois `bash deploy/preparar-ia.sh` e um novo deploy.
+3. Conferir de fora: `https://hobi.4hobby.com.br/status` → `{"ligado":false,…}`; qualquer outro caminho → 404; `https://rise.4hobby.com.br` continua pedindo login. De dentro: o contêiner `ia` sem `ENCRYPTION_KEY` no ambiente e sem alcançar `app:3000`.
 4. O chat continua desligado até a fase 2 (tela Canais, chaves coladas pelo dono) e a fase 4 (etiqueta na loja).
 
 ## O que esta fase NÃO faz

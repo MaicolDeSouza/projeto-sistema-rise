@@ -63,7 +63,7 @@ Opção 2 os atende **por construção** (o que o serviço não alcança, ele n�
 ## 5. Arquitetura: um cérebro, duas portas
 
 ```
-visitante ── loja (LI) ── widget fixado ──► assistente.4hobby.com.br (Caddy, bloco próprio)
+visitante ── loja (LI) ── widget fixado ──► hobi.4hobby.com.br (Caddy, bloco próprio)
                                                    │ só 5 rotas
                                              contêiner `ia`  ──► API da IA (chave própria, com teto)
                                              (sem chaves do Rise)  ──► Cloudflare (confere o robô)
@@ -118,7 +118,7 @@ Turnstile. O dono cola os dois **na tela do Rise** (§9), como todo token; o app
 
 ### 5.4 O endereço
 
-`assistente.4hobby.com.br`, **irmão** de `rise.4hobby.com.br`, nunca debaixo dele: o cookie de login do painel vale para
+`hobi.4hobby.com.br`, **irmão** de `rise.4hobby.com.br`, nunca debaixo dele: o cookie de login do painel vale para
 `rise.4hobby.com.br`, e um serviço público nesse nome poderia recebê-lo. Bloco próprio no Caddyfile: só `GET
 /widget-<versão>.js`, `GET /status`, `POST /chat`, `POST /pedido` e `POST /avaliar`; corpo de até 16 KB; qualquer outro
 caminho 404; sem `forward_auth`; `reverse_proxy ia:<porta>`. CORS só para a origem da loja. IP mascarado no log, como já é.
@@ -211,7 +211,7 @@ Cada fase com teste automático, roteiro de testes do dono e deploy só com o "s
 
 ## 13. Decisões minhas (o dono confere)
 
-1. Endereço `assistente.4hobby.com.br` (antes eu tinha dito o mesmo do Rise; o cookie do painel mudou a escolha).
+1. Endereço `hobi.4hobby.com.br`, **escolhido pelo dono em 19/11/2026** (eu tinha proposto `assistente`; antes ainda, o mesmo do Rise, que o cookie do painel descartou).
 2. O widget diz que é um assistente de IA (a decisão "sem aviso" de 12/10 era do WhatsApp; no site, não avisar seria fingir).
 3. Widget fixado por integridade: atualizar exige trocar a etiqueta na LI.
 4. Chave de IA separada para o chat, com teto no provedor.
@@ -230,7 +230,7 @@ Cada fase com teste automático, roteiro de testes do dono e deploy só com o "s
 
 ## 14. O que depende do dono
 
-Ok para o contêiner `ia` e o usuário `rise_ia` na VPS; registro DNS `assistente` (Hostinger); conta gratuita na
+Ok para o contêiner `ia` e o usuário `rise_ia` na VPS; registro DNS `hobi` (Hostinger); conta gratuita na
 Cloudflare (Turnstile); chave da OpenAI dedicada com teto; colar a etiqueta na LI (ou autorizar que eu cole pelo painel).
 
 ## 15. Riscos que sobram (não existe risco zero)
