@@ -1,0 +1,84 @@
+import { z } from "zod";
+
+import { PRECOS_USD_POR_MILHAO } from "../modelos";
+
+/**
+ * A configuracao do chat da loja (o Hobi): o grupo `chatDaLoja` de `ConfiguracaoIA.dados` (spec de 19/11/2026, §8 e §9).
+ * Mora aqui, fora de `configuracao.js`, porque o servico `ia` le o mesmo padrao e o mesmo esquema sem carregar o resto
+ * da configuracao do Rise (chaves, Telegram, enderecos).
+ *
+ * O chat NASCE DESLIGADO: nada aparece na loja ate o dono ligar na tela.
+ */
+
+/** Os provedores que o canal aceita: so os de API paga com preco cadastrado (o modelo local do PC nao alcanca o servico). */
+export const PROVEDORES_DO_CANAL = ["openai", "anthropic"];
+
+export function chatDaLojaPadrao() {
+  return {
+    ligado: false,
+    nome: "Hobi",
+    boasVindas: "Oi! Sou o Hobi, assistente da 4hobby. Precisa de ajuda para achar um componente?",
+    // Link wa.me da loja; vazio = sem botao de WhatsApp.
+    whatsapp: "",
+    // A chave PUBLICA do Turnstile (a secreta fica cifrada em SegredoDoAssistente).
+    turnstileSiteKey: "",
+    // Segunda a sexta, 9h-12h e 14h-17h (decisao do dono em 12/10/2026). So decide o aviso "fora do horario" do WhatsApp.
+    horario: { dias: [1, 2, 3, 4, 5], turnos: [["09:00", "12:00"], ["14:00", "17:00"]] },
+    principal: { provedor: "openai", modelo: "gpt-4.1-mini" },
+    reserva: { provedor: "anthropic", modelo: "claude-haiku-5-5" },
+    limites: {
+      mensagensPorSessaoPorHora: 30,
+      caracteresPorMensagem: 2000,
+      brlPorSessaoPorDia: 0.5,
+      mensagensPorIpPorHora: 60,
+      respostasAoMesmoTempo: 5,
+      brlPorDia: 7,
+    },
+  };
+}
+
+// Modelo sem preco cadastrado nao pode responder cliente: o teto de gasto nao somaria (spec de 12/10/2026, §2a).
+const Escolha = z.object({
+  provedor: z.enum(PROVEDORES_DO_CANAL, { message: "Escolha OpenAI ou Anthropic." }),
+  modelo: z
+    .string()
+    .max(200, "O nome do modelo é longo demais.")
+    .refine((modelo) => Boolean(PRECOS_USD_POR_MILHAO[modelo]), "Escolha um modelo com preço cadastrado."),
+});
+
+const Hora = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use o formato HH:MM.");
+
+const inteiro = (minimo, maximo, rotulo) =>
+  z.number({ message: `${rotulo}: informe um número.` }).int(`${rotulo}: use um número inteiro.`).min(minimo, `${rotulo}: no mínimo ${minimo}.`).max(maximo, `${rotulo}: no máximo ${maximo}.`);
+
+const reais = (rotulo) =>
+  z.number({ message: `${rotulo}: informe um número.` }).gt(0, `${rotulo}: precisa ser maior que zero.`).max(500, `${rotulo}: no máximo 500.`);
+
+export const EsquemaDoChatDaLoja = z.object({
+  ligado: z.boolean({ message: "Use ligado ou desligado." }),
+  nome: z.string().trim().min(1, "Informe o nome do assistente.").max(40, "O nome passa de 40 caracteres."),
+  boasVindas: z.string().max(300, "A saudação passa de 300 caracteres."),
+  whatsapp: z.string().refine((link) => link === "" || /^https:\/\/wa\.me\/\d{10,15}(\?\S*)?$/.test(link), "Use um link https://wa.me/ com o número da loja."),
+  turnstileSiteKey: z.string().max(100, "A chave pública passa de 100 caracteres."),
+  horario: z.object({
+    dias: z.array(z.number().int().min(0).max(6)).max(7),
+    turnos: z.array(z.tuple([Hora, Hora])).max(4),
+  }),
+  principal: Escolha,
+  reserva: Escolha.nullable(),
+  limites: z.object({
+    mensagensPorSessaoPorHora: inteiro(1, 500, "Mensagens por visitante por hora"),
+    caracteresPorMensagem: inteiro(200, 8000, "Caracteres por mensagem"),
+    brlPorSessaoPorDia: reais("Gasto por visitante por dia"),
+    mensagensPorIpPorHora: inteiro(1, 500, "Mensagens por IP por hora"),
+    respostasAoMesmoTempo: inteiro(1, 50, "Respostas ao mesmo tempo"),
+    brlPorDia: reais("Gasto por dia"),
+  }),
+});
+
+/** O que foi salvo por cima do padrao. `limites` se mescla por dentro: salvar um limite nao pode apagar os outros. */
+export function mesclarChatDaLoja(base, salvo) {
+  const padrao = base ?? chatDaLojaPadrao();
+  if (!salvo || typeof salvo !== "object") return padrao;
+  return { ...padrao, ...salvo, limites: { ...padrao.limites, ...(salvo.limites && typeof salvo.limites === "object" ? salvo.limites : {}) } };
+}

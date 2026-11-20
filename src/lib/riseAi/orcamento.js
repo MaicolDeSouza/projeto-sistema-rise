@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { cotacaoDoDolar } from "@/lib/cotacaoDolar";
 import { hojeEmSaoPaulo } from "@/lib/ferramentas/cotacao";
 
+import { CANAIS_DE_CLIENTE } from "./cliente/canais";
 import { lerConfiguracao } from "./configuracao";
 import { PRECOS_USD_POR_MILHAO, PROVEDORES, provedorPorId } from "./modelos";
 import { limitesDoDia } from "./revisao";
@@ -33,19 +34,23 @@ export function mesDeSaoPaulo(agora = new Date()) {
   return { mes, inicio: limitesDoDia(`${mes}-01`).inicio, fim: limitesDoDia(`${proximo}-01`).inicio };
 }
 
+// A resposta a um CLIENTE (chat da loja) guarda o custo na mensagem, para a Revisao mostrar, mas quem a soma e o orcamento
+// CLIENTES, pelo GastoIA de tipo CONVERSA: sem este filtro ela entraria tambem no orcamento interno.
+const DA_EQUIPE = { canal: { notIn: CANAIS_DE_CLIENTE } };
+
 /** Soma o mes com um cliente do Prisma (a transacao da reserva passa o dela). */
 async function somarMes(cliente, escopo, agora) {
   const { inicio, fim } = mesDeSaoPaulo(new Date(agora));
   const noMes = { gte: inicio, lt: fim };
   const [respostas, outros, reservas, semPreco] = await Promise.all([
     escopo === "INTERNO"
-      ? cliente.mensagemIA.aggregate({ _sum: { custoBrl: true }, where: { papel: "ASSISTENTE", criadoEm: noMes, custoBrl: { not: null } } })
+      ? cliente.mensagemIA.aggregate({ _sum: { custoBrl: true }, where: { papel: "ASSISTENTE", criadoEm: noMes, custoBrl: { not: null }, conversa: DA_EQUIPE } })
       : Promise.resolve({ _sum: { custoBrl: null } }),
     cliente.gastoIA.aggregate({ _sum: { valorBrl: true }, where: { escopo, criadoEm: noMes } }),
     cliente.reservaDeGastoIA.aggregate({ _sum: { valorBrl: true }, where: { escopo, criadaEm: noMes, expiraEm: { gt: new Date(agora) } } }),
     escopo === "INTERNO"
       ? cliente.mensagemIA.count({
-          where: { papel: "ASSISTENTE", criadoEm: noMes, custoBrl: null, provedor: { not: null, notIn: PROVEDORES_LOCAIS }, NOT: { avisos: { has: "erro" } } },
+          where: { papel: "ASSISTENTE", criadoEm: noMes, custoBrl: null, provedor: { not: null, notIn: PROVEDORES_LOCAIS }, NOT: { avisos: { has: "erro" } }, conversa: DA_EQUIPE },
         })
       : Promise.resolve(0),
   ]);

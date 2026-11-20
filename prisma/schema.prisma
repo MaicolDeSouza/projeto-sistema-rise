@@ -843,6 +843,8 @@ enum PerfilIA {
 enum CanalIA {
   CHAT
   MCP
+  /// O chat do site da loja (o Hobi, 19/11/2026): conversa com CLIENTE, alcancada pelo usuario de banco rise_ia.
+  LOJA
 }
 
 enum PapelMensagemIA {
@@ -1012,6 +1014,8 @@ enum TipoDeGastoIA {
   TRANSCRICAO
   EMBEDDING
   BUSCA
+  /// O custo de uma resposta da IA a um cliente (chat da loja): o orcamento CLIENTES soma so GastoIA.
+  CONVERSA
 }
 
 enum EscopoDeGastoIA {

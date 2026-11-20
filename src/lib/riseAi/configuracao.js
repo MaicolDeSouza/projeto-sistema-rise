@@ -5,6 +5,7 @@ import { lerSegredo, salvarConexao } from "@/lib/integracoes/conexoes";
 import { ambienteDoRise } from "@/lib/sessao";
 import { PROVEDORES, endpointPadrao } from "./modelos";
 import { TIPOS_DE_AVISO, telegramPadrao } from "@/lib/telegram/avisosTipos";
+import { EsquemaDoChatDaLoja, chatDaLojaPadrao, mesclarChatDaLoja } from "./cliente/configuracaoDoCanal";
 
 /**
  * Configuração do Rise AI: padrão de fábrica, o que o administrador salvou e as chaves dos provedores.
@@ -52,6 +53,8 @@ export function configuracaoPadrao(ambiente) {
     internet: false,
     // O bot do Telegram (Entrega C1): nasce desligado, com todos os avisos marcados para quando o dono ligar.
     telegram: telegramPadrao(),
+    // O chat da loja (o Hobi, 19/11/2026): nasce desligado, com os limites de fabrica. Quem o le e o servico `ia`.
+    chatDaLoja: chatDaLojaPadrao(),
   };
 }
 
@@ -101,6 +104,7 @@ const EsquemaDaConfiguracao = z.object({
     ligado: z.boolean({ message: "Use ligado ou desligado." }),
     avisos: z.object(Object.fromEntries(TIPOS_DE_AVISO.map((tipo) => [tipo, z.boolean({ message: "Use ligado ou desligado." })]))),
   }),
+  chatDaLoja: EsquemaDoChatDaLoja,
 });
 
 /** @returns {{ ok: true, dados: object } | { ok: false, erros: Record<string, string> }} */
@@ -126,6 +130,11 @@ function mesclar(base, parcial) {
       // `avisos` tambem se mescla por dentro: salvar so um interruptor nao pode apagar os outros.
       const baseTelegram = base.telegram ?? {};
       resultado.telegram = { ...baseTelegram, ...valor, ...(valor.avisos ? { avisos: { ...(baseTelegram.avisos ?? {}), ...valor.avisos } } : {}) };
+      continue;
+    }
+    if (chave === "chatDaLoja" && valor && typeof valor === "object") {
+      // `limites` tambem se mescla por dentro: salvar um limite nao pode apagar os outros.
+      resultado.chatDaLoja = mesclarChatDaLoja(base.chatDaLoja, valor);
       continue;
     }
     resultado[chave] =
