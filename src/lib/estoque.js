@@ -5,9 +5,9 @@
  */
 
 export const TIPOS_DE_MOVIMENTO = [
-  { id: "ENTRADA", rotulo: "Entrada", ajuda: "soma ao saldo", campo: "Quantidade a entrar", botao: "Confirmar entrada" },
-  { id: "SAIDA", rotulo: "Saída", ajuda: "tira do saldo", campo: "Quantidade a sair", botao: "Confirmar saída" },
-  { id: "BALANCO", rotulo: "Balanço", ajuda: "define o saldo", campo: "Contagem real (novo saldo)", botao: "Confirmar balanço" },
+  { id: "ENTRADA", rotulo: "Entrada", ajuda: "soma ao saldo", campo: "Quantidade a entrar" },
+  { id: "SAIDA", rotulo: "Saída", ajuda: "tira do saldo", campo: "Quantidade a sair" },
+  { id: "BALANCO", rotulo: "Balanço", ajuda: "define o saldo", campo: "Contagem real (novo saldo)" },
 ];
 
 /// Motivos oferecidos por tipo; o primeiro e o padrao da tela.

@@ -44,6 +44,7 @@ const { buscarNoBling, lerParaPopup, lerProdutoDoRise } = await import("../src/l
 const { cadastrarNoBling, enviarAjustesDeEstoque, enviarCustoDoFornecedor, sincronizarProduto } = await import("../src/lib/blingSync/envio.js");
 const { produtosEmDiaComOBling, enviarCustosAoBling } = await import("../src/lib/blingSync/custosDaVarredura.js");
 const { sincronizarEstoqueDoBling } = await import("../src/lib/blingSync/saldos.js");
+const { ajustarESincronizar, lerSaldoParaAjuste } = await import("../src/lib/blingSync/ajusteComBling.js");
 const { LIMITE_DE_FALHAS_VISIVEIS, mudouNoBling, resumirEnvio, resumirEstoqueDaLista, valorParaTela } = await import("../src/lib/blingSync/apresentacao.js");
 const { consultaDaChamada, criarBlingFalso } = await import("./lib/blingFalso.js");
 
@@ -2864,6 +2865,161 @@ try {
     {
       const falso = criarBlingFalso();
       conferir("produtoIds vazio: nada atualizado e nenhuma chamada", [await sincronizarEstoqueDoBling(falso, { produtoIds: [] }), falso.chamadas.length], [{ atualizados: 0, semCodigoNoBling: 0, falhas: [] }, 0]);
+    }
+
+    // -----------------------------------------------------------------------
+    // Ajustar estoque na lista JA sincronizando com o Bling (pedido do dono em 20/11/2026): o popup le o
+    // saldo do Bling ao abrir, e o Confirmar le de novo, grava o ajuste no Rise e o envia na mesma hora.
+    // -----------------------------------------------------------------------
+    const pendentesDe = async (produtoId) => (await movimentosDe(produtoId)).map((movimento) => [movimento.tipo, movimento.quantidade, movimento.enviadoAoBlingEm instanceof Date]);
+    const estoqueE = async (produtoId) => {
+      const lido = await ler(produtoId);
+      return [lido.estoque, lido.blingSaldo];
+    };
+
+    // --- Abrir o popup: o saldo mostrado e o do Bling lido agora, e nada e escrito la ---
+    {
+      // O Rise diz 7 (velho); o Bling diz 4.
+      const produto = await criarComPendentes("ZZ-BS-AJ1", []);
+      const falso = criarBlingFalso({ produtos: [noBling("ZZ-BS-AJ1")], saldos: { "ZZ-BS-AJ1": 4 } });
+      conferir(
+        "abrir o ajuste: le o saldo no Bling e devolve o estoque ja igualado (4), o saldo do Bling e nenhum pendente",
+        await lerSaldoParaAjuste(produto.id, falso),
+        { ok: true, noBling: true, estoque: 4, blingSaldo: 4, pendentes: 0 },
+      );
+      conferir("abrir o ajuste: o estoque do Rise foi regravado pelo do Bling", await estoqueE(produto.id), [4, 4]);
+      conferir("abrir o ajuste: so a leitura do saldo, sem trava de escrita e sem escrita", [rotasDe(falso), falso.escritasExigidas, escritasDe(falso).length], [["GET /estoques/saldos"], [], 0]);
+
+      // Com um ajuste antigo ainda pendente: o estoque e o do Bling mais o pendente, e a tela sabe dos dois.
+      const comPendente = await criarComPendentes("ZZ-BS-AJ2", [["ENTRADA", 2]]);
+      const falsoPendente = criarBlingFalso({ produtos: [noBling("ZZ-BS-AJ2")], saldos: { "ZZ-BS-AJ2": 5 } });
+      conferir(
+        "abrir o ajuste com pendente antigo: estoque 5 + 2, saldo do Bling 5 e 1 pendente",
+        await lerSaldoParaAjuste(comPendente.id, falsoPendente),
+        { ok: true, noBling: true, estoque: 7, blingSaldo: 5, pendentes: 1 },
+      );
+
+      // Produto que nao esta no Bling: o estoque e o do Rise, e a tela sabe que ele esta fora.
+      const fora = await criarComPendentes("ZZ-BS-AJ3", []);
+      conferir(
+        "abrir o ajuste de produto fora do Bling: ok, noBling false e o estoque do Rise como estava",
+        await lerSaldoParaAjuste(fora.id, criarBlingFalso()),
+        { ok: true, noBling: false, estoque: 7, blingSaldo: null, pendentes: 0 },
+      );
+
+      // O Bling nao respondeu: a tela recebe o motivo e o estoque nao muda.
+      const semBling = criarBlingFalso({ produtos: [noBling("ZZ-BS-AJ1")], falhas: [{ metodo: "GET", caminho: "/estoques/saldos", status: 500, mensagem: "Erro interno" }] });
+      const falhou = await lerSaldoParaAjuste(produto.id, semBling);
+      conferir("abrir o ajuste com o Bling fora do ar: ok false com o HTTP, e o estoque fica", [falhou.ok, casaTexto(falhou.erro, /HTTP 500/), await estoqueE(produto.id)], [false, true, [4, 4]]);
+      conferir("abrir o ajuste de um id que nao existe: ok false, sem lancar", (await lerSaldoParaAjuste("id-que-nao-existe", criarBlingFalso())).ok, false);
+    }
+
+    // --- Confirmar: le o Bling, grava no Rise e envia na mesma hora ---
+    {
+      // O Rise diz 7 (velho); o Bling diz 5. Entrada de 3: a conta parte do 5.
+      const produto = await criarComPendentes("ZZ-BS-AJ4", []);
+      const falso = criarBlingFalso({ produtos: [noBling("ZZ-BS-AJ4")], saldos: { "ZZ-BS-AJ4": 5 } });
+      const resultado = await ajustarESincronizar(produto.id, { tipo: "ENTRADA", quantidade: 3, motivo: "Compra de fornecedor" }, falso);
+      conferir(
+        "confirmar ENTRADA 3: ok, enviado ao Bling, o saldo de antes e o do BLING (5) e o estoque fica 8",
+        resultado,
+        { ok: true, bling: "enviado", saldoAnterior: 5, estoque: 8, blingSaldo: 8, enviados: 1 },
+      );
+      conferir("confirmar: o Bling recebeu UM lancamento, a entrada de 3, e ficou com 8", [postsDeEstoque(falso).map((chamada) => chamada.corpo), falso.saldo("ZZ-BS-AJ4")], [[lancamento("E", 3)], 8]);
+      conferir("confirmar: o movimento nasce no Rise e ja sai marcado como enviado (nada pendente)", await pendentesDe(produto.id), [["ENTRADA", 3, true]]);
+      conferir("confirmar: Rise e Bling iguais no banco (8 e 8)", await estoqueE(produto.id), [8, 8]);
+      const rotas = rotasDe(falso);
+      conferir(
+        "confirmar: a PRIMEIRA chamada e a leitura do saldo, a trava de escrita vem antes do POST e o saldo e relido no fim",
+        [rotas[0], rotas.indexOf("exigirEscrita ZZ-BS-AJ4") < rotas.indexOf("POST /estoques"), rotas.at(-1)],
+        ["GET /estoques/saldos", true, "GET /estoques/saldos"],
+      );
+    }
+
+    // --- A saida e conferida contra o saldo do BLING, nao contra o numero velho do Rise ---
+    {
+      const produto = await criarComPendentes("ZZ-BS-AJ5", []);
+      const falso = criarBlingFalso({ produtos: [noBling("ZZ-BS-AJ5")], saldos: { "ZZ-BS-AJ5": 2 } });
+      const recusado = await ajustarESincronizar(produto.id, { tipo: "SAIDA", quantidade: 5 }, falso);
+      conferir(
+        "SAIDA 5 com 7 no Rise e 2 no Bling: recusada pelo saldo do Bling, sem movimento e sem POST",
+        [recusado.ok, casaTexto(recusado.erro, /maior que o saldo \(2\)/), await pendentesDe(produto.id), postsDeEstoque(falso).length],
+        [false, true, [], 0],
+      );
+      const zero = await ajustarESincronizar(produto.id, { tipo: "ENTRADA", quantidade: 0 }, falso);
+      conferir("quantidade zero: recusada como antes, sem movimento e sem POST", [zero.ok, await pendentesDe(produto.id), postsDeEstoque(falso).length], [false, [], 0]);
+    }
+
+    // --- Sem conseguir ler o Bling, o ajuste NAO e feito (o saldo de partida seria um chute) ---
+    {
+      const produto = await criarComPendentes("ZZ-BS-AJ6", []);
+      const falso = criarBlingFalso({ produtos: [noBling("ZZ-BS-AJ6")], saldos: { "ZZ-BS-AJ6": 5 }, falhas: [{ metodo: "GET", caminho: "/estoques/saldos", status: 500, mensagem: "Erro interno" }] });
+      const resultado = await ajustarESincronizar(produto.id, { tipo: "ENTRADA", quantidade: 3 }, falso);
+      conferir(
+        "Bling fora do ar na leitura: ok false com o HTTP e dizendo que nada foi alterado, sem movimento, sem POST e o estoque fica",
+        [resultado.ok, casaTexto(resultado.erro, /HTTP 500/), casaTexto(resultado.erro, /nada foi alterado/i), await pendentesDe(produto.id), postsDeEstoque(falso).length, await estoqueE(produto.id)],
+        [false, true, true, [], 0, [7, null]],
+      );
+    }
+
+    // --- O Rise gravou e o Bling recusou a escrita: o ajuste fica pendente, e a tela recebe o motivo ---
+    {
+      const produto = await criarComPendentes("ZZ-BS-AJ7", []);
+      const restrito = criarBlingFalso({ codigosLiberados: ["ZZ-OUTRO"], produtos: [noBling("ZZ-BS-AJ7")], saldos: { "ZZ-BS-AJ7": 5 } });
+      const resultado = await ajustarESincronizar(produto.id, { tipo: "ENTRADA", quantidade: 3 }, restrito);
+      conferir(
+        "escrita travada: ok (o Rise gravou), bling pendente com o motivo da trava, estoque 8 no Rise e 5 no Bling",
+        [resultado.ok, resultado.bling, casaTexto(resultado.motivo, /lista de codigos liberados/), resultado.saldoAnterior, resultado.estoque, resultado.blingSaldo],
+        [true, "pendente", true, 5, 8, 5],
+      );
+      conferir("escrita travada: o movimento existe e esta pendente, e nada foi escrito no Bling", [await pendentesDe(produto.id), escritasDe(restrito).length], [[["ENTRADA", 3, false]], 0]);
+
+      // Dois depositos sem padrao: tambem fica pendente, e o motivo fala do deposito.
+      const outro = await criarComPendentes("ZZ-BS-AJ8", []);
+      const doisDepositos = criarBlingFalso({
+        produtos: [noBling("ZZ-BS-AJ8")],
+        saldos: { "ZZ-BS-AJ8": 5 },
+        depositos: [
+          { id: 14300000001, descricao: "Loja", situacao: 1, padrao: false, desconsiderarSaldo: false },
+          { id: 14300000002, descricao: "Galpao", situacao: 1, padrao: false, desconsiderarSaldo: false },
+        ],
+      });
+      const semDeposito = await ajustarESincronizar(outro.id, { tipo: "SAIDA", quantidade: 1 }, doisDepositos);
+      conferir("dois depositos sem padrao: gravado no Rise, pendente, e o motivo fala do deposito", [semDeposito.ok, semDeposito.bling, casaTexto(semDeposito.motivo, /deposito/), semDeposito.estoque], [true, "pendente", true, 4]);
+    }
+
+    // --- Produto fora do Bling: o ajuste fica so no Rise, e nenhuma escrita e tentada ---
+    {
+      const produto = await criarComPendentes("ZZ-BS-AJ9", []);
+      const falso = criarBlingFalso();
+      const resultado = await ajustarESincronizar(produto.id, { tipo: "ENTRADA", quantidade: 3 }, falso);
+      conferir("fora do Bling: ok, bling fora, estoque 7 + 3", resultado, { ok: true, bling: "fora", saldoAnterior: 7, estoque: 10, blingSaldo: null });
+      conferir("fora do Bling: o movimento existe, e o Bling so foi lido (sem trava de escrita, sem escrita)", [await pendentesDe(produto.id), falso.escritasExigidas, escritasDe(falso).length], [[["ENTRADA", 3, false]], [], 0]);
+    }
+
+    // --- Balanco com reserva no Bling: o Rise termina igual ao saldo (virtual) que o Bling devolve ---
+    {
+      const produto = await criarComPendentes("ZZ-BS-AJA", []);
+      // 2 de reserva: fisico 5, virtual 3. O balanco define o fisico 12; o virtual fica 10.
+      const falso = criarBlingFalso({ produtos: [noBling("ZZ-BS-AJA")], saldos: { "ZZ-BS-AJA": { virtual: 3, fisico: 5 } } });
+      const resultado = await ajustarESincronizar(produto.id, { tipo: "BALANCO", quantidade: 12 }, falso);
+      conferir(
+        "BALANCO 12 com 2 reservados: enviado, e o estoque do Rise fica igual ao saldo relido do Bling (10)",
+        [resultado.ok, resultado.bling, resultado.saldoAnterior, resultado.estoque, resultado.blingSaldo, postsDeEstoque(falso).map((chamada) => chamada.corpo), await estoqueE(produto.id)],
+        [true, "enviado", 3, 10, 10, [lancamento("B", 12)], [10, 10]],
+      );
+    }
+
+    // --- Um ajuste antigo que estava pendente vai junto, antes, na ordem ---
+    {
+      const produto = await criarComPendentes("ZZ-BS-AJB", [["SAIDA", 1]]);
+      const falso = criarBlingFalso({ produtos: [noBling("ZZ-BS-AJB")], saldos: { "ZZ-BS-AJB": 5 } });
+      const resultado = await ajustarESincronizar(produto.id, { tipo: "ENTRADA", quantidade: 2 }, falso);
+      conferir(
+        "pendente antigo: os dois vao ao Bling na ordem (a saida antiga e depois a entrada nova), e tudo fica igual (6)",
+        [resultado.ok, resultado.bling, resultado.enviados, resultado.saldoAnterior, resultado.estoque, postsDeEstoque(falso).map((chamada) => chamada.corpo), await pendentesDe(produto.id), await estoqueE(produto.id)],
+        [true, "enviado", 2, 4, 6, [lancamento("S", 1), lancamento("E", 2)], [["SAIDA", 1, true], ["ENTRADA", 2, true]], [6, 6]],
+      );
     }
   }
 

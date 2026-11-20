@@ -1,10 +1,12 @@
 "use client";
 
 import { propsDoFundo } from "@/lib/fundoDaJanela";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowDownToLine, ArrowUpFromLine, ClipboardCheck, Loader, Pencil, X } from "lucide-react";
 
-import { ajustarEstoque, salvarLocalizacao, salvarPrecoVenda } from "@/app/produtos/acoes-edicao-rapida";
+import { ajustarEstoque, lerSaldoDoAjuste, salvarLocalizacao, salvarPrecoVenda } from "@/app/produtos/acoes-edicao-rapida";
+import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
 import { MAXIMO_ESTOQUE, MOTIVOS, TIPOS_DE_MOVIMENTO, novoSaldo } from "@/lib/estoque";
 import { calcularMarkup, corDoMarkup, IMPOSTO_PADRAO, lucroLiquido } from "@/lib/margem";
 
@@ -14,8 +16,9 @@ import { calcularMarkup, corDoMarkup, IMPOSTO_PADRAO, lucroLiquido } from "@/lib
  *
  * Desenhado num esboco aprovado por ele: no estoque, escolhe-se Entrada, Saida ou
  * Balanco e digita-se o valor logo abaixo, com a previa do saldo antes de confirmar.
- * Tudo grava SO no banco local — os avisos dizem isso, para o numero daqui nao
- * passar pelo do Bling ou dos canais.
+ * Localizacao e preco gravam SO no banco local — os avisos dizem isso, para o numero
+ * daqui nao passar pelo do Bling ou dos canais. O estoque, desde 20/11/2026, le o saldo
+ * no Bling e envia o ajuste na mesma hora (ver `PopupEstoque`).
  */
 
 const CLASSE_CAMPO =
@@ -59,7 +62,11 @@ function useEnvio(acao, aoConcluir) {
   return { pendente, erro, enviar, limparErro: () => setErro(null) };
 }
 
-export function Popup({ titulo, produto, aoFechar, aoEnviar, rotuloBotao, pendente, erro, children }) {
+/**
+ * `bloqueio` (texto) desliga o botao principal e vira o `title` dele (regra 8 do padrao visual: recusa e botao
+ * desabilitado com o motivo). `soFechar` tira o Cancelar: a janela so mostra um resultado, e o botao principal fecha.
+ */
+export function Popup({ titulo, produto, aoFechar, aoEnviar, rotuloBotao, pendente, erro, bloqueio = null, soFechar = false, children }) {
   useEffect(() => {
     function aoTeclar(evento) {
       if (evento.key === "Escape") aoFechar();
@@ -113,17 +120,20 @@ export function Popup({ titulo, produto, aoFechar, aoEnviar, rotuloBotao, penden
           </p>
 
           <div className="mt-3 flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={aoFechar}
-              disabled={pendente}
-              className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo disabled:opacity-50"
-            >
-              Cancelar
-            </button>
+            {!soFechar && (
+              <button
+                type="button"
+                onClick={aoFechar}
+                disabled={pendente}
+                className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+            )}
             <button
               type="submit"
-              disabled={pendente}
+              disabled={pendente || Boolean(bloqueio)}
+              title={bloqueio ?? undefined}
               className="inline-flex items-center gap-1.5 rounded bg-acento px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
               {pendente && <Loader size={13} className="animate-spin" />}
@@ -248,12 +258,66 @@ const ICONES_DO_MOVIMENTO = {
 /** Teclas que o navegador aceita num campo numerico mas nao servem a um inteiro. */
 const TECLAS_RECUSADAS = ["e", "E", "+", "-", ".", ","];
 
+/// O ajuste em palavras, para o aviso de conclusao: "Entrada de 3", "Balanço, contagem de 12".
+function ajusteEmPalavras(tipo, quantidade) {
+  if (tipo === "ENTRADA") return `Entrada de ${quantidade}`;
+  if (tipo === "SAIDA") return `Saída de ${quantidade}`;
+  return `Balanço, contagem de ${quantidade}`;
+}
+
+/**
+ * Ajuste de estoque que JA vai ao Bling (pedido do dono em 20/11/2026: "quero que mudar o estoque no rise tambem mude
+ * o bling ... Mas sempre ler saldo atual no bling"). Ao abrir, o saldo e lido do Bling; o Confirmar le de novo, grava
+ * no Rise e envia na mesma hora (`lib/blingSync/ajusteComBling.js`). Ate ali o ajuste ficava so no Rise, pendente, e
+ * dois esquecidos acenderam o "!" do Bling com 0 e 0 dos dois lados.
+ */
 export function PopupEstoque({ produto, aoFechar }) {
+  const router = useRouter();
   const [tipo, setTipo] = useState("ENTRADA");
   const [quantidade, setQuantidade] = useState("");
   const [motivo, setMotivo] = useState(MOTIVOS.ENTRADA[0]);
   const [observacao, setObservacao] = useState("");
-  const { pendente, erro, enviar, limparErro } = useEnvio(ajustarEstoque, aoFechar);
+  // null = lendo o Bling (a abertura e o "Ler de novo").
+  const [leitura, setLeitura] = useState(null);
+  // O que o Confirmar devolveu quando o ajuste foi gravado: "enviado" abre o aviso com OK, "pendente" troca o
+  // formulario pelo motivo. Fora do Bling fecha direto, como antes.
+  const [resultado, setResultado] = useState(null);
+  const { pendente, erro, enviar, limparErro } = useEnvio(ajustarEstoque, (feito) => {
+    if (feito.bling === "enviado" || feito.bling === "pendente") setResultado(feito);
+    else aoFechar();
+  });
+  // As respostas chegam depois de um await: com o popup ja fechado, nada a fazer.
+  const montado = useRef(false);
+  // Uma leitura por abertura: no modo de desenvolvimento o React monta o efeito duas vezes, e cada leitura e uma
+  // chamada da conta do Bling, que tem limite (o mesmo cuidado da janela do Bling).
+  const leituraIniciada = useRef(false);
+  // O numero que a lista mostrava ao abrir: se o Bling disse outro, a lista e atualizada.
+  const estoqueAoAbrir = useRef(produto.estoque);
+
+  async function lerSaldo() {
+    let lida;
+    try {
+      lida = await lerSaldoDoAjuste(produto.id);
+    } catch {
+      lida = { ok: false, erro: "Não foi possível ler o saldo no Bling. Tente de novo." };
+    }
+    if (!montado.current) return;
+    setLeitura(lida);
+    if (lida.ok && lida.estoque !== estoqueAoAbrir.current) router.refresh();
+  }
+
+  useEffect(() => {
+    montado.current = true;
+    if (!leituraIniciada.current) {
+      leituraIniciada.current = true;
+      lerSaldo();
+    }
+    return () => {
+      montado.current = false;
+    };
+    // So na abertura: `lerSaldo` muda a cada render, e relendo a cada render o Bling seria chamado sem parar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [produto.id]);
 
   const configuracao = TIPOS_DE_MOVIMENTO.find((item) => item.id === tipo);
 
@@ -264,39 +328,107 @@ export function PopupEstoque({ produto, aoFechar }) {
     limparErro();
   }
 
+  const saldo = leitura?.ok ? leitura.estoque : null;
   const digitada = quantidade === "" ? null : Number(quantidade);
-  const depois = digitada === null ? null : novoSaldo(tipo, produto.estoque, digitada);
-  const diferenca = depois === null ? null : depois - produto.estoque;
+  const depois = digitada === null || saldo === null ? null : novoSaldo(tipo, saldo, digitada);
+  const diferenca = depois === null ? null : depois - saldo;
 
   let previa = null;
   if (depois !== null) {
     if (depois < 0) {
-      previa = { erro: true, texto: `A saída (${digitada}) é maior que o saldo (${produto.estoque}).` };
+      previa = { erro: true, texto: `A saída (${digitada}) é maior que o saldo (${saldo}).` };
     } else if (depois > MAXIMO_ESTOQUE) {
       previa = { erro: true, texto: `O saldo passaria do limite de ${MAXIMO_ESTOQUE}.` };
     } else {
       previa = {
         erro: false,
-        texto: `Saldo depois: ${produto.estoque} → ${depois} (${diferenca >= 0 ? "+" : ""}${diferenca})`,
+        texto: `Saldo depois: ${saldo} → ${depois} (${diferenca >= 0 ? "+" : ""}${diferenca})`,
       };
     }
   }
+
+  // Deu certo dos dois lados: o aviso padrao de envio concluido, e o OK fecha tudo.
+  if (resultado?.bling === "enviado") {
+    const outros = resultado.enviados - 1;
+    return (
+      <ConclusaoDoEnvio
+        titulo="Estoque sincronizado com o Bling"
+        mensagem={`${ajusteEmPalavras(tipo, quantidade)}. Saldo no Rise e no Bling: ${resultado.estoque} un. (era ${resultado.saldoAnterior}).`}
+        linhas={outros > 0 ? [`${outros} ajuste(s) que estava(m) pendente(s) foi(ram) junto.`] : []}
+        aviso={resultado.aviso ?? null}
+        aoFechar={aoFechar}
+      />
+    );
+  }
+
+  // O Rise gravou e o Bling nao recebeu: fica na janela, em ambar, com o motivo (resultado parcial nao e sucesso).
+  if (resultado?.bling === "pendente") {
+    return (
+      <Popup titulo="Ajustar estoque" produto={produto} aoFechar={aoFechar} aoEnviar={aoFechar} rotuloBotao="Fechar" pendente={false} erro={null} soFechar>
+        <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <p className="font-medium">Gravado no Rise, mas não enviado ao Bling</p>
+          <p className="mt-1 text-xs">{resultado.motivo}</p>
+          <p className="mt-2 text-xs">
+            Saldo no Rise: {resultado.estoque} un. O ajuste ficou pendente: envie pela janela do Bling (ícone do Bling na lista).
+          </p>
+        </div>
+      </Popup>
+    );
+  }
+
+  const bloqueio = leitura === null ? "Lendo o saldo no Bling..." : leitura.ok ? null : "Sem o saldo do Bling não dá para ajustar.";
+  const foraDoBling = leitura?.ok && !leitura.noBling;
 
   return (
     <Popup
       titulo="Ajustar estoque"
       produto={produto}
       aoFechar={aoFechar}
-      aoEnviar={() => enviar(produto.id, { tipo, quantidade, motivo, observacao })}
-      rotuloBotao={configuracao.botao}
+      aoEnviar={() => {
+        if (!bloqueio) enviar(produto.id, { tipo, quantidade, motivo, observacao });
+      }}
+      rotuloBotao={foraDoBling ? "Confirmar" : "Confirmar e sincronizar com Bling"}
       pendente={pendente}
       erro={erro}
+      bloqueio={bloqueio}
     >
-      <div className="flex items-baseline justify-between rounded bg-fundo px-3 py-2">
-        <span className="text-xs text-suave">Saldo atual</span>
-        <span className="text-2xl font-medium tabular-nums">
-          {produto.estoque} <span className="text-xs font-normal text-suave">un.</span>
-        </span>
+      <div className="rounded bg-fundo px-3 py-2">
+        <div className="flex items-baseline justify-between">
+          <span className="text-xs text-suave">Saldo atual</span>
+          {leitura === null ? (
+            <span className="inline-flex items-center gap-1.5 py-1.5 text-sm text-suave">
+              <Loader size={14} className="animate-spin" />
+              Lendo o Bling...
+            </span>
+          ) : (
+            <span className="text-2xl font-medium tabular-nums">
+              {saldo ?? "—"} <span className="text-xs font-normal text-suave">un.</span>
+            </span>
+          )}
+        </div>
+        {leitura?.ok && leitura.noBling && (
+          <p className="text-right text-[11px] text-suave">
+            {leitura.pendentes > 0
+              ? `Bling: ${leitura.blingSaldo} · ${leitura.pendentes} ajuste(s) pendente(s) vão junto`
+              : "lido agora no Bling"}
+          </p>
+        )}
+        {foraDoBling && <p className="text-right text-[11px] text-amber-800">Fora do Bling: o ajuste fica só no Rise.</p>}
+        {leitura && !leitura.ok && (
+          <p className="mt-1 flex items-start justify-between gap-2 text-xs text-red-700" role="alert">
+            <span>{leitura.erro}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setLeitura(null);
+                lerSaldo();
+              }}
+              className="shrink-0 font-medium text-acento hover:underline"
+            >
+              Ler de novo
+            </button>
+          </p>
+        )}
       </div>
 
       <div className="mt-3 grid grid-cols-3 gap-2" role="radiogroup" aria-label="Operação">
@@ -384,8 +516,6 @@ export function PopupEstoque({ produto, aoFechar }) {
           />
         </div>
       </div>
-
-      <AvisoSoAqui>{AVISO_CANAIS}</AvisoSoAqui>
     </Popup>
   );
 }
