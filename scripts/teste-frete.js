@@ -1154,7 +1154,7 @@ try {
   const sedex = { servicoId: "2", servicoNome: "SEDEX", transportadora: "Correios", preco: 28.85, prazoDias: 2, valorACobrar: 29.85 };
   const comItem = async (numero, extra) => {
     const pedido = await pedidoDeTeste(numero, extra);
-    await prisma.itemDoPedidoDeVenda.create({ data: { pedidoId: pedido.id, ordem: 0, titulo: "ZZ Display LCD", quantidade: 2, precoUnitario: 24.85, desconto: 0, total: 49.7 } });
+    await prisma.itemDoPedidoDeVenda.create({ data: { pedidoId: pedido.id, ordem: 0, titulo: "ZZ Display LCD", quantidade: 2, precoUnitario: 24.85, desconto: 0, total: 49.7, custoUnitarioCongelado: 10 } });
     return pedido;
   };
   const pedido1 = await comItem("ZZ-FRETE-MCP-1");
@@ -1212,6 +1212,79 @@ try {
     [SEM_VER, SEM_VER, SEM_VER, SEM_VER, SEM_VER],
   );
   conferir("mcp leituras: quem vê pedidos também", (await mcpFrete.lerEnvioMcp({ envio: "ZZ-FRETE-MCP-1" }, { pode: (id) => id === "tela.pedidos", usuario: "zz" })).numero, lido.numero);
+
+  console.log("\nMCP do frete: preparar, comprar, cancelar e avisar");
+  const pedido3 = await comItem("ZZ-FRETE-MCP-3", { nf: { chave: "4".repeat(44) } });
+  const preparar = { pedido: "ZZ-FRETE-MCP-3", servicoId: "2", caixa: "CX 16x11x3", pesoKg: 0.2, documento: "NFE" };
+  const travada = await mcpFrete.prepararEtiqueta(preparar, podeTudo);
+  conferir("mcp preparar: trava fechada aparece", [travada.podeComprar, travada.motivos], [false, ["A compra de etiquetas está travada (FRETE_COMPRA)."]]);
+  liberarTrava();
+  const preparada = await mcpFrete.prepararEtiqueta(preparar, podeTudo);
+  conferir(
+    "mcp preparar",
+    [preparada.servico, preparada.preco, preparada.saldo, preparada.saldoDepois, preparada.podeComprar, preparada.motivos, preparada.documento],
+    ["Correios SEDEX", 28.85, 123.45, 94.6, true, [], "NF-e"],
+  );
+  const doPedido3 = await lerEnvioDoPedido(pedido3.id);
+  conferir("mcp preparar: chave da NF-e do pedido", [doPedido3.chaveNfe, doPedido3.medidaConferida, Number(doPedido3.pesoKg)], ["4".repeat(44), true, 0.2]);
+  conferir("mcp preparar: de novo usa o mesmo envio", [(await mcpFrete.prepararEtiqueta(preparar, podeTudo)).envio, await prisma.envio.count({ where: { pedidoDeVendaId: pedido3.id } })], [preparada.envio, 1]);
+  conferir("mcp preparar: serviço que não atende", await erroDe(mcpFrete.prepararEtiqueta({ ...preparar, servicoId: "999" }, podeTudo)), "O serviço 999 não atende este pacote: cote de novo.");
+  conferir("mcp preparar: NF-e sem chave", await erroDe(mcpFrete.prepararEtiqueta({ ...preparar, pedido: "ZZ-FRETE-MCP-2" }, podeTudo)), "O pedido não tem NF-e: informe a chave ou use declaração.");
+  conferir("mcp preparar: declaração sem chave", (await mcpFrete.prepararEtiqueta({ ...preparar, pedido: "ZZ-FRETE-MCP-2", documento: "DECLARACAO" }, podeTudo)).documento, "Declaração de conteúdo");
+  conferir("mcp preparar: só do Bling", await erroDe(mcpFrete.prepararEtiqueta({ ...preparar, pedido: "ZZ-FRETE-MCP-ML" }, podeTudo)), "O envio pelo Rise é só para pedido do Bling.");
+
+  const carrinhos = falso.pedidosDeCarrinho;
+  conferir(
+    "mcp comprar: valor diferente recusa",
+    await erroDe(mcpFrete.comprarEtiquetaMcp({ envio: preparada.envio, valorConfirmado: 20, confirmo: true }, podeTudo)),
+    "O preço preparado é R$ 28,85, não R$ 20,00: confira com a pessoa.",
+  );
+  await prisma.envio.update({ where: { id: doPedido3.id }, data: { cotadoEm: new Date(Date.now() - 31 * 60 * 1000) } });
+  conferir(
+    "mcp comprar: preparação velha recusa",
+    await erroDe(mcpFrete.comprarEtiquetaMcp({ envio: preparada.envio, valorConfirmado: 28.85, confirmo: true }, podeTudo)),
+    "A preparação passou de 30 minutos: prepare de novo.",
+  );
+  conferir("mcp comprar: recusas sem carrinho", falso.pedidosDeCarrinho - carrinhos, 0);
+  await mcpFrete.prepararEtiqueta(preparar, podeTudo);
+  const compra = await mcpFrete.comprarEtiquetaMcp({ envio: "ZZ-FRETE-MCP-3", valorConfirmado: 28.85, confirmo: true }, podeTudo);
+  conferir("mcp comprar", [compra.numero, compra.situacao, compra.custo, Boolean(compra.rastreio), compra.link?.startsWith("https://melhorrastreio.com.br/")], [preparada.envio, "A postar", 25.84, true, true]);
+  conferir("mcp comprar: quem comprou", (await lerEnvioDoPedido(pedido3.id)).compradoPor, "zz-mcp");
+  conferir("mcp comprar: lucro com a etiqueta", (await prisma.pedidoDeVenda.findUnique({ where: { id: pedido3.id } })).real?.fontes?.frete, "etiqueta");
+  conferir("mcp comprar: de novo recusa", await erroDe(mcpFrete.comprarEtiquetaMcp({ envio: "ZZ-FRETE-MCP-3", valorConfirmado: 28.85, confirmo: true }, podeTudo)), "Esta etiqueta já foi comprada.");
+  const pedido4 = await comItem("ZZ-FRETE-MCP-4");
+  await salvarRascunhoDoPedido(pedido4.id, { pacote, servico: sedex, cotadoEm: new Date().toISOString() }, "zz");
+  conferir("mcp comprar: sem preparar", await erroDe(mcpFrete.comprarEtiquetaMcp({ envio: "ZZ-FRETE-MCP-4", valorConfirmado: 28.85, confirmo: true }, podeTudo)), "Prepare a etiqueta antes (prepararEtiqueta).");
+
+  const cancelada = await mcpFrete.cancelarEtiquetaMcp({ envio: "ZZ-FRETE-MCP-3", motivo: "ZZ teste", confirmo: true }, podeTudo);
+  conferir("mcp cancelar", [cancelada.numero, cancelada.situacao, cancelada.aviso], [preparada.envio, "Cancelado", "O valor volta à carteira em até 12 horas."]);
+  conferir("mcp cancelar: de novo", await erroDe(mcpFrete.cancelarEtiquetaMcp({ envio: preparada.envio, motivo: "ZZ", confirmo: true }, podeTudo)), "Só a etiqueta a postar pode ser cancelada.");
+
+  config.travas.emailEnvio = false;
+  await prisma.envio.update({ where: { id: comprado.id }, data: { status: "POSTADO", postadoEm: new Date() } });
+  conferir(
+    "mcp reenviar: trava do e-mail",
+    await mcpFrete.reenviarAvisoMcp({ envio: "ZZ-FRETE-MCP-1" }, podeTudo),
+    { numero: numeroDoEnvio(comprado.numero), enviado: false, erro: "Não enviado: trava EMAIL_ENVIO fechada." },
+  );
+
+  const soVer = { pode: (id) => id === "tela.envios", usuario: "zz" };
+  const SEM_COMPRA = "Este login não pode comprar etiquetas.";
+  conferir(
+    "mcp escritas: sem acesso",
+    await Promise.all([
+      erroDe(mcpFrete.prepararEtiqueta(preparar, soVer)),
+      erroDe(mcpFrete.comprarEtiquetaMcp({ envio: "ZZ-FRETE-MCP-1", valorConfirmado: 1, confirmo: true }, soVer)),
+      erroDe(mcpFrete.cancelarEtiquetaMcp({ envio: "ZZ-FRETE-MCP-1", motivo: "x", confirmo: true }, soVer)),
+      erroDe(mcpFrete.reenviarAvisoMcp({ envio: "ZZ-FRETE-MCP-1" }, soVer)),
+    ]),
+    [SEM_COMPRA, SEM_COMPRA, SEM_COMPRA, "Este login não pode avisar o cliente."],
+  );
+  conferir(
+    "mcp escritas: confirmo é obrigatório",
+    mcpFrete.FERRAMENTAS_DE_FRETE_ESCRITA.filter((f) => ["comprarEtiqueta", "cancelarEtiqueta"].includes(f.nome)).map((f) => f.esquema.safeParse({ envio: "x", valorConfirmado: 1, motivo: "x" }).success),
+    [false, false],
+  );
 } finally {
   liberarTrava(false);
   await limparEnvios();

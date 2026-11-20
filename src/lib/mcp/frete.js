@@ -3,7 +3,19 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { listarCaixas } from "@/lib/frete/caixas";
 import { cotarFrete, pacoteSugerido } from "@/lib/frete/cotacao";
-import { cotacaoDaPropostaDoPedido, lerEnvio, lerEnvioDoPedido, linkDaEtiqueta, listarEnvios } from "@/lib/frete/envios";
+import { reenviarEmail } from "@/lib/frete/aviso";
+import {
+  cancelarEtiqueta,
+  comprarEtiqueta,
+  conferirPacote,
+  cotacaoDaPropostaDoPedido,
+  lerEnvio,
+  lerEnvioDoPedido,
+  linkDaEtiqueta,
+  listarEnvios,
+  salvarRascunhoDoPedido,
+} from "@/lib/frete/envios";
+import { recalcularLucroDoPedido } from "@/lib/pedidos/banco";
 import { obterProvedor, PROVEDOR_PADRAO } from "@/lib/frete/provedores/registro";
 import { numeroDoEnvio, servicoCompravel, SITUACAO_DO_ENVIO } from "@/lib/frete/regras";
 import { ErroDeFerramenta } from "@/lib/riseAi/ferramentas/erro";
@@ -244,6 +256,116 @@ export async function imprimirEtiquetaMcp({ envio }, { pode }) {
 }
 
 // ---------------------------------------------------------------------------
+// Preparar, comprar, cancelar e avisar (escrevem; a compra gasta o saldo da carteira)
+// ---------------------------------------------------------------------------
+
+/** Comprar e cancelar mexem no saldo da carteira: so quem compra pela tela (o dono pediu "so ele e a Andrea"). */
+function exigirComprar(pode) {
+  if (typeof pode === "function" && pode("acao.envios.comprarEtiqueta", "executar")) return;
+  throw new ErroDeFerramenta("Este login não pode comprar etiquetas.");
+}
+
+function exigirAvisar(pode) {
+  if (typeof pode === "function" && pode("acao.envios.avisarCliente", "executar")) return;
+  throw new ErroDeFerramenta("Este login não pode avisar o cliente.");
+}
+
+/** A confirmacao da pessoa vale por pouco tempo: o preco do Melhor Envio muda, e o preparado de ontem nao e o de hoje. */
+const VALIDADE_DA_PREPARACAO_MS = 30 * 60 * 1000;
+const moeda = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const reais = (valor) => `R$ ${moeda.format(Number(valor))}`;
+const centavos = (valor) => Math.round(valor * 100) / 100;
+const erroDaLib = (resultado) => (resultado.erros ? Object.values(resultado.erros).join(" ") : resultado.erro);
+
+/**
+ * O primeiro dos dois passos da compra: grava o rascunho com o servico escolhido e cota de novo com o pacote MEDIDO
+ * (`conferirPacote`, o mesmo da janela de compra). Nao compra: devolve o preco e o saldo para a pessoa confirmar.
+ */
+export async function prepararEtiqueta(argumentos, { pode, usuario }) {
+  exigirComprar(pode);
+  const pedido = await pedidoDoBling(argumentos.pedido);
+  if (!argumentos.caixa && !(argumentos.comprimentoCm && argumentos.larguraCm && argumentos.alturaCm)) throw new ErroDeFerramenta("Informe a caixa ou as três medidas.");
+  // O documento e conferido antes de gravar qualquer coisa: sem a chave, o rascunho ficaria pela metade.
+  let chaveNfe = null;
+  if (argumentos.documento === "NFE") {
+    chaveNfe = String(argumentos.chaveNfe ?? pedido.nf?.chave ?? "").replace(/\D/g, "");
+    if (!chaveNfe) throw new ErroDeFerramenta("O pedido não tem NF-e: informe a chave ou use declaração.");
+  }
+  const cep = String(pedido.enderecoDeEntrega?.cep ?? "").replace(/\D/g, "");
+  if (cep.length !== 8) throw new ErroDeFerramenta(`O pedido ${pedido.numero} não tem CEP de entrega.`);
+
+  const medido = await pacoteDaChamada(argumentos);
+  const cotacao = await cotarFrete({ cepDestino: cep, valorDeclarado: Number(pedido.totalProdutos), ...medido });
+  if (!cotacao.ok) throw new ErroDeFerramenta(erroDaLib(cotacao));
+  const servico = cotacao.atendem.find((item) => String(item.servicoId) === String(argumentos.servicoId));
+  if (!servico) throw new ErroDeFerramenta(`O serviço ${argumentos.servicoId} não atende este pacote: cote de novo.`);
+
+  const rascunho = await salvarRascunhoDoPedido(pedido.id, { pacote: cotacao.pacote, servico, cotadoEm: cotacao.cotadoEm }, usuario);
+  if (!rascunho.ok) throw new ErroDeFerramenta(rascunho.erro);
+  const conferido = await conferirPacote(rascunho.envio.id, { ...medido, tipoDeDocumento: argumentos.documento, chaveNfe }, usuario);
+  if (!conferido.ok) throw new ErroDeFerramenta(erroDaLib(conferido));
+
+  const { envio, preco, saldo, motivos } = conferido;
+  return {
+    envio: numeroDoEnvio(envio.numero),
+    pedido: pedido.numero,
+    servico: servicoDe(envio),
+    prazoDias: envio.prazoDias ?? null,
+    pacote: { caixa: envio.caixaDeEnvio?.nome ?? null, pesoKg: numero(envio.pesoKg) },
+    documento: argumentos.documento === "NFE" ? "NF-e" : "Declaração de conteúdo",
+    preco,
+    saldo,
+    saldoDepois: saldo === null ? null : centavos(saldo - preco),
+    podeComprar: motivos.length === 0,
+    motivos,
+    confirmarAte: new Date(new Date(envio.cotadoEm).getTime() + VALIDADE_DA_PREPARACAO_MS).toISOString(),
+  };
+}
+
+/**
+ * O segundo passo: compra so o que a pessoa viu. O valor confirmado tem de ser o preco preparado, e a preparacao, recente;
+ * a compra em si e a de `lib/frete/envios.js` (sem dobra, com retomada), e o lucro do pedido e refeito como na tela.
+ */
+export async function comprarEtiquetaMcp({ envio, valorConfirmado }, { pode, usuario }) {
+  exigirComprar(pode);
+  const achado = await acharEnvio(envio);
+  if (!["RASCUNHO", "COMPRANDO"].includes(achado.status)) throw new ErroDeFerramenta("Esta etiqueta já foi comprada.");
+  if (!achado.medidaConferida) throw new ErroDeFerramenta("Prepare a etiqueta antes (prepararEtiqueta).");
+  if (Math.abs(Number(achado.precoCotado) - Number(valorConfirmado)) > 0.005) {
+    throw new ErroDeFerramenta(`O preço preparado é ${reais(achado.precoCotado)}, não ${reais(valorConfirmado)}: confira com a pessoa.`);
+  }
+  if (Date.now() - new Date(achado.cotadoEm).getTime() > VALIDADE_DA_PREPARACAO_MS) throw new ErroDeFerramenta("A preparação passou de 30 minutos: prepare de novo.");
+
+  const resultado = await comprarEtiqueta(achado.id, usuario, { aoComprar: recalcularLucroDoPedido });
+  if (!resultado.ok) throw new ErroDeFerramenta(resultado.erro);
+  const comprado = resultado.envio;
+  return {
+    numero: numeroDoEnvio(comprado.numero),
+    situacao: situacaoDe(comprado.status),
+    servico: servicoDe(comprado),
+    custo: numero(comprado.custo),
+    rastreio: comprado.rastreio ?? null,
+    link: comprado.linkDoRastreio ?? null,
+    postarAte: emTexto(comprado.validoAte),
+  };
+}
+
+export async function cancelarEtiquetaMcp({ envio, motivo }, { pode, usuario }) {
+  exigirComprar(pode);
+  const achado = await acharEnvio(envio);
+  const resultado = await cancelarEtiqueta(achado.id, String(motivo ?? "").slice(0, 255), usuario, { aoMudarCusto: recalcularLucroDoPedido });
+  if (!resultado.ok) throw new ErroDeFerramenta(resultado.erro);
+  return { numero: numeroDoEnvio(achado.numero), situacao: situacaoDe(resultado.envio.status), aviso: "O valor volta à carteira em até 12 horas." };
+}
+
+export async function reenviarAvisoMcp({ envio }, { pode }) {
+  exigirAvisar(pode);
+  const achado = await acharEnvio(envio);
+  const resultado = await reenviarEmail(achado.id);
+  return { numero: numeroDoEnvio(achado.numero), enviado: Boolean(resultado.enviado), erro: resultado.erro ?? null };
+}
+
+// ---------------------------------------------------------------------------
 // Registro
 // ---------------------------------------------------------------------------
 
@@ -308,5 +430,57 @@ export const FERRAMENTAS_DE_FRETE_LEITURA = [
     esquema: z.object({ envio: REFERENCIA_DO_ENVIO }),
     anotacoes: LEITURA,
     executar: imprimirEtiquetaMcp,
+  },
+];
+
+const PREPARO = { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true };
+const COMPRA = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true };
+const AVISO = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true };
+
+export const FERRAMENTAS_DE_FRETE_ESCRITA = [
+  {
+    nome: "prepararEtiqueta",
+    descricao:
+      "PRIMEIRO PASSO da etiqueta de um pedido do Bling: com o serviço escolhido (servicoId de cotarFreteDoPedido) e a caixa e o peso que a pessoa MEDIU, cota de novo e devolve o preço final, o prazo, o saldo antes e depois e o que impede a compra. NÃO compra. Mostre tudo à pessoa e só com o ok dela chame comprarEtiqueta. NF-e usa a chave do pedido quando não vier na chamada; sem nota, documento DECLARACAO.",
+    esquema: z.object({
+      pedido: z.string().trim().min(1).max(60).describe("O número do pedido (o do Bling ou o do canal)"),
+      servicoId: z.string().trim().min(1).max(20).describe("O servicoId que veio na cotação"),
+      ...PACOTE,
+      pesoKg: z.number().positive().max(30).describe("Peso do pacote medido, em kg"),
+      documento: z.enum(["NFE", "DECLARACAO"]).describe("NFE (com a chave) ou DECLARACAO (declaração de conteúdo)"),
+      chaveNfe: z.string().trim().max(60).optional().describe("Chave da NF-e (44 dígitos); sem ela, a do pedido"),
+    }),
+    anotacoes: PREPARO,
+    executar: prepararEtiqueta,
+  },
+  {
+    nome: "comprarEtiqueta",
+    descricao:
+      "SEGUNDO PASSO: compra a etiqueta preparada, gastando o saldo da carteira do Melhor Envio. Só depois de a pessoa ver o preço de prepararEtiqueta e confirmar com todas as letras; valorConfirmado é o preço que ela viu (se o preço mudou ou a preparação passou de 30 minutos, recusa). Devolve o rastreio e a data-limite para postar.",
+    esquema: z.object({
+      envio: REFERENCIA_DO_ENVIO,
+      valorConfirmado: z.number().positive().max(100000).describe("O preço que a pessoa viu e confirmou, em R$"),
+      confirmo: z.literal(true).describe("true: a pessoa confirmou a compra"),
+    }),
+    anotacoes: COMPRA,
+    executar: comprarEtiquetaMcp,
+  },
+  {
+    nome: "cancelarEtiqueta",
+    descricao: "Cancela a etiqueta ainda não postada (o valor volta à carteira em até 12 horas e o pedido pode ser cotado de novo). Só quando a pessoa pedir com todas as letras.",
+    esquema: z.object({
+      envio: REFERENCIA_DO_ENVIO,
+      motivo: z.string().trim().min(1).max(200).describe("Por que cancelar"),
+      confirmo: z.literal(true).describe("true: a pessoa confirmou o cancelamento"),
+    }),
+    anotacoes: COMPRA,
+    executar: cancelarEtiquetaMcp,
+  },
+  {
+    nome: "reenviarAvisoAoCliente",
+    descricao: "Manda de novo ao cliente o e-mail de pedido postado (só quando o anterior não saiu). O aviso pelo WhatsApp é só na tela do Rise.",
+    esquema: z.object({ envio: REFERENCIA_DO_ENVIO }),
+    anotacoes: AVISO,
+    executar: reenviarAvisoMcp,
   },
 ];
