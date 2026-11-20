@@ -3,6 +3,7 @@ import { garantirFiscalNoML, guardarFaturaDoEnvio, planoFiscalDoRascunho } from 
 import { carregarAnuncioML, gravarPublicacao } from "./banco";
 import { atacadoDoEnvio, enviarAtacadoML, impressaoDoAtacado } from "./atacado";
 import { moverVinculoParaRiseML } from "./bling";
+import { FORMATO_DA_DESCRICAO } from "./descricao";
 import { PARTES_DO_ENVIO_ML } from "./etapasDoEnvio";
 import { iniciarProgressoML } from "./progresso";
 import { impressaoDoConteudo } from "./impressao";
@@ -92,7 +93,8 @@ async function enviarUmaVez(anuncioId, { ml, bling, lerFoto, progresso }) {
   const itemId = publicacao?.itemId;
   if (carregado.status !== "PUBLICADO" || !itemId) return { ok: false, enviadas: [], erro: "O anúncio não está publicado." };
 
-  const conteudo = conteudoAtualDoAnuncio(rascunho, contexto.produtos);
+  // Com os anuncios irmaos do produto: o texto leva o bloco dos kits e a impressao, a lista deles (spec 2026-11-20).
+  const conteudo = conteudoAtualDoAnuncio(rascunho, contexto.produtos, contexto.kitsDoProduto ?? []);
   const atual = impressaoDoConteudo(conteudo);
   const { partes: mudaram } = mudancasDoAnuncio(publicacao.enviado ?? null, atual);
   // TODO envio manda todas as partes da tela que o anuncio tem, nao so as do "!", mais os dados fiscais e o estoque (dono,
@@ -209,7 +211,11 @@ async function enviarPartes({ ml, lerFoto, progresso, anuncioId, itemId, codigo,
   // O atacado que o ML gravou: a impressao dele vem daqui (com os % da recomendacao), nao do rascunho de antes do envio.
   let atacadoEnviado = null;
   const gravarParte = async (parte) => {
-    enviado = { ...enviado, [parte]: parte === "atacado" && atacadoEnviado ? impressaoDoAtacado(atacadoEnviado) : atual[parte], em: new Date().toISOString() };
+    const agora = new Date().toISOString();
+    enviado = { ...enviado, [parte]: parte === "atacado" && atacadoEnviado ? impressaoDoAtacado(atacadoEnviado) : atual[parte], em: agora };
+    // A descricao vai sempre no formato novo, com o bloco dos kits (spec 2026-11-20): a impressao guarda os kits que foram, o
+    // formato e QUANDO o anuncio passou a ele (o dono volta depois pelos que ficaram no formato antigo).
+    if (parte === "descricao") enviado = { ...enviado, kits: atual.kits ?? [], formato: FORMATO_DA_DESCRICAO, formatoEm: enviado.formato === FORMATO_DA_DESCRICAO && enviado.formatoEm ? enviado.formatoEm : agora };
     await gravarPublicacao(anuncioId, { enviado });
     enviadas.push(parte);
   };
@@ -237,7 +243,7 @@ async function enviarPartes({ ml, lerFoto, progresso, anuncioId, itemId, codigo,
     } else if (parte === "descricao") {
       let resposta;
       try {
-        resposta = await ml.put(`/items/${itemId}/description`, { plain_text: conteudo.descricao });
+        resposta = await ml.put(`/items/${itemId}/description`, { plain_text: conteudo.descricaoCompleta ?? conteudo.descricao });
       } catch (erro) {
         return falhar(parte, `Falha ao enviar a descrição: ${textoDe(erro)}`);
       }

@@ -531,8 +531,10 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto, p
       // fotos sao as do PRODUTO, sem o corte da categoria: senao o anuncio cortado nasceria "para tras" do produto.
       // Sem `titulo`: o ML gera o titulo pelo family_name, entao o publicado pelo Rise nao acompanha o titulo do editor (so o
       // anuncio reaproveitado da conta tem a chave, 08/11/2026).
-      const { titulo: _titulo, ...impressao } = impressaoDoConteudo(conteudoAtualDoAnuncio(rascunho, contexto.produtos));
-      const enviado = { ...impressao, atacado: pub.atacado?.enviado ?? { ligado: false, faixas: [] }, em: new Date().toISOString() };
+      // Com os anuncios irmaos: a impressao nasce com os kits do bloco e o formato da descricao (spec 2026-11-20).
+      const { titulo: _titulo, ...impressao } = impressaoDoConteudo(conteudoAtualDoAnuncio(rascunho, contexto.produtos, contexto.kitsDoProduto ?? []));
+      const agora = new Date().toISOString();
+      const enviado = { ...impressao, atacado: pub.atacado?.enviado ?? { ligado: false, faixas: [] }, em: agora, formatoEm: agora };
       await gravar(
         { feitas: [...new Set([...(pub.feitas ?? []), "gravar"])], erro: null, etapaComErro: null, enviado },
         { status: "PUBLICADO", situacaoCanal: situacaoDoItem(pub.statusML), publicadoEm: new Date(), erro: null },

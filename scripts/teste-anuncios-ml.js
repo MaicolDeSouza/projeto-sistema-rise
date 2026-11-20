@@ -466,7 +466,8 @@ try {
     conferir("payload: atributos da ficha e o SKU", payload.item.attributes.filter((x) => !x.id.startsWith("SELLER_PACKAGE_")),
       [{ id: "BRAND", value_name: "GENERICA" }, { id: "GTIN", value_name: "7890000000001" }, { id: "SELLER_SKU", value_name: "100101" }]);
     conferir("preco vai a parte", payload.preco, { amount: 0.5, currency_id: "BRL" });
-    conferir("descricao final no payload: so a descricao do produto", payload.descricao.plain_text, montarDescricaoML({ descricao: a.descricaoBase }));
+    // Desde 20/11/2026 o texto vai no formato 2: boas-vindas, a descricao sem a garantia e (sem irmaos no contexto) sem bloco.
+    conferir("descricao final no payload: a do produto no formato 2", [payload.descricao.plain_text, payload.descricao.plain_text.startsWith("Bem-vindo(a)")], [(await import("../src/lib/canaisDeVenda/ml/descricao.js")).montarDescricaoCompletaML({ descricao: a.descricaoBase }), true]);
     conferir("payload: titulo, familia, categoria, estoque, tipo e condicao",
       ["title" in payload.item, payload.item.family_name, payload.item.category_id, payload.item.available_quantity, payload.item.currency_id, payload.item.listing_type_id, payload.item.condition],
       [false, "Resistor 1K 1/4W", "MLB1234", 100, "BRL", "gold_special", "new"]);
@@ -753,7 +754,7 @@ try {
         const novo = await novoRascunhoML(p1.id);
         conferir("novo rascunho nao grava nada", [novo.ok, await prisma.anuncio.count({ where: { produtoId: p1.id } })], [true, 0]);
         conferir("novo rascunho: contexto com produtos, frases e codigo em uso", [Object.keys(novo.contexto).sort(), Object.keys(novo.contexto.produtos), novo.contexto.codigoEmUso],
-          [["codigoEmUso", "produtos"], [p1.id], null]);
+          [["codigoEmUso", "kitsDoProduto", "produtos"], [p1.id], null]);
         conferir("novo rascunho: parte do produto", [novo.rascunho.produtoId, novo.rascunho.titulo, novo.rascunho.preco, novo.rascunho.estoque, novo.rascunho.atributos],
           [p1.id, "ZZ Produto um", 10, 9, { BRAND: "ZZMARCA", MODEL: "ZZ1", GTIN: "7891234567895" }]);
         conferir("novo rascunho: fotos com a principal na frente", novo.rascunho.imagens, [fotoB.id, fotoA.id]);
@@ -954,7 +955,7 @@ try {
         conferir("lista: acha pelo titulo", (await listarAnunciosML({ busca: "ZZ TITULO NOVO" })).linhas.map((l) => [l.id, l.titulo, l.tipoAnuncio]), [[premium.id, "ZZ Titulo novo", "gold_pro"]]);
         conferir("lista: o codigo da linha e o do kit, ou o SKU do produto", [lista.linhas.find((l) => l.id === umSo.id).codigo, lista.linhas.find((l) => l.id === salvo.id).codigo], ["ZZ-ML-1_5", "ZZ-ML-1"]);
         conferir("lista: o preco da linha e o do rascunho", [lista.linhas.find((l) => l.id === salvo.id).preco, lista.linhas.find((l) => l.id === completo.id).preco], [10, 12.5]);
-        conferir("lista: sem resultado", await listarAnunciosML({ busca: "zz-ml-nao-existe" }), { linhas: [], total: 0, pagina: 1, totalPaginas: 1 });
+        conferir("lista: sem resultado", (({ formatoAntigo: _antigos, ...resto }) => resto)(await listarAnunciosML({ busca: "zz-ml-nao-existe" })), { linhas: [], total: 0, pagina: 1, totalPaginas: 1 });
 
         await prisma.anuncio.createMany({ data: Array.from({ length: 101 }, (_, i) => ({ produtoId: p4.id, canal: "MERCADO_LIVRE", titulo: `ZZ massa ${i}`, dados: { tipoAnuncio: "gold_special" } })) });
         const comMassa = totalDeTeste + 101;
@@ -2226,7 +2227,7 @@ try {
       let novas = desde();
       let r = await enviarMudancasML(id, { ml, lerFoto });
       conferir("enviar: descricao", [r.ok, r.enviadas.includes("descricao"), novas().includes("PUT /items/MLB/description")], [true, true, true]);
-      conferir("enviar: o texto novo chegou ao ML", ml.itens.get(itemId).descricao.startsWith("Descricao nova do S1"), true);
+      conferir("enviar: o texto novo chegou ao ML", ml.itens.get(itemId).descricao.includes("\n\nDescricao nova do S1"), true);
       conferir("enviar: depois, nada mais mudou", await mudancasDe(id), { partes: [], naoConferido: false });
 
       await prisma.produtoArquivo.create({ data: { produtoId: c.s1.id, tipo: "IMAGEM", papel: "FOTO", arquivo: "ZZ-ML-S1-n.jpg", ordem: 5 } });
@@ -2367,7 +2368,7 @@ try {
       conferir("publicar: ordem das escritas no ML", ml.escritas.map(semMLB), ["POST /pictures/items/upload", "POST /pictures/items/upload", "POST /items/validate", "POST /items", "POST /items/MLB/description", "POST /items/fiscal_information", "POST /items/fiscal_information/items", "PUT /items/MLB", "POST /prices-per-quantity/v1/recommendations", "POST /items/MLB/prices/price-per-quantity"]);
       conferir("publicar: criou pausado, com preco e fotos por id, sem title", (({ status, price, pictures, title }) => [status, price, pictures.length, pictures.every((foto) => /^999-MLB/.test(foto.id)), title])(ml.escritas[3].corpo), ["paused", 49.9, 2, true, undefined]);
       conferir("publicar: ativou no fim (antes do atacado)", ml.escritas.filter((e) => e.metodo === "PUT").at(-1).corpo, { status: "active" });
-      conferir("publicar: descricao do produto", ml.escritas[4].corpo.plain_text.startsWith("Descricao de ZZ-ML-S1"), true);
+      conferir("publicar: descricao do produto", ml.escritas[4].corpo.plain_text.includes("\n\nDescricao de ZZ-ML-S1"), true);
       conferir("publicar: um vinculo no Bling, na loja do ML, com o MLB e o preco", [postsNoBling(bf, "/produtos/lojas"), bf.chamadas.find((chamada) => chamada.caminho === "/produtos/lojas" && chamada.metodo === "POST").corpo], [1, { codigo: r.itemId, preco: 49.9, produto: { id: 501 }, loja: { id: 206326819 } }]);
       const publicado = await estado(idSimples);
       conferir("publicar: colunas gravadas", [publicado.situacaoCanal, publicado.idExterno, publicado.urlExterna === r.permalink, publicado.publicadoEm instanceof Date, publicado.erro], ["ATIVA", r.itemId, true, true, null]);
@@ -2686,6 +2687,78 @@ try {
       await salvarPublicadoML(id, { preco: rascunhoBase.preco, atributos: rascunhoBase.atributos });
       await salvarPublicadoML(id, { preco: rascunhoBase.preco, atributos: rascunhoBase.atributos, descontoAdicional: 500 });
       conferir("publicado: sem o campo ou com valor invalido o desconto fica como estava", (await dadosDe(id)).descontoAdicional, 7);
+    }
+
+    {
+      console.log("\nCompre em kit e economize (o bloco na descricao, o '!' dos kits e o formato da descricao)");
+      await limpar();
+      const { publicarAnuncioML } = await import("../src/lib/canaisDeVenda/ml/publicar.js");
+      const { enviarMudancasML } = await import("../src/lib/canaisDeVenda/ml/atualizar.js");
+      const { mudancasDosAnunciosML, irmaosDosProdutosML, carregarAnuncioML, listarAnunciosML } = await import("../src/lib/canaisDeVenda/ml/banco.js");
+      const { BOAS_VINDAS_ML } = await import("../src/lib/canaisDeVenda/ml/descricao.js");
+      const c = await cenarioDePublicacao();
+      const lerFoto = async () => Buffer.from("jpg");
+      const ml = criarMLFalso();
+      const partesDe = async (id) => {
+        const anuncio = await prisma.anuncio.findUnique({ where: { id }, select: { id: true, canal: true, status: true, situacaoCanal: true, produtoId: true, dados: true } });
+        return (await mudancasDosAnunciosML([anuncio])).get(id).partes;
+      };
+      const enviadoDe = async (id) => (await prisma.anuncio.findUnique({ where: { id }, select: { dados: true } })).dados.publicacao.enviado;
+      // Um kit do S1 ja no ML, gravado direto (publicar um kit de verdade passa pelo Bling, que nao e o assunto aqui).
+      const kitDoS1 = (quantidade, preco) =>
+        prisma.anuncio.create({
+          data: {
+            produtoId: c.s1.id, canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "ATIVA", titulo: `${quantidade}x ZZ S1`,
+            idExterno: `MLB9000${quantidade}`, urlExterna: `https://produto.mercadolivre.com.br/MLB-9000${quantidade}-kit`,
+            dados: { preco, tipoAnuncio: "gold_special", envio: { freteGratis: false }, composicao: { itens: [{ produtoId: c.s1.id, quantidade }], codigo: `ZZ-ML-S1_${quantidade}`, blingProdutoId: null }, publicacao: { itemId: `MLB9000${quantidade}`, enviado: { preco } } },
+          },
+        });
+      const LINHA = "-".repeat(40);
+
+      await prisma.produto.update({ where: { id: c.s1.id }, data: { descricaoBase: "ZZ S1\n\nTexto do S1.\n\nGarantia:\n- Garantia Legal de 90 dias;" } });
+      const id = await c.anuncioSimples(c.s1);
+      const { itemId } = await publicarAnuncioML(id, { ml, bling: c.novoBling(), lerFoto });
+      const noML = () => ml.itens.get(itemId).descricao;
+      conferir("publicar: boas-vindas no comeco, sem a garantia e sem bloco (ainda nao ha kit)", noML(), `${BOAS_VINDAS_ML}\n\nZZ S1\n\nTexto do S1.`);
+      const aoPublicar = await enviadoDe(id);
+      conferir("publicar: a impressao guarda o formato 2, os kits (nenhum) e quando", [aoPublicar.formato, aoPublicar.kits, typeof aoPublicar.formatoEm, await partesDe(id)], [2, [], "string", []]);
+
+      // Abaixo de R$ 79 o kit nao tem frete gratis; a partir dai, tem (a linha do bloco diz).
+      const kit3 = await kitDoS1(3, 75);
+      conferir("kit novo no ML: o anuncio de 1 peca acende o '!' dos kits", await partesDe(id), ["kits"]);
+      conferir("irmaos do produto: o de 1 e o kit de 3", (await irmaosDosProdutosML([c.s1.id])).get(c.s1.id).map((irmao) => [irmao.unidades, irmao.preco]).sort((a, b) => a[0] - b[0]), [[1, 49.9], [3, 75]]);
+      const aberto = await carregarAnuncioML(id);
+      conferir("abrir o anuncio: os irmaos no contexto, o '!' dos kits e formato novo", [aberto.contexto.kitsDoProduto.length, aberto.mudancas.partes, aberto.formatoAntigo], [2, ["kits"], false]);
+      let r = await enviarMudancasML(id, { ml, lerFoto });
+      conferir("sincronizar: o bloco do kit de 3 chega ao ML e o '!' apaga", [r.ok, noML(), await partesDe(id)], [true, `${BOAS_VINDAS_ML}\n\nZZ S1\n\nTexto do S1.\n\n${LINHA}\nCOMPRE EM KIT E ECONOMIZE\n\nKit com 3 unidades por R$75,00 (R$25,00 por unidade)\nhttps://produto.mercadolivre.com.br/MLB-90003-kit`, []]);
+
+      const kit5 = await kitDoS1(5, 100);
+      conferir("kit maior publicado depois: acende de novo no de 1; o kit de antes do formato novo nao acende", [await partesDe(id), (await partesDe(kit3.id)).includes("kits")], [["kits"], false]);
+      await enviarMudancasML(id, { ml, lerFoto });
+      conferir("sincronizar: as duas linhas, com frete gratis no kit de R$ 100", noML().split("\n").filter((linha) => linha.startsWith("Kit com")), ["Kit com 3 unidades por R$75,00 (R$25,00 por unidade)", "Kit com 5 unidades por R$100,00 (R$20,00 por unidade) + frete grátis"]);
+
+      // O preco que vale e o que ESTA no ML (o ultimo enviado): mudou, o de 1 acusa; so digitado no rascunho, nao.
+      const dadosDoKit5 = (await prisma.anuncio.findUnique({ where: { id: kit5.id }, select: { dados: true } })).dados;
+      await prisma.anuncio.update({ where: { id: kit5.id }, data: { dados: { ...dadosDoKit5, preco: 95 } } });
+      conferir("preco do kit so digitado (nao enviado): nada acende", await partesDe(id), []);
+      await prisma.anuncio.update({ where: { id: kit5.id }, data: { dados: { ...dadosDoKit5, preco: 95, publicacao: { ...dadosDoKit5.publicacao, enviado: { preco: 95 } } } } });
+      conferir("preco do kit enviado ao ML: o de 1 acende o '!'", await partesDe(id), ["kits"]);
+      await prisma.anuncio.update({ where: { id: kit5.id }, data: { situacaoCanal: "ENCERRADA" } });
+      r = await enviarMudancasML(id, { ml, lerFoto });
+      conferir("kit encerrado: sai do bloco no proximo envio", [r.ok, noML().includes("Kit com 5 unidades"), noML().includes("Kit com 3 unidades"), await partesDe(id)], [true, false, true, []]);
+
+      // Anuncio publicado ANTES do formato novo (sem `formato` na impressao): nenhum kit acende, ele aparece no filtro do
+      // formato antigo, e um Sincronizar o converte.
+      const dadosDoSimples = (await prisma.anuncio.findUnique({ where: { id }, select: { dados: true } })).dados;
+      const { kits: _kits, formato: _formato, formatoEm: _formatoEm, ...enviadoAntigo } = dadosDoSimples.publicacao.enviado;
+      await prisma.anuncio.update({ where: { id }, data: { dados: { ...dadosDoSimples, publicacao: { ...dadosDoSimples.publicacao, enviado: enviadoAntigo } } } });
+      await prisma.anuncio.update({ where: { id: kit5.id }, data: { situacaoCanal: "ATIVA" } });
+      const antigos = await listarAnunciosML({ formato: "antigo" });
+      conferir("anuncio antigo: kit novo nao acende nada, e ele abre como formato antigo", [await partesDe(id), (await carregarAnuncioML(id)).formatoAntigo], [[], true]);
+      conferir("lista do ML: o filtro do formato antigo traz os publicados nao convertidos, com a contagem", [antigos.linhas.map((linha) => linha.id).includes(id), antigos.formatoAntigo >= 1, (await listarAnunciosML({})).formatoAntigo === antigos.formatoAntigo], [true, true, true]);
+      await enviarMudancasML(id, { ml, lerFoto });
+      const depois = await listarAnunciosML({ formato: "antigo" });
+      conferir("sincronizar converte: formato 2, fora do filtro e de volta ao '!' dos kits", [(await enviadoDe(id)).formato, (await carregarAnuncioML(id)).formatoAntigo, depois.linhas.map((linha) => linha.id).includes(id), depois.formatoAntigo, noML().includes("Kit com 5 unidades")], [2, false, false, antigos.formatoAntigo - 1, true]);
     }
 
     // Fase 3: as proximas tarefas entram aqui, dentro deste bloco.

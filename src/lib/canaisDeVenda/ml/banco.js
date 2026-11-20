@@ -4,7 +4,9 @@ import { codigoDaComposicao, errosDaComposicao, estoqueDaComposicao, proximoCodi
 import { custoDoProduto } from "../custo";
 import { conteudoAtualDoAnuncio, fichaDoAnuncio, mudancasDoAnuncio, prazoDoAnuncio, precoDaLojaDoAnuncio, precoDoAnuncio } from "./acompanhar";
 import { ATACADO_DESLIGADO, atacadoPermitido } from "./atacado";
+import { FORMATO_DA_DESCRICAO } from "./descricao";
 import { descontoAdicionalValido } from "./faixas";
+import { irmaoDoAnuncio } from "./kitsNaDescricao";
 import { avisosDeVariosProdutos } from "./concorrentes";
 import { precisaAgirNoML, seloDoEstadoML, textoDoEstadoML } from "./estadoNoML";
 import { estadoDoIconeML, motivosDoProblemaML, rotuloDoIconeML, temProblemaNoIconeML } from "./icone";
@@ -121,7 +123,8 @@ export async function novoRascunhoML(produtoId, { composicao = null } = {}) {
   return {
     ok: true,
     rascunho: rascunhoInicial({ principal, produtosPorId: produtos, composicao }),
-    contexto: { produtos, codigoEmUso: null },
+    // Os anuncios do produto que ja estao no ML: a previa da descricao do anuncio novo ja mostra o bloco dos kits.
+    contexto: { produtos, codigoEmUso: null, kitsDoProduto: (await irmaosDosProdutosML([produtoId])).get(produtoId) ?? [] },
   };
 }
 
@@ -161,6 +164,34 @@ export function rascunhoDoAnuncio(anuncio) {
 const SITUACOES_PUBLICADAS = new Set(["ATIVA", "PAUSADA"]);
 
 /**
+ * Os anuncios do ML de cada produto que podem entrar no bloco "Compre em kit e economize" dos outros (spec 2026-11-20):
+ * `Map<produtoId, irmao[]>`, com o proprio anuncio de 1 unidade e os kits `{sku}_{N}` publicados e nao encerrados
+ * (`irmaoDoAnuncio`). Uma consulta para todos os produtos pedidos; quem escolhe os kits de cada anuncio e `kitsParaOBloco`.
+ */
+export async function irmaosDosProdutosML(produtoIds) {
+  const ids = [...new Set((Array.isArray(produtoIds) ? produtoIds : []).filter((id) => typeof id === "string" && id !== ""))];
+  const porProduto = new Map(ids.map((id) => [id, []]));
+  if (ids.length === 0) return porProduto;
+  const anuncios = await prisma.anuncio.findMany({
+    where: { canal: CANAL, status: "PUBLICADO", produtoId: { in: ids } },
+    select: { produtoId: true, status: true, situacaoCanal: true, idExterno: true, urlExterna: true, dados: true },
+  });
+  for (const anuncio of anuncios) {
+    const irmao = irmaoDoAnuncio(anuncio);
+    if (irmao) porProduto.get(anuncio.produtoId)?.push(irmao);
+  }
+  return porProduto;
+}
+
+/**
+ * O anuncio publicado (ativo ou pausado) cuja descricao ainda nao foi ao ML no formato novo (boas-vindas, sem garantia,
+ * bloco dos kits): nao acompanha os kits e aparece no filtro "Descricao no formato antigo" da lista. Um Sincronizar o converte.
+ */
+export function descricaoNoFormatoAntigo(anuncio) {
+  return anuncio?.status === "PUBLICADO" && SITUACOES_PUBLICADAS.has(anuncio.situacaoCanal) && anuncio.dados?.publicacao?.enviado?.formato !== FORMATO_DA_DESCRICAO;
+}
+
+/**
  * O que mudou no produto desde o ultimo envio, por anuncio PUBLICADO (ativo ou pausado) do ML: `Map<anuncioId,
  * { partes, naoConferido }>` (spec 2026-10-24). So banco: uma leitura de contexto para todos os produtos (principal e
  * pecas do kit), para a lista de Produtos nao chamar o ML. `anuncios` precisa de `id`, `canal`, `status`,
@@ -183,9 +214,10 @@ export async function mudancasDosAnunciosML(anuncios) {
     rascunhoDoAnuncio({ ...anuncio, atributos: anuncio.atributos ?? fichas.get(anuncio.id)?.atributos ?? {}, criadoEm: anuncio.criadoEm ?? fichas.get(anuncio.id)?.criadoEm }),
   ]);
   const ids = rascunhos.flatMap(([, rascunho]) => [rascunho.produtoId, ...(rascunho.composicao?.itens ?? []).map((item) => item.produtoId)]);
-  const produtos = await contextoDosProdutos(ids);
+  // Os anuncios irmaos de cada produto, para a parte `kits` (o bloco da descricao, spec 2026-11-20).
+  const [produtos, irmaos] = await Promise.all([contextoDosProdutos(ids), irmaosDosProdutosML(publicados.map((anuncio) => anuncio.produtoId))]);
   for (const [anuncio, rascunho] of rascunhos) {
-    const atual = impressaoDoConteudo(conteudoAtualDoAnuncio(rascunho, produtos));
+    const atual = impressaoDoConteudo(conteudoAtualDoAnuncio(rascunho, produtos, irmaos.get(anuncio.produtoId) ?? []));
     resultado.set(anuncio.id, mudancasDoAnuncio(anuncio.dados?.publicacao?.enviado ?? null, atual));
   }
   return resultado;
@@ -206,6 +238,8 @@ export async function carregarAnuncioML(id) {
   const { composicao } = rascunho;
   const idsDosProdutos = [rascunho.produtoId, ...(composicao?.itens ?? []).map((item) => item.produtoId)];
   const produtos = await contextoDosProdutos(idsDosProdutos);
+  // Os outros anuncios do produto no ML: o bloco "Compre em kit e economize" da descricao e o aviso do kit (spec 2026-11-20).
+  const kitsDoProduto = (await irmaosDosProdutosML([rascunho.produtoId])).get(rascunho.produtoId) ?? [];
   const emUso = composicao ? await codigoEmUso(composicao.codigo, { anuncioId: anuncio.id, itens: composicao.itens }) : null;
   // O estoque gravado e o de quando o rascunho foi salvo: abrir (e publicar, que abre por aqui) usa o de agora.
   rascunho.estoque = estoqueDoRise(rascunho, produtos) ?? rascunho.estoque;
@@ -219,7 +253,7 @@ export async function carregarAnuncioML(id) {
   // Anuncio publicado: o que mudou no produto desde o ultimo envio (a faixa "Enviar mudancas ao ML" do editor).
   const mudancas =
     anuncio.status === "PUBLICADO"
-      ? mudancasDoAnuncio(anuncio.dados?.publicacao?.enviado ?? null, impressaoDoConteudo(conteudoAtualDoAnuncio(rascunho, produtos)))
+      ? mudancasDoAnuncio(anuncio.dados?.publicacao?.enviado ?? null, impressaoDoConteudo(conteudoAtualDoAnuncio(rascunho, produtos, kitsDoProduto)))
       : null;
 
   return {
@@ -228,9 +262,11 @@ export async function carregarAnuncioML(id) {
     status: anuncio.status,
     rascunho,
     // A proposta de anuncio (spec 2026-10-23) vai no contexto: a tela mostra as marcas, o relatorio e os catalogos sugeridos.
-    contexto: { produtos, codigoEmUso: emUso, proposta: anuncio.dados?.proposta ?? null },
+    contexto: { produtos, codigoEmUso: emUso, proposta: anuncio.dados?.proposta ?? null, kitsDoProduto },
     publicacao: anuncio.dados?.publicacao ?? null,
     mudancas,
+    // A descricao deste publicado ainda esta no ML no formato de antes de 20/11/2026: a aba Descricao avisa.
+    formatoAntigo: descricaoNoFormatoAntigo(anuncio),
     idExterno: anuncio.idExterno ?? null,
     urlExterna: anuncio.urlExterna ?? null,
   };
@@ -719,12 +755,17 @@ async function comFotoEIcone(linhas, anuncios) {
   });
 }
 
-export async function listarAnunciosML({ busca, pagina, ordenar = "", direcao = "asc" } = {}) {
+export async function listarAnunciosML({ busca, pagina, ordenar = "", direcao = "asc", formato = "" } = {}) {
   const termo = String(busca ?? "").trim().toLowerCase();
   const anuncios = await prisma.anuncio.findMany({ where: { canal: CANAL }, orderBy: { atualizadoEm: "desc" }, select: DADOS_DA_LINHA });
-  const filtrados = termo
+  // "Descricao no formato antigo" (pedido do dono em 20/11/2026: "deixe salvo a partir de que produtos vamos comecar essa
+  // mudanca pois futuramente voltarei para acertar os demais anuncios"): os publicados que ainda nao foram ao ML com as
+  // boas-vindas e o bloco dos kits. A contagem e do acervo inteiro, com ou sem busca.
+  const antigos = anuncios.filter(descricaoNoFormatoAntigo);
+  const daBusca = termo
     ? anuncios.filter((a) => [a.titulo, a.produto.sku, a.dados?.composicao?.codigo].some((texto) => String(texto ?? "").toLowerCase().includes(termo)))
     : anuncios;
+  const filtrados = formato === "antigo" ? daBusca.filter(descricaoNoFormatoAntigo) : daBusca;
   // O estoque de cada anuncio (para a coluna e para ordenar por ela): uma consulta so, com as pecas dos kits.
   const idsDoEstoque = [...new Set(filtrados.flatMap((a) => [a.produtoId, ...((a.dados?.composicao?.itens ?? []).map((item) => item.produtoId))]))];
   const estoquePorId = new Map((await prisma.produto.findMany({ where: { id: { in: idsDoEstoque } }, select: { id: true, estoque: true } })).map((p) => [p.id, p.estoque]));
@@ -750,5 +791,6 @@ export async function listarAnunciosML({ busca, pagina, ordenar = "", direcao = 
     total: achados.length,
     pagina: atual,
     totalPaginas,
+    formatoAntigo: antigos.length,
   };
 }

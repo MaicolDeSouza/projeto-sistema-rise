@@ -10,7 +10,8 @@
  */
 
 import { impressaoDoAtacado } from "./atacado";
-import { montarDescricaoML } from "./descricao";
+import { montarDescricaoCompletaML, montarDescricaoML } from "./descricao";
+import { kitsParaOBloco, unidadesDoAnuncio } from "./kitsNaDescricao";
 import { atributosDaFicha } from "./payload";
 import { descricaoDoRise, fotosDoKitDoRise, fotosDoRise } from "./rascunho";
 import { medidasFaltando } from "./validacao";
@@ -80,9 +81,12 @@ export function fichaDoAnuncio(rascunho) {
  * fica de fora em vez de acender o "!"). `fotos` sao os NOMES de arquivo: foto trocada ganha nome novo, entao o nome
  * basta. Kit: `fotos` e `pacote` nulos.
  */
-export function conteudoAtualDoAnuncio(rascunho, produtosPorId) {
+export function conteudoAtualDoAnuncio(rascunho, produtosPorId, irmaos = null) {
   const kit = ehKit(rascunho);
   const texto = descricaoDoRise(rascunho, produtosPorId);
+  // Os kits maiores do mesmo produto que entram no bloco "Compre em kit e economize" (spec 2026-11-20). Sem `irmaos` (quem
+  // chama nao os leu) a parte fica nula e nao entra na impressao: nunca acende o "!" por engano.
+  const kits = Array.isArray(irmaos) ? kitsParaOBloco({ unidades: unidadesDoAnuncio(rascunho ?? {}), preco: rascunho?.preco, irmaos }) : null;
   const produto = produtosPorId?.[rascunho?.produtoId];
   let fotos = null;
   if (!kit && produto) {
@@ -98,6 +102,10 @@ export function conteudoAtualDoAnuncio(rascunho, produtosPorId) {
   }
   return {
     descricao: texto === null ? null : montarDescricaoML({ descricao: texto }),
+    // O texto que vai ao ML de verdade (formato 2: boas-vindas, sem a garantia e com o bloco dos kits). A impressao continua
+    // comparando o texto BASE acima, para o anuncio publicado antes do formato novo nao acender sozinho.
+    descricaoCompleta: texto === null ? null : montarDescricaoCompletaML({ descricao: texto, kits: kits ?? [] }),
+    kits,
     fotos,
     pacote: kit ? null : pacoteDoProduto(produto),
     // Do proprio anuncio: o preco do rascunho e a ficha no formato que vai ao ML (em ordem de id: a ordem nao muda nada la).
@@ -115,10 +123,14 @@ export function conteudoAtualDoAnuncio(rascunho, produtosPorId) {
 
 // O JSONB do Postgres reordena as chaves de um objeto: o pacote gravado volta {alturaCm, pesoG, ...} em outra ordem, e
 // um JSON.stringify comum o daria por diferente. Chaves em ordem fixa; a ordem dos ITENS (fotos) continua valendo.
+// Dentro de uma lista tambem (20/11/2026): os kits do bloco da descricao sao objetos numa lista, e sem isso o que voltava
+// do banco nunca era igual ao de agora (o "!" dos kits nao apagava depois do envio).
 const comChavesEmOrdem = (valor) =>
-  valor && typeof valor === "object" && !Array.isArray(valor)
-    ? Object.fromEntries(Object.keys(valor).sort().map((chave) => [chave, comChavesEmOrdem(valor[chave])]))
-    : valor;
+  Array.isArray(valor)
+    ? valor.map(comChavesEmOrdem)
+    : valor && typeof valor === "object"
+      ? Object.fromEntries(Object.keys(valor).sort().map((chave) => [chave, comChavesEmOrdem(valor[chave])]))
+      : valor;
 const iguais = (a, b) => JSON.stringify(comChavesEmOrdem(a ?? null)) === JSON.stringify(comChavesEmOrdem(b ?? null));
 
 // Parte que o produto nao tem como mandar (descricao ou pacote nulos, kit, ou nenhuma foto validada) nunca entra:
@@ -152,11 +164,14 @@ export function mudancasDoAnuncio(enviado, atual) {
   const doAnuncio = PARTES_DO_ANUNCIO.filter(
     (parte) => temParaMandar(atual, parte) && tem(parte) && !(parte === "prazo" && enviado.prazo === null) && !iguais(enviado[parte], atual[parte]),
   );
-  return { partes: [...doProduto, ...doAnuncio], naoConferido };
+  // Os kits do bloco da descricao (spec 2026-11-20): so o anuncio ja enviado no formato novo (a impressao tem a chave) os
+  // acompanha; o publicado antes nao acende por causa deles.
+  const kitsMudaram = tem("kits") && Array.isArray(atual?.kits) && !iguais(enviado.kits, atual.kits);
+  return { partes: [...doProduto, ...(kitsMudaram ? ["kits"] : []), ...doAnuncio], naoConferido };
 }
 
 /** Nomes das partes para a tela ("descrição, fotos e peso e medidas"). */
-export const NOMES_DAS_PARTES = { descricao: "descrição", fotos: "fotos", pacote: "peso e medidas", preco: "preço", ficha: "ficha técnica", prazo: "prazo de disponibilidade", precoDaLoja: "preço da loja", atacado: "preços de atacado", titulo: "título", bling: "vínculo do Bling" };
+export const NOMES_DAS_PARTES = { descricao: "descrição", fotos: "fotos", pacote: "peso e medidas", preco: "preço", ficha: "ficha técnica", prazo: "prazo de disponibilidade", precoDaLoja: "preço da loja", kits: "kits da descrição", atacado: "preços de atacado", titulo: "título", bling: "vínculo do Bling" };
 
 /** "descrição", "descrição e fotos", "descrição, fotos e peso e medidas". */
 export function textoDasPartes(partes) {

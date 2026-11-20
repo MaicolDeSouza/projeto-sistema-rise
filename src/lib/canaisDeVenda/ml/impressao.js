@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 
+import { FORMATO_DA_DESCRICAO } from "./descricao";
+
 /**
  * A impressao do que vai (ou foi) ao anuncio do ML: o md5 da descricao (o texto pode ter milhares de caracteres e mora
  * no JSON de todo anuncio publicado) e as fotos e o pacote como vieram. So servidor: `node:crypto`. A regra que
@@ -21,5 +23,8 @@ export function impressaoDoConteudo(conteudo) {
     ...(typeof conteudo?.titulo === "string" ? { titulo: conteudo.titulo } : {}),
     // Idem o atacado (08/11/2026): a chave so existe quando o conteudo a traz; o publicado antes dela nao acende sozinho.
     ...(conteudo?.atacado && typeof conteudo.atacado === "object" ? { atacado: conteudo.atacado } : {}),
+    // Os kits do bloco da descricao e o formato dela (spec 2026-11-20): so quando o conteudo foi montado com os anuncios
+    // irmaos. A chave na impressao ENVIADA e o que diz que o anuncio ja esta no formato novo e acompanha os kits.
+    ...(Array.isArray(conteudo?.kits) ? { kits: conteudo.kits, formato: FORMATO_DA_DESCRICAO } : {}),
   };
 }

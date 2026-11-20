@@ -14,7 +14,8 @@ import { eanDoKit } from "./eanDoKit.js";
 export { eanDoKit };
 import { NAO_SE_APLICA, ehNaoSeAplica, separarUnidade } from "./atributos";
 import { freteGratisObrigatorio } from "./custos";
-import { montarDescricaoML } from "./descricao";
+import { montarDescricaoCompletaML } from "./descricao";
+import { kitsParaOBloco, unidadesDoAnuncio } from "./kitsNaDescricao";
 import { medidasFaltando } from "./validacao";
 
 const LIMITE_DO_NOME_DA_FOTO = 60;
@@ -185,7 +186,12 @@ export function montarPayloadML(rascunho, contexto) {
       },
     },
     descricao: {
-      plain_text: montarDescricaoML({ descricao: rascunho.descricao }),
+      // O texto no formato 2 (spec 2026-11-20): boas-vindas, sem a garantia e com os kits maiores do produto que ja estao no
+      // ML (`contexto.kitsDoProduto`, os anuncios irmaos). A mesma conta de `conteudoAtualDoAnuncio`.
+      plain_text: montarDescricaoCompletaML({
+        descricao: rascunho.descricao,
+        kits: kitsParaOBloco({ unidades: unidadesDoAnuncio(rascunho), preco: rascunho.preco, irmaos: contexto?.kitsDoProduto ?? [] }),
+      }),
     },
     preco: { amount: Number(rascunho.preco ?? 0), currency_id: "BRL" },
     fotos,

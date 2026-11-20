@@ -23,10 +23,11 @@ const estaPublicado = (anuncio) => anuncio.status === "PUBLICADO" && (SITUACOES_
 
 // A mesma ordem de `PARTES_DO_ENVIO_ML` (etapasDoEnvio.js); copiada porque este arquivo nao tem imports (a lista e cliente).
 // Titulo, preco da loja, prazo e atacado entraram em 09/11/2026: o "!" ja acendia por eles, mas o texto saia sem o nome.
-const ORDEM_DAS_PARTES = ["titulo", "descricao", "fotos", "pacote", "precoDaLoja", "preco", "ficha", "prazo", "atacado"];
+const ORDEM_DAS_PARTES = ["titulo", "descricao", "kits", "fotos", "pacote", "precoDaLoja", "preco", "ficha", "prazo", "atacado"];
 const NOME_DA_PARTE = {
   titulo: "título",
   descricao: "descrição",
+  kits: "kits da descrição",
   fotos: "fotos",
   pacote: "peso e medidas",
   precoDaLoja: "preço da loja",
@@ -99,7 +100,8 @@ function listaDePartes(partes) {
 // "descricao mudou no produto; preco e ficha tecnica alterados, falta enviar ao ML": as partes do produto mudam no cadastro,
 // as do anuncio (preco e ficha, 24/10/2026) foram editadas nele e so falta mandar.
 function textoDoDesatualizado(partes) {
-  const doAnuncio = new Set(["preco", "ficha", "prazo", "atacado"]);
+  // Os kits da descricao (spec 2026-11-20) mudam nos OUTROS anuncios do produto, nao no cadastro: vao com os do anuncio.
+  const doAnuncio = new Set(["preco", "ficha", "prazo", "atacado", "kits"]);
   const doProduto = (partes ?? []).filter((parte) => !doAnuncio.has(parte));
   const noAnuncio = (partes ?? []).filter((parte) => doAnuncio.has(parte));
   const trechos = [];
