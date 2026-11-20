@@ -356,7 +356,7 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Estoque | Ordens de produção dos produtos com peças próprias (26/10/2026, sem deploy): baixa das peças, conclusão com perda, cancelamento que devolve. Saldo e movimentações ainda não. Ver "Peças próprias e ordem de produção (26/10/2026)". **Mapa do estoque (12/11/2026, fase 1, SEM deploy):** os três estoques em 3D e de frente, colunas, modelos de caixinha e a caixinha do produto; ver "Mapa do estoque (12/11/2026)" |
 | Pedidos | **Pedidos de venda, fase 1 (04/11/2026, NO AR na VPS desde 04.11.2026.60):** o worker lê a cada 5 min os pedidos do ML, da LI e do Bling (desde 01/11/2026), cria o cliente pelo CPF/CNPJ, casa os itens com os produtos, calcula status, peças em falta e lucro estimado × real; lista `/pedidos`, tela do pedido com abas, taxas da LI e nível do cliente. Ver "Pedidos de venda (04/11/2026)" |
 | Propostas | **Propostas para cliente, fase 1 (12/11/2026, SEM deploy):** proposta comercial que vive só no Rise (nº 2026, 2027…), cliente do Rise ou do Bling (ou provisório, sem cadastro), itens com a descrição e o código do cliente, prazo por item, pagamento, frete, OC/obs. da NF, validade de 15 dias que vence sozinha, "!" de contato, PDF, link público com WhatsApp, cotação anexada e pedido de venda no Bling na aprovada. Ver "Propostas para cliente (12/11/2026)" |
-| Frete | **Módulo de frete, fase 1 (cotação, 18/11/2026, NO AR na VPS desde 19.11.2026.130; falta o aplicativo do Melhor Envio no `.env`):** Melhor Envio pela API (OAuth, provedor trocável para a SuperFrete depois), caixas de envio, cotação na Proposta (CIF), no Pedido do Bling (rascunho do envio) e em Ferramentas › Cotar frete. Etiqueta, rastreio e aviso ao cliente são a fase 2; reverso, a 3. Ver "Módulo de frete (18/11/2026)" |
+| Frete | **Módulo de frete, fase 1 (cotação) NO AR na VPS desde 19.11.2026.130, Melhor Envio de produção conectado em 19/11/2026.** **Fase 2 (etiqueta, rastreio e aviso) pronta em 19/11/2026, SEM deploy:** comprar, imprimir e cancelar a etiqueta no pedido do Bling e no envio avulso, lista de Envios (bloco novo), rotina de rastreio no worker, custo da etiqueta no lucro e aviso ao cliente por e-mail (trava `EMAIL_ENVIO`) e WhatsApp. Reverso e MCP, a 3. Ver "Módulo de frete (18/11/2026)" |
 | Financeiro | Esqueleto |
 
 **O que está no ar (24/10/2026):** o deploy 24.10.2026.29 (commit `5ede491`) subiu TUDO o que estava na main até esse commit
@@ -432,7 +432,7 @@ npm run teste:aliexpress          # 153 asserções do AliExpress no Compras: re
 npm run teste:compras-ml           # 50 asserções das compras do Mercado Livre no Compras e da nota fiscal do pedido de compra: regras puras (pack, situação, totais, variação, 1ª leitura, envio e fases), XML da NF-e, leitura contra um ML falso (rascunho que vira enviado, rastreio que aparece, cancelada, sem duplicar), casamento pelo MLB, Virtual contra o Bling falso, busca pelo rastreio e pela nota e a guarda que impede a compra de virar venda. Postgres local, SEM rede; só escreve ZZ-CML-*, "ZZ CML Fornecedor" e compras 98…; `-- --manter` deixa os dados
 npm run teste:estoque3d            # 110 asserções do Mapa do estoque: leitura da localização ("M2"), peças que cabem na caixinha (arrumadas em fileiras com 2 mm de folga, pela medida interna quando existe), caixinha certa, peso, a cena montada (ordem, largura, o que passa do vão, a 1 em cima ou embaixo, fora das prateleiras), as regras da fase 2 (parecidos, vizinhos, pesado em cima, Onde guardar) e o banco (colunas pela localização, coluna, modelo, caixinha do produto, Mover com renumeração e histórico, ordem pelas fotos). Postgres local, SEM rede; só escreve ZZ-E3D-*, as colunas ZY/ZZ e os modelos "ZZ E3D *", e apaga
 npm run teste:estudos             # 51 asserções do estudo de viabilidade: regras puras (mediana, piso dos vendidos, demanda, preço por unidade, quantidade, vendas por mês entre estudos, veredito), banco (fila sem repetir, contas contra um ML falso, gravar, estudar de novo, lista) e as 5 ferramentas do MCP com o acesso. Postgres local, SEM rede; só escreve "ZZ-EST *" e ZZ-EST-*, e apaga
-npm run teste:frete               # 97 asserções do módulo de frete (fase 1): regras de caixa, peso e valor a cobrar, caixas e configuração, o conector do Melhor Envio (OAuth, renovação com 5 dias de folga, User-Agent, trava FRETE_COMPRA), o provedor (CEP recusado, fora do ar, não conectado), a cotação com o pacote sugerido (kit pelas peças) e o rascunho do envio do pedido (dois cliques, um envio). Melhor Envio FALSO nesta máquina (SEM rede); Postgres local, só escreve "CX 9*"/"CX ZZ*", ZZ-FRETE-* e devolve a ConfigDeFrete e a Conexao MELHOR_ENVIO do dono. `-- --servir --porta=4599` deixa só o falso no ar, para conferir a tela com MELHOR_ENVIO_URL apontando para ele
+npm run teste:frete               # 223 asserções do módulo de frete (fases 1 e 2: a compra sem dobra e a retomada, o carrinho expirado, imprimir, cancelar, o rastreio do worker, o aviso por e-mail uma vez só e o WhatsApp, o custo da etiqueta no lucro, a lista de Envios e o avulso): regras de caixa, peso e valor a cobrar, caixas e configuração, o conector do Melhor Envio (OAuth, renovação com 5 dias de folga, User-Agent, trava FRETE_COMPRA), o provedor (CEP recusado, fora do ar, não conectado), a cotação com o pacote sugerido (kit pelas peças) e o rascunho do envio do pedido (dois cliques, um envio). Melhor Envio FALSO nesta máquina (SEM rede); Postgres local, só escreve "CX 9*"/"CX ZZ*", ZZ-FRETE-* e devolve a ConfigDeFrete e a Conexao MELHOR_ENVIO do dono. `-- --servir --porta=4599` deixa só o falso no ar, para conferir a tela com MELHOR_ENVIO_URL apontando para ele
 npm run teste:propostas           # 215 asserções (com a cotação do frete gravada no CIF) das Propostas para cliente (com a assinatura digital: certificado de teste gerado na hora, senha com acento, cadeia, cofre cifrado, PDF assinado conferido pelo digest, link público /pdf e o Caddy) (com o nome/código do Rise no PDF, o fator, o estoque do item, as parcelas pela condição e o frete diluído) (com o cabeçalho no molde da cotação: contatos com link, faixa e "Entregar em", e o A/C da lista ou digitado): regras puras (totais, desconto, frete só no CIF, prazo geral, "!", vencer), cliente (busca Rise/Bling, cópia, provisório, cadastro nos dois, Bling travado), gravação e numeração (duas ao mesmo tempo), situação, contatos, lista, pedido de venda contra o Bling falso (recusa avulso, não duplica), anexos, link público, PDF e página pública (nunca nosso código, custo nem internas) e as ferramentas do MCP. Postgres local, SEM rede; só escreve "ZZ Proposta *" e ZZ-PROP-CLI-*, e apaga
 npm run teste:pedidos             # 312 asserções dos Pedidos de venda (com o envio do ML entregue na agência pelo substatus): falsos (ML, LI, Bling), normalizadores, status, cliente automático, itens e custo congelado, lucro e devolução, peças, aplicarPedidoLido, a leitura com cursor, acessos e taxas da LI. Postgres local, SEM rede; só escreve ZZ-PED-*, "ZZ Ped *" e os documentos de teste, e devolve a linha "pedidos" de RotinaDoWorker e as taxas da LI; `-- --manter` deixa os pedidos para conferir a tela
 npm run teste:extensao-aliexpress # 15 asserções da leitura da extensão (extensao-aliexpress/leitura.js) com as respostas da página Meus pedidos medidas em 28/10/2026. Puro: sem banco, sem rede, sem Chrome
@@ -8128,6 +8128,60 @@ continua no Mercado Envios e a Loja Integrada no Enviali (a etiqueta do Enviali 
 - **Falta do dono:** criar o aplicativo no painel do Melhor Envio (produção e teste) com o retorno
   `https://rise.4hobby.com.br/api/oauth/melhorenvio/callback` (e o do PC), pesar as três caixas e decidir os tamanhos novos
   (115 produtos não cabem em nenhuma: 68 numa 30×20×15 e 38 com um lado maior que 30 cm).
+
+**Melhor Envio de produção conectado em 19/11/2026.** Aplicativo "Rise 4hobby" no painel de produção; as 5 linhas no `.env` da VPS
+(`MELHOR_ENVIO_CLIENT_ID`, `_SECRET`, `_CONTATO`, `MELHOR_ENVIO_SANDBOX=false` e **`MELHOR_ENVIO_REDIRECT_URI`**, que sem ela
+cai no padrão do PC e o Conectar falha). O aplicativo nasce só com os Correios: as outras transportadoras (e a agência de
+postagem da Jadlog, Azul e LATAM) se ligam no painel do ME, em Integrações › Catálogo › Integrações ativas › engrenagem do
+Rise 4hobby. Jadlog, Azul e LATAM postam na agência escolhida lá; Correios, Loggi e J&T em qualquer ponto deles.
+
+### Fase 2: etiqueta, rastreio e aviso (19/11/2026, SEM deploy)
+
+Plano `docs/superpowers/plans/2026-11-19-modulo-de-frete-fase-2.md`, commits `862e5d8..fc13b67` (com commits de outra sessão no
+meio), migration `20261119_frete_fase_2` (`COMPRANDO` no enum `StatusDoEnvioRise`), dependência `nodemailer` **10.3.1** fixa (a
+7.x tinha 20 alertas de segurança).
+
+- **Melhor Envio, documentação lida em 19/11/2026:** carrinho `POST /api/v2/me/cart` (`products` obrigatório, a DC-e vai à
+  SEFAZ; com NF-e, `options.invoice.key` e `from.state_register` = inscrição estadual da empresa; com declaração,
+  `non_commercial: true` e sem inscrição; **sem `agency`**: na integração por aplicativo vale a do painel), pagamento
+  `/shipment/checkout`, geração `/shipment/generate` (20 dias para postar), impressão `/shipment/print` com `mode: "public"`
+  (o Rise abre o link a cada clique e não guarda), rastreio `/shipment/tracking` (só datas, sem eventos: a linha do tempo sai
+  delas, horário de Brasília), pedido `GET /orders/{id}` (para retomar), cancelamento `/shipment/cancel` (`reason_id: "2"`,
+  estorno em 12 h). **Azul Cargo não se compra pela API** (só cota): o botão Comprar fica desabilitado com o motivo. Link de
+  rastreio `https://melhorrastreio.com.br/rastreio/{codigo}`. Carrinho, pagamento, geração e cancelamento passam pela trava
+  `FRETE_COMPRA` (`mePost`); rastreio e impressão são leitura (`meLer`).
+- **Compra sem dobra** (`comprarEtiqueta` em `lib/frete/envios.js`): confere a trava, o saldo e os motivos
+  (`motivosParaNaoComprar` em `regras.js`), passa `RASCUNHO → COMPRANDO` numa escrita condicional (o segundo clique não acha
+  a linha), grava o `idNoProvedor` ANTES do pagamento; a falha volta a `RASCUNHO` com o id e a próxima tentativa continua pelo
+  pedido do ME, sem outro carrinho. `COMPRANDO` parado há mais de 2 min é retomado ("Tentar de novo"). Antes, `conferirPacote`
+  cota de novo o MESMO serviço com a caixa e o peso medidos e o documento (NF-e com a chave de `pedido.nf.chave`, ou
+  declaração com os itens do pedido).
+- **Custo no lucro:** `custoDaEtiquetaDoPedido` (`lib/frete/lucro.js`) entra em `parcelasDoReal` do Bling e **vence o frete
+  digitado** (fonte "etiqueta"); vale na leitura do Bling a cada 5 min e em `recalcularLucroDoPedido` (`pedidos/banco.js`),
+  chamado ao comprar e ao cancelar (refaz mesmo com o lucro fechado). O campo "Custo real do frete" some com a etiqueta.
+- **Rotina `envios` do worker** (`lib/frete/rastreio.js`, a cada 15 min, na Saúde do Rise): grava só o que mudou (os
+  outros ganham só `ultimaConsultaEm` numa escrita), `A_POSTAR` vencido vira `EXPIRADO`, status desconhecido fica como estava
+  com `ultimoErro`, provedor fora do ar não mexe em nada. Na passagem para `POSTADO`, o aviso.
+- **Aviso** (`lib/frete/aviso.js`, e-mail por `lib/email/enviar.js`): uma vez só (a marca `avisoEmailEm` é posta antes de
+  mandar, numa escrita condicional; falha devolve a nula com o motivo e o "Reenviar e-mail" tenta de novo). SMTP do Google
+  (`smtp.gmail.com:465`, `EMAIL_SMTP_USUARIO`/`EMAIL_SMTP_SENHA` = senha de aplicativo), remetente `4hobby
+  <contato@4hobby.com.br>`, trava **`EMAIL_ENVIO`** (fechada: "Não enviado: trava EMAIL_ENVIO fechada."). Botão do WhatsApp com
+  o texto pronto (o link é montado no servidor; o clique marca `avisoWhatsappEm`). Textos em Configurações › Envios, com os
+  marcadores `{cliente} {pedido} {transportadora} {servico} {rastreio} {link}` (vazio usa o padrão de `regras.js`).
+- **Telas:** `PainelDoEnvio` (um passo por status) no pedido e no detalhe, `JanelaDeCompra` (pacote medido → confirmação
+  com saldo antes e depois → `ConclusaoDoEnvio`), `JanelaDeCancelamento`; bloco **Envios** (`/envios`: chips de situação,
+  busca por número/rastreio/nome sem acento/serviço/pedido, cabeçalho que ordena, 25/100, saldo no topo, "!" do postado sem
+  aviso), `/envios/novo` (avulso: destinatário do cliente, do fornecedor ou digitado, itens da declaração, cotar e escolher)
+  e `/envios/[id]`. Acessos novos: `tela.envios`, `acao.envios.comprarEtiqueta` (comprar, cancelar e criar avulso) e
+  `acao.envios.avisarCliente`.
+- **Conferido** com o Melhor Envio falso no navegador (cotar, comprar, a postar, cancelar, postado com aviso e WhatsApp, lista,
+  avulso com declaração) e em `teste:frete`. **Não conferido de verdade:** nenhuma compra real (a primeira compra, num pedido
+  escolhido pelo dono, é o teste do carrinho, da geração e da impressão em produção), o formato da página de impressão do ME
+  (10×15 ou A4 se escolhe lá), o rastreio real e o e-mail real (falta a senha de aplicativo).
+- **Para o deploy:** `FRETE_COMPRA=true` no `.env` da VPS (com o OK do dono) e, quando houver a senha de aplicativo,
+  `EMAIL_SMTP_USUARIO`, `EMAIL_SMTP_SENHA` e `EMAIL_ENVIO=true`.
+- **Pedido do dono (19/11/2026), para logo depois:** MCP do frete (cotar, gerar etiqueta, rastreio do pedido e outras). Comprar
+  pelo MCP muda a spec 5.10 e precisa do acesso do login, da trava e de confirmação em dois passos.
 
 ## Trabalho em paralelo: worktrees
 
