@@ -3,6 +3,7 @@ import { ErroDeUso } from "@/lib/riseAi/erros";
 import { limitesDoDia } from "@/lib/riseAi/revisao";
 
 import { FERRAMENTAS_DO_ESTOQUE } from "./estoque.js";
+import { FERRAMENTAS_DE_FRETE_ESCRITA } from "./frete.js";
 
 /**
  * As consultas que cada pessoa fez ao Rise pelo Claude/ChatGPT num dia, para a Revisao (pedido do dono em 20/10/2026:
@@ -18,7 +19,7 @@ const FUSO = "America/Sao_Paulo";
 const ANOTAR = "anotarDuvida";
 // A proposta de cadastro nao e duvida de atendimento: aparece na lista, mas nao espera anotacao (spec 2026-10-21).
 // As Correcoes da descricao (07/11/2026) tambem: o dono dita, nao e duvida. E o roteiro da analise de fornecedor (07/11/2026).
-const DA_PROPOSTA = new Set(["roteiroDaAnaliseDeFornecedor", "roteiroDaProposta", "lerParaProposta", "lerProposta", "baixarCandidatas", "folhaDeContato", "gravarSecao", "situacaoDoProduto", "lerParaPropostaML", "lerCategoriaML", "gravarPropostaML", "gravarCorrecaoDaDescricao", "listarCorrecoesDaDescricao", "desligarCorrecaoDaDescricao", ...FERRAMENTAS_DO_ESTOQUE.map((ferramenta) => ferramenta.nome)]);
+const DA_PROPOSTA = new Set(["roteiroDaAnaliseDeFornecedor", "roteiroDaProposta", "lerParaProposta", "lerProposta", "baixarCandidatas", "folhaDeContato", "gravarSecao", "situacaoDoProduto", "lerParaPropostaML", "lerCategoriaML", "gravarPropostaML", "gravarCorrecaoDaDescricao", "listarCorrecoesDaDescricao", "desligarCorrecaoDaDescricao", ...FERRAMENTAS_DO_ESTOQUE.map((ferramenta) => ferramenta.nome), ...FERRAMENTAS_DE_FRETE_ESCRITA.map((ferramenta) => ferramenta.nome)]);
 const JANELA_MS = 30 * 60 * 1000;
 const hora = (data) => new Intl.DateTimeFormat("pt-BR", { timeZone: FUSO, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(data);
 
@@ -62,6 +63,15 @@ const RESUMOS = {
   moverProdutoNoEstoque: (a) => `estoque: moveu ${a.sku} para ${String(a.coluna ?? "").toUpperCase()}${a.prateleira}${a.posicao ? ` (${a.posicao}ª)` : ""}`,
   gravarOrdemPelasFotos: (a) => `estoque: fotos da coluna ${String(a.coluna ?? "").toUpperCase()} (${a.confirmar ? "gravou" : "simulou"})`,
   roteiroDaAnaliseDeFornecedor: (a) => (a?.parte === "modelo" ? "análise de fornecedor: leu o modelo da página" : "análise de fornecedor: leu o roteiro"),
+  cotarFrete: (a) => `frete: cotou para ${a.cep}`,
+  cotarFreteDoPedido: (a) => `frete: cotou o pedido ${a.pedido}`,
+  lerEnvio: (a) => `envio ${a.envio}`,
+  listarEnvios: (a) => ["envios", lista(a.situacao), a.termos].filter(Boolean).join(": "),
+  imprimirEtiqueta: (a) => `etiqueta de ${a.envio}: link de impressão`,
+  prepararEtiqueta: (a) => `etiqueta do pedido ${a.pedido}: preparou`,
+  comprarEtiqueta: (a) => `etiqueta ${a.envio}: comprou por R$ ${a.valorConfirmado}`,
+  cancelarEtiqueta: (a) => `etiqueta ${a.envio}: cancelou`,
+  reenviarAvisoAoCliente: (a) => `envio ${a.envio}: reenviou o aviso`,
 };
 const ROTULOS_CORTADOS = { buscarProdutos: "buscou", buscarNoMercado: "mercado", buscarConhecimento: "conhecimento" };
 

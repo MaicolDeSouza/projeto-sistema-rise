@@ -73,6 +73,9 @@ const ESTOQUE = [
   "configurarEstoque",
   "criarColunasPelaLocalizacao",
 ];
+// O frete pelo chat (20/11/2026): as leituras lembram de anotar; preparar, comprar, cancelar e reenviar sao trabalho.
+const FRETE_ESCRITA = ["prepararEtiqueta", "comprarEtiqueta", "cancelarEtiqueta", "reenviarAvisoAoCliente"];
+const FRETE = ["cotarFrete", "cotarFreteDoPedido", "lerEnvio", "listarEnvios", "imprimirEtiqueta", ...FRETE_ESCRITA];
 
 async function lerRespostaMcp(resposta) {
   const texto = await resposta.text();
@@ -779,9 +782,10 @@ try {
         descoberta?.instructions === INSTRUCOES && INSTRUCOES.includes("anotarDuvida"),
       ],
       [
-        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "calcularEstudoDeViabilidade", "compararProdutos", "comprasACaminhoDoProduto", "consultarEstoque", "consultarPreco", "consultarProduto", "criarProduto", "desligarCorrecaoDaDescricao", "filtrarProdutos", "folhaDeContato", "gravarCorrecaoDaDescricao", "gravarEstudoDeViabilidade", "gravarPropostaML", "gravarSecao", "historicoDePreco", "lerCategoriaML", "lerParaEstudoDeViabilidade", "lerParaProposta", "lerParaPropostaML", "lerPedidoDeCompra", "lerPedidoDeVenda", "lerProposta", "lerPropostaParaCliente", "listarClientes", "listarConcorrentes", "listarCorrecoesDaDescricao", "listarEstudosDeViabilidade", "listarFornecedores", "listarMarcas", "listarPedidosDeCompra", "listarPedidosDeVenda", "listarPropostasParaCliente", "listarTransportadoras", "marcarReferencias", "montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra", "produtosAbaixoDoMinimo", "reaproveitarAnuncioML", "relatorioDeVendas", "roteiroDaAnaliseDeFornecedor", "roteiroDaProposta", "roteiroDoEstudoDeViabilidade", "sincronizarComBling", "sincronizarComLojaIntegrada", "situacaoDoProduto", ...ESTOQUE].sort(),
+        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "calcularEstudoDeViabilidade", "compararProdutos", "comprasACaminhoDoProduto", "consultarEstoque", "consultarPreco", "consultarProduto", "criarProduto", "desligarCorrecaoDaDescricao", "filtrarProdutos", "folhaDeContato", "gravarCorrecaoDaDescricao", "gravarEstudoDeViabilidade", "gravarPropostaML", "gravarSecao", "historicoDePreco", "lerCategoriaML", "lerParaEstudoDeViabilidade", "lerParaProposta", "lerParaPropostaML", "lerPedidoDeCompra", "lerPedidoDeVenda", "lerProposta", "lerPropostaParaCliente", "listarClientes", "listarConcorrentes", "listarCorrecoesDaDescricao", "listarEstudosDeViabilidade", "listarFornecedores", "listarMarcas", "listarPedidosDeCompra", "listarPedidosDeVenda", "listarPropostasParaCliente", "listarTransportadoras", "marcarReferencias", "montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra", "produtosAbaixoDoMinimo", "reaproveitarAnuncioML", "relatorioDeVendas", "roteiroDaAnaliseDeFornecedor", "roteiroDaProposta", "roteiroDoEstudoDeViabilidade", "sincronizarComBling", "sincronizarComLojaIntegrada", "situacaoDoProduto", ...ESTOQUE, ...FRETE].sort(),
         // +4 de leitura do Mapa do estoque (roteiro, mapa, caixinha e sugerir), 15/11/2026.
-        41,
+        // +5 de leitura do frete (cotar, cotar o pedido, ler, listar e imprimir), 20/11/2026.
+        46,
         true,
       ],
     );
@@ -1213,7 +1217,7 @@ try {
       [2, true, 1],
     );
     const lista = (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/list", {}, { id: id++ }), quem)))?.result?.tools ?? [];
-    conferir("a descricao de toda ferramenta de consulta lembra de anotar", lista.filter((ferramenta) => ferramenta.name !== "anotarDuvida" && !PROPOSTA.includes(ferramenta.name) && !PROPOSTA_DE_ANUNCIO.includes(ferramenta.name) && !REFERENCIAS.includes(ferramenta.name) && !COMPRAS_ESCRITA.includes(ferramenta.name) && !CORRECOES.includes(ferramenta.name) && !ANALISE_FORNECEDOR.includes(ferramenta.name) && !ESTUDOS.includes(ferramenta.name) && !CANAIS.includes(ferramenta.name) && !ESTOQUE.includes(ferramenta.name) && !ferramenta.description.includes("anotarDuvida")).map((ferramenta) => ferramenta.name), []);
+    conferir("a descricao de toda ferramenta de consulta lembra de anotar", lista.filter((ferramenta) => ferramenta.name !== "anotarDuvida" && !PROPOSTA.includes(ferramenta.name) && !PROPOSTA_DE_ANUNCIO.includes(ferramenta.name) && !REFERENCIAS.includes(ferramenta.name) && !COMPRAS_ESCRITA.includes(ferramenta.name) && !CORRECOES.includes(ferramenta.name) && !ANALISE_FORNECEDOR.includes(ferramenta.name) && !ESTUDOS.includes(ferramenta.name) && !CANAIS.includes(ferramenta.name) && !ESTOQUE.includes(ferramenta.name) && !FRETE_ESCRITA.includes(ferramenta.name) && !ferramenta.description.includes("anotarDuvida")).map((ferramenta) => ferramenta.name), []);
 
     // --- as Correcoes da descricao (07/11/2026): gravadas pelo chat com o login da conexao, sem o lembrete ---
     await prisma.correcaoDaDescricao.deleteMany({ where: { criadoPor: "zz-mcp-lembrete" } });
