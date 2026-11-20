@@ -89,6 +89,21 @@ export const EsquemaDoChatDaLoja = z.object({
   }),
 });
 
+const DIAS_DA_SEMANA = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/**
+ * A loja esta FORA do horario de atendimento neste instante? Pelo relogio de Sao Paulo. So decide o aviso do botao do
+ * WhatsApp ("respondemos no proximo dia util"); o assistente responde a qualquer hora.
+ */
+export function foraDoHorario(horario, agora = Date.now()) {
+  const partes = new Intl.DateTimeFormat("en-GB", { timeZone: "America/Sao_Paulo", weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(agora));
+  const parte = (tipo) => partes.find((item) => item.type === tipo)?.value ?? "";
+  const dia = DIAS_DA_SEMANA.indexOf(parte("weekday"));
+  const hora = `${parte("hour")}:${parte("minute")}`;
+  if (!(horario?.dias ?? []).includes(dia)) return true;
+  return !(horario?.turnos ?? []).some(([de, ate]) => hora >= de && hora < ate);
+}
+
 /** O que foi salvo por cima do padrao. `limites` se mescla por dentro: salvar um limite nao pode apagar os outros. */
 export function mesclarChatDaLoja(base, salvo) {
   const padrao = base ?? chatDaLojaPadrao();

@@ -73,6 +73,8 @@ async function codigoSql(sql) {
   }
 }
 const linhas = async (sql, valores = []) => (await comoPapel.query(sql, valores)).rows;
+// O teste da um login de uso unico ao papel (bloco da tarefa 5); o `finally` o tira mesmo se algo falhar no meio.
+let papelComLogin = false;
 
 try {
   await limpar();
@@ -83,7 +85,7 @@ try {
   conferir("a migration e a saida do gerador", noDisco === sqlDaMigration().trim(), true);
 
   // ---------- O papel existe, sem superpoderes e com os tetos ----------
-  const [papel] = (await dono.query(`SELECT rolsuper, rolcreatedb, rolcreaterole, rolbypassrls, rolconnlimit, rolconfig FROM pg_roles WHERE rolname = $1`, [PAPEL])).rows;
+  const [papel] = (await dono.query(`SELECT rolsuper, rolcreatedb, rolcreaterole, rolbypassrls, rolconnlimit, rolconfig, rolcanlogin FROM pg_roles WHERE rolname = $1`, [PAPEL])).rows;
   conferir("o papel nao e superusuario nem pula as politicas", [papel?.rolsuper, papel?.rolcreatedb, papel?.rolcreaterole, papel?.rolbypassrls], [false, false, false, false]);
   conferir("teto de conexoes", papel?.rolconnlimit, 12);
   conferir("teto de tempo de consulta", (papel?.rolconfig ?? []).includes("statement_timeout=8s"), true);
@@ -174,12 +176,49 @@ try {
   else await dono.query(`DELETE FROM "SinalDoAssistente" WHERE "id" = 'unico'`);
   await comoPapel.query(`SET ROLE ${PAPEL}`);
 
-  // MARCADOR-T5 (as tarefas seguintes acrescentam os seus blocos acima desta linha)
+  // ---------- Tarefa 5: UMA conversa inteira como o usuario `rise_ia` de verdade, num processo sem as chaves do Rise ----------
+  await comoPapel.query("RESET ROLE");
+  // Num Postgres em que o papel JA tem login (a VPS, ou um PC com o servico configurado), este bloco trocaria a senha dele.
+  if (papel?.rolcanlogin) throw new Error("O papel rise_ia ja tem login neste Postgres; este teste so roda onde ele esta sem login.");
+  const { spawnSync } = await import("node:child_process");
+  const { randomBytes } = await import("node:crypto");
+  // Senha de uso unico, so para este teste (hexadecimal: nada a escapar). O papel volta a ficar SEM login no `finally`.
+  const senha = randomBytes(24).toString("hex");
+  await dono.query(`ALTER ROLE ${PAPEL} LOGIN PASSWORD '${senha}'`);
+  papelComLogin = true;
+  const urlDoPapel = new URL(process.env.DATABASE_URL);
+  urlDoPapel.username = PAPEL;
+  urlDoPapel.password = senha;
+  const sessaoDoFilho = `zz-${"f".repeat(29)}`;
+  const filho = spawnSync(process.execPath, ["scripts/lib/conversaSobOPapel.js", sessaoDoFilho], {
+    // Ambiente LIMPO: so o que o Node precisa para subir no Windows, e a URL do papel.
+    env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, TEMP: process.env.TEMP, TMP: process.env.TMP, DATABASE_URL: urlDoPapel.toString() },
+    encoding: "utf8",
+    timeout: 120000,
+  });
+  const linhaDoResultado = String(filho.stdout ?? "").split("\n").find((linha) => linha.startsWith("RESULTADO "));
+  const doFilho = linhaDoResultado ? JSON.parse(linhaDoResultado.slice("RESULTADO ".length)) : { erro: `sem resultado: ${String(filho.stderr ?? "").slice(-600)}` };
+  conferir("o filho terminou bem", [doFilho.ok, doFilho.erro ?? null], [true, null]);
+  conferir("o filho fala com o banco como rise_ia", doFilho.usuarioDoBanco, PAPEL);
+  conferir("o filho nao tem nenhuma chave do Rise no ambiente", doFilho.chavesDoRiseNoAmbiente, []);
+  conferir("a conversa inteira funciona so com as concessoes do papel", [doFilho.cartoes, doFilho.texto], [["ZZ-LOJA-PUB"], "Veja o produto acima."]);
+  conferir("o mesmo processo nao le a tabela de produtos", [doFilho.leuProduto, doFilho.erroAoLerProduto], [false, "permissao negada"]);
+  const gravadoPeloFilho = await prisma.conversaIA.findUnique({ where: { id: doFilho.conversaId ?? "nao-existe" }, include: { mensagens: { orderBy: [{ criadoEm: "asc" }, { id: "asc" }] } } });
+  conferir("a conversa do filho ficou gravada no canal LOJA", [gravadoPeloFilho?.canal, gravadoPeloFilho?.perfil, gravadoPeloFilho?.mensagens.map((m) => m.papel)], ["LOJA", "PUBLICO", ["USUARIO", "ASSISTENTE"]]);
+  conferir("o gasto do filho entrou nos CLIENTES", (await prisma.gastoIA.findMany({ where: { referencia: doFilho.conversaId ?? "nao-existe" }, select: { tipo: true, escopo: true } })), [{ tipo: "CONVERSA", escopo: "CLIENTES" }]);
+  await dono.query(`DELETE FROM "GastoIA" WHERE "referencia" = $1`, [doFilho.conversaId ?? "nao-existe"]);
+  await dono.query(`ALTER ROLE ${PAPEL} NOLOGIN PASSWORD NULL`);
+  papelComLogin = false;
+  conferir("o papel voltou a ficar sem login", (await dono.query(`SELECT rolcanlogin FROM pg_roles WHERE rolname = $1`, [PAPEL])).rows[0].rolcanlogin, false);
+  await comoPapel.query(`SET ROLE ${PAPEL}`);
+
+  // MARCADOR-T6 (as tarefas seguintes acrescentam os seus blocos acima desta linha)
 } catch (erro) {
   falhas++;
   console.error("ERRO NAO ESPERADO:", erro);
 } finally {
   await comoPapel.query("RESET ROLE").catch(() => null);
+  if (papelComLogin) await dono.query(`ALTER ROLE ${PAPEL} NOLOGIN PASSWORD NULL`).catch((erro) => console.error("NAO TIREI O LOGIN DO PAPEL:", erro));
   await dono.query(`DROP TABLE IF EXISTS "ZZ_IA_NOVA"`).catch(() => null);
   await dono.query(`DELETE FROM "GastoIA" WHERE "id" LIKE 'zz-ia-%'`).catch(() => null);
   await dono.query(`DELETE FROM "ConversaIA" WHERE "id" LIKE 'zz-ia-%'`).catch(() => null);
