@@ -273,8 +273,8 @@ export function descontoAdicionalValido(valor) {
  * O "Desconto adicional" do anuncio (pedido do dono em 20/11/2026: "uma caixinha escrito desconto adicional que deve ser sobre
  * o preço de venda e deve nascer em 0%"): tira o percentual do preco que `precoPelaFaixa` deu (`resultado`) e fecha em 0
  * centavo. Dois limites, porque o desconto no preco pesa mais no lucro do que parece (so a comissao e o imposto caem junto):
- * - nao atravessa os R$ 79: quem tem frete gratis (da variante ou obrigatorio) para em R$ 79, senao o frete e a tarifa
- *   mudariam de regime e a conta do lucro da loja deixaria de valer (`limite: "frete"`);
+ * - nao atravessa os R$ 79: o preco que esta em R$ 79 ou mais para em R$ 79, senao o frete e a tarifa mudariam de regime
+ *   e a conta do lucro da loja deixaria de valer (`limite: "frete"`); abaixo de R$ 79 nao ha regime para atravessar;
  * - nao deixa o lucro abaixo do minimo do ML (`LUCRO_MINIMO_ML`): para no preco que deixa esse lucro, nunca acima do preco
  *   cheio (`limite: "lucroMinimo"`, que vence o do frete).
  * Devolve o `resultado` com o preco novo e `desconto: { percentual, precoSemDesconto, lucro, limite }`; sem desconto,
@@ -293,8 +293,9 @@ export async function precoComDescontoAdicional({ resultado, desconto, custo, va
 
   let preco = Math.min(cheio, precoFechado(cheio * (1 - percentual / 100)));
   let limite = null;
-  if (freteGratis && preco < LIMITE_DO_FRETE_GRATIS) {
-    preco = Math.min(cheio, LIMITE_DO_FRETE_GRATIS);
+  // So quem ja esta em R$ 79 ou mais tem um regime para atravessar; o frete gratis por escolha abaixo disso desconta normal.
+  if (cheio >= LIMITE_DO_FRETE_GRATIS && preco < LIMITE_DO_FRETE_GRATIS) {
+    preco = LIMITE_DO_FRETE_GRATIS;
     limite = "frete";
   }
   let lucro = await lucroEm(preco);

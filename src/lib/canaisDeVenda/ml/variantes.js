@@ -32,7 +32,8 @@ export async function clonarVarianteML(anuncioId, variante, { ml }) {
   else if (lucro === null) aviso = "Sem preço de venda do produto: o preço ficou o do anúncio de origem.";
   else {
     try {
-      const resultado = await precoPelaFaixaNoML(ml, rascunho, { custo, lucro, variante });
+      // O clone herda o "Desconto adicional" do anuncio de origem (20/11/2026): o preco ja sai com ele, como a caixinha mostra.
+      const resultado = await precoPelaFaixaNoML(ml, rascunho, { custo, lucro, variante, desconto: rascunho.descontoAdicional });
       if (resultado) preco = resultado.preco;
       else aviso = "Lucro da loja inatingível com estas taxas: o preço ficou o do anúncio de origem.";
     } catch (erro) {

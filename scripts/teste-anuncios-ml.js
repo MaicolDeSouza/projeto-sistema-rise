@@ -4071,6 +4071,10 @@ try {
     const cheio79 = await precoPelaFaixa({ lucro: 20, custo: 38, variante: "classico_frete_gratis", taxas, frete });
     const d25 = await comDesconto(cheio79, 25, 38, "classico_frete_gratis");
     conferir("desconto que atravessaria os R$ 79 do frete gratis: para em R$ 79", [cheio79.preco, d25.preco, d25.freteGratis, d25.desconto.limite, d25.desconto.lucro], [95.2, 79, true, "frete", lucroDe(79, 38, true)]);
+    // Frete gratis por escolha abaixo de R$ 79 (R$ 74,10): o desconto vale normal, nao ha regime para atravessar.
+    // 68,913 fecha em R$ 69,00; lucro 69 x 0,81 - 6,50 - 19,05 - 25 = 5,34.
+    const dFG = await comDesconto(comFG, 7, 25, "classico_frete_gratis");
+    conferir("frete gratis abaixo de R$ 79: o desconto vale normal", [comFG.preco, dFG.preco, dFG.freteGratis, dFG.desconto.limite], [74.1, 69, true, null]);
     const dPiso = await comDesconto(piso, 7, 35, "classico_frete_gratis");
     conferir("preco que ja esta no piso de R$ 79: o desconto nao tem para onde ir", [dPiso.preco, dPiso.desconto.limite, dPiso.piso], [79, "frete", true]);
     // Os dois limites juntos (frete gratis, lucro 60 e custo 100: R$ 221,10): 70% pararia nos R$ 79 com prejuizo, entao vale o
@@ -4231,6 +4235,12 @@ try {
     const clone = await clonarVarianteML(salvo.id, "classico_frete_gratis", { ml });
     conferir("clonar variante: frete gratis ligado, preco acima do original, nada gravado", [clone.ok, clone.rascunho.envio.freteGratis, clone.rascunho.tipoAnuncio, clone.rascunho.preco > 45.99, clone.aviso ?? null, await prisma.anuncio.count({ where: { produtoId: produto.id } })], [true, true, "gold_special", true, null, 1]);
     conferir("clonar variante: variante invalida recusa", (await clonarVarianteML(salvo.id, "xyz", { ml })).ok, false);
+    // O clone herda o "Desconto adicional" do anuncio de origem (20/11/2026) e o preco ja sai com ele: a caixinha mostrando 7%
+    // com o preco cheio enganaria.
+    const dadosDaOrigem = (await prisma.anuncio.findUnique({ where: { id: salvo.id }, select: { dados: true } })).dados;
+    await prisma.anuncio.update({ where: { id: salvo.id }, data: { dados: { ...dadosDaOrigem, descontoAdicional: 7 } } });
+    const cloneComDesconto = await clonarVarianteML(salvo.id, "classico_frete_gratis", { ml });
+    conferir("clonar variante de anuncio com desconto adicional: herda o % e o preco sai com ele", [cloneComDesconto.rascunho.descontoAdicional, cloneComDesconto.rascunho.preco < clone.rascunho.preco, cloneComDesconto.rascunho.preco > clone.rascunho.preco * 0.92], [7, true, true]);
     await prisma.anuncio.update({ where: { id: salvo.id }, data: { categoriaExternaId: null } });
     const semCategoria = await clonarVarianteML(salvo.id, "classico_frete_gratis", { ml });
     conferir("clonar variante sem categoria: preco do clone e aviso", [semCategoria.ok, semCategoria.rascunho.preco, /categoria/i.test(String(semCategoria.aviso))], [true, 45.99, true]);

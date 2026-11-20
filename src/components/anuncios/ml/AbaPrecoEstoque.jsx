@@ -367,8 +367,8 @@ function BotaoPrecoPeloLucroDaLoja({ rascunho, custo, temPrecoDaLoja, aplicar, a
             ? `Desconto limitado pelo lucro mínimo de ${MOEDA.format(LUCRO_MINIMO_ML)}.`
             : `Sem espaço para desconto: o lucro já está no mínimo de ${MOEDA.format(LUCRO_MINIMO_ML)}.`
           : baixou
-            ? "Desconto parou em R$ 79,00, o menor preço com frete grátis."
-            : "Sem espaço para desconto: R$ 79,00 é o menor preço com frete grátis.";
+            ? "Desconto parou em R$ 79,00: abaixo disso o frete e a tarifa mudam."
+            : "Sem espaço para desconto: abaixo de R$ 79,00 o frete e a tarifa mudam.";
       setResultado({
         // Lucro da loja abaixo do minimo (R$ 5): o preco subiu para deixar R$ 5, em ambar porque e dinheiro (regra 2).
         aviso: resposta.minimoAplicado
