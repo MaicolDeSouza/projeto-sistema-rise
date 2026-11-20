@@ -31,10 +31,91 @@ const TROCAS_FORA_DO_LATIN1 = {
 };
 const FORA_DO_LATIN1 = /[^\u0000-ÿ]/gu;
 
-/** Texto que vai ao Mercado Livre: a descricao, aparada, sem etiquetas HTML e so com caracteres do Latin-1. */
+/**
+ * A descricao BASE: aparada, sem etiquetas HTML e so com caracteres do Latin-1. Ate 20/11/2026 era o texto inteiro que ia ao
+ * ML; hoje e o miolo do texto completo (`montarDescricaoCompletaML`) e continua sendo o que a impressao do anuncio compara
+ * (o md5 dela), para o anuncio publicado antes do formato novo nao acender o "!" sozinho.
+ */
 export function montarDescricaoML({ descricao }) {
   return String(descricao ?? "")
     .trim()
     .replace(ETIQUETA_HTML, "")
     .replace(FORA_DO_LATIN1, (caractere) => TROCAS_FORA_DO_LATIN1[caractere] ?? "");
+}
+
+/**
+ * O formato do texto que vai ao ML (spec 2026-11-20, "Compre em kit e economize"): 2 = boas-vindas + descricao sem a secao
+ * de garantia + bloco dos kits. O anuncio guarda o formato do ultimo envio (`publicacao.enviado.formato`); sem ele, e o antigo.
+ */
+export const FORMATO_DA_DESCRICAO = 2;
+
+// So hifens: o ML recusa caractere fora do Latin-1, entao nada de linha desenhada.
+const LINHA = "-".repeat(40);
+
+/**
+ * As boas-vindas no comeco de todo anuncio (texto do dono em 20/11/2026). Fixo no codigo de proposito: mudar o texto muda a
+ * descricao de todos os anuncios ja no formato novo.
+ */
+export const BOAS_VINDAS_ML = [
+  "Bem-vindo(a) à nossa loja!",
+  "- Dúvidas? Use o campo de perguntas, respondemos rápido.",
+  "- Emitimos nota fiscal em todas as vendas, com os dados do seu cadastro no Mercado Livre.",
+  "Boas compras!",
+  LINHA,
+].join("\n");
+
+const TITULO_DA_GARANTIA = /^\s*garantia\s*:?\s*$/i;
+const ITEM_DE_LISTA = /^\s*[-*•]/;
+const EM_BRANCO = (linha) => linha.trim() === "";
+
+/**
+ * A descricao sem a secao "Garantia:" (pedido do dono em 20/11/2026: o ML ja escreve a garantia no fim do anuncio, ficava
+ * redundante). Sai o titulo e os itens de lista dele, com as linhas em branco do meio (texto antigo do Bling traz uma entre
+ * cada item); o que vem depois fica. So o titulo sozinho na linha conta: "garantia de 12 meses" numa frase nao e a secao.
+ */
+export function semGarantia(texto) {
+  const linhas = String(texto ?? "").split("\n");
+  const saida = [];
+  for (let i = 0; i < linhas.length; i++) {
+    if (!TITULO_DA_GARANTIA.test(linhas[i])) {
+      saida.push(linhas[i]);
+      continue;
+    }
+    let fim = i + 1;
+    while (fim < linhas.length && (EM_BRANCO(linhas[fim]) || ITEM_DE_LISTA.test(linhas[fim]))) fim++;
+    // O que segue a secao continua separado do que vinha antes dela.
+    if (fim < linhas.length && saida.length > 0 && !EM_BRANCO(saida.at(-1))) saida.push("");
+    i = fim - 1;
+  }
+  return saida.join("\n").trimEnd();
+}
+
+// "R$60,00", sem espaco depois do R$ (pedido do dono) e com o ponto de milhar.
+const reais = (valor) => `R$${Number(valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/**
+ * O bloco "Compre em kit e economize" do fim da descricao: uma linha e o link por kit, na ordem recebida (quem escolhe e
+ * ordena os kits e `kitsParaOBloco`). Vazio sem kits: o anuncio do maior kit nao tem bloco.
+ */
+export function blocoDosKits(kits) {
+  const lista = Array.isArray(kits) ? kits : [];
+  if (lista.length === 0) return "";
+  const linhas = [LINHA, "COMPRE EM KIT E ECONOMIZE"];
+  for (const kit of lista) {
+    const unitario = Math.round((Number(kit.preco) / Number(kit.unidades)) * 100) / 100;
+    linhas.push("", `Kit com ${kit.unidades} unidades por ${reais(kit.preco)} (${reais(unitario)} por unidade)${kit.freteGratis ? " + frete grátis" : ""}`, String(kit.link ?? ""));
+  }
+  return linhas.join("\n");
+}
+
+/**
+ * O texto que vai ao Mercado Livre (`plain_text`) no formato 2: as boas-vindas, a descricao base sem a garantia e, quando ha
+ * kit maior do mesmo produto, o bloco dos kits. A previa, o Publicar e o Sincronizar leem daqui. Vazio sem descricao (a
+ * validacao acusa a falta; boas-vindas sozinhas nao sao descricao).
+ */
+export function montarDescricaoCompletaML({ descricao, kits = [] }) {
+  const base = montarDescricaoML({ descricao: semGarantia(descricao) });
+  if (base === "") return "";
+  const bloco = blocoDosKits(kits);
+  return [BOAS_VINDAS_ML, base, ...(bloco ? [bloco] : [])].join("\n\n");
 }
