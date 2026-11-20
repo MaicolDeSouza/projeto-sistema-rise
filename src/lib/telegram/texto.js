@@ -8,6 +8,16 @@ import { mascararDadosPessoais } from "@/lib/riseAi/mascarar";
 
 export const LIMITE_DE_LINHAS = 4;
 export const LIMITE_DO_TRECHO = 120;
+/// A nova venda lista os produtos (pedido do dono em 19/11/2026): cabecalho, cliente, ate 8 itens, "e mais N" e o total.
+/// Com 50 caracteres por nome o texto cabe nos 1.024 da legenda de uma foto do Telegram.
+export const MAXIMO_DE_ITENS_DA_VENDA = 8;
+export const LIMITE_DE_LINHAS_DA_VENDA = MAXIMO_DE_ITENS_DA_VENDA + 4;
+const LIMITE_POR_TIPO = { novaVenda: LIMITE_DE_LINHAS_DA_VENDA };
+
+/** Quantas linhas o aviso de um tipo pode ter: 4, menos a nova venda (que lista os itens). */
+export function limiteDeLinhasDoTipo(tipo) {
+  return LIMITE_POR_TIPO[tipo] ?? LIMITE_DE_LINHAS;
+}
 
 /**
  * `@` vira U+FF20 (o Telegram nao faz mencao), `://` vira `:∕∕` (U+2215, nao vira link) e `/` no comeco de uma
@@ -34,6 +44,12 @@ function formatarReais(valor) {
   if (!Number.isFinite(numero)) return "0,00";
   const [inteiro, centavos] = numero.toFixed(2).split(".");
   return `${inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, ".")},${centavos}`;
+}
+
+/** "2× 100101 Módulo Relé 5V · R$ 25,80": o que o cliente comprou (kit conta como 1), o nosso código e o valor da linha. */
+function linhaDoItemDaVenda({ quantidade, sku, nome, total }) {
+  const produto = [sku ? trechoSeguro(sku, 20) : "", trechoSeguro(nome, 50)].filter(Boolean).join(" ");
+  return `${Number(quantidade) || 1}× ${produto} · R$ ${formatarReais(total)}`;
 }
 
 const ESCOPO = { CLIENTES: "dos clientes", INTERNO: "interno" };
@@ -65,8 +81,15 @@ const TIPOS = {
     caminho: `/canais-de-venda/mercado-livre/${anuncioId}`,
   }),
   // Pedidos de venda (fase 2): o nome do cliente passa pelo trecho seguro (mascara telefone/documento se vierem juntos).
-  novaVenda: ({ pedidoId, canal, numero, cliente, total }) => ({
-    linhas: [`Nova venda ${NOME_DO_CANAL[canal] ?? canal} ${trechoSeguro(numero, 40)}`, `${cliente ? `${trechoSeguro(cliente, 60)}, ` : ""}R$ ${formatarReais(total)}`],
+  // Desde 19/11/2026 (pedido do dono) lista cada produto: quantidade, nome e valor; o canal fica no cabecalho.
+  novaVenda: ({ pedidoId, canal, numero, cliente, total, itens = [] }) => ({
+    linhas: [
+      `Nova venda ${NOME_DO_CANAL[canal] ?? canal} ${trechoSeguro(numero, 40)}`,
+      cliente ? `Cliente: ${trechoSeguro(cliente, 60)}` : "",
+      ...itens.slice(0, MAXIMO_DE_ITENS_DA_VENDA).map(linhaDoItemDaVenda),
+      itens.length > MAXIMO_DE_ITENS_DA_VENDA ? `e mais ${itens.length - MAXIMO_DE_ITENS_DA_VENDA} ${itens.length - MAXIMO_DE_ITENS_DA_VENDA === 1 ? "item" : "itens"}` : "",
+      `Total: R$ ${formatarReais(total)}`,
+    ],
     caminho: `/pedidos/${pedidoId}`,
   }),
   aguardandoPecas: ({ pedidoId, numero, pecas }) => ({
@@ -97,7 +120,7 @@ export function mensagemDoAviso(tipo, dados) {
   const montar = TIPOS[tipo];
   if (!montar) throw new Error(`Tipo de aviso desconhecido: ${tipo}`);
   const { linhas, caminho } = montar(dados ?? {});
-  const texto = neutralizar(linhas.filter((linha) => linha !== "").slice(0, LIMITE_DE_LINHAS).join("\n"));
+  const texto = neutralizar(linhas.filter((linha) => linha !== "").slice(0, limiteDeLinhasDoTipo(tipo)).join("\n"));
   return { texto, caminho };
 }
 

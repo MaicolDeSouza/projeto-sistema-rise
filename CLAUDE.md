@@ -425,7 +425,7 @@ npm run teste:composicao          # 136 asserções do produto com composição 
 npm run teste:bling-sync          # 754 asserções da sincronização Rise <-> Bling: ícone, pop-up, envio de campos e de fotos, fornecedores, ajustes e saldos de estoque e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 npm run teste:rise-ai             # 616 asserções do Rise AI (Entrega 1 e A1; o chat da tela e a leitura do fluxo SSE saíram em 20/10/2026): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo e a coluna Outros, configuração e as quatro abas, orçamento e reserva, cotação do dia, Parar, texto seguro, perfil cliente, pesquisa na internet, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
 npm run teste:mcp                 # 278 asserções do servidor MCP (com o marcarReferencias de item sem código pelo nome, o buscarNoMercado, os filtros do catálogo, anúncios, histórico de preço, os cadastros, as Correções da descrição e o roteiro da análise de fornecedor): sondagem do SDK, OAuth puro e no banco (só hash, rotação, revogação por família), portão 401/403/503, rotas do protocolo, tela Autorizar, as ferramentas com o pode() do login, o registro de cada chamada, anotarDuvida, a rota /mcp, o Caddyfile, a aba Conexões e a Revisão do dia. Postgres local, SEM rede e SEM IA; só escreve zz-mcp-*, ZZ-MCP * e ZZ-MCP-*
-npm run teste:telegram            # 101 asserções da Entrega C1 (avisos no Telegram, com o relógio próprio da rotina): banco, texto dos avisos (4 linhas, neutralizado, mascarado), cliente da API do bot e o token mascarado no log, vínculo por código, a configuração e a aba Canais, e a rotina do worker (linha de base, zerou/voltou/zerou, orçamento 80/100%, varredura que falhou, resumo das 20h, bloqueado, 3 tentativas). Telegram FALSO (SEM rede); Postgres local, só escreve zz-tg-* e ZZ-TG-* e devolve a Conexao TELEGRAM, a configuração e a linha de base do dono
+npm run teste:telegram            # 123 asserções da Entrega C1 (avisos no Telegram, com o relógio próprio da rotina e a nova venda com foto dos produtos): banco, texto dos avisos (4 linhas, neutralizado, mascarado), cliente da API do bot e o token mascarado no log, vínculo por código, a configuração e a aba Canais, e a rotina do worker (linha de base, zerou/voltou/zerou, orçamento 80/100%, varredura que falhou, resumo das 20h, bloqueado, 3 tentativas). Telegram FALSO (SEM rede); Postgres local, só escreve zz-tg-* e ZZ-TG-* e devolve a Conexao TELEGRAM, a configuração e a linha de base do dono
 npm run teste:producao            # 89 asserções das peças próprias e da ordem de produção: regras (custo, cor do estoque, validação, arredondamento), custo pelas peças e o recálculo, trava da entrada manual, preparo do Salvar, clone, rascunho, a ordem (cria, baixa com falta, baixa, clique duplo, conclui com perda, cancela devolvendo, kit recalculado) contra o Bling falso. Postgres local, SEM rede; só escreve ZZ-PROD-*
 npm run teste:compras             # 194 asserções do módulo Compras (com a observação por item, o link público e o "Voltar para rascunho" do enviado): regras (totais, desconto % ou R$, a caminho, carrinho, situação), lista do mínimo e rascunho automático (com concorrência), pedido (salvar, itens, situação, preço que não se apaga), lançamento contra o Bling falso (clique duplo, Bling que recusa, desfazer com estoque vendido), proposta pelos bytes, dados da empresa, o PDF e as ferramentas de Compras do MCP. Postgres local, SEM rede; só escreve ZZ-COMPRA-* e "ZZ Compra *"
 npm run teste:aliexpress          # 153 asserções do AliExpress no Compras: regras puras, esquema, chave da extensão, depósito Virtual (saída por balanço, Reenviar que acerta), casamento (anúncio+opção, fator), importação, chegada, rotas e a leitura para a tela, contra um Bling falso. Postgres local, SEM rede; só escreve ZZ-ALI-*, "ZZ Ali *" e pedidos 99…; `-- --manter` deixa os dados para conferir a tela
@@ -5553,6 +5553,18 @@ Maicol e Andrea (spec §13).
   mandariam o mesmo aviso duas vezes. O `sair()` espera a rodada em curso antes de soltar o banco. 5 asserções no `teste:telegram`.
   **Não visto no worker de verdade** (o do PC varreria a fila de coleta): conferir na VPS que a linha `telegram` de `RotinaDoWorker`
   anda a cada minuto enquanto o `monitorLI` roda.
+- **Nova venda com foto dos produtos (19/11/2026, pedido do dono, Opção 2 "uma foto para cada produto" + o nome do cliente; SEM
+  deploy):** o aviso `novaVenda` passou a ser "Nova venda <canal> <número>", "Cliente: <nome>", uma linha por item
+  ("2× 100101 Nome · R$ 25,80": a quantidade que o cliente comprou, com o Kit de 20 contando 1; nosso código quando o item casou;
+  o título do anúncio; o total da linha) e "Total: R$ …". É o único aviso que passa de 4 linhas (`limiteDeLinhasDoTipo`, até 8
+  itens + "e mais N itens"; nome cortado em 50 para caber nos 1.024 da legenda). **Fotos:** `fotosDaVenda` (`avisos.js`) lê na
+  hora do envio a foto principal de cada produto vendido (ordem dos itens, sem repetir, até 10; reserva nunca), e
+  `enviarFotos` (`cliente.js`) manda UMA por `sendPhoto` (legenda + botão) e DUAS ou mais num álbum (`sendMediaGroup`); o álbum
+  não aceita botão, então o "Abrir no Rise" vai como link na última linha da legenda (`caption_entities`, sem `parse_mode`). As
+  fotos sobem em multipart (o Rise fica atrás de login). Item fora do Rise, produto sem foto, arquivo que sumiu ou foto acima de
+  10 MB ficam de fora; sem nenhuma foto, ou com a foto recusada pelo Telegram, sai o texto na mesma volta (chat bloqueado não
+  ganha a 2ª tentativa). Sem coluna nova: a linha de `AvisoTelegram` guarda só o texto. **Só conferido contra o Telegram falso**
+  (22 asserções novas); o 1º álbum de verdade é o teste. Venda cujo aviso já estava gravado sai no texto antigo.
 
 **Roteiro do dono (depois do deploy, na VPS):**
 1. No Telegram, abrir o @BotFather, enviar `/newbot`, escolher o nome e copiar o token.
@@ -6091,7 +6103,8 @@ transação Serializable), telas em `src/app/pedidos/` e `src/components/pedidos
   - **NF da LI:** `lerPedidoLI` procura `/api/v1/pedido_nf/(\d+)` no JSON do pedido e lê `GET /pedido_nf/{id}` (campo real ainda
     não visto: medir na 1ª NF da LI).
   - **Telegram:** avisos `novaVenda` (pedido lido há até 2 h e vendido há até 24 h, não cancelado) e `aguardandoPecas` (vendido
-    nos últimos 7 dias), botão para `/pedidos/<id>`; nascem ligados.
+    nos últimos 7 dias), botão para `/pedidos/<id>`; nascem ligados. Desde 19/11/2026 a `novaVenda` lista os itens e o cliente
+    e leva a foto de cada produto (ver "Nova venda com foto dos produtos" na Entrega C1).
   - **No ar desde 04.11.2026.65**; o dono cadastrou ML, Bling e LI no mesmo dia, e os 7 pedidos do ML com NF foram relidos na VPS.
 - **Vendas pelo MCP (04/11/2026, pedido do dono, Opção 1 "relatório + consulta de pedidos"; SEM deploy):** `src/lib/mcp/pedidosDeVenda.js`,
   três ferramentas de leitura com o acesso `tela.pedidos` (lucro, comissão e custo só com `dado.custo`): `relatorioDeVendas`

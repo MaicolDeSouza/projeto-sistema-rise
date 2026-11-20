@@ -48,6 +48,8 @@ async function limpar() {
   if (prisma.avisoTelegram && produtosDeTeste.length) {
     await prisma.avisoTelegram.deleteMany({ where: { OR: produtosDeTeste.map((id) => ({ chave: { startsWith: `produto-zerou:${id}:` } })) } });
   }
+  // As vendas de teste (a nova venda com foto): os itens saem junto (Cascade), e antes dos produtos.
+  await prisma.pedidoDeVenda.deleteMany({ where: { idExterno: { startsWith: "ZZ-TG-" } } });
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-TG-" } } });
   await prisma.gastoIA.deleteMany({ where: { referencia: { startsWith: "zz-tg-" } } });
   await prisma.job.deleteMany({ where: { payload: { path: ["zzTg"], equals: true } } });
@@ -117,6 +119,19 @@ try {
     conferir("falha com trecho neutralizado", mensagemDoAviso("varreduraFalhou", { fonteNome: "Loja X", erro: "HTTP 403 em https://loja.x/p" }), { texto: "Varredura falhou: Loja X\nHTTP 403 em https:∕∕loja.x/p", caminho: "/mercados/fontes" });
     conferir("varredura pelo PC esperando", mensagemDoAviso("varreduraPeloPc", { fonteNome: "Oceantech", pedidoHa: "7 min" }), { texto: "Varredura pelo PC esperando: Oceantech\nPedida há 7 min; o Rise do PC não responde.", caminho: "/mercados/fontes" });
     conferir("reais com milhar", mensagemDoAviso("orcamento", { escopo: "CLIENTES", estado: "aviso", percentual: 80, tetoBrl: 1234.5 }).texto.endsWith("R$ 1.234,50"), true);
+    // Nova venda (19/11/2026): canal no cabecalho, cliente, uma linha por produto (quantidade, codigo, nome, valor) e o total.
+    const { limiteDeLinhasDoTipo, LIMITE_DE_LINHAS_DA_VENDA } = await import("../src/lib/telegram/texto.js");
+    const venda = { pedidoId: "v1", canal: "MERCADO_LIVRE", numero: "2000012345", cliente: "Fulano de Tal", total: 85.7 };
+    conferir(
+      "nova venda: canal, cliente, itens e total",
+      mensagemDoAviso("novaVenda", { ...venda, itens: [{ quantidade: 2, sku: "100101", nome: "Módulo Relé 5V", total: 25.8 }, { quantidade: 1, sku: null, nome: "Item fora do Rise", total: 59.9 }] }),
+      { texto: "Nova venda Mercado Livre 2000012345\nCliente: Fulano de Tal\n2× 100101 Módulo Relé 5V · R$ 25,80\n1× Item fora do Rise · R$ 59,90\nTotal: R$ 85,70", caminho: "/pedidos/v1" },
+    );
+    conferir("nova venda sem itens e sem cliente: so o cabecalho e o total", mensagemDoAviso("novaVenda", { ...venda, cliente: null }).texto, "Nova venda Mercado Livre 2000012345\nTotal: R$ 85,70");
+    const muitos = mensagemDoAviso("novaVenda", { ...venda, itens: Array.from({ length: 11 }, (_, i) => ({ quantidade: 1, sku: `10010${i}`, nome: "N".repeat(80), total: 1 })) }).texto.split("\n");
+    conferir("nova venda com 11 itens: 8 linhas de item, 'e mais 3 itens' e o total", [muitos.length, muitos.at(-2), muitos.at(-1), muitos.length <= LIMITE_DE_LINHAS_DA_VENDA], [12, "e mais 3 itens", "Total: R$ 85,70", true]);
+    conferir("nova venda com 11 itens cabe na legenda de uma foto (1.024)", muitos.join("\n").length + "\nAbrir no Rise".length <= 1024, true);
+    conferir("so a nova venda passa de 4 linhas", [limiteDeLinhasDoTipo("novaVenda"), limiteDeLinhasDoTipo("produtoZerou"), limiteDeLinhasDoTipo("resumoDoDia")], [12, 4, 4]);
     conferir("link sem base e nulo", [linkAbrirNoRise("", "/produtos/p1"), linkAbrirNoRise(undefined, "/p")], [null, null]);
     conferir("link tira a barra final da base", linkAbrirNoRise("https://rise.4hobby.com.br/", "/produtos/p1"), "https://rise.4hobby.com.br/produtos/p1");
     let lancou = null;
@@ -154,6 +169,36 @@ try {
     conferir("recusa 5 linhas sem chamar o Telegram", [(await cliente.enviarMensagem(55, "1\n2\n3\n4\n5", { caminho: "/p" })).erro, falso.chamadas.length === antes], ["Mensagem acima do limite.", true]);
     await cliente.confirmarAtualizacoes(7);
     conferir("confirmar manda o offset seguinte", falso.chamadas.at(-1).corpo, { offset: 8, limit: 1, timeout: 0 });
+    // Fotos (19/11/2026): uma vai por sendPhoto com o botao; duas ou mais num album, com o link no fim da legenda.
+    const fotoA = { bytes: Buffer.from("aaa"), nome: "a.jpg", tipo: "image/jpeg" };
+    const fotoB = { bytes: Buffer.from("bbbb"), nome: "b.png", tipo: "image/png" };
+    const legenda = "Nova venda Bling 77\nCliente: Fulano";
+    const umaFoto = await cliente.enviarFotos(55, [fotoA], legenda, { caminho: "/pedidos/p1" });
+    conferir(
+      "uma foto vai por sendPhoto, com a legenda e o botao",
+      [umaFoto.ok, falso.fotos[0].metodo, falso.fotos[0].chat_id, falso.fotos[0].caption, falso.fotos[0].arquivos, falso.fotos[0].reply_markup.inline_keyboard[0][0]],
+      [true, "sendPhoto", "55", legenda, [{ campo: "photo", nome: "a.jpg", tipo: "image/jpeg", tamanho: 3 }], { text: "Abrir no Rise", url: "https://rise.4hobby.com.br/pedidos/p1" }],
+    );
+    const album = await cliente.enviarFotos(55, [fotoA, fotoB], legenda, { caminho: "/pedidos/p1" });
+    const midia = falso.fotos[1].media;
+    conferir(
+      "duas fotos vao num album, com a legenda so na primeira",
+      [album.ok, falso.fotos[1].metodo, falso.fotos[1].arquivos, midia.map((m) => [m.type, m.media]), midia[0].caption, "caption" in midia[1], falso.fotos[1].reply_markup],
+      [true, "sendMediaGroup", [{ campo: "foto0", nome: "a.jpg", tipo: "image/jpeg", tamanho: 3 }, { campo: "foto1", nome: "b.png", tipo: "image/png", tamanho: 4 }], [["photo", "attach://foto0"], ["photo", "attach://foto1"]], `${legenda}\nAbrir no Rise`, false, null],
+    );
+    const elo = midia[0].caption_entities[0];
+    conferir("o album leva o Abrir no Rise como link no fim da legenda", [elo.type, midia[0].caption.slice(elo.offset, elo.offset + elo.length), elo.url, "parse_mode" in midia[0]], ["text_link", "Abrir no Rise", "https://rise.4hobby.com.br/pedidos/p1", false]);
+    await semBase.enviarFotos(55, [fotoA, fotoB], legenda, { caminho: "/pedidos/p1" });
+    conferir("album sem APP_URL_PUBLICA nao leva link", [falso.fotos[2].media[0].caption, "caption_entities" in falso.fotos[2].media[0]], [legenda, false]);
+    await cliente.enviarFotos(55, Array.from({ length: 12 }, () => fotoA), legenda, {});
+    conferir("o album leva no maximo 10 fotos", [falso.fotos[3].media.length, falso.fotos[3].arquivos.length], [10, 10]);
+    const antesDasRecusas = falso.chamadas.length;
+    conferir(
+      "recusa sem chamar: nenhuma foto, legenda acima de 1.024 e linhas acima do limite",
+      [(await cliente.enviarFotos(55, [], legenda, {})).erro, (await cliente.enviarFotos(55, [fotoA], "x".repeat(1025), {})).erro, (await cliente.enviarFotos(55, [fotoA], "1\n2\n3\n4\n5", {})).erro, falso.chamadas.length === antesDasRecusas],
+      ["Sem foto para enviar.", "Mensagem acima do limite.", "Mensagem acima do limite.", true],
+    );
+    conferir("com o limite da nova venda, 5 linhas passam (foto e texto)", [(await cliente.enviarFotos(55, [fotoA], "1\n2\n3\n4\n5", { limiteDeLinhas: 12 })).ok, (await cliente.enviarMensagem(55, "1\n2\n3\n4\n5", { limiteDeLinhas: 12 })).ok], [true, true]);
     const bloqueadoFalso = criarTelegramFalso({ falhas: { sendMessage: { status: 403, description: "Forbidden: bot was blocked by the user" } } });
     const r = await criarClienteTelegram({ token: TOKEN, requisitar: bloqueadoFalso.requisitar }).enviarMensagem(55, "x", {});
     conferir("403 bloqueado vem marcado e sem o token", [r.ok, r.bloqueado, r.erro.includes(TOKEN)], [false, true, false]);
@@ -381,6 +426,72 @@ try {
     const zero3 = await prisma.avisoTelegram.findFirst({ where: { chatId: "zz-tg-chat-dono", texto: { contains: "ZZ-TG-ZERO3" } } });
     conferir("falha passageira tenta 3 vezes e para", [zero3?.tentativas, zero3?.enviadoEm, falha5xx.mensagens.length, falha5xx.chamadas.filter((c) => c.metodo === "sendMessage" && c.corpo.text.includes("ZZ-TG-ZERO3")).length], [3, null, 0, 3]);
     conferir("teto de mensagens por volta", a.MAXIMO_POR_VOLTA, 10);
+
+    // Nova venda com foto (pedido do dono em 19/11/2026): uma foto por produto vendido, em album; com um produto so,
+    // uma foto com o botao; sem foto no Rise, ou com a foto recusada pelo Telegram, o texto sai do mesmo jeito.
+    const soVenda = Object.fromEntries(["resumoDoDia", "produtoZerou", "orcamento", "varreduraPeloPc", "varreduraFalhou", "saudeDoRise", "catalogoML", "aguardandoPecas"].map((tipo) => [tipo, false]));
+    await gravarConfiguracao({ telegram: { ligado: true, avisos: { ...soVenda, novaVenda: true } } }, { usuario: "zz-tg-admin" });
+    // FOTO1: a principal e a b.png (nao a primeira na ordem), e a da reserva nunca vai. SEMFOTO nao tem arquivo.
+    const foto1 = await prisma.produto.create({ data: { sku: "ZZ-TG-FOTO1", tituloBase: "ZZ TG Foto 1", estoque: 5, arquivos: { create: [{ arquivo: "a.jpg", ordem: 0 }, { arquivo: "b.png", ordem: 1, principal: true }, { arquivo: "r.jpg", ordem: 0, papel: "RESERVA", principal: true }] } } });
+    const foto2 = await prisma.produto.create({ data: { sku: "ZZ-TG-FOTO2", tituloBase: "ZZ TG Foto 2", estoque: 5, arquivos: { create: [{ arquivo: "c.jpg", ordem: 0, principal: true }] } } });
+    const semFoto = await prisma.produto.create({ data: { sku: "ZZ-TG-SEMFOTO", tituloBase: "ZZ TG Sem foto", estoque: 5 } });
+    const agoraReal = Date.now();
+    const item = (ordem, produto, titulo, quantidade, total, quantidadeDoKit = 1) => ({ ordem, produtoId: produto?.id ?? null, titulo, quantidade, quantidadeDoKit, precoUnitario: total, desconto: 0, total });
+    const criarVenda = (numero, canal, total, itens) =>
+      prisma.pedidoDeVenda.create({
+        data: { origem: canal, canal, idExterno: numero, numero, dataDaVenda: new Date(agoraReal - 60 * 60 * 1000), atualizadoNaOrigemEm: new Date(agoraReal), statusDaOrigem: "paid", status: "PAGO", enderecoDeEntrega: {}, pagamento: [], envio: {}, historico: [], totalProdutos: total, desconto: 0, freteCobrado: 0, total, nomeDoComprador: "ZZ TG Cliente", itens: { create: itens } },
+      });
+    // V1: dois produtos com foto (um deles vendido como Kit de 20, gravado em 20 unidades), um item fora do Rise e o
+    // primeiro produto repetido em outro anuncio (a foto dele vai uma vez so).
+    const v1 = await criarVenda("ZZ-TG-V1", "MERCADO_LIVRE", 90.7, [item(0, foto1, "Módulo Relé 5V", 2, 25.8), item(1, foto2, "Kit 20 Jumpers", 20, 49.9, 20), item(2, null, "Item fora do Rise", 1, 10), item(3, foto1, "Módulo Relé 5V azul", 1, 5)]);
+    const v2 = await criarVenda("ZZ-TG-V2", "LOJA_INTEGRADA", 49.9, [item(0, foto2, "Jumper avulso", 3, 49.9)]);
+    const v3 = await criarVenda("ZZ-TG-V3", "BLING", 12, [item(0, semFoto, "Sem foto no Rise", 1, 12)]);
+    const lerFoto = async (sku, arquivo) => Buffer.from(`${sku}/${arquivo}`);
+    const textoV1 = "Nova venda Mercado Livre ZZ-TG-V1\nCliente: ZZ TG Cliente\n2× ZZ-TG-FOTO1 Módulo Relé 5V · R$ 25,80\n1× ZZ-TG-FOTO2 Kit 20 Jumpers · R$ 49,90\n1× Item fora do Rise · R$ 10,00\n1× ZZ-TG-FOTO1 Módulo Relé 5V azul · R$ 5,00\nTotal: R$ 90,70";
+    const textoV2 = "Nova venda Loja Integrada ZZ-TG-V2\nCliente: ZZ TG Cliente\n3× ZZ-TG-FOTO2 Jumper avulso · R$ 49,90\nTotal: R$ 49,90";
+    const textoV3 = "Nova venda Bling ZZ-TG-V3\nCliente: ZZ TG Cliente\n1× ZZ-TG-SEMFOTO Sem foto no Rise · R$ 12,00\nTotal: R$ 12,00";
+
+    conferir("fotos da venda: a principal de cada produto, na ordem dos itens e sem repetir", (await a.fotosDaVenda(v1.id, { lerFoto })).map((f) => [f.nome, f.tipo, f.bytes.toString()]), [["b.png", "image/png", "ZZ-TG-FOTO1/b.png"], ["c.jpg", "image/jpeg", "ZZ-TG-FOTO2/c.jpg"]]);
+    const sumiu = async (sku, arquivo) => {
+      if (arquivo === "c.jpg") throw new Error("ENOENT");
+      return lerFoto(sku, arquivo);
+    };
+    conferir("fotos da venda: a que sumiu do disco, a grande demais e o produto sem foto ficam de fora", [(await a.fotosDaVenda(v1.id, { lerFoto: sumiu })).map((f) => f.nome), (await a.fotosDaVenda(v2.id, { lerFoto: async () => Buffer.alloc(10 * 1024 * 1024 + 1) })).length, (await a.fotosDaVenda(v3.id, { lerFoto })).length], [["b.png"], 0, 0]);
+
+    const falsoV = criarTelegramFalso();
+    const clienteV = criarClienteTelegram({ token: TOKEN, requisitar: falsoV.requisitar, urlPublica: "https://rise.4hobby.com.br" });
+    const comFoto = { cliente: clienteV, ...soTeste, ...semPausa, lerFoto };
+    await a.rodarAvisosDoTelegram({ agora: agoraReal, ...comFoto });
+    const albumV1 = falsoV.fotos.find((f) => f.media?.[0]?.caption?.includes("ZZ-TG-V1"));
+    conferir(
+      "venda com dois produtos: album com uma foto de cada e o texto na legenda",
+      [albumV1?.metodo, albumV1?.chat_id, albumV1?.arquivos.map((x) => [x.nome, x.tipo]), albumV1?.media[0].caption, albumV1?.media[0].caption_entities?.[0].url],
+      ["sendMediaGroup", "zz-tg-chat-dono", [["b.png", "image/png"], ["c.jpg", "image/jpeg"]], `${textoV1}\nAbrir no Rise`, `https://rise.4hobby.com.br/pedidos/${v1.id}`],
+    );
+    const fotoV2 = falsoV.fotos.find((f) => f.caption?.includes("ZZ-TG-V2"));
+    conferir("venda com um produto: uma foto com a legenda e o botao", [fotoV2?.metodo, fotoV2?.arquivos.map((x) => x.nome), fotoV2?.caption, fotoV2?.reply_markup?.inline_keyboard[0][0].url], ["sendPhoto", ["c.jpg"], textoV2, `https://rise.4hobby.com.br/pedidos/${v2.id}`]);
+    const textoSemFoto = falsoV.mensagens.find((m) => m.text.includes("ZZ-TG-V3"));
+    conferir("venda de produto sem foto: so o texto, com o botao", [textoSemFoto?.text, textoSemFoto?.reply_markup?.inline_keyboard[0][0].url, falsoV.fotos.some((f) => JSON.stringify(f).includes("ZZ-TG-V3"))], [textoV3, `https://rise.4hobby.com.br/pedidos/${v3.id}`, false]);
+    conferir("a venda com foto nao sai tambem em texto", falsoV.mensagens.some((m) => m.text.includes("ZZ-TG-V1") || m.text.includes("ZZ-TG-V2")), false);
+    const linhasDasVendas = await prisma.avisoTelegram.findMany({ where: { chatId: "zz-tg-chat-dono", tipo: "novaVenda", texto: { contains: "ZZ-TG-V" } }, select: { enviadoEm: true, tentativas: true } });
+    conferir("as tres vendas ficam marcadas como enviadas, numa tentativa", [linhasDasVendas.length, linhasDasVendas.every((l) => l.enviadoEm && l.tentativas === 1)], [3, true]);
+    const fotosAntes = falsoV.fotos.length;
+    await a.rodarAvisosDoTelegram({ agora: agoraReal + 60000, ...comFoto });
+    conferir("a volta seguinte nao repete a venda", [falsoV.fotos.length, falsoV.mensagens.filter((m) => m.text.includes("ZZ-TG-V")).length], [fotosAntes, 1]);
+
+    // O Telegram recusa o album (foto fora do padrao dele): a venda chega em texto na mesma volta.
+    await criarVenda("ZZ-TG-V4", "MERCADO_LIVRE", 30, [item(0, foto1, "Recusada A", 1, 10), item(1, foto2, "Recusada B", 1, 20)]);
+    const recusa = criarTelegramFalso({ falhas: { sendMediaGroup: { status: 400, description: "Bad Request: PHOTO_INVALID_DIMENSIONS" } } });
+    await a.rodarAvisosDoTelegram({ agora: agoraReal + 120000, ...comFoto, cliente: criarClienteTelegram({ token: TOKEN, requisitar: recusa.requisitar }) });
+    const linhaV4 = await prisma.avisoTelegram.findFirst({ where: { chatId: "zz-tg-chat-dono", texto: { contains: "ZZ-TG-V4" } } });
+    conferir("album recusado: a venda sai em texto e fica enviada", [recusa.chamadas.filter((c) => c.metodo === "sendMediaGroup").length, recusa.mensagens.filter((m) => m.text.includes("ZZ-TG-V4")).length, Boolean(linhaV4?.enviadoEm), linhaV4?.erro], [1, 1, true, null]);
+
+    // Chat que bloqueou o bot: a recusa da foto ja basta, sem a segunda tentativa em texto.
+    await criarVenda("ZZ-TG-V5", "MERCADO_LIVRE", 20, [item(0, foto2, "Bloqueada", 1, 20)]);
+    const bloqV = criarTelegramFalso({ falhas: { sendPhoto: { status: 403, description: "Forbidden: bot was blocked by the user" } } });
+    await a.rodarAvisosDoTelegram({ agora: agoraReal + 180000, ...comFoto, cliente: criarClienteTelegram({ token: TOKEN, requisitar: bloqV.requisitar }) });
+    const linhaV5 = await prisma.avisoTelegram.findFirst({ where: { chatId: "zz-tg-chat-dono", texto: { contains: "ZZ-TG-V5" } } });
+    conferir("bloqueado na foto: nao tenta o texto e nao insiste", [bloqV.mensagens.filter((m) => m.text.includes("ZZ-TG-V5")).length, linhaV5?.tentativas, linhaV5?.enviadoEm], [0, 3, null]);
   }
 
   {

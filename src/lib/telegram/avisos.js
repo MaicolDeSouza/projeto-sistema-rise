@@ -1,4 +1,6 @@
+import { readFile } from "node:fs/promises";
 import { prisma } from "@/lib/db";
+import { caminhoDe } from "@/lib/arquivos";
 import { permissoesDoLogin } from "@/lib/acessos/banco";
 import { pcSemResposta, sinalDoVigiaDoPc } from "@/lib/coleta/fila";
 import { hojeEmSaoPaulo } from "@/lib/ferramentas/cotacao";
@@ -9,9 +11,9 @@ import { limitesDoDia } from "@/lib/riseAi/revisao";
 import { coletarSaude, itensEmFalha } from "@/lib/saude/coletar";
 import { avisoDeCatalogoPendente, textoDoAvisoDeCatalogo } from "@/lib/canaisDeVenda/ml/estadoNoML";
 import { TIPOS_DE_AVISO } from "./avisosTipos";
-import { criarClienteTelegram } from "./cliente";
+import { MAXIMO_DE_FOTOS, criarClienteTelegram } from "./cliente";
 import { SERVICO_TELEGRAM } from "./estado";
-import { mensagemDoAviso } from "./texto";
+import { limiteDeLinhasDoTipo, mensagemDoAviso } from "./texto";
 
 /**
  * Os avisos do Telegram (Rise AI, Entrega C1), mandados pelo worker NORMAL a cada minuto (o unico processo longo da VPS).
@@ -201,10 +203,71 @@ const SETE_DIAS_MS = 7 * UM_DIA_MS;
 async function novasVendas({ agora }) {
   const pedidos = await prisma.pedidoDeVenda.findMany({
     where: { criadoEm: { gte: new Date(agora - DUAS_HORAS_MS) }, dataDaVenda: { gte: new Date(agora - UM_DIA_MS) }, status: { not: "CANCELADO" } },
-    select: { id: true, canal: true, numero: true, nomeDoComprador: true, total: true },
+    select: {
+      id: true,
+      canal: true,
+      numero: true,
+      nomeDoComprador: true,
+      total: true,
+      itens: { orderBy: { ordem: "asc" }, select: { titulo: true, quantidade: true, quantidadeDoKit: true, total: true, produto: { select: { sku: true } } } },
+    },
     orderBy: { dataDaVenda: "asc" },
   });
-  return pedidos.map((p) => ({ chave: `nova-venda:${p.id}`, dados: { pedidoId: p.id, canal: p.canal, numero: p.numero, cliente: p.nomeDoComprador, total: Number(p.total) } }));
+  return pedidos.map((p) => ({
+    chave: `nova-venda:${p.id}`,
+    dados: { pedidoId: p.id, canal: p.canal, numero: p.numero, cliente: p.nomeDoComprador, total: Number(p.total), itens: p.itens.map(itemDoAviso) },
+  }));
+}
+
+/// O item como o cliente comprou: a `quantidade` do banco e em unidades do produto, entao 1 "Kit de 20" esta gravado
+/// como 20; o aviso mostra 1 (o titulo do anuncio ja diz que e kit).
+function itemDoAviso(item) {
+  const kit = Number(item.quantidadeDoKit) > 1 ? Number(item.quantidadeDoKit) : 1;
+  const vendidos = item.quantidade % kit === 0 ? item.quantidade / kit : item.quantidade;
+  return { quantidade: vendidos, sku: item.produto?.sku ?? null, nome: item.titulo, total: Number(item.total) };
+}
+
+/// O Telegram recusa foto acima de 10 MB. As do Rise sao padronizadas e ficam bem abaixo; uma antiga pode passar.
+const MAXIMO_DA_FOTO_BYTES = 10 * 1024 * 1024;
+const TIPO_DA_FOTO = { png: "image/png", webp: "image/webp" };
+
+async function lerFotoDoDisco(sku, arquivo) {
+  const caminho = caminhoDe(sku, "IMAGEM", arquivo);
+  if (!caminho) throw new Error(`caminho inválido para a foto ${arquivo}`);
+  return readFile(caminho);
+}
+
+/**
+ * As fotos do aviso de nova venda (pedido do dono em 19/11/2026: uma foto por produto vendido): a principal de cada
+ * produto, na ordem dos itens, sem repetir produto e ate 10 (o album do Telegram). Item que nao esta no Rise, produto
+ * sem foto e arquivo que nao abre ficam de fora: a foto e complemento, e o aviso sai so em texto quando nenhuma serve.
+ * Lida na hora do envio, porque a linha do aviso guarda so o texto.
+ *
+ * @returns {Promise<Array<{ bytes: Buffer, nome: string, tipo: string }>>}
+ */
+export async function fotosDaVenda(pedidoId, { lerFoto = lerFotoDoDisco } = {}) {
+  const itens = await prisma.itemDoPedidoDeVenda.findMany({ where: { pedidoId, produtoId: { not: null } }, orderBy: { ordem: "asc" }, select: { produtoId: true } });
+  const produtoIds = [...new Set(itens.map((item) => item.produtoId))].slice(0, MAXIMO_DE_FOTOS);
+  if (produtoIds.length === 0) return [];
+  const arquivos = await prisma.produtoArquivo.findMany({
+    where: { produtoId: { in: produtoIds }, tipo: "IMAGEM", papel: "FOTO" },
+    orderBy: [{ principal: "desc" }, { ordem: "asc" }],
+    select: { produtoId: true, arquivo: true, produto: { select: { sku: true } } },
+  });
+  const fotos = [];
+  for (const produtoId of produtoIds) {
+    const arquivo = arquivos.find((linha) => linha.produtoId === produtoId);
+    if (!arquivo) continue;
+    try {
+      const bytes = await lerFoto(arquivo.produto.sku, arquivo.arquivo);
+      if (!bytes?.length || bytes.length > MAXIMO_DA_FOTO_BYTES) continue;
+      const extensao = String(arquivo.arquivo).split(".").pop().toLowerCase();
+      fotos.push({ bytes, nome: arquivo.arquivo, tipo: TIPO_DA_FOTO[extensao] ?? "image/jpeg" });
+    } catch {
+      // Foto que sumiu do disco: o aviso segue com as outras (ou so com o texto).
+    }
+  }
+  return fotos;
 }
 
 /** "falta 2× 900211 (previsão 12/11); falta 1× 100101" a partir do `pecas` gravado no pedido. */
@@ -257,12 +320,12 @@ export function caminhoDoAviso(chave) {
 const esperar = (ms) => (ms > 0 ? new Promise((resolver) => setTimeout(resolver, ms)) : Promise.resolve());
 
 /**
- * Uma volta da rotina. `cliente` (o teste passa o Telegram falso), `filtrarDestinatarios` (o teste fica so com os dele)
- * e `pausaMs` sao para o teste; na vida real o cliente nasce do token cadastrado.
+ * Uma volta da rotina. `cliente` (o teste passa o Telegram falso), `filtrarDestinatarios` (o teste fica so com os dele),
+ * `pausaMs` e `lerFoto` (a foto do produto sem o disco) sao para o teste; na vida real o cliente nasce do token cadastrado.
  *
  * @returns {Promise<{ ok: boolean, mandados: number, falhas: number, motivo?: string }>}
  */
-export async function rodarAvisosDoTelegram({ agora = Date.now(), env = process.env, cliente = null, filtrarDestinatarios = (lista) => lista, pausaMs = PAUSA_ENTRE_MENSAGENS_MS } = {}) {
+export async function rodarAvisosDoTelegram({ agora = Date.now(), env = process.env, cliente = null, filtrarDestinatarios = (lista) => lista, pausaMs = PAUSA_ENTRE_MENSAGENS_MS, lerFoto = undefined } = {}) {
   try {
     const config = await lerConfiguracao();
     if (!config.telegram?.ligado) return { ok: true, mandados: 0, falhas: 0, motivo: "desligado" };
@@ -295,7 +358,15 @@ export async function rodarAvisosDoTelegram({ agora = Date.now(), env = process.
     let falhas = 0;
     for (const [indice, aviso] of pendentes.entries()) {
       if (indice > 0) await esperar(pausaMs);
-      const resposta = await bot.enviarMensagem(aviso.chatId, aviso.texto, { caminho: caminhoDoAviso(aviso.chave) });
+      const opcoes = { caminho: caminhoDoAviso(aviso.chave), limiteDeLinhas: limiteDeLinhasDoTipo(aviso.tipo) };
+      let resposta = null;
+      if (aviso.tipo === "novaVenda") {
+        const fotos = await fotosDaVenda(aviso.chave.split(":")[1], { lerFoto }).catch(() => []);
+        if (fotos.length > 0) resposta = await bot.enviarFotos(aviso.chatId, fotos, aviso.texto, opcoes);
+      }
+      // Sem foto, ou com a foto recusada (arquivo que o Telegram nao aceita): o texto sai do mesmo jeito. Chat que
+      // bloqueou o bot nao ganha a segunda tentativa.
+      if (!resposta?.ok && !resposta?.bloqueado) resposta = await bot.enviarMensagem(aviso.chatId, aviso.texto, opcoes);
       if (resposta.ok) {
         mandados++;
         await prisma.avisoTelegram.update({ where: { id: aviso.id }, data: { enviadoEm: new Date(), tentativas: { increment: 1 }, erro: null } });
