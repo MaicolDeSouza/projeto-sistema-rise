@@ -4,7 +4,7 @@
  * Arquivo proprio para o registro e cada provedor importarem sem um importar o outro.
  */
 export class ErroDoProvedor extends Error {
-  /** @param {"NAO_CONECTADO" | "CEP_INVALIDO" | "FORA_DO_AR" | "RECUSADO" | "TRAVADO"} codigo */
+  /** @param {"NAO_CONECTADO" | "CEP_INVALIDO" | "FORA_DO_AR" | "RECUSADO" | "TRAVADO" | "PEDIDO_ENCERRADO"} codigo */
   constructor(codigo, mensagem) {
     super(mensagem);
     this.name = "ErroDoProvedor";

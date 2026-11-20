@@ -515,7 +515,7 @@ try {
   conferir("cancelar recusado traz o texto", await me.cancelar({ idNoProvedor: criado }, "teste").catch((e) => e.message), "O Melhor Envio recusou: Envio já postado não pode ser cancelado.");
   falso.recusarCancelamento = false;
   conferir("cancelar", [(await me.cancelar({ idNoProvedor: criado }, "teste")).ok, falso.pedidos.get(criado).status], [true, "canceled"]);
-  conferir("cancelado não retoma", await me.comprar({ ...envioZZ, idNoProvedor: criado }, {}).catch((e) => e.codigo), "RECUSADO");
+  conferir("cancelado não retoma", await me.comprar({ ...envioZZ, idNoProvedor: criado }, {}).catch((e) => e.codigo), "PEDIDO_ENCERRADO");
   falso.falharEm = "tracking";
   conferir("rastrear fora do ar", await me.rastrear([criado]).catch((e) => e.codigo), "FORA_DO_AR");
   falso.falharEm = null;
@@ -763,9 +763,22 @@ try {
   falso.falharEm = null;
   const depoisDaQueda = await lerEnvio(envio2.id);
   conferir("queda: volta a rascunho com o id", [caiu.ok, depoisDaQueda.status, Boolean(depoisDaQueda.idNoProvedor), Boolean(depoisDaQueda.ultimoErro)], [false, "RASCUNHO", true, true]);
+  const PELA_METADE = "Há uma compra pela metade neste envio: use Comprar etiqueta para continuar.";
+  conferir("compra pela metade não deixa cotar de novo", (await salvarRascunhoDoPedido(envio2.pedidoDeVendaId, { pacote, servico: sedex, cotadoEm: new Date().toISOString() }, "zz")).erro, PELA_METADE);
+  conferir("compra pela metade não deixa reconferir", (await conferirPacote(envio2.id, medido, "zz")).erro, PELA_METADE);
   const antesDaRetomada = falso.pedidosDeCarrinho;
   const retomou = await comprarEtiqueta(envio2.id, "zz");
   conferir("retomada não cria carrinho", [retomou.ok, falso.pedidosDeCarrinho - antesDaRetomada, retomou.envio?.status], [true, 0, "A_POSTAR"]);
+
+  const envio5 = await comItens("ZZ-FRETE-COMPRA-5");
+  await conferirPacote(envio5.id, medido, "zz");
+  falso.falharEm = "checkout";
+  await comprarEtiqueta(envio5.id, "zz");
+  falso.falharEm = null;
+  falso.pedidos.get((await lerEnvio(envio5.id)).idNoProvedor).status = "expired";
+  const expirado = await comprarEtiqueta(envio5.id, "zz");
+  conferir("carrinho expirado solta o envio", [expirado.ok, (await lerEnvio(envio5.id)).idNoProvedor, (await lerEnvio(envio5.id)).status], [false, null, "RASCUNHO"]);
+  conferir("depois do expirado pode cotar de novo", (await salvarRascunhoDoPedido(envio5.pedidoDeVendaId, { pacote, servico: sedex, cotadoEm: new Date().toISOString() }, "zz")).ok, true);
 
   const envio3 = await comItens("ZZ-FRETE-COMPRA-3");
   await conferirPacote(envio3.id, medido, "zz");
@@ -858,6 +871,9 @@ try {
   await rodarRastreioDosEnvios({ avisar });
   const desconhecido = await lerEnvio(outro.id);
   conferir("desconhecido fica como estava", [desconhecido.status, desconhecido.ultimoErro], ["A_POSTAR", "Situação desconhecida do Melhor Envio: something_new"]);
+  falso.pedidos.get(idOutro).status = "pending";
+  await rodarRastreioDosEnvios({ avisar });
+  conferir("comprado não volta a rascunho pelo rastreio", (await lerEnvio(outro.id)).status, "A_POSTAR");
   falso.pedidos.get(idOutro).status = "released";
   falso.falharEm = "tracking";
   const antes = (await lerEnvio(outro.id)).ultimaConsultaEm;

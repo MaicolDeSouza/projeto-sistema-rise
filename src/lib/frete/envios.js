@@ -14,6 +14,7 @@ import { linkDoRastreio, motivosParaNaoComprar } from "./regras";
 export { numeroDoEnvio } from "./regras";
 
 const VIVOS = { notIn: ["CANCELADO", "EXPIRADO"] };
+const COMPRA_PELA_METADE = "Há uma compra pela metade neste envio: use Comprar etiqueta para continuar.";
 const numero = (valor) => (valor === null || valor === undefined ? null : Number(valor));
 
 function paraTela(envio) {
@@ -133,6 +134,8 @@ export async function salvarRascunhoDoPedido(pedidoDeVendaId, { pacote, servico,
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`envio.pedido.${pedido.id}`}))`;
     const atual = await tx.envio.findFirst({ where: { pedidoDeVendaId: pedido.id, direcao: "IDA", status: VIVOS }, orderBy: { criadoEm: "desc" } });
     if (atual && atual.status !== "RASCUNHO") return { ok: false, erro: "A etiqueta deste pedido já foi comprada: cancele antes de cotar de novo." };
+    // Carrinho criado (talvez pago) no Melhor Envio: cotar de novo faria a retomada comprar o servico velho, ou perder o pago.
+    if (atual?.idNoProvedor) return { ok: false, erro: COMPRA_PELA_METADE };
     if (atual) return { ok: true, id: (await tx.envio.update({ where: { id: atual.id }, data: dados })).id };
     // O numero sai sob a trava do Postgres, como o do pedido de compra: dois envios ao mesmo tempo nao repetem numero.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('envio.numero'))`;
@@ -205,6 +208,7 @@ export async function conferirPacote(envioId, entrada, login) {
   const envio = await prisma.envio.findUnique({ where: { id: String(envioId ?? "") } });
   if (!envio) return { ok: false, erro: "Envio não encontrado." };
   if (envio.status !== "RASCUNHO") return { ok: false, erro: "Esta etiqueta já foi comprada." };
+  if (envio.idNoProvedor) return { ok: false, erro: COMPRA_PELA_METADE };
 
   const tipoDeDocumento = entrada?.tipoDeDocumento === "NFE" ? "NFE" : entrada?.tipoDeDocumento === "DECLARACAO" ? "DECLARACAO" : null;
   if (!tipoDeDocumento) return { ok: false, erros: { tipoDeDocumento: "Escolha NF-e ou declaração de conteúdo." } };
@@ -306,7 +310,9 @@ export async function comprarEtiqueta(envioId, login, { aoComprar } = {}) {
     });
   } catch (erro) {
     const mensagem = mensagemDe(erro);
-    await prisma.envio.update({ where: { id: envio.id }, data: { status: "RASCUNHO", ultimoErro: mensagem } });
+    // O carrinho expirou (7 dias) ou foi cancelado: o id nao serve mais, e guarda-lo prenderia o envio para sempre.
+    const soltar = erro?.codigo === "PEDIDO_ENCERRADO" ? { idNoProvedor: null, protocolo: null } : {};
+    await prisma.envio.update({ where: { id: envio.id }, data: { status: "RASCUNHO", ultimoErro: mensagem, ...soltar } });
     console.error(`[frete] compra do envio ${envio.numero} falhou:`, erro?.message ?? erro);
     return { ok: false, erro: mensagem };
   }

@@ -148,7 +148,7 @@ async function comprar(envio, { aoCriarNoCarrinho } = {}) {
     pedido = await lerPedido(id);
     const situacao = String(pedido?.status ?? "");
     if (situacao === "canceled" || situacao === "expired") {
-      throw new ErroDoProvedor("RECUSADO", "Este pedido foi cancelado ou expirou no Melhor Envio: cote de novo.");
+      throw new ErroDoProvedor("PEDIDO_ENCERRADO", "A compra pela metade expirou ou foi cancelada no Melhor Envio: cote de novo.");
     }
   }
   if (!pedido || pedido.status === "pending") {

@@ -24,7 +24,8 @@ function mudancasDo(envio, lido) {
     const aviso = `Situação desconhecida do Melhor Envio: ${lido.statusOriginal ?? "(vazia)"}`;
     if (envio.ultimoErro !== aviso) dados.ultimoErro = aviso;
   } else {
-    if (lido.status !== envio.status) dados.status = lido.status;
+    // A rotina so ve envio comprado: "pending" do provedor nunca o devolve a RASCUNHO (abriria uma segunda compra).
+    if (lido.status !== envio.status && lido.status !== "RASCUNHO") dados.status = lido.status;
     if (envio.ultimoErro) dados.ultimoErro = null;
   }
   if (lido.rastreio && lido.rastreio !== envio.rastreio) {
