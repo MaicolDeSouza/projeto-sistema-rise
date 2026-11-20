@@ -801,6 +801,75 @@ try {
 }
 
 // ---------------------------------------------------------------------------
+// Fase 2: rotina de rastreio dos envios (worker)
+// ---------------------------------------------------------------------------
+
+const { rodarRastreioDosEnvios } = await import("../src/lib/frete/rastreio.js");
+
+try {
+  console.log("\nRotina de rastreio dos envios");
+  await limparEnvios();
+  await prisma.conexao.deleteMany({ where: { servico: "MELHOR_ENVIO" } });
+  await concluirAutorizacao("codigo-de-teste");
+  liberarTrava();
+  const cx3 = await prisma.caixaDeEnvio.findUnique({ where: { nome: "CX 16x11x3" } });
+  const pacote = { cepDestino: "01001000", caixaId: cx3.id, caixaNome: cx3.nome, pesoKg: 0.165, comprimentoCm: 16, larguraCm: 11, alturaCm: 3, valorDeclarado: 49.7 };
+  const sedex = { servicoId: "2", servicoNome: "SEDEX", transportadora: "Correios", preco: 28.85, prazoDias: 2, valorACobrar: 29.85 };
+  const comprado = async (numero) => {
+    const pedido = await pedidoDeTeste(numero);
+    await prisma.itemDoPedidoDeVenda.create({ data: { pedidoId: pedido.id, ordem: 0, titulo: "ZZ Display LCD", quantidade: 2, precoUnitario: 24.85, desconto: 0, total: 49.7 } });
+    const { envio } = await salvarRascunhoDoPedido(pedido.id, { pacote, servico: sedex, cotadoEm: new Date().toISOString() }, "zz");
+    await conferirPacote(envio.id, { caixaId: cx3.id, pesoKg: "0,2", tipoDeDocumento: "NFE", chaveNfe: "4".repeat(44) }, "zz");
+    return (await comprarEtiqueta(envio.id, "zz")).envio;
+  };
+  const envio = await comprado("ZZ-FRETE-RASTREIO-1");
+  const outro = await comprado("ZZ-FRETE-RASTREIO-2");
+  const idME = (await prisma.envio.findUnique({ where: { id: envio.id } })).idNoProvedor;
+  const avisos = [];
+  const avisar = async (envioId) => avisos.push(envioId);
+
+  const r0 = await rodarRastreioDosEnvios({ avisar });
+  conferir("nada mudou", [r0.ok, r0.consultados, r0.mudados, avisos.length], [true, 2, 0, 0]);
+  // Uma hora depois da geracao (que o falso carimba com a hora de agora), no formato do Melhor Envio (horario de Brasilia).
+  const daquiAUmaHora = new Date(Date.now() + 3600 * 1000);
+  const postadoEmME = new Date(daquiAUmaHora.getTime() - 3 * 3600 * 1000).toISOString().slice(0, 19).replace("T", " ");
+  Object.assign(falso.pedidos.get(idME), { status: "posted", posted_at: postadoEmME });
+  const r1 = await rodarRastreioDosEnvios({ avisar });
+  const postado = await lerEnvio(envio.id);
+  conferir(
+    "postado",
+    [postado.status, r1.mudados, avisos, postado.postadoEm?.toISOString().slice(0, 19)],
+    ["POSTADO", 1, [envio.id], daquiAUmaHora.toISOString().slice(0, 19)],
+  );
+  conferir("evento de postagem", postado.eventos.at(-1).descricao, "Postado");
+  const r2 = await rodarRastreioDosEnvios({ avisar });
+  conferir("sem mudança não reescreve nem reavisa", [r2.mudados, avisos.length], [0, 1]);
+  Object.assign(falso.pedidos.get(idME), { status: "delivered", delivered_at: "2099-11-21 10:00:00" });
+  await rodarRastreioDosEnvios({ avisar });
+  conferir("entregue não reavisa", [(await lerEnvio(envio.id)).status, avisos.length], ["ENTREGUE", 1]);
+  conferir("entregue sai da rotina", (await rodarRastreioDosEnvios({ avisar })).consultados, 1);
+
+  const idOutro = (await prisma.envio.findUnique({ where: { id: outro.id } })).idNoProvedor;
+  falso.pedidos.get(idOutro).status = "something_new";
+  await rodarRastreioDosEnvios({ avisar });
+  const desconhecido = await lerEnvio(outro.id);
+  conferir("desconhecido fica como estava", [desconhecido.status, desconhecido.ultimoErro], ["A_POSTAR", "Situação desconhecida do Melhor Envio: something_new"]);
+  falso.pedidos.get(idOutro).status = "released";
+  falso.falharEm = "tracking";
+  const antes = (await lerEnvio(outro.id)).ultimaConsultaEm;
+  const foraDoAr = await rodarRastreioDosEnvios({ avisar });
+  conferir("fora do ar não mexe", [foraDoAr.ok, (await lerEnvio(outro.id)).status, String((await lerEnvio(outro.id)).ultimaConsultaEm)], [false, "A_POSTAR", String(antes)]);
+  falso.falharEm = null;
+  const expirou = await rodarRastreioDosEnvios({ agora: new Date("2027-06-01T12:00:00Z"), avisar });
+  conferir("expirado", [expirou.expirados, (await lerEnvio(outro.id)).status], [1, "EXPIRADO"]);
+} finally {
+  liberarTrava(false);
+  falso.falharEm = null;
+  await limparEnvios();
+  await devolverConexaoDoDono();
+}
+
+// ---------------------------------------------------------------------------
 // Fase 2: o custo da etiqueta no lucro do pedido
 // ---------------------------------------------------------------------------
 

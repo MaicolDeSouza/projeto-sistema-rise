@@ -64,6 +64,7 @@ const { rodarLeituraDePedidos, processarNotificacoes } = await import("../src/li
 const { recalcularPecasDosPedidosAbertos } = await import("../src/lib/pedidos/banco.js");
 const { lerComprasDoML } = await import("../src/lib/compras/mercadoLivre/compras.js");
 const { vencerPropostas } = await import("../src/lib/propostas/banco.js");
+const { rodarRastreioDosEnvios } = await import("../src/lib/frete/rastreio.js");
 
 /// Os avisos do Telegram (Rise AI, Entrega C1): a cada minuto, so o worker normal. A rotina nao faz nada com o bot
 /// desligado, sem token ou sem ninguem vinculado, e nunca lanca. Desde 19/11/2026 roda num relogio PROPRIO
@@ -89,6 +90,9 @@ let pedidosLidosEm = 0;
 /// min viram pedidos de compra do fornecedor "ML". So LEITURA no ML; no Bling, so o deposito Virtual. So o worker normal.
 const LER_COMPRAS_ML_MS = 30 * 60 * 1000;
 let comprasMLLidasEm = 0;
+/// O rastreio dos envios comprados pelo Rise (modulo de frete, fase 2): a cada 15 min, como na spec (sem webhook).
+const RASTREIO_DOS_ENVIOS_MS = 15 * 60 * 1000;
+let enviosRastreadosEm = 0;
 /// Propostas para cliente (12/11/2026): a aberta com a validade vencida vira Vencida. A lista tambem vence ao abrir; o
 /// worker cobre o "!" e os numeros dos filtros de quem nao abriu a lista.
 const VENCE_PROPOSTAS_MS = 60 * 60 * 1000;
@@ -614,6 +618,13 @@ async function laco() {
         if (compras.ok === false) logErro(`compras do ML nao lidas: ${compras.erro}`);
         else if (compras.novas > 0 || compras.pendentes > 0 || compras.virtualPendentes > 0) log(`compras do ML: ${compras.lidas} lida(s), ${compras.novas} nova(s), ${compras.pendentes} sem produto, ${compras.virtualPendentes} sem Virtual`);
         for (const aviso of compras.avisos ?? []) log(`compras do ML: ${aviso}`);
+      }
+      // `rodarRastreioDosEnvios` nunca lanca pelo provedor: fora do ar devolve ok false e nenhum envio muda.
+      if (!FONTES && !SO_NO_PC && Date.now() - enviosRastreadosEm >= RASTREIO_DOS_ENVIOS_MS) {
+        enviosRastreadosEm = Date.now();
+        const envios = await rodarRotina("envios", RASTREIO_DOS_ENVIOS_MS, () => rodarRastreioDosEnvios());
+        if (envios.ok === false) logErro(`envios: rastreio nao lido: ${envios.erro}`);
+        else if (envios.mudados > 0 || envios.expirados > 0) log(`envios: ${envios.mudados} mudaram de ${envios.consultados}, ${envios.avisados} aviso(s), ${envios.expirados} expirado(s)`);
       }
       // A fila dos webhooks (fase 2): a cada volta, para a venda nova aparecer em segundos e nao em ate 5 min. A linha
       // que falha conta tentativa e desiste na 5a; a rotina acima continua cobrindo o pedido.

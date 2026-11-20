@@ -17,6 +17,7 @@ export const ROTINAS_DO_WORKER = [
   { id: "pedidos", rotulo: "Pedidos de venda" },
   { id: "comprasML", rotulo: "Compras do Mercado Livre" },
   { id: "propostas", rotulo: "Propostas vencidas" },
+  { id: "envios", rotulo: "Envios (rastreio)" },
   { id: "telegram", rotulo: "Avisos do Telegram" },
   { id: "rotinaSemanal", rotulo: "Rodada semanal e relatório" },
   { id: "fotoMensal", rotulo: "Foto mensal de preço e estoque" },
