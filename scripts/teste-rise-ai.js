@@ -2612,7 +2612,7 @@ try {
     {
       const { readFileSync } = await import("node:fs");
       const pagina = readFileSync(new URL("../src/app/rise-ai/consumo/page.jsx", import.meta.url), "utf8");
-      conferir("o Consumo mostra uma barra so, a dos clientes (o interno saiu com o chat, C1)", [pagina.split("<BarraDeOrcamento").length - 1, pagina.includes("Clientes (WhatsApp)"), pagina.includes('estadoDoOrcamento("INTERNO")')], [1, true, false]);
+      conferir("o Consumo mostra uma barra so, a dos clientes (o interno saiu com o chat, C1)", [pagina.split("<BarraDeOrcamento").length - 1, pagina.includes("Clientes (loja e WhatsApp)"), pagina.includes('estadoDoOrcamento("INTERNO")')], [1, true, false]);
     }
     // Meses de 2025, sem nenhum gasto real: o teste so enxerga o que ele mesmo grava.
     const gasto = (tipo, brl, usd, criadoEm) => ({ tipo, escopo: "INTERNO", provedor: "anthropic", valorUsd: usd, valorBrl: brl, referencia: "ZZ-IA-consumo", criadoEm: new Date(criadoEm) });
