@@ -186,7 +186,97 @@ try {
   const sinal = await prisma.sinalDoAssistente.findUnique({ where: { id: "unico" } });
   conferir("o sinal de vida e gravado em UTC, agora", [sinal.versao, sinal.emAndamento, Math.abs(Date.now() - sinal.sinalEm.getTime()) < 60000], ["zz-teste", 2, true]);
 
-  // MARCADOR-T4 (as tarefas seguintes acrescentam os seus blocos acima desta linha)
+  // ---------- Tarefa 4: as pecas puras (lista, filtro de saida, limites, robo) ----------
+  const { lerLinhasDaLista } = await import("../src/lib/riseAi/cliente/lista.js");
+  const { filtrarSaida } = await import("../src/lib/riseAi/cliente/filtroDeSaida.js");
+  const { criarLimites } = await import("../src/lib/riseAi/cliente/limites.js");
+  const { verificarTurnstile, emitirPasse, passeVale } = await import("../src/lib/riseAi/cliente/turnstile.js");
+
+  conferir(
+    "lista com tres formatos",
+    lerLinhasDaLista("10 resistor 10k\n2x arduino uno\nled vermelho x5\n\nprotoboard"),
+    [{ quantidade: 10, termos: "resistor 10k" }, { quantidade: 2, termos: "arduino uno" }, { quantidade: 5, termos: "led vermelho" }, { quantidade: 1, termos: "protoboard" }],
+  );
+  conferir("lista corta em 50", lerLinhasDaLista(Array(80).fill("1 led").join("\n")).length, 50);
+  conferir("resistor 220r nao vira quantidade 220", lerLinhasDaLista("resistor 220r"), [{ quantidade: 1, termos: "resistor 220r" }]);
+  conferir("lm7805 sozinho e um item", lerLinhasDaLista("lm7805"), [{ quantidade: 1, termos: "lm7805" }]);
+  conferir("marcador de lista sai", lerLinhasDaLista("- 3 led azul\n* 2 un. capacitor 100nf"), [{ quantidade: 3, termos: "led azul" }, { quantidade: 2, termos: "capacitor 100nf" }]);
+  conferir("quantidade absurda vira 1 e fica no texto", lerLinhasDaLista("123456 led"), [{ quantidade: 1, termos: "123456 led" }]);
+  conferir("texto vazio", lerLinhasDaLista("  \n\n"), []);
+
+  const base = { precos: [79.8, 0.2, 1234.5], links: ["https://www.4hobby.com.br/arduino-uno"], telefonesDaLoja: ["5432990870"] };
+  conferir("preco que veio da ferramenta passa", filtrarSaida("O Uno sai por R$ 79,80.", base).ok, true);
+  conferir("preco com milhar passa", filtrarSaida("Total: R$ 1.234,50", base).ok, true);
+  conferir("preco inventado reprova", filtrarSaida("Sai por R$ 59,90.", base), { ok: false, motivo: "preco" });
+  conferir("preco sem centavos compara ao centavo", filtrarSaida("Custa R$ 79.", base), { ok: false, motivo: "preco" });
+  conferir("link de fora reprova", filtrarSaida("Veja https://outra-loja.com/x", base), { ok: false, motivo: "link" });
+  conferir("link da loja passa", filtrarSaida("Veja https://www.4hobby.com.br/arduino-uno.", base).ok, true);
+  conferir("link em markdown de fora reprova", filtrarSaida("[clique](http://mal.exemplo/a)", base), { ok: false, motivo: "link" });
+  conferir("telefone de fora reprova", filtrarSaida("Ligue (11) 91234-5678", base), { ok: false, motivo: "telefone" });
+  conferir("telefone da loja passa", filtrarSaida("Nosso WhatsApp: (54) 3299-0870", base).ok, true);
+  conferir("termo interno reprova", filtrarSaida("Nosso fornecedor entrega em 3 dias.", base), { ok: false, motivo: "termo_interno" });
+  conferir("custo-beneficio e fala de vendedor, passa", filtrarSaida("Tem otimo custo-beneficio para iniciantes.", base).ok, true);
+  conferir("o custo da loja reprova", filtrarSaida("O custo dele e baixo.", base), { ok: false, motivo: "termo_interno" });
+  conferir("220 ohms e 5V nao sao preco nem telefone", filtrarSaida("Use o resistor de 220 ohms em 5V, corrente de 20 mA.", base).ok, true);
+  conferir("codigo de produto com muitos digitos nao e telefone", filtrarSaida("O codigo e 100101 e o EAN 7891234567895.", base).ok, true);
+  conferir("o texto aprovado volta igual", filtrarSaida("Tudo certo.", base), { ok: true, texto: "Tudo certo." });
+
+  const relogio = { t: 0 };
+  const limites = criarLimites({ limites: { ...chatDaLojaPadrao().limites, mensagensPorSessaoPorHora: 2, respostasAoMesmoTempo: 1 }, agora: () => relogio.t });
+  const primeira = limites.entrar("s1", "1.1.1.1");
+  conferir("a primeira entra", primeira.ok, true);
+  conferir("a mesma sessao em andamento e ocupada", limites.entrar("s1", "1.1.1.1"), { ok: false, motivo: "ocupada" });
+  conferir("outra sessao com a casa cheia e lotado", limites.entrar("s2", "2.2.2.2"), { ok: false, motivo: "lotado" });
+  primeira.sair();
+  primeira.sair();
+  conferir("sair duas vezes nao libera vaga a mais", limites.emAndamento(), 0);
+  limites.entrar("s1", "1.1.1.1").sair();
+  conferir("terceira mensagem na hora e sessao", limites.entrar("s1", "1.1.1.1"), { ok: false, motivo: "sessao" });
+  const depoisDaRecusa = limites.entrar("s2", "2.2.2.2");
+  conferir("a recusa nao conta como mensagem", depoisDaRecusa.ok, true);
+  depoisDaRecusa.sair();
+  relogio.t = 61 * 60 * 1000;
+  conferir("uma hora depois volta", limites.entrar("s1", "1.1.1.1").ok, true);
+  const porIp = criarLimites({ limites: { ...chatDaLojaPadrao().limites, mensagensPorIpPorHora: 1 }, agora: () => 0 });
+  porIp.entrar("s3", "3.3.3.3").sair();
+  conferir("outra sessao do mesmo IP, acima do limite, e ip", porIp.entrar("s4", "3.3.3.3"), { ok: false, motivo: "ip" });
+  const porCusto = criarLimites({ limites: chatDaLojaPadrao().limites, agora: () => 0 });
+  porCusto.somarCusto("s9", 0.3);
+  const abaixoDoTeto = porCusto.entrar("s9", "9.9.9.9");
+  conferir("abaixo do teto do dia ainda entra", abaixoDoTeto.ok, true);
+  abaixoDoTeto.sair();
+  porCusto.somarCusto("s9", 0.2);
+  conferir("custo da sessao no dia", porCusto.custoDaSessaoHoje("s9"), 0.5);
+  conferir("sessao que ja gastou R$ 0,50 no dia para", porCusto.entrar("s9", "9.9.9.8"), { ok: false, motivo: "sessao" });
+
+  const sessaoA = "a".repeat(32);
+  const passe = emitirPasse(sessaoA, chave, 0);
+  conferir("passe vale para a sessao", passeVale(passe, sessaoA, chave, 1000), true);
+  conferir("passe nao vale para outra sessao", passeVale(passe, "b".repeat(32), chave, 1000), false);
+  conferir("passe vence em 6 h", passeVale(passe, sessaoA, chave, 6 * 3600 * 1000 + 1), false);
+  conferir("passe de outra chave nao vale", passeVale(emitirPasse(sessaoA, "cd".repeat(32), 0), sessaoA, chave, 1000), false);
+  conferir("passe com a validade esticada nao vale", passeVale(passe.replace(/^\d+/, "99999999999999"), sessaoA, chave, 1000), false);
+  conferir("lixo no lugar do passe nao vale nem lanca", [passeVale("", sessaoA, chave, 0), passeVale(null, sessaoA, chave, 0), passeVale("x.y.z", sessaoA, chave, 0)], [false, false, false]);
+  const pedidosAoTurnstile = [];
+  const turnstileOk = async (url, opcoes) => {
+    pedidosAoTurnstile.push({ url, corpo: String(opcoes.body) });
+    return { ok: true, json: async () => ({ success: true }) };
+  };
+  conferir("turnstile aprovado", await verificarTurnstile({ token: "tk", ip: "1.1.1.1", segredo: "seg", fetchImpl: turnstileOk }), true);
+  conferir(
+    "turnstile: o pedido vai a Cloudflare com o segredo e o token",
+    [pedidosAoTurnstile[0].url, pedidosAoTurnstile[0].corpo.includes("secret=seg"), pedidosAoTurnstile[0].corpo.includes("response=tk")],
+    ["https://challenges.cloudflare.com/turnstile/v0/siteverify", true, true],
+  );
+  conferir("turnstile reprovado", await verificarTurnstile({ token: "tk", ip: "1.1.1.1", segredo: "seg", fetchImpl: async () => ({ ok: true, json: async () => ({ success: false }) }) }), false);
+  conferir("turnstile fora do ar e nao", await verificarTurnstile({ token: "t", ip: "1.1.1.1", segredo: "s", fetchImpl: async () => { throw new Error("rede"); } }), false);
+  conferir(
+    "sem token ou sem segredo e nao, sem chamar ninguem",
+    [await verificarTurnstile({ token: "", ip: "1.1.1.1", segredo: "s", fetchImpl: turnstileOk }), await verificarTurnstile({ token: "t", ip: "1.1.1.1", segredo: null, fetchImpl: turnstileOk }), pedidosAoTurnstile.length],
+    [false, false, 1],
+  );
+
+  // MARCADOR-T5 (as tarefas seguintes acrescentam os seus blocos acima desta linha)
 } catch (erro) {
   falhas++;
   console.error("ERRO NAO ESPERADO:", erro);
