@@ -63,6 +63,7 @@ const { registrarRotina, registrarMemoria } = await import("../src/lib/saude/reg
 const { rodarLeituraDePedidos, processarNotificacoes } = await import("../src/lib/pedidos/leitura.js");
 const { recalcularPecasDosPedidosAbertos } = await import("../src/lib/pedidos/banco.js");
 const { lerComprasDoML } = await import("../src/lib/compras/mercadoLivre/compras.js");
+const { lerReclamacoesML } = await import("../src/lib/pedidos/reclamacoesML.js");
 const { vencerPropostas } = await import("../src/lib/propostas/banco.js");
 const { rodarRastreioDosEnvios } = await import("../src/lib/frete/rastreio.js");
 
@@ -89,6 +90,9 @@ let pedidosLidosEm = 0;
 /// As compras que a conta da loja faz no Mercado Livre (11/11/2026, spec 2026-11-11-compras-do-mercado-livre): a cada 30
 /// min viram pedidos de compra do fornecedor "ML". So LEITURA no ML; no Bling, so o deposito Virtual. So o worker normal.
 const LER_COMPRAS_ML_MS = 30 * 60 * 1000;
+/// Reclamacoes do Mercado Livre (20/11/2026): a cada 15 min; a mediacao aberta tira a venda do faturamento e avisa.
+const LER_RECLAMACOES_ML_MS = 15 * 60 * 1000;
+let reclamacoesMLLidasEm = 0;
 let comprasMLLidasEm = 0;
 /// O rastreio dos envios comprados pelo Rise (modulo de frete, fase 2): a cada 15 min, como na spec (sem webhook).
 const RASTREIO_DOS_ENVIOS_MS = 15 * 60 * 1000;
@@ -615,6 +619,12 @@ async function laco() {
       if (!FONTES && !SO_NO_PC && Date.now() - comprasMLLidasEm >= LER_COMPRAS_ML_MS) {
         comprasMLLidasEm = Date.now();
         const compras = await rodarRotina("comprasML", LER_COMPRAS_ML_MS, () => lerComprasDoML());
+        // So LEITURA do ML; falha vira linha vermelha na Saude e a proxima volta tenta de novo.
+        if (Date.now() - reclamacoesMLLidasEm >= LER_RECLAMACOES_ML_MS) {
+          reclamacoesMLLidasEm = Date.now();
+          const reclamacoes = await rodarRotina("reclamacoesML", LER_RECLAMACOES_ML_MS, () => lerReclamacoesML());
+          if (reclamacoes?.novas || reclamacoes?.atualizadas) log(`reclamações do ML: ${reclamacoes.novas} nova(s), ${reclamacoes.atualizadas} atualizada(s), ${reclamacoes.abertas} pedido(s) em mediação`);
+        }
         if (compras.ok === false) logErro(`compras do ML nao lidas: ${compras.erro}`);
         else if (compras.novas > 0 || compras.pendentes > 0 || compras.virtualPendentes > 0) log(`compras do ML: ${compras.lidas} lida(s), ${compras.novas} nova(s), ${compras.pendentes} sem produto, ${compras.virtualPendentes} sem Virtual`);
         for (const aviso of compras.avisos ?? []) log(`compras do ML: ${aviso}`);

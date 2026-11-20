@@ -61,6 +61,7 @@ export async function relatorioDeVendas({ desde, ate, canais } = {}, { pode }) {
       total: true,
       totalProdutos: true,
       freteCobrado: true,
+      emMediacao: true,
       lucroFechado: true,
       lucroEstimado: true,
       lucroReal: true,
@@ -68,7 +69,8 @@ export async function relatorioDeVendas({ desde, ate, canais } = {}, { pode }) {
     },
   });
 
-  const validos = pedidos.filter((pedido) => pedido.status !== "CANCELADO");
+  // Cancelado e em mediacao no ML nao contam no faturamento nem no lucro (20/11/2026).
+  const validos = pedidos.filter((pedido) => pedido.status !== "CANCELADO" && !pedido.emMediacao);
   const cancelados = pedidos.filter((pedido) => pedido.status === "CANCELADO");
   const soma = (lista, campo) => centavos(lista.reduce((total, pedido) => total + (numero(pedido[campo]) ?? 0), 0));
   const lucroDe = (lista) => {

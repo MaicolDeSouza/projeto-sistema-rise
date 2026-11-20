@@ -1,4 +1,5 @@
-import { ShoppingCart } from "lucide-react";
+import Link from "next/link";
+import { MessageSquareWarning, ShoppingCart } from "lucide-react";
 
 import FiltrosDePedidos from "@/components/pedidos/FiltrosDePedidos";
 import { diaIso } from "@/components/pedidos/formato";
@@ -118,7 +119,17 @@ export default async function PedidosDeVendaPage({ searchParams }) {
   return (
     <>
       <LembrarLista caminho="/pedidos" />
-      <PageHeader titulo="Vendas" descricao={total === 1 ? "1 pedido no período." : `${total} pedidos no período.`} />
+      <PageHeader
+        titulo="Vendas"
+        descricao={total === 1 ? "1 pedido no período." : `${total} pedidos no período.`}
+        acao={
+          // As reclamacoes do Mercado Livre por motivo e efeito na reputacao (20/11/2026).
+          <Link href="/pedidos/reclamacoes" className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-1.5 text-sm text-acento hover:bg-fundo">
+            <MessageSquareWarning size={14} />
+            Reclamações
+          </Link>
+        }
+      />
 
       {erro && <AvisoBanco erro={erro} />}
 

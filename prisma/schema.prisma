@@ -2841,6 +2841,10 @@ model PedidoDeVenda {
   lucroReal          Decimal? @db.Decimal(12, 2)
   /// Fechado quando ENTREGUE/FINALIZADO com todas as parcelas reais; a devolucao do ML reabre.
   lucroFechado       Boolean  @default(false)
+  /// Reclamacao ABERTA no Mercado Livre (20/11/2026, `lib/pedidos/reclamacoesML.js`): a venda vira "Em mediação", sai do
+  /// faturamento e do lucro e o lucro nao fecha; a rotina `reclamacoesML` liga e desliga.
+  emMediacao         Boolean  @default(false)
+  reclamacoes        ReclamacaoML[]
   /// SO no Bling: o operador digita o que pagou de etiqueta (LI vem do Enviali, ML do envio).
   custoDoFreteManual Decimal? @db.Decimal(12, 2)
 
@@ -3534,4 +3538,41 @@ model Envio {
   @@index([propostaId])
   @@index([pedidoDeCompraId])
   @@index([caixaDeEnvioId])
+}
+
+/// Reclamacao do Mercado Livre (20/11/2026, pedido do dono: contar as reclamacoes por arrependimento e por problema no
+/// produto, com e sem efeito na reputacao). Uma linha por reclamacao da conta (mediacao, devolucao, cancelamento), lida pela
+/// rotina `reclamacoesML`; o `id` e o da reclamacao no ML. `pedidoId` fica nulo quando a venda e de antes do Rise.
+model ReclamacaoML {
+  id String @id
+
+  /// "order" ou "shipment", e o id dele; `pedidoNumero` e o pedido do ML ja resolvido (pelo envio, quando preciso).
+  recurso      String
+  recursoId    String
+  pedidoNumero String?
+  pedidoId     String?
+  pedido       PedidoDeVenda? @relation(fields: [pedidoId], references: [id], onDelete: SetNull)
+
+  /// mediations | returns | cancel_purchase | cancel_sale; `status` opened | closed.
+  tipo   String
+  etapa  String?
+  status String
+
+  motivoId      String?
+  motivoNome    String?
+  motivoDetalhe String?
+  /// ARREPENDIMENTO | PRODUTO | ENTREGA | VENDEDOR | OUTRO (`grupoDoMotivo`).
+  grupo String
+
+  /// Nulo quando o ML nao respondeu (reclamacao antiga sem o dado).
+  afetaReputacao Boolean?
+  resolucao      String?
+
+  abertaEm     DateTime
+  atualizadaEm DateTime?
+  lidoEm       DateTime @default(now())
+
+  @@index([pedidoId])
+  @@index([status])
+  @@index([abertaEm])
 }

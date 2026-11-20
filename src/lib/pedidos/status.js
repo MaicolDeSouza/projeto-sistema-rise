@@ -77,7 +77,8 @@ export const COR_DO_STATUS_DO_ENVIO = {
  * continuam as mesmas; a situacao e calculada delas, na linha (`situacaoDoPedido`) e no filtro (`condicaoDaSituacao`),
  * e as duas regras precisam dar sempre a mesma resposta (o teste:pedidos confere todas as combinacoes).
  */
-export const SITUACOES = ["AGUARDANDO_PAGAMENTO", "AGUARDANDO_PECAS", "A_ENVIAR", "EM_TRANSITO", "ENTREGUE", "NAO_ENTREGUE", "DEVOLVIDO", "CANCELADO"];
+// "EM_MEDIACAO" (20/11/2026, Opcao 1 do dono): reclamacao aberta no Mercado Livre (`PedidoDeVenda.emMediacao`).
+export const SITUACOES = ["AGUARDANDO_PAGAMENTO", "AGUARDANDO_PECAS", "A_ENVIAR", "EM_TRANSITO", "ENTREGUE", "NAO_ENTREGUE", "EM_MEDIACAO", "DEVOLVIDO", "CANCELADO"];
 
 export const TEXTO_DA_SITUACAO = {
   AGUARDANDO_PAGAMENTO: "Aguardando pagamento",
@@ -86,6 +87,7 @@ export const TEXTO_DA_SITUACAO = {
   EM_TRANSITO: "Em trânsito",
   ENTREGUE: "Entregue",
   NAO_ENTREGUE: "Não entregue",
+  EM_MEDIACAO: "Em mediação",
   DEVOLVIDO: "Devolvido",
   CANCELADO: "Cancelado",
 };
@@ -98,6 +100,7 @@ export const COR_DA_SITUACAO = {
   EM_TRANSITO: "bg-sky-500",
   ENTREGUE: "bg-emerald-500",
   NAO_ENTREGUE: "bg-red-500",
+  EM_MEDIACAO: "bg-red-500",
   DEVOLVIDO: "bg-red-500",
   CANCELADO: "bg-zinc-400",
 };
@@ -105,10 +108,20 @@ export const COR_DA_SITUACAO = {
 /** Envios que ja sairam das maos do operador (ou voltaram): com eles o pedido nao esta mais "a enviar". */
 const ENVIO_QUE_SAIU = ["POSTADO", "EM_TRANSITO", "ENTREGUE", "NAO_ENTREGUE", "DEVOLVIDO"];
 
-/** A situacao de um pedido, na ordem: cancelado, devolvido, nao entregue, entregue, em transito, e so entao o que falta fazer. */
-export function situacaoDoPedido({ status, statusDoEnvio }) {
+/**
+ * A venda que NAO conta no faturamento nem no lucro (pedido do dono em 20/11/2026: "Automaticamente o valor sai do
+ * faturamento e do lucro"): a cancelada e a que esta com reclamacao aberta no ML (o dinheiro fica retido ate a mediacao
+ * fechar; fechada, a venda volta a contar, ou vira devolvida/cancelada pela leitura do pedido).
+ */
+export function foraDoFaturamento({ status, emMediacao }) {
+  return status === "CANCELADO" || emMediacao === true;
+}
+
+/** A situacao de um pedido, na ordem: cancelado, devolvido, em mediacao, nao entregue, entregue, em transito, e so entao o que falta fazer. */
+export function situacaoDoPedido({ status, statusDoEnvio, emMediacao = false }) {
   if (status === "CANCELADO") return "CANCELADO";
   if (status === "DEVOLVIDO" || statusDoEnvio === "DEVOLVIDO") return "DEVOLVIDO";
+  if (emMediacao) return "EM_MEDIACAO";
   if (statusDoEnvio === "NAO_ENTREGUE") return "NAO_ENTREGUE";
   if (status === "ENTREGUE" || status === "FINALIZADO" || statusDoEnvio === "ENTREGUE") return "ENTREGUE";
   if (status === "ENVIADO" || statusDoEnvio === "POSTADO" || statusDoEnvio === "EM_TRANSITO") return "EM_TRANSITO";
@@ -119,27 +132,31 @@ export function situacaoDoPedido({ status, statusDoEnvio }) {
 
 /** O `where` do Prisma de uma situacao: a mesma ordem de `situacaoDoPedido`, escrita como condicoes que nao se sobrepoem. */
 export function condicaoDaSituacao(situacao) {
-  const vivo = { status: { notIn: ["CANCELADO", "DEVOLVIDO"] } };
+  // Fora da mediacao: toda situacao abaixo de "Em mediação" na ordem da linha exclui o pedido com reclamacao aberta.
+  const vivo = { status: { notIn: ["CANCELADO", "DEVOLVIDO"] }, emMediacao: false };
   switch (situacao) {
     case "CANCELADO":
       return { status: "CANCELADO" };
     case "DEVOLVIDO":
       return { status: { not: "CANCELADO" }, OR: [{ status: "DEVOLVIDO" }, { statusDoEnvio: "DEVOLVIDO" }] };
+    case "EM_MEDIACAO":
+      return { status: { notIn: ["CANCELADO", "DEVOLVIDO"] }, statusDoEnvio: { not: "DEVOLVIDO" }, emMediacao: true };
     case "NAO_ENTREGUE":
       return { ...vivo, statusDoEnvio: "NAO_ENTREGUE" };
     case "ENTREGUE":
       return { ...vivo, statusDoEnvio: { notIn: ["DEVOLVIDO", "NAO_ENTREGUE"] }, OR: [{ status: { in: ["ENTREGUE", "FINALIZADO"] } }, { statusDoEnvio: "ENTREGUE" }] };
     case "EM_TRANSITO":
       return {
+        emMediacao: false,
         status: { notIn: ["CANCELADO", "DEVOLVIDO", "ENTREGUE", "FINALIZADO"] },
         statusDoEnvio: { notIn: ["DEVOLVIDO", "NAO_ENTREGUE", "ENTREGUE"] },
         OR: [{ status: "ENVIADO" }, { statusDoEnvio: { in: ["POSTADO", "EM_TRANSITO"] } }],
       };
     case "AGUARDANDO_PAGAMENTO":
     case "AGUARDANDO_PECAS":
-      return { status: situacao, statusDoEnvio: { notIn: ENVIO_QUE_SAIU } };
+      return { status: situacao, emMediacao: false, statusDoEnvio: { notIn: ENVIO_QUE_SAIU } };
     case "A_ENVIAR":
-      return { status: { in: ["PAGO", "EM_SEPARACAO"] }, statusDoEnvio: { notIn: ENVIO_QUE_SAIU } };
+      return { status: { in: ["PAGO", "EM_SEPARACAO"] }, emMediacao: false, statusDoEnvio: { notIn: ENVIO_QUE_SAIU } };
     default:
       return null;
   }

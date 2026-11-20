@@ -85,6 +85,7 @@ const DOCUMENTOS_DE_TESTE = ["123.456.789-09", "11.222.333/0001-81", "000.000.00
 
 async function limpar() {
   const ZZ = { sku: { startsWith: "ZZ-PED-" } };
+  if (prisma.reclamacaoML) await prisma.reclamacaoML.deleteMany({ where: { id: { startsWith: "ZZ-PED-RC-" } } });
   await prisma.pedidoDeVenda.deleteMany({ where: { OR: [{ numero: { startsWith: "ZZ-PED-" } }, { nomeDoComprador: { contains: "ZZ Ped" } }] } });
   if (prisma.notificacaoDePedido) await prisma.notificacaoDePedido.deleteMany({ where: { recurso: { contains: "ZZ-PED" } } });
   await prisma.ordemDeProducao.deleteMany({ where: { produto: ZZ } });
@@ -253,7 +254,7 @@ try {
       const casa = (where, linha) =>
         Object.entries(where).every(([campo, valor]) => {
           if (campo === "OR") return valor.some((w) => casa(w, linha));
-          if (typeof valor === "string") return linha[campo] === valor;
+          if (typeof valor === "string" || typeof valor === "boolean") return linha[campo] === valor;
           if (valor.in) return valor.in.includes(linha[campo]);
           if (valor.notIn) return !valor.notIn.includes(linha[campo]);
           if (valor.not) return linha[campo] !== valor.not;
@@ -262,12 +263,15 @@ try {
       const erradas = [];
       for (const status of STATUS_TODOS) {
         for (const statusDoEnvio of ENVIOS_TODOS) {
-          const linha = { status, statusDoEnvio };
-          const casadas = SITUACOES.filter((s) => casa(condicaoDaSituacao(s), linha));
-          if (casadas.length !== 1 || casadas[0] !== situacaoDoPedido(linha)) erradas.push(`${status}/${statusDoEnvio}: linha ${situacaoDoPedido(linha)}, filtro ${casadas.join("+") || "nenhum"}`);
+          // Com e sem mediacao aberta no ML (20/11/2026): a situacao "Em mediação" entra na mesma conferencia.
+          for (const emMediacao of [false, true]) {
+            const linha = { status, statusDoEnvio, emMediacao };
+            const casadas = SITUACOES.filter((s) => casa(condicaoDaSituacao(s), linha));
+            if (casadas.length !== 1 || casadas[0] !== situacaoDoPedido(linha)) erradas.push(`${status}/${statusDoEnvio}/${emMediacao}: linha ${situacaoDoPedido(linha)}, filtro ${casadas.join("+") || "nenhum"}`);
+          }
         }
       }
-      conferir("situacao: linha e filtro iguais nas 72 combinacoes", erradas, []);
+      conferir("situacao: linha e filtro iguais nas 144 combinacoes", erradas, []);
       conferir(
         "situacao: exemplos",
         [
@@ -1167,6 +1171,87 @@ try {
     conferir("MCP ler sem custo esconde custo e lucro", [lidoSemCusto.itens[0].custoUnitario, lidoSemCusto.lucro], ["[restrito]", "[restrito]"]);
     conferir("MCP ler: pedido que nao existe", (await mcp.lerPedidoDeVenda({ pedido: "ZZ-PED-NADA" }, tudo).catch((e) => e.message))?.includes("não encontrado"), true);
     conferir("MCP: as tres ferramentas na lista", mcp.FERRAMENTAS_DE_PEDIDOS_DE_VENDA.map((f) => f.nome), ["relatorioDeVendas", "listarPedidosDeVenda", "lerPedidoDeVenda"]);
+  }
+
+  {
+    // Reclamacoes do ML (pedido do dono em 20/11/2026, Opcao 1): a mediacao aberta tira a venda do faturamento e do lucro,
+    // vira a situacao "Em mediação" com aviso, e cada reclamacao guarda o motivo (grupo) e se afeta a reputacao.
+    console.log("\nReclamações do ML (mediação)");
+    const { grupoDoMotivo, lerReclamacoesML, resumoDasReclamacoes, listarReclamacoes } = await import("../src/lib/pedidos/reclamacoesML.js");
+    const { foraDoFaturamento } = await import("../src/lib/pedidos/status.js");
+    const { avisosDevidos } = await import("../src/lib/telegram/avisos.js");
+    const { mensagemDoAviso } = await import("../src/lib/telegram/texto.js");
+    conferir("grupo: arrependimento", ["repentant_buyer", "undelivered_repentant_buyer", "repentant_buyer_other"].map((nome) => grupoDoMotivo({ nome })), ["ARREPENDIMENTO", "ARREPENDIMENTO", "ARREPENDIMENTO"]);
+    conferir("grupo: problema no produto", ["not_working_item", "different_than_published", "different_item_other", "broken_item", "fake_different"].map((nome) => grupoDoMotivo({ nome, fluxo: "post_purchase_delivered" })), ["PRODUTO", "PRODUTO", "PRODUTO", "PRODUTO", "PRODUTO"]);
+    conferir("grupo: entrega, vendedor e outro", [grupoDoMotivo({ nome: "delivered_but_not_receive_package", fluxo: "mediations_undelivered" }), grupoDoMotivo({ nome: "estimated_delivery_out_of_time", fluxo: "mediations_undelivered" }), grupoDoMotivo({ nome: "out_of_stock" }), grupoDoMotivo({ nome: "respondent_unanswered" }), grupoDoMotivo({ nome: "other_cancellation_reason" }), grupoDoMotivo({})], ["ENTREGA", "ENTREGA", "VENDEDOR", "VENDEDOR", "OUTRO", "OUTRO"]);
+    conferir("situacao: mediacao aberta vence o Entregue, mas nao o cancelado nem o devolvido", [situacaoDoPedido({ status: "ENTREGUE", statusDoEnvio: "ENTREGUE", emMediacao: true }), situacaoDoPedido({ status: "CANCELADO", statusDoEnvio: "ENTREGUE", emMediacao: true }), situacaoDoPedido({ status: "ENTREGUE", statusDoEnvio: "DEVOLVIDO", emMediacao: true })], ["EM_MEDIACAO", "CANCELADO", "DEVOLVIDO"]);
+    conferir("fora do faturamento: cancelado e em mediacao", [foraDoFaturamento({ status: "CANCELADO" }), foraDoFaturamento({ status: "ENTREGUE", emMediacao: true }), foraDoFaturamento({ status: "ENTREGUE", emMediacao: false })], [true, true, false]);
+
+    const agora = new Date();
+    const { ml: mlFalso } = falsos();
+    const nml = normalizarPedidoML({ order: fx("ml-order"), billing: fx("ml-billing"), shipment: fx("ml-shipment"), custos: fx("ml-shipment-costs"), invoice: fx("ml-invoice") });
+    nml.idExterno = nml.numero = "ZZ-PED-RC1";
+    const criado = await aplicarPedidoLido(nml, { cliente: mlFalso, agora });
+    const haUmaHora = new Date(agora.getTime() - 3600e3).toISOString();
+    const estado = {
+      claims: [
+        { id: "ZZ-PED-RC-9001", resource: "order", resource_id: "ZZ-PED-RC1", status: "opened", type: "mediations", stage: "claim", reason_id: "PDD9939", date_created: haUmaHora, last_updated: haUmaHora, resolution: null },
+        { id: "ZZ-PED-RC-9002", resource: "order", resource_id: "ZZ-PED-NAO-EXISTE", status: "closed", type: "returns", stage: "claim", reason_id: "PDD9949", date_created: "2026-10-01T12:00:00.000-04:00", last_updated: "2026-10-05T12:00:00.000-04:00", resolution: { reason: "item_returned" } },
+        { id: "ZZ-PED-RC-9003", resource: "shipment", resource_id: "777001", status: "closed", type: "cancel_purchase", stage: "claim", reason_id: "PNR9501", date_created: "2026-10-02T12:00:00.000-04:00", last_updated: "2026-10-02T13:00:00.000-04:00", resolution: { reason: "payment_refunded" } },
+      ],
+      motivos: { PDD9939: { name: "repentant_buyer", detail: "Não quero mais", flow: "post_purchase_delivered" }, PDD9949: { name: "not_working_item", detail: "Chegou bem", flow: "post_purchase_delivered" }, PNR9501: { name: "undelivered_repentant_buyer", detail: "Me arrependi da compra", flow: "mediations_undelivered" } },
+      afeta: { "ZZ-PED-RC-9001": "not_affected", "ZZ-PED-RC-9002": "affected", "ZZ-PED-RC-9003": "not_affected" },
+    };
+    const resposta = (status, dados) => ({ ok: status < 300, status, dados });
+    const mlRec = {
+      chamadas: [],
+      async get(caminho, params) {
+        this.chamadas.push(caminho);
+        if (caminho === "/post-purchase/v1/claims/search") {
+          const doStatus = estado.claims.filter((c) => c.status === params.status);
+          return resposta(200, { paging: { total: doStatus.length }, data: doStatus.slice(Number(params.offset ?? 0), Number(params.offset ?? 0) + Number(params.limit ?? 50)) });
+        }
+        let partes = caminho.match(/^\/post-purchase\/v1\/claims\/reasons\/(.+)$/);
+        if (partes) return estado.motivos[partes[1]] ? resposta(200, estado.motivos[partes[1]]) : resposta(404, {});
+        partes = caminho.match(/^\/post-purchase\/v1\/claims\/(.+)\/affects-reputation$/);
+        if (partes) return resposta(200, { affects_reputation: estado.afeta[partes[1]], has_incentive: false, due_date: null });
+        partes = caminho.match(/^\/post-purchase\/v1\/claims\/([^/]+)$/);
+        if (partes) return resposta(200, estado.claims.find((c) => c.id === partes[1]) ?? {});
+        if (caminho === "/shipments/777001") return resposta(200, { id: 777001, order_id: "ZZ-PED-RC1" });
+        return resposta(404, {});
+      },
+    };
+    const lida = await lerReclamacoesML({ ml: mlRec, agora });
+    const linhas = Object.fromEntries((await prisma.reclamacaoML.findMany({ where: { id: { startsWith: "ZZ-PED-RC-" } } })).map((r) => [r.id, r]));
+    conferir("leitura: tres reclamacoes novas", [lida.ok, lida.lidas, lida.novas], [true, 3, 3]);
+    conferir("leitura: arrependimento que nao afeta, ligado ao pedido", [linhas["ZZ-PED-RC-9001"].grupo, linhas["ZZ-PED-RC-9001"].afetaReputacao, linhas["ZZ-PED-RC-9001"].pedidoId === criado.id, linhas["ZZ-PED-RC-9001"].status], ["ARREPENDIMENTO", false, true, "opened"]);
+    conferir("leitura: problema no produto que afeta, de pedido fora do Rise", [linhas["ZZ-PED-RC-9002"].grupo, linhas["ZZ-PED-RC-9002"].afetaReputacao, linhas["ZZ-PED-RC-9002"].pedidoId, linhas["ZZ-PED-RC-9002"].resolucao], ["PRODUTO", true, null, "item_returned"]);
+    conferir("leitura: reclamacao do envio acha o pedido pelo envio", [linhas["ZZ-PED-RC-9003"].pedidoNumero, linhas["ZZ-PED-RC-9003"].pedidoId === criado.id], ["ZZ-PED-RC1", true]);
+    const emMediacao = await prisma.pedidoDeVenda.findUnique({ where: { id: criado.id }, select: { emMediacao: true, lucroFechado: true, avisos: true } });
+    conferir("pedido: em mediacao, lucro aberto e aviso", [emMediacao.emMediacao, emMediacao.lucroFechado, emMediacao.avisos.includes("emMediacao")], [true, false, true]);
+    // A leitura do pedido a cada 5 minutos nao pode fechar o lucro nem apagar o aviso enquanto a mediacao esta aberta.
+    await aplicarPedidoLido(nml, { cliente: mlFalso, agora });
+    const relido = await prisma.pedidoDeVenda.findUnique({ where: { id: criado.id }, select: { emMediacao: true, lucroFechado: true, avisos: true } });
+    conferir("pedido relido: continua em mediacao, com o lucro aberto e o aviso", [relido.emMediacao, relido.lucroFechado, relido.avisos.includes("emMediacao")], [true, false, true]);
+
+    const devidos = (await avisosDevidos("reclamacaoML", { agora: agora.getTime() })).filter((a) => a.chave.includes("ZZ-PED-RC-"));
+    conferir("telegram: so a reclamacao aberta ha pouco avisa, com o motivo e a reputacao", [devidos.map((a) => a.chave), mensagemDoAviso("reclamacaoML", devidos[0].dados).texto.includes("Arrependimento"), mensagemDoAviso("reclamacaoML", devidos[0].dados).texto.includes("não afeta")], [[`reclamacao-ml:${criado.id}:ZZ-PED-RC-9001`], true, true]);
+
+    const resumo = await resumoDasReclamacoes({ desde: new Date("2026-09-01T00:00:00Z"), ate: new Date(agora.getTime() + 60e3), prefixo: "ZZ-PED-RC-" });
+    conferir("resumo: por grupo, com e sem efeito na reputacao", [resumo.total, resumo.grupos.find((g) => g.grupo === "ARREPENDIMENTO"), resumo.grupos.find((g) => g.grupo === "PRODUTO")], [3, { grupo: "ARREPENDIMENTO", naoAfeta: 2, afeta: 0, semDado: 0, total: 2 }, { grupo: "PRODUTO", naoAfeta: 0, afeta: 1, semDado: 0, total: 1 }]);
+    const listadas = await listarReclamacoes({ desde: new Date("2026-09-01T00:00:00Z"), ate: new Date(agora.getTime() + 60e3), prefixo: "ZZ-PED-RC-" });
+    conferir("lista: da mais nova para a mais antiga, com o pedido", [listadas.total, listadas.linhas.map((l) => l.id), listadas.linhas[0].pedido?.numero], [3, ["ZZ-PED-RC-9001", "ZZ-PED-RC-9003", "ZZ-PED-RC-9002"], "ZZ-PED-RC1"]);
+
+    // A mediacao fecha: o pedido sai de "Em mediação" e o aviso some; a leitura seguinte do pedido volta a fechar o lucro.
+    estado.claims[0] = { ...estado.claims[0], status: "closed", last_updated: new Date(agora.getTime() + 1000).toISOString(), resolution: { reason: "item_returned" } };
+    const segunda = await lerReclamacoesML({ ml: mlRec, agora: new Date(agora.getTime() + 2000) });
+    const fechado = await prisma.pedidoDeVenda.findUnique({ where: { id: criado.id }, select: { emMediacao: true, avisos: true } });
+    const fechada = await prisma.reclamacaoML.findUnique({ where: { id: "ZZ-PED-RC-9001" } });
+    conferir("mediacao fechada: pedido sai de Em mediação, aviso some, reclamacao fechada", [segunda.novas, fechado.emMediacao, fechado.avisos.includes("emMediacao"), fechada.status, fechada.resolucao], [0, false, false, "closed", "item_returned"]);
+    conferir("telegram: reclamacao fechada nao avisa", (await avisosDevidos("reclamacaoML", { agora: agora.getTime() })).filter((a) => a.chave.includes("ZZ-PED-RC-")), []);
+    // Conta que nao responde: nada muda e a rotina diz por que.
+    const fora = await lerReclamacoesML({ ml: { get: async () => resposta(500, { message: "erro" }) }, agora });
+    conferir("ML fora do ar: rotina devolve a falha sem lancar", [fora.ok, typeof fora.erro], [false, "string"]);
   }
 
   // Marcador: os blocos seguintes entram acima desta linha.

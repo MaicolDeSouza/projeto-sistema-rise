@@ -1,3 +1,4 @@
+import { TEXTO_DO_GRUPO, textoDaReputacao } from "@/lib/pedidos/reclamacoesTextos";
 import { mascararDadosPessoais } from "@/lib/riseAi/mascarar";
 
 /**
@@ -96,6 +97,15 @@ const TIPOS = {
       ...itens.slice(0, MAXIMO_DE_ITENS_DA_VENDA).map(linhaDoItemDaVenda),
       itens.length > MAXIMO_DE_ITENS_DA_VENDA ? `e mais ${itens.length - MAXIMO_DE_ITENS_DA_VENDA} ${itens.length - MAXIMO_DE_ITENS_DA_VENDA === 1 ? "item" : "itens"}` : "",
       `Total: R$ ${formatarReais(total)}`,
+    ],
+    caminho: `/pedidos/${pedidoId}`,
+  }),
+  // Reclamacao aberta no ML (20/11/2026): o grupo do motivo, o que o comprador disse e o efeito na reputacao.
+  reclamacaoML: ({ pedidoId, numero, total, grupo, motivo, afeta }) => ({
+    linhas: [
+      `Reclamação no Mercado Livre: pedido ${trechoSeguro(numero, 40)}`,
+      `${TEXTO_DO_GRUPO[grupo] ?? "Reclamação"}${motivo ? `: ${trechoSeguro(motivo, 80)}` : ""}${textoDaReputacao(afeta) ? ` (${textoDaReputacao(afeta)})` : ""}`,
+      `R$ ${formatarReais(total)} fora do faturamento e do lucro até a mediação fechar.`,
     ],
     caminho: `/pedidos/${pedidoId}`,
   }),

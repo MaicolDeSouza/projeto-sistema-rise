@@ -13,6 +13,7 @@ import { limitesDoDia } from "@/lib/riseAi/revisao";
 import { coletarSaude, itensEmFalha } from "@/lib/saude/coletar";
 import { avisoDeCatalogoPendente, textoDoAvisoDeCatalogo } from "@/lib/canaisDeVenda/ml/estadoNoML";
 import { TIPOS_DE_AVISO } from "./avisosTipos";
+import { textoDoMotivo } from "@/lib/pedidos/reclamacoesTextos";
 import { MAXIMO_DE_FOTOS, criarClienteTelegram } from "./cliente";
 import { SERVICO_TELEGRAM } from "./estado";
 import { limiteDeLinhasDoTipo, mensagemDoAviso } from "./texto";
@@ -174,7 +175,8 @@ export async function vendasDoDia({ inicio, fim }) {
   // que o pagamento caiu. O boleto de anteontem pago hoje e venda de hoje; o pedido de hoje ainda sem pagamento nao e
   // de dia nenhum. Os outros canais seguem pela data da venda.
   const [dosOutrosCanais, daLojaIntegrada] = await Promise.all([
-    prisma.pedidoDeVenda.findMany({ where: { canal: { not: "LOJA_INTEGRADA" }, dataDaVenda: { gte: inicio, lt: fim }, status: { not: "CANCELADO" } }, select }),
+    // A venda com reclamacao aberta no ML fica fora do resumo (20/11/2026), como fica fora da tela Vendas.
+    prisma.pedidoDeVenda.findMany({ where: { canal: { not: "LOJA_INTEGRADA" }, dataDaVenda: { gte: inicio, lt: fim }, status: { not: "CANCELADO" }, emMediacao: false }, select }),
     prisma.pedidoDeVenda.findMany({
       where: { canal: "LOJA_INTEGRADA", dataDaVenda: { gte: new Date(inicio.getTime() - QUINZE_DIAS_MS), lt: fim }, status: { notIn: SEM_PAGAMENTO } },
       select: { ...select, dataDaVenda: true, historico: true },
@@ -300,6 +302,21 @@ async function novasVendas({ agora }) {
   }));
 }
 
+/// Reclamacao aberta no Mercado Livre (20/11/2026, Opcao 1 do dono): um aviso por reclamacao de pedido que o Rise tem, aberta
+/// nos ultimos 3 dias (o worker pode ter ficado parado; a chave impede a repeticao). A fechada nao avisa.
+const TRES_DIAS_MS = 3 * UM_DIA_MS;
+async function reclamacoesAbertas({ agora }) {
+  const abertas = await prisma.reclamacaoML.findMany({
+    where: { status: "opened", pedidoId: { not: null }, abertaEm: { gte: new Date(agora - TRES_DIAS_MS) } },
+    orderBy: { abertaEm: "asc" },
+    select: { id: true, grupo: true, motivoNome: true, motivoDetalhe: true, afetaReputacao: true, pedido: { select: { id: true, numero: true, total: true } } },
+  });
+  return abertas.map((r) => ({
+    chave: `reclamacao-ml:${r.pedido.id}:${r.id}`,
+    dados: { pedidoId: r.pedido.id, numero: r.pedido.numero, total: Number(r.pedido.total), grupo: r.grupo, motivo: textoDoMotivo({ nome: r.motivoNome, detalhe: r.motivoDetalhe }), afeta: r.afetaReputacao },
+  }));
+}
+
 /// O item como o cliente comprou: a `quantidade` do banco e em unidades do produto, entao 1 "Kit de 20" esta gravado
 /// como 20; o aviso mostra 1 (o titulo do anuncio ja diz que e kit).
 function itemDoAviso(item) {
@@ -370,6 +387,7 @@ async function pedidosAguardandoPecas({ agora }) {
 
 const CALCULO = {
   novaVenda: novasVendas,
+  reclamacaoML: reclamacoesAbertas,
   aguardandoPecas: pedidosAguardandoPecas,
   catalogoML: () => catalogosDoML(),
   saudeDoRise: saudeEmVermelho,
@@ -388,7 +406,7 @@ export function avisosDevidos(tipo, contexto) {
 /** O caminho do botao "Abrir no Rise", tirado da chave (o texto gravado nao guarda o link). */
 export function caminhoDoAviso(chave) {
   const [fato, id] = chave.split(":");
-  if (fato === "nova-venda" || fato === "aguardando-pecas") return `/pedidos/${id}`;
+  if (fato === "nova-venda" || fato === "aguardando-pecas" || fato === "reclamacao-ml") return `/pedidos/${id}`;
   if (fato === "produto-zerou") return `/produtos/${id}`;
   if (fato === "orcamento") return "/rise-ai/configuracoes";
   if (fato === "pc-esperando" || fato === "varredura-falhou") return "/mercados/fontes";

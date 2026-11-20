@@ -4239,6 +4239,34 @@ ao ar e nenhuma escrita real foi feita no ML ou no Bling.**
     ACEITOU com faixas 1,28/6,17/10,6/12,85% (então o ML pode sugerir sem frete grátis, ao contrário do 204 medido no 120920): ficou como
     está, decisão do dono.
 
+### Reclamações do Mercado Livre e a venda "Em mediação" (20/11/2026, SEM deploy)
+
+Pedido do dono (Opção 1) ao ver uma venda com arrependimento (pacote 2000015969835717 = pedido 2000019457313352) que o Rise
+mostrava "Entregue" com lucro fechado: acompanhar as reclamações, tirar a venda do faturamento e do lucro e contar quantas são
+por arrependimento (não afeta a reputação) e quantas por problema no produto (afeta).
+- **API (medida na conta em 20/11/2026, só GET):** `GET /post-purchase/v1/claims/search?status=opened|closed` (exige um filtro;
+  `players.*` é recusado), `/claims/reasons/{reason_id}` (`name`, `detail`, `flow`), `/claims/{id}/affects-reputation`
+  (`affected`/`not_affected`; 403 em algumas antigas) e `/packs/{id}` (o número que o painel do ML mostra na venda é o do
+  PACOTE; o pedido está em `orders[]`). A reclamação é de um pedido (`resource: order`) ou de um envio (`shipment` → `order_id`).
+- **Tabela `ReclamacaoML`** (migration `20261120c_reclamacoes_ml`) e `PedidoDeVenda.emMediacao`. Rotina **`reclamacoesML`** do
+  worker a cada 15 min (`lib/pedidos/reclamacoesML.js`, linha própria na Saúde): lê as abertas, as fechadas novas e a que
+  estava aberta no Rise; grava grupo do motivo (`grupoDoMotivo` em `reclamacoesTextos.js`: ARREPENDIMENTO, PRODUTO, ENTREGA,
+  VENDEDOR, OUTRO) e se afeta a reputação; liga a reclamação ao pedido do Rise (também depois, se o pedido chegar depois).
+- **Pedido com reclamação ABERTA:** situação nova **"Em mediação"** (depois de cancelado e devolvido na ordem; filtro e linha
+  conferidos nas 144 combinações), aviso `emMediacao` grave, lucro não fecha (mesmo com a leitura de 5 min) e a venda fica
+  **fora do faturamento e do lucro** (`foraDoFaturamento` em `status.js`): "Lucro no período", caixinhas por canal, resumo das
+  20h do Telegram e o `relatorioDeVendas` do MCP. Fechada a mediação, o pedido volta a contar (ou vira devolvido/cancelado pela
+  leitura do pedido). Aviso novo no Telegram **"Reclamação aberta no Mercado Livre"** (tipo `reclamacaoML`, já marcado por herdar o
+  padrão), uma vez por reclamação aberta nos últimos 3 dias.
+- **Tela `/pedidos/reclamacoes`** (botão "Reclamações" no cabeçalho de Vendas): quadro motivo × reputação (cada número filtra a
+  lista), períodos 30/90 dias, 12 meses e tudo, lista com cabeçalho que ordena e o padrão de 100 por página.
+- **Medido no PC (primeira carga, 162 s):** 346 reclamações na conta desde 2018; nos últimos 12 meses 80 (46 arrependimento, 11
+  produto, 9 entrega, 5 loja, 9 outro), **1 que afeta a reputação** ("Diferente do anúncio") e 2 abertas.
+- **Nota fiscal:** a NF-e de venda entregue não se cancela (prazo curto e a mercadoria circulou); o certo é a nota de devolução
+  na chegada do produto. O aviso antigo `nfACancelar` ("cancele a NF") continua com o texto de antes: rever com o dono.
+- **Não visto:** o pedido do Rise virando "Em mediação" com dado real (o PC não tem a venda; na VPS a primeira volta da rotina
+  liga) e o aviso no celular. Testes no `teste:pedidos` (bloco "Reclamações do ML").
+
 ### Editor do ML em cartões, aba Status, prazo e garantia (26/10/2026, SEM deploy)
 
 Pedidos do dono (com print anotado e "usar UI/UX"):

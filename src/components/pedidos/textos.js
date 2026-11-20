@@ -32,11 +32,13 @@ export const TEXTO_DO_AVISO = {
   fraude: "Risco de fraude no ML: não envie.",
   espelhoNoBlingAusente: "Sem cópia no Bling há mais de 1 hora: o estoque não baixou.",
   nfACancelar: "Pedido devolvido com NF autorizada: cancele a NF.",
+  // Reclamacao aberta no Mercado Livre (20/11/2026): o detalhe (motivo, reputacao) esta em Vendas > Reclamações.
+  emMediacao: "Reclamação aberta no Mercado Livre: a venda está fora do faturamento e do lucro até a mediação fechar.",
   leituraFalhou: "A última leitura deste pedido falhou.",
 };
 
 /** Os avisos que pedem cuidado imediato: o "!" fica vermelho em vez de ambar. */
-export const AVISOS_GRAVES = new Set(["fraude", "nfACancelar"]);
+export const AVISOS_GRAVES = new Set(["fraude", "nfACancelar", "emMediacao"]);
 
 /** Os avisos de uma linha, um por linha, para o `title` do "!". Chave desconhecida aparece como veio. */
 export function textoDosAvisos(avisos) {

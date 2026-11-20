@@ -4,7 +4,7 @@ import { urlDe } from "@/lib/arquivos";
 import { config } from "@/lib/integracoes/config";
 import { clienteDoPedido } from "@/lib/pedidos/cliente";
 import { casarItens } from "@/lib/pedidos/itens";
-import { SITUACOES, condicaoDaSituacao, situacaoDoPedido, statusDoEnvio, statusDoPedido } from "@/lib/pedidos/status";
+import { SITUACOES, condicaoDaSituacao, foraDoFaturamento, situacaoDoPedido, statusDoEnvio, statusDoPedido } from "@/lib/pedidos/status";
 import { devolvido, divergenciaAceitaVale, estimativaPelasContas, estimativaValida, lucroDivergente, lucroFechado, parcelasDaEstimativa, parcelasDoReal } from "@/lib/pedidos/lucro";
 import { codigoVendido } from "@/lib/pedidos/codigo";
 import { conferirComMercadoPago, mercadoPagoParaTela } from "@/lib/pedidos/mercadoPago";
@@ -167,6 +167,13 @@ async function recalcular(tx, pedido, { normalizado, taxas, agora, avisosDosIten
   // Divergencia aceita (Tarefa 7, 09/11/2026): apagada enquanto os valores forem os do aceite; mudou, o "!" volta.
   if (divergenciaAceitaVale(pedido.divergenciaAceita, { lucroEstimado: estimativa?.lucro, lucroReal: real?.lucro, liquidoMP: conferenciaMP?.liquidoMP })) {
     for (const chave of AVISOS_DE_DIVERGENCIA) avisos.delete(chave);
+  }
+
+  // Reclamacao aberta no ML (20/11/2026; a rotina `reclamacoesML` liga e desliga `emMediacao`): o aviso fica e o lucro nao
+  // fecha enquanto ela durar, mesmo com a leitura do pedido a cada 5 minutos.
+  if (pedido.emMediacao) {
+    avisos.add("emMediacao");
+    fechado = false;
   }
 
   const despacharAte = n.envio?.despacharAte ? new Date(n.envio.despacharAte) : null;
@@ -384,6 +391,7 @@ export async function listarPedidosDeVenda({ busca, desde, ate, canais, status, 
       status: p.status,
       statusDaOrigem: p.statusDaOrigem,
       statusDoEnvio: p.statusDoEnvio,
+      emMediacao: p.emMediacao,
       despacharAte: p.despacharAte,
       emSeparacao: p.emSeparacao,
       // So o que a linha mostra: a forma e as parcelas do 1o pagamento, o tipo e o rastreio do envio, as pecas em falta.
@@ -421,7 +429,7 @@ export async function opcoesDasColunas(filtro = {}) {
   const [porStatus, porEnvio, porSituacao, itensPorCodigo, itensPorLocal] = await Promise.all([
     prisma.pedidoDeVenda.groupBy({ by: ["status"], where: filtroDaLista({ ...filtro, status: undefined }) }),
     prisma.pedidoDeVenda.groupBy({ by: ["statusDoEnvio"], where: filtroDaLista({ ...filtro, envio: undefined }) }),
-    prisma.pedidoDeVenda.groupBy({ by: ["status", "statusDoEnvio"], where: filtroDaLista({ ...filtro, situacoes: undefined }), _count: { _all: true } }),
+    prisma.pedidoDeVenda.groupBy({ by: ["status", "statusDoEnvio", "emMediacao"], where: filtroDaLista({ ...filtro, situacoes: undefined }), _count: { _all: true } }),
     // Codigo e Local (07/11/2026): os valores dos itens dos pedidos da lista, sem o filtro da propria coluna.
     prisma.itemDoPedidoDeVenda.findMany({
       where: { pedido: filtroDaLista({ ...filtro, codigos: undefined }) },
@@ -463,12 +471,13 @@ export function lucroQueConta(p) {
 export async function resumoDaLista(filtro = {}) {
   const pedidos = await prisma.pedidoDeVenda.findMany({
     where: filtroDaLista(filtro),
-    select: { status: true, lucroFechado: true, lucroEstimado: true, lucroReal: true },
+    select: { status: true, emMediacao: true, lucroFechado: true, lucroEstimado: true, lucroReal: true },
   });
   let lucro = 0;
   let semLucro = 0;
   for (const p of pedidos) {
-    if (p.status === "CANCELADO") continue;
+    // Cancelado e em mediacao no ML nao entram no lucro do periodo (20/11/2026).
+    if (foraDoFaturamento(p)) continue;
     const valor = lucroQueConta(p);
     if (valor === null) semLucro += 1;
     else lucro += valor;
@@ -495,12 +504,13 @@ const centavos = (valor) => Math.round(valor * 100) / 100;
 export async function resumoDosCanais(filtro = {}, { comLucro = false } = {}) {
   const pedidos = await prisma.pedidoDeVenda.findMany({
     where: { AND: [filtroDaLista({ ...filtro, canais: [] }), { status: { not: "CANCELADO" } }] },
-    select: { canal: true, status: true, statusDoEnvio: true, total: true, lucroFechado: true, lucroEstimado: true, lucroReal: true },
+    select: { canal: true, status: true, statusDoEnvio: true, emMediacao: true, total: true, lucroFechado: true, lucroEstimado: true, lucroReal: true },
   });
   const porCanal = new Map(CANAIS_DO_RESUMO.map((canal) => [canal, { canal, pedidos: 0, faturamento: 0, lucro: 0, custo: 0, semLucro: 0 }]));
   for (const p of pedidos) {
     const soma = porCanal.get(p.canal);
-    if (!soma) continue;
+    // A venda com reclamacao aberta no ML fica fora das caixinhas (faturamento e lucro) ate a mediacao fechar.
+    if (!soma || foraDoFaturamento(p)) continue;
     const devolvido = p.status === "DEVOLVIDO" || p.statusDoEnvio === "DEVOLVIDO";
     const total = numero(p.total) ?? 0;
     const lucro = lucroQueConta(p);
