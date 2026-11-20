@@ -156,7 +156,25 @@ try {
   conferir("nao ve gasto interno", (await linhas(`SELECT 1 FROM "GastoIA" WHERE "escopo" <> 'CLIENTES'`)).length, 0);
   conferir("da o sinal de vida", await codigoSql(`INSERT INTO "SinalDoAssistente" ("id", "sinalEm", "versao") VALUES ('zz-ia', now(), 'teste') ON CONFLICT ("id") DO UPDATE SET "sinalEm" = now()`), null);
 
-  // MARCADOR-T3 (as tarefas seguintes acrescentam os seus blocos acima desta linha)
+  // ---------- Tarefa 3: a camada de dados funciona SO com as concessoes do papel ----------
+  const { criarDadosDoCliente } = await import("../src/lib/riseAi/cliente/dados.js");
+  const dadosDoPapel = criarDadosDoCliente({ consultar: async (sql, valores = []) => (await comoPapel.query(sql, valores)).rows, baseDasFotos: "https://rise.exemplo", chaveHex: "ab".repeat(32) });
+  conferir("sob o papel: busca acha o publicado", (await dadosDoPapel.buscarProdutos("zz loja produto publicado")).map((p) => p.sku), ["ZZ-LOJA-PUB"]);
+  conferir("sob o papel: o oculto nao existe", await dadosDoPapel.buscarProdutos("ZZ-LOJA-OCULTO"), []);
+  conferir("sob o papel: ficha", (await dadosDoPapel.fichaDoProduto("zz-loja-pub"))?.sku ?? null, "ZZ-LOJA-PUB");
+  conferir("sob o papel: similares nao lanca", Array.isArray(await dadosDoPapel.similares("ZZ-LOJA-PUB")), true);
+  conferir("sob o papel: conhecimento publico", (await dadosDoPapel.conhecimento("zz loja garantia de 90 dias")).map((n) => n.assunto), ["ZZ LOJA publica"]);
+  conferir("sob o papel: configuracao do canal", (await dadosDoPapel.configuracaoDoCanal()).canal.nome.length > 0, true);
+  conferir("sob o papel: segredos (nenhum de teste)", Object.keys(await dadosDoPapel.segredos()).sort(), ["anthropic", "openai", "turnstile"]);
+  const sinalAntes = (await dono.query(`SELECT * FROM "SinalDoAssistente" WHERE "id" = 'unico'`)).rows[0] ?? null;
+  await dadosDoPapel.darSinal({ emAndamento: 1, versao: "zz-isolamento" });
+  conferir("sob o papel: da o sinal", (await linhas(`SELECT "versao" FROM "SinalDoAssistente" WHERE "id" = 'unico'`))[0]?.versao, "zz-isolamento");
+  await comoPapel.query("RESET ROLE");
+  if (sinalAntes) await dono.query(`UPDATE "SinalDoAssistente" SET "sinalEm" = $1, "versao" = $2, "emAndamento" = $3, "ultimoErro" = $4 WHERE "id" = 'unico'`, [sinalAntes.sinalEm, sinalAntes.versao, sinalAntes.emAndamento, sinalAntes.ultimoErro]);
+  else await dono.query(`DELETE FROM "SinalDoAssistente" WHERE "id" = 'unico'`);
+  await comoPapel.query(`SET ROLE ${PAPEL}`);
+
+  // MARCADOR-T5 (as tarefas seguintes acrescentam os seus blocos acima desta linha)
 } catch (erro) {
   falhas++;
   console.error("ERRO NAO ESPERADO:", erro);

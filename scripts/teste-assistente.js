@@ -38,6 +38,20 @@ async function limpar() {
     await prisma.reservaDeGastoIA.deleteMany({ where: { dono: { in: conversas } } });
   }
   await prisma.conversaIA.deleteMany({ where: { usuario: { startsWith: "loja:zz-" } } });
+  await prisma.conhecimentoIA.deleteMany({ where: { assunto: { startsWith: "ZZ LOJA" } } });
+  await prisma.produtoComponente.deleteMany({ where: { kit: { sku: { startsWith: "ZZ-LOJA-" } } } });
+  await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-LOJA-" } } });
+  await prisma.segredoDoAssistente.deleteMany({ where: { atualizadoPor: "zz-loja" } });
+}
+
+/** `true` se a funcao lancou. */
+function lancou(funcao) {
+  try {
+    funcao();
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 const configuracaoDoDono = await prisma.configuracaoIA.findUnique({ where: { id: "unica" } });
@@ -100,7 +114,79 @@ try {
   await prisma.mensagemIA.create({ data: { conversaId: conversa.id, papel: "ASSISTENTE", conteudo: "zz", provedor: "openai", modelo: "gpt-4.1-mini", custoBrl: 1.23 } });
   conferir("resposta da loja fora do orcamento interno", (await gastoDoMes("INTERNO")).gastoBrl, antes);
 
-  // MARCADOR-T3 (as tarefas seguintes acrescentam os seus blocos acima desta linha)
+  // ---------- Tarefa 3: os segredos do servico e a camada de dados sobre as visoes ----------
+  const { cifrarSegredo, decifrarSegredo } = await import("../src/lib/riseAi/cliente/segredos.js");
+  const { criarDadosDoCliente } = await import("../src/lib/riseAi/cliente/dados.js");
+  const { PADRAO_DO_CEREBRO } = await import("../src/lib/riseAi/cliente/configuracaoDoCanal.js");
+
+  const chave = "ab".repeat(32);
+  conferir("segredo vai e volta", decifrarSegredo(cifrarSegredo("sk-teste", chave), chave), "sk-teste");
+  conferir("chave errada lanca", lancou(() => decifrarSegredo(cifrarSegredo("x", chave), "cd".repeat(32))), true);
+  conferir("texto adulterado lanca", lancou(() => decifrarSegredo(cifrarSegredo("sk-teste", chave).replace(/.$/, (c) => (c === "A" ? "B" : "A")), chave)), true);
+  conferir("o cifrado nao contem o texto", cifrarSegredo("sk-teste", chave).includes("sk-teste"), false);
+  conferir("o mesmo texto cifra diferente a cada vez", cifrarSegredo("sk-teste", chave) === cifrarSegredo("sk-teste", chave), false);
+  conferir("chave curta lanca", lancou(() => cifrarSegredo("x", "abc")), true);
+
+  // O que o cerebro le da configuracao geral tem de ser o padrao do Rise (uma fonte so, conferida aqui).
+  const padraoDoRise = configuracaoPadrao("vps");
+  conferir("padrao do cerebro = padrao do Rise", PADRAO_DO_CEREBRO, {
+    tetoClientesBrl: padraoDoRise.orcamentos.clientesBrl,
+    tempoLimite: padraoDoRise.tempoLimite,
+    maxChamadasDeFerramenta: padraoDoRise.maxChamadasDeFerramenta,
+    maxTokensResposta: padraoDoRise.maxTokensResposta,
+    contextoMaxTokens: padraoDoRise.contextoMaxTokens,
+  });
+
+  const publicado = (sku, tituloBase, extra = {}) =>
+    prisma.produto.create({ data: { sku, tituloBase, ativo: true, urlLojaIntegrada: `https://www.4hobby.com.br/${sku.toLowerCase()}`, custo: 9.99, estoque: 10, ...extra } });
+  await publicado("ZZ-LOJA-LED", "ZZ LOJA LED vermelho difuso 5mm", { precoVenda: 0.2, localizacao: "Z9", descricaoBase: "LED ZZLOJA\n\nEspecificações técnicas:\n- Cor: Vermelho;\n- Tensão: 2V;\n\nIdeal para zzlojaprojetos." });
+  await publicado("ZZ-LOJA-UNO", "ZZ LOJA Arduino UNO R3 placa", { precoVenda: 79.8, modelo: "ZZUNOR3" });
+  await publicado("ZZ-LOJA-UNO2", "ZZ LOJA Arduino UNO R3 placa SMD", { precoVenda: 59.9, estoque: 0 });
+  await publicado("ZZ-LOJA-R220", "ZZ LOJA resistor 220R", { precoVenda: 0.1 });
+  await publicado("ZZ-LOJA-PROTO", "ZZ LOJA protoboard 400 pontos", { precoVenda: 12 });
+  await prisma.produto.create({ data: { sku: "ZZ-LOJA-OCULTO", tituloBase: "ZZ LOJA LED vermelho fora da loja", ativo: true, precoVenda: 1, estoque: 5 } });
+  const kit = await publicado("ZZ-LOJA-KIT", "ZZ LOJA kit iniciante", { precoVenda: 99, tipo: "COMPOSICAO" });
+  const pecaPublica = await prisma.produto.findUnique({ where: { sku: "ZZ-LOJA-LED" } });
+  const pecaOculta = await prisma.produto.findUnique({ where: { sku: "ZZ-LOJA-OCULTO" } });
+  await prisma.produtoComponente.create({ data: { kitId: kit.id, componenteId: pecaPublica.id, quantidade: 5, ordem: 0 } });
+  await prisma.produtoComponente.create({ data: { kitId: kit.id, componenteId: pecaOculta.id, quantidade: 1, ordem: 1 } });
+  await prisma.conhecimentoIA.create({ data: { assunto: "ZZ LOJA publica", conteudo: "zz loja garantia de 90 dias contra defeito", visibilidade: "PUBLICO", status: "APROVADO", criadoPor: "zz-loja" } });
+  await prisma.conhecimentoIA.create({ data: { assunto: "ZZ LOJA interna", conteudo: "zz loja garantia: o fornecedor troca em 30 dias", visibilidade: "ADMIN", status: "APROVADO", criadoPor: "zz-loja" } });
+
+  const dados = criarDadosDoCliente({ baseDasFotos: "https://rise.exemplo/", chaveHex: chave });
+  const achados = await dados.buscarProdutos("zz loja led vermelho");
+  conferir("acha o publicado pelo nome", achados.map((p) => p.sku), ["ZZ-LOJA-LED"]);
+  conferir("o cartao so tem os campos publicos", Object.keys(achados[0]).sort(), ["faixa", "foto", "liId", "link", "marca", "modelo", "nome", "preco", "sku", "tipo"]);
+  conferir("preco e faixa do cartao", [achados[0].preco, achados[0].faixa], [0.2, "disponível"]);
+  conferir("o oculto nao e achado nem pelo codigo", await dados.buscarProdutos("ZZ-LOJA-OCULTO"), []);
+  conferir("codigo exato, sem caixa", (await dados.buscarProdutos("zz-loja-proto")).map((p) => p.sku), ["ZZ-LOJA-PROTO"]);
+  conferir("modelo exato", (await dados.buscarProdutos("zzunor3")).map((p) => p.sku), ["ZZ-LOJA-UNO"]);
+  conferir("no empate, quem tem estoque vem antes", (await dados.buscarProdutos("zz loja arduino uno")).map((p) => p.sku), ["ZZ-LOJA-UNO", "ZZ-LOJA-UNO2"]);
+  conferir("so com estoque", (await dados.buscarProdutos("zz loja arduino uno", { apenasComEstoque: true })).map((p) => p.sku), ["ZZ-LOJA-UNO"]);
+  conferir("preco maximo", (await dados.buscarProdutos("zz loja arduino uno", { precoMaximo: 60 })).map((p) => p.sku), ["ZZ-LOJA-UNO2"]);
+  conferir("palavra que so esta na descricao (busca ampla)", (await dados.buscarProdutos("zzlojaprojetos")).map((p) => p.sku), ["ZZ-LOJA-LED"]);
+  conferir("a localizacao nao e buscavel", await dados.buscarProdutos("Z9"), []);
+  conferir("curinga do LIKE vale como letra", await dados.buscarProdutos("zz lo_a led"), []);
+  conferir("por sku mantem a ordem e o nulo", (await dados.produtosPorSku(["ZZ-LOJA-OCULTO", "zz-loja-led"])).map((p) => p?.sku ?? null), [null, "ZZ-LOJA-LED"]);
+  const ficha = await dados.fichaDoProduto("ZZ-LOJA-LED");
+  conferir("a ficha vem das linhas da descricao", ficha.ficha, [{ nome: "Cor", valor: "Vermelho" }, { nome: "Tensão", valor: "2V" }]);
+  conferir("ficha de produto oculto e nula", await dados.fichaDoProduto("ZZ-LOJA-OCULTO"), null);
+  conferir("o kit so mostra a peca publicada", (await dados.fichaDoProduto("ZZ-LOJA-KIT")).kit, [{ sku: "ZZ-LOJA-LED", nome: "ZZ LOJA LED vermelho difuso 5mm", quantidade: 5 }]);
+  // O catalogo de verdade tambem tem um "Arduino UNO R3": so os de teste entram na conta.
+  conferir("similares: o outro Uno, sem o proprio", (await dados.similares("ZZ-LOJA-UNO", { limite: 50 })).map((p) => p.sku).filter((sku) => sku.startsWith("ZZ-LOJA-")), ["ZZ-LOJA-UNO2"]);
+  conferir("nota interna fora do conhecimento", (await dados.conhecimento("zz loja garantia contra defeito")).map((n) => n.assunto), ["ZZ LOJA publica"]);
+  const doCanal = await dados.configuracaoDoCanal();
+  conferir("config do canal vem com o padrao por baixo", [doCanal.canal.nome, doCanal.canal.limites.mensagensPorSessaoPorHora, typeof doCanal.maxTokensResposta, typeof doCanal.tetoClientesBrl], ["Hobi", 30, "number", "number"]);
+
+  await prisma.segredoDoAssistente.create({ data: { nome: "openai", cifrado: cifrarSegredo("sk-zz-loja", chave), atualizadoPor: "zz-loja" } });
+  await prisma.segredoDoAssistente.create({ data: { nome: "turnstile", cifrado: cifrarSegredo("ts-zz", "cd".repeat(32)), atualizadoPor: "zz-loja" } });
+  conferir("segredos: o que abre vem, o de outra chave vira nulo", await dados.segredos(), { openai: "sk-zz-loja", anthropic: null, turnstile: null });
+  await prisma.segredoDoAssistente.deleteMany({ where: { atualizadoPor: "zz-loja" } });
+  await dados.darSinal({ emAndamento: 2, versao: "zz-teste" });
+  const sinal = await prisma.sinalDoAssistente.findUnique({ where: { id: "unico" } });
+  conferir("o sinal de vida e gravado em UTC, agora", [sinal.versao, sinal.emAndamento, Math.abs(Date.now() - sinal.sinalEm.getTime()) < 60000], ["zz-teste", 2, true]);
+
+  // MARCADOR-T4 (as tarefas seguintes acrescentam os seus blocos acima desta linha)
 } catch (erro) {
   falhas++;
   console.error("ERRO NAO ESPERADO:", erro);

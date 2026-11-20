@@ -37,6 +37,19 @@ export function chatDaLojaPadrao() {
   };
 }
 
+/**
+ * O que o cerebro do cliente usa da configuracao GERAL do Rise AI quando o dono nunca salvou esses campos (a visao
+ * `ia_configuracao` devolve nulo). Copia do `configuracaoPadrao` de `configuracao.js`, que o servico `ia` nao carrega
+ * (ele traz chaves e enderecos); o `teste:assistente` falha se os dois divergirem.
+ */
+export const PADRAO_DO_CEREBRO = {
+  tetoClientesBrl: 70,
+  tempoLimite: { primeiroTokenMs: 45000, totalMs: 180000 },
+  maxChamadasDeFerramenta: 8,
+  maxTokensResposta: 1500,
+  contextoMaxTokens: 12000,
+};
+
 // Modelo sem preco cadastrado nao pode responder cliente: o teto de gasto nao somaria (spec de 12/10/2026, §2a).
 const Escolha = z.object({
   provedor: z.enum(PROVEDORES_DO_CANAL, { message: "Escolha OpenAI ou Anthropic." }),
