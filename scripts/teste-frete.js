@@ -303,6 +303,10 @@ try {
     [(await salvarConfigDeFrete({ acrescimoDeEmbalagem: "1,50", percentualDePesoExtra: "12" })).ok, (await lerConfigDeFrete()).acrescimoDeEmbalagem],
     [true, 1.5],
   );
+  await salvarConfigDeFrete({ acrescimoDeEmbalagem: "1", percentualDePesoExtra: "10", assuntoDoEmail: "  Postado: {pedido} ", textoDoEmail: "", textoDoWhatsapp: "Oi {cliente}" });
+  const comTextos = await lerConfigDeFrete();
+  conferir("textos do aviso", [comTextos.assuntoDoEmail, comTextos.textoDoEmail, comTextos.textoDoWhatsapp], ["Postado: {pedido}", null, "Oi {cliente}"]);
+  conferir("assunto longo recusado", "assuntoDoEmail" in ((await salvarConfigDeFrete({ acrescimoDeEmbalagem: "1", percentualDePesoExtra: "10", assuntoDoEmail: "x".repeat(200) })).erros ?? {}), true);
 } finally {
   await limparCaixas();
   if (configDoDono) await prisma.configDeFrete.update({ where: { id: "frete" }, data: { ...configDoDono, atualizadoEm: undefined } });
@@ -867,6 +871,85 @@ try {
   falso.falharEm = null;
   await limparEnvios();
   await devolverConexaoDoDono();
+}
+
+// ---------------------------------------------------------------------------
+// Fase 2: aviso ao cliente (e-mail e WhatsApp)
+// ---------------------------------------------------------------------------
+
+const { enviarEmail } = await import("../src/lib/email/enviar.js");
+const { avisarCliente, reenviarEmail, linkDoWhatsappDoEnvio, marcarWhatsapp, dadosDoAviso } = await import("../src/lib/frete/aviso.js");
+
+try {
+  console.log("\nAviso ao cliente");
+  await limparEnvios();
+  const enviados = [];
+  const transporte = { sendMail: async (mensagem) => (enviados.push(mensagem), { messageId: "zz-mensagem" }) };
+  const transporteQueFalha = { sendMail: async () => { throw new Error("535 credenciais recusadas"); } };
+  const liberarEmail = (liberada = true) => (config.travas.emailEnvio = liberada);
+  const pedido = await pedidoDeTeste("ZZ-FRETE-AVISO");
+  const postado = (extra = {}) =>
+    prisma.envio.create({
+      data: {
+        numero: 99100 + enviados.length + Math.floor(Math.random() * 800),
+        pedidoDeVendaId: pedido.id,
+        status: "POSTADO",
+        remetente: REMETENTE_ZZ,
+        destinatario: { ...DESTINATARIO_ZZ, nome: "Maria da Silva" },
+        comprimentoCm: 16,
+        larguraCm: 11,
+        alturaCm: 3,
+        pesoKg: 0.2,
+        valorDeclarado: 49.7,
+        servicoNome: "ZZ SEDEX",
+        transportadoraNome: "Correios",
+        rastreio: "ZZ123BR",
+        linkDoRastreio: "https://melhorrastreio.com.br/rastreio/ZZ123BR",
+        ...extra,
+      },
+    });
+
+  conferir("e-mail com a trava fechada não sai", (await enviarEmail({ para: "a@exemplo.test", assunto: "x", texto: "y" }, { transporte })).trava, true);
+  const envio = await postado();
+  conferir("dados do aviso", dadosDoAviso(await prisma.envio.findUnique({ where: { id: envio.id } }), { numero: "ZZ-FRETE-AVISO" }), {
+    cliente: "Maria",
+    pedido: "ZZ-FRETE-AVISO",
+    transportadora: "Correios",
+    servico: "ZZ SEDEX",
+    rastreio: "ZZ123BR",
+    link: "https://melhorrastreio.com.br/rastreio/ZZ123BR",
+  });
+  const fechada = await avisarCliente(envio.id, { transporte });
+  conferir("trava fechada não chama o transporte", [fechada.enviado, enviados.length], [false, 0]);
+  const depoisDaTrava = await lerEnvio(envio.id);
+  conferir("trava fechada deixa o erro e libera o reenvio", [depoisDaTrava.avisoEmailErro, depoisDaTrava.avisoEmailEm], ["Não enviado: trava EMAIL_ENVIO fechada.", null]);
+
+  liberarEmail();
+  await Promise.all([avisarCliente(envio.id, { transporte }), avisarCliente(envio.id, { transporte })]);
+  conferir("um e-mail só", enviados.length, 1);
+  conferir("assunto, remetente e destino", [enviados[0].subject, enviados[0].from, enviados[0].to], ["Seu pedido ZZ-FRETE-AVISO foi postado", "4hobby <contato@4hobby.com.br>", DESTINATARIO_ZZ.email]);
+  conferir("texto com o rastreio", enviados[0].text.includes("ZZ123BR") && enviados[0].text.startsWith("Olá, Maria!"), true);
+  const avisado = await lerEnvio(envio.id);
+  conferir("enviado fica marcado", [Boolean(avisado.avisoEmailEm), avisado.avisoEmailErro], [true, null]);
+  conferir("não manda de novo", [(await avisarCliente(envio.id, { transporte })).enviado, enviados.length], [false, 1]);
+  conferir("reenviar o já enviado recusa", (await reenviarEmail(envio.id, { transporte })).erro?.startsWith("O e-mail já foi enviado em"), true);
+
+  const semEmail = await postado({ destinatario: { ...DESTINATARIO_ZZ, email: null } });
+  conferir("sem e-mail", (await avisarCliente(semEmail.id, { transporte })).erro, "Cliente sem e-mail: use o WhatsApp.");
+  conferir("sem e-mail fica registrado", (await lerEnvio(semEmail.id)).avisoEmailErro, "Cliente sem e-mail: use o WhatsApp.");
+
+  const ruim = await postado();
+  const falhou = await avisarCliente(ruim.id, { transporte: transporteQueFalha });
+  conferir("smtp recusa libera o reenvio", [falhou.ok, (await lerEnvio(ruim.id)).avisoEmailEm, (await lerEnvio(ruim.id)).avisoEmailErro?.includes("535")], [false, null, true]);
+  conferir("reenviar depois da falha", [(await reenviarEmail(ruim.id, { transporte })).enviado, enviados.length], [true, 2]);
+
+  const link = linkDoWhatsappDoEnvio(await prisma.envio.findUnique({ where: { id: envio.id } }), { numero: "ZZ-FRETE-AVISO" }, {});
+  conferir("whatsapp", [link?.startsWith("https://wa.me/5511988887777?text="), decodeURIComponent(link).includes("ZZ123BR")], [true, true]);
+  conferir("whatsapp sem telefone", linkDoWhatsappDoEnvio({ ...envio, destinatario: { nome: "x" } }, null, {}), null);
+  conferir("marcar whatsapp", [(await marcarWhatsapp(envio.id)).ok, Boolean((await lerEnvio(envio.id)).avisoWhatsappEm)], [true, true]);
+} finally {
+  config.travas.emailEnvio = false;
+  await limparEnvios();
 }
 
 // ---------------------------------------------------------------------------

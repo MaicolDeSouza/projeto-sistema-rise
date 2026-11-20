@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { negarSemAcesso, podeAgora, sessaoDeAcessos } from "@/lib/acessos/servidor";
+import { marcarWhatsapp, reenviarEmail } from "@/lib/frete/aviso";
 import { cancelarEtiqueta, comprarEtiqueta, conferirPacote, linkDaEtiqueta } from "@/lib/frete/envios";
 import { obterProvedor, PROVEDOR_PADRAO } from "@/lib/frete/provedores/registro";
 import { recalcularLucroDoPedido } from "@/lib/pedidos/banco";
@@ -93,6 +94,31 @@ export async function imprimirEtiquetaAcao(id) {
   if (negado) return negado;
   if (!ehId(id)) return INVALIDO;
   return protegendo(() => linkDaEtiqueta(id));
+}
+
+/** "Reenviar e-mail" do aviso de postagem (so quando o anterior nao saiu). */
+export async function reenviarEmailAcao(id) {
+  const negado = await negarSemAcesso("acao.envios.avisarCliente", "executar");
+  if (negado) return negado;
+  if (!ehId(id)) return INVALIDO;
+  return protegendo(async () => {
+    const resultado = await reenviarEmail(id);
+    revalidatePath("/envios");
+    revalidatePath(`/envios/${id}`);
+    return resultado;
+  });
+}
+
+/** O clique no botao do WhatsApp (o link abre no navegador; aqui so fica a marca, que apaga o "!" da lista). */
+export async function marcarWhatsappAcao(id) {
+  const negado = await negarSemAcesso("acao.envios.avisarCliente", "executar");
+  if (negado) return negado;
+  if (!ehId(id)) return INVALIDO;
+  return protegendo(async () => {
+    const resultado = await marcarWhatsapp(id);
+    revalidatePath("/envios");
+    return resultado;
+  });
 }
 
 /** O saldo da carteira; null quando o provedor nao responde (a tela some com ele, sem erro). */

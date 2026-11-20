@@ -15,12 +15,21 @@ export default async function EnviosPage() {
     <>
       <PageHeader
         titulo="Envios"
-        descricao="O que a cotação de frete soma."
+        descricao="O que a cotação de frete soma e o aviso de postagem ao cliente."
         voltarPara="/configuracoes"
         voltarRotulo="Voltar a Configurações"
         somenteLeitura={podeEditar ? null : "Sem permissão para editar."}
       />
-      <FormularioDeEnvios inicial={{ acrescimoDeEmbalagem: config.acrescimoDeEmbalagem, percentualDePesoExtra: config.percentualDePesoExtra }} podeEditar={podeEditar} />
+      <FormularioDeEnvios
+        inicial={{
+          acrescimoDeEmbalagem: config.acrescimoDeEmbalagem,
+          percentualDePesoExtra: config.percentualDePesoExtra,
+          assuntoDoEmail: config.assuntoDoEmail,
+          textoDoEmail: config.textoDoEmail,
+          textoDoWhatsapp: config.textoDoWhatsapp,
+        }}
+        podeEditar={podeEditar}
+      />
     </>
   );
 }

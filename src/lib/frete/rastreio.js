@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 
+import { avisarCliente } from "./aviso";
 import { obterProvedor, PROVEDOR_PADRAO } from "./provedores/registro";
 import { linkDoRastreio } from "./regras";
 
@@ -42,11 +43,11 @@ function mudancasDo(envio, lido) {
 }
 
 /**
- * @param {{ agora?: Date, avisar?: (envioId: string) => Promise<unknown> }} opcoes `avisar`: o aviso ao cliente (e-mail);
- *   o worker passa o de `aviso.js`.
+ * @param {{ agora?: Date, avisar?: (envioId: string) => Promise<unknown> }} opcoes `avisar`: o aviso ao cliente (e-mail
+ *   de `aviso.js`); o teste passa outro.
  * @returns {Promise<{ ok: boolean, consultados: number, mudados: number, avisados: number, expirados: number, erro?: string }>}
  */
-export async function rodarRastreioDosEnvios({ agora = new Date(), avisar } = {}) {
+export async function rodarRastreioDosEnvios({ agora = new Date(), avisar = avisarCliente } = {}) {
   const envios = await prisma.envio.findMany({ where: { status: { in: ABERTOS }, idNoProvedor: { not: null } } });
   const resultado = { ok: true, consultados: envios.length, mudados: 0, avisados: 0, expirados: 0 };
   if (envios.length === 0) return resultado;

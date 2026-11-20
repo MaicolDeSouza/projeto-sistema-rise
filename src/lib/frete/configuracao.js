@@ -19,6 +19,9 @@ export async function lerConfigDeFrete() {
   };
 }
 
+/** Os textos do aviso ao cliente (fase 2): vazio vira null, e o aviso usa o padrao de `regras.js`. */
+const TEXTOS = { assuntoDoEmail: 150, textoDoEmail: 2000, textoDoWhatsapp: 1000 };
+
 /** @returns {Promise<{ ok: true } | { ok: false, erros: Record<string, string> }>} */
 export async function salvarConfigDeFrete(entrada) {
   const erros = {};
@@ -26,9 +29,15 @@ export async function salvarConfigDeFrete(entrada) {
   const percentual = lerDecimal(entrada?.percentualDePesoExtra);
   if (acrescimo === null || acrescimo > 100) erros.acrescimoDeEmbalagem = "Valor de R$ 0,00 a R$ 100,00.";
   if (percentual === null || percentual > 100) erros.percentualDePesoExtra = "Percentual de 0 a 100.";
+  const textos = {};
+  for (const [campo, limite] of Object.entries(TEXTOS)) {
+    const valor = String(entrada?.[campo] ?? "").trim();
+    if (valor.length > limite) erros[campo] = `No máximo ${limite} caracteres.`;
+    textos[campo] = valor || null;
+  }
   if (Object.keys(erros).length) return { ok: false, erros };
 
-  const dados = { acrescimoDeEmbalagem: acrescimo, percentualDePesoExtra: percentual };
+  const dados = { acrescimoDeEmbalagem: acrescimo, percentualDePesoExtra: percentual, ...textos };
   await prisma.configDeFrete.upsert({ where: { id: ID }, update: dados, create: { id: ID, ...PADRAO, ...dados } });
   return { ok: true };
 }

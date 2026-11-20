@@ -86,6 +86,13 @@ export const config = {
       ler("MELHOR_ENVIO_URL") || (lerBooleano("MELHOR_ENVIO_SANDBOX", true) ? "https://sandbox.melhorenvio.com.br" : "https://melhorenvio.com.br"),
   },
 
+  // E-mail que o Rise manda (aviso de postagem ao cliente, modulo de frete fase 2): SMTP do Google Workspace com a senha de
+  // aplicativo da conta. Sai so com a trava EMAIL_ENVIO ligada (fechada no PC: nada vai a cliente de verdade daqui).
+  email: {
+    usuario: ler("EMAIL_SMTP_USUARIO"),
+    senha: ler("EMAIL_SMTP_SENHA"),
+  },
+
   // Pedidos de venda (04/11/2026): o Rise so le pedidos criados a partir desta data (00:00 de Sao Paulo).
   // Pedido anterior e ignorado, inclusive uma alteracao dele. Fica no .env para um dia mudar sem codigo.
   pedidos: {
@@ -117,6 +124,8 @@ export const config = {
     // Comprar, cancelar e gerar reverso no Melhor Envio gasta o saldo da carteira: fechada, nada sai (modulo de frete).
     // Cotar nao passa por ela (e leitura).
     freteCompra: lerBooleano("FRETE_COMPRA"),
+    // E-mail a cliente (aviso de postagem): fechada, o e-mail e montado e registrado como "nao enviado (trava)".
+    emailEnvio: lerBooleano("EMAIL_ENVIO"),
   },
 };
 
