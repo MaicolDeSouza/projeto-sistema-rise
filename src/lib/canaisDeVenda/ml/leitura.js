@@ -12,7 +12,7 @@
 
 import { normalizarAtributosDaCategoria } from "./atributos";
 import { LIMITE_DO_FRETE_GRATIS, freteQueConta, precoPorMargem } from "./custos";
-import { precoPelaFaixa, varianteDoRascunho } from "./faixas";
+import { precoComDescontoAdicional, precoPelaFaixa, varianteDoRascunho } from "./faixas";
 import { medidasFaltando } from "./validacao";
 
 const dinheiro = (valor) => Math.round((Number(valor) + Number.EPSILON) * 100) / 100;
@@ -211,7 +211,7 @@ export async function precoPorMargemNoML(cliente, rascunho, { custo, margem }) {
  * categoria) e as medidas do pacote (o frete). Devolve tambem os custos lidos no preco final, como
  * `precoPorMargemNoML`, para a tela mostrar. `null` sem custo ou sem lucro.
  */
-export async function precoPelaFaixaNoML(cliente, rascunho, { custo, lucro, variante = varianteDoRascunho(rascunho) }) {
+export async function precoPelaFaixaNoML(cliente, rascunho, { custo, lucro, variante = varianteDoRascunho(rascunho), desconto = 0 }) {
   const categoriaId = String(rascunho?.categoriaId ?? "").trim();
   if (!categoriaId) throw new Error("Sem categoria: escolha a categoria na aba Geral.");
   const envio = rascunho?.envio ?? {};
@@ -221,8 +221,10 @@ export async function precoPelaFaixaNoML(cliente, rascunho, { custo, lucro, vari
   const frete = async (preco, freteGratis) =>
     (await lerFreteDoVendedor(cliente, { envio: { ...envio, freteGratis }, preco: dinheiro(preco), tipoAnuncio, logistica }))?.custo ?? 0;
 
-  const resultado = await precoPelaFaixa({ lucro, custo, variante, taxas, frete });
-  if (!resultado) return null;
+  const cheio = await precoPelaFaixa({ lucro, custo, variante, taxas, frete });
+  if (!cheio) return null;
+  // O "Desconto adicional" do anuncio (20/11/2026): sai do preco cheio, com as mesmas taxas e os limites de `faixas.js`.
+  const resultado = await precoComDescontoAdicional({ resultado: cheio, desconto, custo, variante, taxas, frete });
   const custosML = await lerCustosDoAnuncio(cliente, {
     ...rascunho,
     preco: resultado.preco,

@@ -292,6 +292,7 @@ export default function EditorAnuncioML({
             descricao: enviado.descricao,
             descricaoEditada: enviado.descricaoEditada,
             atacado: enviado.atacado,
+            descontoAdicional: enviado.descontoAdicional,
           })
         : editaPreso
           ? await salvarPresoMLAcao(idAtual, enviado)

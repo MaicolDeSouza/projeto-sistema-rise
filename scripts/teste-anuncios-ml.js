@@ -241,7 +241,7 @@ try {
     conferir("simples: family_name e a marca quando nao ha modelo", simples.familyName, "GENERICA");
     conferir("simples: produto e descricao inteira do produto", [simples.produtoId, simples.descricao], ["a", a.descricaoBase]);
     conferir("simples: os campos do rascunho", Object.keys(simples).sort(),
-      ["atacado", "atributos", "categoriaId", "categoriaNome", "composicao", "condicao", "descricao", "envio", "estoque", "familyName", "imagens", "prazoDisponibilidadeDias", "preco", "produtoId", "tipoAnuncio", "titulo"]);
+      ["atacado", "atributos", "categoriaId", "categoriaNome", "composicao", "condicao", "descontoAdicional", "descricao", "envio", "estoque", "familyName", "imagens", "prazoDisponibilidadeDias", "preco", "produtoId", "tipoAnuncio", "titulo"]);
     conferir("simples: envio pelo Mercado Envios 2, com as medidas do produto", simples.envio,
       { pesoKg: 0.001, alturaCm: 1, larguraCm: 1, comprimentoCm: 2, modo: "me2", logistica: "xd_drop_off", freteGratis: false, retirada: false });
     conferir("simples: sem composicao", simples.composicao, null);
@@ -782,7 +782,7 @@ try {
         const gravado = await anuncioDe(completo.id);
         conferir("cada campo mora na sua coluna", [gravado.titulo, gravado.descricao, gravado.categoriaExternaId, gravado.produtoId, ordenado(gravado.atributos)],
           [novo.rascunho.titulo, novo.rascunho.descricao, "MLB1234", p1.id, ordenado(novo.rascunho.atributos)]);
-        conferir("o resto do rascunho vai para dados", Object.keys(gravado.dados).sort(), ["atacado", "categoriaNome", "composicao", "condicao", "descricaoEditada", "envio", "estoque", "familyName", "fotosReordenadas", "fotosVistasEm", "imagens", "prazoDisponibilidadeDias", "preco", "tipoAnuncio"]);
+        conferir("o resto do rascunho vai para dados", Object.keys(gravado.dados).sort(), ["atacado", "categoriaNome", "composicao", "condicao", "descontoAdicional", "descricaoEditada", "envio", "estoque", "familyName", "fotosReordenadas", "fotosVistasEm", "imagens", "prazoDisponibilidadeDias", "preco", "tipoAnuncio"]);
         // O estoque do anuncio e sempre o do produto no Rise (pedido do dono em 22/10/2026): o que a tela manda nao vale.
         conferir("numero escrito como texto vira numero; o estoque e o do produto, nao o da tela", [gravado.dados.preco, gravado.dados.estoque], [12.5, 9]);
         await prisma.produto.update({ where: { id: p1.id }, data: { estoque: 4 } });
@@ -2639,6 +2639,16 @@ try {
       // O Salvar do kit publicado nao religa, mesmo que a tela mande ligado.
       await salvarPublicadoML(idKitAt, { preco: (await dadosDe(idKitAt)).preco, atributos: (await prisma.anuncio.findUnique({ where: { id: idKitAt }, select: { atributos: true } })).atributos, atacado: faixasAntigas });
       conferir("kit publicado: o Salvar nao religa o atacado", [(await dadosDe(idKitAt)).atacado.ligado, (await carregarAnuncioML(idKitAt)).mudancas.partes.includes("atacado")], [false, false]);
+
+      // Desconto adicional (20/11/2026): nasce em 0%, o Salvar do publicado guarda, e a tela aberta antes do campo (que nao o
+      // manda) ou um valor invalido deixam como estava.
+      conferir("desconto adicional: o anuncio de antes do campo abre em 0%", rascunhoBase.descontoAdicional, 0);
+      conferir("desconto adicional: o esquema da 0 a quem nao manda e recusa negativo e acima do teto", [RascunhoMLSchema.parse((({ descontoAdicional: _fora, ...resto }) => resto)(rascunhoBase)).descontoAdicional, RascunhoMLSchema.safeParse({ ...rascunhoBase, descontoAdicional: 7.5 }).data?.descontoAdicional, RascunhoMLSchema.safeParse({ ...rascunhoBase, descontoAdicional: -1 }).success, RascunhoMLSchema.safeParse({ ...rascunhoBase, descontoAdicional: 95 }).success], [0, 7.5, false, false]);
+      await salvarPublicadoML(id, { preco: rascunhoBase.preco, atributos: rascunhoBase.atributos, descontoAdicional: 7 });
+      conferir("publicado: o Salvar guarda o desconto adicional", [(await dadosDe(id)).descontoAdicional, (await carregarAnuncioML(id)).rascunho.descontoAdicional], [7, 7]);
+      await salvarPublicadoML(id, { preco: rascunhoBase.preco, atributos: rascunhoBase.atributos });
+      await salvarPublicadoML(id, { preco: rascunhoBase.preco, atributos: rascunhoBase.atributos, descontoAdicional: 500 });
+      conferir("publicado: sem o campo ou com valor invalido o desconto fica como estava", (await dadosDe(id)).descontoAdicional, 7);
     }
 
     // Fase 3: as proximas tarefas entram aqui, dentro deste bloco.
@@ -4042,6 +4052,35 @@ try {
     conferir("frete que muda com o preco: o lucro final ainda e o pedido", [lucroDegraus >= 60, lucroDegraus < 60.2, precoFechadoEm0(degraus.preco)], [true, true, true]);
     conferir("sem custo ou sem lucro: nada", [await precoPelaFaixa({ lucro: 9, custo: 0, variante: "classico_sem_frete", taxas, frete }), await precoPelaFaixa({ lucro: null, custo: 25, variante: "classico_sem_frete", taxas, frete })], [null, null]);
     conferir("lucro por unidade do kit", [lucroPorUnidade(15.37, 10), lucroPorUnidade(null, 10), lucroPorUnidade(15.37, 0)], [1.54, null, null]);
+
+    // Desconto adicional (pedido do dono em 20/11/2026: "uma caixinha escrito desconto adicional que deve ser sobre o preço de
+    // venda e deve nascer em 0%"): % sobre o preco que o lucro da loja deu, fechado em 0 centavo. Nunca atravessa os R$ 79 do
+    // frete gratis nem deixa o lucro abaixo dos R$ 5 do minimo do ML.
+    const { precoComDescontoAdicional, descontoAdicionalValido, DESCONTO_ADICIONAL_MAXIMO } = await import("../src/lib/canaisDeVenda/ml/faixas.js");
+    conferir("desconto valido: numero entre 0 e o teto; o resto e zero", [descontoAdicionalValido(7), descontoAdicionalValido("7.5"), descontoAdicionalValido(0), descontoAdicionalValido(-3), descontoAdicionalValido("abc"), descontoAdicionalValido(null), descontoAdicionalValido(500)], [7, 7.5, 0, 0, 0, 0, DESCONTO_ADICIONAL_MAXIMO]);
+    const comDesconto = (resultado, desconto, custo, variante) => precoComDescontoAdicional({ resultado, desconto, custo, variante, taxas, frete });
+    // Sem frete, lucro 9,44 e custo 25: R$ 66,60. Com 7%: 61,938, fechado em R$ 62,00; lucro 62 x 0,81 - 6,50 - 13 - 25 = 5,72.
+    const d7 = await comDesconto(semFrete, 7, 25, "classico_sem_frete");
+    conferir("desconto de 7%: preco fechado abaixo do cheio, com o lucro que sobra", [semFrete.preco, d7.preco, d7.freteGratis, d7.desconto], [66.6, 62, false, { percentual: 7, precoSemDesconto: 66.6, lucro: lucroDe(62, 25, false), limite: null }]);
+    conferir("desconto zero, vazio ou invalido: o preco nao muda e nao ha desconto", [(await comDesconto(semFrete, 0, 25, "classico_sem_frete")).preco, (await comDesconto(semFrete, 0, 25, "classico_sem_frete")).desconto, (await comDesconto(semFrete, undefined, 25, "classico_sem_frete")).desconto, (await comDesconto(semFrete, "x", 25, "classico_sem_frete")).preco], [66.6, null, null, 66.6]);
+    // 15% daria R$ 56,70 com lucro de R$ 1,43: para no preco que deixa os R$ 5 do minimo, (5 + 25 + 6,50 + 13) / 0,81 = 61,11 -> 61,20.
+    const d15 = await comDesconto(semFrete, 15, 25, "classico_sem_frete");
+    conferir("desconto que derruba o lucro abaixo de R$ 5: para no preco do lucro minimo", [d15.preco, d15.desconto.limite, d15.desconto.lucro >= 5, d15.desconto.lucro < 5.1, d15.desconto.precoSemDesconto], [61.2, "lucroMinimo", true, true, 66.6]);
+    // Com frete gratis, lucro 20 e custo 38: R$ 95,20. 25% daria R$ 71,40, abaixo dos R$ 79 em que o frete gratis e obrigatorio:
+    // para em R$ 79 (lucro 79 x 0,81 - 19,05 - 38 = 6,94).
+    const cheio79 = await precoPelaFaixa({ lucro: 20, custo: 38, variante: "classico_frete_gratis", taxas, frete });
+    const d25 = await comDesconto(cheio79, 25, 38, "classico_frete_gratis");
+    conferir("desconto que atravessaria os R$ 79 do frete gratis: para em R$ 79", [cheio79.preco, d25.preco, d25.freteGratis, d25.desconto.limite, d25.desconto.lucro], [95.2, 79, true, "frete", lucroDe(79, 38, true)]);
+    const dPiso = await comDesconto(piso, 7, 35, "classico_frete_gratis");
+    conferir("preco que ja esta no piso de R$ 79: o desconto nao tem para onde ir", [dPiso.preco, dPiso.desconto.limite, dPiso.piso], [79, "frete", true]);
+    // Os dois limites juntos (frete gratis, lucro 60 e custo 100: R$ 221,10): 70% pararia nos R$ 79 com prejuizo, entao vale o
+    // lucro minimo, (5 + 100 + 19,05) / 0,81 = 153,15 -> 153,20.
+    const d70 = await comDesconto(alto, 70, 100, "classico_frete_gratis");
+    conferir("os dois limites: vale o do lucro minimo, nunca acima do preco cheio", [d70.preco, d70.desconto.limite, d70.preco < alto.preco], [153.2, "lucroMinimo", true]);
+    // Lucro da loja ja no minimo: nao sobra desconto nenhum.
+    const noMinimo = await precoPelaFaixa({ lucro: 5, custo: 25, variante: "classico_sem_frete", taxas, frete });
+    const dMin = await comDesconto(noMinimo, 7, 25, "classico_sem_frete");
+    conferir("lucro ja no minimo: o preco fica o cheio", [dMin.preco, dMin.desconto.limite], [noMinimo.preco, "lucroMinimo"]);
   }
 
   {
@@ -4062,6 +4101,11 @@ try {
     const comFrete = await precoPelaFaixaNoML(falso, rascunho, { custo: 25, lucro, variante: "classico_frete_gratis" });
     conferir("com frete gratis: preco maior, frete gratis ligado", [comFrete.preco > semFrete.preco, comFrete.freteGratis, comFrete.variante, comFrete.custosML?.frete], [true, true, "classico_frete_gratis", 8.15]);
     conferir("sem custo: null", await precoPelaFaixaNoML(falso, rascunho, { custo: 0, lucro }), null);
+    // Desconto adicional (20/11/2026): o preco cai o percentual pedido e os custos devolvidos sao os lidos no preco COM desconto.
+    const comDesconto = await precoPelaFaixaNoML(falso, rascunho, { custo: 25, lucro, desconto: 7 });
+    const lucroComDesconto = custosDoAnuncio({ preco: comDesconto.preco, custo: 25, percentual: 0.13, tarifaFixa: 0, frete: 6.85 }).lucro;
+    conferir("com desconto de 7%: preco menor, custos lidos nele e o lucro que sobra", [comDesconto.preco < semFrete.preco, comDesconto.preco >= semFrete.preco * 0.93, comDesconto.custosML?.preco, comDesconto.desconto?.percentual, comDesconto.desconto?.precoSemDesconto, comDesconto.desconto?.lucro, comDesconto.desconto?.limite], [true, true, comDesconto.preco, 7, semFrete.preco, lucroComDesconto, null]);
+    conferir("sem desconto: nada muda e o desconto vem nulo", [semFrete.desconto, (await precoPelaFaixaNoML(falso, rascunho, { custo: 25, lucro, desconto: 0 })).preco], [null, semFrete.preco]);
     let erroSemCategoria = null;
     try { await precoPelaFaixaNoML(falso, { ...rascunho, categoriaId: "" }, { custo: 25, lucro }); } catch (erro) { erroSemCategoria = erro.message; }
     conferir("sem categoria: recusa dizendo", /categoria/i.test(String(erroSemCategoria)), true);

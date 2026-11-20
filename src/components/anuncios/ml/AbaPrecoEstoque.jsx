@@ -8,7 +8,7 @@ import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo"
 import { custoDaComposicao } from "@/lib/canaisDeVenda/composicao";
 import { precoPelaFaixaMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { custosDoAnuncio, custosValem, freteQueConta, precoPorMargem } from "@/lib/canaisDeVenda/ml/custos";
-import { lucroPorUnidade } from "@/lib/canaisDeVenda/ml/faixas";
+import { DESCONTO_ADICIONAL_MAXIMO, LUCRO_MINIMO_ML, descontoAdicionalValido, lucroPorUnidade } from "@/lib/canaisDeVenda/ml/faixas";
 import { calcularMarkup, corDoMarkup, lucroLiquido } from "@/lib/margem";
 import CalculadoraDeMargem, { taxasUsaveis } from "./CalculadoraDeMargem";
 import AtacadoDoML from "./AtacadoDoML";
@@ -270,6 +270,7 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
                 rascunho={rascunho}
                 custo={custo}
                 temPrecoDaLoja={precoDaLojaAtual > 0}
+                alterar={alterar}
                 aplicar={(resposta) => {
                   if (alvo !== null) setContexto((atual) => ({ ...atual, markupAlvo: null }));
                   setContexto((atual) => ({ ...atual, custosML: resposta.custosML ?? atual.custosML }));
@@ -321,10 +322,19 @@ function nomeDaVariante({ variante, freteGratis }) {
  * "Preco pelo lucro da loja" (definicoes do dono em 08/11/2026): o preco da variante deste anuncio que deixa no ML o mesmo
  * lucro em R$ que o produto deixa na loja, com as taxas reais e as faixas (72-79 sobe para R$ 79 com frete gratis). O valor
  * entra no campo e continua editavel. Desligado, com o motivo no `title`, enquanto faltar custo, preco da loja ou categoria.
+ *
+ * "Desconto adicional" (pedido do dono em 20/11/2026: "uma caixinha escrito desconto adicional que deve ser sobre o preço de
+ * venda e deve nascer em 0%"): o % ao lado do botao sai do preco que o lucro da loja deu. Fica guardado no anuncio
+ * (`descontoAdicional`) e vale no proximo calculo; sair do campo (ou Enter) com outro valor ja refaz o preco, para o dono
+ * nao digitar 7 e ficar olhando o preco antigo. Os limites (R$ 79 do frete gratis e o lucro minimo) sao do servidor.
  */
-function BotaoPrecoPeloLucroDaLoja({ rascunho, custo, temPrecoDaLoja, aplicar }) {
+function BotaoPrecoPeloLucroDaLoja({ rascunho, custo, temPrecoDaLoja, aplicar, alterar }) {
   const [ocupado, iniciar] = useTransition();
   const [resultado, setResultado] = useState(null);
+  // Texto do desconto como foi digitado (ver `numeros.js`); `null` = nada digitado, mostra o numero.
+  const [descontoDigitado, setDescontoDigitado] = useState(null);
+  const desconto = descontoAdicionalValido(rascunho.descontoAdicional);
+  const descontoAoEntrar = useRef(desconto);
   const semCategoria = !String(rascunho.categoriaId ?? "").trim();
   const motivo = !(custo.valor > 0)
     ? "Sem custo do produto."
@@ -347,30 +357,86 @@ function BotaoPrecoPeloLucroDaLoja({ rascunho, custo, temPrecoDaLoja, aplicar })
         return;
       }
       aplicar(resposta);
+      // O desconto adicional: o que saiu do preco e, quando um limite segurou, qual (em ambar: e dinheiro, regra 2).
+      const comDesconto = resposta.desconto ?? null;
+      const baixou = comDesconto !== null && resposta.preco < comDesconto.precoSemDesconto;
+      const avisoDoDesconto = !comDesconto?.limite
+        ? null
+        : comDesconto.limite === "lucroMinimo"
+          ? baixou
+            ? `Desconto limitado pelo lucro mínimo de ${MOEDA.format(LUCRO_MINIMO_ML)}.`
+            : `Sem espaço para desconto: o lucro já está no mínimo de ${MOEDA.format(LUCRO_MINIMO_ML)}.`
+          : baixou
+            ? "Desconto parou em R$ 79,00, o menor preço com frete grátis."
+            : "Sem espaço para desconto: R$ 79,00 é o menor preço com frete grátis.";
       setResultado({
         // Lucro da loja abaixo do minimo (R$ 5): o preco subiu para deixar R$ 5, em ambar porque e dinheiro (regra 2).
         aviso: resposta.minimoAplicado
           ? `Lucro da loja ${MOEDA.format(resposta.lucroDaLoja)} abaixo do mínimo: preço ajustado para lucro de ${MOEDA.format(resposta.lucro)}.`
-          : null,
-        texto: resposta.piso
-          ? `Faixa R$ 72–79: sobe para R$ 79 com frete grátis (lucro ${MOEDA.format(resposta.lucro)}).`
-          : `Lucro ${MOEDA.format(resposta.lucro)} mantido como ${nomeDaVariante(resposta)}.`,
+          : avisoDoDesconto,
+        texto: baixou
+          ? `Com o desconto: de ${MOEDA.format(comDesconto.precoSemDesconto)} para ${MOEDA.format(resposta.preco)}${comDesconto.lucro === null ? "" : ` (lucro ${MOEDA.format(comDesconto.lucro)})`}.`
+          : resposta.piso
+            ? `Faixa R$ 72–79: sobe para R$ 79 com frete grátis (lucro ${MOEDA.format(resposta.lucro)}).`
+            : `Lucro ${MOEDA.format(resposta.lucro)} mantido como ${nomeDaVariante(resposta)}.`,
       });
     });
   }
 
+  function digitarDesconto(bruto) {
+    const texto = filtrarDecimal(bruto, 1);
+    const numero = lerDecimal(texto) ?? 0;
+    // Acima do teto o campo ja mostra o teto: o servidor recusaria o rascunho inteiro no Salvar.
+    const valido = Math.min(numero, DESCONTO_ADICIONAL_MAXIMO);
+    setDescontoDigitado(valido === numero ? texto : String(valido));
+    alterar({ descontoAdicional: valido });
+  }
+
+  function sairDoDesconto() {
+    setDescontoDigitado(null);
+    if (desconto !== descontoAoEntrar.current && !motivo && !ocupado) calcular();
+  }
+
   return (
     <div className="mt-2">
-      <button
-        type="button"
-        onClick={calcular}
-        disabled={Boolean(motivo) || ocupado}
-        title={motivo ?? "Calcula o preço que deixa no ML o mesmo lucro em R$ da loja, respeitando as faixas"}
-        className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-1.5 text-sm text-acento transition-[background-color,transform] duration-150 ease-out hover:bg-fundo active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
-      >
-        <Calculator size={14} />
-        {ocupado ? "Calculando…" : "Preço pelo lucro da loja"}
-      </button>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <button
+          type="button"
+          onClick={calcular}
+          disabled={Boolean(motivo) || ocupado}
+          title={motivo ?? "Calcula o preço que deixa no ML o mesmo lucro em R$ da loja, respeitando as faixas"}
+          className="inline-flex items-center gap-1.5 rounded border border-borda px-3 py-1.5 text-sm text-acento transition-[background-color,transform] duration-150 ease-out hover:bg-fundo active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+        >
+          <Calculator size={14} />
+          {ocupado ? "Calculando…" : "Preço pelo lucro da loja"}
+        </button>
+        <label
+          htmlFor="ml-desconto-adicional"
+          title="Desconto em % sobre o preço calculado pelo lucro da loja. Ao sair do campo, o preço é refeito."
+          className="inline-flex items-center gap-1.5 text-sm text-suave"
+        >
+          Desconto adicional
+          <span className="relative">
+            <input
+              id="ml-desconto-adicional"
+              inputMode="decimal"
+              autoComplete="off"
+              value={mostrarDigitado(descontoDigitado, desconto)}
+              onFocus={(evento) => {
+                descontoAoEntrar.current = desconto;
+                evento.target.select();
+              }}
+              onChange={(evento) => digitarDesconto(evento.target.value)}
+              onBlur={sairDoDesconto}
+              onKeyDown={(evento) => {
+                if (evento.key === "Enter") evento.currentTarget.blur();
+              }}
+              className="w-16 rounded border border-borda py-1.5 pr-6 pl-2 text-right text-sm font-medium tabular-nums transition-[border-color] duration-150 ease-out focus:border-acento focus:outline-none"
+            />
+            <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xs text-suave">%</span>
+          </span>
+        </label>
+      </div>
       {resultado?.erro && <p className="mt-1 text-[11px] text-red-600">{resultado.erro}</p>}
       {resultado?.aviso && <p className="mt-1 text-[11px] font-medium text-amber-700">{resultado.aviso}</p>}
       {resultado?.texto && <p className="mt-1 text-[11px] text-suave">{resultado.texto}</p>}

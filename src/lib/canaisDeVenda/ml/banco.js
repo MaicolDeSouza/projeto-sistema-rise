@@ -4,6 +4,7 @@ import { codigoDaComposicao, errosDaComposicao, estoqueDaComposicao, proximoCodi
 import { custoDoProduto } from "../custo";
 import { conteudoAtualDoAnuncio, fichaDoAnuncio, mudancasDoAnuncio, prazoDoAnuncio, precoDaLojaDoAnuncio, precoDoAnuncio } from "./acompanhar";
 import { ATACADO_DESLIGADO, atacadoPermitido } from "./atacado";
+import { descontoAdicionalValido } from "./faixas";
 import { avisosDeVariosProdutos } from "./concorrentes";
 import { precisaAgirNoML, seloDoEstadoML, textoDoEstadoML } from "./estadoNoML";
 import { estadoDoIconeML, motivosDoProblemaML, rotuloDoIconeML, temProblemaNoIconeML } from "./icone";
@@ -152,6 +153,8 @@ export function rascunhoDoAnuncio(anuncio) {
     // Anuncio gravado antes do campo (08/11/2026) abre com o atacado DESLIGADO (regra 3 da spec): ligar e decisao do dono.
     // Kit sempre desligado (09/11/2026, `atacadoPermitido`): o kit no ar com faixas acende o "!" e o Enviar as apaga.
     atacado: atacadoPermitido({ composicao: dados.composicao }) ? (dados.atacado ?? ATACADO_DESLIGADO()) : ATACADO_DESLIGADO(),
+    // Desconto adicional (20/11/2026): o anuncio gravado antes do campo abre em 0%.
+    descontoAdicional: descontoAdicionalValido(dados.descontoAdicional),
   };
 }
 
@@ -397,6 +400,8 @@ export async function salvarPublicadoML(anuncioId, entrada) {
   const descricao = RascunhoMLSchema.shape.descricao.safeParse(entrada?.descricao);
   // Precos de atacado (08/11/2026): formato invalido fica como estava, como o prazo e as fotos.
   const atacado = RascunhoMLSchema.shape.atacado.safeParse(entrada?.atacado);
+  // Desconto adicional (20/11/2026): a tela aberta antes do campo nao o manda, e valor invalido fica como estava.
+  const desconto = RascunhoMLSchema.shape.descontoAdicional.safeParse(entrada?.descontoAdicional);
   try {
     // As fotos do kit na impressao precisam dos nomes de arquivo (contexto dos produtos): lidos antes da trava.
     const linha = await prisma.anuncio.findUnique({ where: { id: anuncioId }, select: { dados: true, produtoId: true } });
@@ -432,6 +437,7 @@ export async function salvarPublicadoML(anuncioId, entrada) {
       const novosDados = { ...dados, preco, publicacao: novaPublicacao };
       if (prazo.success && entrada?.prazoDisponibilidadeDias !== undefined) novosDados.prazoDisponibilidadeDias = prazo.data;
       if (atacado.success && atacado.data !== undefined) novosDados.atacado = kit ? ATACADO_DESLIGADO() : atacado.data;
+      if (desconto.success && entrada?.descontoAdicional !== undefined) novosDados.descontoAdicional = desconto.data;
       if (imagens.success) {
         novosDados.imagens = imagens.data;
         if (!kit) novosDados.fotosReordenadas = entrada?.fotosReordenadas === true;
@@ -570,7 +576,7 @@ export async function salvarPresoML(anuncioId, entrada) {
       if (agora.status === "PUBLICADO" || agora.status === "PUBLICANDO") return "Este anúncio não pode ser alterado agora.";
       if (!agora.dados?.publicacao?.itemId) return "Use o Salvar de sempre: o anúncio ainda não existe no Mercado Livre.";
       const kit = Boolean(agora.dados?.composicao);
-      const dados = { ...agora.dados, preco: rascunho.preco };
+      const dados = { ...agora.dados, preco: rascunho.preco, descontoAdicional: rascunho.descontoAdicional };
       const colunas = { atributos: rascunho.atributos };
       if (kit) {
         dados.imagens = rascunho.imagens;

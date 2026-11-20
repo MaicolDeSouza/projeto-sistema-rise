@@ -307,6 +307,8 @@ export function rascunhoInicial({ principal, produtosPorId, composicao }) {
     // gratis ja nascer desligado"; sem frete gratis o ML nao sugere desconto e o Publicar dava erro). A variante com frete
     // gratis liga as 4 faixas (`rascunhoDaVariante`); o % vem da recomendacao do ML no envio. De 08/11 a 09/11/2026 nascia ligado.
     atacado: ATACADO_DESLIGADO(),
+    // Desconto adicional sobre o preco pelo lucro da loja, em % (20/11/2026): nasce em 0 (pedido do dono).
+    descontoAdicional: 0,
   };
   if (!composicao) return rascunho;
 

@@ -97,4 +97,7 @@ export const RascunhoMLSchema = z.object({
       faixas: z.array(z.object({ quantidade: z.number().int().min(1).max(100), percentual: z.number().min(0).max(100).nullable() })).max(5),
     })
     .optional(),
+  // Desconto adicional do anuncio, em % sobre o preco pelo lucro da loja (20/11/2026, pedido do dono; nasce em 0). O editor
+  // aberto antes do campo manda o rascunho sem ele: 0. O teto e o `DESCONTO_ADICIONAL_MAXIMO` de `faixas.js`.
+  descontoAdicional: z.number().min(0).max(90).default(0),
 });

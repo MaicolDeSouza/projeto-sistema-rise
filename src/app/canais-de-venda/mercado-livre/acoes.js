@@ -248,12 +248,12 @@ export async function marcarCatalogoVistoMLAcao(id) {
   return { ok: true, marcou };
 }
 
-export async function salvarPublicadoMLAcao(id, { preco, atributos, prazoDisponibilidadeDias, imagens, fotosReordenadas, descricao, descricaoEditada, atacado } = {}) {
+export async function salvarPublicadoMLAcao(id, { preco, atributos, prazoDisponibilidadeDias, imagens, fotosReordenadas, descricao, descricaoEditada, atacado, descontoAdicional } = {}) {
   const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"]);
   if (negado) return negado;
   if (!ehId(id)) return PEDIDO_INVALIDO;
   return protegendo(async () =>
-    revalidando(await salvarPublicadoML(id, { preco, atributos, prazoDisponibilidadeDias, imagens, fotosReordenadas, descricao, descricaoEditada, atacado })),
+    revalidando(await salvarPublicadoML(id, { preco, atributos, prazoDisponibilidadeDias, imagens, fotosReordenadas, descricao, descricaoEditada, atacado, descontoAdicional })),
   );
 }
 
@@ -487,7 +487,8 @@ export async function precoPelaFaixaMLAcao(rascunho, { variante } = {}) {
     if (lucro === null) return { ok: false, erro: "Sem preço de venda do produto." };
     // Lucro da loja abaixo de R$ 5: o preco do ML sobe ate deixar R$ 5 (pedido do dono em 11/11/2026), e a tela avisa.
     const alvo = lucroComMinimo(lucro);
-    const resultado = await precoPelaFaixaNoML(clienteML(), lido.data, { custo, lucro: alvo.lucro, variante: variante ?? varianteDoRascunho(lido.data) });
+    // O "Desconto adicional" do anuncio (20/11/2026) sai do preco calculado; `resultado.desconto` diz quanto e se algum limite segurou.
+    const resultado = await precoPelaFaixaNoML(clienteML(), lido.data, { custo, lucro: alvo.lucro, variante: variante ?? varianteDoRascunho(lido.data), desconto: lido.data.descontoAdicional });
     return resultado ? { ok: true, ...resultado, lucro: alvo.lucro, lucroDaLoja: lucro, minimoAplicado: alvo.subiu } : { ok: false, erro: "Lucro inatingível com estas taxas." };
   } catch (erro) {
     return falhaDeLeitura(erro, "preco pela faixa");

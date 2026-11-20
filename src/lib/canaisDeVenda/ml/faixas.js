@@ -258,6 +258,55 @@ export function lucroComMinimo(lucro) {
   return valor < LUCRO_MINIMO_ML ? { lucro: LUCRO_MINIMO_ML, subiu: true } : { lucro: dinheiro(valor), subiu: false };
 }
 
+/** Teto do desconto adicional, em %: so barra o absurdo; quem segura o preco e o lucro minimo. */
+export const DESCONTO_ADICIONAL_MAXIMO = 90;
+
+/** O desconto adicional como numero de 0 ao teto; vazio, texto que nao e numero e negativo valem 0 (sem desconto). */
+export function descontoAdicionalValido(valor) {
+  if (valor === null || valor === undefined || valor === "") return 0;
+  const numero = Number(valor);
+  if (!Number.isFinite(numero) || numero <= 0) return 0;
+  return Math.min(numero, DESCONTO_ADICIONAL_MAXIMO);
+}
+
+/**
+ * O "Desconto adicional" do anuncio (pedido do dono em 20/11/2026: "uma caixinha escrito desconto adicional que deve ser sobre
+ * o preço de venda e deve nascer em 0%"): tira o percentual do preco que `precoPelaFaixa` deu (`resultado`) e fecha em 0
+ * centavo. Dois limites, porque o desconto no preco pesa mais no lucro do que parece (so a comissao e o imposto caem junto):
+ * - nao atravessa os R$ 79: quem tem frete gratis (da variante ou obrigatorio) para em R$ 79, senao o frete e a tarifa
+ *   mudariam de regime e a conta do lucro da loja deixaria de valer (`limite: "frete"`);
+ * - nao deixa o lucro abaixo do minimo do ML (`LUCRO_MINIMO_ML`): para no preco que deixa esse lucro, nunca acima do preco
+ *   cheio (`limite: "lucroMinimo"`, que vence o do frete).
+ * Devolve o `resultado` com o preco novo e `desconto: { percentual, precoSemDesconto, lucro, limite }`; sem desconto,
+ * `desconto: null` e o preco de antes.
+ */
+export async function precoComDescontoAdicional({ resultado, desconto, custo, variante, taxas, frete }) {
+  if (!resultado) return resultado;
+  const percentual = descontoAdicionalValido(desconto);
+  if (!(percentual > 0)) return { ...resultado, desconto: null };
+  const cheio = resultado.preco;
+  const freteGratis = Boolean(resultado.freteGratis);
+  const lucroEm = async (preco) => {
+    const { percentual: comissao, tarifaFixa } = (await taxas(preco)) ?? {};
+    return custosDoAnuncio({ preco, custo: Number(custo), percentual: comissao, tarifaFixa, frete: await frete(preco, freteGratis) })?.lucro ?? null;
+  };
+
+  let preco = Math.min(cheio, precoFechado(cheio * (1 - percentual / 100)));
+  let limite = null;
+  if (freteGratis && preco < LIMITE_DO_FRETE_GRATIS) {
+    preco = Math.min(cheio, LIMITE_DO_FRETE_GRATIS);
+    limite = "frete";
+  }
+  let lucro = await lucroEm(preco);
+  if (lucro !== null && lucro < LUCRO_MINIMO_ML) {
+    const minimo = (await precoPelaFaixa({ lucro: LUCRO_MINIMO_ML, custo, variante, taxas, frete }))?.preco ?? cheio;
+    preco = Math.min(cheio, Math.max(preco, minimo));
+    limite = "lucroMinimo";
+    lucro = await lucroEm(preco);
+  }
+  return { ...resultado, preco: dinheiro(preco), desconto: { percentual, precoSemDesconto: cheio, lucro, limite } };
+}
+
 /**
  * O lucro da loja do produto do rascunho: preco de venda menos custo e imposto (`lucroLiquido`,
  * o mesmo da proposta do ML). Kit (`composicao.itens`): a soma do lucro de cada peca vezes a
