@@ -39,6 +39,8 @@ const numero = (valor) => (valor === null || valor === undefined ? null : Number
 const cidadeDe = (endereco) => (endereco?.cidade ? `${endereco.cidade}${endereco.uf ? ` (${endereco.uf})` : ""}` : null);
 const situacaoDe = (status) => SITUACAO_DO_ENVIO[status]?.texto ?? status;
 const servicoDe = (envio) => [envio.transportadoraNome, envio.servicoNome].filter(Boolean).join(" ") || null;
+/** O erro do servidor de e-mail pode citar o endereco do cliente ("x@y rejected"): ele nao sai pelo MCP. */
+const semEmail = (texto) => (texto ? String(texto).replace(/[^\s<>"'(),;:]+@[^\s<>"'(),;:]+/g, "[e-mail]") : null);
 
 /** Quem ve a lista de Envios ou o pedido de venda le, cota e imprime (o mesmo da tela). */
 export function exigirVerEnvios(pode) {
@@ -208,7 +210,7 @@ export function envioParaOMcp(envio) {
     link: envio.linkDoRastreio ?? null,
     postarAte: emTexto(envio.validoAte),
     linhaDoTempo: PASSOS.filter(([campo]) => envio[campo]).map(([campo, rotulo]) => ({ rotulo, em: emTexto(envio[campo]) })),
-    aviso: { emailEnviadoEm: emTexto(envio.avisoEmailEm), erroDoEmail: envio.avisoEmailErro ?? null, whatsappEm: emTexto(envio.avisoWhatsappEm) },
+    aviso: { emailEnviadoEm: emTexto(envio.avisoEmailEm), erroDoEmail: semEmail(envio.avisoEmailErro), whatsappEm: emTexto(envio.avisoWhatsappEm) },
     ultimaConsultaEm: emTexto(envio.ultimaConsultaEm),
     ultimoErro: envio.ultimoErro ?? null,
   };
@@ -334,7 +336,9 @@ export async function comprarEtiquetaMcp({ envio, valorConfirmado }, { pode, usu
   if (Math.abs(Number(achado.precoCotado) - Number(valorConfirmado)) > 0.005) {
     throw new ErroDeFerramenta(`O preço preparado é ${reais(achado.precoCotado)}, não ${reais(valorConfirmado)}: confira com a pessoa.`);
   }
-  if (Date.now() - new Date(achado.cotadoEm).getTime() > VALIDADE_DA_PREPARACAO_MS) throw new ErroDeFerramenta("A preparação passou de 30 minutos: prepare de novo.");
+  // Com o carrinho ja criado (compra que caiu no meio), preparar de novo e recusado: a retomada nao pode exigir isso.
+  const velha = Date.now() - new Date(achado.cotadoEm).getTime() > VALIDADE_DA_PREPARACAO_MS;
+  if (velha && !achado.idNoProvedor) throw new ErroDeFerramenta("A preparação passou de 30 minutos: prepare de novo.");
 
   const resultado = await comprarEtiqueta(achado.id, usuario, { aoComprar: recalcularLucroDoPedido });
   if (!resultado.ok) throw new ErroDeFerramenta(resultado.erro);
@@ -362,7 +366,7 @@ export async function reenviarAvisoMcp({ envio }, { pode }) {
   exigirAvisar(pode);
   const achado = await acharEnvio(envio);
   const resultado = await reenviarEmail(achado.id);
-  return { numero: numeroDoEnvio(achado.numero), enviado: Boolean(resultado.enviado), erro: resultado.erro ?? null };
+  return { numero: numeroDoEnvio(achado.numero), enviado: Boolean(resultado.enviado), erro: semEmail(resultado.erro) };
 }
 
 // ---------------------------------------------------------------------------

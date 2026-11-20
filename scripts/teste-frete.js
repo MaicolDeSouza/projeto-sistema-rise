@@ -1268,6 +1268,24 @@ try {
     { numero: numeroDoEnvio(comprado.numero), enviado: false, erro: "Não enviado: trava EMAIL_ENVIO fechada." },
   );
 
+  await prisma.envio.update({ where: { id: comprado.id }, data: { avisoEmailErro: "550 zz-comprador@exemplo.test: recipient rejected" } });
+  const comErro = await mcpFrete.lerEnvioMcp({ envio: "ZZ-FRETE-MCP-1" }, podeTudo);
+  conferir("mcp ler: e-mail mascarado no erro do aviso", [comErro.aviso.erroDoEmail, /@/.test(JSON.stringify(comErro))], ["550 [e-mail]: recipient rejected", false]);
+
+  // Compra que caiu depois do carrinho criado: a retomada pelo MCP nao pede preparar de novo (preparar e recusado).
+  const pedido5 = await comItem("ZZ-FRETE-MCP-5", { nf: { chave: "4".repeat(44) } });
+  await mcpFrete.prepararEtiqueta({ ...preparar, pedido: "ZZ-FRETE-MCP-5" }, podeTudo);
+  falso.falharEm = "checkout";
+  conferir("mcp comprar: queda no pagamento", Boolean(await erroDe(mcpFrete.comprarEtiquetaMcp({ envio: "ZZ-FRETE-MCP-5", valorConfirmado: 28.85, confirmo: true }, podeTudo))), true);
+  falso.falharEm = null;
+  const caido = await lerEnvioDoPedido(pedido5.id);
+  await prisma.envio.update({ where: { id: caido.id }, data: { cotadoEm: new Date(Date.now() - 60 * 60 * 1000) } });
+  conferir(
+    "mcp comprar: retoma a compra pela metade",
+    [Boolean(caido.idNoProvedor), (await mcpFrete.comprarEtiquetaMcp({ envio: "ZZ-FRETE-MCP-5", valorConfirmado: 28.85, confirmo: true }, podeTudo)).situacao],
+    [true, "A postar"],
+  );
+
   const soVer = { pode: (id) => id === "tela.envios", usuario: "zz" };
   const SEM_COMPRA = "Este login não pode comprar etiquetas.";
   conferir(
