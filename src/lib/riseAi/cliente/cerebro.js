@@ -55,6 +55,7 @@ const STATUS_DA_FERRAMENTA = {
   consultarProduto: "Lendo a ficha do produto…",
   compararProdutos: "Comparando os produtos…",
   orcarLista: "Montando o orçamento da lista…",
+  calcularTotal: "Fazendo a conta…",
 };
 const MAXIMO_DO_RESULTADO = 12000;
 const arredondar = (valor, casas) => Math.round(valor * 10 ** casas) / 10 ** casas;
@@ -256,6 +257,8 @@ export async function responderAoCliente({ canal, sessaoId, mensagem, contexto =
   const vistos = [...contextoDasFerramentas.vistos.values()];
   const precos = vistos.map((produto) => produto.preco).filter((preco) => preco !== null);
   if (lista) precos.push(lista.total, ...lista.linhas.map((linha) => linha.subtotal).filter((subtotal) => subtotal !== null));
+  // A conta que a ferramenta fez (N unidades, total): valor calculado de cabeca pelo modelo continua reprovado.
+  precos.push(...(contextoDasFerramentas.saida.valores ?? []));
   const veredito = filtrarSaida(resultado.texto, {
     precos,
     links: [...vistos.map((produto) => produto.link), whatsapp].filter(Boolean),

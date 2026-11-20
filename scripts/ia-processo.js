@@ -35,6 +35,7 @@ const { criarDadosDoCliente } = await import("../src/lib/riseAi/cliente/dados.js
 const { responderAoCliente } = await import("../src/lib/riseAi/cliente/cerebro.js");
 const { criarConversasDoCanal } = await import("../src/lib/riseAi/cliente/conversasDoCanal.js");
 const { criarOrcamentoDoCliente } = await import("../src/lib/riseAi/cliente/orcamentoDoCliente.js");
+const { derivarChave } = await import("../src/lib/riseAi/cliente/segredos.js");
 const { criarServidorDoAssistente } = await import("../src/lib/riseAi/cliente/servidorHttp.js");
 const { verificarTurnstile } = await import("../src/lib/riseAi/cliente/turnstile.js");
 
@@ -42,7 +43,8 @@ const SINAL_MS = 15 * 1000;
 const ESPERA_AO_SAIR_MS = 30 * 1000;
 const log = (texto) => console.log(`${new Date().toISOString()} [ia] ${texto}`);
 
-const dados = criarDadosDoCliente({ baseDasFotos: ambiente.baseDasFotos, chaveHex: ambiente.chaveHex });
+// O IA_SEGREDO nao e usado direto: cada parte recebe so a chave do seu uso (abrir os segredos; assinar o passe do robo).
+const dados = criarDadosDoCliente({ baseDasFotos: ambiente.baseDasFotos, chaveHex: derivarChave(ambiente.chaveHex, "segredos") });
 const conversas = criarConversasDoCanal();
 const orcamento = criarOrcamentoDoCliente();
 
@@ -52,7 +54,7 @@ const servidor = criarServidorDoAssistente({
     responderAoCliente({ canal: "LOJA", sessaoId, mensagem, contexto, aoEvento, dependencias: { dados, conversas, orcamento, limites } }),
   avaliar: (mensagemId, sessaoId, nota) => conversas.avaliar(mensagemId, sessaoId, nota),
   verificarRobo: verificarTurnstile,
-  chaveHex: ambiente.chaveHex,
+  chaveHex: derivarChave(ambiente.chaveHex, "passe"),
   origens: ambiente.origens,
   versao,
 });

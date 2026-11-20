@@ -55,3 +55,15 @@ Final: minor (deferred): quando os dois modelos falham, a pergunta fica sem resp
 Final: minor (deferred): nao validado em Docker no PC (Docker parado): o conteiner `ia` com read_only e o modelo do Caddy; o deploy valida o Caddyfile antes de trocar qualquer coisa e so AVISA se o servico ia nao responder.
 Task 8: complete (commits 5d72dcd..6cb0f9a, tests: node scripts/teste-assistente.js → 197 de 197 ok)
 ```
+
+## Ajustes de 20/11/2026: as pendencias da revisao final (pedido do dono: "Ajuste as pendencias que ficaram para depois")
+
+Ajuste: fixed preco calculado no texto — ferramenta nova `calcularTotal` (codigos vistos + quantidades -> subtotais e total, em centavos); os valores dela entram nos precos permitidos do filtro (`saida.valores`) e o prompt manda usa-la — "conta feita pela ferramenta passa no filtro" RED→GREEN; "conta feita de cabeca continua reprovada" segue verde.
+Ajuste: Ruling: NAO aceitei "multiplo de um preco visto" direto no filtro — com um resistor de R$ 0,10 na resposta, quase qualquer valor inventado seria multiplo dele e passaria — custo: uma chamada de ferramenta a mais quando o visitante pede total (centavos de centavo) e, se o modelo esquecer de chama-la, a resposta ainda cai no WhatsApp.
+Ajuste: fixed IA_SEGREDO com dois usos — `derivarChave(segredo, "segredos" | "passe")` (HKDF-SHA256) em segredos.js; o processo entrega a cada parte so a chave dela — "cada uso tem a sua chave" RED→GREEN. Nada estava cifrado em producao (sem deploy), entao nao ha o que migrar. A fase 2 (tela que cifra as chaves) tem de derivar a mesma chave "segredos".
+Ajuste: nota: `ambiente.js` continua sem imports (roda antes de tudo); a derivacao acontece em scripts/ia-processo.js. A assercao que le o texto do processo nasceu junto com a mudanca (nao foi vista falhar sozinha).
+Ajuste: fixed pergunta sem resposta no historico — `historicoParaOModelo` so devolve pares pergunta + resposta valida — "historico: so os pares" RED→GREEN (pela funcao que nao existia); as duas assercoes de ponta a ponta (modelos fora do ar; orcamento esgotado) ja nasceram verdes, porque a execucao parava antes delas.
+Ajuste: fixed vaga presa se abrir o fluxo falhar — o writeHead entrou no try de `aoChat`; sem fluxo, a porta responde 500 sem detalhe — "fluxo que nao abre: erro sem detalhe e a vaga liberada" RED (409) →GREEN (200).
+Ajuste: continua aberto: Docker do PC parado (nao liguei o Docker Desktop por conta propria: ele ja travou e disputa a porta 5432); o conteiner read_only e o modelo do Caddy seguem validados so no deploy.
+Ajuste: continua aberto (fase 2, telas): gasto do chat em "Outros" no Consumo e o 👎 do visitante so gravado.
+Ajuste: testes: teste:assistente 217 de 217, teste:ia-isolamento 73 de 73, lint limpo.

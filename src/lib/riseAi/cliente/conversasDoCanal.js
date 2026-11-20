@@ -12,6 +12,31 @@ import { prisma } from "@/lib/db";
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
 const usuarioDe = (sessaoId) => `loja:${sessaoId}`;
 
+/**
+ * O que o modelo le das mensagens gravadas: so os PARES pergunta + resposta valida, na ordem. Fica de fora a resposta
+ * marcada com erro e a pergunta que ficou sem resposta (os dois modelos falharam, o orcamento acabou no meio): com ela,
+ * a rodada seguinte mandaria ao modelo duas mensagens do visitante seguidas, e a segunda responderia tambem a primeira.
+ * Na tela da Revisao as duas continuam aparecendo; isto e so o que volta ao modelo.
+ *
+ * @param {{ papel: "USUARIO" | "ASSISTENTE", conteudo: string, avisos?: string[], estruturado?: object }[]} mensagens em ordem
+ * @returns {{ papel: "usuario" | "assistente", conteudo: string }[]}
+ */
+export function historicoParaOModelo(mensagens) {
+  const validas = mensagens.filter((mensagem) => !(mensagem.papel === "ASSISTENTE" && mensagem.avisos?.includes("erro")));
+  const historico = [];
+  validas.forEach((mensagem, indice) => {
+    if (mensagem.papel === "USUARIO") {
+      if (validas[indice + 1]?.papel === "ASSISTENTE") historico.push({ papel: "usuario", conteudo: mensagem.conteudo });
+      return;
+    }
+    if (historico.at(-1)?.papel !== "usuario") return;
+    // Os codigos que a resposta mostrou: e o que deixa o modelo entender "tem um mais barato?" na mensagem seguinte.
+    const mostrados = (mensagem.estruturado?.cartoes ?? []).map((cartao) => cartao.sku).filter(Boolean);
+    historico.push({ papel: "assistente", conteudo: mostrados.length ? `${mensagem.conteudo}\n[produtos mostrados: ${mostrados.join(", ")}]` : mensagem.conteudo });
+  });
+  return historico;
+}
+
 export function criarConversasDoCanal() {
   return {
     /**
@@ -29,15 +54,7 @@ export function criarConversasDoCanal() {
         const criada = await prisma.conversaIA.create({ data: { canal, usuario, perfil: "PUBLICO", titulo: String(titulo || "Visitante da loja").slice(0, 80) } });
         return { id: criada.id, nova: true, historico: [] };
       }
-      const historico = emCurso.mensagens
-        .filter((mensagem) => !(mensagem.papel === "ASSISTENTE" && mensagem.avisos?.includes("erro")))
-        .map((mensagem) => {
-          if (mensagem.papel === "USUARIO") return { papel: "usuario", conteudo: mensagem.conteudo };
-          // Os codigos que a resposta mostrou: e o que deixa o modelo entender "tem um mais barato?" na mensagem seguinte.
-          const mostrados = (mensagem.estruturado?.cartoes ?? []).map((cartao) => cartao.sku).filter(Boolean);
-          return { papel: "assistente", conteudo: mostrados.length ? `${mensagem.conteudo}\n[produtos mostrados: ${mostrados.join(", ")}]` : mensagem.conteudo };
-        });
-      return { id: emCurso.id, nova: false, historico };
+      return { id: emCurso.id, nova: false, historico: historicoParaOModelo(emCurso.mensagens) };
     },
 
     /** A pergunta, JA mascarada: o original nunca e gravado. */

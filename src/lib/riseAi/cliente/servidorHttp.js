@@ -153,10 +153,7 @@ export function criarServidorDoAssistente({ dados, responder, avaliar, verificar
     // Daqui em diante a resposta e um fluxo de eventos. Se o visitante fechar a aba, `enviar` passa a nao fazer nada e o
     // cerebro TERMINA do mesmo jeito (a conversa fica gravada e a reserva do orcamento volta).
     let aberto = true;
-    resposta.on("close", () => {
-      aberto = false;
-    });
-    resposta.writeHead(200, { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-store", "X-Accel-Buffering": "no", "X-Content-Type-Options": "nosniff", ...cors });
+    let fluxoAberto = false;
     const enviar = (nome, dadosDoEvento) => {
       if (!aberto) return;
       try {
@@ -165,11 +162,20 @@ export function criarServidorDoAssistente({ dados, responder, avaliar, verificar
         aberto = false;
       }
     };
+    // A vaga ja foi tomada: TUDO daqui em diante fica dentro do try, para ela ser devolvida mesmo se abrir o fluxo falhar
+    // (fora dele, a sessao ficava "ocupada" ate o servico reiniciar).
     try {
+      resposta.on("close", () => {
+        aberto = false;
+      });
+      resposta.writeHead(200, { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-store", "X-Accel-Buffering": "no", "X-Content-Type-Options": "nosniff", ...cors });
+      fluxoAberto = true;
       if (passeNovo) enviar("passe", { passe: passeNovo });
       const contexto = corpo.contexto && typeof corpo.contexto === "object" ? { pagina: String(corpo.contexto.pagina ?? "").slice(0, 40), skuAberto: String(corpo.contexto.skuAberto ?? "").slice(0, 64) } : {};
       await responder({ sessaoId, mensagem, contexto, aoEvento: enviar, limites });
     } catch (erro) {
+      // O fluxo nem abriu: nao ha como avisar por evento; quem chamou responde o erro generico (500), sem detalhe.
+      if (!fluxoAberto) throw erro;
       if (erro instanceof ErroDoAtendimento) {
         enviar("erro", { motivo: erro.motivo, mensagem: erro.message, whatsapp: erro.whatsapp ?? whatsapp });
       } else {
@@ -178,7 +184,7 @@ export function criarServidorDoAssistente({ dados, responder, avaliar, verificar
       }
     } finally {
       vez.sair();
-      if (aberto) resposta.end();
+      if (fluxoAberto && aberto) resposta.end();
     }
   }
 

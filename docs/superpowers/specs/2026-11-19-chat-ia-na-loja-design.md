@@ -119,7 +119,8 @@ O construtor escolhe, com teste equivalente, entre segurança por linha (RLS) em
 ### 5.3 Os dois segredos do serviço
 
 A chave da IA **dedicada ao chat** (com teto de gasto no painel do provedor, independente do nosso código) e o segredo do
-Turnstile. O dono cola os dois **na tela do Rise** (§9), como todo token; o app os grava cifrados com o `IA_SEGREDO`, e o
+Turnstile. O dono cola os dois **na tela do Rise** (§9), como todo token; o app os grava cifrados com a chave "segredos" derivada do `IA_SEGREDO`
+(`derivarChave`, desde 20/11/2026: o `IA_SEGREDO` nunca é usado direto, e o passe do Turnstile tem outra chave), e o
 `ia` os lê pela visão. Nunca em conversa, nunca em log.
 
 ### 5.4 O endereço

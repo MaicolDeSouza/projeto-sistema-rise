@@ -440,7 +440,7 @@ npm run teste:licencas            # 109 asserções das Licenças Softwares: reg
 npm run teste:extensao-lightburn  # 13 asserções da leitura da extensão "Rise LightBurn" (extensao-lightburn/leitura.js) com as respostas da API do portal medidas em 05/11/2026 (fixtures anonimizadas em scripts/fixtures/lightburn/). Puro: sem banco, sem rede, sem Chrome
 npm run teste:analise-fornecedor  # 73 asserções do modelo padrão da análise de lista de fornecedor (src/lib/analiseFornecedor/): formato dos dados, montagem e a página com DOM falso em US$ dentro do claude.ai (com a lista "vincular" do item sem vínculo), em R$ fora dele (Copiar escolhas) e em R$ com fator. Puro: sem banco, sem rede, sem navegador
 node scripts/importar-licencas.js --lightburn=<xlsx> --mach3=<xlsx> --pasta=<pasta> --pdf=<pdf> --simular   # importação das planilhas antigas de licenças e da pasta do Mach3 (uma vez; idempotente); --confirmo grava
-npm run teste:assistente          # 197 asserções do chat da loja (o Hobi), fase 1: configuração do canal, segredos do serviço, leitura só pelas visões públicas, lista de peças, filtro de saída, limites, verificação de robô, as 7 ferramentas, o cérebro (cartões, reserva, orçamento, passagem ao WhatsApp), a porta HTTP (status, chat em SSE, avaliar) e, como texto, o compose, o Caddy e o deploy. Provedor e Turnstile FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve ZZ-LOJA-*, loja:zz-* e "ZZ LOJA *" e devolve a ConfiguracaoIA do dono
+npm run teste:assistente          # 217 asserções do chat da loja (o Hobi), fase 1: configuração do canal, segredos do serviço, leitura só pelas visões públicas, lista de peças, filtro de saída, limites, verificação de robô, as 8 ferramentas (com a conta pelo `calcularTotal`), o cérebro (cartões, reserva, orçamento, passagem ao WhatsApp), a porta HTTP (status, chat em SSE, avaliar) e, como texto, o compose, o Caddy e o deploy. Provedor e Turnstile FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve ZZ-LOJA-*, loja:zz-* e "ZZ LOJA *" e devolve a ConfiguracaoIA do dono
 npm run teste:ia-isolamento       # 73 asserções do usuário de banco `rise_ia`: veste o papel no Postgres de verdade e tenta ler o proibido (18 tabelas negadas, nenhuma coluna sensível nas visões, conversas e orçamento só do canal de cliente), a migration igual ao gerador, uma conversa inteira e o serviço de verdade (`scripts/ia-processo.js`) rodando como `rise_ia` num ambiente sem as chaves do Rise. Postgres local, SEM rede; dá ao papel uma senha de uso único e a tira no fim; recusa rodar na produção e onde o papel já tem login
 npm run teste:saude               # 72 asserções da Saúde do Rise: regras (rotinas, worker, disco, backup, memória, banco, integrações, orçamento, varreduras, PC, healthchecks, certificado digital), o aviso do Telegram, a gravação em RotinaDoWorker e a coleta nos modos PC e VPS. Postgres local, SEM rede; só escreve zz-saude-*
 npm run teste:acessos             # 207 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição, as projeções do lançamento 2 (Painel, lista de Produtos, Cadastros, canais, Scraper, Indicadores), "Ver como", Histórico e o guarda estático de src/app (sem lista de exceções). Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
@@ -5531,10 +5531,25 @@ sistema do Rise em risco". Elas são garantidas por construção, não por cuida
   `POST /avaliar`; o resto é 404.
 
 **O cérebro** (`src/lib/riseAi/cliente/`, o mesmo que o WhatsApp vai usar): `cerebro.js` (`responderAoCliente`: mascara a mensagem,
-roda o laço com o modelo principal e a reserva, reserva o orçamento antes de cada chamada), `ferramentas.js` (7 ferramentas, todas
+roda o laço com o modelo principal e a reserva, reserva o orçamento antes de cada chamada), `ferramentas.js` (8 ferramentas, todas
 de leitura; `mostrarProdutos` só aceita SKU que veio de busca e relê o cartão do banco), `filtroDeSaida.js` (todo "R$" tem de ter
 vindo de ferramenta; link e telefone só da loja; sem termo interno), `limites.js` (em memória), `turnstile.js`, `dados.js` (só as
-visões), `segredos.js` (as duas chaves do serviço, cifradas com o `IA_SEGREDO`, não com a `ENCRYPTION_KEY`).
+visões), `segredos.js` (as duas chaves do serviço, cifradas com a chave derivada do `IA_SEGREDO`, não com a `ENCRYPTION_KEY`).
+
+- **Ajustes de 20/11/2026 (as pendências da revisão final, pedido do dono):**
+  - **Conta só pela ferramenta `calcularTotal`** (códigos que vieram de busca + quantidades → subtotais e total, em centavos): o
+    valor de várias unidades e o total passam no filtro só quando saíram dela (`saida.valores`); conta de cabeça do modelo continua
+    reprovada. Aceitar "múltiplo de um preço visto" no filtro foi descartado: com um resistor de R$ 0,10 na resposta, quase qualquer
+    valor inventado passaria.
+  - **O `IA_SEGREDO` nunca é usado direto:** `derivarChave(segredo, "segredos" | "passe")` (HKDF-SHA256, `segredos.js`) dá a chave do
+    AES e a do passe do Turnstile, diferentes. **A tela da fase 2 que cifra as chaves coladas pelo dono tem de usar
+    `derivarChave(IA_SEGREDO, "segredos")`**, senão o serviço não abre o que ela gravou.
+  - **Histórico que volta ao modelo = só pares pergunta + resposta válida** (`historicoParaOModelo`, `conversasDoCanal.js`): a
+    pergunta que ficou sem resposta (modelos fora do ar, orçamento esgotado) continua gravada para a Revisão, mas não volta ao modelo.
+  - **A vaga da sessão é devolvida mesmo se abrir o fluxo de eventos falhar** (`aoChat`: o `writeHead` entrou no `try`; a porta
+    responde 500 sem detalhe).
+  - **Continuam abertos:** o contêiner `read_only` e o modelo do Caddy seguem sem validação no Docker do PC (Docker parado); e o
+    gasto do chat em "Outros" no Consumo e o 👎 do visitante só gravado ficam para as telas da fase 2.
 
 - **O texto NÃO sai letra a letra:** sai inteiro, uma vez, depois do filtro (a spec exige o filtro antes de qualquer texto chegar
   ao visitante). Enquanto isso saem eventos `status`.

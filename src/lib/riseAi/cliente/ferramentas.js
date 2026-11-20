@@ -14,11 +14,13 @@ import { normalizar } from "@/lib/texto";
  * vao so para o cartao que o servidor monta, nunca para o modelo.
  *
  * `contexto = { dados, vistos, saida }`: `vistos` guarda os produtos que as buscas DESTA resposta trouxeram (so eles podem
- * virar cartao); `saida` recebe os cartoes, a lista orcada e a passagem para o atendimento.
+ * virar cartao); `saida` recebe os cartoes, a lista orcada, a passagem para o atendimento e os `valores` que o
+ * `calcularTotal` calculou (os unicos valores, alem dos precos, que o texto pode afirmar).
  */
 
 export const MAXIMO_DE_CARTOES = 8;
 export const MAXIMO_DA_LISTA = 50;
+export const MAXIMO_DA_CONTA = 20;
 export const MOTIVOS_DA_PASSAGEM = ["pediu_pessoa", "pagamento", "pedido", "troca_ou_garantia", "reclamacao", "nao_encontrei", "outro"];
 
 const sku = z.string().trim().min(1).max(64).describe("Código (sku) do produto, como veio de uma busca");
@@ -140,6 +142,38 @@ export const FERRAMENTAS_DO_CLIENTE = [
         })),
         total: total / 100,
       };
+    },
+  },
+  {
+    nome: "calcularTotal",
+    descricao:
+      "Faz a conta de produtos que você já buscou: o valor de várias unidades de cada um e o total. Use SEMPRE que for dizer " +
+      "no texto um valor que não é o preço de UMA unidade (ex.: '2 placas saem por...', 'o total fica...'). " +
+      "Só aceita códigos que vieram de uma busca desta resposta. Nunca faça essa conta de cabeça.",
+    esquema: z.object({
+      itens: z.array(z.object({ sku, quantidade: z.coerce.number().int().min(1).max(9999) })).min(1).max(MAXIMO_DA_CONTA),
+    }),
+    async executar({ itens }, contexto) {
+      const desconhecidos = itens.map((item) => item.sku).filter((codigo) => !contexto.vistos.has(codigo));
+      if (desconhecidos.length) throw new ErroDeFerramentaDoCliente(`Busque antes de calcular: ${desconhecidos.join(", ")} não veio de uma busca desta resposta.`);
+      const linhas = [];
+      const semPreco = [];
+      let total = 0;
+      for (const item of itens) {
+        const produto = contexto.vistos.get(item.sku);
+        if (produto.preco === null) {
+          semPreco.push(produto.sku);
+          continue;
+        }
+        const subtotal = centavos(produto.preco) * item.quantidade;
+        total += subtotal;
+        linhas.push({ sku: produto.sku, nome: produto.nome, quantidade: item.quantidade, preco: produto.preco, subtotal: subtotal / 100 });
+      }
+      // Nenhum item com preco: nao ha total a afirmar (um "R$ 0,00" liberado seria um valor inventado).
+      if (linhas.length === 0) return { linhas, total: null, semPreco };
+      // So estes valores (alem dos precos das buscas) o filtro de saida deixa o texto afirmar.
+      contexto.saida.valores = [...(contexto.saida.valores ?? []), ...linhas.map((linha) => linha.subtotal), total / 100];
+      return { linhas, total: total / 100, ...(semPreco.length ? { semPreco } : {}) };
     },
   },
   {
