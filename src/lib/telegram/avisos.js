@@ -45,6 +45,18 @@ export function deveMandarResumo({ agora, jaMandadoHoje }) {
   return !jaMandadoHoje && horaEmSaoPaulo(agora) >= HORA_DO_RESUMO;
 }
 
+/**
+ * A janela do resumo de um dia: das 20h da vespera as 20h do dia, em Sao Paulo (pedido do dono em 20/11/2026: "vendas
+ * após as 20hrs contabiliza para o dia seguinte"). Ate ali era o dia do calendario, e a venda feita entre a hora do
+ * resumo e a meia-noite nao entrava em resumo nenhum. A janela e fixa, nao "ate agora": o resumo que sai atrasado
+ * (worker parado as 20h) conta o mesmo, e o que veio depois das 20h fica para o de amanha, sem repetir. Pura.
+ */
+export function janelaDoResumo(dia) {
+  const { inicio } = limitesDoDia(dia);
+  const fim = new Date(inicio.getTime() + HORA_DO_RESUMO * 60 * 60 * 1000);
+  return { inicio: new Date(fim.getTime() - UM_DIA_MS), fim };
+}
+
 /** Quem recebe: usuario ativo, com chat vinculado e com a aba Canais (nao delegavel: o Administrador). */
 export async function destinatarios({ env = process.env } = {}) {
   const usuarios = await prisma.usuarioRise.findMany({
@@ -141,8 +153,8 @@ const CANAIS_DO_RESUMO = ["MERCADO_LIVRE", "LOJA_INTEGRADA", "BLING"];
 const centavos = (valor) => Math.round(valor * 100) / 100;
 
 /**
- * As vendas do dia de Sao Paulo (pedido do dono em 19/11/2026: "número de vendas em cada canal. Valor financeiro de
- * venda e lucro do dia"), pela mesma regra da tela Vendas e do relatorio do MCP: cancelado nao entra, o valor e o total
+ * As vendas de um periodo (pedido do dono em 19/11/2026: "número de vendas em cada canal. Valor financeiro de venda e
+ * lucro do dia"; o resumo passa a janela das 20h as 20h), pela regra da tela Vendas e do relatorio do MCP: cancelado nao entra, o valor e o total
  * do pedido (com o frete cobrado) e o lucro e o real do pedido fechado ou devolvido e o estimado dos outros
  * (`lucroQueConta`). `semLucro` conta as vendas sem lucro calculado (item sem custo): ficam fora da soma, e o texto diz.
  */
@@ -168,18 +180,20 @@ export async function vendasDoDia({ inicio, fim }) {
   return { pedidos: pedidos.length, valor: centavos(valor), lucro: centavos(lucro), semLucro, canais: [...porCanal.values()] };
 }
 
-/** O que o resumo das 20h conta, no dia de Sao Paulo de `agora`. */
+/**
+ * O que o resumo das 20h conta: das 20h da vespera as 20h do dia de Sao Paulo de `agora` (`janelaDoResumo`). As
+ * consultas e os produtos que zeraram seguem a mesma janela das vendas, para o resumo falar de um periodo so. As
+ * varreduras sairam da mensagem em 20/11/2026 (pedido do dono).
+ */
 export async function resumoDoDia({ agora = Date.now(), config } = {}) {
   const dia = hojeEmSaoPaulo(new Date(agora));
-  const { inicio, fim } = limitesDoDia(dia);
-  const noDia = { gte: inicio, lt: fim };
-  const [vendas, consultas, anotadas, zerados, concluidas, falhas, ia] = await Promise.all([
+  const { inicio, fim } = janelaDoResumo(dia);
+  const naJanela = { gte: inicio, lt: fim };
+  const [vendas, consultas, anotadas, zerados, ia] = await Promise.all([
     vendasDoDia({ inicio, fim }),
-    prisma.chamadaMcp.count({ where: { quando: noDia } }),
-    prisma.chamadaMcp.count({ where: { quando: noDia, ferramenta: "anotarDuvida" } }),
-    prisma.avisoTelegram.findMany({ where: { tipo: "produtoZerou", chatId: { not: CHAT_DA_BASE }, criadoEm: noDia }, select: { chave: true } }),
-    prisma.job.count({ where: { tipo: "coleta", status: "CONCLUIDO", atualizadoEm: noDia } }),
-    prisma.job.count({ where: { tipo: "coleta", status: "FALHOU", atualizadoEm: noDia } }),
+    prisma.chamadaMcp.count({ where: { quando: naJanela } }),
+    prisma.chamadaMcp.count({ where: { quando: naJanela, ferramenta: "anotarDuvida" } }),
+    prisma.avisoTelegram.findMany({ where: { tipo: "produtoZerou", chatId: { not: CHAT_DA_BASE }, criadoEm: naJanela }, select: { chave: true } }),
     estadoDoOrcamento("CLIENTES", { agora, config }),
   ]);
   return {
@@ -188,7 +202,6 @@ export async function resumoDoDia({ agora = Date.now(), config } = {}) {
     consultas,
     anotadas,
     zerados: new Set(zerados.map((linha) => linha.chave.split(":")[1])).size,
-    varreduras: { concluidas, falhas },
     ia: { gastoBrl: ia.gastoBrl, tetoBrl: ia.tetoBrl },
   };
 }

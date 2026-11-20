@@ -12,9 +12,10 @@ export const LIMITE_DO_TRECHO = 120;
 /// Com 50 caracteres por nome o texto cabe nos 1.024 da legenda de uma foto do Telegram.
 export const MAXIMO_DE_ITENS_DA_VENDA = 8;
 export const LIMITE_DE_LINHAS_DA_VENDA = MAXIMO_DE_ITENS_DA_VENDA + 4;
-/// O resumo das 20h abre com as vendas (19/11/2026): titulo, total, ate 4 canais, lucro e as 3 linhas de antes.
+/// O resumo das 20h abre com as vendas (19/11/2026): titulo, total, ate 4 canais, lucro, consultas e IA. A linha das
+/// varreduras saiu em 20/11/2026 (pedido do dono: "pode remover a varredura da mensagem").
 export const MAXIMO_DE_CANAIS_DO_RESUMO = 4;
-export const LIMITE_DE_LINHAS_DO_RESUMO = MAXIMO_DE_CANAIS_DO_RESUMO + 6;
+export const LIMITE_DE_LINHAS_DO_RESUMO = MAXIMO_DE_CANAIS_DO_RESUMO + 5;
 const LIMITE_POR_TIPO = { novaVenda: LIMITE_DE_LINHAS_DA_VENDA, resumoDoDia: LIMITE_DE_LINHAS_DO_RESUMO };
 
 /** Quantas linhas o aviso de um tipo pode ter: 4, menos a nova venda (lista os itens) e o resumo do dia (as vendas). */
@@ -107,15 +108,14 @@ const TIPOS = {
     caminho: "/configuracoes/saude",
   }),
   // Desde 19/11/2026 (pedido do dono) abre com as vendas do dia: o total, cada canal e o lucro. Os canais vem de quem
-  // calculou (Mercado Livre, Loja Integrada e Bling sempre, mesmo com zero).
-  resumoDoDia: ({ dia, vendas = VENDAS_VAZIAS, consultas, anotadas, zerados, varreduras, ia }) => ({
+  // calculou (Mercado Livre, Loja Integrada e Bling sempre, mesmo com zero). Sem a linha das varreduras desde 20/11/2026.
+  resumoDoDia: ({ dia, vendas = VENDAS_VAZIAS, consultas, anotadas, zerados, ia }) => ({
     linhas: [
       `Resumo de ${dia}`,
       `Vendas do dia: ${vendas.pedidos} · R$ ${formatarReais(vendas.valor)}`,
       ...vendas.canais.slice(0, MAXIMO_DE_CANAIS_DO_RESUMO).map((canal) => `${NOME_DO_CANAL[canal.canal] ?? canal.canal}: ${quantasVendas(canal.pedidos)}${canal.pedidos > 0 ? ` · R$ ${formatarReais(canal.valor)}` : ""}`),
       `Lucro do dia: R$ ${formatarReais(vendas.lucro)}${vendas.semLucro > 0 ? ` (fora ${quantasVendas(vendas.semLucro)} sem custo)` : ""}`,
       `Consultas pelo Claude/ChatGPT: ${consultas} (${anotadas} anotadas) · Produtos que zeraram: ${zerados}`,
-      `Varreduras: ${varreduras.concluidas} concluídas, ${varreduras.falhas} com erro`,
       `IA no mês: R$ ${formatarReais(ia.gastoBrl)} de R$ ${formatarReais(ia.tetoBrl)}`,
     ],
     caminho: "/rise-ai/revisao",
