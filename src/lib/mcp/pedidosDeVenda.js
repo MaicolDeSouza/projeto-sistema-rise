@@ -164,8 +164,8 @@ export async function listarPedidosDeVenda({ desde, ate, canais, status, termos,
   };
 }
 
-/** O pedido pelo numero que o operador ve, o id na origem ou o numero no Bling (sem caixa). */
-async function acharPedido(referencia) {
+/** O pedido pelo numero que o operador ve, o id na origem ou o numero no Bling (sem caixa). O MCP do frete tambem usa. */
+export async function acharPedido(referencia) {
   const texto = String(referencia ?? "").trim();
   if (!texto) throw new ErroDeFerramenta("Informe o número do pedido.");
   const igual = { equals: texto, mode: "insensitive" };

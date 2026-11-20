@@ -1127,6 +1127,98 @@ try {
 }
 
 // ---------------------------------------------------------------------------
+// MCP do frete (spec 2026-11-20-mcp-do-frete-design.md)
+// ---------------------------------------------------------------------------
+
+const mcpFrete = await import("../src/lib/mcp/frete.js");
+const erroDe = async (promessa) => {
+  try {
+    await promessa;
+    return null;
+  } catch (erro) {
+    return erro?.message ?? String(erro);
+  }
+};
+const podeTudo = { pode: () => true, usuario: "zz-mcp" };
+const podeNada = { pode: () => false, usuario: "zz-mcp" };
+// Do cliente so saem o nome e a cidade: nenhuma destas chaves pode aparecer numa resposta do MCP.
+const DADO_PESSOAL = /"(endereco|telefone|email|documento|remetente|cep)"/;
+
+try {
+  console.log("\nMCP do frete: leituras");
+  await limparEnvios();
+  await prisma.conexao.deleteMany({ where: { servico: "MELHOR_ENVIO" } });
+  await concluirAutorizacao("codigo-de-teste");
+  const cx3 = await prisma.caixaDeEnvio.findUnique({ where: { nome: "CX 16x11x3" } });
+  const pacote = { cepDestino: "01001000", caixaId: cx3.id, caixaNome: cx3.nome, pesoKg: 0.165, comprimentoCm: 16, larguraCm: 11, alturaCm: 3, valorDeclarado: 49.7 };
+  const sedex = { servicoId: "2", servicoNome: "SEDEX", transportadora: "Correios", preco: 28.85, prazoDias: 2, valorACobrar: 29.85 };
+  const comItem = async (numero, extra) => {
+    const pedido = await pedidoDeTeste(numero, extra);
+    await prisma.itemDoPedidoDeVenda.create({ data: { pedidoId: pedido.id, ordem: 0, titulo: "ZZ Display LCD", quantidade: 2, precoUnitario: 24.85, desconto: 0, total: 49.7 } });
+    return pedido;
+  };
+  const pedido1 = await comItem("ZZ-FRETE-MCP-1");
+  const { envio: rascunho } = await salvarRascunhoDoPedido(pedido1.id, { pacote, servico: sedex, cotadoEm: new Date().toISOString() }, "zz");
+  await conferirPacote(rascunho.id, { caixaId: cx3.id, pesoKg: "0,2", tipoDeDocumento: "NFE", chaveNfe: "4".repeat(44) }, "zz");
+  liberarTrava();
+  const comprado = (await comprarEtiqueta(rascunho.id, "zz")).envio;
+  liberarTrava(false);
+
+  const cotacao = await mcpFrete.cotarFreteMcp({ cep: "01001-000", caixa: "cx 16x11x3", pesoKg: 0.2, valor: 49.7 }, podeTudo);
+  conferir("mcp cotar: sedex", cotacao.servicos.some((s) => s.servico === "SEDEX" && s.preco === 28.85 && s.transportadora === "Correios"), true);
+  conferir("mcp cotar: caixa pelo nome", cotacao.pacote.caixa, "CX 16x11x3");
+  conferir("mcp cotar: caixa que não existe", (await erroDe(mcpFrete.cotarFreteMcp({ cep: "01001000", caixa: "CX 99", pesoKg: 0.2, valor: 10 }, podeTudo)))?.includes("não cadastrada"), true);
+
+  await comItem("ZZ-FRETE-MCP-2");
+  conferir("mcp cotar pedido: sem pacote", (await erroDe(mcpFrete.cotarFreteDoPedido({ pedido: "ZZ-FRETE-MCP-2" }, podeTudo)))?.startsWith("Diga a caixa e o peso"), true);
+  const doPedido = await mcpFrete.cotarFreteDoPedido({ pedido: "zz-frete-mcp-2", caixa: "CX 16x11x3", pesoKg: 0.2 }, podeTudo);
+  conferir("mcp cotar pedido: pacote da chamada", [doPedido.pedido, doPedido.pacoteDe, doPedido.destino, doPedido.servicos.length > 0], ["ZZ-FRETE-MCP-2", "chamada", "São Paulo (SP)", true]);
+  conferir("mcp cotar pedido: pacote do envio", (await mcpFrete.cotarFreteDoPedido({ pedido: "ZZ-FRETE-MCP-1" }, podeTudo)).pacoteDe, "rascunho");
+  await pedidoDeTeste("ZZ-FRETE-MCP-ML", { origem: "MERCADO_LIVRE", canal: "MERCADO_LIVRE" });
+  conferir("mcp cotar pedido: só do Bling", await erroDe(mcpFrete.cotarFreteDoPedido({ pedido: "ZZ-FRETE-MCP-ML" }, podeTudo)), "O envio pelo Rise é só para pedido do Bling.");
+
+  const lido = await mcpFrete.lerEnvioMcp({ envio: String(comprado.numero) }, podeTudo);
+  const referencias = [numeroDoEnvio(comprado.numero), "ZZ-FRETE-MCP-1", comprado.rastreio.toLowerCase()];
+  conferir(
+    "mcp ler: pelo envio, pedido e rastreio",
+    await Promise.all(referencias.map(async (referencia) => (await mcpFrete.lerEnvioMcp({ envio: referencia }, podeTudo)).numero)),
+    referencias.map(() => lido.numero),
+  );
+  conferir(
+    "mcp ler: o que mostra",
+    [lido.numero, lido.situacao, lido.pedido, lido.destinatario, lido.servico, lido.custo, lido.linhaDoTempo[0]?.rotulo],
+    [numeroDoEnvio(comprado.numero), "A postar", "ZZ-FRETE-MCP-1", { nome: "ZZ Comprador", cidade: "São Paulo (SP)" }, "Correios SEDEX", 25.84, "Etiqueta comprada"],
+  );
+  conferir("mcp ler: sem dado pessoal", DADO_PESSOAL.test(JSON.stringify(lido)), false);
+  conferir("mcp ler: pedido sem envio", await erroDe(mcpFrete.lerEnvioMcp({ envio: "ZZ-FRETE-MCP-2" }, podeTudo)), "O pedido ZZ-FRETE-MCP-2 não tem envio pelo Rise.");
+  conferir("mcp ler: não achado", await erroDe(mcpFrete.lerEnvioMcp({ envio: "XYZ-NADA" }, podeTudo)), "Envio não encontrado: use o número do envio, do pedido ou o rastreio.");
+
+  const lista = await mcpFrete.listarEnviosMcp({ termos: "ZZ-FRETE-MCP-1" }, podeTudo);
+  conferir("mcp listar", [lista.total, lista.saldo, lista.envios[0]?.numero, lista.envios[0]?.situacao], [1, 123.45, lido.numero, "A postar"]);
+  conferir("mcp listar: por situação", (await mcpFrete.listarEnviosMcp({ situacao: ["POSTADO"], termos: "ZZ-FRETE-MCP-1" }, podeTudo)).total, 0);
+  conferir("mcp listar: sem dado pessoal", DADO_PESSOAL.test(JSON.stringify(lista)), false);
+  conferir("mcp imprimir", (await mcpFrete.imprimirEtiquetaMcp({ envio: "ZZ-FRETE-MCP-1" }, podeTudo)).url?.startsWith("http"), true);
+
+  const SEM_VER = "Este login não pode ver os envios.";
+  conferir(
+    "mcp leituras: sem acesso",
+    await Promise.all([
+      erroDe(mcpFrete.cotarFreteMcp({ cep: "01001000", caixa: "CX 16x11x3", pesoKg: 0.2, valor: 10 }, podeNada)),
+      erroDe(mcpFrete.cotarFreteDoPedido({ pedido: "ZZ-FRETE-MCP-1" }, podeNada)),
+      erroDe(mcpFrete.lerEnvioMcp({ envio: "ZZ-FRETE-MCP-1" }, podeNada)),
+      erroDe(mcpFrete.listarEnviosMcp({}, podeNada)),
+      erroDe(mcpFrete.imprimirEtiquetaMcp({ envio: "ZZ-FRETE-MCP-1" }, podeNada)),
+    ]),
+    [SEM_VER, SEM_VER, SEM_VER, SEM_VER, SEM_VER],
+  );
+  conferir("mcp leituras: quem vê pedidos também", (await mcpFrete.lerEnvioMcp({ envio: "ZZ-FRETE-MCP-1" }, { pode: (id) => id === "tela.pedidos", usuario: "zz" })).numero, lido.numero);
+} finally {
+  liberarTrava(false);
+  await limparEnvios();
+  await devolverConexaoDoDono();
+}
+
+// ---------------------------------------------------------------------------
 
 servidor.close();
 await prisma.$disconnect();
