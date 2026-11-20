@@ -5,6 +5,7 @@ import { permissoesDoLogin } from "@/lib/acessos/banco";
 import { pcSemResposta, sinalDoVigiaDoPc } from "@/lib/coleta/fila";
 import { hojeEmSaoPaulo } from "@/lib/ferramentas/cotacao";
 import { lerSegredo } from "@/lib/integracoes/conexoes";
+import { lucroQueConta } from "@/lib/pedidos/banco";
 import { lerConfiguracao } from "@/lib/riseAi/configuracao";
 import { ESCOPOS, estadoDoOrcamento, mesDeSaoPaulo } from "@/lib/riseAi/orcamento";
 import { limitesDoDia } from "@/lib/riseAi/revisao";
@@ -135,12 +136,45 @@ async function varredurasQueFalharam({ agora }) {
   return reais.map((job) => ({ chave: `varredura-falhou:${job.id}`, dados: { fonteNome: nomes.get(fonteDoJob(job)) ?? "fonte", erro: job.erro ?? "sem mensagem de erro" } }));
 }
 
+/// Os canais que o resumo sempre mostra, nesta ordem, mesmo sem venda no dia; outro canal (Shopee) so entra com venda.
+const CANAIS_DO_RESUMO = ["MERCADO_LIVRE", "LOJA_INTEGRADA", "BLING"];
+const centavos = (valor) => Math.round(valor * 100) / 100;
+
+/**
+ * As vendas do dia de Sao Paulo (pedido do dono em 19/11/2026: "número de vendas em cada canal. Valor financeiro de
+ * venda e lucro do dia"), pela mesma regra da tela Vendas e do relatorio do MCP: cancelado nao entra, o valor e o total
+ * do pedido (com o frete cobrado) e o lucro e o real do pedido fechado ou devolvido e o estimado dos outros
+ * (`lucroQueConta`). `semLucro` conta as vendas sem lucro calculado (item sem custo): ficam fora da soma, e o texto diz.
+ */
+export async function vendasDoDia({ inicio, fim }) {
+  const pedidos = await prisma.pedidoDeVenda.findMany({
+    where: { dataDaVenda: { gte: inicio, lt: fim }, status: { not: "CANCELADO" } },
+    select: { canal: true, status: true, total: true, lucroFechado: true, lucroEstimado: true, lucroReal: true },
+  });
+  const porCanal = new Map(CANAIS_DO_RESUMO.map((canal) => [canal, { canal, pedidos: 0, valor: 0 }]));
+  let valor = 0;
+  let lucro = 0;
+  let semLucro = 0;
+  for (const pedido of pedidos) {
+    const linha = porCanal.get(pedido.canal) ?? { canal: pedido.canal, pedidos: 0, valor: 0 };
+    linha.pedidos += 1;
+    linha.valor = centavos(linha.valor + Number(pedido.total));
+    porCanal.set(pedido.canal, linha);
+    valor += Number(pedido.total);
+    const doPedido = lucroQueConta(pedido);
+    if (doPedido === null) semLucro += 1;
+    else lucro += doPedido;
+  }
+  return { pedidos: pedidos.length, valor: centavos(valor), lucro: centavos(lucro), semLucro, canais: [...porCanal.values()] };
+}
+
 /** O que o resumo das 20h conta, no dia de Sao Paulo de `agora`. */
 export async function resumoDoDia({ agora = Date.now(), config } = {}) {
   const dia = hojeEmSaoPaulo(new Date(agora));
   const { inicio, fim } = limitesDoDia(dia);
   const noDia = { gte: inicio, lt: fim };
-  const [consultas, anotadas, zerados, concluidas, falhas, ia] = await Promise.all([
+  const [vendas, consultas, anotadas, zerados, concluidas, falhas, ia] = await Promise.all([
+    vendasDoDia({ inicio, fim }),
     prisma.chamadaMcp.count({ where: { quando: noDia } }),
     prisma.chamadaMcp.count({ where: { quando: noDia, ferramenta: "anotarDuvida" } }),
     prisma.avisoTelegram.findMany({ where: { tipo: "produtoZerou", chatId: { not: CHAT_DA_BASE }, criadoEm: noDia }, select: { chave: true } }),
@@ -150,6 +184,7 @@ export async function resumoDoDia({ agora = Date.now(), config } = {}) {
   ]);
   return {
     dia: diaEMes(dia),
+    vendas,
     consultas,
     anotadas,
     zerados: new Set(zerados.map((linha) => linha.chave.split(":")[1])).size,
