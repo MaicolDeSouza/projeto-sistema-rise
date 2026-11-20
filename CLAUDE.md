@@ -5632,6 +5632,14 @@ Maicol e Andrea (spec §13).
   a venda das 20h30 entra no resumo do dia seguinte. A janela é fixa, não "até agora": resumo que sai atrasado conta o
   mesmo e nada se repete. Consultas e produtos que zeraram seguem a mesma janela. Até ali era o dia do calendário, e a venda
   feita depois das 20h não entrava em resumo nenhum. Limite próprio de 9 linhas (`LIMITE_DE_LINHAS_DO_RESUMO`).
+- **Nova venda da Loja Integrada só com o pagamento aprovado (20/11/2026, pedido do dono: "Nos pedidos da Li apenas me enviar
+  se o pagamento tiver sido aprovado"; SEM deploy):** o pedido da LI nasce "aguardando pagamento" (pix, boleto) e pode ser
+  pago dias depois, ou nunca. `novasVendas` (`avisos.js`) separa a LI: avisa o pedido que já está pago ou adiante (status
+  diferente de `AGUARDANDO_PAGAMENTO` e `CANCELADO`) e cujo pagamento foi nas últimas 24 h, lido do histórico de situações
+  da LI (`pagoEmNoHistoricoDaLI`, `lib/pedidos/despacho.js`, a mesma conta do prazo de envio de 24 h); sem o passo no
+  histórico vale a data da venda. Assim o boleto pago 3 dias depois avisa na hora do pagamento, e o pago há mais tempo (carga
+  inicial, releitura) não. **Mercado Livre e Bling continuam como antes** (lido há 2 h e vendido há 24 h, pago ou não: ele
+  só pediu a LI). O resumo das 20h **não mudou**: conta a venda da LI pela data da venda, paga ou não, como a tela Vendas.
 
 **Roteiro do dono (depois do deploy, na VPS):**
 1. No Telegram, abrir o @BotFather, enviar `/newbot`, escolher o nome e copiar o token.
@@ -5647,14 +5655,6 @@ Maicol e Andrea (spec §13).
 ## Saúde do Rise (25/10/2026)
 
 Pedido do dono: "um cartão em Configurações chamado Saúde do Rise; ali devem ser monitorados todos os workers, banco de dados,
-- **Nova venda da Loja Integrada só com o pagamento aprovado (20/11/2026, pedido do dono: "Nos pedidos da Li apenas me enviar
-  se o pagamento tiver sido aprovado"; SEM deploy):** o pedido da LI nasce "aguardando pagamento" (pix, boleto) e pode ser
-  pago dias depois, ou nunca. `novasVendas` (`avisos.js`) separa a LI: avisa o pedido que já está pago ou adiante (status
-  diferente de `AGUARDANDO_PAGAMENTO` e `CANCELADO`) e cujo pagamento foi nas últimas 24 h, lido do histórico de situações
-  da LI (`pagoEmNoHistoricoDaLI`, `lib/pedidos/despacho.js`, a mesma conta do prazo de envio de 24 h); sem o passo no
-  histórico vale a data da venda. Assim o boleto pago 3 dias depois avisa na hora do pagamento, e o pago há mais tempo (carga
-  inicial, releitura) não. **Mercado Livre e Bling continuam como antes** (lido há 2 h e vendido há 24 h, pago ou não: ele
-  só pediu a LI). O resumo das 20h **não mudou**: conta a venda da LI pela data da venda, paga ou não, como a tela Vendas.
 integrações e outros itens relevantes", com aviso no Telegram ("telegram agora") e o check "Site do Rise no ar" no
 healthchecks.io. **Pronto e testado no PC, SEM DEPLOY** (leva a migration `20261025b_rotina_do_worker`, só tabela nova).
 
