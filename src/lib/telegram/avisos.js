@@ -153,6 +153,14 @@ async function varredurasQueFalharam({ agora }) {
 const CANAIS_DO_RESUMO = ["MERCADO_LIVRE", "LOJA_INTEGRADA", "BLING"];
 const centavos = (valor) => Math.round(valor * 100) / 100;
 
+/// Loja Integrada: o pedido nasce "aguardando pagamento" (pix, boleto) e pode ser pago dias depois, ou nunca. O aviso
+/// de nova venda e o resumo das 20h so contam o pedido pago, e pelo instante do pagamento: a 1a vez que o historico de
+/// situacoes da LI mostra o pedido pago (`pagoEmNoHistoricoDaLI`); sem esse passo vale a data da venda. O teto de 15
+/// dias so limita as consultas: a LI cancela bem antes o pedido que ninguem pagou.
+const SEM_PAGAMENTO = ["AGUARDANDO_PAGAMENTO", "CANCELADO"];
+const QUINZE_DIAS_MS = 15 * UM_DIA_MS;
+const pagoEmDaLI = (pedido) => pagoEmNoHistoricoDaLI(pedido.historico) ?? pedido.dataDaVenda;
+
 /**
  * As vendas de um periodo (pedido do dono em 19/11/2026: "número de vendas em cada canal. Valor financeiro de venda e
  * lucro do dia"; o resumo passa a janela das 20h as 20h), pela regra da tela Vendas e do relatorio do MCP: cancelado nao entra, o valor e o total
@@ -160,10 +168,19 @@ const centavos = (valor) => Math.round(valor * 100) / 100;
  * (`lucroQueConta`). `semLucro` conta as vendas sem lucro calculado (item sem custo): ficam fora da soma, e o texto diz.
  */
 export async function vendasDoDia({ inicio, fim }) {
-  const pedidos = await prisma.pedidoDeVenda.findMany({
-    where: { dataDaVenda: { gte: inicio, lt: fim }, status: { not: "CANCELADO" } },
-    select: { canal: true, status: true, total: true, lucroFechado: true, lucroEstimado: true, lucroReal: true },
-  });
+  const select = { canal: true, status: true, total: true, lucroFechado: true, lucroEstimado: true, lucroReal: true };
+  // A Loja Integrada conta pelo PAGAMENTO, nao pela venda (pedido do dono em 20/11/2026: "vendas da li nao pagas nao
+  // devem ser contabilizda. Se for paga depois das 20hrs entra para o dia seguinte"): so o pedido pago, no periodo em
+  // que o pagamento caiu. O boleto de anteontem pago hoje e venda de hoje; o pedido de hoje ainda sem pagamento nao e
+  // de dia nenhum. Os outros canais seguem pela data da venda.
+  const [dosOutrosCanais, daLojaIntegrada] = await Promise.all([
+    prisma.pedidoDeVenda.findMany({ where: { canal: { not: "LOJA_INTEGRADA" }, dataDaVenda: { gte: inicio, lt: fim }, status: { not: "CANCELADO" } }, select }),
+    prisma.pedidoDeVenda.findMany({
+      where: { canal: "LOJA_INTEGRADA", dataDaVenda: { gte: new Date(inicio.getTime() - QUINZE_DIAS_MS), lt: fim }, status: { notIn: SEM_PAGAMENTO } },
+      select: { ...select, dataDaVenda: true, historico: true },
+    }),
+  ]);
+  const pedidos = [...dosOutrosCanais, ...daLojaIntegrada.filter((p) => pagoEmDaLI(p) >= inicio && pagoEmDaLI(p) < fim)];
   const porCanal = new Map(CANAIS_DO_RESUMO.map((canal) => [canal, { canal, pedidos: 0, valor: 0 }]));
   let valor = 0;
   let lucro = 0;
@@ -254,11 +271,7 @@ const SETE_DIAS_MS = 7 * UM_DIA_MS;
 /// dias depois, ou nunca; a regra do "lido ha pouco" o avisaria sem pagamento e perderia o que foi pago mais tarde. Por
 /// isso a LI vai por outra consulta: pedido ja pago (ou adiante) cujo pagamento foi nas ultimas 24 h, pelo historico de
 /// situacoes da LI (`pagoEmNoHistoricoDaLI`); sem o passo no historico vale a data da venda. O que foi pago ha mais
-/// tempo (carga inicial, releitura) nao avisa, e a chave do aviso impede a repeticao. O teto de 15 dias so limita a
-/// consulta: a LI cancela bem antes o pedido que ninguem pagou.
-const SEM_PAGAMENTO = ["AGUARDANDO_PAGAMENTO", "CANCELADO"];
-const QUINZE_DIAS_MS = 15 * UM_DIA_MS;
-
+/// tempo (carga inicial, releitura) nao avisa, e a chave do aviso impede a repeticao (`pagoEmDaLI`, acima).
 async function novasVendas({ agora }) {
   const select = {
     id: true,
@@ -279,7 +292,7 @@ async function novasVendas({ agora }) {
       select: { ...select, historico: true },
     }),
   ]);
-  const pagasHaPouco = daLojaIntegrada.filter((p) => (pagoEmNoHistoricoDaLI(p.historico) ?? p.dataDaVenda).getTime() >= agora - UM_DIA_MS);
+  const pagasHaPouco = daLojaIntegrada.filter((p) => pagoEmDaLI(p).getTime() >= agora - UM_DIA_MS);
   const pedidos = [...lidasHaPouco, ...pagasHaPouco].sort((a, b) => a.dataDaVenda - b.dataDaVenda);
   return pedidos.map((p) => ({
     chave: `nova-venda:${p.id}`,

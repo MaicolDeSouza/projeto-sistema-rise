@@ -514,24 +514,33 @@ try {
     await vendaEm("ZZ-TG-R5", "BLING", "2025-03-19T22:30:00.000Z", 77, { lucroEstimado: 10 });
     await vendaEm("ZZ-TG-R6", "BLING", "2025-03-20T23:30:00.000Z", 88, { lucroEstimado: 10 });
     await vendaEm("ZZ-TG-R7", "BLING", "2025-03-19T23:30:00.000Z", 40, { lucroEstimado: 5 });
+    // Loja Integrada conta pelo pagamento (pedido do dono em 20/11/2026: "vendas da li nao pagas nao devem ser
+    // contabilizda. Se for paga depois das 20hrs entra para o dia seguinte"): R8 foi vendida no dia e nao foi paga (fora);
+    // R9 foi vendida dois dias antes e paga no dia, as 11h (dentro); R10 foi vendida no dia as 10h e paga as 20h30
+    // (fora do dia, dentro do seguinte). A R3 nao tem historico: vale a data da venda.
+    const pagaEm = (quando) => ({ status: "PAGO", statusDaOrigem: "pedido_pago", historico: [{ em: quando, statusDaOrigem: "pedido_pago" }] });
+    await vendaEm("ZZ-TG-R8", "LOJA_INTEGRADA", "2025-03-20T12:00:00.000Z", 60, { status: "AGUARDANDO_PAGAMENTO", statusDaOrigem: "aguardando_pagamento", lucroEstimado: 6 });
+    await vendaEm("ZZ-TG-R9", "LOJA_INTEGRADA", "2025-03-18T12:00:00.000Z", 25, { ...pagaEm("2025-03-20T14:00:00.000Z"), lucroEstimado: 4 });
+    await vendaEm("ZZ-TG-R10", "LOJA_INTEGRADA", "2025-03-20T13:00:00.000Z", 15, { ...pagaEm("2025-03-20T23:30:00.000Z"), lucroEstimado: 2 });
     const resumoComVendas = await a.resumoDoDia({ agora: sp2030("2025-03-20") });
     conferir("resumo: vendas das 20h da vespera as 20h do dia, por canal, valor e lucro", resumoComVendas.vendas, {
-      pedidos: 4,
-      valor: 220.5,
-      lucro: 32.25,
+      pedidos: 5,
+      valor: 245.5,
+      lucro: 36.25,
       semLucro: 1,
-      canais: [{ canal: "MERCADO_LIVRE", pedidos: 2, valor: 150.5 }, { canal: "LOJA_INTEGRADA", pedidos: 1, valor: 30 }, { canal: "BLING", pedidos: 1, valor: 40 }],
+      canais: [{ canal: "MERCADO_LIVRE", pedidos: 2, valor: 150.5 }, { canal: "LOJA_INTEGRADA", pedidos: 2, valor: 55 }, { canal: "BLING", pedidos: 1, valor: 40 }],
     });
     conferir("resumo: quem calcula nao manda mais as varreduras", "varreduras" in resumoComVendas, false);
     const resumoDoDiaSeguinte = await a.resumoDoDia({ agora: sp2030("2025-03-21") });
-    conferir("a venda depois das 20h entra no resumo do dia seguinte, e so nele", [resumoDoDiaSeguinte.dia, resumoDoDiaSeguinte.vendas.pedidos, resumoDoDiaSeguinte.vendas.valor, resumoDoDiaSeguinte.vendas.canais.find((c) => c.canal === "BLING")], ["21/03", 1, 88, { canal: "BLING", pedidos: 1, valor: 88 }]);
+    conferir("a venda depois das 20h entra no resumo do dia seguinte, e so nele", [resumoDoDiaSeguinte.dia, resumoDoDiaSeguinte.vendas.pedidos, resumoDoDiaSeguinte.vendas.valor, resumoDoDiaSeguinte.vendas.canais.find((c) => c.canal === "BLING")], ["21/03", 2, 103, { canal: "BLING", pedidos: 1, valor: 88 }]);
+    conferir("LI paga depois das 20h entra no dia seguinte; a nao paga nao entra em dia nenhum", [resumoDoDiaSeguinte.vendas.canais.find((c) => c.canal === "LOJA_INTEGRADA"), resumoDoDiaSeguinte.vendas.lucro, (await a.vendasDoDia({ inicio: new Date("2025-03-01T00:00:00.000Z"), fim: new Date("2025-04-01T00:00:00.000Z") })).canais.find((c) => c.canal === "LOJA_INTEGRADA")], [{ canal: "LOJA_INTEGRADA", pedidos: 1, valor: 15 }, 12, { canal: "LOJA_INTEGRADA", pedidos: 3, valor: 70 }]);
     await gravarConfiguracao({ telegram: { ligado: true, avisos: { ...soVenda, novaVenda: false, resumoDoDia: true } } }, { usuario: "zz-tg-admin" });
     const falsoR = criarTelegramFalso();
     await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-20"), cliente: criarClienteTelegram({ token: TOKEN, requisitar: falsoR.requisitar }), ...soTeste, ...semPausa });
     conferir(
       "o resumo das 20h chega com as vendas, os canais e o lucro",
       falsoR.mensagens.find((m) => m.text.startsWith("Resumo de 20/03"))?.text.split("\n").slice(0, 6),
-      ["Resumo de 20/03", "Vendas do dia: 4 · R$ 220,50", "Mercado Livre: 2 vendas · R$ 150,50", "Loja Integrada: 1 venda · R$ 30,00", "Bling: 1 venda · R$ 40,00", "Lucro do dia: R$ 32,25 (fora 1 venda sem custo)"],
+      ["Resumo de 20/03", "Vendas do dia: 5 · R$ 245,50", "Mercado Livre: 2 vendas · R$ 150,50", "Loja Integrada: 2 vendas · R$ 55,00", "Bling: 1 venda · R$ 40,00", "Lucro do dia: R$ 36,25 (fora 1 venda sem custo)"],
     );
     conferir("o resumo que chega tem 8 linhas e nenhuma de varredura", [falsoR.mensagens.find((m) => m.text.startsWith("Resumo de 20/03"))?.text.split("\n").length, falsoR.mensagens.some((m) => m.text.includes("Varredura"))], [8, false]);
     await gravarConfiguracao({ telegram: { ligado: true, avisos: { ...soVenda, novaVenda: true } } }, { usuario: "zz-tg-admin" });
