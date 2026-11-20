@@ -280,6 +280,9 @@ consulta. O pedido de venda passa a mostrar o envio do Rise quando ele existe; s
 
 ### 5.10 MCP
 
+> **Mudou em 20/11/2026** (pedido do dono): o MCP também prepara, compra e cancela a etiqueta, com o acesso do login, a
+> trava `FRETE_COMPRA` e dois passos. Ver `2026-11-20-mcp-do-frete-design.md`. O texto abaixo é o de 18/11/2026.
+
 Só leitura, na última fase: `cotarFrete` (CEP, caixa ou medidas, peso, valor), `listarEnvios` e `lerEnvio`. Nenhuma
 ferramenta compra etiqueta.
 
