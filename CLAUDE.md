@@ -4479,7 +4479,7 @@ real de 05/10/2026").
 - **Tela:** `src/app/produtos/acoes-bling.js` (Server Actions finas), `src/components/produtos/IconeBling.jsx`,
   `JanelaBling.jsx` (o pop-up), `BotaoSincronizarEstoque.jsx`, e `LinhaProduto.jsx`/`TabelaProdutos.jsx`/`page.jsx`
   da lista.
-- **"Ajustar estoque" da lista já sincroniza com o Bling (pedido do dono em 20/11/2026, SEM deploy):** o popup lê o saldo
+- **"Ajustar estoque" da lista já sincroniza com o Bling (pedido do dono em 20/11/2026, NO AR em 20.11.2026.132):** o popup lê o saldo
   no Bling ao abrir (`lerSaldoDoAjuste`; o estoque do Rise é regravado por ele) e o botão **"Confirmar e sincronizar com
   Bling"** lê de novo, grava o ajuste no Rise e envia os pendentes do produto na mesma hora (`ajustarESincronizar`, em
   `src/lib/blingSync/ajusteComBling.js`, que só junta `saldos.js`, `ajusteRapido.js` e `envio.js`). Sem conseguir ler o
