@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 
+import NotaDeDevolucao from "@/components/pedidos/NotaDeDevolucao";
 import CabecalhoOrdenavel, { parametrosDaOrdenacao } from "@/components/ui/CabecalhoOrdenavel";
 import { TEXTO_DA_RESOLUCAO, TEXTO_DO_GRUPO, TEXTO_DO_TIPO } from "@/lib/pedidos/reclamacoesTextos";
 
@@ -15,7 +16,7 @@ const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL
  * motivo com o que o comprador disse, o tipo, se afeta a reputacao e como terminou. O pedido que o Rise tem abre a venda; o
  * de antes do Rise abre no painel do ML. Cabecalho que ordena pela URL, como as outras listas.
  */
-export default function TabelaReclamacoes({ linhas, ordenar, direcao }) {
+export default function TabelaReclamacoes({ linhas, ordenar, direcao, podeMarcarNota = false }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -37,6 +38,7 @@ export default function TabelaReclamacoes({ linhas, ordenar, direcao }) {
             {cabecalho("tipo", "Tipo")}
             {cabecalho("reputacao", "Reputação")}
             {cabecalho("status", "Situação")}
+            <th className="px-3 py-2.5 font-medium uppercase">Devolução</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-borda">
@@ -93,6 +95,9 @@ export default function TabelaReclamacoes({ linhas, ordenar, direcao }) {
                 ) : (
                   <span className="text-suave">{TEXTO_DA_RESOLUCAO[linha.resolucao] ?? "Fechada"}</span>
                 )}
+              </td>
+              <td className="px-3 py-2 text-xs">
+                <NotaDeDevolucao linha={linha.devolucao} podeMarcar={podeMarcarNota} />
               </td>
             </tr>
           ))}

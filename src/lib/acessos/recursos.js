@@ -119,6 +119,7 @@ const LISTA = [
   acao("acao.pedidos.aceitarDivergencia", "Aceitar a divergência do lucro de um pedido", "tela.pedidos"),
   acao("acao.pedidos.emitirNF", "Criar NF pelo pedido", "tela.pedidos", "Desligada pela trava NFE_EMISSAO."),
   acao("acao.pedidos.baixarNF", "Baixar NF e XML do pedido", "tela.pedidos"),
+  acao("acao.pedidos.marcarNotaDeDevolucao", "Marcar a nota de devolução do Mercado Livre", "tela.pedidos"),
   // Modulo de frete (18/11/2026): cotar no pedido grava o rascunho do envio (sem gastar saldo; comprar e a fase 2).
   acao("acao.envios.cotarNoPedido", "Cotar frete e escolher o serviço no pedido", "tela.pedidos"),
   // Modulo de frete, fase 2 (19/11/2026): a lista de Envios, comprar e cancelar etiqueta (gasta saldo; o dono pediu "so

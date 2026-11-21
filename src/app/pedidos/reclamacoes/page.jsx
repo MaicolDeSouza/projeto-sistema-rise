@@ -4,9 +4,10 @@ import NavegacaoDoTopo from "@/components/mercados/NavegacaoDoTopo";
 import Paginacao from "@/components/mercados/Paginacao";
 import TabelaReclamacoes from "@/components/pedidos/TabelaReclamacoes";
 import AvisoBanco from "@/components/ui/AvisoBanco";
+import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import EmptyState from "@/components/ui/EmptyState";
 import PageHeader from "@/components/ui/PageHeader";
-import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
+import { exigirAcessoNaPagina, sessaoDeAcessos } from "@/lib/acessos/servidor";
 import { listarReclamacoes, resumoDasReclamacoes } from "@/lib/pedidos/reclamacoesML";
 import { GRUPOS, TEXTO_DO_GRUPO } from "@/lib/pedidos/reclamacoesTextos";
 import { porPaginaDaUrl } from "@/lib/porPagina";
@@ -38,6 +39,10 @@ export default async function ReclamacoesPage({ searchParams }) {
   const desde = periodo.dias ? new Date(agora.getTime() - periodo.dias * 24 * 60 * 60 * 1000) : undefined;
   const grupo = GRUPOS.includes(umDe(params?.grupo)) ? umDe(params.grupo) : null;
   const afeta = ["sim", "nao"].includes(umDe(params?.afeta)) ? umDe(params.afeta) : null;
+  const nota = ["falta", "emitida"].includes(umDe(params?.nota)) ? umDe(params.nota) : null;
+  const podeMarcarNota = (await sessaoDeAcessos().catch(() => null))?.pode("acao.pedidos.marcarNotaDeDevolucao", "executar") ?? false;
+  // O mes da lista do contador abre no mes corrente (Sao Paulo).
+  const mesAtual = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit" }).format(agora);
   const ordenar = ORDENACOES.includes(umDe(params?.ordenar)) ? umDe(params.ordenar) : null;
   const direcao = umDe(params?.direcao) === "asc" ? "asc" : umDe(params?.direcao) === "desc" ? "desc" : null;
   const porPagina = porPaginaDaUrl(params?.por);
@@ -47,9 +52,9 @@ export default async function ReclamacoesPage({ searchParams }) {
   let lista;
   try {
     resumo = await resumoDasReclamacoes({ desde });
-    const contagem = await listarReclamacoes({ desde, grupo, afeta, pagina: 1, porPagina: 1 });
+    const contagem = await listarReclamacoes({ desde, grupo, afeta, nota, pagina: 1, porPagina: 1 });
     const totalPaginas = Math.max(1, Math.ceil(contagem.total / porPagina));
-    lista = await listarReclamacoes({ desde, grupo, afeta, ordenar, direcao, pagina: Math.min(paginaPedida, totalPaginas), porPagina });
+    lista = await listarReclamacoes({ desde, grupo, afeta, nota, ordenar, direcao, pagina: Math.min(paginaPedida, totalPaginas), porPagina });
     lista.pagina = Math.min(paginaPedida, totalPaginas);
     lista.totalPaginas = totalPaginas;
   } catch {
@@ -64,7 +69,7 @@ export default async function ReclamacoesPage({ searchParams }) {
   // Os links do quadro e do periodo mantem o resto da URL (menos a pagina, que volta para a 1).
   const href = (mudancas) => {
     const proximo = new URLSearchParams();
-    const atual = { periodo: periodo.id === "365" ? null : periodo.id, grupo, afeta, ordenar, direcao, por: umDe(params?.por) || null, ...mudancas };
+    const atual = { periodo: periodo.id === "365" ? null : periodo.id, grupo, afeta, nota, ordenar, direcao, por: umDe(params?.por) || null, ...mudancas };
     for (const [chave, valor] of Object.entries(atual)) if (valor) proximo.set(chave, valor);
     const texto = proximo.toString();
     return texto ? `/pedidos/reclamacoes?${texto}` : "/pedidos/reclamacoes";
@@ -102,6 +107,36 @@ export default async function ReclamacoesPage({ searchParams }) {
             {p.rotulo}
           </Link>
         ))}
+        <span className="mx-1 h-5 w-px bg-borda" aria-hidden="true" />
+        {[
+          { id: "falta", rotulo: "Falta a nota de devolução", quantos: resumo.faltaNota, grave: true },
+          { id: "emitida", rotulo: "Nota emitida", quantos: resumo.notaEmitida, grave: false },
+        ].map((f) => (
+          <Link
+            key={f.id}
+            href={href({ nota: nota === f.id ? null : f.id })}
+            title={nota === f.id ? "Tirar o filtro" : "Filtrar a lista"}
+            className={`inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-sm transition-[background-color] duration-150 ${nota === f.id ? "border-acento bg-acento text-white" : f.grave && f.quantos > 0 ? "border-red-200 bg-red-50 font-medium text-red-700 hover:bg-red-100" : "border-borda hover:bg-fundo"}`}
+          >
+            {f.rotulo}
+            <span className="tabular-nums">{f.quantos}</span>
+          </Link>
+        ))}
+        <form action="/api/pedidos/devolucoes" method="get" className="flex items-center gap-1.5">
+          <input type="month" name="mes" defaultValue={mesAtual} required aria-label="Mês das devoluções" className="rounded border border-borda bg-superficie px-2 py-1 text-sm tabular-nums" />
+          <button type="submit" className="rounded border border-borda px-3 py-1.5 text-sm transition-[background-color] duration-150 hover:bg-fundo">
+            Baixar devoluções do mês
+          </button>
+          <BolhaDeAjuda
+            variante="inline"
+            texto={
+              <>
+                <span className="block">As devoluções postadas no mês, em planilha para o contador abater da receita.</span>
+                <span className="block">Emita a nota de devolução assim que o cliente postar, no faturador do Mercado Livre, e marque aqui com o número.</span>
+              </>
+            }
+          />
+        </form>
         <div className="ml-auto">
           <NavegacaoDoTopo pagina={lista.pagina} totalPaginas={lista.totalPaginas} total={lista.total} porPagina={porPagina} />
         </div>
@@ -134,7 +169,7 @@ export default async function ReclamacoesPage({ searchParams }) {
         <EmptyState titulo="Nenhuma reclamação" descricao="Não há reclamação do Mercado Livre neste período e filtro." />
       ) : (
         <>
-          <TabelaReclamacoes linhas={lista.linhas.map((l) => ({ ...l, abertaEm: l.abertaEm.toISOString() }))} ordenar={ordenar} direcao={direcao} />
+          <TabelaReclamacoes linhas={lista.linhas.map((l) => ({ ...l, abertaEm: l.abertaEm.toISOString(), devolucao: { ...l.devolucao, postadaEm: l.devolucao.postadaEm?.toISOString() ?? null, entregueEm: l.devolucao.entregueEm?.toISOString() ?? null } }))} ordenar={ordenar} direcao={direcao} podeMarcarNota={podeMarcarNota} />
           {lista.totalPaginas > 1 && (
             <div className="mt-4">
               <Paginacao pagina={lista.pagina} totalPaginas={lista.totalPaginas} total={lista.total} primeiro={(lista.pagina - 1) * porPagina + 1} ultimo={(lista.pagina - 1) * porPagina + lista.linhas.length} />

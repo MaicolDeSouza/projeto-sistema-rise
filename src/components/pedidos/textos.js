@@ -31,14 +31,18 @@ export const TEXTO_DO_AVISO = {
   lojaDesconhecida: "Loja do Bling que o Rise não lê.",
   fraude: "Risco de fraude no ML: não envie.",
   espelhoNoBlingAusente: "Sem cópia no Bling há mais de 1 hora: o estoque não baixou.",
-  nfACancelar: "Pedido devolvido com NF autorizada: cancele a NF.",
+  // Ate 20/11/2026 dizia "cancele a NF": depois que a mercadoria circulou a NF de venda nao se cancela (168 h no RS e so sem
+  // circulacao); o que abate o imposto e a nota de devolucao.
+  nfACancelar: "Pedido devolvido com NF autorizada: emita a nota de devolução no faturador do Mercado Livre.",
   // Reclamacao aberta no Mercado Livre (20/11/2026): o detalhe (motivo, reputacao) esta em Vendas > Reclamações.
   emMediacao: "Reclamação aberta no Mercado Livre: a venda está fora do faturamento e do lucro até a mediação fechar.",
+  // O cliente postou a devolucao (20/11/2026, pedido do dono: emitir na postagem, "muitos produtos nunca chegam").
+  notaDeDevolucao: "Devolução postada pelo cliente: emita a nota de devolução no faturador do Mercado Livre e marque em Vendas > Reclamações.",
   leituraFalhou: "A última leitura deste pedido falhou.",
 };
 
 /** Os avisos que pedem cuidado imediato: o "!" fica vermelho em vez de ambar. */
-export const AVISOS_GRAVES = new Set(["fraude", "nfACancelar", "emMediacao"]);
+export const AVISOS_GRAVES = new Set(["fraude", "nfACancelar", "emMediacao", "notaDeDevolucao"]);
 
 /** Os avisos de uma linha, um por linha, para o `title` do "!". Chave desconhecida aparece como veio. */
 export function textoDosAvisos(avisos) {
@@ -58,4 +62,5 @@ export const ABA_DO_AVISO = {
   lucroDivergente: "lucro",
   lucroDiferenteDoMercadoPago: "lucro",
   nfACancelar: "nf",
+  notaDeDevolucao: "nf",
 };

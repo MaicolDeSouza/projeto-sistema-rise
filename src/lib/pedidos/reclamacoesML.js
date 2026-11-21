@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
 
-import { GRUPOS, grupoDoMotivo, textoDoMotivo } from "./reclamacoesTextos";
+import { GRUPOS, TEXTO_DA_CHEGADA, TEXTO_DA_NOTA, grupoDoMotivo, situacaoDaChegada, situacaoDaNota, textoDoMotivo } from "./reclamacoesTextos";
 
 export { GRUPOS, grupoDoMotivo } from "./reclamacoesTextos";
 
@@ -16,6 +16,11 @@ export { GRUPOS, grupoDoMotivo } from "./reclamacoesTextos";
  */
 
 const POR_PAGINA = 50;
+/// A devolucao so e procurada nas reclamacoes destes 90 dias (o ML devolve 404 na que nao tem devolucao).
+const NOVENTA_DIAS_MS = 90 * 24 * 60 * 60 * 1000;
+/// A devolucao nestas situacoes nao muda mais: nao e relida.
+const DEVOLUCAO_ENCERRADA = ["delivered", "cancelled", "expired", "closed"];
+const DEVOLUCAO_POSTADA = ["shipped", "pending_delivered", "delivered", "not_delivered"];
 /// Freio da primeira carga (a conta tinha 346 em 20/11/2026): 40 paginas de 50.
 const MAXIMO_DE_PAGINAS = 40;
 const SESSENTA_DIAS_MS = 60 * 24 * 60 * 60 * 1000;
@@ -44,7 +49,7 @@ async function buscar(ml, status, { ateConhecidas }) {
  * Uma volta da rotina. Nunca lanca: `{ ok, lidas, novas, atualizadas, abertas }` ou `{ ok: false, erro }`.
  * `lidas` = reclamacoes que o ML listou nesta volta; `novas`/`atualizadas` = as que foram gravadas.
  */
-export async function lerReclamacoesML({ ml = clienteML(), agora = new Date() } = {}) {
+export async function lerReclamacoesML({ ml = clienteML(), agora = new Date(), prefixo = null } = {}) {
   try {
     const conhecidas = new Map((await prisma.reclamacaoML.findMany({ select: { id: true, status: true, atualizadaEm: true, afetaReputacao: true } })).map((r) => [r.id, r]));
     const igual = (c) => {
@@ -117,8 +122,10 @@ export async function lerReclamacoesML({ ml = clienteML(), agora = new Date() } 
       if (pedido) await prisma.reclamacaoML.update({ where: { id: solta.id }, data: { pedidoId: pedido.id } });
     }
 
+    const devolucoes = await lerDevolucoes(ml, agora, prefixo);
     const emAberto = await marcarPedidosEmMediacao();
-    return { ok: true, lidas: listadas.size, novas, atualizadas, abertas: emAberto };
+    await marcarNotasDeDevolucao();
+    return { ok: true, lidas: listadas.size, novas, atualizadas, abertas: emAberto, devolucoes };
   } catch (erro) {
     console.error("[reclamacoes ML]", erro?.message ?? erro);
     return { ok: false, erro: String(erro?.message ?? erro) };
@@ -144,13 +151,15 @@ export async function marcarPedidosEmMediacao() {
   return ids.length;
 }
 
-const filtroDoPeriodo = ({ desde, ate, prefixo, grupo, afeta, status } = {}) => ({
+const filtroDoPeriodo = ({ desde, ate, prefixo, grupo, afeta, status, nota } = {}) => ({
   ...(desde || ate ? { abertaEm: { ...(desde ? { gte: desde } : {}), ...(ate ? { lt: ate } : {}) } } : {}),
   // `prefixo` e do teste (so as reclamacoes dele).
   ...(prefixo ? { id: { startsWith: prefixo } } : {}),
   ...(GRUPOS.includes(grupo) ? { grupo } : {}),
   ...(afeta === "sim" ? { afetaReputacao: true } : afeta === "nao" ? { afetaReputacao: false } : {}),
   ...(status === "opened" || status === "closed" ? { status } : {}),
+  // A nota de devolucao: "falta" = postada sem a nota marcada; "emitida" = com a nota.
+  ...(nota === "falta" ? { devolucaoStatus: { in: DEVOLUCAO_POSTADA }, notaDevolucaoEm: null } : nota === "emitida" ? { notaDevolucaoEm: { not: null } } : {}),
 });
 
 /**
@@ -159,9 +168,11 @@ const filtroDoPeriodo = ({ desde, ate, prefixo, grupo, afeta, status } = {}) => 
  */
 export async function resumoDasReclamacoes(filtro = {}) {
   const where = filtroDoPeriodo({ desde: filtro.desde, ate: filtro.ate, prefixo: filtro.prefixo });
-  const [porGrupo, abertas] = await Promise.all([
+  const [porGrupo, abertas, faltaNota, notaEmitida] = await Promise.all([
     prisma.reclamacaoML.groupBy({ by: ["grupo", "afetaReputacao"], where, _count: { _all: true } }),
     prisma.reclamacaoML.count({ where: { ...where, status: "opened" } }),
+    prisma.reclamacaoML.count({ where: { ...where, ...filtroDoPeriodo({ nota: "falta" }) } }),
+    prisma.reclamacaoML.count({ where: { ...where, ...filtroDoPeriodo({ nota: "emitida" }) } }),
   ]);
   const grupos = GRUPOS.map((grupo) => ({ grupo, naoAfeta: 0, afeta: 0, semDado: 0, total: 0 }));
   for (const linha of porGrupo) {
@@ -172,7 +183,7 @@ export async function resumoDasReclamacoes(filtro = {}) {
     else alvo.semDado += quantos;
     alvo.total += quantos;
   }
-  return { total: grupos.reduce((soma, g) => soma + g.total, 0), abertas, afetam: grupos.reduce((soma, g) => soma + g.afeta, 0), grupos };
+  return { total: grupos.reduce((soma, g) => soma + g.total, 0), abertas, afetam: grupos.reduce((soma, g) => soma + g.afeta, 0), grupos, faltaNota, notaEmitida };
 }
 
 const ORDENACOES = { data: "abertaEm", grupo: "grupo", tipo: "tipo", status: "status", reputacao: "afetaReputacao" };
@@ -199,6 +210,170 @@ export async function listarReclamacoes({ pagina = 1, porPagina = 25, ordenar = 
       resolucao: r.resolucao,
       pedidoNumero: r.pedidoNumero,
       pedido: r.pedido ? { id: r.pedido.id, numero: r.pedido.numero, cliente: r.pedido.nomeDoComprador, total: Number(r.pedido.total) } : null,
+      devolucao: {
+        id: r.id,
+        nota: situacaoDaNota({ status: r.devolucaoStatus, notaEm: r.notaDevolucaoEm }),
+        notaNumero: r.notaDevolucaoNumero,
+        chegada: situacaoDaChegada(r.devolucaoStatus),
+        postadaEm: r.devolucaoPostadaEm,
+        entregueEm: r.devolucaoEntregueEm,
+      },
     })),
   };
+}
+
+/**
+ * Le a devolucao de cada reclamacao destes 90 dias que ainda pode mudar: a nunca lida, a aberta (a mediacao ganha devolucao
+ * no meio do caso) e a devolucao em andamento. A reclamacao nao muda o `last_updated` quando o cliente posta, por isso a
+ * devolucao e relida por conta propria. Postada, as datas vem do envio de volta (`/shipments/{id}`: date_shipped e
+ * date_delivered, medidos em 20/11/2026). Devolve quantas foram lidas.
+ */
+async function lerDevolucoes(ml, agora, prefixo) {
+  const candidatas = await prisma.reclamacaoML.findMany({
+    where: {
+      abertaEm: { gte: new Date(agora.getTime() - NOVENTA_DIAS_MS) },
+      // `prefixo` e do teste: com um ML falso, as reclamacoes de verdade do banco responderiam 404 e seriam marcadas sem devolucao.
+      ...(prefixo ? { id: { startsWith: prefixo } } : {}),
+      OR: [{ devolucaoLidaEm: null }, { status: "opened" }, { devolucaoStatus: { not: null, notIn: DEVOLUCAO_ENCERRADA } }],
+    },
+    select: { id: true, devolucaoPostadaEm: true, devolucaoEntregueEm: true },
+  });
+  let lidas = 0;
+  for (const r of candidatas) {
+    const resposta = await ml.get(`/post-purchase/v2/claims/${encodeURIComponent(r.id)}/returns`);
+    if (resposta?.status === 404) {
+      await prisma.reclamacaoML.update({ where: { id: r.id }, data: { devolucaoLidaEm: agora } });
+      continue;
+    }
+    // 401/403/500: tenta de novo na proxima volta, sem marcar como lida.
+    if (!resposta?.ok || !resposta.dados) continue;
+    const d = resposta.dados;
+    const status = texto(d.status);
+    const envioDeVolta = (d.shipments ?? []).find((e) => e?.type === "return") ?? d.shipments?.[0] ?? null;
+    let postadaEm = r.devolucaoPostadaEm;
+    let entregueEm = r.devolucaoEntregueEm;
+    const postada = DEVOLUCAO_POSTADA.includes(status);
+    if (postada && envioDeVolta?.shipment_id && (!postadaEm || (status === "delivered" && !entregueEm))) {
+      const envio = await ml.get(`/shipments/${encodeURIComponent(envioDeVolta.shipment_id)}`);
+      if (envio?.ok) {
+        postadaEm = postadaEm ?? data(envio.dados?.status_history?.date_shipped);
+        entregueEm = entregueEm ?? data(envio.dados?.status_history?.date_delivered);
+      }
+    }
+    // Postada sem a data do envio (o ML nao respondeu): a hora em que o Rise viu, para o aviso sair mesmo assim.
+    if (postada && !postadaEm) postadaEm = agora;
+    await prisma.reclamacaoML.update({
+      where: { id: r.id },
+      data: { devolucaoStatus: status, devolucaoSubtipo: texto(d.subtype), devolucaoPostadaEm: postadaEm, devolucaoEntregueEm: entregueEm, devolucaoLidaEm: agora },
+    });
+    lidas++;
+  }
+  return lidas;
+}
+
+/**
+ * Deixa `PedidoDeVenda.notaDeDevolucao` igual ao que as devolucoes dizem: "FALTA" no pedido com devolucao postada sem a nota
+ * marcada (liga o aviso `notaDeDevolucao`), "EMITIDA" quando todas as postadas tem a nota, nulo nos outros. Com a nota em
+ * jogo, o aviso antigo `nfACancelar` sai: a NF de venda nao se cancela depois que a mercadoria circulou (168 h no RS e so sem
+ * circulacao), o certo e a nota de devolucao. `soDoPedido` restringe a um pedido (o botao da tela).
+ */
+export async function marcarNotasDeDevolucao({ soDoPedido = null } = {}) {
+  const postadas = await prisma.reclamacaoML.findMany({
+    where: { pedidoId: soDoPedido ?? { not: null }, devolucaoStatus: { in: DEVOLUCAO_POSTADA } },
+    select: { pedidoId: true, notaDevolucaoEm: true },
+  });
+  const devido = new Map();
+  for (const r of postadas) {
+    if (!r.notaDevolucaoEm) devido.set(r.pedidoId, "FALTA");
+    else if (!devido.has(r.pedidoId)) devido.set(r.pedidoId, "EMITIDA");
+  }
+  const pedidos = await prisma.pedidoDeVenda.findMany({
+    where: soDoPedido ? { id: soDoPedido } : { OR: [{ id: { in: [...devido.keys()] } }, { notaDeDevolucao: { not: null } }] },
+    select: { id: true, notaDeDevolucao: true, avisos: true },
+  });
+  for (const pedido of pedidos) {
+    const valor = devido.get(pedido.id) ?? null;
+    const antes = pedido.avisos ?? [];
+    const avisos = new Set(antes);
+    if (valor === "FALTA") avisos.add("notaDeDevolucao");
+    else avisos.delete("notaDeDevolucao");
+    if (valor) avisos.delete("nfACancelar");
+    const mudou = valor !== pedido.notaDeDevolucao || avisos.size !== antes.length || [...avisos].some((a) => !antes.includes(a));
+    if (mudou) await prisma.pedidoDeVenda.update({ where: { id: pedido.id }, data: { notaDeDevolucao: valor, avisos: [...avisos] } });
+  }
+}
+
+/**
+ * O operador marca (ou desmarca, `emitida: false`) a nota de devolucao de uma reclamacao. So vale para a devolucao postada:
+ * antes de o cliente postar nao ha o que emitir. Devolve `{ ok, pedidoId }` ou `{ ok: false, erro }`.
+ */
+export async function marcarNotaDeDevolucao({ reclamacaoId, numero = null, por = null, emitida = true, agora = new Date() } = {}) {
+  const r = reclamacaoId ? await prisma.reclamacaoML.findUnique({ where: { id: String(reclamacaoId) }, select: { id: true, pedidoId: true, devolucaoStatus: true } }) : null;
+  if (!r) return { ok: false, erro: "Reclamação não encontrada." };
+  if (!DEVOLUCAO_POSTADA.includes(r.devolucaoStatus)) return { ok: false, erro: "A devolução ainda não foi postada." };
+  const numeroLimpo = texto(String(numero ?? "").trim().slice(0, 20));
+  await prisma.reclamacaoML.update({
+    where: { id: r.id },
+    data: emitida ? { notaDevolucaoEm: agora, notaDevolucaoNumero: numeroLimpo, notaDevolucaoPor: texto(por) } : { notaDevolucaoEm: null, notaDevolucaoNumero: null, notaDevolucaoPor: null },
+  });
+  if (r.pedidoId) await marcarNotasDeDevolucao({ soDoPedido: r.pedidoId });
+  return { ok: true, pedidoId: r.pedidoId };
+}
+
+const DIA_SP = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" });
+const celula = (valor) => {
+  const t = valor === null || valor === undefined ? "" : String(valor);
+  return /[;"\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+};
+
+/**
+ * A lista das devolucoes POSTADAS no mes (em Sao Paulo), para o contador abater a receita: pedido, data da venda, valor, NF
+ * de venda, a nota de devolucao e se o produto chegou. Tambem em CSV (separado por ";", que o Excel em portugues abre).
+ * `mes` = "AAAA-MM". `prefixo` e do teste.
+ */
+export async function devolucoesDoMes({ mes, prefixo = null } = {}) {
+  const partes = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(String(mes ?? ""));
+  if (!partes) return { ok: false, erro: "Mês inválido." };
+  const ano = Number(partes[1]);
+  const m = Number(partes[2]);
+  // Meia-noite de Sao Paulo e 03:00 em UTC (sem horario de verao desde 2019).
+  const desde = new Date(Date.UTC(ano, m - 1, 1, 3));
+  const ate = new Date(Date.UTC(m === 12 ? ano + 1 : ano, m === 12 ? 0 : m, 1, 3));
+  const linhas = await prisma.reclamacaoML.findMany({
+    where: { devolucaoPostadaEm: { gte: desde, lt: ate }, ...(prefixo ? { id: { startsWith: prefixo } } : {}) },
+    orderBy: { devolucaoPostadaEm: "asc" },
+    include: { pedido: { select: { id: true, numero: true, dataDaVenda: true, total: true, nf: true } } },
+  });
+  const lista = linhas.map((r) => ({
+    id: r.id,
+    postadaEm: r.devolucaoPostadaEm,
+    pedidoNumero: r.pedido?.numero ?? r.pedidoNumero,
+    pedidoId: r.pedido?.id ?? null,
+    dataDaVenda: r.pedido?.dataDaVenda ?? null,
+    valor: r.pedido ? Number(r.pedido.total) : null,
+    parcial: r.devolucaoSubtipo === "return_partial",
+    nfDeVenda: r.pedido?.nf?.numero ? `${r.pedido.nf.numero}${r.pedido.nf.serie ? `-${r.pedido.nf.serie}` : ""}` : null,
+    nota: situacaoDaNota({ status: r.devolucaoStatus, notaEm: r.notaDevolucaoEm }),
+    notaNumero: r.notaDevolucaoNumero,
+    chegada: situacaoDaChegada(r.devolucaoStatus),
+    entregueEm: r.devolucaoEntregueEm,
+  }));
+  const cabecalho = ["Postada em", "Pedido", "Data da venda", "Valor da venda", "Devolução parcial", "NF de venda", "Nota de devolução", "Nº da nota de devolução", "Produto", "Chegou em"];
+  const corpo = lista.map((l) =>
+    [
+      DIA_SP.format(l.postadaEm),
+      l.pedidoNumero,
+      l.dataDaVenda ? DIA_SP.format(l.dataDaVenda) : "",
+      l.valor === null ? "" : l.valor.toFixed(2).replace(".", ","),
+      l.parcial ? "Sim" : "Não",
+      l.nfDeVenda,
+      TEXTO_DA_NOTA[l.nota] ?? "",
+      l.notaNumero,
+      TEXTO_DA_CHEGADA[l.chegada] ?? "",
+      l.entregueEm ? DIA_SP.format(l.entregueEm) : "",
+    ]
+      .map(celula)
+      .join(";"),
+  );
+  return { ok: true, linhas: lista, csv: [cabecalho.join(";"), ...corpo].join("\n") };
 }

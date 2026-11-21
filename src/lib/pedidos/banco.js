@@ -175,6 +175,10 @@ async function recalcular(tx, pedido, { normalizado, taxas, agora, avisosDosIten
     avisos.add("emMediacao");
     fechado = false;
   }
+  // Nota de devolucao do ML (20/11/2026; a rotina `reclamacoesML` mantem `notaDeDevolucao`): devolucao postada sem a nota
+  // liga o aviso; com a nota em jogo, o "cancele a NF" sai (a NF de venda nao se cancela depois que a mercadoria circulou).
+  if (pedido.notaDeDevolucao === "FALTA") avisos.add("notaDeDevolucao");
+  if (pedido.notaDeDevolucao) avisos.delete("nfACancelar");
 
   const despacharAte = n.envio?.despacharAte ? new Date(n.envio.despacharAte) : null;
   const dados = {

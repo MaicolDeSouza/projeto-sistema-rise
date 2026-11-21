@@ -85,7 +85,7 @@ const DOCUMENTOS_DE_TESTE = ["123.456.789-09", "11.222.333/0001-81", "000.000.00
 
 async function limpar() {
   const ZZ = { sku: { startsWith: "ZZ-PED-" } };
-  if (prisma.reclamacaoML) await prisma.reclamacaoML.deleteMany({ where: { id: { startsWith: "ZZ-PED-RC-" } } });
+  if (prisma.reclamacaoML) await prisma.reclamacaoML.deleteMany({ where: { OR: [{ id: { startsWith: "ZZ-PED-RC-" } }, { id: { startsWith: "ZZ-PED-DV-" } }] } });
   await prisma.pedidoDeVenda.deleteMany({ where: { OR: [{ numero: { startsWith: "ZZ-PED-" } }, { nomeDoComprador: { contains: "ZZ Ped" } }] } });
   if (prisma.notificacaoDePedido) await prisma.notificacaoDePedido.deleteMany({ where: { recurso: { contains: "ZZ-PED" } } });
   await prisma.ordemDeProducao.deleteMany({ where: { produto: ZZ } });
@@ -742,7 +742,7 @@ try {
     conferir(
       "recursos de pedidos",
       RECURSOS.filter((r) => r.id.startsWith("acao.pedidos.")).map((r) => r.id),
-      ["acao.pedidos.marcarSeparacao", "acao.pedidos.editarCustoDoFrete", "acao.pedidos.vincularCliente", "acao.pedidos.aceitarDivergencia", "acao.pedidos.emitirNF", "acao.pedidos.baixarNF"],
+      ["acao.pedidos.marcarSeparacao", "acao.pedidos.editarCustoDoFrete", "acao.pedidos.vincularCliente", "acao.pedidos.aceitarDivergencia", "acao.pedidos.emitirNF", "acao.pedidos.baixarNF", "acao.pedidos.marcarNotaDeDevolucao"],
     );
     conferir("acoes de pedidos ficam sob a tela de Pedidos", RECURSOS.filter((r) => r.id.startsWith("acao.pedidos.")).every((r) => r.pai === "tela.pedidos"), true);
     conferir("tipos de pagamento da LI", TIPOS_DE_PAGAMENTO_LI, ["pix", "boleto", "cartao_credito", "cartao_debito", "outro"]);
@@ -1221,7 +1221,7 @@ try {
         return resposta(404, {});
       },
     };
-    const lida = await lerReclamacoesML({ ml: mlRec, agora });
+    const lida = await lerReclamacoesML({ ml: mlRec, agora, prefixo: "ZZ-PED-RC-" });
     const linhas = Object.fromEntries((await prisma.reclamacaoML.findMany({ where: { id: { startsWith: "ZZ-PED-RC-" } } })).map((r) => [r.id, r]));
     conferir("leitura: tres reclamacoes novas", [lida.ok, lida.lidas, lida.novas], [true, 3, 3]);
     conferir("leitura: arrependimento que nao afeta, ligado ao pedido", [linhas["ZZ-PED-RC-9001"].grupo, linhas["ZZ-PED-RC-9001"].afetaReputacao, linhas["ZZ-PED-RC-9001"].pedidoId === criado.id, linhas["ZZ-PED-RC-9001"].status], ["ARREPENDIMENTO", false, true, "opened"]);
@@ -1244,14 +1244,117 @@ try {
 
     // A mediacao fecha: o pedido sai de "Em mediação" e o aviso some; a leitura seguinte do pedido volta a fechar o lucro.
     estado.claims[0] = { ...estado.claims[0], status: "closed", last_updated: new Date(agora.getTime() + 1000).toISOString(), resolution: { reason: "item_returned" } };
-    const segunda = await lerReclamacoesML({ ml: mlRec, agora: new Date(agora.getTime() + 2000) });
+    const segunda = await lerReclamacoesML({ ml: mlRec, agora: new Date(agora.getTime() + 2000), prefixo: "ZZ-PED-RC-" });
     const fechado = await prisma.pedidoDeVenda.findUnique({ where: { id: criado.id }, select: { emMediacao: true, avisos: true } });
     const fechada = await prisma.reclamacaoML.findUnique({ where: { id: "ZZ-PED-RC-9001" } });
     conferir("mediacao fechada: pedido sai de Em mediação, aviso some, reclamacao fechada", [segunda.novas, fechado.emMediacao, fechado.avisos.includes("emMediacao"), fechada.status, fechada.resolucao], [0, false, false, "closed", "item_returned"]);
     conferir("telegram: reclamacao fechada nao avisa", (await avisosDevidos("reclamacaoML", { agora: agora.getTime() })).filter((a) => a.chave.includes("ZZ-PED-RC-")), []);
     // Conta que nao responde: nada muda e a rotina diz por que.
-    const fora = await lerReclamacoesML({ ml: { get: async () => resposta(500, { message: "erro" }) }, agora });
+    const fora = await lerReclamacoesML({ ml: { get: async () => resposta(500, { message: "erro" }) }, agora, prefixo: "ZZ-PED-RC-" });
     conferir("ML fora do ar: rotina devolve a falha sem lancar", [fora.ok, typeof fora.erro], [false, "string"]);
+  }
+
+  {
+    // Nota de devolucao do ML (pedido do dono em 20/11/2026): emitir quando o cliente POSTA a devolucao ("muitos produtos nunca
+    // chegam"), com o "!" nesse momento. A API do ML nao emite nem mostra a nota de devolucao: a baixa e manual.
+    console.log("\nDevoluções do ML e a nota de devolução");
+    const { lerReclamacoesML, marcarNotaDeDevolucao, devolucoesDoMes } = await import("../src/lib/pedidos/reclamacoesML.js");
+    const { situacaoDaNota, situacaoDaChegada } = await import("../src/lib/pedidos/reclamacoesTextos.js");
+    const { avisosDevidos } = await import("../src/lib/telegram/avisos.js");
+    const { mensagemDoAviso } = await import("../src/lib/telegram/texto.js");
+    conferir(
+      "nota: aguardando postagem, falta, emitida, nao postada",
+      [situacaoDaNota({ status: "label_generated" }), situacaoDaNota({ status: "pending" }), situacaoDaNota({ status: "shipped" }), situacaoDaNota({ status: "not_delivered" }), situacaoDaNota({ status: "delivered", notaEm: new Date() }), situacaoDaNota({ status: "cancelled" }), situacaoDaNota({ status: "expired" }), situacaoDaNota({ status: null })],
+      ["AGUARDANDO_POSTAGEM", "AGUARDANDO_POSTAGEM", "FALTA_NOTA", "FALTA_NOTA", "NOTA_EMITIDA", "NAO_POSTADA", "NAO_POSTADA", null],
+    );
+    conferir("chegada: a caminho, chegou, nao chegou", [situacaoDaChegada("shipped"), situacaoDaChegada("pending_delivered"), situacaoDaChegada("delivered"), situacaoDaChegada("not_delivered"), situacaoDaChegada("label_generated")], ["A_CAMINHO", "A_CAMINHO", "CHEGOU", "NAO_CHEGOU", null]);
+
+    const agora = new Date();
+    const { ml: mlFalso } = falsos();
+    const nml = normalizarPedidoML({ order: fx("ml-order"), billing: fx("ml-billing"), shipment: fx("ml-shipment"), custos: fx("ml-shipment-costs"), invoice: fx("ml-invoice") });
+    nml.idExterno = nml.numero = "ZZ-PED-DV1";
+    const criado = await aplicarPedidoLido(nml, { cliente: mlFalso, agora });
+    const haUmaHora = new Date(agora.getTime() - 3600e3).toISOString();
+    const postada = new Date(agora.getTime() - 1800e3).toISOString();
+    const estado = {
+      claims: [
+        { id: "ZZ-PED-DV-9101", resource: "order", resource_id: "ZZ-PED-DV1", status: "opened", type: "mediations", stage: "claim", reason_id: "PDD9939", date_created: haUmaHora, last_updated: haUmaHora, resolution: null },
+        { id: "ZZ-PED-DV-9102", resource: "order", resource_id: "ZZ-PED-NAO-EXISTE", status: "closed", type: "cancel_purchase", stage: "claim", reason_id: "PDD9939", date_created: haUmaHora, last_updated: haUmaHora, resolution: { reason: "payment_refunded" } },
+      ],
+      devolucoes: { "ZZ-PED-DV-9101": { status: "label_generated", subtype: "return_total", status_money: "retained", refund_at: "shipped", shipments: [{ shipment_id: 880001, status: "pending", type: "return" }] } },
+      envios: { 880001: { status: "pending", status_history: { date_shipped: null, date_delivered: null } } },
+    };
+    const resposta = (status, dados) => ({ ok: status < 300, status, dados });
+    const mlDev = {
+      chamadas: [],
+      async get(caminho, params) {
+        this.chamadas.push(caminho);
+        if (caminho === "/post-purchase/v1/claims/search") return resposta(200, { paging: {}, data: estado.claims.filter((c) => c.status === params.status) });
+        if (caminho.startsWith("/post-purchase/v1/claims/reasons/")) return resposta(200, { name: "repentant_buyer", detail: "Não quero mais", flow: "post_purchase_delivered" });
+        if (caminho.endsWith("/affects-reputation")) return resposta(200, { affects_reputation: "not_affected" });
+        let partes = caminho.match(/^\/post-purchase\/v2\/claims\/([^/]+)\/returns$/);
+        if (partes) return estado.devolucoes[partes[1]] ? resposta(200, estado.devolucoes[partes[1]]) : resposta(404, { message: "not found" });
+        partes = caminho.match(/^\/post-purchase\/v1\/claims\/([^/]+)$/);
+        if (partes) return resposta(200, estado.claims.find((c) => c.id === partes[1]) ?? {});
+        partes = caminho.match(/^\/shipments\/(\d+)$/);
+        if (partes && estado.envios[partes[1]]) return resposta(200, estado.envios[partes[1]]);
+        return resposta(404, {});
+      },
+    };
+    const linhaDV = () => prisma.reclamacaoML.findUnique({ where: { id: "ZZ-PED-DV-9101" } });
+    const pedidoDV = () => prisma.pedidoDeVenda.findUnique({ where: { id: criado.id }, select: { notaDeDevolucao: true, avisos: true } });
+
+    await lerReclamacoesML({ ml: mlDev, agora, prefixo: "ZZ-PED-DV-" });
+    let linha = await linhaDV();
+    let pedido = await pedidoDV();
+    conferir("etiqueta gerada: guarda a devolucao, sem o aviso da nota", [linha.devolucaoStatus, linha.devolucaoPostadaEm, pedido.notaDeDevolucao, pedido.avisos.includes("notaDeDevolucao")], ["label_generated", null, null, false]);
+    const semDevolucao = await prisma.reclamacaoML.findUnique({ where: { id: "ZZ-PED-DV-9102" } });
+    conferir("reclamacao sem devolucao: lida uma vez e marcada", [semDevolucao.devolucaoStatus, semDevolucao.devolucaoLidaEm !== null], [null, true]);
+
+    // O cliente postou: a reclamacao nao mudou (o ML nem sempre mexe no last_updated), mas a devolucao em aberto e relida.
+    estado.devolucoes["ZZ-PED-DV-9101"] = { ...estado.devolucoes["ZZ-PED-DV-9101"], status: "shipped", shipments: [{ shipment_id: 880001, status: "shipped", type: "return" }] };
+    estado.envios[880001] = { status: "shipped", status_history: { date_shipped: postada, date_delivered: null } };
+    mlDev.chamadas = [];
+    await lerReclamacoesML({ ml: mlDev, agora: new Date(agora.getTime() + 1000), prefixo: "ZZ-PED-DV-" });
+    linha = await linhaDV();
+    pedido = await pedidoDV();
+    conferir("postada: data do envio de volta, falta a nota e o aviso no pedido", [linha.devolucaoStatus, linha.devolucaoPostadaEm?.toISOString(), pedido.notaDeDevolucao, pedido.avisos.includes("notaDeDevolucao")], ["shipped", new Date(postada).toISOString(), "FALTA", true]);
+    conferir("a reclamacao sem devolucao nao e relida", mlDev.chamadas.includes("/post-purchase/v2/claims/ZZ-PED-DV-9102/returns"), false);
+    await aplicarPedidoLido({ ...nml, devolucao: { entregueEm: agora, custoDoRetorno: 0 }, nf: { ...nml.nf, status: "authorized" } }, { cliente: mlFalso, agora });
+    pedido = await pedidoDV();
+    conferir("pedido relido e devolvido: fica o aviso da nota de devolucao, sem o de cancelar a NF", [pedido.avisos.includes("notaDeDevolucao"), pedido.avisos.includes("nfACancelar")], [true, false]);
+    const devidos = (await avisosDevidos("notaDevolucao", { agora: agora.getTime() })).filter((a) => a.chave.includes("ZZ-PED-DV-"));
+    conferir("telegram: a devolucao postada avisa uma vez, com o pedido", [devidos.map((a) => a.chave), mensagemDoAviso("notaDevolucao", devidos[0]?.dados ?? {}).texto.includes("ZZ-PED-DV1"), mensagemDoAviso("notaDevolucao", devidos[0]?.dados ?? {}).caminho], [[`nota-devolucao:${criado.id}:ZZ-PED-DV-9101`], true, `/pedidos/${criado.id}`]);
+
+    const marcada = await marcarNotaDeDevolucao({ reclamacaoId: "ZZ-PED-DV-9101", numero: " 912 ", por: "zz-teste", agora });
+    linha = await linhaDV();
+    pedido = await pedidoDV();
+    conferir("nota emitida: guarda numero e quem marcou, o aviso sai", [marcada.ok, linha.notaDevolucaoNumero, linha.notaDevolucaoPor, pedido.notaDeDevolucao, pedido.avisos.includes("notaDeDevolucao")], [true, "912", "zz-teste", "EMITIDA", false]);
+    conferir("telegram: nota emitida nao avisa", (await avisosDevidos("notaDevolucao", { agora: agora.getTime() })).filter((a) => a.chave.includes("ZZ-PED-DV-")), []);
+    await aplicarPedidoLido({ ...nml, devolucao: { entregueEm: agora, custoDoRetorno: 0 }, nf: { ...nml.nf, status: "authorized" } }, { cliente: mlFalso, agora });
+    pedido = await pedidoDV();
+    conferir("pedido relido com a nota emitida: nenhum dos dois avisos", [pedido.avisos.includes("notaDeDevolucao"), pedido.avisos.includes("nfACancelar")], [false, false]);
+
+    // Chegou: a data de entrega vem do envio de volta.
+    estado.devolucoes["ZZ-PED-DV-9101"] = { ...estado.devolucoes["ZZ-PED-DV-9101"], status: "delivered", shipments: [{ shipment_id: 880001, status: "delivered", type: "return" }] };
+    estado.envios[880001] = { status: "delivered", status_history: { date_shipped: postada, date_delivered: agora.toISOString() } };
+    await lerReclamacoesML({ ml: mlDev, agora: new Date(agora.getTime() + 2000), prefixo: "ZZ-PED-DV-" });
+    linha = await linhaDV();
+    conferir("chegou: data da entrega e a nota continua emitida", [linha.devolucaoStatus, linha.devolucaoEntregueEm?.toISOString(), linha.notaDevolucaoNumero], ["delivered", agora.toISOString(), "912"]);
+
+    const mes = await devolucoesDoMes({ mes: new Date(postada).toISOString().slice(0, 7), prefixo: "ZZ-PED-DV-" });
+    conferir("lista do mes: pedido, valor, nota de venda e de devolucao", [mes.ok, mes.linhas?.length, mes.linhas?.[0]?.pedidoNumero, mes.linhas?.[0]?.valor > 0, mes.linhas?.[0]?.nota, mes.linhas?.[0]?.notaNumero, mes.linhas?.[0]?.chegada], [true, 1, "ZZ-PED-DV1", true, "NOTA_EMITIDA", "912", "CHEGOU"]);
+    const csv = mes.csv ?? "";
+    conferir("lista do mes em CSV: cabecalho e a linha com ;", [csv.split("\n")[0].startsWith("Postada em;Pedido;"), csv.includes("ZZ-PED-DV1"), csv.includes(";912;")], [true, true, true]);
+    conferir("lista do mes: mes invalido recusa", (await devolucoesDoMes({ mes: "2026-13" })).ok, false);
+
+    await marcarNotaDeDevolucao({ reclamacaoId: "ZZ-PED-DV-9101", emitida: false, por: "zz-teste", agora });
+    conferir("desfazer: volta a faltar a nota", [(await linhaDV()).notaDevolucaoEm, (await pedidoDV()).notaDeDevolucao, (await pedidoDV()).avisos.includes("notaDeDevolucao")], [null, "FALTA", true]);
+    const { listarReclamacoes: listarDV, resumoDasReclamacoes: resumoDV } = await import("../src/lib/pedidos/reclamacoesML.js");
+    const faltando = await listarDV({ prefixo: "ZZ-PED-DV-", nota: "falta" });
+    conferir("filtro: falta a nota, com a devolucao na linha", [faltando.total, faltando.linhas[0]?.devolucao?.nota, faltando.linhas[0]?.devolucao?.chegada, (await listarDV({ prefixo: "ZZ-PED-DV-", nota: "emitida" })).total], [1, "FALTA_NOTA", "CHEGOU", 0]);
+    conferir("resumo: quantas faltam a nota e quantas foram emitidas", [(await resumoDV({ prefixo: "ZZ-PED-DV-" })).faltaNota, (await resumoDV({ prefixo: "ZZ-PED-DV-" })).notaEmitida], [1, 0]);
+    conferir("marcar reclamacao que nao existe recusa", (await marcarNotaDeDevolucao({ reclamacaoId: "ZZ-PED-DV-0000", numero: "1", por: "zz", agora })).ok, false);
   }
 
   // Marcador: os blocos seguintes entram acima desta linha.

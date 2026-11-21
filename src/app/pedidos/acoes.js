@@ -13,6 +13,7 @@ import {
   salvarCustoDoFreteManual,
   vincularCliente,
 } from "@/lib/pedidos/banco";
+import { marcarNotaDeDevolucao } from "@/lib/pedidos/reclamacoesML";
 
 /**
  * As acoes da tela do pedido de venda. Cada uma confere a acao de Acessos antes (`acao.pedidos.*` em executar); a regra
@@ -100,4 +101,21 @@ export async function aceitarDivergenciaAcao(id) {
   const sessao = await sessaoDeAcessos();
   const quem = sessao?.login ? String(sessao.login) : sessao?.ambiente === "pc" ? "pc" : null;
   return protegendo(async () => revalidar(id, await aceitarDivergenciaDoLucro(id, quem)));
+}
+
+/** Marca (ou desfaz) a nota de devolucao de uma reclamacao do ML, com o numero e o login de quem marcou (20/11/2026). */
+export async function marcarNotaDeDevolucaoAcao(reclamacaoId, numero, emitida) {
+  const negado = await negarSemAcesso("acao.pedidos.marcarNotaDeDevolucao", "executar");
+  if (negado) return negado;
+  if (!ehId(reclamacaoId)) return { ok: false, erro: "Reclamação inválida." };
+  const sessao = await sessaoDeAcessos();
+  const quem = sessao?.login ? String(sessao.login) : sessao?.ambiente === "pc" ? "pc" : null;
+  return protegendo(async () => {
+    const resultado = await marcarNotaDeDevolucao({ reclamacaoId, numero: typeof numero === "string" ? numero : null, por: quem, emitida: emitida !== false });
+    if (resultado.ok) {
+      revalidatePath("/pedidos/reclamacoes");
+      if (resultado.pedidoId) revalidar(resultado.pedidoId, { ok: true });
+    }
+    return resultado.ok ? { ok: true } : resultado;
+  });
 }

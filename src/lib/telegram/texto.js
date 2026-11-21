@@ -109,6 +109,14 @@ const TIPOS = {
     ],
     caminho: `/pedidos/${pedidoId}`,
   }),
+  // Devolucao postada (20/11/2026): emitir a nota de devolucao agora, antes de saber se o produto chega.
+  notaDevolucao: ({ pedidoId, numero, total }) => ({
+    linhas: [
+      `Devolução postada: pedido ${trechoSeguro(numero, 40)}`,
+      `Emita a nota de devolução de R$ ${formatarReais(total)} no faturador do Mercado Livre e marque no Rise.`,
+    ],
+    caminho: `/pedidos/${pedidoId}`,
+  }),
   aguardandoPecas: ({ pedidoId, numero, pecas }) => ({
     linhas: [`Pedido ${trechoSeguro(numero, 40)} aguardando peças`, trechoSeguro(pecas)],
     caminho: `/pedidos/${pedidoId}`,

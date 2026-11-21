@@ -317,6 +317,17 @@ async function reclamacoesAbertas({ agora }) {
   }));
 }
 
+/// Devolucao postada pelo cliente sem a nota de devolucao marcada (20/11/2026, pedido do dono: emitir na postagem). Um aviso
+/// por reclamacao de pedido que o Rise tem, postada nos ultimos 3 dias (a chave impede a repeticao); marcada, nao avisa.
+async function devolucoesSemNota({ agora }) {
+  const postadas = await prisma.reclamacaoML.findMany({
+    where: { pedidoId: { not: null }, notaDevolucaoEm: null, devolucaoStatus: { in: ["shipped", "pending_delivered", "delivered", "not_delivered"] }, devolucaoPostadaEm: { gte: new Date(agora - TRES_DIAS_MS) } },
+    orderBy: { devolucaoPostadaEm: "asc" },
+    select: { id: true, pedido: { select: { id: true, numero: true, total: true } } },
+  });
+  return postadas.map((r) => ({ chave: `nota-devolucao:${r.pedido.id}:${r.id}`, dados: { pedidoId: r.pedido.id, numero: r.pedido.numero, total: Number(r.pedido.total) } }));
+}
+
 /// O item como o cliente comprou: a `quantidade` do banco e em unidades do produto, entao 1 "Kit de 20" esta gravado
 /// como 20; o aviso mostra 1 (o titulo do anuncio ja diz que e kit).
 function itemDoAviso(item) {
@@ -388,6 +399,7 @@ async function pedidosAguardandoPecas({ agora }) {
 const CALCULO = {
   novaVenda: novasVendas,
   reclamacaoML: reclamacoesAbertas,
+  notaDevolucao: devolucoesSemNota,
   aguardandoPecas: pedidosAguardandoPecas,
   catalogoML: () => catalogosDoML(),
   saudeDoRise: saudeEmVermelho,
@@ -406,7 +418,7 @@ export function avisosDevidos(tipo, contexto) {
 /** O caminho do botao "Abrir no Rise", tirado da chave (o texto gravado nao guarda o link). */
 export function caminhoDoAviso(chave) {
   const [fato, id] = chave.split(":");
-  if (fato === "nova-venda" || fato === "aguardando-pecas" || fato === "reclamacao-ml") return `/pedidos/${id}`;
+  if (fato === "nova-venda" || fato === "aguardando-pecas" || fato === "reclamacao-ml" || fato === "nota-devolucao") return `/pedidos/${id}`;
   if (fato === "produto-zerou") return `/produtos/${id}`;
   if (fato === "orcamento") return "/rise-ai/configuracoes";
   if (fato === "pc-esperando" || fato === "varredura-falhou") return "/mercados/fontes";

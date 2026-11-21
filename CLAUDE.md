@@ -384,6 +384,12 @@ as 6 respostas de fora do script, as rotinas `telegram`, `pedidos` e `envios` ro
 **Não visto ainda:** uma venda real com foto no celular, o resumo das 20h real e uma venda da LI paga depois de criada. As
 seções abaixo que dizem "SEM deploy" para esses itens estão obsoletas.
 
+**Deploy 20.11.2026.132 (commit `11d5da9`, 20/11/2026, 20:27):** "Sobe" do dono, levando tudo da main desde o 131: o
+Desconto adicional e o "Compre em kit e economize" na descrição do ML, as reclamações do ML (migration
+`20261120c_reclamacoes_ml`, com o backup de 302,5 MB antes), o Ajustar estoque da lista de Produtos, o MCP do frete (compra
+segue travada sem `FRETE_COMPRA`) e o chat da loja fase 2 (o serviço `ia` continua desligado). Conferido: as 6 respostas de
+fora do script e os contêineres de pé. As seções abaixo que dizem "SEM deploy" para esses itens estão obsoletas.
+
 **Travas de escrita na VPS (decisão do dono em 22/10/2026):** o dono mandou liberar **o Mercado Livre e o Bling para todos os
 códigos** (`ML_PUBLICACAO=true`, `ML_PUBLICACAO_CODIGOS` ausente, `BLING_ESCRITA=true`, `BLING_ESCRITA_CODIGOS` vazio) depois
 de o Publicar recusar com "ML_PUBLICACAO está false"; aplicado só no `.env` da VPS (cópia `.env.bak-AAAAMMDD-HHMMSS` ao lado),
@@ -446,7 +452,7 @@ npm run teste:estoque3d            # 110 asserções do Mapa do estoque: leitura
 npm run teste:estudos             # 51 asserções do estudo de viabilidade: regras puras (mediana, piso dos vendidos, demanda, preço por unidade, quantidade, vendas por mês entre estudos, veredito), banco (fila sem repetir, contas contra um ML falso, gravar, estudar de novo, lista) e as 5 ferramentas do MCP com o acesso. Postgres local, SEM rede; só escreve "ZZ-EST *" e ZZ-EST-*, e apaga
 npm run teste:frete               # 269 asserções do módulo de frete (fases 1 e 2 e o MCP do frete: preparar, comprar com o valor confirmado, retomar, sem dado pessoal; a compra sem dobra e a retomada, o carrinho expirado, imprimir, cancelar, o rastreio do worker, o aviso por e-mail uma vez só e o WhatsApp, o custo da etiqueta no lucro, a lista de Envios e o avulso): regras de caixa, peso e valor a cobrar, caixas e configuração, o conector do Melhor Envio (OAuth, renovação com 5 dias de folga, User-Agent, trava FRETE_COMPRA), o provedor (CEP recusado, fora do ar, não conectado), a cotação com o pacote sugerido (kit pelas peças) e o rascunho do envio do pedido (dois cliques, um envio). Melhor Envio FALSO nesta máquina (SEM rede); Postgres local, só escreve "CX 9*"/"CX ZZ*", ZZ-FRETE-* e devolve a ConfigDeFrete e a Conexao MELHOR_ENVIO do dono. `-- --servir --porta=4599` deixa só o falso no ar, para conferir a tela com MELHOR_ENVIO_URL apontando para ele
 npm run teste:propostas           # 215 asserções (com a cotação do frete gravada no CIF) das Propostas para cliente (com a assinatura digital: certificado de teste gerado na hora, senha com acento, cadeia, cofre cifrado, PDF assinado conferido pelo digest, link público /pdf e o Caddy) (com o nome/código do Rise no PDF, o fator, o estoque do item, as parcelas pela condição e o frete diluído) (com o cabeçalho no molde da cotação: contatos com link, faixa e "Entregar em", e o A/C da lista ou digitado): regras puras (totais, desconto, frete só no CIF, prazo geral, "!", vencer), cliente (busca Rise/Bling, cópia, provisório, cadastro nos dois, Bling travado), gravação e numeração (duas ao mesmo tempo), situação, contatos, lista, pedido de venda contra o Bling falso (recusa avulso, não duplica), anexos, link público, PDF e página pública (nunca nosso código, custo nem internas) e as ferramentas do MCP. Postgres local, SEM rede; só escreve "ZZ Proposta *" e ZZ-PROP-CLI-*, e apaga
-npm run teste:pedidos             # 312 asserções dos Pedidos de venda (com o envio do ML entregue na agência pelo substatus): falsos (ML, LI, Bling), normalizadores, status, cliente automático, itens e custo congelado, lucro e devolução, peças, aplicarPedidoLido, a leitura com cursor, acessos e taxas da LI. Postgres local, SEM rede; só escreve ZZ-PED-*, "ZZ Ped *" e os documentos de teste, e devolve a linha "pedidos" de RotinaDoWorker e as taxas da LI; `-- --manter` deixa os pedidos para conferir a tela
+npm run teste:pedidos             # 348 asserções dos Pedidos de venda (com a nota de devolução do ML na postagem, o envio do ML entregue na agência pelo substatus): falsos (ML, LI, Bling), normalizadores, status, cliente automático, itens e custo congelado, lucro e devolução, peças, aplicarPedidoLido, a leitura com cursor, acessos e taxas da LI. Postgres local, SEM rede; só escreve ZZ-PED-*, "ZZ Ped *" e os documentos de teste, e devolve a linha "pedidos" de RotinaDoWorker e as taxas da LI; `-- --manter` deixa os pedidos para conferir a tela
 npm run teste:extensao-aliexpress # 15 asserções da leitura da extensão (extensao-aliexpress/leitura.js) com as respostas da página Meus pedidos medidas em 28/10/2026. Puro: sem banco, sem rede, sem Chrome
 npm run teste:licencas            # 109 asserções das Licenças Softwares: regras (vagas, casamento por nome do PC, situação, frescor, ordem), zip e upload do arquivo, banco (programas, licenças, linhas, versões do arquivo, download), leitura do portal (esquema, aplicação, incompleta, sumidos, chave da extensão) e a importação das planilhas (fixtures em scripts/fixtures/licencas/). Postgres local, SEM rede; só escreve ZZ-LIC-*, zz-lic-* e "ZZ LIC *" e devolve a Conexao LIGHTBURN; `-- --manter` deixa os dados para conferir a tela
 npm run teste:extensao-lightburn  # 13 asserções da leitura da extensão "Rise LightBurn" (extensao-lightburn/leitura.js) com as respostas da API do portal medidas em 05/11/2026 (fixtures anonimizadas em scripts/fixtures/lightburn/). Puro: sem banco, sem rede, sem Chrome
@@ -4239,7 +4245,7 @@ ao ar e nenhuma escrita real foi feita no ML ou no Bling.**
     ACEITOU com faixas 1,28/6,17/10,6/12,85% (então o ML pode sugerir sem frete grátis, ao contrário do 204 medido no 120920): ficou como
     está, decisão do dono.
 
-### Reclamações do Mercado Livre e a venda "Em mediação" (20/11/2026, SEM deploy)
+### Reclamações do Mercado Livre e a venda "Em mediação" (20/11/2026, NO AR em 20.11.2026.132)
 
 Pedido do dono (Opção 1) ao ver uma venda com arrependimento (pacote 2000015969835717 = pedido 2000019457313352) que o Rise
 mostrava "Entregue" com lucro fechado: acompanhar as reclamações, tirar a venda do faturamento e do lucro e contar quantas são
@@ -4263,9 +4269,45 @@ por arrependimento (não afeta a reputação) e quantas por problema no produto 
 - **Medido no PC (primeira carga, 162 s):** 346 reclamações na conta desde 2018; nos últimos 12 meses 80 (46 arrependimento, 11
   produto, 9 entrega, 5 loja, 9 outro), **1 que afeta a reputação** ("Diferente do anúncio") e 2 abertas.
 - **Nota fiscal:** a NF-e de venda entregue não se cancela (prazo curto e a mercadoria circulou); o certo é a nota de devolução
-  na chegada do produto. O aviso antigo `nfACancelar` ("cancele a NF") continua com o texto de antes: rever com o dono.
+  na chegada do produto. O aviso antigo `nfACancelar` mudou de texto em 20/11/2026 (ver "Nota de devolução", abaixo).
 - **Não visto:** o pedido do Rise virando "Em mediação" com dado real (o PC não tem a venda; na VPS a primeira volta da rotina
   liga) e o aviso no celular. Testes no `teste:pedidos` (bloco "Reclamações do ML").
+
+### Nota de devolução do Mercado Livre (20/11/2026, SEM deploy)
+
+Pedido do dono: o imposto da venda devolvida (6% de R$ 1.000 = R$ 60) volta pela **nota de devolução**, que abate a receita do
+mês da devolução (Simples, Resolução CGSN 140/2018 art. 17); a NF de venda não se cancela depois que a mercadoria circulou (168 h
+no RS e só sem circulação). Ele escolheu "Opção 1, mas quero gerar a nf de devolução assim que o cliente postar o produto (Mostrar !
+nesse momento), pois muitos produtos nunca chegam".
+- **A API do ML NÃO emite a nota de devolução** (a única emissão é `POST /users/{id}/invoices/orders`, de venda) **nem a mostra**:
+  `/users/{id}/invoices/shipments/{envio de volta}` deu 404 nas 18 devoluções medidas. O operador emite no faturador do ML
+  (`LINK_DO_FATURADOR_ML`) e marca no Rise. A Opção 2 (emitir pelo Bling) ficou de fora.
+- **Medido em 20/11/2026 (só GET):** `/post-purchase/v2/claims/{id}/returns` traz `status` (pending, label_generated, **shipped** =
+  o cliente postou e o ML devolve o dinheiro ao cliente, delivered, not_delivered, cancelled, expired, closed para o low_cost), o
+  `subtype` e `shipments[]` (`type: "return"`); 404 quando a reclamação não tem devolução. As datas vêm de `/shipments/{id}`
+  (`status_history.date_shipped` e `date_delivered`).
+- **Banco** (migration `20261120d_nota_devolucao`): em `ReclamacaoML` a devolução (`devolucaoStatus`, `devolucaoSubtipo`,
+  `devolucaoPostadaEm`, `devolucaoEntregueEm`, `devolucaoLidaEm`) e a nota (`notaDevolucaoEm`, `notaDevolucaoNumero`,
+  `notaDevolucaoPor`); em `PedidoDeVenda` o `notaDeDevolucao` ("FALTA" | "EMITIDA" | nulo).
+- **Rotina `reclamacoesML`** (`lerDevolucoes`): relê a devolução das reclamações dos últimos 90 dias que ainda podem mudar (nunca
+  lida, aberta, devolução em andamento), porque o ML não mexe no `last_updated` da reclamação quando o cliente posta. Depois,
+  `marcarNotasDeDevolucao` liga o aviso **`notaDeDevolucao`** (grave) no pedido com devolução postada sem a nota e tira o
+  `nfACancelar`; o recálculo do pedido (`banco.js`) mantém os dois. O texto do `nfACancelar` virou "emita a nota de devolução".
+  Regras puras `situacaoDaNota` e `situacaoDaChegada` em `reclamacoesTextos.js`.
+- **Telegram:** tipo novo `notaDevolucao` ("Devolução postada: emitir a nota de devolução"), já marcado, uma vez por devolução
+  postada nos últimos 3 dias.
+- **Tela `/pedidos/reclamacoes`:** coluna "Devolução" (`NotaDeDevolucao.jsx`: situação, datas, "Marcar emitida" com o número,
+  Desfazer e o link do faturador), filtros "Falta a nota de devolução" e "Nota emitida" (`?nota=falta|emitida`, contados em
+  `resumoDasReclamacoes`) e **"Baixar devoluções do mês"** (`/api/pedidos/devolucoes?mes=AAAA-MM`, CSV com ";" e BOM para o
+  contador: postada em, pedido, data e valor da venda, parcial, NF de venda, nota de devolução e número, se chegou). Ação nova em
+  Acessos `acao.pedidos.marcarNotaDeDevolucao`.
+- **Armadilha do teste:** com um ML falso, a leitura passava pelas reclamações de verdade do banco e as marcava "sem devolução"
+  (404 do falso). `lerReclamacoesML({ prefixo })` restringe a leitura das devoluções; o teste sempre passa o prefixo dele.
+- **Medido no PC (dados reais):** 9 devoluções postadas em 2026 sem nota marcada (3 em outubro, 3 em novembro, o resto antes);
+  o 2000018985428974 foi postado em 14/11 e segue a caminho. Os pedidos de antes de 01/11 não estão no Rise: a planilha sai sem o
+  valor e a NF de venda deles.
+- **Não visto:** a tela no navegador (o servidor do PC era de outra sessão), o aviso no celular e o primeiro "Marcar emitida" real.
+  Testes no `teste:pedidos` (bloco "Devoluções do ML e a nota de devolução").
 
 ### Editor do ML em cartões, aba Status, prazo e garantia (26/10/2026, SEM deploy)
 
@@ -5630,8 +5672,9 @@ usam falsos). Até a fase 2, o gasto `CONVERSA` aparece em "Outros" no Consumo e
 
 ## Chat da loja (o Hobi), fase 2: a janela do chat e as telas (20/11/2026)
 
-Plano `docs/superpowers/plans/2026-11-20-chat-da-loja-fase-2-widget-e-telas.md` (8 tarefas, executado inline na `main`). **SEM deploy
-e nada visível na loja de verdade:** a etiqueta só é colada na Loja Integrada na fase 4. Faltam a fase 3 (acompanhar pedido) e a 4
+Plano `docs/superpowers/plans/2026-11-20-chat-da-loja-fase-2-widget-e-telas.md` (8 tarefas, executado inline na `main`). **O código subiu
+para a VPS no deploy 20.11.2026.132 (commit `11d5da9`, feito por outra sessão; esta não conferiu na VPS), com o serviço `ia` ainda
+desligado (o `preparar-ia.sh` não rodou) e nada visível na loja de verdade:** a etiqueta só é colada na Loja Integrada na fase 4. Faltam a fase 3 (acompanhar pedido) e a 4
 (DNS, Cloudflare, chaves, etiqueta).
 
 **A janela (widget)** é um arquivo JavaScript só, montado de duas fontes:

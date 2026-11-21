@@ -78,3 +78,40 @@ export function textoDaReputacao(afeta) {
   if (afeta === false) return "não afeta a reputação";
   return "";
 }
+
+/**
+ * A nota de devolucao de uma reclamacao (pedido do dono em 20/11/2026: "quero gerar a nf de devolução assim que o cliente
+ * postar o produto, pois muitos produtos nunca chegam"). Pela situacao da devolucao no ML:
+ * - AGUARDANDO_POSTAGEM: devolucao criada, etiqueta pronta, o cliente ainda nao postou (pending, label_generated, failed...).
+ * - FALTA_NOTA / NOTA_EMITIDA: o cliente postou (shipped e o que vem depois, inclusive o not_delivered, que e a que se perde).
+ * - NAO_POSTADA: cancelada, expirada ou encerrada sem envio: nada voltou, nao ha nota de devolucao.
+ * Sem devolucao (`status` nulo): nulo.
+ */
+const POSTADA = new Set(["shipped", "pending_delivered", "delivered", "not_delivered"]);
+const SEM_ENVIO = new Set(["cancelled", "pending_cancel", "expired", "pending_expiration", "closed"]);
+export function situacaoDaNota({ status, notaEm = null } = {}) {
+  if (!status) return null;
+  if (POSTADA.has(status)) return notaEm ? "NOTA_EMITIDA" : "FALTA_NOTA";
+  if (SEM_ENVIO.has(status)) return "NAO_POSTADA";
+  return "AGUARDANDO_POSTAGEM";
+}
+
+/** Onde esta o produto que voltou: A_CAMINHO, CHEGOU ou NAO_CHEGOU; nulo antes de postar ou sem envio. */
+export function situacaoDaChegada(status) {
+  if (status === "shipped" || status === "pending_delivered") return "A_CAMINHO";
+  if (status === "delivered") return "CHEGOU";
+  if (status === "not_delivered") return "NAO_CHEGOU";
+  return null;
+}
+
+export const TEXTO_DA_NOTA = {
+  AGUARDANDO_POSTAGEM: "Aguardando postagem",
+  FALTA_NOTA: "Falta a nota",
+  NOTA_EMITIDA: "Nota emitida",
+  NAO_POSTADA: "Não postada",
+};
+
+export const TEXTO_DA_CHEGADA = { A_CAMINHO: "A caminho", CHEGOU: "Chegou", NAO_CHEGOU: "Não chegou" };
+
+/** O faturador do ML, onde a nota de devolucao e emitida (a API nao emite essa nota; medido na documentacao em 20/11/2026). */
+export const LINK_DO_FATURADOR_ML = "https://myaccount.mercadolivre.com.br/invoices/emitir-nota-fiscal";

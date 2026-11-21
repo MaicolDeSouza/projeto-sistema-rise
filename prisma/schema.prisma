@@ -2844,6 +2844,9 @@ model PedidoDeVenda {
   /// Reclamacao ABERTA no Mercado Livre (20/11/2026, `lib/pedidos/reclamacoesML.js`): a venda vira "Em mediação", sai do
   /// faturamento e do lucro e o lucro nao fecha; a rotina `reclamacoesML` liga e desliga.
   emMediacao         Boolean  @default(false)
+  /// Nota de devolucao do ML (20/11/2026): "FALTA" (a devolucao foi postada e a nota nao foi marcada; liga o aviso
+  /// `notaDeDevolucao`) ou "EMITIDA"; nulo sem devolucao postada. A rotina `reclamacoesML` e o botao da tela mantem.
+  notaDeDevolucao    String?
   reclamacoes        ReclamacaoML[]
   /// SO no Bling: o operador digita o que pagou de etiqueta (LI vem do Enviali, ML do envio).
   custoDoFreteManual Decimal? @db.Decimal(12, 2)
@@ -3568,6 +3571,21 @@ model ReclamacaoML {
   afetaReputacao Boolean?
   resolucao      String?
 
+  /// A devolucao da reclamacao (`/post-purchase/v2/claims/{id}/returns`, 20/11/2026): situacao (pending, label_generated,
+  /// shipped, delivered, not_delivered, cancelled, expired...), subtipo (return_total, return_partial, low_cost) e as datas
+  /// do envio de volta (`/shipments/{id}`: date_shipped e date_delivered). `devolucaoLidaEm` nulo = ainda nao lida; lida e
+  /// com `devolucaoStatus` nulo = a reclamacao nao tem devolucao (o ML respondeu 404).
+  devolucaoStatus     String?
+  devolucaoSubtipo    String?
+  devolucaoPostadaEm  DateTime?
+  devolucaoEntregueEm DateTime?
+  devolucaoLidaEm     DateTime?
+  /// A nota de devolucao (pedido do dono em 20/11/2026: emitir quando o cliente POSTA). A API do ML nao emite nem mostra
+  /// essa nota: o operador marca aqui (`marcarNotaDeDevolucao`), com o numero e o login.
+  notaDevolucaoEm     DateTime?
+  notaDevolucaoNumero String?
+  notaDevolucaoPor    String?
+
   abertaEm     DateTime
   atualizadaEm DateTime?
   lidoEm       DateTime @default(now())
@@ -3575,4 +3593,5 @@ model ReclamacaoML {
   @@index([pedidoId])
   @@index([status])
   @@index([abertaEm])
+  @@index([devolucaoPostadaEm])
 }
