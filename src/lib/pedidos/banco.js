@@ -540,7 +540,11 @@ export async function resumoDosCanais(filtro = {}, { comLucro = false } = {}) {
     pedidos: c.pedidos,
     faturamento: centavos(c.faturamento),
     ticket: media(c.faturamento, c.pedidos),
-    ...(comLucro ? { lucro: centavos(c.lucro), markup: c.custo > 0 ? c.lucro / c.custo : null, semLucro: c.semLucro } : {}),
+    // Lucro medio por venda (pedido do dono em 21/11/2026): o lucro dividido pelas vendas COM lucro calculado; a venda sem
+    // custo nao entra no lucro, entao contar ela no divisor puxaria a media para baixo sem motivo.
+    ...(comLucro
+      ? { lucro: centavos(c.lucro), markup: c.custo > 0 ? c.lucro / c.custo : null, semLucro: c.semLucro, lucroMedio: media(c.lucro, c.pedidos - c.semLucro) }
+      : {}),
   });
   return { canais: [...porCanal.values()].map((c) => ({ canal: c.canal, ...paraTela(c) })), geral: paraTela(geral) };
 }

@@ -50,6 +50,14 @@ function Caixa({ resumo, geral = false }) {
             </Linha>
           )}
           <Linha rotulo="Ticket médio">{moeda.format(resumo.ticket)}</Linha>
+          {temLucro && resumo.lucroMedio !== null && (
+            <Linha
+              rotulo="Lucro médio por venda"
+              title={`Lucro ÷ vendas com lucro calculado (${resumo.pedidos - resumo.semLucro})${resumo.semLucro > 0 ? `; ${resumo.semLucro} venda(s) sem custo ficaram de fora` : ""}`}
+            >
+              <span className={resumo.lucroMedio < 0 ? "text-red-600" : "text-emerald-700"}>{moedaComSinal(resumo.lucroMedio)}</span>
+            </Linha>
+          )}
         </div>
       )}
     </div>
