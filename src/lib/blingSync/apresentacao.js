@@ -106,6 +106,28 @@ function rotuloDe(rotulos, campo) {
 }
 
 /**
+ * A frase do alto da janela do Bling, em duas partes (o `destaque` vai em negrito). Quando a UNICA divergencia e o
+ * estoque com ajustes por enviar (pedido do dono em 21/11/2026), a frase diz isso com os numeros: o 110304 mostrava
+ * "1 item(ns) diferente(s)" com 0 e 0 dos dois lados, e nao dava para saber que era uma saida e uma entrada lancadas
+ * no Rise e nunca enviadas. Nos outros casos, a frase de sempre (o estoque aparece no bloco proprio, embaixo).
+ *
+ * @param {number} divergencias o total que a janela conta (campos, fotos, fornecedores e o estoque).
+ * @param {{riseEstoque?: number, blingSaldo?: number|null, pendentes?: number}|null} estoque
+ * @returns {{destaque: string, resto: string}}
+ */
+export function fraseDasDivergencias(divergencias, estoque) {
+  const pendentes = inteiro(estoque?.pendentes);
+  const saldo = estoque?.blingSaldo;
+  if (divergencias === 1 && pendentes > 0 && Number.isFinite(saldo)) {
+    const ajustes = pendentes === 1 ? "1 ajuste lançado no Rise ainda não foi enviado" : `${pendentes} ajustes lançados no Rise ainda não foram enviados`;
+    if (estoque.riseEstoque === saldo) return { destaque: `Estoque igual (${saldo} un.)`, resto: `, mas ${ajustes} ao Bling.` };
+    return { destaque: `Estoque diferente (Rise ${estoque.riseEstoque}, Bling ${saldo})`, resto: `: ${ajustes} ao Bling.` };
+  }
+  const itens = divergencias === 1 ? "1 item diferente" : `${divergencias} itens diferentes`;
+  return { destaque: itens, resto: " entre o produto salvo no Rise e o Bling." };
+}
+
+/**
  * O resumo do botao "Sincronizar estoque com Bling" (`sincronizarEstoqueComBling`). A acao devolve
  * `ok: true` mesmo com falhas e mesmo com 0 atualizados (a leitura aconteceu, o que nao deu certo
  * vem em `falhas`), entao a tela NUNCA pode tratar o `ok` como "tudo atualizado": a linha traz sempre

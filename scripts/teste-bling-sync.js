@@ -45,7 +45,7 @@ const { cadastrarNoBling, enviarAjustesDeEstoque, enviarCustoDoFornecedor, sincr
 const { produtosEmDiaComOBling, enviarCustosAoBling } = await import("../src/lib/blingSync/custosDaVarredura.js");
 const { sincronizarEstoqueDoBling } = await import("../src/lib/blingSync/saldos.js");
 const { ajustarESincronizar, lerSaldoParaAjuste } = await import("../src/lib/blingSync/ajusteComBling.js");
-const { LIMITE_DE_FALHAS_VISIVEIS, mudouNoBling, resumirEnvio, resumirEstoqueDaLista, valorParaTela } = await import("../src/lib/blingSync/apresentacao.js");
+const { LIMITE_DE_FALHAS_VISIVEIS, fraseDasDivergencias, mudouNoBling, resumirEnvio, resumirEstoqueDaLista, valorParaTela } = await import("../src/lib/blingSync/apresentacao.js");
 const { consultaDaChamada, criarBlingFalso } = await import("./lib/blingFalso.js");
 
 let falhas = 0;
@@ -3208,6 +3208,31 @@ try {
     // fora do Next): o que decide o texto e a releitura mora em `apresentacao.js`, sem imports, e e isso
     // que se testa. Sem banco e sem Bling.
     const NBSP = " ";
+
+    // --- fraseDasDivergencias: a frase do alto da janela (pedido do dono em 21/11/2026: o 110304 dizia
+    // "1 item(ns) diferente(s)" com 0 e 0 dos dois lados, e ninguem entendia que era ajuste por enviar) ---
+    {
+      const estoque = (riseEstoque, blingSaldo, pendentes) => ({ riseEstoque, blingSaldo, pendentes });
+      conferir(
+        "so ajuste pendente e estoque IGUAL: diz que o saldo e o mesmo e quantos ajustes faltam enviar",
+        fraseDasDivergencias(1, estoque(0, 0, 2)),
+        { destaque: "Estoque igual (0 un.)", resto: ", mas 2 ajustes lançados no Rise ainda não foram enviados ao Bling." },
+      );
+      conferir(
+        "so ajuste pendente e estoque DIFERENTE: os dois numeros e o ajuste no singular",
+        fraseDasDivergencias(1, estoque(5, 3, 1)),
+        { destaque: "Estoque diferente (Rise 5, Bling 3)", resto: ": 1 ajuste lançado no Rise ainda não foi enviado ao Bling." },
+      );
+      conferir(
+        "outras divergencias (com ou sem estoque): a frase de sempre",
+        [fraseDasDivergencias(3, estoque(0, 0, 2)), fraseDasDivergencias(1, estoque(4, 4, 0))],
+        [
+          { destaque: "3 itens diferentes", resto: " entre o produto salvo no Rise e o Bling." },
+          { destaque: "1 item diferente", resto: " entre o produto salvo no Rise e o Bling." },
+        ],
+      );
+      conferir("sem o saldo do Bling (nunca lido): a frase de sempre", fraseDasDivergencias(1, estoque(2, null, 1)).destaque, "1 item diferente");
+    }
 
     // --- valorParaTela: o valor normalizado como a tela o mostra ---
     {

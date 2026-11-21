@@ -11,7 +11,7 @@ import {
 } from "@/app/produtos/acoes-bling";
 import { BarraDeAbas } from "@/components/cadastros/Abas";
 import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
-import { ETAPAS_DO_ENVIO, mudouNoBling, resumirEnvio, valorParaTela } from "@/lib/blingSync/apresentacao";
+import { ETAPAS_DO_ENVIO, fraseDasDivergencias, mudouNoBling, resumirEnvio, valorParaTela } from "@/lib/blingSync/apresentacao";
 import { etapasComOResultado, etapasIniciais as etapasIniciaisDe, lerAndamentoNoServidor as lerAndamento, mesclarEtapas } from "@/lib/andamentoDoEnvio";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import AndamentoDoEnvio from "./AndamentoDoEnvio";
@@ -315,9 +315,10 @@ function contarDivergencias(leitura, estoque) {
   return nosCampos + (leitura.fotos?.diferente ? 1 : 0) + nosFornecedores + ((estoque?.pendentes ?? 0) > 0 ? 1 : 0);
 }
 
-function Diferencas({ existe, divergencias, diferencas, fotos, fornecedores, iguais, lerDeNovo, lendo, children }) {
+function Diferencas({ existe, divergencias, estoque, diferencas, fotos, fornecedores, iguais, lerDeNovo, lendo, children }) {
   const textoDosIguais = `${iguais} ${iguais === 1 ? "campo igual" : "campos iguais"}`;
   const semDivergencia = existe && divergencias === 0;
+  const frase = fraseDasDivergencias(divergencias, estoque);
 
   return (
     <section aria-label="Comparação entre o Rise e o Bling" className="space-y-4 pt-5">
@@ -327,7 +328,8 @@ function Diferencas({ existe, divergencias, diferencas, fotos, fornecedores, igu
             <p className={`rounded-md border px-4 py-2 text-base ${CLASSE_DO_TOM.ok}`}>Nenhuma diferença: {textoDosIguais} no Rise e no Bling.</p>
           ) : (
             <p className="text-base">
-              <span className="font-semibold">{divergencias} item(ns) diferente(s)</span> entre o produto salvo no Rise e o Bling.
+              <span className="font-semibold">{frase.destaque}</span>
+              {frase.resto}
             </p>
           )}
           <button
@@ -654,6 +656,7 @@ export default function JanelaBling({ produto, aoFechar }) {
                 <Diferencas
                   existe={existeNoBling}
                   divergencias={divergencias}
+                  estoque={estoque}
                   diferencas={leitura.diferencas ?? []}
                   fotos={leitura.fotos ?? null}
                   fornecedores={leitura.fornecedores ?? null}
@@ -680,7 +683,7 @@ export default function JanelaBling({ produto, aoFechar }) {
                               <dd className="text-2xl font-semibold tabular-nums">{estoque.riseEstoque}</dd>
                             </div>
                             <div>
-                              <dt className="text-sm text-suave">Ajustes pendentes</dt>
+                              <dt className="text-sm text-suave">Ajustes não enviados</dt>
                               <dd className="text-2xl font-semibold tabular-nums">{estoque.pendentes}</dd>
                             </div>
                           </dl>
