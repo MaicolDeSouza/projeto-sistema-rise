@@ -18,6 +18,7 @@ import { divergenciasDoAnuncioML } from "@/lib/canaisDeVenda/ml/divergencias";
 import { AGUARDANDO_BLING, AGUARDANDO_ESTOQUE, REUTILIZADO, STATUS_ML, linkDoAnuncioML, linkDoPainelML, reutilizadoPendente } from "@/lib/canaisDeVenda/ml/rotulos";
 import { ABAS_ML, validarRascunhoML } from "@/lib/canaisDeVenda/ml/validacao";
 import { FORMATO_DA_DESCRICAO } from "@/lib/canaisDeVenda/ml/descricao";
+import { unidadesDoAnuncio } from "@/lib/canaisDeVenda/ml/kitsNaDescricao";
 import AbaDescricao from "./AbaDescricao";
 import AbaDivergenciasML from "./AbaDivergenciasML";
 import AbaEnvio from "./AbaEnvio";
@@ -57,6 +58,15 @@ const TEXTOS_DO_FIM = {
   painel: { titulo: "Abrir painel do ML", subtitulo: "conferir o anúncio no painel", dica: "Abre o anúncio no painel de vendas do Mercado Livre, em outra aba" },
   site: { titulo: "Abrir anúncio no ML", subtitulo: "ver como o cliente vê", dica: "Abre a página do anúncio no Mercado Livre, em outra aba" },
 };
+// O selo do kit no topo da janela: "Kit de 2 unidades" quando e o proprio produto base repetido; no kit misto, "Kit com N
+// peças" pela soma das quantidades da composicao.
+function seloDoKit(rascunho) {
+  const unidades = unidadesDoAnuncio(rascunho);
+  if (unidades) return `Kit de ${unidades} ${unidades === 1 ? "unidade" : "unidades"}`;
+  const pecas = (rascunho.composicao?.itens ?? []).reduce((soma, item) => soma + (Number(item.quantidade) || 0), 0);
+  return `Kit com ${pecas} ${pecas === 1 ? "peça" : "peças"}`;
+}
+
 // A acao principal do rodape (Publicar, Enviar ao ML), no tamanho do "Sincronizar com a LI".
 const CLASSE_DA_ACAO = "inline-flex items-center gap-2 rounded-md bg-acento px-5 py-2.5 text-base font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50";
 // Depois de publicado, so estas abas se editam (pedido do dono em 24/10/2026): o preco, os concorrentes e o ranking (aba
@@ -926,10 +936,30 @@ export default function EditorAnuncioML({
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-borda px-5 py-3">
           <div className="min-w-0">
             <p className="text-sm font-semibold">Anúncio do Mercado Livre</p>
-            {principal && (
-              <p className="mt-0.5 truncate text-xs text-suave">
-                <span className="font-mono">{principal.sku}</span> · {principal.tituloBase} <span className="text-suave/80">(Produto base)</span>
-              </p>
+            {/* No kit, o topo diz qual anuncio esta aberto (pedido do dono em 22/11/2026: "mostre no topo que o anuncio que esta
+                aberto e o kit de 2 unidades"): codigo e titulo do kit com o selo, e o produto base numa linha menor embaixo. */}
+            {rascunho.composicao ? (
+              <>
+                <p className="mt-0.5 flex min-w-0 items-center gap-2 text-sm">
+                  <span className="truncate">
+                    <span className="font-mono">{String(rascunho.composicao.codigo ?? "").trim() || "—"}</span>
+                    {" · "}
+                    {String(rascunho.titulo ?? "").trim() || <span className="text-suave">Sem título</span>}
+                  </span>
+                  <span className="shrink-0 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-800 tabular-nums">{seloDoKit(rascunho)}</span>
+                </p>
+                {principal && (
+                  <p className="mt-0.5 truncate text-xs text-suave">
+                    Produto base: <span className="font-mono">{principal.sku}</span> · {principal.tituloBase}
+                  </p>
+                )}
+              </>
+            ) : (
+              principal && (
+                <p className="mt-0.5 truncate text-xs text-suave">
+                  <span className="font-mono">{principal.sku}</span> · {principal.tituloBase}
+                </p>
+              )
             )}
           </div>
           <button type="button" onClick={pedirFechamento} aria-label="Fechar" className="rounded p-1 text-suave hover:bg-fundo">
