@@ -222,11 +222,14 @@ export async function listarAnunciosDoProdutoML(produtoId) {
     const semConcorrencia = (lista) => (acessos.concorrentes ? lista : lista.map((anuncio) => ({ ...anuncio, avisosML: [] })));
     // As variantes pelas faixas (08/11/2026): o que o produto deve ter no ML pelo preco da loja, e o que ainda falta.
     // A ordem fixa das linhas (pedido do dono em 09/11/2026): base nas 4 variantes, depois os kits (`ordenarAnunciosDoProduto`);
-    // por ultimo os kits de composicao que usam o produto, ja em ordem de codigo.
+    // os kits de composicao que usam o produto vem A PARTE, ja em ordem de codigo: a janela decide abrir direto, o "Novo anuncio"
+    // e a variante de origem so pelos anuncios do proprio produto (achado da revisao de 22/11/2026: juntos, a peca sem anuncio
+    // proprio abria direto o anuncio do kit e pulava a conferencia da conta do ML).
     return {
       ok: true,
       produto: { id, sku, tituloBase, conferido },
-      anuncios: [...ordenarAnunciosDoProduto(semConcorrencia(anuncios)), ...semConcorrencia(deComposicao)],
+      anuncios: ordenarAnunciosDoProduto(semConcorrencia(anuncios)),
+      deComposicao: semConcorrencia(deComposicao),
       acessos,
       variantes: variantesDoProduto({ precoVenda, anuncios }),
     };

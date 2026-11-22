@@ -446,11 +446,11 @@ npm run foto:mensal               # tira a foto mensal de preço e estoque (só 
 npm run teste:fotos               # 41 asserções da foto mensal (Postgres, SEM rede; fotografa meses fictícios de 2025 e apaga tudo)
 npm run teste:estoque             # 57 asserções da edição rápida da lista de Produtos: localização, preço e ajuste de estoque (Postgres, SEM rede; cria um produto ZZ-EDIT-1 e apaga)
 npm run teste:imagens             # 429 asserções das fotos: padronização, lote temporário, Photoroom simulado, a edição das fotos de um produto que já existe ("só as validadas ficam"), a versão nomeada, a reserva de imagens, o Nano Banana (Google falso) e o prompt salvo da descrição (Postgres e dados/, SEM rede)
-npm run teste:anuncios-ml         # 1375 asserções do anúncio do Mercado Livre (com o "Compre em kit e economize" da descrição: boas-vindas, garantia fora, bloco dos kits, o "!" dos kits e o formato antigo, o Desconto adicional do preço pelo lucro da loja, o lucro mínimo de R$ 5 do "Preço pelo lucro da loja", o Microcontrolador da descrição no "Preencher com IA", o apto a faturar lido de hora em hora, os anúncios antigos fora do Rise e o botão que os verifica, a proposta do ML, o kit no ML, o preço pelo lucro da loja, o reaproveitar (com os kits do código na conta, as fotos do kit reaproveitado, que o 1º Salvar não dá por enviadas, e o selo "Reutilizado" com o "!" até o Publicar), o atacado com a espera da sugestão no Publicar, o kit sem atacado e o atacado desligado sem frete grátis e o popup do produto: o "!" de cada anúncio e a ordem fixa): composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
+npm run teste:anuncios-ml         # 1390 asserções do anúncio do Mercado Livre (com o kit de composição de 22/11/2026: o grupo do anúncio, o misto recusado, o popup com os kits que usam a peça e o "!" pelo preço das peças; o "Compre em kit e economize" da descrição: boas-vindas, garantia fora, bloco dos kits, o "!" dos kits e o formato antigo, o Desconto adicional do preço pelo lucro da loja, o lucro mínimo de R$ 5 do "Preço pelo lucro da loja", o Microcontrolador da descrição no "Preencher com IA", o apto a faturar lido de hora em hora, os anúncios antigos fora do Rise e o botão que os verifica, a proposta do ML, o kit no ML, o preço pelo lucro da loja, o reaproveitar (com os kits do código na conta, as fotos do kit reaproveitado, que o 1º Salvar não dá por enviadas, e o selo "Reutilizado" com o "!" até o Publicar), o atacado com a espera da sugestão no Publicar, o kit sem atacado e o atacado desligado sem frete grátis e o popup do produto: o "!" de cada anúncio e a ordem fixa): composição, validação, payload, ícone, gravação, estoque e descrição do Rise, a fase 2 (categoria, atributos, custos, preço por margem, IA), a fase 3 (publicar, retomar, kit e vínculo no Bling), os concorrentes pelo catálogo (leitura, acompanhar, reler, rodada diária, avisos), o ranking pelos catálogos de referência e o anúncio publicado acompanhando o produto (o "!" e o Enviar mudanças) contra um ML falso e um Bling falso (Postgres, SEM rede; só escreve produtos ZZ-ML-* e a linha ConfigCanal, que restaura)
 npm run teste:loja-integrada      # contrato do cliente da Loja Integrada (handoff): paginação, normalizadores, Personal Token. SEM rede e SEM banco
 npm run teste:li-sync             # 420 asserções da sincronização Rise -> Loja Integrada (com o cadastro automático, o estoque acertado pelo Bling no Sincronizar e as categorias e o SEO que vêm do produto): slug, SEO, descrição HTML, campos, corpo do PUT, rascunho, banco, leitura, envio, ícone e as etapas do Cadastrar (LI falsa e Bling de mentira, SEM rede; Postgres local, só escreve produtos ZZ-LI-*)
 npm run teste:fundo               # 9 asserções da regra do fundo das janelas (`src/lib/fundoDaJanela.js`: fecha só com clique que começa e termina no fundo, inclusive janela dentro de janela). SEM rede e SEM banco
-npm run teste:composicao          # 136 asserções do produto com composição (kit): regras puras, gravação, estoque calculado, cadastro, busca de peças (com o que falta a cada produto), a descrição só com referências cadastradas e os ajustes de 10/10/2026 (código sugerido, localização da peça, peça de origem, documentos e descrições das peças, o "!" do kit e o "Anexar a este produto") (Postgres, SEM rede; só escreve produtos ZZ-KIT-* e a pasta dados/produtos/ZZ-KIT-C3, que apaga)
+npm run teste:composicao          # 141 asserções do produto com composição (kit): regras puras (com o NCM pela peça de maior quantidade), gravação, estoque calculado, cadastro, busca de peças (com o que falta a cada produto), a descrição só com referências cadastradas e os ajustes de 10/10/2026 (código sugerido, localização da peça, peça de origem, documentos e descrições das peças, o "!" do kit e o "Anexar a este produto") (Postgres, SEM rede; só escreve produtos ZZ-KIT-* e a pasta dados/produtos/ZZ-KIT-C3, que apaga)
 npm run teste:bling-sync          # 788 asserções da sincronização Rise <-> Bling: ícone, pop-up (com a frase do estoque igual e só ajuste por enviar), envio de campos e de fotos, fornecedores, ajustes e saldos de estoque, o ajuste da lista que já vai ao Bling e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 npm run teste:rise-ai             # 616 asserções do Rise AI (Entrega 1 e A1; o chat da tela e a leitura do fluxo SSE saíram em 20/10/2026): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo e a coluna Outros, configuração e as quatro abas, orçamento e reserva, cotação do dia, Parar, texto seguro, perfil cliente, pesquisa na internet, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
 npm run teste:mcp                 # 315 asserções do servidor MCP (com as 9 ferramentas do frete, o marcarReferencias de item sem código pelo nome, o buscarNoMercado, os filtros do catálogo, anúncios, histórico de preço, os cadastros, as Correções da descrição e o roteiro da análise de fornecedor): sondagem do SDK, OAuth puro e no banco (só hash, rotação, revogação por família), portão 401/403/503, rotas do protocolo, tela Autorizar, as ferramentas com o pode() do login, o registro de cada chamada, anotarDuvida, a rota /mcp, o Caddyfile, a aba Conexões e a Revisão do dia. Postgres local, SEM rede e SEM IA; só escreve zz-mcp-*, ZZ-MCP * e ZZ-MCP-*
@@ -5051,6 +5051,47 @@ script recusava qualquer outra lista), apagado depois.
   backfill da importação não exigia isso. Ao salvar uma delas, o rascunho vira vínculo de verdade. A correia (120809)
   não tem peso nem medidas cadastrados, e a sugestão de peso/medidas do kit fica incompleta.
 - Kit dentro de kit, variação e o anúncio de kit do ML (`dados.composicao`) continuam separados do produto kit.
+
+### Kit de composição pelo cadastro, um anúncio por vários caminhos (22/11/2026, SEM deploy)
+
+Pedido do dono ao querer anunciar 1 conector DB25 macho (901202) + 1 fêmea (901201): "o kit deve sempre ser montado no rise
+antes, pois tenho que definir o código, ter as localizações para facilitar a separação do produto ... também tem que criar kit
+no bling". Spec `docs/superpowers/specs/2026-11-22-kit-de-composicao-no-ml-design.md`, plano
+`docs/superpowers/plans/2026-11-22-kit-de-composicao-no-ml.md` (8 tarefas, inline, commits `617a1fd`..`526553e`).
+
+- **Por quê:** o kit de produtos diferentes montado no EDITOR do ML entrava errado nas vendas (`casarItens` casa com o produto
+  principal e multiplica pela soma das quantidades: 1 macho + 1 fêmea viraria 2 machos) e não tinha código nem localização no
+  Rise. **Decisão A1:** o editor só aceita o "Kit de N" do mesmo produto; `ehKitMisto`/`RECUSA_DO_KIT_MISTO`
+  (`ml/kitsNaDescricao.js`) recusam na ação `salvarAnuncioML` e no "Incluir" do `BlocoComposicao`. O `salvarRascunhoML` segue
+  aceitando de propósito: o legado misto continua lido, publicado e excluído, e os testes da publicação o montam por ele.
+- **Cadastro do produto kit:** estoque mínimo e máximo escondidos (montados num `div hidden/contents`); **NCM = o da peça de
+  maior quantidade** (`ncmDoKit` em `composicao.js`; empate, a primeira; decisão B1), sugerido pela mesma regra `sugeridos` dos
+  outros campos (respeita o digitado); "Soma das peças: R$ X" embaixo do preço quando ele difere da soma; o link da peça na aba
+  Fornecedores em azul, abrindo em nova aba.
+- **Popup "Anúncios do Mercado Livre" em 3 blocos** (`BLOCOS_DO_POPUP` em `JanelaAnuncioML.jsx`): "Anúncio do produto",
+  "Anúncios em kit" e "Anúncios com composição", cada um com título e borda, bloco vazio some. O grupo vem do servidor
+  (`grupoDoAnuncioML`: tipo COMPOSICAO do produto ou misto do editor = composição). A segunda linha mostra "2 unidades" ou
+  "1× 901202 + 1× 901201". **Um anúncio, vários caminhos:** `anunciosDeComposicaoDoProduto` traz os anúncios dos produtos kit
+  que usam o produto como peça (e os mistos antigos do editor, pelo `array_contains` dos itens), separado de
+  `anunciosMLDoProduto` para não mexer na conta das variantes nem nos duplicados do "Novo anúncio". Nessas linhas
+  (`doProprioProduto: false`) não há clonar nem excluir. Lista do ML: selo "Kit de composição" e "Kit de N unidades".
+- **O "!" do anúncio do kit:** `estadoDoIconeML(..., { pecasDoKit })` com as mudanças do retrato do último Salvar do produto
+  kit (`mudancasDosKits`); **só o "Preço de venda" conta** (o `campo` é o rótulo do retrato, não a chave), com o antes e o depois
+  no motivo ("peças do kit mudaram: 901202 (Preço de venda: R$ 14,90 → R$ 16,90)"). Vale no popup (pela peça e pelo kit), na
+  lista do ML e no ícone do ML do produto kit na lista de Produtos; a peça não acende pelo kit. Salvar o kit renova o retrato.
+- **Roteiro do ML v13:** kit de produtos diferentes vai para o cadastro antes da proposta.
+- **Conferido no PC** (dados ZZ, apagados): o cadastro de um kit novo sem salvar, o popup em 3 blocos abrindo o anúncio do
+  kit pela peça, os selos da lista e o "!" na linha do kit depois de mudar o preço da peça.
+- **Revisão (code-reviewer, contexto novo) e o que entrou dela:** o popup recebia os anúncios dos kits na MESMA lista e decidia
+  por `anuncios.length`/`anuncios[0]`: a peça só com kit abria direto o anúncio do kit e o "Novo anúncio" pulava a conta do ML.
+  Corrigido: a ação devolve `anuncios` (do próprio produto) e `deComposicao` à parte, e a peça que está num kit com anúncio
+  sempre vê a lista (conferido na tela). **Ficaram como decisão:** o Salvar do misto antigo é recusado (a spec manda; o único
+  é o 258262); o "!" das peças vale também no rascunho do kit (o preço ainda não foi ao ML, mas sai da soma velha).
+  **Menores adiados:** a lista do ML mostra "?" no `title` das peças do misto antigo; "Kit de N" de um produto que já é kit cai
+  no bloco de composição; um item único de OUTRO produto no editor passa a trava (vira o Kit de N dele); kit antigo com mínimo
+  ou máximo gravado mantém o valor escondido; a lista do ML lê as peças de todos os anúncios antes de paginar.
+- **Ainda não feito:** excluir o rascunho 258262 na VPS (o misto montado no editor em 22/11/2026, decisão C1, espera o ok do
+  dono na hora); criar o kit DB25 em Produtos e o anúncio dele é o primeiro uso real.
 
 ## Canais de Venda: Loja Integrada (06 a 07/10/2026)
 

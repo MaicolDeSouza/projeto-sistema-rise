@@ -142,6 +142,9 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
   // Os acessos do editor (Acessos): sem editar nao ha anuncio novo, e o editor abre so para leitura.
   const [acessos, setAcessos] = useState(null);
   const [anuncios, setAnuncios] = useState([]);
+  // Os anuncios dos kits de composicao que usam este produto (22/11/2026): so aparecem no bloco deles. Todas as decisoes do
+  // popup (abrir direto, Novo anuncio, a variante de origem) olham so `anuncios`, os do proprio produto.
+  const [deComposicao, setDeComposicao] = useState([]);
   // As variantes pelas faixas (08/11/2026): `{ esperadas, existentes, faltam }` do produto, lidas com a lista.
   const [variantes, setVariantes] = useState(null);
   const [editor, setEditor] = useState(null);
@@ -194,6 +197,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
       setProduto(resultado.produto);
       setAcessos(resultado.acessos ?? null);
       setAnuncios(resultado.anuncios);
+      setDeComposicao(resultado.deComposicao ?? []);
       setVariantes(resultado.variantes ?? null);
       setAviso(nota ?? null);
       setFase(resultado.produto.conferido ? "lista" : "naoConferido");
@@ -338,6 +342,9 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
       // Produto Conferido sem nenhum anuncio: com anuncio do SKU na conta, a lista Reaproveitar; sem nada, o editor de um novo.
       // Com UM anuncio, abre direto o editor dele (pedido do dono em 24/10/2026), a nao ser que a conta tenha outro do SKU fora do
       // Rise: ai a lista fica, para o dono ver (08/11/2026).
+      // A peca que esta num kit com anuncio (22/11/2026) nunca pula a lista: o bloco "Anuncios com composicao" precisa aparecer.
+      const emKit = (lista?.deComposicao?.length ?? 0) > 0;
+      if (emKit) return;
       if (lista?.produto.conferido && lista.anuncios.length === 0 && lista.acessos?.editar !== false) {
         if (temNaConta) {
           setCandidatos({ sku: conta.sku, candidatos: conta.candidatos });
@@ -417,7 +424,8 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
         aoExcluido={aoExcluido}
         // "Voltar" a lista (pedido do dono em 09/11/2026): com mais de um anuncio, ou no anuncio novo/clonado de um produto que ja
         // tem anuncio. A lista e relida: o "!" e a situacao de cada linha podem ter mudado no editor.
-        aoVoltar={anuncios.length > 1 || (!editor.anuncioId && anuncios.length > 0) ? voltarParaLista : null}
+        // Os anuncios dos kits que usam o produto tambem contam: a lista que o Voltar mostra tem os blocos deles.
+        aoVoltar={anuncios.length + deComposicao.length > 1 || (!editor.anuncioId && anuncios.length + deComposicao.length > 0) ? voltarParaLista : null}
       />
     );
   }
@@ -481,13 +489,13 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
             </p>
           )}
 
-          {anuncios.length === 0 ? (
+          {anuncios.length + deComposicao.length === 0 ? (
             <p className="py-4 text-center text-sm text-suave">Este produto ainda não tem anúncio no Mercado Livre.</p>
           ) : (
             // Tres blocos, cada um com titulo e borda (pedido do dono em 22/11/2026); bloco sem anuncio nao aparece.
             <div className="space-y-3">
               {BLOCOS_DO_POPUP.map(({ grupo, titulo }) => {
-                const doBloco = anuncios.filter((anuncio) => (anuncio.grupo ?? "produto") === grupo);
+                const doBloco = [...anuncios, ...deComposicao].filter((anuncio) => (anuncio.grupo ?? "produto") === grupo);
                 if (doBloco.length === 0) return null;
                 return (
                   <section key={grupo} aria-label={titulo}>
