@@ -1,4 +1,8 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
+import { ChartColumn } from "lucide-react";
 
 import { canalPorId } from "@/lib/canais";
 
@@ -16,9 +20,12 @@ const vendasPorDia = (n) => {
   return porDia === 1 ? "1 venda" : `${umaCasa.format(porDia)} vendas`;
 };
 
-/** "(Diário=R$568,60/4,3 vendas)" e "(Diário=R$171,69)": o total dividido pelos dias corridos do filtro de datas. */
-function Diario({ children }) {
-  return <span className="text-xs font-normal text-suave"> (Diário={children})</span>;
+/**
+ * "(R$570,29/4,3 vendas por dia)" e "(R$172,22 por dia)" (texto do dono em 22/11/2026; antes "(Diário=...)"): o total
+ * dividido pelos dias corridos do filtro de datas.
+ */
+function PorDia({ children }) {
+  return <span className="text-xs font-normal text-suave"> ({children} por dia)</span>;
 }
 
 /** Uma linha da caixinha: rotulo pequeno a esquerda, valor a direita (as tres linhas alinham pelo valor). */
@@ -49,9 +56,9 @@ function Caixa({ resumo, dias, geral = false }) {
           <Linha rotulo="Vendas">
             {moeda.format(resumo.faturamento)} <span className="font-normal text-suave">({vendasTexto(resumo.pedidos)})</span>
             {dias && (
-              <Diario>
+              <PorDia>
                 {moeda.format(cortar(resumo.faturamento / dias, 2))}/{vendasPorDia(resumo.pedidos / dias)}
-              </Diario>
+              </PorDia>
             )}
           </Linha>
           {temLucro && (
@@ -66,7 +73,7 @@ function Caixa({ resumo, dias, geral = false }) {
               <span className={resumo.lucro < 0 ? "text-red-600" : "text-emerald-700"}>{moedaComSinal(resumo.lucro)}</span>
               {resumo.markup !== null && <span className="font-normal text-suave"> ({porcento.format(resumo.markup)})</span>}
               {resumo.semLucro > 0 && <span className="ml-1 text-amber-600">*</span>}
-              {dias && <Diario>{moedaComSinal(cortar(resumo.lucro / dias, 2))}</Diario>}
+              {dias && <PorDia>{moedaComSinal(cortar(resumo.lucro / dias, 2))}</PorDia>}
             </Linha>
           )}
           <Linha rotulo="Ticket médio">{moeda.format(resumo.ticket)}</Linha>
@@ -90,15 +97,35 @@ function Caixa({ resumo, dias, geral = false }) {
  * da lista menos o de canal (`resumoDosCanais`). Cancelados e devolvidos nao entram nas vendas nem no ticket.
  */
 export default function ResumoDosCanais({ resumo, dias = null }) {
+  // As caixinhas nascem ESCONDIDAS (pedido do dono em 22/11/2026: "botao que esconde os 04 cards") e o botao as mostra;
+  // vale so enquanto a tela esta aberta.
+  const [aberto, setAberto] = useState(false);
   if (!resumo) return null;
   return (
-    // Quatro lado a lado so em tela muito larga: com o "Diario" na mesma linha (pedido do dono em 22/11/2026) a linha de
-    // Vendas pede ~420 px de caixinha (medido com R$18.195,36), e em 4 colunas abaixo de ~2040 px ela nao cabe.
-    <div className="mb-3 grid grid-cols-1 gap-2.5 min-[768px]:grid-cols-2 min-[2040px]:grid-cols-4">
-      {resumo.canais.map((c) => (
-        <Caixa key={c.canal} resumo={c} dias={dias} />
-      ))}
-      <Caixa resumo={resumo.geral} dias={dias} geral />
+    <div className="mb-3">
+      <div className="mb-1.5 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setAberto((antes) => !antes)}
+          aria-expanded={aberto}
+          title={aberto ? "Esconder o resumo de vendas e lucro por canal" : "Mostrar o resumo de vendas e lucro por canal"}
+          className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs transition-colors ${
+            aberto ? "border-acento bg-acento/10 text-acento" : "border-borda text-suave hover:bg-fundo"
+          }`}
+        >
+          <ChartColumn size={13} aria-hidden="true" /> {aberto ? "Esconder resumo" : "Mostrar resumo"}
+        </button>
+      </div>
+      {aberto && (
+        // Quatro lado a lado so em tela muito larga: com o "por dia" na mesma linha a linha de Vendas pede ~420 px de
+        // caixinha (medido com R$18.195,36), e em 4 colunas abaixo de ~2040 px ela nao cabe.
+        <div className="grid grid-cols-1 gap-2.5 min-[768px]:grid-cols-2 min-[2040px]:grid-cols-4">
+          {resumo.canais.map((c) => (
+            <Caixa key={c.canal} resumo={c} dias={dias} />
+          ))}
+          <Caixa resumo={resumo.geral} dias={dias} geral />
+        </div>
+      )}
     </div>
   );
 }
