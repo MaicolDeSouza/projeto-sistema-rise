@@ -203,3 +203,30 @@ export function fiscalIgual(noML, corpo, { comTitulo = false } = {}) {
   const igual = (campo) => String(a[campo] ?? "").trim() === String(b[campo] ?? "").trim();
   return ["ncm", "cest", "csosn", "origin_type", "origin_detail", "ean"].every(igual);
 }
+
+const NOME_DO_CAMPO_FISCAL = { ncm: "NCM", cest: "CEST", csosn: "CSOSN", origin_type: "origem", origin_detail: "origem (detalhe)", ean: "EAN" };
+
+/**
+ * O que difere entre o ML e o Rise, em texto ("NCM no ML 85423190, no Rise 85312000"), para o "!" fiscal do icone (pedido do
+ * dono em 22/11/2026, opcao 1: o NCM mudou pela NF e o anuncio seguiu com o antigo). A MESMA comparacao do `fiscalIgual`:
+ * lista vazia = igual. `noML` nulo = o SKU nao tem dados fiscais no ML.
+ */
+export function diferencasFiscais(noML, corpo, { comTitulo = false } = {}) {
+  if (!noML) return [`SKU ${corpo.sku} sem dados fiscais no ML`];
+  if (noML.type !== corpo.type) return [`SKU ${corpo.sku} com tipo ${noML.type ?? "?"} no ML, ${corpo.type} no Rise`];
+  const lista = [];
+  if (comTitulo && String(noML.title ?? "").trim() !== String(corpo.title ?? "").trim()) lista.push(`título do kit ${corpo.sku} diferente`);
+  if (corpo.type === "bundle") {
+    const chave = (itens) => JSON.stringify((itens ?? []).map((p) => [String(p.sku), Number(p.quantity), Number(p.percentage_share)]).sort());
+    if (chave(noML.bundle) !== chave(corpo.bundle)) lista.push(`peças do kit ${corpo.sku} diferentes`);
+    return lista;
+  }
+  const a = noML.tax_information ?? {};
+  const b = corpo.tax_information;
+  for (const campo of Object.keys(NOME_DO_CAMPO_FISCAL)) {
+    const noMl = String(a[campo] ?? "").trim();
+    const noRise = String(b[campo] ?? "").trim();
+    if (noMl !== noRise) lista.push(`${NOME_DO_CAMPO_FISCAL[campo]} no ML ${noMl || "vazio"}, no Rise ${noRise || "vazio"}`);
+  }
+  return lista;
+}

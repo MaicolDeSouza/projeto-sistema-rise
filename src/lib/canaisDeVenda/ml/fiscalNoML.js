@@ -13,7 +13,7 @@
  */
 
 import { prisma } from "@/lib/db";
-import { planoFiscal, fiscalIgual, mesclarComML } from "./dadosFiscais";
+import { planoFiscal, fiscalIgual, mesclarComML, diferencasFiscais } from "./dadosFiscais";
 import { faturaDepoisDoEnvio } from "./estadoNoML";
 import { textoDaRecusaML } from "./respostas";
 
@@ -156,7 +156,40 @@ export async function enviarDadosFiscaisDoAnuncio(anuncioId, { ml }) {
   }
   const enviado = await garantirFiscalNoML(ml, alvo.plano, { itemId: alvo.itemId });
   await guardarFaturaDoEnvio(anuncioId, alvo.fatura, enviado.podeFaturar);
+  if (enviado.ok) await marcarFiscalEnviado(anuncioId);
   return enviado;
+}
+
+/**
+ * Compara, so lendo, os dados fiscais de cada SKU do plano no ML com os do Rise (o "!" fiscal do icone, pedido do dono em
+ * 22/11/2026, opcao 1). `{ ok: true, diferencas: string[] }` (vazia = igual) ou `{ ok: false, status, erro }`. Nunca lanca.
+ */
+export async function conferirFiscalNoML(ml, plano) {
+  const diferencas = [];
+  try {
+    for (const corpo of plano.corpos) {
+      const lido = await ml.get(`/items/fiscal_information/${encodeURIComponent(corpo.sku)}`);
+      if (!lido?.ok && lido?.status !== 404) return { ok: false, status: lido?.status ?? null, erro: textoDaRecusaML(lido, "a leitura dos dados fiscais") };
+      const noML = lido?.ok ? lido.dados : null;
+      // A mesma mescla do envio: o CEST e o EAN que so o ML tem nao contam como diferenca.
+      diferencas.push(...diferencasFiscais(noML, noML ? mesclarComML(noML, corpo) : corpo, { comTitulo: Boolean(plano.kit) }));
+    }
+    return { ok: true, diferencas };
+  } catch (erro) {
+    return { ok: false, status: erro?.status ?? null, erro: textoDe(erro) };
+  }
+}
+
+/** Depois de um envio fiscal que deu certo: o "!" fiscal some na hora (a releitura de hora em hora confirma). So grava se havia aviso. */
+export async function marcarFiscalEnviado(anuncioId) {
+  try {
+    const anuncio = await prisma.anuncio.findUnique({ where: { id: anuncioId }, select: { dados: true } });
+    if (anuncio?.dados?.publicacao?.fiscal?.igual !== false) return;
+    const { gravarPublicacao } = await import("./banco");
+    await gravarPublicacao(anuncioId, { fiscal: { igual: true, diferencas: [], em: new Date().toISOString() } });
+  } catch (erro) {
+    console.error("[ml fiscal] apagar o aviso fiscal:", erro?.message ?? erro);
+  }
 }
 
 /**

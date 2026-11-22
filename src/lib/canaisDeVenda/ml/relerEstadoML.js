@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { gravarPublicacao } from "./banco";
 import { clienteML } from "./cliente";
 import { seguirCatalogoDosAnuncios } from "./concorrentes";
+import { conferirFiscalNoML, planoFiscalDoRascunho } from "./fiscalNoML";
 import { ETIQUETA_DE_PENALIDADE, catalogoDoItem, estadoDoItem, estadoMudou, seguidasComDiferenca, situacaoDoEstado } from "./estadoNoML";
 
 /**
@@ -138,6 +139,49 @@ async function conferirFaturamento(cliente, anuncios, { agora, espera }) {
   return resultado;
 }
 
+/*
+  OS DADOS FISCAIS NO ML x NO RISE (pedido do dono em 22/11/2026, opcao 1: o NCM do 100209 mudou pela NF e o anuncio seguiu com
+  o antigo, sem "!"). Le `/items/fiscal_information/{sku}` de cada SKU do plano e grava `publicacao.fiscal = { igual,
+  diferencas, em }` SO quando o resultado muda (reescrever toda hora embaralharia a lista). Para nao ler o ML a toa, cada anuncio
+  so e relido quando o plano do Rise mudou (assinatura na memoria do processo) ou uma vez por dia; o worker reiniciado rele todos.
+  Plano com problema no Rise (sem NCM) nao e comparado: o editor ja aponta o que falta.
+*/
+const RELER_FISCAL_MS = 24 * 60 * 60 * 1000;
+const fiscalLido = new Map();
+
+async function conferirFiscal(cliente, anuncios, { agora, espera }) {
+  const resultado = { conferidos: 0, mudaram: 0, falhas: 0 };
+  let primeira = true;
+  for (const anuncio of anuncios) {
+    const plano = await planoFiscalDoRascunho({ produtoId: anuncio.produtoId, titulo: anuncio.dados?.titulo, composicao: anuncio.dados?.composicao ?? null }).catch(() => null);
+    if (!plano?.ok) continue;
+    const assinatura = JSON.stringify(plano.corpos);
+    const lido = fiscalLido.get(anuncio.id);
+    if (lido?.assinatura === assinatura && agora.getTime() - lido.em < RELER_FISCAL_MS) continue;
+    if (!primeira) await esperar(Math.min(espera, 200));
+    primeira = false;
+    const conferido = await conferirFiscalNoML(cliente, plano);
+    if (PARA_A_RODADA.has(conferido.status)) return { ...resultado, parou: `HTTP ${conferido.status}` };
+    resultado.conferidos += 1;
+    if (!conferido.ok) {
+      resultado.falhas += 1;
+      continue;
+    }
+    fiscalLido.set(anuncio.id, { assinatura, em: agora.getTime() });
+    const anterior = anuncio.dados?.publicacao?.fiscal ?? null;
+    const igual = conferido.diferencas.length === 0;
+    if (anterior ? anterior.igual === igual && JSON.stringify(anterior.diferencas ?? []) === JSON.stringify(conferido.diferencas) : igual) continue;
+    try {
+      await gravarPublicacao(anuncio.id, { fiscal: { igual, diferencas: conferido.diferencas, em: agora.toISOString() } });
+      resultado.mudaram += 1;
+    } catch (erro) {
+      console.error("[ml estado] gravar o fiscal:", erro?.message ?? erro);
+      resultado.falhas += 1;
+    }
+  }
+  return resultado;
+}
+
 /**
  * @param {{ ml?, agora?: Date, anuncioIds?: string[], espera?: number }} [opcoes] `anuncioIds` limita a rodada (o teste).
  * @returns {Promise<{ conferidos: number, mudaram: number, falhas: number, parou?: string }>}
@@ -262,5 +306,6 @@ export async function relerEstadosML({ ml, bling, agora = new Date(), anuncioIds
   // O apto a faturar, depois do estado (a falha dele nao derruba o estado ja gravado). `faturamento` vai a parte no resultado:
   // `mudaram` continua sendo so o estado.
   resultado.faturamento = await conferirFaturamento(cliente, anuncios, { agora, espera }).catch((erro) => ({ conferidos: 0, mudaram: 0, falhas: 1, erro: erro?.message ?? String(erro) }));
+  resultado.fiscal = await conferirFiscal(cliente, anuncios, { agora, espera }).catch((erro) => ({ conferidos: 0, mudaram: 0, falhas: 1, erro: erro?.message ?? String(erro) }));
   return resultado;
 }

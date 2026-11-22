@@ -3952,6 +3952,37 @@ try {
       const naHora = perguntas();
       await relerEstadosML({ ml: mlApto, agora: new Date("2026-10-27T11:00:00Z"), anuncioIds: [a1.id] });
       conferir("releitura: o apto so e relido depois de um dia", [naHora, perguntas()], [1, 2]);
+
+      // O "!" fiscal (22/11/2026, opcao 1 do dono): o NCM do produto mudou pela NF e o ML seguiu com o antigo.
+      const { diferencasFiscais } = await import("../src/lib/canaisDeVenda/ml/dadosFiscais.js");
+      const { planoFiscalDoProduto, marcarFiscalEnviado } = await import("../src/lib/canaisDeVenda/ml/fiscalNoML.js");
+      const { estadoDoIconeML: iconeFiscal, rotuloDoIconeML: rotuloFiscal, temProblemaNoIconeML } = await import("../src/lib/canaisDeVenda/ml/icone.js");
+      const pFiscal = await prisma.produto.create({ data: { sku: "ZZ-ML-FIS1", tituloBase: "fiscal", conferido: true, ncm: "8531.20.00", origem: 0 } });
+      const aFiscal = await prisma.anuncio.create({ data: { produtoId: pFiscal.id, canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "ATIVA", idExterno: "MLB910009", dados: { publicacao: { itemId: "MLB910009" } } } });
+      const corpoDoRise = (await planoFiscalDoProduto({ id: pFiscal.id })).corpos[0];
+      const corpoVelho = { ...corpoDoRise, tax_information: { ...corpoDoRise.tax_information, ncm: "85423190" } };
+      conferir(
+        "fiscal: diferencas em texto (igual, NCM, sem dados no ML)",
+        [diferencasFiscais(corpoDoRise, corpoDoRise), diferencasFiscais(corpoVelho, corpoDoRise), diferencasFiscais(null, corpoDoRise)],
+        [[], ["NCM no ML 85423190, no Rise 85312000"], ["SKU ZZ-ML-FIS1 sem dados fiscais no ML"]],
+      );
+      const mlFiscal = criarMLFalso({ fiscais: { "ZZ-ML-FIS1": corpoVelho } });
+      const fiscalDe = async () => (await prisma.anuncio.findUnique({ where: { id: aFiscal.id }, select: { dados: true } })).dados.publicacao.fiscal ?? null;
+      const rFis = await relerEstadosML({ ml: mlFiscal, agora: new Date("2026-11-22T10:00:00Z"), anuncioIds: [aFiscal.id] });
+      conferir("fiscal: NCM diferente grava o aviso", [rFis.fiscal?.mudaram, (await fiscalDe())?.igual, (await fiscalDe())?.diferencas], [1, false, ["NCM no ML 85423190, no Rise 85312000"]]);
+      const linhaFiscal = async () => prisma.anuncio.findMany({ where: { id: aFiscal.id }, select: { canal: true, status: true, situacaoCanal: true, dados: true } });
+      const comAviso = iconeFiscal(await linhaFiscal());
+      conferir("fiscal: o icone acende o '!' com o texto", [temProblemaNoIconeML(comAviso), /dados fiscais diferentes do ML \(NCM no ML 85423190, no Rise 85312000\)/.test(rotuloFiscal(comAviso))], [true, true]);
+      const leiturasFiscais = () => mlFiscal.chamadas.filter((c) => /^\/items\/fiscal_information\//.test(c.caminho)).length;
+      const antes = leiturasFiscais();
+      await relerEstadosML({ ml: mlFiscal, agora: new Date("2026-11-22T11:00:00Z"), anuncioIds: [aFiscal.id] });
+      conferir("fiscal: sem mudanca no Rise, nao rele na hora seguinte", leiturasFiscais(), antes);
+      await marcarFiscalEnviado(aFiscal.id);
+      conferir("fiscal: o envio que deu certo apaga o aviso", [(await fiscalDe())?.igual, temProblemaNoIconeML(iconeFiscal(await linhaFiscal()))], [true, false]);
+      await prisma.produto.update({ where: { id: pFiscal.id }, data: { ncm: "8542.31.90" } });
+      mlFiscal.fiscais.set("ZZ-ML-FIS1", { ...corpoDoRise, tax_information: { ...corpoDoRise.tax_information, ncm: "85423190" } });
+      await relerEstadosML({ ml: mlFiscal, agora: new Date("2026-11-22T12:00:00Z"), anuncioIds: [aFiscal.id] });
+      conferir("fiscal: NCM do Rise mudou e o ML ja igual: rele e fica sem aviso", [(await fiscalDe())?.igual, leiturasFiscais() > antes], [true, true]);
     }
 
     const { estadoDoIconeML, rotuloDoIconeML } = await import("../src/lib/canaisDeVenda/ml/icone.js");

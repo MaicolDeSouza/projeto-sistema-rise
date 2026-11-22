@@ -1,5 +1,5 @@
 import { conteudoAtualDoAnuncio, mudancasDoAnuncio, temParaMandar } from "./acompanhar";
-import { garantirFiscalNoML, guardarFaturaDoEnvio, planoFiscalDoRascunho } from "./fiscalNoML";
+import { garantirFiscalNoML, guardarFaturaDoEnvio, marcarFiscalEnviado, planoFiscalDoRascunho } from "./fiscalNoML";
 import { carregarAnuncioML, gravarPublicacao } from "./banco";
 import { atacadoDoEnvio, enviarAtacadoML, impressaoDoAtacado } from "./atacado";
 import { moverVinculoParaRiseML } from "./bling";
@@ -135,6 +135,7 @@ async function enviarUmaVez(anuncioId, { ml, bling, lerFoto, progresso }) {
     // O "nao apto a faturar" saiu da janela (dono, 11/11/2026): o ML leva um tempo para processar os dados que acabaram de ir.
     // Fica gravado, e o "!" vem da releitura de hora em hora se passar de 24 h (`faturaPendente`).
     await guardarFaturaDoEnvio(anuncioId, publicacao?.fatura ?? null, fiscal.podeFaturar);
+    await marcarFiscalEnviado(anuncioId);
     progresso.feita("fiscal", fiscal.feitos.length ? fiscal.feitos.join(" ") : "já estavam no ML");
 
     progresso.andando("estoque");
