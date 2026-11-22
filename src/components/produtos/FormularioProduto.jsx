@@ -58,7 +58,7 @@ import { medidasDaDescricao } from "@/lib/medidas";
 import { posicaoDePreco } from "@/lib/posicaoDePreco";
 import { gerarEanDoSku } from "@/lib/eanInterno";
 import { indisponivel, ordenarPrecosDasReferencias, situacaoDeEstoque } from "@/lib/estoqueDoConcorrente";
-import { codigoSugeridoDoKit, localizacaoDoKit, ncmsDasPecas, pesoEMedidasDoKit, totaisDoKit } from "@/lib/composicao";
+import { codigoSugeridoDoKit, localizacaoDoKit, ncmDoKit, ncmsDasPecas, pesoEMedidasDoKit, totaisDoKit } from "@/lib/composicao";
 import { DocumentosDasPecas, FornecedoresDoKit, MedidasDoKit } from "./AbasDoKit";
 import CaixinhaDoProduto from "@/components/estoque3d/CaixinhaDoProduto";
 import BuscarPorCodigo from "./BuscarPorCodigo";
@@ -2060,8 +2060,12 @@ function textosDasSugestoes(pecas) {
     precoVenda: venda === null ? null : venda.toFixed(2),
     sku: codigoSugeridoDoKit(pecas),
     localizacao: localizacaoDoKit(pecas).valor,
+    // O NCM da peca de maior quantidade (pedido do dono em 22/11/2026), editavel como os outros.
+    ncm: ncmDoKit(pecas),
   };
 }
+
+const MOEDA_DA_SOMA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
 /** O campo ainda tem a sugestao anterior? Numeros comparam como numero ("6.80" e "6.8" sao o mesmo). */
 function mesmaSugestao(atual, sugerido) {
@@ -2882,6 +2886,8 @@ export default function FormularioProduto({
     // Soma incompleta (peca sem preco) nao sugere nem apaga: uma soma parcial pareceria um preco certo.
     if (nova.precoVenda !== null) escrever("precoVenda", nova.precoVenda);
     escrever("localizacao", nova.localizacao, { sempre: travada });
+    // NCM sem peca com NCM nao apaga o digitado (so o que ainda era a sugestao anterior).
+    escrever("ncm", nova.ncm);
     if (precoEscrito !== null) setPrecoVendaTexto(precoEscrito);
     // A proxima comparacao e com o que se sugeriu agora; campo sem sugestao nova guarda a anterior.
     sugeridos.current = {
@@ -3106,6 +3112,8 @@ export default function FormularioProduto({
       ]),
     ]),
   );
+  // A venda das pecas somada, para o "Soma das pecas" embaixo do preco do kit (nula com a soma incompleta).
+  const somaDasPecas = ehKit ? totaisDoKit(pecas).venda : null;
   const custoPadrao = ehKit
     ? totaisDoKit(pecas).custo
     : pecasLigadas
@@ -3847,19 +3855,26 @@ export default function FormularioProduto({
                 className={`${CLASSE_CAMPO} border-borda focus:border-acento ${localizacaoTravada ? "bg-fundo text-suave" : ""}`}
               />
 
-              <CampoPreco
-                inicial={v("precoVenda")}
-                erro={erros.precoVenda}
-                referencias={referenciasDasIndicacoes}
-                custo={custoPadrao}
-                precoAtual={precoVendaAtual}
-                posicao={posicaoDoPreco}
-                aoAlterar={() => marcarAlterado()}
-                aoMudarValor={setPrecoVendaTexto}
-                usos={usos}
-                margemModo={acessos.margem}
-                comReferencias={acessos.referencias}
-              />
+              <div>
+                <CampoPreco
+                  inicial={v("precoVenda")}
+                  erro={erros.precoVenda}
+                  referencias={referenciasDasIndicacoes}
+                  custo={custoPadrao}
+                  precoAtual={precoVendaAtual}
+                  posicao={posicaoDoPreco}
+                  aoAlterar={() => marcarAlterado()}
+                  aoMudarValor={setPrecoVendaTexto}
+                  usos={usos}
+                  margemModo={acessos.margem}
+                  comReferencias={acessos.referencias}
+                />
+                {/* O preco do kit nasce na soma das pecas e fica aberto (pedido do dono em 22/11/2026): quando o digitado e
+                    outro, a soma aparece embaixo para comparar. Soma incompleta ou igual ao preco, some (regra 4). */}
+                {ehKit && somaDasPecas !== null && precoVendaAtual !== null && Math.abs(precoVendaAtual - somaDasPecas) >= 0.005 && (
+                  <p className="mt-1 text-[11px] text-suave tabular-nums">Soma das peças: {MOEDA_DA_SOMA.format(somaDasPecas)}</p>
+                )}
+              </div>
               {/* Unidade em cima e Tipo embaixo (pedido do dono em 10/10/2026, que desfez a troca de 07/10). A Unidade
                   segue o Tipo (KIT ou UN) e continua aberta para escolher. */}
               <Campo nome="unidade" rotulo="Unidade">
@@ -4440,23 +4455,27 @@ export default function FormularioProduto({
                     }}
                   />
                 )}
-                <Campo
-                  nome="estoqueMinimo"
-                  rotulo="Estoque mínimo"
-                  type="number"
-                  step="1"
-                  min="0"
-                  defaultValue={v("estoqueMinimo")}
-                  ajuda="Quanto você quer ter em estoque, no mínimo."
-                />
-                <Campo
-                  nome="estoqueMaximo"
-                  rotulo="Estoque máximo"
-                  type="number"
-                  step="1"
-                  min="0"
-                  defaultValue={v("estoqueMaximo")}
-                />
+                {/* Kit sem minimo e maximo (pedido do dono em 22/11/2026: "isso e mostrado dentro de cada item"). Ficam
+                    montados e escondidos: o `virarKit` ja os limpa, e voltar a Simples os devolve. */}
+                <div className={ehKit ? "hidden" : "contents"}>
+                  <Campo
+                    nome="estoqueMinimo"
+                    rotulo="Estoque mínimo"
+                    type="number"
+                    step="1"
+                    min="0"
+                    defaultValue={v("estoqueMinimo")}
+                    ajuda="Quanto você quer ter em estoque, no mínimo."
+                  />
+                  <Campo
+                    nome="estoqueMaximo"
+                    rotulo="Estoque máximo"
+                    type="number"
+                    step="1"
+                    min="0"
+                    defaultValue={v("estoqueMaximo")}
+                  />
+                </div>
               </div>
 
               {/* Kit: a tabela de fornecedores e a das PECAS, so leitura (pedido do dono em 07/10/2026; sem

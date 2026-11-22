@@ -30,14 +30,16 @@ function linkSeguro(endereco) {
 
 function LinkDaPeca({ peca }) {
   return (
+    // Com cara de link (pedido do dono em 22/11/2026: "link clicavel de cada produto do kit ... em uma nova janela").
     <Link
       href={`/produtos/${peca.componenteId}`}
       target="_blank"
-      className="inline-flex items-center gap-1 font-medium hover:text-acento"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 font-medium text-acento hover:underline"
       title="Abrir a peça em outra aba"
     >
       {peca.tituloBase}
-      <ExternalLink size={12} className="shrink-0 text-suave" />
+      <ExternalLink size={12} className="shrink-0" />
     </Link>
   );
 }
