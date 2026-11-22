@@ -176,6 +176,16 @@ export default function TabelaAnunciosML({ linhas, busca, ordenar = "", direcao 
                 <Link href={enderecoDe(linha)} className="text-acento hover:underline">
                   {linha.codigo}
                 </Link>
+                {/* O que o anuncio vende (pedido do dono em 22/11/2026: "deve ter informacao nas lista de anuncio que se trata
+                    kit de composicao"): o selo do grupo, com as pecas no `title`. Anuncio simples sem selo (regra 4). */}
+                {linha.grupo === "composicao" && (
+                  <span title={linha.pecas ?? undefined} className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 font-sans text-[11px] font-medium text-sky-800">
+                    Kit de composição
+                  </span>
+                )}
+                {linha.grupo === "kit" && linha.pecas && (
+                  <span className="ml-2 rounded-full bg-fundo px-2 py-0.5 font-sans text-[11px] text-suave">Kit de {linha.pecas}</span>
+                )}
               </td>
               <td className={`${celula} text-right whitespace-nowrap tabular-nums`}>
                 {typeof linha.preco === "number" ? moeda.format(linha.preco) : <span className="text-suave">-</span>}

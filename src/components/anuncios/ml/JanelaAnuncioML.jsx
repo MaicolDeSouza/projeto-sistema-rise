@@ -26,6 +26,13 @@ import JanelaReaproveitarML from "./JanelaReaproveitarML";
 const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 // O preco e as vendas de cada linha (pedido do dono em 09/11/2026); sem o dado, nada aparece (regra 4 do padrao visual).
 const textoDoPreco = (preco) => (preco !== null && preco !== undefined && Number.isFinite(Number(preco)) ? MOEDA.format(Number(preco)) : "");
+// Os blocos do popup, nesta ordem (pedido do dono em 22/11/2026). O `grupo` de cada linha vem do servidor (`grupoDoAnuncioML`).
+const BLOCOS_DO_POPUP = [
+  { grupo: "produto", titulo: "Anúncio do produto" },
+  { grupo: "kit", titulo: "Anúncios em kit" },
+  { grupo: "composicao", titulo: "Anúncios com composição" },
+];
+
 const textoDasVendas = (vendidos) => (Number.isFinite(vendidos) ? `${vendidos} ${vendidos === 1 ? "venda" : "vendas"}` : "");
 // "Clássico + frete grátis", "Premium + frete grátis"...: o tipo e o frete (ligado, ou obrigatorio pelo preco >= 79) num texto so.
 const rotuloDaVariante = (anuncio) => {
@@ -477,11 +484,21 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
           {anuncios.length === 0 ? (
             <p className="py-4 text-center text-sm text-suave">Este produto ainda não tem anúncio no Mercado Livre.</p>
           ) : (
-            <ul className="divide-y divide-borda rounded border border-borda">
-              {anuncios.map((anuncio) => {
-                const situacao = seloDoAnuncioML(anuncio);
+            // Tres blocos, cada um com titulo e borda (pedido do dono em 22/11/2026); bloco sem anuncio nao aparece.
+            <div className="space-y-3">
+              {BLOCOS_DO_POPUP.map(({ grupo, titulo }) => {
+                const doBloco = anuncios.filter((anuncio) => (anuncio.grupo ?? "produto") === grupo);
+                if (doBloco.length === 0) return null;
                 return (
-                  <li key={anuncio.id} className="flex items-stretch">
+                  <section key={grupo} aria-label={titulo}>
+                    <h3 className="mb-1 text-xs font-semibold text-suave">{titulo}</h3>
+                    <ul className="divide-y divide-borda rounded border border-borda">
+              {doBloco.map((anuncio) => {
+                const situacao = seloDoAnuncioML(anuncio);
+                // O anuncio de um kit que USA este produto: abre e edita daqui, mas clonar e excluir so pelo popup do kit.
+                const deOutroKit = anuncio.doProprioProduto === false;
+                return (
+                  <li key={anuncio.id} className="flex items-stretch" title={deOutroKit ? `Do kit ${anuncio.codigo}: exclua ou clone pelo cadastro do kit` : undefined}>
                     <button
                       type="button"
                       onClick={() => abrirExistente(anuncio.id)}
@@ -491,7 +508,10 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
                         <span className="block truncate text-sm font-medium">
                           {anuncio.titulo || <span className="text-suave italic">Sem título</span>}
                         </span>
-                        <span className="block truncate font-mono text-xs text-suave">{anuncio.codigo}</span>
+                        <span className="block truncate text-xs text-suave">
+                          <span className="font-mono">{anuncio.codigo}</span>
+                          {anuncio.pecas && <span className="tabular-nums"> · {anuncio.pecas}</span>}
+                        </span>
                       </span>
                       {/* A variante em texto (pedido do dono em 08/11/2026: "fique claro se e classico + frete, premium + frete"). */}
                       <span className="shrink-0 text-xs text-suave">{rotuloDaVariante(anuncio)}</span>
@@ -511,7 +531,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
                       )}
                       <Badge tom={situacao.tom}>{situacao.rotulo}</Badge>
                     </button>
-                    {acessos?.editar !== false && (
+                    {acessos?.editar !== false && !deOutroKit && (
                       <button
                         type="button"
                         onClick={() => abrirClone(anuncio.id)}
@@ -522,7 +542,7 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
                         <Copy size={14} />
                       </button>
                     )}
-                    {acessos?.editar !== false && (
+                    {acessos?.editar !== false && !deOutroKit && (
                       <button
                         type="button"
                         onClick={() => setParaExcluir(anuncio.id)}
@@ -536,7 +556,11 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
                   </li>
                 );
               })}
-            </ul>
+                    </ul>
+                  </section>
+                );
+              })}
+            </div>
           )}
 
           {/* As variantes que faltam pelas faixas (08/11/2026): com um anuncio do produto, "Criar" abre o clone dele na variante,
