@@ -234,7 +234,7 @@ try {
 
     // Quais kits entram no bloco de um anuncio: os do mesmo produto com MAIS unidades, um por quantidade (o mais barato), do
     // menor para o maior, e so o que sai mais barato por unidade que o proprio anuncio e que o kit anterior listado.
-    const { unidadesDoAnuncio, irmaoDoAnuncio, kitsParaOBloco, kitForaDoBloco, grupoDoAnuncioML } = await import("../src/lib/canaisDeVenda/ml/kitsNaDescricao.js");
+    const { unidadesDoAnuncio, irmaoDoAnuncio, kitsParaOBloco, kitForaDoBloco, grupoDoAnuncioML, ehKitMisto, RECUSA_DO_KIT_MISTO } = await import("../src/lib/canaisDeVenda/ml/kitsNaDescricao.js");
     // O grupo do anuncio no popup do produto (22/11/2026): produto, kit de N do mesmo produto ou composicao (produtos diferentes,
     // ou o anuncio de um produto kit do cadastro).
     conferir("grupo do anuncio: simples, kit de N, editor com 2 produtos, editor com outro produto, produto kit do cadastro", [
@@ -244,6 +244,14 @@ try {
       grupoDoAnuncioML({ produtoId: "a", composicao: { itens: [{ produtoId: "b", quantidade: 2 }] } }),
       grupoDoAnuncioML({ produtoId: "k", composicao: null, tipoDoProduto: "COMPOSICAO" }),
     ], ["produto", "kit", "composicao", "composicao", "composicao"]);
+    // O editor do ML nao aceita mais kit de produtos diferentes (pedido do dono em 22/11/2026): monta-se em Produtos.
+    conferir("kit misto: so com dois produtos diferentes", [
+      ehKitMisto(null),
+      ehKitMisto({ itens: [{ produtoId: "a", quantidade: 3 }] }),
+      ehKitMisto({ itens: [{ produtoId: "a", quantidade: 1 }, { produtoId: "b", quantidade: 1 }] }),
+      ehKitMisto({ itens: [{ produtoId: "a", quantidade: 1 }, { produtoId: "", quantidade: 1 }] }),
+    ], [false, false, true, false]);
+    conferir("kit misto: o recado diz o caminho", RECUSA_DO_KIT_MISTO, 'Kit de produtos diferentes se monta em Produtos (tipo "Com composição"). No anúncio só entra o kit de N unidades do mesmo produto.');
     conferir("unidades do anuncio: simples 1, kit de um produto N, misto ou de outro produto nada", [unidadesDoAnuncio({ produtoId: "a", composicao: null }), unidadesDoAnuncio({ produtoId: "a", composicao: { itens: [{ produtoId: "a", quantidade: "3" }] } }), unidadesDoAnuncio({ produtoId: "a", composicao: { itens: [{ produtoId: "a", quantidade: 2 }, { produtoId: "b", quantidade: 1 }] } }), unidadesDoAnuncio({ produtoId: "a", composicao: { itens: [{ produtoId: "b", quantidade: 2 }] } }), unidadesDoAnuncio({ produtoId: "a", composicao: { itens: [{ produtoId: "a", quantidade: 0 }] } })], [1, 3, null, null, null]);
     const linhaIrma = (extra = {}) => ({ produtoId: "a", status: "PUBLICADO", situacaoCanal: "ATIVA", idExterno: "MLB123", urlExterna: "https://produto.mercadolivre.com.br/MLB-123-x", dados: { preco: 60, envio: { freteGratis: false }, composicao: { itens: [{ produtoId: "a", quantidade: 3 }] }, publicacao: { enviado: { preco: 58 } } }, ...extra });
     conferir("irmao: unidades, o preco que esta no ML (o ultimo enviado), o link e o frete gratis", irmaoDoAnuncio(linhaIrma()), { unidades: 3, preco: 58, link: "https://produto.mercadolivre.com.br/MLB-123-x", freteGratis: false });

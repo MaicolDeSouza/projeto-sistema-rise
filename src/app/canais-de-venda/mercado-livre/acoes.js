@@ -38,6 +38,7 @@ import { LIMITES_ML, RascunhoMLSchema } from "@/lib/canaisDeVenda/ml/esquema";
 import { preencherFicha, sugerirCategoria, sugerirTitulos } from "@/lib/canaisDeVenda/ml/inteligencia";
 import { lucroComMinimo, lucroDaLojaDoRascunho, ordenarAnunciosDoProduto, VARIANTES, varianteDoRascunho, variantesDoProduto } from "@/lib/canaisDeVenda/ml/faixas";
 import { clonarVarianteML } from "@/lib/canaisDeVenda/ml/variantes";
+import { ehKitMisto, RECUSA_DO_KIT_MISTO } from "@/lib/canaisDeVenda/ml/kitsNaDescricao";
 import { anunciosDoSkuNaConta, candidatosParaReaproveitar, reaproveitarAnuncioML } from "@/lib/canaisDeVenda/ml/reaproveitar";
 import { completarComLinhasGravadas, marcarDuplicados, sincronizarForaDoRiseDoProduto, verificarAnunciosAntigosML } from "@/lib/canaisDeVenda/ml/anunciosAntigos";
 import { lerCategoria, lerCategoriaCompleta, lerCustosDoAnuncio, precoPelaFaixaNoML, precoPorMargemNoML, textoDoErroML } from "@/lib/canaisDeVenda/ml/leitura";
@@ -227,6 +228,9 @@ export async function salvarAnuncioML(id, rascunho) {
   const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"]);
   if (negado) return negado;
   if (!ehIdOuNulo(id)) return PEDIDO_INVALIDO;
+  // Kit de produtos diferentes so pelo cadastro (pedido do dono em 22/11/2026). A recusa mora na porta da tela, e nao no
+  // `salvarRascunhoML`: o legado misto continua lido, publicado e excluido, e os testes da publicacao o montam por la.
+  if (ehKitMisto(rascunho?.composicao)) return { ok: false, erro: RECUSA_DO_KIT_MISTO };
   return protegendo(async () => revalidando(await salvarRascunhoML(id, rascunho)));
 }
 

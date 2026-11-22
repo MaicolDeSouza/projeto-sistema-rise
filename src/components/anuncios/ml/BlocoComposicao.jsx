@@ -12,6 +12,7 @@ import { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
 import Badge from "@/components/ui/Badge";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { aplicarComposicao } from "@/lib/canaisDeVenda/ml/rascunho";
+import { ehKitMisto, RECUSA_DO_KIT_MISTO } from "@/lib/canaisDeVenda/ml/kitsNaDescricao";
 import ContaDoKit from "./ContaDoKit";
 import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
 import { recusarSimbolosDeInteiro } from "./numeros";
@@ -152,6 +153,11 @@ export default function BlocoComposicao({ rascunho, contexto, alterar, setContex
       const { rascunho: atual, contexto: lido } = ultimo.current;
       if (atual.composicao?.itens?.some((item) => item.produtoId === produto.id)) {
         setErroDaBusca(`O produto ${produto.sku} já está na composição.`);
+        return;
+      }
+      // Um segundo produto faria um kit misto, que o editor nao aceita mais (pedido do dono em 22/11/2026).
+      if (ehKitMisto({ itens: [...(atual.composicao?.itens ?? []), { produtoId: produto.id }] })) {
+        setErroDaBusca(RECUSA_DO_KIT_MISTO);
         return;
       }
       const produtos = { ...lido.produtos, [produto.id]: produto };

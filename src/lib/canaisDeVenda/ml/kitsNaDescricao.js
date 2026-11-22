@@ -41,6 +41,18 @@ export function grupoDoAnuncioML({ produtoId, composicao, tipoDoProduto } = {}) 
 }
 
 /**
+ * Kit de produtos DIFERENTES no editor do ML (dois ou mais produtos na composicao). Desde 22/11/2026 o editor nao aceita:
+ * a venda entrava como o produto principal vezes a soma das quantidades e o kit nao tinha codigo nem localizacao no Rise
+ * (pedido do dono: "o kit deve sempre ser montado no rise antes"). Item ainda sem produto nao conta.
+ */
+export function ehKitMisto(composicao) {
+  const itens = Array.isArray(composicao?.itens) ? composicao.itens : [];
+  return new Set(itens.map((item) => item?.produtoId).filter(Boolean)).size > 1;
+}
+
+export const RECUSA_DO_KIT_MISTO = 'Kit de produtos diferentes se monta em Produtos (tipo "Com composição"). No anúncio só entra o kit de N unidades do mesmo produto.';
+
+/**
  * O irmao a partir da linha do anuncio no banco (`produtoId`, `status`, `situacaoCanal`, `idExterno`, `urlExterna`, `dados`).
  * So o publicado, ativo ou pausado, com MLB (rascunho nao tem link). O preco e o que ESTA no ML (o ultimo enviado), nao um
  * digitado e ainda nao sincronizado: o bloco nao pode prometer um preco que o cliente nao vai achar.
