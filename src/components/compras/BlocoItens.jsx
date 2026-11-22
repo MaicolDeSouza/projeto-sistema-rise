@@ -14,6 +14,8 @@ import { doTexto, moeda, soDecimal, soDigitos } from "./formato";
 
 const semAcento = (texto) => String(texto ?? "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 
+const DICA_DO_FATOR = "Quantas unidades do estoque vêm em 1 do fornecedor (rolo de 5 m = 5)";
+
 const campo =
   "w-full rounded-md border border-borda bg-superficie px-2 py-1.5 text-sm tabular-nums focus:border-acento focus:outline-none focus:ring-2 focus:ring-acento/20 disabled:border-transparent disabled:bg-transparent disabled:px-0 aria-[invalid=true]:border-rose-500";
 
@@ -248,19 +250,25 @@ export default function BlocoItens({
                     {/* Fator (06/11/2026): a quantidade e em caixas do fornecedor; no estoque entram caixas x fator. */}
                     {/* Desde 22/11/2026 o fator e editavel no item enquanto nada foi lancado (o servidor confere); o
                         item do AliExpress fica de fora, porque as linhas dele ja convertem para unidades do Rise. */}
+                    {/* "Fator" escrito, e o travado (ja lancado) tambem mostra o seu, em cinza (pedido do dono em 22/11/2026). */}
                     {editarPrazo && !aliexpress && !item.quantidadeLancada ? (
-                      <span className="mt-0.5 flex items-center justify-end gap-1 whitespace-nowrap text-[11px] text-suave">
-                        ×
+                      <span className="mt-0.5 flex items-center justify-end gap-1 whitespace-nowrap text-[11px] text-suave" title={DICA_DO_FATOR}>
+                        Fator
                         <input
                           inputMode="numeric"
                           value={item.fator ?? "1"}
                           aria-invalid={Boolean(erro(indice, "fator"))}
-                          title={erro(indice, "fator") ?? "Fator: unidades no estoque por unidade do fornecedor (rolo de 5 m = 5)"}
+                          title={erro(indice, "fator") ?? DICA_DO_FATOR}
                           onChange={(evento) => aoMudar(indice, "fator", soDigitos(evento.target.value, 7))}
                           aria-label={`Fator de ${item.sku}`}
                           className="w-12 rounded border border-borda bg-superficie px-1 py-0.5 text-right text-[11px] tabular-nums focus:border-acento focus:outline-none aria-[invalid=true]:border-rose-500"
                         />
                         {Number(item.fator) > 1 && <span>= {((doTexto(item.quantidade) ?? 0) * Number(item.fator)).toLocaleString("pt-BR")} un.</span>}
+                      </span>
+                    ) : !aliexpress ? (
+                      <span className="mt-0.5 block whitespace-nowrap text-right text-[11px] text-suave" title={DICA_DO_FATOR}>
+                        Fator {Number(item.fator) || 1}
+                        {Number(item.fator) > 1 && ` = ${((doTexto(item.quantidade) ?? 0) * Number(item.fator)).toLocaleString("pt-BR")} un.`}
                       </span>
                     ) : (
                       Number(item.fator) > 1 && (
