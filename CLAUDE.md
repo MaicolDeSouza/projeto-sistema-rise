@@ -56,6 +56,10 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
   original (`telefone`, `email`); os demais vão para uma lista (`String[]`). Um `<input>` por linha
   com o mesmo `name`, lido com `formData.getAll`. Linha em branco sai e repetido vira um só.
 - **Marca e Modelo** sempre em MAIÚSCULAS (ver "Produtos: Buscar por código").
+- **Valor em dinheiro SEM espaço depois do símbolo** (regra do dono em 22/11/2026: "Sempre quando houver valor R$ ou $
+  não precisa ter espaço entre eles"): `R$18.195,36`, `US$12,50`, nunca `R$ 18.195,36`. O `Intl.NumberFormat` com
+  `style: "currency"` põe um espaço (NBSP) depois do símbolo; código novo que mostra valor tira esse espaço. Ajuste das
+  telas que já existem: esperando a escolha do dono do alcance.
 - **Texto da descrição** (pedidos do dono em 03/11/2026, `normalizarDescricao` em `src/lib/ia/revisaoDescricao.js`): sempre
   uma linha em branco depois do título (`espacoAposTitulo`; só quando a 1ª linha é um título em maiúsculas) e o valor de cada
   "- Nome: valor" das Especificações técnicas começando com maiúscula (`maiusculaNoValor`, também dentro de
@@ -412,6 +416,13 @@ contêineres de pé. Depois, o rascunho 258262 (kit misto montado no editor) foi
 chat da loja de outra sessão, com a migration `20261122_ia_whatsapp_da_empresa` (backup de 317,6 MB antes). Conferido: as 6
 respostas de fora. O aviso "Ecmascript file had an error" do build (`process.cwd()` no `instrumentation.js`) já aparecia nos
 deploys 134 a 136. Depois, o kit 258262 foi completado na VPS (fotos, categoria e SEO).
+
+**Deploy 22.11.2026.138 (commit `37dba50`, 22/11/2026):** "Sobe e grava" do dono. Levou o custo do produto kit pelas peças no
+ML (`custoDoKitPelasPecas` em `canaisDeVenda/custo.js`, usado pelo `contextoDosProdutos` no tipo COMPOSICAO: sem ele a proposta
+e o editor do anúncio de todo produto kit ficavam sem preço), o EAN interno do kit na `criarKit` e o popup do ML que **não abre
+mais sozinho** o anúncio único ("aguarde eu clicar"; o comportamento de 24/10/2026 saiu), mais dois commits do chat da loja,
+sem migration. O kit 258262 ganhou o EAN interno `2000002582625` (cadastro, GTIN do rascunho e Bling, pelo `sincronizarComBling`)
+e a proposta do ML: Clássico sem frete R$ 43,10, lucro R$ 15,06 no ML contra R$ 15,01 na loja, sem catálogo.
 
 **Travas de escrita na VPS (decisão do dono em 22/10/2026):** o dono mandou liberar **o Mercado Livre e o Bling para todos os
 códigos** (`ML_PUBLICACAO=true`, `ML_PUBLICACAO_CODIGOS` ausente, `BLING_ESCRITA=true`, `BLING_ESCRITA_CODIGOS` vazio) depois
