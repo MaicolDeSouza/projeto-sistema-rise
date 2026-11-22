@@ -92,6 +92,8 @@ export function semGarantia(texto) {
   return saida.join("\n").trimEnd();
 }
 
+const FRASE_SEM_LINK = "Não conseguiu abrir o link? Peça pelo campo de perguntas que enviamos o anúncio do kit.";
+
 // "R$60,00", sem espaco depois do R$ (pedido do dono) e com o ponto de milhar.
 const reais = (valor) => `R$${Number(valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -108,7 +110,9 @@ export function blocoDosKits(kits) {
     linhas.push("", `Kit com ${kit.unidades} unidades por ${reais(kit.preco)} (${reais(unitario)} por unidade)${kit.freteGratis ? " + frete grátis" : ""}`, String(kit.link ?? ""));
   }
   // A linha de baixo fecha o bloco (dono em 22/11/2026: "bem dividido"): logo depois o ML escreve a "Garantia do vendedor".
-  linhas.push("", LINHA);
+  // O link do kit nao abre em todo lugar (no app do ML a descricao nao tem link clicavel), entao uma saida pelo campo de
+  // perguntas (texto aprovado pelo dono em 22/11/2026), uma vez so no fim do bloco.
+  linhas.push("", FRASE_SEM_LINK, LINHA);
   return linhas.join("\n");
 }
 
