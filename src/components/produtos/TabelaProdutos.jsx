@@ -116,14 +116,16 @@ function RitmoAteAMeta({ falta }) {
     if (new Date(dia).getUTCDay() !== 0) dias += 1;
   }
   if (falta <= 0 || dias < 1) return null;
-  const porDia = Math.ceil(falta / dias);
+  // Com vírgula, uma casa e SEM arredondar (pedidos do dono em 18/11/2026, "pode ser por vírgula", e 22/11/2026, "não quero que
+  // arredonde, se faltar 7,9 mostrar 7,9"): a casa seguinte é cortada, então 7,96 mostra 7,9 e nunca 8,0.
+  const porDia = Math.floor((falta / dias) * 10) / 10;
   return (
     <span
       suppressHydrationWarning
       className="rounded border border-borda bg-superficie px-3 py-2 text-xs whitespace-nowrap text-suave"
-      title={`${falta.toLocaleString("pt-BR")} ainda não verificados ÷ ${dias.toLocaleString("pt-BR")} dias (de hoje até ${META.texto}, sem os domingos) = ${(falta / dias).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} por dia, arredondado para cima`}
+      title={`${falta.toLocaleString("pt-BR")} ainda não verificados ÷ ${dias.toLocaleString("pt-BR")} dias (de hoje até ${META.texto}, sem os domingos) = ${(falta / dias).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} por dia`}
     >
-      <span className="font-medium tabular-nums text-texto">{porDia.toLocaleString("pt-BR")}</span> por dia até {META.texto}
+      <span className="font-medium tabular-nums text-texto">{porDia.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</span> por dia até {META.texto}
     </span>
   );
 }
