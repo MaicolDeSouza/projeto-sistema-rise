@@ -444,6 +444,16 @@ e o Sincronizar apagam (`marcarFiscalEnviado`). NF 12114 da Fortek: NCM da NF em
 8533.10.00, a NF trazia o de transistor), nenhum conferido. Depois do deploy, os dados fiscais do 100209 (NCM 8531.20.00) foram
 enviados ao ML pelo `scripts/ml-dados-fiscais.js --item=MLB7933718444 --confirmo` e relidos iguais.
 
+**Deploy 22.11.2026.141 (commit `892abd9`, 22/11/2026):** "Sim, subir" do dono. Editor do ML: ao abrir um anúncio publicado,
+relê ELE no ML (`relerAnuncioNoMLAcao`, a mesma `relerEstadosML` do worker; as Divergências mostravam a leitura de 15 min antes,
+com o que o dono já tinha corrigido); o fiscal diferente vira item da aba Divergências (ação = Sincronizar) e a linha "Dados
+fiscais" da aba Status mostra o que o ML guarda (NCM, CEST, origem, CSOSN, EAN) e o que difere, **sem o botão "Reenviar dados
+fiscais"** (o Sincronizar já manda); o título fiscal do kit é comparado **sem diferença de maiúsculas** (`mesmoTitulo`: 44 kits
+acendiam o "!" só por "5x Módulo" × "5X MÓDULO"); e o anúncio que **sai do catálogo por falta de estoque** não acende o "!" (o
+catálogo gravado fica; com o estoque de volta, ou voltou ao mesmo ou saiu de verdade; o "saiu" antigo desses some). Levou também
+dois commits do chat da loja de outra sessão, com a migration `20261123_ia_situacao_do_pedido` (backup de 320 MB antes).
+Conferido: as 6 respostas de fora.
+
 **Travas de escrita na VPS (decisão do dono em 22/10/2026):** o dono mandou liberar **o Mercado Livre e o Bling para todos os
 códigos** (`ML_PUBLICACAO=true`, `ML_PUBLICACAO_CODIGOS` ausente, `BLING_ESCRITA=true`, `BLING_ESCRITA_CODIGOS` vazio) depois
 de o Publicar recusar com "ML_PUBLICACAO está false"; aplicado só no `.env` da VPS (cópia `.env.bak-AAAAMMDD-HHMMSS` ao lado),
