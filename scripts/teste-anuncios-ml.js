@@ -216,7 +216,7 @@ try {
     // "Compre em kit e economize" (spec 2026-11-20): o texto que vai ao ML ganha as boas-vindas, perde a secao "Garantia:"
     // (o ML ja a escreve no fim do anuncio) e ganha o bloco dos kits maiores do mesmo produto.
     const { semGarantia, blocoDosKits, montarDescricaoCompletaML, BOAS_VINDAS_ML, FORMATO_DA_DESCRICAO } = await import("../src/lib/canaisDeVenda/ml/descricao.js");
-    const LINHA = "-".repeat(75);
+    const LINHA = "-".repeat(70);
     conferir("formato da descricao e boas-vindas", [FORMATO_DA_DESCRICAO, BOAS_VINDAS_ML], [2, ["Bem-vindo(a) à nossa loja!", "- Dúvidas? Use o campo de perguntas, respondemos rápido.", "- Emitimos NF em todas as vendas, com os dados do seu cadastro no Mercado Livre.", "Boas compras!", LINHA].join("\n")]);
     conferir("sem garantia: a secao sai, com os itens colados", semGarantia("Itens inclusos:\n- 01 Placa;\n\nGarantia:\n- Garantia Legal de 90 dias (contra defeitos de fabricação);"), "Itens inclusos:\n- 01 Placa;");
     conferir("sem garantia: texto antigo com linha em branco entre os itens", semGarantia("Itens inclusos:\n\n- 01 Placa\n\nGarantia:\n\n- Garantia Legal de 90 dias;\n\n- Suporte por 30 dias;\n"), "Itens inclusos:\n\n- 01 Placa");
@@ -2713,7 +2713,7 @@ try {
             dados: { preco, tipoAnuncio: "gold_special", envio: { freteGratis: false }, composicao: { itens: [{ produtoId: c.s1.id, quantidade }], codigo: `ZZ-ML-S1_${quantidade}`, blingProdutoId: null }, publicacao: { itemId: `MLB9000${quantidade}`, enviado: { preco } } },
           },
         });
-      const LINHA = "-".repeat(75);
+      const LINHA = "-".repeat(70);
 
       await prisma.produto.update({ where: { id: c.s1.id }, data: { descricaoBase: "ZZ S1\n\nTexto do S1.\n\nGarantia:\n- Garantia Legal de 90 dias;" } });
       const id = await c.anuncioSimples(c.s1);

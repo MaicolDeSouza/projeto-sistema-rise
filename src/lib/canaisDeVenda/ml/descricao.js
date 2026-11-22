@@ -51,8 +51,8 @@ export const FORMATO_DA_DESCRICAO = 2;
 
 // So hifens: o ML recusa caractere fora do Latin-1, entao nada de linha desenhada. Pedido do dono em 22/11/2026: "as linhas
 // tracejadas devem ir ate final da linha". Medido no print do app no Samsung S24 (360 dp): cabem ~80 hifens numa linha;
-// 75 enche a linha com folga para letra maior. 120 (a largura do computador) quebrava em duas linhas no celular.
-const LINHA = "-".repeat(75);
+// 70 (escolha do dono, 22/11/2026) deixa folga para letra maior. 120 (a largura do computador) quebrava em duas linhas no celular.
+const LINHA = "-".repeat(70);
 
 /**
  * As boas-vindas no comeco de todo anuncio (texto do dono em 20/11/2026). Fixo no codigo de proposito: mudar o texto muda a
