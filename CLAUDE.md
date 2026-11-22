@@ -434,6 +434,16 @@ pela varredura, decisão do dono) e o **fator editável no item do pedido de com
 direto no banco da VPS: o NCM da NF 1547 (Alltele/Nightech) nos 19 itens da Nightech no Scraper e em 11 produtos do Rise, e o
 fator 5 no item do cabo flat 930303 do PC-0024 (lança 25 m). Conferido: as 6 respostas de fora e os contêineres de pé.
 
+**Deploy 22.11.2026.140 (commit `41386b2`, 22/11/2026):** "Sim, subir" do dono. Levou o rótulo "Fator" no item do pedido de
+compra (o já lançado mostra o fator em cinza, `d2cd2d9`), o **"!" do ícone Rise quando o NCM de um produto conferido muda fora
+do cadastro** (`Produto.ncmAviso = { anterior, novo, origem, em }`, migration `20261122b_ncm_aviso` com backup de 320 MB antes;
+o Salvar do produto zera, `70b8c57`) e o **"!" fiscal do ML** (`41386b2`): o worker, na releitura de hora em hora, lê
+`/items/fiscal_information/{sku}` de cada anúncio do Rise e grava `publicacao.fiscal = { igual, diferencas, em }` só quando muda
+(relê quando o plano fiscal do Rise muda ou uma vez por dia; `diferencasFiscais` em `dadosFiscais.js`); o "Enviar dados fiscais"
+e o Sincronizar apagam (`marcarFiscalEnviado`). NF 12114 da Fortek: NCM da NF em 25 produtos (o resistor 920327 ficou com
+8533.10.00, a NF trazia o de transistor), nenhum conferido. Depois do deploy, os dados fiscais do 100209 (NCM 8531.20.00) foram
+enviados ao ML pelo `scripts/ml-dados-fiscais.js --item=MLB7933718444 --confirmo` e relidos iguais.
+
 **Travas de escrita na VPS (decisão do dono em 22/10/2026):** o dono mandou liberar **o Mercado Livre e o Bling para todos os
 códigos** (`ML_PUBLICACAO=true`, `ML_PUBLICACAO_CODIGOS` ausente, `BLING_ESCRITA=true`, `BLING_ESCRITA_CODIGOS` vazio) depois
 de o Publicar recusar com "ML_PUBLICACAO está false"; aplicado só no `.env` da VPS (cópia `.env.bak-AAAAMMDD-HHMMSS` ao lado),
