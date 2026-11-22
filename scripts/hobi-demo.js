@@ -58,6 +58,16 @@ const dados = {
   },
   // A porta so confere que os segredos EXISTEM; o provedor desta demonstracao e injetado mais abaixo.
   segredos: async () => ({ openai: "demonstracao", anthropic: "demonstracao", turnstile: "demonstracao" }),
+  // Acompanhar pedido (fase 3): um pedido de mentira, sem ler os pedidos do PC. 1001 + 123.456.789-09 acha; 9999 bate no
+  // limite do banco; o resto nao acha.
+  async situacaoDoPedido(numero, prova) {
+    if (numero === "9999") return { situacao: "limite" };
+    if (numero !== "1001" || prova !== "12345678909") return { situacao: "nao_achado" };
+    return {
+      situacao: "achado",
+      pedido: { numero: "1001", canal: "LOJA_INTEGRADA", data: "2026-11-20", status: "ENVIADO", statusDoEnvio: "EM_TRANSITO", transportadora: "Correios PAC", rastreio: "AA123456789BR", linkDoRastreio: "https://rastreamento.correios.com.br/app/index.php", atualizadoEm: new Date().toISOString() },
+    };
+  },
 };
 
 // ---------- o provedor de roteiro: mostra a janela funcionando sem chamar IA nenhuma ----------
@@ -85,6 +95,11 @@ function provedorDeRoteiro() {
       };
       if (ferramentas.length === 0) return resposta({ texto: "Veja o que encontrei acima." });
 
+      // "Cade meu pedido?": o formulario do pedido (fase 3); o modelo nao ve o resultado.
+      if (/\b(pedido|rastreio|rastrear|entrega|chegou)\b/i.test(pergunta)) {
+        if (!feitas.has("abrirConsultaDePedido")) return resposta({ chamadasDeFerramenta: [chamar("abrirConsultaDePedido", {})] });
+        return resposta({ texto: "Preencha o número do pedido e o CPF, CNPJ ou e-mail da compra no formulário abaixo. (Resposta de demonstração, sem IA.)" });
+      }
       // Suporte tecnico vai ao WhatsApp tecnico dos Dados da empresa (ajuste do dono de 22/11/2026).
       if (/(n[aã]o funciona|n[aã]o liga|defeito|queimou|suporte)/i.test(pergunta)) {
         if (!feitas.has("passarParaAtendente")) return resposta({ chamadasDeFerramenta: [chamar("passarParaAtendente", { motivo: "suporte_tecnico" })] });
@@ -202,6 +217,8 @@ const servidor = http.createServer((requisicao, resposta) => {
     }
   }
   if (caminho.startsWith("/carrinho")) return html(resposta, pagina({ classe: "pagina-carrinho", titulo: "Carrinho (aqui o chat não aparece)" }));
+  // O "Ver na loja" do pedido leva a area do cliente da Loja Integrada; aqui, uma pagina de mentira no mesmo endereco.
+  if (caminho === "/conta/pedido/listar") return html(resposta, pagina({ classe: "pagina-conta", titulo: "Meus pedidos (área do cliente da loja)" }));
   // Todo o resto e do servico do chat: /status, /chat, /avaliar e o arquivo do widget.
   assistente.emit("request", requisicao, resposta);
 });

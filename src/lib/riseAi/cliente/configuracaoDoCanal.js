@@ -20,8 +20,8 @@ export function chatDaLojaPadrao() {
     // clientes verem); `true` = todos os visitantes.
     publico: false,
     nome: "Hobi",
-    // Diz o que ele faz (pedido do dono em 22/11/2026). "Ver o status do seu pedido" entra quando a fase 3 estiver pronta.
-    boasVindas: "Oi! Sou o Hobi, da 4hobby. Posso te ajudar a achar um componente, tirar dúvida sobre uma peça e montar a lista do seu projeto.",
+    // Diz o que ele faz (pedido do dono em 22/11/2026); o acompanhar pedido entrou com a fase 3.
+    boasVindas: "Oi! Sou o Hobi, da 4hobby. Posso te ajudar a achar um componente, tirar dúvida sobre uma peça, montar a lista do seu projeto e acompanhar o seu pedido.",
     // Link wa.me da loja; vazio = sem botao de WhatsApp.
     whatsapp: "",
     // A chave PUBLICA do Turnstile (a secreta fica cifrada em SegredoDoAssistente).

@@ -73,17 +73,19 @@ export function contextoDaPagina({ classeDoBody, skuNaPagina, nomeNaPagina }) {
 
 /**
  * Os atalhos da saudacao (pedido do dono em 22/11/2026). Cada um ABRE a conversa com uma fala do Hobi, feita aqui mesmo:
- * nao chama a IA e nao gasta. "Acompanhar meu pedido" entra na fase 3; o WhatsApp e um link a parte.
+ * nao chama a IA e nao gasta. "Acompanhar meu pedido" (fase 3) abre o formulario do pedido; o WhatsApp e um link a parte.
  */
 export const ATALHOS = [
   { id: "componente", rotulo: "Encontrar um componente" },
   { id: "duvida", rotulo: "Tirar dúvida técnica sobre um produto" },
+  { id: "pedido", rotulo: "Acompanhar meu pedido" },
   { id: "lista", rotulo: "Colar lista de peças" },
 ];
 
 const FALAS_DOS_ATALHOS = {
   componente: "Qual componente você procura? Pode ser o nome, o código ou para que vai usar.",
   duvida: "Qual produto você está com dúvida? Pode me passar o nome ou o código.",
+  pedido: "Me passe o número do pedido e o CPF, CNPJ ou e-mail usado na compra.",
   // Texto escolhido pelo dono (Opcao 2, 22/11/2026): a lista pode vir em qualquer formato.
   lista: "Pode colar sua lista aqui. Eu analiso e te mostro em instantes o que temos.",
 };
@@ -92,7 +94,7 @@ const FALAS_DOS_ATALHOS = {
  * A fala de abertura de um atalho. Na duvida tecnica, se o visitante esta na pagina de um produto, oferece "O produto desta
  * tela": um clique e a pergunta segue com ele (o codigo ja vai no contexto de toda mensagem).
  *
- * @returns {{ texto: string, sugestao: { rotulo: string, mensagem: string } | null, modoLista: boolean } | null}
+ * @returns {{ texto: string, sugestao: { rotulo: string, mensagem: string } | null, modoLista: boolean, formulario: "pedido" | null } | null}
  */
 export function aberturaDoAtalho(id, contexto) {
   const texto = FALAS_DOS_ATALHOS[id];
@@ -102,7 +104,54 @@ export function aberturaDoAtalho(id, contexto) {
     const nome = contexto.nomeAberto || `o produto ${contexto.skuAberto}`;
     sugestao = { rotulo: `O produto desta tela: ${nome}`, mensagem: `Tenho uma dúvida técnica sobre este produto: ${nome} (código ${contexto.skuAberto}).` };
   }
-  return { texto, sugestao, modoLista: id === "lista" };
+  return { texto, sugestao, modoLista: id === "lista", formulario: id === "pedido" ? "pedido" : null };
+}
+
+/** Os textos do acompanhar pedido. O do limite termina em ":" porque o botao do WhatsApp vem logo depois (pedido do dono). */
+export const TEXTOS_DO_PEDIDO = {
+  naoAchado: "Não encontrei este pedido. Confira o número e o CPF, CNPJ ou e-mail da compra.",
+  limite: "Não consigo consultar mais pedidos agora. Fale com a gente pelo WhatsApp:",
+  prova: "Confira o CPF, CNPJ ou e-mail da compra.",
+  numero: "Confira o número do pedido.",
+  robo: "Não consegui confirmar que você não é um robô. Tente de novo.",
+  indisponivel: "Não consegui consultar agora. Fale com a gente pelo WhatsApp:",
+};
+
+const linhaCurta = (valor, teto) => (valor == null ? null : String(valor).replace(/\s+/g, " ").trim().slice(0, teto) || null);
+
+function rastreioLido(bruto) {
+  if (!ehObjeto(bruto) || bruto.codigo == null) return null;
+  const link = typeof bruto.link === "string" && comoUrl(bruto.link)?.protocol === "https:" ? bruto.link : null;
+  return { codigo: linhaCurta(bruto.codigo, 60), link };
+}
+
+/** O resultado do pedido como a janela o guarda e desenha, conferido campo a campo (vem do servico ou da aba). */
+function pedidoLido(bruto) {
+  if (!ehObjeto(bruto) || typeof bruto.situacao !== "string") return null;
+  return {
+    situacao: bruto.situacao.slice(0, 20),
+    titulo: linhaCurta(bruto.titulo, 120),
+    tom: bruto.tom === "ok" || bruto.tom === "andamento" ? bruto.tom : "alerta",
+    linhas: Array.isArray(bruto.linhas) ? bruto.linhas.map((linha) => linhaCurta(linha, 200)).filter(Boolean).slice(0, 6) : [],
+    rastreio: rastreioLido(bruto.rastreio),
+    texto: linhaCurta(bruto.texto, 300),
+    whatsapp: bruto.whatsapp === true,
+  };
+}
+
+/**
+ * A resposta do `POST /pedido` em resultado para a janela. Todo limite (e o servico fora do ar) mostra o texto com o botao do
+ * WhatsApp (pedido do dono em 22/11/2026, ao aprovar o plano); "nao achei" nao diz se foi o numero ou o documento.
+ */
+export function resultadoDoPedido(status, corpo) {
+  const c = ehObjeto(corpo) ? corpo : {};
+  const aviso = (situacao, texto, whatsapp) => ({ situacao, titulo: null, tom: "alerta", linhas: [], rastreio: null, texto, whatsapp });
+  if (status === 200 && c.situacao === "achado") return pedidoLido({ ...c, situacao: "achado", tom: c.tom ?? "andamento", texto: null, whatsapp: false });
+  if (status === 200) return aviso("nao_achado", TEXTOS_DO_PEDIDO.naoAchado, false);
+  if (status === 429) return aviso("limite", TEXTOS_DO_PEDIDO.limite, true);
+  if (status === 400 && (c.erro === "prova" || c.erro === "numero")) return aviso("invalido", TEXTOS_DO_PEDIDO[c.erro], false);
+  if (status === 403) return aviso("robo", TEXTOS_DO_PEDIDO.robo, false);
+  return aviso("indisponivel", TEXTOS_DO_PEDIDO.indisponivel, true);
 }
 
 /** O chat nao existe no carrinho nem no checkout: nada de terceiro entre o cliente e o pagamento. */
@@ -202,7 +251,9 @@ export function conversaVazia() {
 }
 
 // `local`: a fala de abertura de um atalho (feita pela janela, sem pergunta e sem IA); `sugestao`: o botao que ela oferece.
-const trocaNova = (pergunta) => ({ pergunta, status: "", cartoes: [], lista: null, texto: "", passagem: null, erro: null, mensagemId: null, nota: 0, local: false, sugestao: null, fechada: false });
+// `formulario`: "pedido" quando a troca mostra o formulario do pedido; `pedido`: o resultado de uma consulta (troca local).
+const trocaNova = (pergunta) => ({ pergunta, status: "", cartoes: [], lista: null, texto: "", passagem: null, erro: null, mensagemId: null, nota: 0, local: false, sugestao: null, formulario: null, pedido: null, fechada: false });
+const formularioLido = (bruto) => (bruto === "pedido" ? "pedido" : null);
 const sugestaoLida = (bruta) => (ehObjeto(bruta) && typeof bruta.rotulo === "string" && typeof bruta.mensagem === "string" ? { rotulo: bruta.rotulo.slice(0, 200), mensagem: bruta.mensagem.slice(0, 400) } : null);
 const passagemLida = (bruta) =>
   ehObjeto(bruta)
@@ -227,7 +278,13 @@ export function aplicarEvento(conversa, { evento, dados }) {
     case "pergunta":
       return { trocas: [...conversa.trocas, trocaNova(String(d.texto == null ? "" : d.texto))] };
     case "abertura":
-      return { trocas: [...conversa.trocas, { ...trocaNova(""), texto: String(d.texto == null ? "" : d.texto), local: true, sugestao: sugestaoLida(d.sugestao), fechada: true }] };
+      return { trocas: [...conversa.trocas, { ...trocaNova(""), texto: String(d.texto == null ? "" : d.texto), local: true, sugestao: sugestaoLida(d.sugestao), formulario: formularioLido(d.formulario), fechada: true }] };
+    case "formulario":
+      return naAberta(conversa, () => ({ formulario: formularioLido(d.tipo) }));
+    case "pedidoConsultado": {
+      const resultado = pedidoLido(d);
+      return resultado ? { trocas: [...conversa.trocas, { ...trocaNova(""), local: true, pedido: resultado, fechada: true }] } : conversa;
+    }
     case "status":
       return naAberta(conversa, () => ({ status: String(d.texto == null ? "" : d.texto) }));
     case "cartoes":
@@ -270,6 +327,8 @@ function trocaLida(bruta) {
     nota: bruta.nota === 1 || bruta.nota === -1 ? bruta.nota : 0,
     local: bruta.local === true,
     sugestao: sugestaoLida(bruta.sugestao),
+    formulario: formularioLido(bruta.formulario),
+    pedido: pedidoLido(bruta.pedido),
     fechada: true,
   };
   // A pagina mudou no meio da resposta: a troca volta fechada, com o aviso, e a pergunta NAO e reenviada sozinha.

@@ -204,7 +204,7 @@ export async function responderAoCliente({ canal, sessaoId, mensagem, contexto =
   });
 
   const sistema = montarSistemaDoCliente({ nome: loja.nome, promptDoCliente: config.promptDoCliente, contexto });
-  const contextoDasFerramentas = { dados, vistos: new Map(), saida: { cartoes: [], lista: null, passagem: null } };
+  const contextoDasFerramentas = { dados, vistos: new Map(), saida: { cartoes: [], lista: null, passagem: null, formulario: null } };
   const gasto = { entrada: 0, saida: 0, usd: 0, brl: 0 };
   aoEvento("status", { texto: "Pensando…" });
 
@@ -219,7 +219,7 @@ export async function responderAoCliente({ canal, sessaoId, mensagem, contexto =
       try {
         const provedor = await criarProvedor(escolha.provedor);
         resultado = await rodarLaco({ escolha, provedor, config, sistema, mensagens, contexto: contextoDasFerramentas, orcamento, conversaId: conversa.id, agora, aoEvento, gasto });
-        if (!resultado.texto && contextoDasFerramentas.saida.cartoes.length === 0 && !contextoDasFerramentas.saida.lista && !contextoDasFerramentas.saida.passagem) {
+        if (!resultado.texto && contextoDasFerramentas.saida.cartoes.length === 0 && !contextoDasFerramentas.saida.lista && !contextoDasFerramentas.saida.passagem && !contextoDasFerramentas.saida.formulario) {
           throw new ErroDoProvedor("O modelo devolveu uma resposta vazia.", { tipo: "resposta" });
         }
         break;
@@ -231,7 +231,7 @@ export async function responderAoCliente({ canal, sessaoId, mensagem, contexto =
         if (indice === 0) motivoDaReserva = falha.tipo ?? "falha";
         // A reserva comeca do zero: o que a primeira tentativa "viu" ou mostrou nao vale para a segunda.
         contextoDasFerramentas.vistos.clear();
-        contextoDasFerramentas.saida = { cartoes: [], lista: null, passagem: null };
+        contextoDasFerramentas.saida = { cartoes: [], lista: null, passagem: null, formulario: null };
       }
     }
   } finally {
@@ -254,7 +254,7 @@ export async function responderAoCliente({ canal, sessaoId, mensagem, contexto =
   }
 
   // ---------- O filtro, ANTES de qualquer coisa chegar ao visitante ----------
-  const { cartoes, lista } = contextoDasFerramentas.saida;
+  const { cartoes, lista, formulario } = contextoDasFerramentas.saida;
   let passagemDoModelo = contextoDasFerramentas.saida.passagem;
   const vistos = [...contextoDasFerramentas.vistos.values()];
   const precos = vistos.map((produto) => produto.preco).filter((preco) => preco !== null);
@@ -285,7 +285,7 @@ export async function responderAoCliente({ canal, sessaoId, mensagem, contexto =
 
   const mensagemId = await conversas.gravarResposta(conversa.id, {
     texto,
-    estruturado: { cartoes, lista, passagem, ferramentas: resultado.trilha, ...(reprovado ? { reprovado } : {}) },
+    estruturado: { cartoes, lista, passagem, formulario, ferramentas: resultado.trilha, ...(reprovado ? { reprovado } : {}) },
     provedor: escolhaFinal.provedor,
     modelo: resultado.modelo,
     motivoDaReserva,
@@ -299,7 +299,9 @@ export async function responderAoCliente({ canal, sessaoId, mensagem, contexto =
   if (lista) aoEvento("lista", lista);
   aoEvento("texto", { texto });
   if (passagem) aoEvento("passagem", passagem);
+  // O formulario do pedido (fase 3): a janela o desenha e consulta o banco sozinha; o modelo nao ve o resultado.
+  if (formulario) aoEvento("formulario", { tipo: formulario });
   aoEvento("fim", { mensagemId });
 
-  return { conversaId: conversa.id, mensagemId, texto, cartoes, lista, passagem, custoBrl: custo.brl };
+  return { conversaId: conversa.id, mensagemId, texto, cartoes, lista, passagem, formulario: formulario ?? null, custoBrl: custo.brl };
 }

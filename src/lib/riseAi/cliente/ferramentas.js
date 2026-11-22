@@ -203,13 +203,27 @@ export const FERRAMENTAS_DO_CLIENTE = [
     nome: "passarParaAtendente",
     descricao:
       "Passa a conversa para a equipe da loja pelo WhatsApp. Use quando o visitante pede uma pessoa, ou o assunto é pagamento, " +
-      "pedido já feito, troca, garantia ou reclamação, ou quando você não achou o que ele precisa. Use o motivo suporte_tecnico " +
+      "troca, cancelamento, garantia ou reclamação de um pedido, ou quando você não achou o que ele precisa (para ver a situação " +
+      "ou o rastreio de um pedido, use abrirConsultaDePedido). Use o motivo suporte_tecnico " +
       "quando ele precisa de suporte técnico que você não resolve (produto com defeito, não funciona, ligação, código, instalação): " +
       "esse vai para o WhatsApp do suporte técnico; os outros, para o comercial.",
     esquema: z.object({ motivo: z.enum(MOTIVOS_DA_PASSAGEM) }),
     async executar({ motivo }, contexto) {
       contexto.saida.passagem = { motivo };
       return { ok: true };
+    },
+  },
+  {
+    // Fase 3 (22/11/2026): a situacao do pedido sai SO pelo formulario da janela, que fala direto com o banco. Esta ferramenta
+    // nao le nada: so manda a janela mostrar o formulario, e o modelo nunca ve o numero nem o documento do comprador.
+    nome: "abrirConsultaDePedido",
+    descricao:
+      "Mostra ao visitante o formulário de acompanhar pedido (número do pedido e CPF, CNPJ ou e-mail da compra). Use quando ele " +
+      "pergunta pela situação, entrega, prazo ou rastreio de um pedido já feito. Você não vê o resultado: a janela mostra a ele.",
+    esquema: z.object({}),
+    async executar(_argumentos, contexto) {
+      contexto.saida.formulario = "pedido";
+      return { ok: true, mostrado: "formulário do pedido" };
     },
   },
 ];

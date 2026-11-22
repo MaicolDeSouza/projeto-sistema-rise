@@ -120,7 +120,7 @@ conversa = passo(conversa, "fim", { mensagemId: "m1" });
 conferir(
   "pergunta + cartoes + texto + fim = UMA troca fechada",
   conversa.trocas,
-  [{ pergunta: "quero ligar um LED", status: "", cartoes: [{ sku: "ZZ-1" }, { sku: "ZZ-2" }], lista: null, texto: "Veja <b>acima</b>.", passagem: null, erro: null, mensagemId: "m1", nota: 0, local: false, sugestao: null, fechada: true }],
+  [{ pergunta: "quero ligar um LED", status: "", cartoes: [{ sku: "ZZ-1" }, { sku: "ZZ-2" }], lista: null, texto: "Veja <b>acima</b>.", passagem: null, erro: null, mensagemId: "m1", nota: 0, local: false, sugestao: null, formulario: null, pedido: null, fechada: true }],
 );
 conferir("o passe nao entra na conversa", JSON.stringify(conversa).includes("123.abc"), false);
 const antes = conversa;
@@ -141,15 +141,16 @@ conferir("a passagem diz se e comercial ou tecnica (para o rotulo do botao)", [c
 conferir("a passagem tecnica volta igual da aba", lerGuardada(paraGuardar(passo(comTecnico, "fim", { mensagemId: "m9" }))).trocas[0].passagem.tipo, "tecnico");
 
 // ---------- Ajustes do dono de 22/11/2026: os atalhos abrem a conversa e o Hobi fala primeiro (sem IA, sem gasto) ----------
-conferir("os atalhos, na ordem (o do pedido so na fase 3)", ATALHOS.map((atalho) => [atalho.id, atalho.rotulo]), [
+conferir("os atalhos, na ordem (o do pedido entrou na fase 3)", ATALHOS.map((atalho) => [atalho.id, atalho.rotulo]), [
   ["componente", "Encontrar um componente"],
   ["duvida", "Tirar dúvida técnica sobre um produto"],
+  ["pedido", "Acompanhar meu pedido"],
   ["lista", "Colar lista de peças"],
 ]);
 conferir("todo rotulo comeca com maiuscula", ATALHOS.every((atalho) => /^[A-ZÁÉÍÓÚ]/.test(atalho.rotulo)), true);
-conferir("abertura: encontrar um componente", aberturaDoAtalho("componente", { pagina: "outra", skuAberto: "", nomeAberto: "" }), { texto: "Qual componente você procura? Pode ser o nome, o código ou para que vai usar.", sugestao: null, modoLista: false });
-conferir("abertura: lista (o texto que o dono escolheu)", aberturaDoAtalho("lista", { pagina: "outra", skuAberto: "", nomeAberto: "" }), { texto: "Pode colar sua lista aqui. Eu analiso e te mostro em instantes o que temos.", sugestao: null, modoLista: true });
-conferir("abertura: duvida fora de pagina de produto", aberturaDoAtalho("duvida", { pagina: "outra", skuAberto: "", nomeAberto: "" }), { texto: "Qual produto você está com dúvida? Pode me passar o nome ou o código.", sugestao: null, modoLista: false });
+conferir("abertura: encontrar um componente", aberturaDoAtalho("componente", { pagina: "outra", skuAberto: "", nomeAberto: "" }), { texto: "Qual componente você procura? Pode ser o nome, o código ou para que vai usar.", sugestao: null, modoLista: false, formulario: null });
+conferir("abertura: lista (o texto que o dono escolheu)", aberturaDoAtalho("lista", { pagina: "outra", skuAberto: "", nomeAberto: "" }), { texto: "Pode colar sua lista aqui. Eu analiso e te mostro em instantes o que temos.", sugestao: null, modoLista: true, formulario: null });
+conferir("abertura: duvida fora de pagina de produto", aberturaDoAtalho("duvida", { pagina: "outra", skuAberto: "", nomeAberto: "" }), { texto: "Qual produto você está com dúvida? Pode me passar o nome ou o código.", sugestao: null, modoLista: false, formulario: null });
 conferir(
   "abertura: duvida na pagina de um produto oferece o produto da tela",
   aberturaDoAtalho("duvida", { pagina: "produto", skuAberto: "121208", nomeAberto: "ELETROÍMÃ SOLENÓIDE 24VDC" }).sugestao,
@@ -158,7 +159,7 @@ conferir(
 conferir("abertura: pagina de produto sem codigo nao oferece", aberturaDoAtalho("duvida", { pagina: "produto", skuAberto: "", nomeAberto: "X" }).sugestao, null);
 conferir("atalho desconhecido", aberturaDoAtalho("outro", {}), null);
 const aberta = passo(conversaVazia(), "abertura", { texto: "Qual produto?", sugestao: { rotulo: "O produto desta tela: X", mensagem: "Duvida sobre X" } });
-conferir("a fala de abertura entra na conversa como troca local, fechada e sem pergunta", aberta.trocas, [{ pergunta: "", status: "", cartoes: [], lista: null, texto: "Qual produto?", passagem: null, erro: null, mensagemId: null, nota: 0, local: true, sugestao: { rotulo: "O produto desta tela: X", mensagem: "Duvida sobre X" }, fechada: true }]);
+conferir("a fala de abertura entra na conversa como troca local, fechada e sem pergunta", aberta.trocas, [{ pergunta: "", status: "", cartoes: [], lista: null, texto: "Qual produto?", passagem: null, erro: null, mensagemId: null, nota: 0, local: true, sugestao: { rotulo: "O produto desta tela: X", mensagem: "Duvida sobre X" }, formulario: null, pedido: null, fechada: true }]);
 conferir("a fala de abertura volta igual da aba", lerGuardada(paraGuardar(aberta)), aberta);
 conferir("sugestao guardada com lixo e descartada", lerGuardada(JSON.stringify({ trocas: [{ pergunta: "", texto: "x", local: true, fechada: true, sugestao: { rotulo: 5 } }] })).trocas[0].sugestao, null);
 
@@ -183,6 +184,40 @@ conferir("429", textoDoErroHttp(429, { erro: "limite" }), { texto: "Você chegou
 conferir("503 lotado", textoDoErroHttp(503, { erro: "lotado" }), { texto: "Muita gente por aqui agora. Tente em instantes ou fale com a gente pelo WhatsApp.", whatsapp: true });
 conferir("503 desligado", textoDoErroHttp(503, { erro: "desligado" }), { texto: "O assistente está indisponível agora. Fale com a gente pelo WhatsApp.", whatsapp: true });
 conferir("outro (Review Focus 1)", [textoDoErroHttp(502, "<html>"), textoDoErroHttp(0, null)], [{ texto: "Não consegui responder agora. Tente de novo em instantes ou fale com a gente pelo WhatsApp.", whatsapp: true }, { texto: "Não consegui responder agora. Tente de novo em instantes ou fale com a gente pelo WhatsApp.", whatsapp: true }]);
+
+// ---------- Fase 3 (22/11/2026): acompanhar pedido pelo formulario ----------
+{
+  const nucleo = await import("../assistente/widget/nucleo.js");
+  const { ATALHOS, aberturaDoAtalho, aplicarEvento, conversaVazia, paraGuardar, lerGuardada, resultadoDoPedido, TEXTOS_DO_PEDIDO } = nucleo;
+  conferir("o atalho do pedido, entre a duvida e a lista", ATALHOS.map((atalho) => atalho.id), ["componente", "duvida", "pedido", "lista"]);
+  conferir("o rotulo do atalho do pedido", ATALHOS.find((atalho) => atalho.id === "pedido")?.rotulo, "Acompanhar meu pedido");
+  const abertura = aberturaDoAtalho("pedido", { pagina: "outra" });
+  conferir("o atalho do pedido abre o formulario, sem pergunta a IA", [abertura?.formulario, abertura?.modoLista, typeof abertura?.texto], ["pedido", false, "string"]);
+  conferir("os outros atalhos nao abrem formulario", aberturaDoAtalho("componente", {}).formulario, null);
+  let conversa = aplicarEvento(conversaVazia(), { evento: "abertura", dados: { texto: abertura.texto, formulario: "pedido" } });
+  conferir("a fala de abertura leva o formulario", [conversa.trocas[0].local, conversa.trocas[0].formulario], [true, "pedido"]);
+  conversa = aplicarEvento(aplicarEvento(conversaVazia(), { evento: "pergunta", dados: { texto: "cade meu pedido?" } }), { evento: "formulario", dados: { tipo: "pedido" } });
+  conferir("o evento do /chat poe o formulario na troca aberta", conversa.trocas[0].formulario, "pedido");
+  conferir("formulario desconhecido nao entra", aplicarEvento(aplicarEvento(conversaVazia(), { evento: "pergunta", dados: { texto: "x" } }), { evento: "formulario", dados: { tipo: "senha" } }).trocas[0].formulario, null);
+
+  const achado = resultadoDoPedido(200, { situacao: "achado", titulo: "Enviado", tom: "andamento", linhas: ["Pedido nº 1001 de 20/11/2026"], rastreio: { codigo: "ZZ123BR", link: "https://rastreio.exemplo/ZZ123BR" }, passe: "p" });
+  conferir("resultado achado", achado, { situacao: "achado", titulo: "Enviado", tom: "andamento", linhas: ["Pedido nº 1001 de 20/11/2026"], rastreio: { codigo: "ZZ123BR", link: "https://rastreio.exemplo/ZZ123BR" }, texto: null, whatsapp: false });
+  conferir("resultado nao achado", resultadoDoPedido(200, { situacao: "nao_achado" }), { situacao: "nao_achado", titulo: null, tom: "alerta", linhas: [], rastreio: null, texto: TEXTOS_DO_PEDIDO.naoAchado, whatsapp: false });
+  conferir("o texto do nao achado", TEXTOS_DO_PEDIDO.naoAchado, "Não encontrei este pedido. Confira o número e o CPF, CNPJ ou e-mail da compra.");
+  conferir("limite: texto e o WhatsApp (pedido do dono ao aprovar o plano)", [resultadoDoPedido(429, { situacao: "limite", whatsapp: "https://wa.me/5554999990000" }).texto, resultadoDoPedido(429, {}).whatsapp], ["Não consigo consultar mais pedidos agora. Fale com a gente pelo WhatsApp:", true]);
+  conferir("prova invalida", resultadoDoPedido(400, { erro: "prova" }).texto, "Confira o CPF, CNPJ ou e-mail da compra.");
+  conferir("numero invalido", resultadoDoPedido(400, { erro: "numero" }).texto, "Confira o número do pedido.");
+  conferir("fora do ar mostra o WhatsApp", resultadoDoPedido(503, { erro: "indisponivel" }).whatsapp, true);
+  conferir("link de rastreio que nao e https sai", resultadoDoPedido(200, { situacao: "achado", titulo: "Enviado", linhas: [], rastreio: { codigo: "X", link: "javascript:alert(1)" } }).rastreio, { codigo: "X", link: null });
+  conferir("titulo e linhas sao texto curto", resultadoDoPedido(200, { situacao: "achado", titulo: "a".repeat(500), linhas: ["b".repeat(500), 5, null] }).linhas.map((linha) => linha.length), [200, 1]);
+
+  conversa = aplicarEvento(conversa, { evento: "pedidoConsultado", dados: achado });
+  const ultima = conversa.trocas.at(-1);
+  conferir("o resultado vira uma troca local fechada", [conversa.trocas.length, ultima.local, ultima.fechada, ultima.pedido?.titulo], [2, true, true, "Enviado"]);
+  const guardada = paraGuardar(conversa);
+  conferir("o resultado fica guardado na aba (sem a prova)", [lerGuardada(guardada).trocas.at(-1).pedido?.rastreio?.codigo, guardada.includes("12345678909")], ["ZZ123BR", false]);
+  conferir("o formulario tambem volta ao recarregar", lerGuardada(guardada).trocas[0].formulario, "pedido");
+}
 
 console.log(`\n${total - falhas} de ${total} ok${falhas ? `, ${falhas} FALHA(S)` : ""}`);
 process.exit(falhas ? 1 : 0);

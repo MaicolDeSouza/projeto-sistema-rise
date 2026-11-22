@@ -17,6 +17,7 @@
 /* global window, document, fetch, location, sessionStorage, crypto, AbortController, TextDecoder, setTimeout, clearTimeout */
 /* global ATALHOS, aberturaDoAtalho, aplicarEvento, contextoDaPagina, conversaVazia, criarLeitorDoFluxo, deveAparecer, enderecoDoCarrinho, fotoPermitida */
 /* global lerGuardada, linkDaLoja, linkDoWhatsApp, novaSessaoId, paginaProibida, paraGuardar, pareceDadoSensivel, textoDoErroHttp */
+/* global resultadoDoPedido */
 
 var HOBI_IMAGENS = __HOBI_IMAGENS__;
 // So existe enquanto o proprio arquivo esta sendo executado: e dele que sai o endereco do servico.
@@ -158,6 +159,20 @@ var HOBI_CSS = [
   ".sugestao{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;min-height:40px;max-width:100%;padding:8px 12px;border:1px solid var(--verde);border-radius:10px;background:var(--papel);color:var(--verde);font-weight:600;text-align:left;transition-property:background-color;transition-duration:.15s}",
   ".sugestao:hover{background:var(--nevoa)}",
   ".fala{margin:0;align-self:flex-start;max-width:90%;padding:8px 12px;border-radius:14px 14px 14px 4px;background:var(--nevoa);white-space:pre-wrap;overflow-wrap:anywhere}",
+  // Acompanhar pedido (fase 3): o formulario dentro da conversa e o cartao da situacao. A cor da borda diz o estado.
+  ".form-pedido{display:grid;gap:10px;padding:12px;border:1px solid var(--borda);border-radius:12px;background:var(--papel)}",
+  ".form-pedido label{display:grid;gap:4px;font-size:12px;font-weight:600;color:var(--suave)}",
+  ".form-pedido input{height:40px;padding:0 12px;border:1px solid var(--borda);border-radius:10px;font:inherit;font-size:14px;font-weight:400;color:var(--tinta);background:var(--papel)}",
+  ".form-pedido input:focus{outline:2px solid var(--verde);outline-offset:1px;border-color:var(--verde)}",
+  ".form-pedido .principal{justify-self:start}",
+  ".situacao{display:grid;gap:3px;padding:12px 12px 12px 14px;border:1px solid var(--borda);border-left:4px solid var(--verde);border-radius:12px;background:var(--papel)}",
+  ".situacao.ok{border-left-color:var(--led)}.situacao.alerta{border-left-color:var(--ambar)}",
+  ".situacao strong{font-size:15px;color:var(--tinta)}",
+  ".situacao span{font-size:13px;color:var(--suave);font-variant-numeric:tabular-nums}",
+  ".situacao .codigo{color:var(--tinta)}",
+  ".situacao .acoes{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}",
+  ".situacao .acoes a{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border:1px solid var(--verde);border-radius:10px;color:var(--verde);font-weight:600;text-decoration:none;transition-property:background-color;transition-duration:.15s}",
+  ".situacao .acoes a:hover{background:var(--nevoa)}",
   "@media (max-width:480px){.chamada{right:60px;bottom:100px;max-width:200px;padding:8px 6px 8px 12px}.chamada strong{font-size:14px}.chamada span{font-size:12px}.sinal{right:27px;bottom:76px}}",
   "@media (max-width:480px){.painel{inset:0;width:100%;max-width:none;height:100%;max-height:none;border:0;border-radius:0}.botao{right:14px;bottom:14px;width:58px;height:58px}.botao img{width:44px;height:44px}.aberto .botao{display:none}}",
   "@media (prefers-reduced-motion:reduce){.chamada{animation:none}.sinal path,.sinal circle{animation:none;opacity:1}}",
@@ -176,6 +191,7 @@ var HOBI_ICONES = {
   caixa: "M4 8l8-4 8 4v8l-8 4-8-4zM4 8l8 4 8-4M12 12v8",
   joia: "M7 11v8H4v-8zM7 11l4-7a2 2 0 013 2l-1 4h5a2 2 0 012 2l-2 6a2 2 0 01-2 1H7",
   ruim: "M17 13V5h3v8zM17 13l-4 7a2 2 0 01-3-2l1-4H6a2 2 0 01-2-2l2-6a2 2 0 012-1h9",
+  pedido: "M3 7h11v9H3zM14 10h4l3 3v3h-7M7 19a2 2 0 100-4 2 2 0 000 4zM17 19a2 2 0 100-4 2 2 0 000 4z",
 };
 
 function hobiIcone(nome) {
@@ -642,8 +658,11 @@ function hobiIniciar(servico, status) {
   function desenharTroca(troca) {
     var no = hobiEl("div", "resposta");
     if (troca.local) {
-      // A fala de abertura de um atalho: do Hobi, sem pergunta, sem nota (nao passou pela IA).
-      no.appendChild(hobiEl("p", "fala", troca.texto));
+      // A fala de abertura de um atalho, ou o resultado de uma consulta de pedido: do Hobi, sem pergunta, sem nota (nao
+      // passou pela IA).
+      if (troca.texto) no.appendChild(hobiEl("p", "fala", troca.texto));
+      if (troca.formulario) no.appendChild(desenharFormularioDoPedido());
+      if (troca.pedido) no.appendChild(desenharSituacao(troca.pedido));
       if (troca.sugestao) {
         var sugerido = hobiEl("button", "sugestao", null, { type: "button" });
         sugerido.appendChild(hobiIcone("caixa"));
@@ -662,6 +681,7 @@ function hobiIniciar(servico, status) {
     }
     if (troca.lista) no.appendChild(desenharLista(troca.lista));
     if (troca.texto) no.appendChild(hobiEl("p", "texto", troca.texto));
+    if (troca.formulario) no.appendChild(desenharFormularioDoPedido());
     if (troca.erro) {
       no.appendChild(hobiEl("p", "erro", troca.erro.texto || HOBI_ERRO_GERAL));
       var socorro = troca.erro.whatsapp ? botaoDoWhatsApp() : null;
@@ -690,12 +710,113 @@ function hobiIniciar(servico, status) {
     return no;
   }
 
+  // ---------- acompanhar pedido (fase 3): o formulario fala direto com o servico; a IA nunca ve o numero nem o documento ----------
+  function comRobo() {
+    var passe = hobiGuardado.ler("passe");
+    if (passe) return Promise.resolve({ passe: passe });
+    return hobiObterToken(String(status.turnstileSiteKey || "")).then(function (token) { return { turnstileToken: token }; });
+  }
+
+  /** Uma consulta. `repetir`: refaz o desafio do robo uma vez se o passe guardado for recusado. */
+  function consultarPedido(numero, prova, repetir) {
+    return comRobo()
+      .then(function (robo) {
+        var corpo = { sessaoId: sessaoId, numero: numero, prova: prova };
+        if (robo.passe) corpo.passe = robo.passe;
+        else corpo.turnstileToken = robo.turnstileToken;
+        return fetch(servico + "/pedido", { method: "POST", credentials: "omit", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) }).then(function (resposta) {
+          return resposta
+            .json()
+            .catch(function () { return null; })
+            .then(function (lido) {
+              if (lido && typeof lido.passe === "string") hobiGuardado.gravar("passe", lido.passe);
+              if (resposta.status === 403 && robo.passe && repetir) {
+                hobiGuardado.apagar("passe");
+                return consultarPedido(numero, prova, false);
+              }
+              return resultadoDoPedido(resposta.status, lido);
+            });
+        });
+      })
+      .catch(function (erro) {
+        return resultadoDoPedido(erro && erro.message === "robo" ? 403 : 0, null);
+      });
+  }
+
+  function desenharFormularioDoPedido() {
+    var formulario = hobiEl("form", "form-pedido", null, { novalidate: "" });
+    var rotuloDoNumero = hobiEl("label", null, "Número do pedido");
+    var numero = hobiEl("input", null, null, { type: "text", maxlength: "30", autocomplete: "off", spellcheck: "false" });
+    rotuloDoNumero.appendChild(numero);
+    var rotuloDaProva = hobiEl("label", null, "CPF, CNPJ ou e-mail da compra");
+    var prova = hobiEl("input", null, null, { type: "text", maxlength: "120", autocomplete: "off", spellcheck: "false" });
+    rotuloDaProva.appendChild(prova);
+    var consultar = hobiEl("button", "principal", "Consultar", { type: "submit" });
+    var recado = hobiEl("p", "recado", null, { role: "alert" });
+    recado.hidden = true;
+    var consultando = false;
+    formulario.onsubmit = function (evento) {
+      evento.preventDefault();
+      if (consultando) return;
+      if (!numero.value.trim() || !prova.value.trim()) {
+        recado.textContent = "Preencha o número do pedido e o CPF, CNPJ ou e-mail.";
+        recado.hidden = false;
+        return;
+      }
+      recado.hidden = true;
+      consultando = true;
+      consultar.disabled = true;
+      consultar.textContent = "Consultando…";
+      consultarPedido(numero.value, prova.value, true).then(function (resultado) {
+        consultando = false;
+        consultar.disabled = false;
+        consultar.textContent = "Consultar";
+        // Erro de digitacao e robo ficam no proprio formulario: nao sao resposta, so pedem para corrigir.
+        if (resultado.situacao === "invalido" || resultado.situacao === "robo") {
+          recado.textContent = resultado.texto;
+          recado.hidden = false;
+          return;
+        }
+        // O documento nao fica na tela depois da consulta.
+        prova.value = "";
+        aplicar("pedidoConsultado", resultado);
+      });
+    };
+    formulario.appendChild(rotuloDoNumero);
+    formulario.appendChild(rotuloDaProva);
+    formulario.appendChild(consultar);
+    formulario.appendChild(recado);
+    return formulario;
+  }
+
+  function desenharSituacao(pedido) {
+    if (pedido.situacao !== "achado") {
+      var aviso = hobiEl("div", "resposta");
+      aviso.appendChild(hobiEl("p", "fala", pedido.texto || ""));
+      // Todo limite mostra o WhatsApp com o link (pedido do dono em 22/11/2026, ao aprovar o plano).
+      var socorro = pedido.whatsapp ? botaoDoWhatsApp("Falar no WhatsApp") : null;
+      if (socorro) aviso.appendChild(socorro);
+      return aviso;
+    }
+    var cartao = hobiEl("div", "situacao " + pedido.tom);
+    cartao.appendChild(hobiEl("strong", null, pedido.titulo || "Pedido encontrado"));
+    pedido.linhas.forEach(function (linha) { cartao.appendChild(hobiEl("span", null, linha)); });
+    if (pedido.rastreio && pedido.rastreio.codigo) cartao.appendChild(hobiEl("span", "codigo", "Rastreio: " + pedido.rastreio.codigo));
+    var acoes = hobiEl("div", "acoes");
+    if (pedido.rastreio && pedido.rastreio.link) acoes.appendChild(hobiEl("a", null, "Rastrear", { href: pedido.rastreio.link, target: "_blank", rel: "noopener noreferrer" }));
+    // A area de pedidos do cliente na Loja Integrada (medido em 22/11/2026: pede o login e volta para a lista).
+    var naLoja = linkDaLoja(location.origin + "/conta/pedido/listar", location.origin);
+    if (naLoja) acoes.appendChild(hobiEl("a", null, "Ver na loja", { href: naLoja }));
+    if (acoes.childNodes.length) cartao.appendChild(acoes);
+    return cartao;
+  }
+
   function desenharSaudacao() {
     var ola = hobiEl("div", "ola");
     if (HOBI_IMAGENS.corpo) ola.appendChild(hobiImagem("corpo", nome + ", o robô assistente da 4hobby"));
     ola.appendChild(hobiEl("p", null, String(status.boasVindas || "")));
     var atalhos = hobiEl("div", "atalhos");
-    var ICONE_DO_ATALHO = { componente: "lupa", duvida: "duvida", lista: "lista" };
+    var ICONE_DO_ATALHO = { componente: "lupa", duvida: "duvida", pedido: "pedido", lista: "lista" };
     // Todo atalho ABRE a conversa: o Hobi fala primeiro (fala feita aqui, sem IA) e o campo fica pronto para a resposta.
     ATALHOS.forEach(function (atalho) {
       var botaoDoAtalho = hobiEl("button", "atalho", null, { type: "button" });
@@ -705,9 +826,12 @@ function hobiIniciar(servico, status) {
         var abertura = aberturaDoAtalho(atalho.id, contextoAtual());
         if (!abertura) return;
         voltarParaAConversa();
-        aplicar("abertura", { texto: abertura.texto, sugestao: abertura.sugestao });
+        aplicar("abertura", { texto: abertura.texto, sugestao: abertura.sugestao, formulario: abertura.formulario });
         modoLista(abertura.modoLista);
-        texto.focus();
+        // O atalho do pedido abre o formulario: o foco vai ao numero do pedido, e nao ao campo da conversa.
+        var formularios = abertura.formulario ? area.querySelectorAll(".form-pedido") : [];
+        var primeiroCampo = formularios.length ? formularios[formularios.length - 1].querySelector("input") : null;
+        (primeiroCampo || texto).focus();
       };
       atalhos.appendChild(botaoDoAtalho);
     });
