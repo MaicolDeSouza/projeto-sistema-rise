@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { Pencil, RotateCcw } from "lucide-react";
+import { Eye, Pencil, RotateCcw } from "lucide-react";
 
 import { montarDescricaoCompletaML } from "@/lib/canaisDeVenda/ml/descricao";
 import { kitsParaOBloco, unidadesDoAnuncio } from "@/lib/canaisDeVenda/ml/kitsNaDescricao";
@@ -25,6 +26,8 @@ export default function AbaDescricao({ rascunho, contexto, alterar, problemas, f
   const kits = kitsParaOBloco({ unidades: unidadesDoAnuncio(rascunho), preco: rascunho.preco, irmaos: contexto?.kitsDoProduto ?? [] });
   const textoFinal = montarDescricaoCompletaML({ descricao: rascunho.descricao, kits });
   const emKit = Boolean(rascunho.composicao);
+  // So o kit edita; abre sempre na previa (antes do `if` por ser hook).
+  const [editando, setEditando] = useState(false);
   // Estado que pede acao (regra 8): uma linha curta ao lado da contagem, sem caixa de aviso.
   const avisoDoFormato = formatoAntigo && (
     <span className="ml-2 text-amber-700" title="O anúncio foi enviado antes das boas-vindas e do bloco dos kits. O Sincronizar com o ML manda o texto desta prévia.">
@@ -60,25 +63,35 @@ export default function AbaDescricao({ rascunho, contexto, alterar, problemas, f
           )
         }
       >
-        {/* A caixa cresce com o texto (`field-sizing: content`): uma barra de rolagem so, a da janela (pedido do dono em
-            28/10/2026; com altura fixa havia duas, e a de dentro nao rolava com a aba travada no publicado). */}
-        <textarea
-          aria-label="Descrição do kit"
-          value={rascunho.descricao ?? ""}
-          onChange={(evento) => alterar({ descricao: evento.target.value, descricaoEditada: true })}
-          className="field-sizing-content min-h-80 w-full resize-none overflow-hidden rounded border border-borda bg-superficie px-3 py-2.5 font-sans text-[15px] leading-relaxed focus:border-acento focus:outline-none"
-        />
+        {/* Abre no texto que vai ao ML, igual ao anuncio simples (pedido do dono em 22/11/2026: a aba do kit mostrava so o
+            miolo editavel e a previa ficava recolhida no fim). "Editar texto" troca pela caixa, que cresce com o texto
+            (`field-sizing: content`: uma barra de rolagem so, a da janela, pedido de 28/10/2026). */}
+        <div className="mb-2 flex justify-end">
+          <button
+            type="button"
+            onClick={() => setEditando((valor) => !valor)}
+            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-acento hover:bg-superficie"
+          >
+            {editando ? <Eye size={12} /> : <Pencil size={12} />}
+            {editando ? "Ver o texto que vai ao ML" : "Editar texto"}
+          </button>
+        </div>
+        {editando ? (
+          <textarea
+            aria-label="Descrição do kit"
+            value={rascunho.descricao ?? ""}
+            onChange={(evento) => alterar({ descricao: evento.target.value, descricaoEditada: true })}
+            className="field-sizing-content min-h-80 w-full resize-none overflow-hidden rounded border border-borda bg-superficie px-3 py-2.5 font-sans text-[15px] leading-relaxed focus:border-acento focus:outline-none"
+          />
+        ) : (
+          <pre className="rounded border border-borda bg-fundo px-3 py-2.5 font-sans text-[15px] leading-relaxed break-words whitespace-pre-wrap">
+            {textoFinal || <span className="text-suave">O kit não tem descrição. Clique em Editar texto.</span>}
+          </pre>
+        )}
         <p className="mt-1 text-[11px] text-suave tabular-nums">
           {NUMERO.format(textoFinal.length)} caracteres{avisoDoFormato}
         </p>
         <MensagensDoCampo problemas={problemas} campo="descricao" />
-        {/* O kit edita so o miolo; as boas-vindas e o bloco dos kits maiores entram no envio. A previa inteira fica recolhida. */}
-        {textoFinal && (
-          <details className="mt-2 text-sm">
-            <summary className="cursor-pointer text-acento">Ver o texto que vai ao Mercado Livre</summary>
-            <pre className="mt-2 rounded border border-borda bg-fundo px-3 py-2.5 font-sans text-[15px] leading-relaxed break-words whitespace-pre-wrap">{textoFinal}</pre>
-          </details>
-        )}
       </SecaoDoAnuncio>
     );
   }
