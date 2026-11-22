@@ -52,6 +52,16 @@ export function divergenciasDoAnuncioML({ publicado, publicacao, mudancas } = {}
       acao: "painel",
     });
   }
+  // Os dados fiscais do ML diferentes do Rise (22/11/2026): o mesmo motivo do "!" do icone, e o Sincronizar os manda.
+  if (publicacao?.fiscal?.igual === false) {
+    const diferencas = publicacao.fiscal.diferencas ?? [];
+    itens.push({
+      id: "fiscal",
+      titulo: `Dados fiscais diferentes do ML${diferencas.length ? `: ${diferencas.join("; ")}` : ""}`,
+      detalhe: "A nota do ML sai com o que está lá. O Sincronizar com o ML manda os do Rise.",
+      acao: "enviar",
+    });
+  }
   if (avisoDeCatalogoPendente(estado)) {
     const texto = textoDoAvisoDeCatalogo(estado.catalogoAviso);
     itens.push({

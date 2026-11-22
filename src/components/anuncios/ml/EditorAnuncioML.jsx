@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import Link from "next/link";
 import { ArrowLeft, Copy, ExternalLink, Loader, Trash2, X } from "lucide-react";
 
-import { abrirAnuncioML, enviarMudancasMLAcao, lerCategoriaML, marcarCatalogoVistoMLAcao, publicarAnuncioMLAcao, salvarAnuncioML, salvarPresoMLAcao, salvarPublicadoMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
+import { abrirAnuncioML, relerAnuncioNoMLAcao, enviarMudancasMLAcao, lerCategoriaML, marcarCatalogoVistoMLAcao, publicarAnuncioMLAcao, salvarAnuncioML, salvarPresoMLAcao, salvarPublicadoMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { etapasDoPopupDoPublicar } from "@/lib/canaisDeVenda/ml/etapas";
 import { BarraDeAbas, Painel } from "@/components/cadastros/Abas";
 import AcoesDoFimDoEnvio from "@/components/anuncios/li/AcoesDoFimDoEnvio";
@@ -396,6 +396,25 @@ export default function EditorAnuncioML({
       // A releitura falhou: o rodape e a faixa ficam como estavam ate o anuncio ser aberto de novo.
     }
   }
+
+  // Ao abrir um anuncio publicado, rele ELE no ML (pedido do dono em 22/11/2026): as Divergencias vinham da ultima leitura do
+  // worker (a cada 15 min) e mostravam o que o dono ja tinha corrigido. Uma vez por abertura; falha deixa a leitura gravada.
+  const relidoAoAbrir = useRef(false);
+  useEffect(() => {
+    if (relidoAoAbrir.current || status !== "PUBLICADO" || !anuncioId) return;
+    relidoAoAbrir.current = true;
+    let vivo = true;
+    relerAnuncioNoMLAcao(anuncioId)
+      .then((relido) => {
+        if (!vivo || !relido?.ok) return;
+        setStatusAtual(relido.status);
+        setInfoDoML({ publicacao: relido.publicacao, idExterno: relido.idExterno, urlExterna: relido.urlExterna, mudancas: relido.mudancas });
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, [status, anuncioId]);
 
   // Fechou a janela do Publicar: se algo foi enviado, le de novo o status e o anuncio no ML.
   async function aoFecharPublicacao(houveEnvio) {

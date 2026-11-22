@@ -212,7 +212,18 @@ export async function situacaoFiscalDoAnuncio(anuncioId, { ml }) {
   const alvo = await anuncioComPlano(anuncioId);
   if (!alvo.ok) return alvo;
   const lido = await lerFiscalDoAnuncio(ml, alvo.itemId);
-  return { ...lido, problemas: alvo.plano.problemas ?? [], skuDoRise: alvo.plano.sku };
+  // O que o ML guarda hoje no SKU do anuncio e o que difere do Rise (pedido do dono em 22/11/2026: a linha "Dados fiscais"
+  // mostra os dados do ML; o Sincronizar e quem corrige). Falha da leitura so tira esta parte.
+  let noML = null;
+  let diferencas = [];
+  if (alvo.plano.ok) {
+    const sku = await ml.get(`/items/fiscal_information/${encodeURIComponent(alvo.plano.sku)}`).catch(() => null);
+    const fiscal = sku?.ok ? (sku.dados?.tax_information ?? {}) : null;
+    if (fiscal) noML = { ncm: fiscal.ncm ?? null, cest: fiscal.cest ?? null, csosn: fiscal.csosn ?? null, origem: fiscal.origin_detail ?? null, ean: fiscal.ean ?? null };
+    const conferido = await conferirFiscalNoML(ml, alvo.plano);
+    if (conferido.ok) diferencas = conferido.diferencas;
+  }
+  return { ...lido, problemas: alvo.plano.problemas ?? [], skuDoRise: alvo.plano.sku, noML, diferencas };
 }
 
 /**

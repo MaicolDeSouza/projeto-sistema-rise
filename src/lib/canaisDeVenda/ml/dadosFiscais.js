@@ -186,6 +186,12 @@ export function mesclarComML(noML, corpo) {
   return { ...corpo, tax_information: novo };
 }
 
+/*
+  Titulo do kit sem diferenca de MAIUSCULAS (22/11/2026): o ML guarda "10x SUPORTE ..." e "5x Módulo Rtc ..." (anuncios de antes
+  da regra das maiusculas) contra "10X SUPORTE ..." do Rise; a nota diz o mesmo, e 44 kits acendiam o "!" fiscal a toa.
+*/
+const mesmoTitulo = (a, b) => String(a ?? "").trim().toLocaleLowerCase("pt-BR") === String(b ?? "").trim().toLocaleLowerCase("pt-BR");
+
 /**
  * Se o que o ML guarda ja diz o mesmo que o Rise mandaria. Compara so o que muda a nota (NCM, CEST, CSOSN, origem, EAN, o
  * tipo e as pecas do kit): titulo, custo, unidade e peso diferentes nao reescrevem o SKU (o 940502 veio do ML com "UNID").
@@ -193,7 +199,7 @@ export function mesclarComML(noML, corpo) {
 export function fiscalIgual(noML, corpo, { comTitulo = false } = {}) {
   if (!noML || noML.type !== corpo.type) return false;
   // No kit o titulo e o que a nota mostra ("10X SENSOR ..."), entao conta; no produto simples nao (06/11/2026).
-  if (comTitulo && String(noML.title ?? "").trim() !== String(corpo.title ?? "").trim()) return false;
+  if (comTitulo && !mesmoTitulo(noML.title, corpo.title)) return false;
   if (corpo.type === "bundle") {
     const chave = (lista) => JSON.stringify((lista ?? []).map((p) => [String(p.sku), Number(p.quantity), Number(p.percentage_share)]).sort());
     return chave(noML.bundle) === chave(corpo.bundle);
@@ -215,7 +221,7 @@ export function diferencasFiscais(noML, corpo, { comTitulo = false } = {}) {
   if (!noML) return [`SKU ${corpo.sku} sem dados fiscais no ML`];
   if (noML.type !== corpo.type) return [`SKU ${corpo.sku} com tipo ${noML.type ?? "?"} no ML, ${corpo.type} no Rise`];
   const lista = [];
-  if (comTitulo && String(noML.title ?? "").trim() !== String(corpo.title ?? "").trim()) lista.push(`título do kit ${corpo.sku} diferente`);
+  if (comTitulo && !mesmoTitulo(noML.title, corpo.title)) lista.push(`título do kit ${corpo.sku} diferente`);
   if (corpo.type === "bundle") {
     const chave = (itens) => JSON.stringify((itens ?? []).map((p) => [String(p.sku), Number(p.quantity), Number(p.percentage_share)]).sort());
     if (chave(noML.bundle) !== chave(corpo.bundle)) lista.push(`peças do kit ${corpo.sku} diferentes`);

@@ -135,7 +135,7 @@ export function temProblemaNoIconeML(estado) {
 // O texto do reaproveitado ainda nao revisado, o mesmo no "!" do icone, no popup do produto e na lista do ML.
 const TEXTO_DA_FATURA = "não apto a faturar no ML";
 // "dados fiscais diferentes do ML (NCM no ML 85423190, no Rise 85312000): use Enviar dados fiscais no editor"
-const textoDoFiscal = (diferencas) => `dados fiscais diferentes do ML (${diferencas.join("; ")}): use Enviar dados fiscais no editor`;
+const textoDoFiscal = (diferencas) => `dados fiscais diferentes do ML (${diferencas.join("; ")}): o Sincronizar com o ML corrige`;
 const TEXTO_DO_REUTILIZADO = "reutilizado da conta, esperando a sua revisão";
 
 // "2 anuncios na conta fora do Rise" (09/11/2026): o motivo do "!" de quem tem anuncio antigo para reaproveitar.

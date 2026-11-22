@@ -133,6 +133,22 @@ export async function abrirAnuncioML(id) {
   return protegendo(async () => comAcessosDoEditor(await carregarAnuncioML(id)));
 }
 
+/**
+ * Ao abrir o editor de um anuncio publicado (pedido do dono em 22/11/2026: o 200502 mostrava "inativo" e o estoque de uma
+ * leitura de 2 minutos antes da correcao no ML): rele ESTE anuncio no ML (estado, estoque x Bling, faturamento e fiscal, a
+ * mesma rotina do worker) e devolve o anuncio relido, para as Divergencias mostrarem o ML de agora. So GET no ML.
+ */
+export async function relerAnuncioNoMLAcao(id) {
+  const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "ver"]);
+  if (negado) return negado;
+  if (!ehId(id)) return PEDIDO_INVALIDO;
+  return protegendo(async () => {
+    const { relerEstadosML } = await import("@/lib/canaisDeVenda/ml/relerEstadoML");
+    await relerEstadosML({ ml: clienteML(), bling: clienteBling(), anuncioIds: [id], espera: 0, seguirCatalogo: false });
+    return comAcessosDoEditor(await carregarAnuncioML(id));
+  });
+}
+
 /** Rascunho novo copiado de um anuncio (Clonar). Nao grava: so o Salvar cria o anuncio. */
 export async function clonarAnuncioML(id) {
   const negado = await negarSemAcessos(["tela.canaisDeVenda.mercadoLivre", "editar"]);

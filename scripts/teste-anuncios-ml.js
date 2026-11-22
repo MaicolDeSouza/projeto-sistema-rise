@@ -2020,7 +2020,11 @@ try {
       const antes = ml.escritas.length;
       const denovo = await enviarDadosFiscaisDoAnuncio(id, { ml });
       conferir("reenviar: igual nao escreve", [denovo.ok, denovo.feitos, denovo.podeFaturar, ml.escritas.length - antes], [true, [], true, 0]);
-      conferir("situacao: lida no ML", await situacaoFiscalDoAnuncio(id, { ml }), { ok: true, ligado: true, sku: "ZZ-ML-S1", podeFaturar: true, problemas: [], skuDoRise: "ZZ-ML-S1" });
+      // Desde 22/11/2026 a situacao traz tambem o que o ML guarda (a linha "Dados fiscais" mostra) e o que difere do Rise.
+      conferir("situacao: lida no ML, com os dados do ML e sem diferenca", await situacaoFiscalDoAnuncio(id, { ml }), {
+        ok: true, ligado: true, sku: "ZZ-ML-S1", podeFaturar: true, problemas: [], skuDoRise: "ZZ-ML-S1",
+        noML: { ncm: "84733049", cest: "0106400", csosn: "102", origem: "0", ean: null }, diferencas: [],
+      });
 
       // Anuncio antigo: SKU com dados velhos no ML e sem vinculo -> corrige e vincula.
       const mlVelho = criarMLFalso({ meusItens: { "ZZ-ML-S1": [{ id: "MLB777", status: "active" }] }, fiscais: { "ZZ-ML-S1": { sku: "ZZ-ML-S1", type: "single", tax_information: { ncm: "85340000", origin_type: "manufacturer", origin_detail: "0", csosn: "102" } } } });
@@ -3966,12 +3970,24 @@ try {
         [diferencasFiscais(corpoDoRise, corpoDoRise), diferencasFiscais(corpoVelho, corpoDoRise), diferencasFiscais(null, corpoDoRise)],
         [[], ["NCM no ML 85423190, no Rise 85312000"], ["SKU ZZ-ML-FIS1 sem dados fiscais no ML"]],
       );
+      const kitNoRise = { sku: "ZZ-K", type: "single", title: "10X SUPORTE PARA LED", tax_information: corpoDoRise.tax_information };
+      conferir(
+        "fiscal: titulo do kit so com maiusculas diferentes nao e diferenca; outro titulo e",
+        [diferencasFiscais({ ...kitNoRise, title: "10x Suporte para Led" }, kitNoRise, { comTitulo: true }), diferencasFiscais({ ...kitNoRise, title: "5X OUTRO" }, kitNoRise, { comTitulo: true })],
+        [[], ["título do kit ZZ-K diferente"]],
+      );
       const mlFiscal = criarMLFalso({ fiscais: { "ZZ-ML-FIS1": corpoVelho } });
       const fiscalDe = async () => (await prisma.anuncio.findUnique({ where: { id: aFiscal.id }, select: { dados: true } })).dados.publicacao.fiscal ?? null;
       const rFis = await relerEstadosML({ ml: mlFiscal, agora: new Date("2026-11-22T10:00:00Z"), anuncioIds: [aFiscal.id] });
       conferir("fiscal: NCM diferente grava o aviso", [rFis.fiscal?.mudaram, (await fiscalDe())?.igual, (await fiscalDe())?.diferencas], [1, false, ["NCM no ML 85423190, no Rise 85312000"]]);
       const linhaFiscal = async () => prisma.anuncio.findMany({ where: { id: aFiscal.id }, select: { canal: true, status: true, situacaoCanal: true, dados: true } });
       const comAviso = iconeFiscal(await linhaFiscal());
+      const { divergenciasDoAnuncioML: divergenciasFiscais } = await import("../src/lib/canaisDeVenda/ml/divergencias.js");
+      conferir(
+        "fiscal: a aba Divergencias mostra o item com o Sincronizar",
+        divergenciasFiscais({ publicado: true, publicacao: await fiscalDe().then((fiscal) => ({ fiscal })) }).map((item) => [item.id, item.titulo, item.acao]),
+        [["fiscal", "Dados fiscais diferentes do ML: NCM no ML 85423190, no Rise 85312000", "enviar"]],
+      );
       conferir("fiscal: o icone acende o '!' com o texto", [temProblemaNoIconeML(comAviso), /dados fiscais diferentes do ML \(NCM no ML 85423190, no Rise 85312000\)/.test(rotuloFiscal(comAviso))], [true, true]);
       const leiturasFiscais = () => mlFiscal.chamadas.filter((c) => /^\/items\/fiscal_information\//.test(c.caminho)).length;
       const antes = leiturasFiscais();

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { CircleCheck, ExternalLink, Loader, Send } from "lucide-react";
+import { CircleCheck, ExternalLink, Loader } from "lucide-react";
 
-import { enviarDadosFiscaisMLAcao, situacaoFiscalMLAcao, validarNoMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
+import { situacaoFiscalMLAcao, validarNoMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
 import Badge from "@/components/ui/Badge";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { precisaAgirNoML, textoDoCatalogo, textoDoEstadoML } from "@/lib/canaisDeVenda/ml/estadoNoML";
@@ -84,10 +84,14 @@ function ValidarNoML({ anuncioId, podeValidar }) {
  * Os dados fiscais do anuncio publicado (05/11/2026): sem eles o faturador do ML nao emite a nota e o pacote nao sai. Le o
  * ML ao abrir a aba; "Enviar dados fiscais" cadastra ou corrige o SKU com o NCM, a origem e o CSOSN do Rise e o vincula.
  */
+// "85423190" -> "8542.31.90", como o NCM aparece no cadastro.
+const formatarNcm = (ncm) => {
+  const digitos = String(ncm ?? "").replace(/\D/g, "");
+  return digitos.length === 8 ? `${digitos.slice(0, 4)}.${digitos.slice(4, 6)}.${digitos.slice(6)}` : digitos || "—";
+};
+
 function DadosFiscais({ anuncioId }) {
   const [lido, setLido] = useState(null);
-  const [envio, setEnvio] = useState(null);
-  const [enviando, iniciar] = useTransition();
 
   useEffect(() => {
     let vivo = true;
@@ -98,20 +102,6 @@ function DadosFiscais({ anuncioId }) {
       vivo = false;
     };
   }, [anuncioId]);
-
-  function enviar() {
-    setEnvio(null);
-    iniciar(async () => {
-      let resultado;
-      try {
-        resultado = await enviarDadosFiscaisMLAcao(anuncioId);
-      } catch {
-        resultado = { ok: false, erro: "Não foi possível falar com o servidor." };
-      }
-      setEnvio(resultado);
-      if (resultado?.ok) setLido((antes) => ({ ...(antes ?? {}), ok: true, ligado: true, sku: antes?.skuDoRise ?? antes?.sku, podeFaturar: resultado.podeFaturar }));
-    });
-  }
 
   const problemas = lido?.problemas ?? [];
   const completo = lido?.ok && lido.ligado && lido.podeFaturar !== false;
@@ -129,24 +119,17 @@ function DadosFiscais({ anuncioId }) {
   return (
     <LinhaDeDado rotulo="Dados fiscais">
       <span className="flex flex-col items-end gap-1.5">
-        <span className="inline-flex flex-wrap items-center justify-end gap-2">
-          {estado}
-          {lido?.ok && (
-            <button
-              type="button"
-              onClick={enviar}
-              disabled={enviando || problemas.length > 0}
-              title={problemas.length > 0 ? problemas.join(" ") : "Cadastra ou corrige no ML o NCM, a origem e o CSOSN do produto, e vincula ao anúncio."}
-              className="inline-flex items-center gap-1.5 rounded border border-borda bg-superficie px-2.5 py-1 text-xs hover:bg-fundo disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {enviando ? <Loader size={13} className="animate-spin" /> : <Send size={13} />}
-              {completo ? "Reenviar dados fiscais" : "Enviar dados fiscais"}
-            </button>
-          )}
-        </span>
+        <span className="inline-flex flex-wrap items-center justify-end gap-2">{estado}</span>
+        {/* O que o ML guarda hoje (pedido do dono em 22/11/2026). Sem botao: o Sincronizar com o ML manda os dados fiscais. */}
+        {lido?.noML && (
+          <span className="text-xs text-suave tabular-nums">
+            No ML: NCM {formatarNcm(lido.noML.ncm)} · CEST {lido.noML.cest || "—"} · Origem {lido.noML.origem ?? "—"} · CSOSN {lido.noML.csosn || "—"} · EAN {lido.noML.ean || "—"}
+          </span>
+        )}
+        {lido?.diferencas?.length > 0 && (
+          <span className="text-xs text-amber-700">Diferente do Rise: {lido.diferencas.join("; ")}. O Sincronizar com o ML corrige.</span>
+        )}
         {problemas.length > 0 && <span className="text-xs text-red-700">{problemas[0]}</span>}
-        {envio && !envio.ok && <span role="alert" className="text-xs text-red-700">{envio.erro}</span>}
-        {envio?.ok && <span className="text-xs text-emerald-700">{envio.feitos?.length ? envio.feitos.join(" ") : "Já estava tudo certo no ML."}</span>}
       </span>
     </LinhaDeDado>
   );
