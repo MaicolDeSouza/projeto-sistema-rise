@@ -220,6 +220,24 @@ export function ncmsDasPecas(pecas) {
 }
 
 /**
+ * O NCM do kit (pedido do dono em 22/11/2026: "o NCM deve ser do produto com maior quantidade do kit"): o da peca de MAIOR
+ * quantidade entre as que tem NCM; no empate, a primeira da lista (a ordem da aba Composicao). Nenhuma com NCM: `null`.
+ *
+ * @param {{ncm?: string|null, quantidade: number|string}[]} pecas
+ * @returns {string|null}
+ */
+export function ncmDoKit(pecas) {
+  let escolhida = null;
+  for (const peca of Array.isArray(pecas) ? pecas : []) {
+    const ncm = String(peca?.ncm ?? "").trim();
+    if (!ncm.replace(/\D/g, "")) continue;
+    const quantidade = Number(peca?.quantidade) || 0;
+    if (!escolhida || quantidade > escolhida.quantidade) escolhida = { ncm, quantidade };
+  }
+  return escolhida?.ncm ?? null;
+}
+
+/**
  * Valida a lista de pecas que vem do navegador ANTES de gravar: lista nao vazia, cada item com id
  * e quantidade inteira de 1 a 9999, pelo menos 2 unidades no total (um kit de uma unidade e o
  * proprio produto), sem peca repetida e sem o proprio produto. O que e peca permitida (simples,

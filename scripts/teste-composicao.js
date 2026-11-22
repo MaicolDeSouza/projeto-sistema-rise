@@ -22,6 +22,7 @@ const {
   localizacaoDoKit,
   mudancasDaPeca,
   ncmsDasPecas,
+  ncmDoKit,
   pesoEMedidasDoKit,
   totaisDoKit,
   validarComposicao,
@@ -114,6 +115,11 @@ conferir(
   ],
 );
 conferir("peca sem NCM fica fora; so digitos e pontuacao sao a mesma coisa", ncmsDasPecas([{ sku: "A", ncm: "84835010" }, { sku: "B", ncm: null }, { sku: "C", ncm: "8483.50.10" }]), [{ ncm: "84835010", pecas: ["A", "C"] }]);
+// NCM do kit (pedido do dono em 22/11/2026): o da peca de MAIOR quantidade; empate, a primeira; sem NCM, a seguinte.
+conferir("ncm do kit: o da peca de maior quantidade", ncmDoKit([{ ncm: "8536.69.90", quantidade: 1 }, { ncm: "8544.42.00", quantidade: 3 }]), "8544.42.00");
+conferir("ncm do kit: empate fica com a primeira", ncmDoKit([{ ncm: "8536.69.90", quantidade: 2 }, { ncm: "8544.42.00", quantidade: 2 }]), "8536.69.90");
+conferir("ncm do kit: a maior sem NCM passa para a seguinte com NCM", ncmDoKit([{ ncm: "", quantidade: 5 }, { ncm: "8536.69.90", quantidade: 1 }, { ncm: "8544.42.00", quantidade: 2 }]), "8544.42.00");
+conferir("ncm do kit: sem pecas ou sem NCM nenhum, nada", [ncmDoKit([]), ncmDoKit(null), ncmDoKit([{ ncm: null, quantidade: 2 }])], [null, null, null]);
 
 console.log("\nValidacao da composicao");
 const PROPRIO = "kit-1";

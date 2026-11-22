@@ -28,6 +28,19 @@ export function unidadesDoAnuncio({ produtoId, composicao } = {}) {
 }
 
 /**
+ * Em que bloco do popup do produto o anuncio entra (pedido do dono em 22/11/2026): "produto" (o anuncio simples), "kit" (o
+ * Kit de N do MESMO produto, montado no editor) ou "composicao" (o anuncio de um produto kit do cadastro, ou o legado do
+ * editor com produtos diferentes, que o editor nao aceita mais).
+ * @returns {"produto" | "kit" | "composicao"}
+ */
+export function grupoDoAnuncioML({ produtoId, composicao, tipoDoProduto } = {}) {
+  if (tipoDoProduto === "COMPOSICAO") return "composicao";
+  const itens = Array.isArray(composicao?.itens) ? composicao.itens : [];
+  if (itens.length === 0) return "produto";
+  return itens.length === 1 && itens[0]?.produtoId === produtoId ? "kit" : "composicao";
+}
+
+/**
  * O irmao a partir da linha do anuncio no banco (`produtoId`, `status`, `situacaoCanal`, `idExterno`, `urlExterna`, `dados`).
  * So o publicado, ativo ou pausado, com MLB (rascunho nao tem link). O preco e o que ESTA no ML (o ultimo enviado), nao um
  * digitado e ainda nao sincronizado: o bloco nao pode prometer um preco que o cliente nao vai achar.

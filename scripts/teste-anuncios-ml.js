@@ -234,7 +234,16 @@ try {
 
     // Quais kits entram no bloco de um anuncio: os do mesmo produto com MAIS unidades, um por quantidade (o mais barato), do
     // menor para o maior, e so o que sai mais barato por unidade que o proprio anuncio e que o kit anterior listado.
-    const { unidadesDoAnuncio, irmaoDoAnuncio, kitsParaOBloco, kitForaDoBloco } = await import("../src/lib/canaisDeVenda/ml/kitsNaDescricao.js");
+    const { unidadesDoAnuncio, irmaoDoAnuncio, kitsParaOBloco, kitForaDoBloco, grupoDoAnuncioML } = await import("../src/lib/canaisDeVenda/ml/kitsNaDescricao.js");
+    // O grupo do anuncio no popup do produto (22/11/2026): produto, kit de N do mesmo produto ou composicao (produtos diferentes,
+    // ou o anuncio de um produto kit do cadastro).
+    conferir("grupo do anuncio: simples, kit de N, editor com 2 produtos, editor com outro produto, produto kit do cadastro", [
+      grupoDoAnuncioML({ produtoId: "a", composicao: null }),
+      grupoDoAnuncioML({ produtoId: "a", composicao: { itens: [{ produtoId: "a", quantidade: 2 }] } }),
+      grupoDoAnuncioML({ produtoId: "a", composicao: { itens: [{ produtoId: "a", quantidade: 1 }, { produtoId: "b", quantidade: 1 }] } }),
+      grupoDoAnuncioML({ produtoId: "a", composicao: { itens: [{ produtoId: "b", quantidade: 2 }] } }),
+      grupoDoAnuncioML({ produtoId: "k", composicao: null, tipoDoProduto: "COMPOSICAO" }),
+    ], ["produto", "kit", "composicao", "composicao", "composicao"]);
     conferir("unidades do anuncio: simples 1, kit de um produto N, misto ou de outro produto nada", [unidadesDoAnuncio({ produtoId: "a", composicao: null }), unidadesDoAnuncio({ produtoId: "a", composicao: { itens: [{ produtoId: "a", quantidade: "3" }] } }), unidadesDoAnuncio({ produtoId: "a", composicao: { itens: [{ produtoId: "a", quantidade: 2 }, { produtoId: "b", quantidade: 1 }] } }), unidadesDoAnuncio({ produtoId: "a", composicao: { itens: [{ produtoId: "b", quantidade: 2 }] } }), unidadesDoAnuncio({ produtoId: "a", composicao: { itens: [{ produtoId: "a", quantidade: 0 }] } })], [1, 3, null, null, null]);
     const linhaIrma = (extra = {}) => ({ produtoId: "a", status: "PUBLICADO", situacaoCanal: "ATIVA", idExterno: "MLB123", urlExterna: "https://produto.mercadolivre.com.br/MLB-123-x", dados: { preco: 60, envio: { freteGratis: false }, composicao: { itens: [{ produtoId: "a", quantidade: 3 }] }, publicacao: { enviado: { preco: 58 } } }, ...extra });
     conferir("irmao: unidades, o preco que esta no ML (o ultimo enviado), o link e o frete gratis", irmaoDoAnuncio(linhaIrma()), { unidades: 3, preco: 58, link: "https://produto.mercadolivre.com.br/MLB-123-x", freteGratis: false });
