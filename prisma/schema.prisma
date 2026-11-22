@@ -262,6 +262,10 @@ model Produto {
   /// grava de verdade, para a contagem "(N verificados)" da lista ser real.
   conferido Boolean @default(false)
 
+  /// NCM trocado FORA do cadastro num produto ja conferido (pedido do dono em 22/11/2026, ao igualar o NCM da NF da
+  /// Fortek): `{ anterior, novo, origem, em }`. Acende o "!" do icone Rise ate o dono salvar o produto (o Salvar zera).
+  ncmAviso Json?
+
   /// Fornecedor extraido do Bling na importacao, {nome, descricao, codigo,
   /// precoCusto} — combinado de DUAS chamadas (ver lerFornecedorBling em
   /// importarBling.js): o nome vem de GET /produtos/{id} (fornecedor.contato.

@@ -51,9 +51,10 @@ async function documentosDaLI(produtos) {
 }
 
 /** Algum dos icones da linha tem o selo "!" (a mesma conta de `ConferidoProduto`, `IconeBling`, `IconeLojaIntegrada` e `LinhaProduto`). */
-export function temSeloDeAviso({ pecasAlteradas, iconeBling, iconeLI, iconeML }) {
+export function temSeloDeAviso({ pecasAlteradas, ncmAviso, iconeBling, iconeLI, iconeML }) {
   return (
     pecasAlteradas > 0 ||
+    Boolean(ncmAviso) ||
     Boolean(iconeBling?.divergente) ||
     Boolean(iconeLI?.divergente || iconeLI?.incompleto || iconeLI?.alertaNaLoja || iconeLI?.fotosMudaram) ||
     // A mesma conta do selo do icone do ML (antes era uma copia, e o "reutilizado" e os anuncios fora do Rise ficavam de fora).
@@ -99,6 +100,8 @@ export async function iconesDosProdutos(produtos) {
       produto.id,
       {
         pecasAlteradas: alteracoesDosKits.get(produto.id)?.length ?? 0,
+        // O "!" do icone Rise pelo NCM trocado fora do cadastro (22/11/2026), para o filtro "!" achar o que a linha mostra.
+        ncmAviso: produto.ncmAviso ?? null,
         iconeML: {
           ...estadoDoIconeML(
             produto.anuncios.map((anuncio) => ({ ...anuncio, mudancas: mudancasML.get(anuncio.id) })),

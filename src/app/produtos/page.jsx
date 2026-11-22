@@ -254,6 +254,8 @@ export default async function ProdutosPage({ searchParams }) {
       // Kit: a celula da localizacao nao tem lapis e abre o popup com as pecas (pedido do dono em 10/10/2026).
       pecasDoKit: produto.tipo === "COMPOSICAO" ? (pecasDosKits.get(produto.id) ?? []) : [],
       pecasAlteradas: icones.get(produto.id)?.pecasAlteradas ?? 0,
+      // NCM trocado fora do cadastro num produto conferido (22/11/2026): o "!" do icone Rise ate o proximo Salvar.
+      ncmAviso: produto.ncmAviso ?? null,
       propostaPronta: propostasProntas.has(produto.id),
       ativo: produto.ativo,
       conferido: produto.conferido,

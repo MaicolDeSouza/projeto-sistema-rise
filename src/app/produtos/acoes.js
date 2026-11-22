@@ -1051,7 +1051,8 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
       const guardado = gastoDaEdicao
         ? (await tx.produto.findUnique({ where: { id }, select: { gastoIA: true } }))?.gastoIA
         : null;
-      const salvo = await tx.produto.update({ where: { id }, data: { ...dados, ...comGasto(guardado) } });
+      // O Salvar e a confirmacao do dono: apaga o "!" do NCM trocado fora do cadastro (22/11/2026).
+      const salvo = await tx.produto.update({ where: { id }, data: { ...dados, ...comGasto(guardado), ncmAviso: Prisma.DbNull } });
       await gravarComposicaoDoCadastro(id, composicao, tx);
       if (pecasDoCadastro.gravar) await gravarPecasProprias(tx, id, pecasDoCadastro.gravar);
       // Peca que mudou de lugar (ou de codigo) leva junto os kits que a usam (no mesmo commit da peca).

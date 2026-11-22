@@ -82,6 +82,11 @@ export default function ConferidoProduto({ produto }) {
       `${pecasAlteradas === 1 ? "uma peça do kit mudou" : `${pecasAlteradas} peças do kit mudaram`} desde o último Salvar (abra o kit para ver)`,
     );
   }
+  // NCM trocado fora do cadastro num produto conferido (pedido do dono em 22/11/2026): "!" ate o proximo Salvar.
+  const ncmAviso = produto.ncmAviso ?? null;
+  if (ncmAviso) {
+    partes.push(`NCM mudou ${ncmAviso.origem ? `pela ${ncmAviso.origem}` : "fora do cadastro"}: ${ncmAviso.anterior || "vazio"} → ${ncmAviso.novo} (abra e salve o produto para confirmar)`);
+  }
   // Produto inativo (28/10/2026): o X vermelho em todos os icones da linha, este incluido.
   const inativo = produto.ativo === false;
   const rotuloDoIcone = `Rise: ${partes.join(" e ")}${inativo ? " (produto inativo)" : ""}`;
@@ -114,7 +119,7 @@ export default function ConferidoProduto({ produto }) {
             P
           </span>
         )}
-        {pecasAlteradas > 0 && (
+        {(pecasAlteradas > 0 || ncmAviso) && (
           <span
             aria-hidden="true"
             className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[10px] leading-none font-bold text-amber-950 ring-2 ring-superficie"
