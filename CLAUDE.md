@@ -394,6 +394,13 @@ fora do script e os contêineres de pé. As seções abaixo que dizem "SEM deplo
 ajustes da descrição do ML (NF, 70 hífens, linha que fecha o bloco dos kits e a frase do campo de perguntas), sem migration.
 Conferido: as 6 respostas de fora do script e os contêineres de pé.
 
+**Deploy 22.11.2026.135 (commit `97129ce`, 22/11/2026):** "Aprovo, pode implementar e subir" do dono. Editor do ML: a aba
+Descrição do KIT abre no texto que vai ao ML (igual ao anúncio simples), com "Editar texto" para a caixa; e o topo da janela
+do kit mostra "código do kit · título" com o selo "Kit de N unidades" (kit misto: "Kit com N peças", soma das quantidades,
+`seloDoKit` em `EditorAnuncioML.jsx`) e "Produto base: ..." embaixo. Levou também 3 commits de outras sessões (prazo de envio
+em dia útil em Vendas, ritmo até a meta com uma casa em Produtos, ordem das caixinhas no Mapa do estoque), sem migration.
+Conferido no PC (kit de 2 de teste, criado e excluído) e, na VPS, as 6 respostas de fora e os contêineres de pé.
+
 **Travas de escrita na VPS (decisão do dono em 22/10/2026):** o dono mandou liberar **o Mercado Livre e o Bling para todos os
 códigos** (`ML_PUBLICACAO=true`, `ML_PUBLICACAO_CODIGOS` ausente, `BLING_ESCRITA=true`, `BLING_ESCRITA_CODIGOS` vazio) depois
 de o Publicar recusar com "ML_PUBLICACAO está false"; aplicado só no `.env` da VPS (cópia `.env.bak-AAAAMMDD-HHMMSS` ao lado),
