@@ -34,6 +34,12 @@ O desenho do pedido é o item 7 (o formulário da Mamute **sem a linha do WhatsA
   publicado junto (ainda não há etiqueta na loja).
 - Commit só dos meus arquivos (`git commit -- caminhos`), trailer `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 - Gasto de IA de verdade só com o ok do dono (testes usam provedor falso).
+- **Limite estourado = texto + link clicável do WhatsApp comercial** (dono, ao aprovar em 22/11/2026: "caso estoure os
+  limites que vc definiu deve mostrar um texto para entrar em contato via whatsapp e link clicavel do whatsapp"). Vale para
+  todo limite da tabela abaixo: erros do pedido (sessão, IP e banco), consultas por hora, anexos do dia e arquivo maior que
+  5 MB. Texto: pedido "Não consigo consultar mais pedidos agora. Fale com a gente pelo WhatsApp:"; anexo "Você chegou ao
+  limite de arquivos de hoje. Envie pelo WhatsApp:" e "Arquivo maior que 5 MB. Envie pelo WhatsApp:"; o botão é o
+  `botaoDoWhatsApp` que a janela já usa. As respostas 413/429 do serviço levam `whatsapp` (o link comercial).
 
 ## Números de fábrica (editáveis depois na tela Canais, como os de §8)
 

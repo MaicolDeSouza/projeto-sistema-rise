@@ -27,17 +27,21 @@ if (process.env.RISE_PRODUCAO) {
   process.exit(2);
 }
 
-const { PAPEL, COLUNAS_DO_PRODUTO_PUBLICO, TABELAS_PROIBIDAS, sqlDaMigration, sqlDaMigracaoDoWhatsappDaEmpresa } = await import("../src/lib/riseAi/cliente/sqlDoPapel.js");
+const { PAPEL, COLUNAS_DO_PRODUTO_PUBLICO, TABELAS_PROIBIDAS, sqlDaMigration, sqlDaMigracaoDoWhatsappDaEmpresa, sqlDaMigracaoDoPedido } = await import("../src/lib/riseAi/cliente/sqlDoPapel.js");
 
 const MIGRATION = "prisma/migrations/20261120b_ia_papel_e_visoes/migration.sql";
 // 22/11/2026: a visao da configuracao passou a entregar os dois WhatsApp da empresa (e so eles).
 const MIGRATION_DO_WHATSAPP = "prisma/migrations/20261122_ia_whatsapp_da_empresa/migration.sql";
+// Fase 3 (22/11/2026): o acompanhar pedido, so pela funcao `ia_situacao_do_pedido`.
+const MIGRATION_DO_PEDIDO = "prisma/migrations/20261123_ia_situacao_do_pedido/migration.sql";
 if (process.argv.includes("--gravar-migration")) {
   mkdirSync("prisma/migrations/20261120b_ia_papel_e_visoes", { recursive: true });
   writeFileSync(MIGRATION, sqlDaMigration());
   mkdirSync("prisma/migrations/20261122_ia_whatsapp_da_empresa", { recursive: true });
   writeFileSync(MIGRATION_DO_WHATSAPP, sqlDaMigracaoDoWhatsappDaEmpresa());
-  console.log(`gravado: ${MIGRATION} e ${MIGRATION_DO_WHATSAPP}`);
+  mkdirSync("prisma/migrations/20261123_ia_situacao_do_pedido", { recursive: true });
+  writeFileSync(MIGRATION_DO_PEDIDO, sqlDaMigracaoDoPedido());
+  console.log(`gravado: ${MIGRATION}, ${MIGRATION_DO_WHATSAPP} e ${MIGRATION_DO_PEDIDO}`);
   process.exit(0);
 }
 
@@ -55,7 +59,24 @@ function conferir(nome, obtido, esperado) {
   );
 }
 
+// Os pedidos de teste do acompanhar pedido (fase 3) e as tentativas deles (o numero fica no banco so como hash).
+const NUMEROS_DE_TESTE = ["ZZLOJAPED1", "ZZLOJAPED2", "ZZLOJAPED3", "ZZLOJAPED9"];
+async function limparPedidosDeTeste() {
+  const { createHash } = await import("node:crypto");
+  await prisma.envio.deleteMany({ where: { numero: 990001 } });
+  await prisma.pedidoDeVenda.deleteMany({ where: { idExterno: { in: ["ZZLOJAPED1", "ZZLOJAPED2", "zzlojaped3-id"] } } });
+  const hashes = NUMEROS_DE_TESTE.map((numero) => createHash("sha256").update(numero).digest("hex"));
+  await prisma.$executeRawUnsafe(`DELETE FROM "TentativaDePedidoIA" WHERE "numeroHash" = ANY($1)`, hashes).catch(() => null);
+}
+
+// O jsonb devolve as chaves em outra ordem; a comparacao do teste e por texto.
+const chavesOrdenadas = (valor) =>
+  valor && typeof valor === "object" && !Array.isArray(valor)
+    ? Object.fromEntries(Object.keys(valor).sort().map((chave) => [chave, chavesOrdenadas(valor[chave])]))
+    : valor;
+
 async function limpar() {
+  await limparPedidosDeTeste();
   await prisma.conversaIA.deleteMany({ where: { usuario: { startsWith: "loja:zz-" } } });
   await prisma.conhecimentoIA.deleteMany({ where: { assunto: { startsWith: "ZZ LOJA" } } });
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-LOJA-" } } });
@@ -89,6 +110,8 @@ try {
   conferir("a migration e a saida do gerador", noDisco === sqlDaMigration().trim(), true);
   const doWhatsapp = existsSync(MIGRATION_DO_WHATSAPP) ? readFileSync(MIGRATION_DO_WHATSAPP, "utf8").replace(/\r\n/g, "\n").trim() : "";
   conferir("a migration do WhatsApp da empresa e a saida do gerador", doWhatsapp === sqlDaMigracaoDoWhatsappDaEmpresa().trim(), true);
+  const doPedido = existsSync(MIGRATION_DO_PEDIDO) ? readFileSync(MIGRATION_DO_PEDIDO, "utf8").replace(/\r\n/g, "\n").trim() : null;
+  conferir("a migration do pedido e a saida do gerador", doPedido === sqlDaMigracaoDoPedido().trim(), true);
 
   // ---------- O papel existe, sem superpoderes e com os tetos ----------
   const [papel] = (await dono.query(`SELECT rolsuper, rolcreatedb, rolcreaterole, rolbypassrls, rolconnlimit, rolconfig, rolcanlogin FROM pg_roles WHERE rolname = $1`, [PAPEL])).rows;
@@ -277,6 +300,60 @@ try {
     if (sinalDoDono) await dono.query(`UPDATE "SinalDoAssistente" SET "sinalEm" = $1, "versao" = $2, "emAndamento" = $3, "ultimoErro" = $4 WHERE "id" = 'unico'`, [sinalDoDono.sinalEm, sinalDoDono.versao, sinalDoDono.emAndamento, sinalDoDono.ultimoErro]);
     else await dono.query(`DELETE FROM "SinalDoAssistente" WHERE "id" = 'unico'`);
   }
+  await comoPapel.query(`SET ROLE ${PAPEL}`);
+
+  // ---------- Fase 3 (22/11/2026): o pedido so pela funcao, com a prova e as tentativas contadas no banco ----------
+  await comoPapel.query("RESET ROLE");
+  await limparPedidosDeTeste();
+  const pedidoBase = {
+    status: "ENVIADO",
+    statusDaOrigem: "enviado",
+    statusDoEnvio: "EM_TRANSITO",
+    dataDaVenda: new Date("2026-11-20T15:00:00Z"),
+    atualizadoNaOrigemEm: new Date("2026-11-21T12:30:00Z"),
+    enderecoDeEntrega: {},
+    pagamento: [],
+    envio: { transportadora: "Correios", rastreio: "ZZJSON1BR", link: "https://rastreio.exemplo/ZZJSON1BR" },
+    historico: [],
+    totalProdutos: 10,
+    desconto: 0,
+    freteCobrado: 0,
+    total: 10,
+    nomeDoComprador: "ZZ LOJA comprador",
+    documentoDoComprador: "123.456.789-09",
+    emailDoComprador: "zz@exemplo.com",
+  };
+  const daLoja = await prisma.pedidoDeVenda.create({ data: { ...pedidoBase, canal: "LOJA_INTEGRADA", origem: "LOJA_INTEGRADA", idExterno: "ZZLOJAPED1", numero: "ZZLOJAPED1" } });
+  await prisma.pedidoDeVenda.create({ data: { ...pedidoBase, canal: "MERCADO_LIVRE", origem: "MERCADO_LIVRE", idExterno: "ZZLOJAPED2", numero: "ZZLOJAPED2" } });
+  await prisma.pedidoDeVenda.create({ data: { ...pedidoBase, canal: "BLING", origem: "BLING", idExterno: "zzlojaped3-id", numero: "ZZLOJAPED3X", blingNumero: "ZZLOJAPED3", envio: {} } });
+  await prisma.envio.create({
+    data: { numero: 990001, pedidoDeVendaId: daLoja.id, remetente: {}, destinatario: {}, comprimentoCm: 1, larguraCm: 1, alturaCm: 1, pesoKg: 1, valorDeclarado: 1, transportadoraNome: "Jadlog", rastreio: "ZZ123BR", linkDoRastreio: "https://rastreio.exemplo/ZZ123BR" },
+  });
+  const funcao = (await dono.query(`SELECT p.prosecdef, has_function_privilege('public', p.oid, 'EXECUTE') AS publico, has_function_privilege($1, p.oid, 'EXECUTE') AS papel FROM pg_proc p WHERE p.proname = 'ia_situacao_do_pedido'`, [PAPEL])).rows[0] ?? null;
+  conferir("a funcao roda com o dono e so o papel a executa", [funcao?.prosecdef, funcao?.publico, funcao?.papel], [true, false, true]);
+  await comoPapel.query(`SET ROLE ${PAPEL}`);
+  const situacao = async (numero, prova) => chavesOrdenadas((await comoPapel.query(`SELECT ia_situacao_do_pedido($1, $2) AS r`, [numero, prova])).rows[0].r);
+  const naoAchado = { situacao: "nao_achado" };
+  conferir(
+    "pedido da loja: acha com o CPF formatado e o numero em minusculas, com o rastreio do envio do Rise",
+    await situacao("zzlojaped1", "123.456.789-09 "),
+    chavesOrdenadas({ situacao: "achado", pedido: { numero: "ZZLOJAPED1", canal: "LOJA_INTEGRADA", data: "2026-11-20", status: "ENVIADO", statusDoEnvio: "EM_TRANSITO", transportadora: "Jadlog", rastreio: "ZZ123BR", linkDoRastreio: "https://rastreio.exemplo/ZZ123BR", atualizadoEm: "2026-11-21T12:30:00Z" } }),
+  );
+  conferir("acha pelo e-mail com maiusculas e espaco", (await situacao("ZZLOJAPED1", " ZZ@Exemplo.com "))?.situacao, "achado");
+  const doBling = await situacao("ZZLOJAPED3", "12345678909");
+  conferir("pedido do Bling: acha pelo numero do Bling, sem rastreio", [doBling?.situacao, doBling?.pedido?.canal, doBling?.pedido?.rastreio], ["achado", "BLING", null]);
+  conferir("documento errado: nao achado", await situacao("ZZLOJAPED1", "98765432100"), naoAchado);
+  conferir("pedido do Mercado Livre: a MESMA resposta de nao achado", await situacao("ZZLOJAPED2", "12345678909"), naoAchado);
+  conferir("pedido que nao existe: a mesma resposta", await situacao("ZZLOJAPED9", "12345678909"), naoAchado);
+  conferir("prova curta nao conta como tentativa", await situacao("ZZLOJAPED1", "123"), naoAchado);
+  for (let i = 0; i < 4; i++) await situacao("ZZLOJAPED1", "98765432100");
+  conferir("depois de 5 erros no numero, nem a prova certa passa no dia", await situacao("ZZLOJAPED1", "12345678909"), { situacao: "limite" });
+  conferir("o papel nao escreve as tentativas direto", await codigoSql(`INSERT INTO "TentativaDePedidoIA" ("numeroHash", "dia") VALUES ('zz', current_date)`), "42501");
+  conferir("o papel nao altera a funcao", await codigoSql(`CREATE OR REPLACE FUNCTION ia_situacao_do_pedido(text, text) RETURNS jsonb LANGUAGE sql AS 'SELECT NULL::jsonb'`), "42501");
+  await comoPapel.query("RESET ROLE");
+  const guardado = (await dono.query(`SELECT "numeroHash" FROM "TentativaDePedidoIA" WHERE "numeroHash" LIKE '%ZZLOJA%'`)).rows;
+  conferir("o numero do pedido nunca fica no banco em texto", guardado, []);
+  await limparPedidosDeTeste();
   await comoPapel.query(`SET ROLE ${PAPEL}`);
 
   // MARCADOR-T7 (as tarefas seguintes acrescentam os seus blocos acima desta linha)

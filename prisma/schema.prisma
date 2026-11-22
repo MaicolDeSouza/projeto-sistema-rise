@@ -909,6 +909,19 @@ model SinalDoAssistente {
   ultimoErro  String?
 }
 
+/// Tentativas do acompanhar pedido do chat da loja (fase 3, 22/11/2026). So a funcao `ia_situacao_do_pedido` escreve aqui
+/// (migration 20261123_ia_situacao_do_pedido, gerada por src/lib/riseAi/cliente/sqlDoPapel.js). O numero do pedido fica
+/// so como sha256; `hora-HH` no lugar do hash e o teto geral daquela hora do dia (Sao Paulo).
+model TentativaDePedidoIA {
+  numeroHash   String
+  dia          DateTime @db.Date
+  erros        Int      @default(0)
+  consultas    Int      @default(0)
+  atualizadoEm DateTime @default(now())
+
+  @@id([numeroHash, dia])
+}
+
 model ConversaIA {
   id      String   @id @default(cuid())
   titulo  String
