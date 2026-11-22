@@ -426,6 +426,14 @@ mais sozinho** o anúncio único ("aguarde eu clicar"; o comportamento de 24/10/
 sem migration. O kit 258262 ganhou o EAN interno `2000002582625` (cadastro, GTIN do rascunho e Bling, pelo `sincronizarComBling`)
 e a proposta do ML: Clássico sem frete R$ 43,10, lucro R$ 15,06 no ML contra R$ 15,01 na loja, sem catálogo.
 
+**Deploy 22.11.2026.139 (commit `78046a1`, 22/11/2026):** "Sim, subir" do dono. Levou o dinheiro sem espaço depois do símbolo
+em todo o Rise e o Diário nas caixinhas de Vendas (`15934d9`), a localização ao lado do código nos itens do pedido de compra
+(`cb40bbd`), a varredura que **não apaga o NCM guardado** quando a loja não publica (`5f980a5`; o NCM do Rise nunca é mexido
+pela varredura, decisão do dono) e o **fator editável no item do pedido de compra** enquanto nada foi lançado, fora do AliExpress
+(`78046a1`), mais um commit de outra sessão (`60d3ae9`, ajustes de estoque ao Bling num lançamento só), sem migration. Antes,
+direto no banco da VPS: o NCM da NF 1547 (Alltele/Nightech) nos 19 itens da Nightech no Scraper e em 11 produtos do Rise, e o
+fator 5 no item do cabo flat 930303 do PC-0024 (lança 25 m). Conferido: as 6 respostas de fora e os contêineres de pé.
+
 **Travas de escrita na VPS (decisão do dono em 22/10/2026):** o dono mandou liberar **o Mercado Livre e o Bling para todos os
 códigos** (`ML_PUBLICACAO=true`, `ML_PUBLICACAO_CODIGOS` ausente, `BLING_ESCRITA=true`, `BLING_ESCRITA_CODIGOS` vazio) depois
 de o Publicar recusar com "ML_PUBLICACAO está false"; aplicado só no `.env` da VPS (cópia `.env.bak-AAAAMMDD-HHMMSS` ao lado),
