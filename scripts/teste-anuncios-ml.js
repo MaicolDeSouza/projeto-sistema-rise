@@ -2155,6 +2155,10 @@ try {
       const semApagada = antes.filter((id) => id !== antes[1]);
       conferir("kit: foto apagada do produto sai do kit", await fotosDe(), semApagada);
 
+      // Texto do kit EDITADO (o 901202_2, 22/11/2026): a lista e o popup leem o anuncio sem a coluna `descricao`, e o "!"
+      // da descricao acendia logo depois de sincronizar, para sempre.
+      const editado = await prisma.anuncio.findUnique({ where: { id: idKit }, select: { dados: true } });
+      await prisma.anuncio.update({ where: { id: idKit }, data: { descricao: "TEXTO EDITADO DO KIT\n\nSo deste kit.", dados: { ...editado.dados, descricaoEditada: true } } });
       const r = await publicarAnuncioML(idKit, { ml: criarMLFalso(), bling: c.novoBling(), lerFoto });
       conferir("kit: publica", r.ok, true);
       const mudancasDoKit = async () => {

@@ -205,13 +205,20 @@ export async function mudancasDosAnunciosML(anuncios) {
   if (publicados.length === 0) return resultado;
   // A ficha (preco e ficha acompanham o anuncio desde 24/10/2026) mora na coluna `atributos`, que a lista de Produtos
   // nao seleciona: lida aqui, numa consulta so, em vez de depender do `select` de quem chama.
+  // A `descricao` tambem (22/11/2026, o kit 901202_2): o texto EDITADO do kit mora nessa coluna, que o popup do produto e a
+  // lista nao selecionam; sem ela o kit editado comparava um texto vazio e o "!" da descricao nao apagava nem sincronizando.
   const fichas = new Map(
-    (await prisma.anuncio.findMany({ where: { id: { in: publicados.map((anuncio) => anuncio.id) } }, select: { id: true, atributos: true, criadoEm: true } })).map((linha) => [linha.id, linha]),
+    (await prisma.anuncio.findMany({ where: { id: { in: publicados.map((anuncio) => anuncio.id) } }, select: { id: true, atributos: true, criadoEm: true, descricao: true } })).map((linha) => [linha.id, linha]),
   );
   // A criacao do anuncio e a base das fotos do kit salvo antes de `fotosVistasEm` (28/10/2026); a lista de Produtos nao a seleciona.
   const rascunhos = publicados.map((anuncio) => [
     anuncio,
-    rascunhoDoAnuncio({ ...anuncio, atributos: anuncio.atributos ?? fichas.get(anuncio.id)?.atributos ?? {}, criadoEm: anuncio.criadoEm ?? fichas.get(anuncio.id)?.criadoEm }),
+    rascunhoDoAnuncio({
+      ...anuncio,
+      atributos: anuncio.atributos ?? fichas.get(anuncio.id)?.atributos ?? {},
+      criadoEm: anuncio.criadoEm ?? fichas.get(anuncio.id)?.criadoEm,
+      descricao: anuncio.descricao ?? fichas.get(anuncio.id)?.descricao,
+    }),
   ]);
   const ids = rascunhos.flatMap(([, rascunho]) => [rascunho.produtoId, ...(rascunho.composicao?.itens ?? []).map((item) => item.produtoId)]);
   // Os anuncios irmaos de cada produto, para a parte `kits` (o bloco da descricao, spec 2026-11-20).
