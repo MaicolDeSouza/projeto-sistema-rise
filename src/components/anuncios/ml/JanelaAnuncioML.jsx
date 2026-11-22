@@ -340,8 +340,8 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
       if (!montada.current) return;
       const temNaConta = (conta?.candidatos?.length ?? 0) > 0;
       // Produto Conferido sem nenhum anuncio: com anuncio do SKU na conta, a lista Reaproveitar; sem nada, o editor de um novo.
-      // Com UM anuncio, abre direto o editor dele (pedido do dono em 24/10/2026), a nao ser que a conta tenha outro do SKU fora do
-      // Rise: ai a lista fica, para o dono ver (08/11/2026).
+      // Com anuncio, a lista FICA e espera o clique (pedido do dono em 22/11/2026: "ao abrir o popup aguarde eu clicar e nao abra
+      // o anuncio direto"; de 24/10 a 22/11/2026 o anuncio unico abria sozinho).
       // A peca que esta num kit com anuncio (22/11/2026) nunca pula a lista: o bloco "Anuncios com composicao" precisa aparecer.
       const emKit = (lista?.deComposicao?.length ?? 0) > 0;
       if (emKit) return;
@@ -352,9 +352,9 @@ export default function JanelaAnuncioML({ produtoId, aoFechar, naoAnunciar }) {
         } else {
           await abrirEditorNovo(conta?.erro ? `Não foi possível ler os anúncios da conta do Mercado Livre: ${conta.erro}` : null);
         }
-      } else if (lista?.produto.conferido && lista.anuncios.length === 1 && !temNaConta) await abrirExistente(lista.anuncios[0].id);
+      }
     },
-    [carregarLista, abrirEditorNovo, abrirExistente],
+    [carregarLista, abrirEditorNovo],
   );
 
   useEffect(() => {

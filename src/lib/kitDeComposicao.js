@@ -8,6 +8,7 @@ import { categoriasDoKit, ncmDoKit, pesoEMedidasDoKit, totaisDoKit } from "@/lib
 import { gravarComposicaoDoCadastro, localizacaoDoKitNoSalvar, prepararComposicaoDoCadastro } from "@/lib/composicaoBanco";
 import { proximoCodigoLivre } from "@/lib/proposta/codigo";
 import { normalizarDescricao } from "@/lib/ia/revisaoDescricao";
+import { gerarEanDoSku } from "@/lib/eanInterno";
 
 /**
  * Cria um produto "Com composicao" (kit) a partir das pecas (pedido do dono em 22/11/2026: "tem como criar mcp para criar produto
@@ -80,6 +81,9 @@ export async function criarKitDeComposicao({ nome, pecas, descricao = "", seoTit
     const produto = await tx.produto.create({
       data: {
         sku,
+        // O EAN interno pelo codigo do kit (22/11/2026): o GTIN do anuncio do ML vem dele, e a categoria Conectores o exige
+        // mesmo com o motivo "kit ou pack". Nunca o EAN de uma peca, que ligaria o kit a peca avulsa.
+        ean: gerarEanDoSku(sku).ok ? gerarEanDoSku(sku).ean : null,
         tituloBase: String(nome).trim(),
         descricaoBase: texto,
         tipo: "COMPOSICAO",

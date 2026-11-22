@@ -1558,6 +1558,9 @@ try {
     try {
       conferir("criarKit: codigo 25xxxx, kit nao Conferido, as pecas na ordem com a quantidade", [kit.ok, /^25\d{4}$/.test(kit.sku ?? ""), kitGravado?.tipo, kitGravado?.unidade, kitGravado?.conferido, kitGravado?.componentes.map((c) => `${c.quantidade}x ${c.componente.sku}`)], [true, true, "COMPOSICAO", "KIT", false, ["1x ZZ-MCP-KP1", "3x ZZ-MCP-KP2"]]);
       conferir("criarKit: preco pela soma, NCM e categorias da peca de maior quantidade, localizacao e estoque pelas pecas", [Number(kitGravado?.precoVenda), kitGravado?.ncm, kitGravado?.categoriasLI, kitGravado?.localizacao, kitGravado?.estoque], [25, "8544.42.00", ["22"], "ZZ-MCP-KP1(B2) / ZZ-MCP-KP2(C3)", 3]);
+      // O EAN interno do kit pelo codigo dele (22/11/2026: o GTIN do anuncio do ML vem do EAN do produto, e Conectores o exige).
+      const { gerarEanDoSku } = await import("../src/lib/eanInterno.js");
+      conferir("criarKit: nasce com o EAN interno gerado pelo codigo do kit", [kitGravado?.ean, kitGravado?.ean === gerarEanDoSku(kit.sku ?? "").ean], [gerarEanDoSku(kit.sku ?? "").ean, true]);
       conferir("criarKit: peso somado, maior comprimento e largura, alturas somadas", [Number(kitGravado?.pesoKg), Number(kitGravado?.comprimentoCm), Number(kitGravado?.larguraCm), Number(kitGravado?.alturaCm)], [0.07, 5, 2, 5]);
       conferir("criarKit: SEO do Claude e a descricao com os itens inclusos e a garantia", [kitGravado?.seoTituloLI, kitGravado?.seoDescricaoLI, /Itens inclusos: \(Cod:25\d{4}\)\n- 01 ZZMCP ZZ-MCP-KP1;\n- 03 ZZMCP ZZ-MCP-KP2;/i.test(kitGravado?.descricaoBase ?? ""), /Garantia:\n- Garantia Legal de 90 dias/.test(kitGravado?.descricaoBase ?? "")], [pedidoDoKit.seoTitulo, pedidoDoKit.seoDescricao, true, true]);
       const fotosDoKit = kitGravado?.arquivos.filter((a) => a.tipo === "IMAGEM") ?? [];
