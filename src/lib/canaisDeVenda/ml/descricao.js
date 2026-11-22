@@ -49,8 +49,9 @@ export function montarDescricaoML({ descricao }) {
  */
 export const FORMATO_DA_DESCRICAO = 2;
 
-// So hifens: o ML recusa caractere fora do Latin-1, entao nada de linha desenhada.
-const LINHA = "-".repeat(40);
+// So hifens: o ML recusa caractere fora do Latin-1, entao nada de linha desenhada. 120 cobre a largura da descricao no
+// computador (pedido do dono em 22/11/2026: "as linhas tracejadas devem ir ate final da linha"); 40 ocupava um terco.
+const LINHA = "-".repeat(120);
 
 /**
  * As boas-vindas no comeco de todo anuncio (texto do dono em 20/11/2026). Fixo no codigo de proposito: mudar o texto muda a
@@ -59,7 +60,7 @@ const LINHA = "-".repeat(40);
 export const BOAS_VINDAS_ML = [
   "Bem-vindo(a) à nossa loja!",
   "- Dúvidas? Use o campo de perguntas, respondemos rápido.",
-  "- Emitimos nota fiscal em todas as vendas, com os dados do seu cadastro no Mercado Livre.",
+  "- Emitimos NF em todas as vendas, com os dados do seu cadastro no Mercado Livre.",
   "Boas compras!",
   LINHA,
 ].join("\n");
@@ -105,6 +106,8 @@ export function blocoDosKits(kits) {
     const unitario = Math.round((Number(kit.preco) / Number(kit.unidades)) * 100) / 100;
     linhas.push("", `Kit com ${kit.unidades} unidades por ${reais(kit.preco)} (${reais(unitario)} por unidade)${kit.freteGratis ? " + frete grátis" : ""}`, String(kit.link ?? ""));
   }
+  // A linha de baixo fecha o bloco (dono em 22/11/2026: "bem dividido"): logo depois o ML escreve a "Garantia do vendedor".
+  linhas.push("", LINHA);
   return linhas.join("\n");
 }
 

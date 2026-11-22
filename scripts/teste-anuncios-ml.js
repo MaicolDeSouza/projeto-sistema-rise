@@ -216,14 +216,14 @@ try {
     // "Compre em kit e economize" (spec 2026-11-20): o texto que vai ao ML ganha as boas-vindas, perde a secao "Garantia:"
     // (o ML ja a escreve no fim do anuncio) e ganha o bloco dos kits maiores do mesmo produto.
     const { semGarantia, blocoDosKits, montarDescricaoCompletaML, BOAS_VINDAS_ML, FORMATO_DA_DESCRICAO } = await import("../src/lib/canaisDeVenda/ml/descricao.js");
-    const LINHA = "-".repeat(40);
-    conferir("formato da descricao e boas-vindas", [FORMATO_DA_DESCRICAO, BOAS_VINDAS_ML], [2, ["Bem-vindo(a) à nossa loja!", "- Dúvidas? Use o campo de perguntas, respondemos rápido.", "- Emitimos nota fiscal em todas as vendas, com os dados do seu cadastro no Mercado Livre.", "Boas compras!", LINHA].join("\n")]);
+    const LINHA = "-".repeat(120);
+    conferir("formato da descricao e boas-vindas", [FORMATO_DA_DESCRICAO, BOAS_VINDAS_ML], [2, ["Bem-vindo(a) à nossa loja!", "- Dúvidas? Use o campo de perguntas, respondemos rápido.", "- Emitimos NF em todas as vendas, com os dados do seu cadastro no Mercado Livre.", "Boas compras!", LINHA].join("\n")]);
     conferir("sem garantia: a secao sai, com os itens colados", semGarantia("Itens inclusos:\n- 01 Placa;\n\nGarantia:\n- Garantia Legal de 90 dias (contra defeitos de fabricação);"), "Itens inclusos:\n- 01 Placa;");
     conferir("sem garantia: texto antigo com linha em branco entre os itens", semGarantia("Itens inclusos:\n\n- 01 Placa\n\nGarantia:\n\n- Garantia Legal de 90 dias;\n\n- Suporte por 30 dias;\n"), "Itens inclusos:\n\n- 01 Placa");
     conferir("sem garantia: o que vem depois da secao fica", semGarantia("Texto.\n\nGARANTIA\n- 90 dias;\n\nObservações:\n- Não acompanha cabo;"), "Texto.\n\nObservações:\n- Não acompanha cabo;");
     conferir("sem garantia: sem a secao nada muda, e 'garantia' no meio do texto nao e titulo", [semGarantia("Texto.\n- Item;"), semGarantia("Produto com garantia de 12 meses do fabricante.\n- Item;")], ["Texto.\n- Item;", "Produto com garantia de 12 meses do fabricante.\n- Item;"]);
     const doisKits = [{ unidades: 3, preco: 60, link: "https://produto.mercadolivre.com.br/MLB-3", freteGratis: false }, { unidades: 5, preco: 75, link: "https://produto.mercadolivre.com.br/MLB-5", freteGratis: true }];
-    const blocoEsperado = [LINHA, "COMPRE EM KIT E ECONOMIZE", "", "Kit com 3 unidades por R$60,00 (R$20,00 por unidade)", "https://produto.mercadolivre.com.br/MLB-3", "", "Kit com 5 unidades por R$75,00 (R$15,00 por unidade) + frete grátis", "https://produto.mercadolivre.com.br/MLB-5"].join("\n");
+    const blocoEsperado = [LINHA, "COMPRE EM KIT E ECONOMIZE", "", "Kit com 3 unidades por R$60,00 (R$20,00 por unidade)", "https://produto.mercadolivre.com.br/MLB-3", "", "Kit com 5 unidades por R$75,00 (R$15,00 por unidade) + frete grátis", "https://produto.mercadolivre.com.br/MLB-5", "", LINHA].join("\n");
     conferir("bloco dos kits: titulo, uma linha e o link por kit, frete gratis so em quem tem", blocoDosKits(doisKits), blocoEsperado);
     conferir("bloco dos kits: preco quebrado e milhar", blocoDosKits([{ unidades: 2, preco: 43.1, link: "L" }, { unidades: 30, preco: 1234.5, link: "M" }]).split("\n").filter((linha) => linha.startsWith("Kit")), ["Kit com 2 unidades por R$43,10 (R$21,55 por unidade)", "Kit com 30 unidades por R$1.234,50 (R$41,15 por unidade)"]);
     conferir("bloco dos kits: sem kits, vazio", [blocoDosKits([]), blocoDosKits(null)], ["", ""]);
@@ -2713,7 +2713,7 @@ try {
             dados: { preco, tipoAnuncio: "gold_special", envio: { freteGratis: false }, composicao: { itens: [{ produtoId: c.s1.id, quantidade }], codigo: `ZZ-ML-S1_${quantidade}`, blingProdutoId: null }, publicacao: { itemId: `MLB9000${quantidade}`, enviado: { preco } } },
           },
         });
-      const LINHA = "-".repeat(40);
+      const LINHA = "-".repeat(120);
 
       await prisma.produto.update({ where: { id: c.s1.id }, data: { descricaoBase: "ZZ S1\n\nTexto do S1.\n\nGarantia:\n- Garantia Legal de 90 dias;" } });
       const id = await c.anuncioSimples(c.s1);
@@ -2730,7 +2730,7 @@ try {
       const aberto = await carregarAnuncioML(id);
       conferir("abrir o anuncio: os irmaos no contexto, o '!' dos kits e formato novo", [aberto.contexto.kitsDoProduto.length, aberto.mudancas.partes, aberto.formatoAntigo], [2, ["kits"], false]);
       let r = await enviarMudancasML(id, { ml, lerFoto });
-      conferir("sincronizar: o bloco do kit de 3 chega ao ML e o '!' apaga", [r.ok, noML(), await partesDe(id)], [true, `${BOAS_VINDAS_ML}\n\nZZ S1\n\nTexto do S1.\n\n${LINHA}\nCOMPRE EM KIT E ECONOMIZE\n\nKit com 3 unidades por R$75,00 (R$25,00 por unidade)\nhttps://produto.mercadolivre.com.br/MLB-90003-kit`, []]);
+      conferir("sincronizar: o bloco do kit de 3 chega ao ML e o '!' apaga", [r.ok, noML(), await partesDe(id)], [true, `${BOAS_VINDAS_ML}\n\nZZ S1\n\nTexto do S1.\n\n${LINHA}\nCOMPRE EM KIT E ECONOMIZE\n\nKit com 3 unidades por R$75,00 (R$25,00 por unidade)\nhttps://produto.mercadolivre.com.br/MLB-90003-kit\n\n${LINHA}`, []]);
 
       const kit5 = await kitDoS1(5, 100);
       conferir("kit maior publicado depois: acende de novo no de 1; o kit de antes do formato novo nao acende", [await partesDe(id), (await partesDe(kit3.id)).includes("kits")], [["kits"], false]);
