@@ -15,8 +15,11 @@ export const MAXIMO_DE_ITENS_DA_VENDA = 8;
 export const LIMITE_DE_LINHAS_DA_VENDA = MAXIMO_DE_ITENS_DA_VENDA + 4;
 /// O resumo das 20h abre com as vendas (19/11/2026): titulo, total, ate 4 canais, lucro, consultas e IA. A linha das
 /// varreduras saiu em 20/11/2026 (pedido do dono: "pode remover a varredura da mensagem").
+/// Desde 22/11/2026 (pedido do dono: "A mensagem de produto zerado deve mostrar junto com o relatorio das 20hrs") o
+/// resumo fecha com os produtos que zeraram: uma linha de titulo, ate 15 produtos e "e mais N".
 export const MAXIMO_DE_CANAIS_DO_RESUMO = 4;
-export const LIMITE_DE_LINHAS_DO_RESUMO = MAXIMO_DE_CANAIS_DO_RESUMO + 5;
+export const MAXIMO_DE_ZERADOS_DO_RESUMO = 15;
+export const LIMITE_DE_LINHAS_DO_RESUMO = MAXIMO_DE_CANAIS_DO_RESUMO + 5 + MAXIMO_DE_ZERADOS_DO_RESUMO + 2;
 const LIMITE_POR_TIPO = { novaVenda: LIMITE_DE_LINHAS_DA_VENDA, resumoDoDia: LIMITE_DE_LINHAS_DO_RESUMO };
 
 /** Quantas linhas o aviso de um tipo pode ter: 4, menos a nova venda (lista os itens) e o resumo do dia (as vendas). */
@@ -59,6 +62,23 @@ function linhaDoItemDaVenda({ quantidade, sku, nome, total }) {
 
 const VENDAS_VAZIAS = { pedidos: 0, valor: 0, lucro: 0, semLucro: 0, canais: [] };
 const quantasVendas = (quantas) => `${quantas} ${quantas === 1 ? "venda" : "vendas"}`;
+
+/**
+ * O bloco dos produtos que zeraram, no fim do resumo: "Produtos que zeraram: 2" e uma linha por produto (codigo e nome),
+ * ate 15, depois "e mais N". Lista vazia: "Produtos que zeraram: nenhum". Sem lista (`null`: o aviso esta desmarcado na
+ * aba Canais): sem bloco. Um numero (quem so tem a contagem): so a linha do total.
+ */
+function linhasDosZerados(zerados) {
+  if (zerados === null || zerados === undefined) return [];
+  if (!Array.isArray(zerados)) return [`Produtos que zeraram: ${Number(zerados) || 0}`];
+  if (zerados.length === 0) return ["Produtos que zeraram: nenhum"];
+  const resto = zerados.length - MAXIMO_DE_ZERADOS_DO_RESUMO;
+  return [
+    `Produtos que zeraram: ${zerados.length}`,
+    ...zerados.slice(0, MAXIMO_DE_ZERADOS_DO_RESUMO).map(({ sku, nome }) => `• ${[trechoSeguro(sku, 20), trechoSeguro(nome, 50)].filter(Boolean).join(" ")}`),
+    resto > 0 ? `e mais ${resto} ${resto === 1 ? "produto" : "produtos"}` : "",
+  ];
+}
 
 const ESCOPO = { CLIENTES: "dos clientes", INTERNO: "interno" };
 const NOME_DO_CANAL = { MERCADO_LIVRE: "Mercado Livre", LOJA_INTEGRADA: "Loja Integrada", BLING: "Bling", SHOPEE: "Shopee" };
@@ -133,8 +153,9 @@ const TIPOS = {
       `Vendas do dia: ${vendas.pedidos} · R$ ${formatarReais(vendas.valor)}`,
       ...vendas.canais.slice(0, MAXIMO_DE_CANAIS_DO_RESUMO).map((canal) => `${NOME_DO_CANAL[canal.canal] ?? canal.canal}: ${quantasVendas(canal.pedidos)}${canal.pedidos > 0 ? ` · R$ ${formatarReais(canal.valor)}` : ""}`),
       `Lucro do dia: R$ ${formatarReais(vendas.lucro)}${vendas.semLucro > 0 ? ` (fora ${quantasVendas(vendas.semLucro)} sem custo)` : ""}`,
-      `Consultas pelo Claude/ChatGPT: ${consultas} (${anotadas} anotadas) · Produtos que zeraram: ${zerados}`,
+      `Consultas pelo Claude/ChatGPT: ${consultas} (${anotadas} anotadas)`,
       `IA no mês: R$ ${formatarReais(ia.gastoBrl)} de R$ ${formatarReais(ia.tetoBrl)}`,
+      ...linhasDosZerados(zerados),
     ],
     caminho: "/rise-ai/revisao",
   }),

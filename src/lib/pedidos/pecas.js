@@ -53,9 +53,6 @@ export function necessidadeDoPedido(itens, produtosPorId, { soOQueOBlingBaixa = 
   return necessidade;
 }
 
-/** Folga entre a venda e a copia dela no Bling (o aviso `espelhoNoBlingAusente` so sai com 1 h). */
-const FOLGA_DA_COPIA_MS = 15 * 60 * 1000;
-
 /**
  * O saldo do produto SEM o corte em zero: o `estoque` do Rise para em 0, mas o saldo virtual do Bling fica negativo
  * quando se vendeu mais do que havia (-2 = duas unidades vendidas sem ter). Com estoque > 0 os dois sao iguais; com 0, vale
@@ -136,9 +133,13 @@ export async function calcularPecas(tx, pedido) {
     // `blingPedidoId` so e gravada na copia dos canais).
     if (!aberto.blingPedidoId && aberto.origem !== "BLING") continue;
     const vendaEm = new Date(aberto.dataDaVenda).getTime();
-    // A copia do canal chega ao Bling minutos depois da venda: so conta como baixado o saldo lido com folga depois dela.
-    // O pedido digitado no Bling ja estava la quando o Rise o viu (`criadoEm`).
-    const baixadoDesde = aberto.origem === "BLING" && aberto.criadoEm ? new Date(aberto.criadoEm).getTime() : vendaEm + FOLGA_DA_COPIA_MS;
+    // Com a copia no Bling ja conhecida, o saldo lido DEPOIS da venda conta como baixado. Ate 22/11/2026 exigia-se o saldo
+    // lido 15 min depois da venda (a copia leva minutos para chegar ao Bling), e a leitura que caia nesse intervalo dava
+    // alarme falso: o pedido 2000019705429742 (ultima celula de carga, vendida as 05:14) teve o saldo lido aos 12 min, ja
+    // sem a unidade, e ficou "Aguardando pecas" com aviso no Telegram ate a leitura seguinte. O erro contrario (saldo lido
+    // entre a venda e a chegada da copia) conta uma unidade a mais por no maximo uma leitura do estoque, e so esconde uma
+    // falta de verdade por esse tempo. O pedido digitado no Bling ja estava la quando o Rise o viu (`criadoEm`).
+    const baixadoDesde = aberto.origem === "BLING" && aberto.criadoEm ? new Date(aberto.criadoEm).getTime() : vendaEm;
     for (const [produtoId, quantidade] of necessidadeDoPedido(aberto.itens, porId, { soOQueOBlingBaixa: true })) {
       const lidoEm = porId.get(produtoId)?.blingSaldoLidoEm;
       if (lidoEm && new Date(lidoEm).getTime() >= baixadoDesde) somar(devolvido, produtoId, quantidade);

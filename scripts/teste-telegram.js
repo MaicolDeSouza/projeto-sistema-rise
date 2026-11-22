@@ -115,7 +115,9 @@ try {
     // Resumo das 20h (19/11/2026): abre com as vendas do dia, cada canal e o lucro; depois as consultas e a IA. A linha
     // das varreduras saiu em 20/11/2026 (pedido do dono).
     const { LIMITE_DE_LINHAS_DO_RESUMO } = await import("../src/lib/telegram/texto.js");
-    const restoDoResumo = { dia: "22/10", consultas: 5, anotadas: 2, zerados: 1, ia: { gastoBrl: 12.5, tetoBrl: 70 } };
+    // Desde 22/11/2026 (pedido do dono: "A mensagem de produto zerado deve mostrar junto com o relatorio das 20hrs") o
+    // resumo fecha com a lista dos produtos que zeraram, no lugar de uma mensagem por produto.
+    const restoDoResumo = { dia: "22/10", consultas: 5, anotadas: 2, zerados: [{ sku: "100101", nome: "Placa Uno R3" }, { sku: "130506", nome: "Módulo Relé 5V" }], ia: { gastoBrl: 12.5, tetoBrl: 70 } };
     const vendasDoResumo = { pedidos: 12, valor: 1234.5, lucro: 321, semLucro: 0, canais: [{ canal: "MERCADO_LIVRE", pedidos: 8, valor: 800 }, { canal: "LOJA_INTEGRADA", pedidos: 1, valor: 400 }, { canal: "BLING", pedidos: 0, valor: 0 }] };
     const resumo = mensagemDoAviso("resumoDoDia", { ...restoDoResumo, vendas: vendasDoResumo });
     conferir("o limite de linhas comum continua 4, e o resumo cabe no dele", [LIMITE_DE_LINHAS, resumo.texto.split("\n").length <= LIMITE_DE_LINHAS_DO_RESUMO], [4, true]);
@@ -126,12 +128,22 @@ try {
       "Loja Integrada: 1 venda · R$ 400,00",
       "Bling: 0 vendas",
       "Lucro do dia: R$ 321,00",
-      "Consultas pelo Claude/ChatGPT: 5 (2 anotadas) · Produtos que zeraram: 1",
+      "Consultas pelo Claude/ChatGPT: 5 (2 anotadas)",
       "IA no mês: R$ 12,50 de R$ 70,00",
+      "Produtos que zeraram: 2",
+      "• 100101 Placa Uno R3",
+      "• 130506 Módulo Relé 5V",
     ]);
+    const comZerados = (zerados) => mensagemDoAviso("resumoDoDia", { ...restoDoResumo, vendas: vendasDoResumo, zerados }).texto.split("\n");
+    const muitosZerados = (quantos) => Array.from({ length: quantos }, (_, i) => ({ sku: `9000${String(i).padStart(2, "0")}`, nome: "N".repeat(80) }));
+    conferir("resumo: nenhum produto zerou", comZerados([]).at(-1), "Produtos que zeraram: nenhum");
+    conferir("resumo: aviso de produto zerado desmarcado, sem o bloco", comZerados(null).some((linha) => linha.startsWith("Produtos que zeraram")), false);
+    conferir("resumo: quem so tem a contagem mostra o total", comZerados(3).at(-1), "Produtos que zeraram: 3");
+    conferir("resumo: 18 zerados mostram 15 e 'e mais 3 produtos'; 16, 'e mais 1 produto'", [comZerados(muitosZerados(18)).filter((linha) => linha.startsWith("• ")).length, comZerados(muitosZerados(18)).at(-1), comZerados(muitosZerados(16)).at(-1)], [15, "e mais 3 produtos", "e mais 1 produto"]);
+    conferir("resumo: o nome do produto zerado e cortado em 50", comZerados(muitosZerados(1)).at(-1), `• 900000 ${"N".repeat(50)}…`);
     conferir("resumo: sem a linha das varreduras, mesmo se quem calcula ainda mandar", mensagemDoAviso("resumoDoDia", { ...restoDoResumo, vendas: vendasDoResumo, varreduras: { concluidas: 3, falhas: 1 } }).texto.includes("Varredura"), false);
     conferir("resumo: venda sem custo fica fora do lucro, e o texto diz", mensagemDoAviso("resumoDoDia", { ...restoDoResumo, vendas: { ...vendasDoResumo, semLucro: 2 } }).texto.split("\n")[5], "Lucro do dia: R$ 321,00 (fora 2 vendas sem custo)");
-    conferir("resumo com 5 canais com venda ainda cabe no limite", mensagemDoAviso("resumoDoDia", { ...restoDoResumo, vendas: { ...vendasDoResumo, canais: ["MERCADO_LIVRE", "LOJA_INTEGRADA", "BLING", "SHOPEE", "OUTRO"].map((canal) => ({ canal, pedidos: 1, valor: 1 })) } }).texto.split("\n").length, LIMITE_DE_LINHAS_DO_RESUMO);
+    conferir("resumo com 5 canais com venda e 18 zerados ainda cabe no limite", mensagemDoAviso("resumoDoDia", { ...restoDoResumo, zerados: muitosZerados(18), vendas: { ...vendasDoResumo, canais: ["MERCADO_LIVRE", "LOJA_INTEGRADA", "BLING", "SHOPEE", "OUTRO"].map((canal) => ({ canal, pedidos: 1, valor: 1 })) } }).texto.split("\n").length, LIMITE_DE_LINHAS_DO_RESUMO);
     conferir("resumo sem as vendas (aviso antigo): zeros, sem quebrar", mensagemDoAviso("resumoDoDia", restoDoResumo).texto.split("\n").slice(0, 3), ["Resumo de 22/10", "Vendas do dia: 0 · R$ 0,00", "Lucro do dia: R$ 0,00"]);
     conferir("resumo vai a revisao do dia", resumo.caminho, "/rise-ai/revisao");
     conferir("falha com trecho neutralizado", mensagemDoAviso("varreduraFalhou", { fonteNome: "Loja X", erro: "HTTP 403 em https://loja.x/p" }), { texto: "Varredura falhou: Loja X\nHTTP 403 em https:∕∕loja.x/p", caminho: "/mercados/fontes" });
@@ -149,7 +161,7 @@ try {
     const muitos = mensagemDoAviso("novaVenda", { ...venda, itens: Array.from({ length: 11 }, (_, i) => ({ quantidade: 1, sku: `10010${i}`, nome: "N".repeat(80), total: 1 })) }).texto.split("\n");
     conferir("nova venda com 11 itens: 8 linhas de item, 'e mais 3 itens' e o total", [muitos.length, muitos.at(-2), muitos.at(-1), muitos.length <= LIMITE_DE_LINHAS_DA_VENDA], [12, "e mais 3 itens", "Total: R$ 85,70", true]);
     conferir("nova venda com 11 itens cabe na legenda de uma foto (1.024)", muitos.join("\n").length + "\nAbrir no Rise".length <= 1024, true);
-    conferir("so a nova venda e o resumo passam de 4 linhas", [limiteDeLinhasDoTipo("novaVenda"), limiteDeLinhasDoTipo("resumoDoDia"), limiteDeLinhasDoTipo("produtoZerou"), limiteDeLinhasDoTipo("orcamento")], [12, 9, 4, 4]);
+    conferir("so a nova venda e o resumo passam de 4 linhas", [limiteDeLinhasDoTipo("novaVenda"), limiteDeLinhasDoTipo("resumoDoDia"), limiteDeLinhasDoTipo("produtoZerou"), limiteDeLinhasDoTipo("orcamento")], [12, 26, 4, 4]);
     conferir("link sem base e nulo", [linkAbrirNoRise("", "/produtos/p1"), linkAbrirNoRise(undefined, "/p")], [null, null]);
     conferir("link tira a barra final da base", linkAbrirNoRise("https://rise.4hobby.com.br/", "/produtos/p1"), "https://rise.4hobby.com.br/produtos/p1");
     let lancou = null;
@@ -386,26 +398,41 @@ try {
     await a.rodarAvisosDoTelegram({ agora: new Date("2025-03-09T12:00:00.000Z").getTime(), cliente, ...soTeste, ...semPausa });
     conferir("a primeira volta grava a linha de base e nao avisa o que ja estava zerado", [textos().some((t) => t.includes("ZZ-TG-JA")), Boolean(await prisma.avisoTelegram.findUnique({ where: { chave: a.CHAVE_DA_BASE } }))], [false, true]);
 
+    // Produto zerado vai DENTRO do resumo das 20h (pedido do dono em 22/11/2026), e nao numa mensagem por produto. O
+    // ZZ-TG-ZERO zera de manha (10:00 de Sao Paulo): a volta anota e nao manda nada; as 20h30 o resumo o traz.
     const p = await prisma.produto.create({ data: { sku: "ZZ-TG-ZERO", tituloBase: "ZZ TG Zero", estoque: 0 } });
+    const manha = await a.rodarAvisosDoTelegram({ agora: new Date("2025-03-10T13:00:00.000Z").getTime(), cliente, ...soTeste, ...semPausa });
+    conferir("produto que zerou nao vira mensagem na hora", [manha.ok, textos().some((t) => t.includes("ZZ-TG-ZERO"))], [true, false]);
     const r1 = await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-10"), cliente, ...soTeste, ...semPausa });
-    conferir("manda o produto que zerou depois e o resumo do dia", [r1.ok, textos().some((t) => t.startsWith("Produto zerou: ZZ-TG-ZERO")), textos().some((t) => t.startsWith("Resumo de 10/03")), textos().some((t) => t.includes("ZZ-TG-JA"))], [true, true, true, false]);
-    conferir("o aviso vai so ao destinatario de teste, com o botao", [falso.mensagens.every((m) => m.chat_id === "zz-tg-chat-dono"), falso.mensagens.find((m) => m.text.includes("ZZ-TG-ZERO"))?.reply_markup?.inline_keyboard[0][0].url], [true, `https://rise.4hobby.com.br/produtos/${p.id}`]);
+    const resumoDe = (dia) => textos().find((t) => t.startsWith(`Resumo de ${dia}`));
+    conferir("o resumo das 20h traz o produto que zerou no dia, e nao o da linha de base", [r1.ok, resumoDe("10/03")?.split("\n").slice(-2), textos().some((t) => t.includes("ZZ-TG-JA")), textos().some((t) => t.startsWith("Produto zerou"))], [true, ["Produtos que zeraram: 1", "• ZZ-TG-ZERO ZZ TG Zero"], false, false]);
+    conferir("o resumo vai so ao destinatario de teste, com o botao", [falso.mensagens.every((m) => m.chat_id === "zz-tg-chat-dono"), falso.mensagens.find((m) => m.text.startsWith("Resumo de 10/03"))?.reply_markup?.inline_keyboard[0][0].url], [true, "https://rise.4hobby.com.br/rise-ai/revisao"]);
     const antes = falso.mensagens.length;
     const r2 = await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-10") + 60000, cliente, ...soTeste, ...semPausa });
     conferir("a volta seguinte nao repete nada", [r2.mandados, falso.mensagens.length], [0, antes]);
+    // Depois das 20h do dia 10: o ZERO volta a ter estoque e zera de novo, e o da linha de base tambem. Os dois entram no
+    // resumo do dia 11. O ZZ-TG-VOLTOU zera na manha do dia 11 e ganha estoque antes das 20h: fica fora da lista.
     await prisma.produto.update({ where: { id: p.id }, data: { estoque: 3 } });
     await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-10") + 120000, cliente, ...soTeste, ...semPausa });
     await prisma.produto.update({ where: { id: p.id }, data: { estoque: 0 } });
     await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-10") + 180000, cliente, ...soTeste, ...semPausa });
-    conferir("zerou, voltou e zerou de novo: dois avisos", textos().filter((t) => t.startsWith("Produto zerou: ZZ-TG-ZERO")).length, 2);
     await prisma.produto.update({ where: { id: jaZerado.id }, data: { estoque: 2 } });
     await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-10") + 240000, cliente, ...soTeste, ...semPausa });
     await prisma.produto.update({ where: { id: jaZerado.id }, data: { estoque: 0 } });
     await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-10") + 300000, cliente, ...soTeste, ...semPausa });
-    conferir("o da linha de base que volta e zera de novo avisa", textos().filter((t) => t.startsWith("Produto zerou: ZZ-TG-JA")).length, 1);
-    conferir("produto inativo zerado nao avisa", await (async () => { await prisma.produto.create({ data: { sku: "ZZ-TG-INATIVO", tituloBase: "Inativo", estoque: 0, ativo: false } }); await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-10") + 360000, cliente, ...soTeste, ...semPausa }); return textos().some((t) => t.includes("ZZ-TG-INATIVO")); })(), false);
+    await prisma.produto.create({ data: { sku: "ZZ-TG-INATIVO", tituloBase: "Inativo", estoque: 0, ativo: false } });
+    await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-10") + 360000, cliente, ...soTeste, ...semPausa });
+    const voltou = await prisma.produto.create({ data: { sku: "ZZ-TG-VOLTOU", tituloBase: "ZZ TG Voltou", estoque: 0 } });
+    await a.rodarAvisosDoTelegram({ agora: new Date("2025-03-11T13:00:00.000Z").getTime(), cliente, ...soTeste, ...semPausa });
+    await prisma.produto.update({ where: { id: voltou.id }, data: { estoque: 5 } });
+    conferir("nenhuma dessas voltas mandou mensagem de produto", textos().some((t) => t.startsWith("Produto zerou") || t.includes("ZZ-TG-VOLTOU")), false);
 
     const r3 = await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-11"), cliente, ...soTeste, ...semPausa });
+    conferir(
+      "resumo do dia seguinte: o que zerou de novo e o da linha de base que zerou de novo entram; o inativo e o que voltou a ter estoque, nao",
+      resumoDe("11/03")?.split("\n").slice(-3),
+      ["Produtos que zeraram: 2", "• ZZ-TG-JA ZZ TG ja zerado", "• ZZ-TG-ZERO ZZ TG Zero"],
+    );
     conferir("no dia seguinte sai outro resumo, e so um", [r3.mandados >= 1, textos().filter((t) => t.startsWith("Resumo de")).length], [true, 2]);
     conferir("religado de manha, o resumo de ontem nao sai", (await a.rodarAvisosDoTelegram({ agora: new Date("2025-03-12T12:00:00.000Z").getTime(), cliente, ...soTeste, ...semPausa })).mandados, 0);
 
@@ -430,10 +457,14 @@ try {
       conferir("ha uma fonte no banco para o teste da varredura", false, true);
     }
 
+    // Com o resumo desmarcado na aba Canais nao ha onde mostrar o produto zerado: ele continua saindo na hora. E com ele
+    // que os dois testes abaixo exercitam o bloqueio e as tres tentativas.
+    await gravarConfiguracao({ telegram: { ligado: true, avisos: { resumoDoDia: false, produtoZerou: true, orcamento: true, varreduraPeloPc: true, varreduraFalhou: true, saudeDoRise: false } } }, { usuario: "zz-tg-admin" });
     // Bloqueado: outro produto zerado e um falso que responde 403 blocked.
     await prisma.produto.create({ data: { sku: "ZZ-TG-ZERO2", tituloBase: "ZZ TG Zero 2", estoque: 0 } });
     const bloq = criarTelegramFalso({ falhas: { sendMessage: { status: 403, description: "Forbidden: bot was blocked by the user" } } });
     const r4 = await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-16"), cliente: criarClienteTelegram({ token: TOKEN, requisitar: bloq.requisitar }), ...soTeste, ...semPausa });
+    conferir("resumo desmarcado: o produto zerado sai na hora, e nenhum resumo sai", [bloq.chamadas.some((c) => c.metodo === "sendMessage" && c.corpo.text.startsWith("Produto zerou: ZZ-TG-ZERO2")), bloq.chamadas.some((c) => c.metodo === "sendMessage" && c.corpo.text.startsWith("Resumo de"))], [true, false]);
     const linha = await prisma.avisoTelegram.findFirst({ where: { chatId: "zz-tg-chat-dono", erro: { not: null } }, orderBy: { criadoEm: "desc" } });
     conferir("bloqueado: falha anotada, 3 tentativas de uma vez, sem insistir", [r4.falhas >= 1, linha?.tentativas, linha?.erro?.includes("blocked")], [true, 3, true]);
     conferir("nenhum texto gravado leva o token", (await prisma.avisoTelegram.count({ where: { erro: { contains: TOKEN } } })) + (await prisma.logIntegracao.count({ where: { servico: "TELEGRAM", OR: [{ endpoint: { contains: TOKEN } }, { erro: { contains: TOKEN } }] } })), 0);

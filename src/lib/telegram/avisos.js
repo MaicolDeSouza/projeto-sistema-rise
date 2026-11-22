@@ -213,7 +213,8 @@ export async function resumoDoDia({ agora = Date.now(), config } = {}) {
     vendasDoDia({ inicio, fim }),
     prisma.chamadaMcp.count({ where: { quando: naJanela } }),
     prisma.chamadaMcp.count({ where: { quando: naJanela, ferramenta: "anotarDuvida" } }),
-    prisma.avisoTelegram.findMany({ where: { tipo: "produtoZerou", chatId: { not: CHAT_DA_BASE }, criadoEm: naJanela }, select: { chave: true } }),
+    // Com o aviso "Produto que zerou" desmarcado na aba Canais ninguem anota os zerados: o resumo sai sem o bloco.
+    config?.telegram?.avisos?.produtoZerou === false ? null : zeradosDaJanela(naJanela),
     estadoDoOrcamento("CLIENTES", { agora, config }),
   ]);
   return {
@@ -221,9 +222,23 @@ export async function resumoDoDia({ agora = Date.now(), config } = {}) {
     vendas,
     consultas,
     anotadas,
-    zerados: new Set(zerados.map((linha) => linha.chave.split(":")[1])).size,
+    zerados,
     ia: { gastoBrl: ia.gastoBrl, tetoBrl: ia.tetoBrl },
   };
+}
+
+/**
+ * Os produtos que zeraram no periodo e continuam zerados, para a lista do resumo das 20h (pedido do dono em 22/11/2026:
+ * "A mensagem de produto zerado deve mostrar junto com o relatorio das 20hrs"). Saem das linhas `produto-zerou` que a
+ * rotina anota a cada volta (`produtosZerados`): a da linha de base nao conta, e a de quem voltou a ter estoque e apagada
+ * la; o filtro de estoque aqui cobre quem voltou depois da ultima volta. Por codigo.
+ */
+async function zeradosDaJanela(naJanela) {
+  const linhas = await prisma.avisoTelegram.findMany({ where: { tipo: "produtoZerou", chatId: { not: CHAT_DA_BASE }, criadoEm: naJanela }, select: { chave: true } });
+  const ids = [...new Set(linhas.map((linha) => linha.chave.split(":")[1]))];
+  if (ids.length === 0) return [];
+  const produtos = await prisma.produto.findMany({ where: { id: { in: ids }, ativo: true, estoque: { lte: 0 } }, select: { sku: true, tituloBase: true }, orderBy: { sku: "asc" } });
+  return produtos.map((produto) => ({ sku: produto.sku, nome: produto.tituloBase }));
 }
 
 async function resumosDevidos({ agora, config }) {
@@ -387,10 +402,15 @@ function linhaDasFaltas(pecas) {
     .join("; ");
 }
 
-/** Pedido parado esperando peca, vendido na ultima semana: um aviso por pedido (a chave nao repete). */
+/// Nos primeiros minutos de uma venda de canal o Rise ainda nao viu a copia dela no Bling, e o saldo ja lido sem a
+/// unidade parece falta (22/11/2026, o alarme falso do pedido 2000019705429742). A copia e a releitura do pedido chegam
+/// em poucos minutos e desfazem o "Aguardando pecas"; o aviso espera esse tempo, e a falta de verdade avisa 15 min depois.
+const ESPERA_DAS_PECAS_MS = 15 * 60 * 1000;
+
+/** Pedido parado esperando peca, vendido na ultima semana e ha mais de 15 min: um aviso por pedido (a chave nao repete). */
 async function pedidosAguardandoPecas({ agora }) {
   const pedidos = await prisma.pedidoDeVenda.findMany({
-    where: { status: "AGUARDANDO_PECAS", dataDaVenda: { gte: new Date(agora - SETE_DIAS_MS) } },
+    where: { status: "AGUARDANDO_PECAS", dataDaVenda: { gte: new Date(agora - SETE_DIAS_MS), lte: new Date(agora - ESPERA_DAS_PECAS_MS) } },
     select: { id: true, numero: true, pecas: true },
   });
   return pedidos.map((p) => ({ chave: `aguardando-pecas:${p.id}`, dados: { pedidoId: p.id, numero: p.numero, pecas: linhaDasFaltas(p.pecas) } }));
@@ -450,10 +470,15 @@ export async function rodarAvisosDoTelegram({ agora = Date.now(), env = process.
       if (!config.telegram.avisos?.[tipo]) continue;
       const devidos = await avisosDevidos(tipo, { agora, config });
       if (devidos.length === 0) continue;
+      // Produto zerado vai DENTRO do resumo das 20h, e nao numa mensagem por produto (pedido do dono em 22/11/2026): a
+      // linha nasce ja tratada, como as da linha de base, com a hora desta volta, que e o que diz em que resumo ela
+      // entra (`zeradosDaJanela`). Com o resumo desmarcado na aba Canais nao haveria onde mostrar: ai sai na hora.
+      const noResumo = tipo === "produtoZerou" && Boolean(config.telegram.avisos?.resumoDoDia);
+      const tratada = noResumo ? { criadoEm: new Date(agora), enviadoEm: new Date(agora) } : {};
       await prisma.avisoTelegram.createMany({
         data: devidos.flatMap(({ chave, dados }) => {
           const { texto } = mensagemDoAviso(tipo, dados);
-          return quem.map(({ chatId }) => ({ chave: `${chave}:${chatId}`, tipo, chatId, texto }));
+          return quem.map(({ chatId }) => ({ chave: `${chave}:${chatId}`, tipo, chatId, texto, ...tratada }));
         }),
         skipDuplicates: true,
       });

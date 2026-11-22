@@ -486,9 +486,14 @@ try {
     conferir("venda do canal sem copia no Bling: o 0 vale", (await calcularPecas(prisma, { ...ultima, origem: "MERCADO_LIVRE", blingPedidoId: null })).falta, true);
     await prisma.pedidoDeVenda.update({ where: { id: ultima.id }, data: { blingPedidoId: "999001" } });
     conferir("com a copia no Bling: tem de novo", (await calcularPecas(prisma, { ...ultima, origem: "MERCADO_LIVRE", blingPedidoId: "999001" })).falta, false);
-    // Saldo lido logo depois da venda (antes da copia chegar ao Bling): a venda ainda nao saiu dele.
-    await prisma.produto.update({ where: { id: u1.id }, data: { estoque: 1, blingSaldo: 1, blingSaldoLidoEm: new Date("2026-11-04T13:05:00-03:00") } });
-    conferir("saldo lido 5 min depois da venda: ainda nao baixado", (await calcularPecas(prisma, { ...ultima, origem: "MERCADO_LIVRE", blingPedidoId: "999001" })).pecas[0].disponivel, 1);
+    // Saldo lido 12 min depois da venda, ja sem a unidade, com a copia no Bling conhecida: conta como baixado (22/11/2026).
+    // Ate ali so valia o saldo lido 15 min depois da venda, e a leitura que caia nesse intervalo dava alarme falso: o
+    // pedido 2000019705429742 (ultima unidade vendida as 05:14, saldo 0 lido aos 12 min) avisou "falta 1" no Telegram.
+    await prisma.produto.update({ where: { id: u1.id }, data: { estoque: 0, blingSaldo: 0, blingSaldoLidoEm: new Date("2026-11-04T13:12:00-03:00") } });
+    conferir("saldo lido 12 min depois da venda, ja sem a ultima unidade: tem", (await calcularPecas(prisma, { ...ultima, origem: "MERCADO_LIVRE", blingPedidoId: "999001" })).pecas.map((p) => [p.disponivel, p.falta]), [[1, 0]]);
+    // Saldo lido ANTES da venda: a unidade ainda esta nele, nada a devolver a conta.
+    await prisma.produto.update({ where: { id: u1.id }, data: { estoque: 1, blingSaldo: 1, blingSaldoLidoEm: new Date("2026-11-04T12:55:00-03:00") } });
+    conferir("saldo lido antes da venda: nao conta como baixado", (await calcularPecas(prisma, { ...ultima, origem: "MERCADO_LIVRE", blingPedidoId: "999001" })).pecas[0].disponivel, 1);
     // Duas vendas da unica unidade: o Bling fica com -1; o pedido mais antigo leva a peca e o mais novo espera.
     await prisma.produto.update({ where: { id: u1.id }, data: { estoque: 0, blingSaldo: -1, blingSaldoLidoEm: new Date("2026-11-04T16:00:00-03:00") } });
     const segunda = await novoPedido("ZZ-PED-31", "14:00", [{ produtoId: u1.id, quantidade: 1 }]);
@@ -1117,12 +1122,19 @@ try {
     const parada = await prisma.pedidoDeVenda.create({
       data: { ...base, idExterno: "ZZ-PED-TG3", numero: "ZZ-PED-TG3", status: "AGUARDANDO_PECAS", dataDaVenda: new Date(agora - 2 * 24 * 60 * 60 * 1000), pecas: { falta: true, pecas: [{ sku: "900211", falta: 2, previsao: "12/11" }, { sku: "100101", falta: 0, previsao: null }] } },
     });
-    const meus = (lista) => lista.filter((a) => [nova.id, velha.id, parada.id].some((id) => a.chave.endsWith(`:${id}`)));
+    // Vendido ha 5 min e ja "Aguardando pecas": o aviso espera 15 min (22/11/2026), porque nos primeiros minutos o Rise
+    // ainda nao viu a copia da venda no Bling e a falta pode ser so a baixa da propria venda.
+    const recemParada = await prisma.pedidoDeVenda.create({
+      data: { ...base, idExterno: "ZZ-PED-TG4", numero: "ZZ-PED-TG4", status: "AGUARDANDO_PECAS", dataDaVenda: new Date(agora - 5 * 60 * 1000), pecas: { falta: true, pecas: [{ sku: "900211", falta: 1, previsao: null }] } },
+    });
+    const meus = (lista, ids = [nova.id, velha.id, parada.id]) => lista.filter((a) => ids.some((id) => a.chave.endsWith(`:${id}`)));
+    const asParadas = [parada.id, recemParada.id];
     const novas = meus(await avisosDevidos("novaVenda", { agora }));
     conferir("telegram: nova venda de pedido recem lido", novas.map((a) => [a.chave, mensagemDoAviso("novaVenda", a.dados).texto]), [[`nova-venda:${nova.id}`, "Nova venda Mercado Livre ZZ-PED-TG1\nCliente: ZZ Ped Nicollas\nTotal: R$ 49,70"]]);
     conferir("telegram: venda antiga nao avisa", novas.some((a) => a.chave.endsWith(velha.id)), false);
-    const paradas = meus(await avisosDevidos("aguardandoPecas", { agora }));
-    conferir("telegram: aguardando pecas com a falta no texto", paradas.map((a) => mensagemDoAviso("aguardandoPecas", a.dados).texto), ["Pedido ZZ-PED-TG3 aguardando peças\nfalta 2× 900211 (previsão 12/11)"]);
+    const paradas = meus(await avisosDevidos("aguardandoPecas", { agora }), asParadas);
+    conferir("telegram: aguardando pecas com a falta no texto (o vendido ha 5 min ainda nao avisa)", paradas.map((a) => mensagemDoAviso("aguardandoPecas", a.dados).texto), ["Pedido ZZ-PED-TG3 aguardando peças\nfalta 2× 900211 (previsão 12/11)"]);
+    conferir("telegram: 15 min depois da venda o pedido parado avisa", meus(await avisosDevidos("aguardandoPecas", { agora: agora + 11 * 60 * 1000 }), asParadas).map((a) => a.dados.numero).sort(), ["ZZ-PED-TG3", "ZZ-PED-TG4"]);
     conferir(
       "telegram: o botao abre o pedido",
       [caminhoDoAviso(`nova-venda:${nova.id}:55`), caminhoDoAviso(`aguardando-pecas:${parada.id}:55`), mensagemDoAviso("novaVenda", novas[0].dados).caminho],
