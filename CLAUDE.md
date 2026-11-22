@@ -407,6 +407,12 @@ sessão (`f2f038d`, Telegram: produto zerado no resumo das 20h), sem migration. 
 contêineres de pé. Depois, o rascunho 258262 (kit misto montado no editor) foi excluído na VPS pelas mesmas funções do botão
 (`conferirExclusaoML` deu "rascunho", sem MLB; `excluirAnuncioML` tirou só o rascunho do Rise).
 
+**Deploy 22.11.2026.137 (commit `6dae217`, 22/11/2026):** "Sobe e completa" do dono. Levou a segunda leva do kit (colunas
+"Preço venda" e "Link Rise", `?aba=`, fotos das peças marcadas, categoria sugerida) e o MCP `criarKit`, mais três commits do
+chat da loja de outra sessão, com a migration `20261122_ia_whatsapp_da_empresa` (backup de 317,6 MB antes). Conferido: as 6
+respostas de fora. O aviso "Ecmascript file had an error" do build (`process.cwd()` no `instrumentation.js`) já aparecia nos
+deploys 134 a 136. Depois, o kit 258262 foi completado na VPS (fotos, categoria e SEO).
+
 **Travas de escrita na VPS (decisão do dono em 22/10/2026):** o dono mandou liberar **o Mercado Livre e o Bling para todos os
 códigos** (`ML_PUBLICACAO=true`, `ML_PUBLICACAO_CODIGOS` ausente, `BLING_ESCRITA=true`, `BLING_ESCRITA_CODIGOS` vazio) depois
 de o Publicar recusar com "ML_PUBLICACAO está false"; aplicado só no `.env` da VPS (cópia `.env.bak-AAAAMMDD-HHMMSS` ao lado),
@@ -5100,8 +5106,11 @@ no bling". Spec `docs/superpowers/specs/2026-11-22-kit-de-composicao-no-ml-desig
   **Falta:** o primeiro uso real, que é o dono criar o kit DB25 macho + fêmea em Produtos e o anúncio do ML dele.
 - **Kit DB25 criado na VPS (22/11/2026, por SSH):** `258262` (o código ficou livre depois de o rascunho ser excluído), pelas
   funções do Salvar do kit: 1× 901202 + 1× 901201, R$ 29,80, NCM do macho, localização das peças, a descrição aprovada, não
-  Conferido e sem Bling. Nasceu **sem fotos, categoria e SEO** (o script veio antes do `criarKit`): completar depois do deploy.
-- **Segunda leva (22/11/2026, SEM deploy, commits `7ca348c` e `d238134`), pedidos do dono ao ver o 258262:**
+  Conferido e sem Bling. Nasceu sem fotos, categoria e SEO (o script veio antes do `criarKit`) e foi **completado depois do
+  deploy 137**: as 9 fotos das peças (5 do macho, 4 da fêmea) copiadas e marcadas, a categoria `24473350` e a família da peça,
+  e o SEO no padrão das peças ("KIT CONECTOR DB25 MACHO E FÊMEA PAINEL PARA CABO FLAT"). Falta o dono: foto do kit montado,
+  Conferir, Cadastrar no Bling e o anúncio do ML.
+- **Segunda leva (22/11/2026, NO AR em 22.11.2026.137, commits `7ca348c` e `d238134`), pedidos do dono ao ver o 258262:**
   - Aba Fornecedores do kit: colunas **"Preço venda"** (o de cada peça) e **"Link Rise"** (abre a peça já na aba
     Fornecedores/Concorrentes, em nova janela). A página do produto passou a aceitar **`?aba=`** (`abaInicial` do
     `FormularioProduto`; só ids de `ABAS` valem).
