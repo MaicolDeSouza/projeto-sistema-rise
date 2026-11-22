@@ -119,3 +119,7 @@ implementado está no CLAUDE.md, seção "Chat da loja (o Hobi), fase 2", em "Aj
     FEITO.
 - Decisões do dono em 22/11/2026 sobre o resto: o item 9 (histórico das avaliações) fica para depois; os itens 7 (acompanhar
   pedido) e 10 (anexo) vão num plano só, mostrado a ele antes de implementar.
+
+- **(22/11/2026) Itens 7 (acompanhar pedido) e 10 (anexar arquivo) FEITOS** pelo plano
+  `docs/superpowers/plans/2026-11-22-chat-da-loja-pedido-e-anexo.md` (aprovado pelo dono, com a regra: limite estourado mostra o
+  WhatsApp com o link). Sem deploy. O item 9 (histórico das avaliações) continua para depois.
