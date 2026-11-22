@@ -36,12 +36,12 @@ const LIMITES = [
   { nome: "brlPorDia", rotulo: "Gasto do chat, por dia (R$)", dinheiro: true },
 ];
 const ABAS = [
-  { id: "atendimento", rotulo: "Atendimento", campos: ["chatDaLoja.nome", "chatDaLoja.boasVindas", "chatDaLoja.whatsapp", "chatDaLoja.horario"] },
+  { id: "atendimento", rotulo: "Atendimento", campos: ["chatDaLoja.nome", "chatDaLoja.boasVindas", "chatDaLoja.horario"] },
   { id: "chaves", rotulo: "Chaves e instalação", campos: ["chatDaLoja.turnstileSiteKey"] },
   { id: "limites", rotulo: "Limites e modelos", campos: ["chatDaLoja.limites", "chatDaLoja.principal", "chatDaLoja.reserva"] },
 ];
 const AJUDA = {
-  whatsapp: "O link wa.me da loja (https://wa.me/55 + DDD + número). É para onde o chat manda o cliente quando ele pede uma pessoa ou quando o assistente não sabe.",
+  whatsapp: "Os números de Configurações › Dados da empresa. O comercial recebe quem pede uma pessoa, pagamento, pedido e o que o assistente não sabe; o de suporte técnico recebe defeito, ligação, código e instalação.",
   horario: "Só decide o aviso do botão do WhatsApp: fora do horário, ele diz que a resposta vem no próximo dia útil. O assistente responde a qualquer hora.",
   ia: "A chave da API do provedor, criada só para o chat e com teto de gasto no painel do provedor. Fica cifrada e nunca volta para a tela.",
   turnstile: "No painel da Cloudflare, em Turnstile, crie um site para a loja. Ele dá duas chaves: a pública (o campo abaixo) e a secreta (este campo).",
@@ -63,7 +63,7 @@ function valoresDe(canal) {
     publico: Boolean(canal.publico),
     nome: canal.nome ?? "",
     boasVindas: canal.boasVindas ?? "",
-    whatsapp: canal.whatsapp ?? "",
+
     turnstileSiteKey: canal.turnstileSiteKey ?? "",
     dias: [...(canal.horario?.dias ?? [])].sort((a, b) => a - b),
     turno1De: turno(0, 0),
@@ -236,7 +236,7 @@ export default function CanalChatDaLoja({ podeEditar, inicial, estado, modelos, 
     evento.preventDefault();
     const dados = new FormData();
     for (const nome of ["ligado", "publico"]) dados.set(`chat.${nome}`, String(valores[nome]));
-    for (const nome of ["nome", "boasVindas", "whatsapp", "turnstileSiteKey", "turno1De", "turno1Ate", "turno2De", "turno2Ate", "principal", "reserva"]) dados.set(`chat.${nome}`, valores[nome]);
+    for (const nome of ["nome", "boasVindas", "turnstileSiteKey", "turno1De", "turno1Ate", "turno2De", "turno2Ate", "principal", "reserva"]) dados.set(`chat.${nome}`, valores[nome]);
     dados.set("chat.horario", "1");
     for (const dia of valores.dias) dados.append("chat.dias", String(dia));
     for (const { nome } of LIMITES) dados.set(`chat.limite.${nome}`, valores.limites[nome]);
@@ -320,12 +320,21 @@ export default function CanalChatDaLoja({ podeEditar, inicial, estado, modelos, 
               <input id="chat-nome" disabled={travado} value={valores.nome} maxLength={40} onChange={(evento) => mudar("nome", evento.target.value)} className={campo("nome", erroDe("chatDaLoja.nome"))} />
               <Erro texto={erroDe("chatDaLoja.nome")} />
             </div>
+            {/* Os WhatsApp moram em Dados da empresa (pedido do dono em 22/11/2026): aqui so se mostra, para haver um lugar so. */}
             <div>
-              <Rotulo para="chat-whatsapp" ajuda={AJUDA.whatsapp}>
-                Link do WhatsApp
-              </Rotulo>
-              <input id="chat-whatsapp" disabled={travado} value={valores.whatsapp} placeholder="https://wa.me/55…" spellCheck={false} onChange={(evento) => mudar("whatsapp", evento.target.value)} className={campo("whatsapp", erroDe("chatDaLoja.whatsapp"))} />
-              <Erro texto={erroDe("chatDaLoja.whatsapp")} />
+              <span className="flex items-center gap-1 text-sm font-semibold">
+                WhatsApp
+                <BolhaDeAjuda variante="inline" texto={AJUDA.whatsapp} />
+              </span>
+              <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+                <dt className="text-suave">Comercial</dt>
+                <dd className={estado.whatsapp?.comercial ? "tabular-nums" : "text-red-700"}>{estado.whatsapp?.comercial ?? "não cadastrado"}</dd>
+                <dt className="text-suave">Suporte técnico</dt>
+                <dd className={estado.whatsapp?.tecnico ? "tabular-nums" : "text-suave"}>{estado.whatsapp?.tecnico ?? "não cadastrado (vai para o comercial)"}</dd>
+              </dl>
+              <a href="/configuracoes/empresa" className="mt-1 inline-block text-xs text-acento hover:underline">
+                Alterar em Dados da empresa
+              </a>
             </div>
           </div>
           <div>

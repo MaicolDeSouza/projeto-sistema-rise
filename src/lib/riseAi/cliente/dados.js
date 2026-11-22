@@ -2,7 +2,7 @@ import { juntar, semAcento } from "@/lib/buscaAmpla";
 import { linhasDeEspecificacao } from "@/lib/medidas";
 import { PALAVRAS_VAZIAS, indiceDePalavras, normalizar, notasDeRelevancia, palavrasDoTermo } from "@/lib/texto";
 
-import { chatDaLojaPadrao, mesclarChatDaLoja, PADRAO_DO_CEREBRO } from "./configuracaoDoCanal";
+import { chatDaLojaPadrao, linkDoWhatsappDoNumero, mesclarChatDaLoja, PADRAO_DO_CEREBRO } from "./configuracaoDoCanal";
 import { decifrarSegredo } from "./segredos";
 
 /**
@@ -166,12 +166,20 @@ export function criarDadosDoCliente({ consultar = null, baseDasFotos = "", chave
     return notas;
   }
 
+  const comWhatsappDaEmpresa = (canal, salvo) => ({
+    ...canal,
+    whatsapp: linkDoWhatsappDoNumero(salvo.whatsappComercial) ?? canal.whatsapp ?? "",
+    whatsappTecnico: linkDoWhatsappDoNumero(salvo.whatsappTecnico),
+  });
+
   /** O que o dono salvou para o canal, com o padrao de fabrica por baixo (a visao devolve nulo no que nunca foi salvo). */
   async function configuracaoDoCanal() {
-    const [linha] = await rodar(`SELECT "canal", "promptDoCliente", "tetoClientesBrl", "tempoLimite", "maxChamadasDeFerramenta", "maxTokensResposta", "contextoMaxTokens" FROM ia_configuracao`);
+    const [linha] = await rodar(`SELECT "canal", "promptDoCliente", "tetoClientesBrl", "tempoLimite", "maxChamadasDeFerramenta", "maxTokensResposta", "contextoMaxTokens", "whatsappComercial", "whatsappTecnico" FROM ia_configuracao`);
     const salvo = linha ?? {};
     return {
-      canal: mesclarChatDaLoja(chatDaLojaPadrao(), salvo.canal ?? null),
+      // Os WhatsApp vem de Configuracoes > Dados da empresa (pedido do dono em 22/11/2026): o comercial para tudo e o tecnico
+      // para suporte tecnico. O link salvo no grupo do chat (campo antigo) so vale se a empresa nao tiver celular cadastrado.
+      canal: comWhatsappDaEmpresa(mesclarChatDaLoja(chatDaLojaPadrao(), salvo.canal ?? null), salvo),
       promptDoCliente: salvo.promptDoCliente ?? null,
       tetoClientesBrl: numero(salvo.tetoClientesBrl) ?? PADRAO_DO_CEREBRO.tetoClientesBrl,
       tempoLimite: { ...PADRAO_DO_CEREBRO.tempoLimite, ...(salvo.tempoLimite && typeof salvo.tempoLimite === "object" ? salvo.tempoLimite : {}) },

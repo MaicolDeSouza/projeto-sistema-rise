@@ -15,7 +15,7 @@
  */
 
 /* global window, document, fetch, location, sessionStorage, crypto, AbortController, TextDecoder, setTimeout, clearTimeout */
-/* global aplicarEvento, contextoDaPagina, conversaVazia, criarLeitorDoFluxo, deveAparecer, enderecoDoCarrinho, fotoPermitida */
+/* global ATALHOS, aberturaDoAtalho, aplicarEvento, contextoDaPagina, conversaVazia, criarLeitorDoFluxo, deveAparecer, enderecoDoCarrinho, fotoPermitida */
 /* global lerGuardada, linkDaLoja, linkDoWhatsApp, novaSessaoId, paginaProibida, paraGuardar, pareceDadoSensivel, textoDoErroHttp */
 
 var HOBI_IMAGENS = __HOBI_IMAGENS__;
@@ -30,45 +30,45 @@ var HOBI_AVISA_A_PARTIR_DE = 1800;
 var HOBI_CSS = [
   ":host{all:initial}",
   "*,*::before,*::after{box-sizing:border-box}",
-  ".hobi{--verde:#14532d;--verde-forte:#0f3f22;--led:#22c55e;--tinta:#1c2622;--suave:#5c6a63;--borda:#dbe3de;--nevoa:#f2f5f3;--papel:#fff;--ambar:#b45309;--erro:#b42318;",
+  ".hobi{--laranja:#c2410c;--laranja-forte:#9a3412;--laranja-vivo:#ff5000;--led:#ff5000;--tinta:#1a1a1a;--suave:#5f5f5f;--borda:#e4e0dd;--nevoa:#f6f4f2;--papel:#fff;--ambar:#b45309;--erro:#b42318;",
   "font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:14px;line-height:1.45;color:var(--tinta);-webkit-font-smoothing:antialiased}",
   "button,textarea,input{font:inherit;color:inherit}",
   "button{cursor:pointer}",
   "button:focus-visible,a:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px solid var(--led);outline-offset:2px}",
   "[hidden]{display:none!important}",
   // O botao flutuante: a cabeca do mascote sobre branco (o recorte so fica bem em superficie clara).
-  ".botao{position:fixed;right:20px;bottom:20px;z-index:2147483000;width:64px;height:64px;padding:0;border:2px solid var(--verde);border-radius:50%;background:var(--papel);",
-  "box-shadow:0 6px 18px rgba(20,83,45,.22),0 1px 3px rgba(0,0,0,.12);display:grid;place-items:center;transition-property:transform,box-shadow;transition-duration:.15s;transition-timing-function:ease-out}",
-  ".botao:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(20,83,45,.28),0 2px 4px rgba(0,0,0,.14)}",
+  ".botao{position:fixed;right:20px;bottom:20px;z-index:2147483000;width:64px;height:64px;padding:0;border:2px solid var(--laranja-vivo);border-radius:50%;background:var(--papel);",
+  "box-shadow:0 6px 18px rgba(255,80,0,.25),0 1px 3px rgba(0,0,0,.12);display:grid;place-items:center;transition-property:transform,box-shadow;transition-duration:.15s;transition-timing-function:ease-out}",
+  ".botao:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(255,80,0,.32),0 2px 4px rgba(0,0,0,.14)}",
   ".botao:active{transform:scale(.96)}",
   ".botao img{width:48px;height:48px;display:block}",
-  ".botao svg{width:28px;height:28px;color:var(--verde)}",
+  ".botao svg{width:28px;height:28px;color:var(--laranja)}",
   ".painel{position:fixed;right:20px;bottom:96px;z-index:2147483000;width:380px;max-width:calc(100vw - 24px);height:600px;max-height:calc(100vh - 116px);",
   "display:flex;flex-direction:column;background:var(--papel);border:1px solid var(--borda);border-radius:16px;overflow:hidden;",
-  "box-shadow:0 18px 48px rgba(16,40,28,.22),0 2px 8px rgba(0,0,0,.08);animation:hobi-entra .16s ease-out}",
+  "box-shadow:0 18px 48px rgba(26,26,26,.22),0 2px 8px rgba(0,0,0,.08);animation:hobi-entra .16s ease-out}",
   // So o deslocamento e animado: se o navegador segurar a animacao (aba em segundo plano), a janela nao fica transparente.
   "@keyframes hobi-entra{from{transform:translateY(8px)}to{transform:none}}",
-  ".topo{display:flex;align-items:center;gap:10px;padding:10px 8px 10px 14px;background:var(--verde);color:#fff}",
+  ".topo{display:flex;align-items:center;gap:10px;padding:10px 8px 10px 14px;background:var(--laranja-vivo);color:#fff}",
   ".avatar{width:38px;height:38px;border-radius:50%;background:var(--papel);display:grid;place-items:center;flex:none}",
   ".avatar img{width:30px;height:30px;display:block}",
   ".quem{flex:1;min-width:0;display:flex;flex-direction:column}",
-  ".quem strong{font-size:15px;font-weight:650;display:flex;align-items:center;gap:6px}",
-  ".quem strong::after{content:'';width:7px;height:7px;border-radius:50%;background:var(--led);box-shadow:0 0 6px var(--led)}",
-  ".quem span{font-size:12px;opacity:.86}",
+  ".quem strong{font-size:16px;font-weight:700;display:flex;align-items:center;gap:6px}",
+  ".quem strong::after{content:'';width:7px;height:7px;border-radius:50%;background:#fff;box-shadow:0 0 6px rgba(255,255,255,.9)}",
+  ".quem span{font-size:12.5px;font-weight:600}",
   ".fechar{width:40px;height:40px;border:0;border-radius:10px;background:transparent;color:#fff;display:grid;place-items:center;transition-property:background-color;transition-duration:.15s}",
   ".fechar:hover{background:rgba(255,255,255,.14)}",
   ".fechar svg{width:20px;height:20px}",
   ".aviso{margin:0;padding:7px 14px;font-size:11.5px;line-height:1.35;color:var(--suave);background:var(--nevoa);border-bottom:1px solid var(--borda)}",
   ".conversa{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:14px;display:flex;flex-direction:column;gap:14px;background:var(--papel)}",
   ".ola{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;padding:6px 4px 0}",
-  ".ola img{height:150px;width:auto;display:block}",
-  ".ola p{margin:0;font-size:15px;max-width:28ch;text-wrap:balance}",
+  ".ola img{height:112px;width:auto;display:block}",
+  ".ola p{margin:0;font-size:14.5px;max-width:36ch;text-wrap:balance}",
   ".atalhos{display:flex;flex-direction:column;gap:8px;width:100%;margin-top:4px}",
-  ".atalho{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:8px 12px;border:1px solid var(--borda);border-radius:12px;background:var(--papel);text-align:left;text-decoration:none;color:var(--tinta);",
+  ".atalho{display:flex;align-items:center;gap:10px;width:100%;min-height:42px;padding:7px 12px;border:1px solid var(--borda);border-radius:12px;background:var(--papel);text-align:left;text-decoration:none;color:var(--tinta);",
   "transition-property:border-color,background-color;transition-duration:.15s}",
-  ".atalho:hover{border-color:var(--verde);background:var(--nevoa)}",
-  ".atalho svg{width:18px;height:18px;color:var(--verde);flex:none}",
-  ".pergunta{align-self:flex-end;max-width:86%;margin:0;padding:8px 12px;border-radius:14px 14px 4px 14px;background:var(--verde);color:#fff;white-space:pre-wrap;overflow-wrap:anywhere}",
+  ".atalho:hover{border-color:var(--laranja);background:var(--nevoa)}",
+  ".atalho svg{width:18px;height:18px;color:var(--laranja);flex:none}",
+  ".pergunta{align-self:flex-end;max-width:86%;margin:0;padding:8px 12px;border-radius:14px 14px 4px 14px;background:var(--laranja);color:#fff;white-space:pre-wrap;overflow-wrap:anywhere}",
   ".resposta{display:flex;flex-direction:column;gap:10px;min-width:0}",
   ".pensando{display:flex;align-items:center;gap:8px;color:var(--suave);font-size:13px}",
   ".pensando img{width:34px;height:34px}",
@@ -78,7 +78,7 @@ var HOBI_CSS = [
   "@keyframes hobi-led{0%,100%{opacity:.25}40%{opacity:1}}",
   ".cartoes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}",
   ".cartao{position:relative;display:grid;grid-template-columns:72px 1fr;gap:10px;padding:10px;border:1px solid var(--borda);border-radius:12px;background:var(--papel)}",
-  ".numero{position:absolute;top:-7px;left:-7px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--verde);color:#fff;font-size:11px;font-weight:650;display:grid;place-items:center;font-variant-numeric:tabular-nums}",
+  ".numero{position:absolute;top:-7px;left:-7px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--laranja);color:#fff;font-size:11px;font-weight:650;display:grid;place-items:center;font-variant-numeric:tabular-nums}",
   ".foto{width:72px;height:72px;border-radius:8px;background:var(--nevoa);object-fit:contain;outline:1px solid rgba(0,0,0,.08);outline-offset:-1px;display:block}",
   ".sem-foto{display:grid;place-items:center;color:var(--suave)}.sem-foto svg{width:26px;height:26px}",
   ".info{min-width:0;display:flex;flex-direction:column;gap:3px}",
@@ -87,18 +87,18 @@ var HOBI_CSS = [
   ".papel{font-size:12px;color:var(--suave)}",
   ".linha{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}",
   ".preco{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}",
-  ".faixa{font-size:12px;font-weight:600;color:var(--verde)}.faixa.poucas{color:var(--ambar)}.faixa.falta{color:var(--suave)}",
+  ".faixa{font-size:12px;font-weight:600;color:var(--laranja)}.faixa.poucas{color:var(--ambar)}.faixa.falta{color:var(--suave)}",
   ".acoes{grid-column:1/-1;display:flex;align-items:center;gap:8px;margin-top:2px}",
-  ".ver{font-size:13px;color:var(--verde);text-decoration:underline;text-underline-offset:2px;margin-right:auto;padding:10px 0}",
+  ".ver{font-size:13px;color:var(--laranja);text-decoration:underline;text-underline-offset:2px;margin-right:auto;padding:10px 0}",
   ".qtd{display:inline-flex;align-items:center;border:1px solid var(--borda);border-radius:10px;overflow:hidden;height:40px}",
   ".qtd button{width:34px;height:100%;border:0;background:var(--papel);font-size:16px;line-height:1;transition-property:background-color;transition-duration:.15s}",
   ".qtd button:hover{background:var(--nevoa)}",
   ".qtd input{width:34px;height:100%;border:0;border-inline:1px solid var(--borda);text-align:center;background:var(--papel);font-variant-numeric:tabular-nums;-moz-appearance:textfield;padding:0}",
   ".qtd input::-webkit-outer-spin-button,.qtd input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}",
-  ".principal{height:40px;padding:0 14px;border:0;border-radius:10px;background:var(--verde);color:#fff;font-weight:600;white-space:nowrap;transition-property:background-color,transform;transition-duration:.15s}",
-  ".principal:hover{background:var(--verde-forte)}.principal:active{transform:scale(.97)}",
+  ".principal{height:40px;padding:0 14px;border:0;border-radius:10px;background:var(--laranja);color:#fff;font-weight:600;white-space:nowrap;transition-property:background-color,transform;transition-duration:.15s}",
+  ".principal:hover{background:var(--laranja-forte)}.principal:active{transform:scale(.97)}",
   ".principal[disabled]{opacity:.6;cursor:default;transform:none}",
-  ".principal.feito{background:var(--nevoa);color:var(--verde);border:1px solid var(--verde)}",
+  ".principal.feito{background:var(--nevoa);color:var(--laranja);border:1px solid var(--laranja)}",
   ".recado{grid-column:1/-1;margin:0;font-size:12px;color:var(--erro)}",
   ".lista{border:1px solid var(--borda);border-radius:12px;overflow:hidden}",
   ".lista table{width:100%;border-collapse:collapse;font-size:13px}",
@@ -112,7 +112,7 @@ var HOBI_CSS = [
   ".lista .pe .principal{width:100%}",
   ".texto{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;text-wrap:pretty}",
   ".erro{margin:0;color:var(--erro)}",
-  ".whats{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 14px;border:1px solid var(--verde);border-radius:10px;color:var(--verde);font-weight:600;text-decoration:none;align-self:flex-start;",
+  ".whats{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 14px;border:1px solid var(--laranja);border-radius:10px;color:var(--laranja);font-weight:600;text-decoration:none;align-self:flex-start;",
   "transition-property:background-color;transition-duration:.15s}",
   ".whats:hover{background:var(--nevoa)}.whats svg{width:18px;height:18px}",
   ".fora{margin:0;font-size:12px;color:var(--suave)}",
@@ -120,7 +120,7 @@ var HOBI_CSS = [
   ".nota button{width:40px;height:36px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--suave);display:grid;place-items:center;transition-property:background-color,color;transition-duration:.15s}",
   ".nota button:hover{background:var(--nevoa);color:var(--tinta)}",
   ".nota button svg{width:16px;height:16px}",
-  ".nota button[aria-pressed=true]{color:var(--verde);background:var(--nevoa);border-color:var(--borda)}",
+  ".nota button[aria-pressed=true]{color:var(--laranja);background:var(--nevoa);border-color:var(--borda)}",
   ".nota button[disabled]{cursor:default}",
   ".nota span{font-size:12px;color:var(--suave)}",
   ".confirma{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fff7e6;border-top:1px solid #f1d9a6;font-size:13px}",
@@ -130,13 +130,29 @@ var HOBI_CSS = [
   ".campo textarea{flex:1;min-height:40px;max-height:140px;padding:9px 12px;border:1px solid var(--borda);border-radius:12px;resize:none;background:var(--papel);line-height:1.4}",
   ".campo textarea::placeholder{color:var(--suave)}",
   ".campo.em-lista textarea{min-height:104px}",
-  ".enviar{width:40px;height:40px;flex:none;border:0;border-radius:12px;background:var(--verde);color:#fff;display:grid;place-items:center;transition-property:background-color,transform;transition-duration:.15s}",
-  ".enviar:hover{background:var(--verde-forte)}.enviar:active{transform:scale(.96)}.enviar[disabled]{opacity:.5;cursor:default;transform:none}",
+  ".enviar{width:40px;height:40px;flex:none;border:0;border-radius:12px;background:var(--laranja);color:#fff;display:grid;place-items:center;transition-property:background-color,transform;transition-duration:.15s}",
+  ".enviar:hover{background:var(--laranja-forte)}.enviar:active{transform:scale(.96)}.enviar[disabled]{opacity:.5;cursor:default;transform:none}",
   ".enviar svg{width:18px;height:18px}",
   ".contador{position:absolute;right:62px;bottom:14px;font-size:11px;color:var(--suave);font-variant-numeric:tabular-nums;background:var(--papel);padding:0 4px}",
   ".contador.cheio{color:var(--erro)}",
   ".campo{position:relative}",
+  // A chamada: balao a esquerda do robo; no lugar da "pontinha", tres arcos de sinal saem da antena dele (acendem uma vez).
+  ".chamada{position:fixed;right:124px;bottom:30px;z-index:2147483000;max-width:240px;display:flex;align-items:flex-start;gap:6px;padding:10px 8px 10px 14px;background:var(--papel);",
+  "border:1px solid var(--borda);border-radius:14px;box-shadow:0 8px 24px rgba(26,26,26,.16),0 1px 3px rgba(0,0,0,.08);animation:hobi-entra .2s ease-out;cursor:pointer}",
+  ".chamada strong{display:block;font-size:15px;font-weight:700;color:var(--laranja)}",
+  ".chamada span{display:block;font-size:13px;color:var(--tinta);text-wrap:balance}",
+  ".chamada button{width:28px;height:28px;margin:-4px -2px 0 0;border:0;border-radius:8px;background:transparent;color:var(--suave);display:grid;place-items:center;flex:none}",
+  ".chamada button:hover{background:var(--nevoa)}.chamada button svg{width:14px;height:14px}",
+  ".sinal{position:absolute;right:-34px;top:12px;width:30px;height:40px;overflow:visible;color:var(--laranja-vivo)}",
+  ".sinal path{fill:none;stroke:currentColor;stroke-width:3.2;stroke-linecap:round;opacity:.15;animation:hobi-sinal 1.6s ease-out .3s 1 forwards}",
+  ".sinal path:nth-child(2){animation-delay:.55s}.sinal path:nth-child(3){animation-delay:.8s}",
+  "@keyframes hobi-sinal{to{opacity:1}}",
+  ".sugestao{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;min-height:40px;max-width:100%;padding:8px 12px;border:1px solid var(--laranja);border-radius:10px;background:var(--papel);color:var(--laranja);font-weight:600;text-align:left;transition-property:background-color;transition-duration:.15s}",
+  ".sugestao:hover{background:var(--nevoa)}",
+  ".fala{margin:0;align-self:flex-start;max-width:90%;padding:8px 12px;border-radius:14px 14px 14px 4px;background:var(--nevoa);white-space:pre-wrap;overflow-wrap:anywhere}",
+  "@media (max-width:480px){.chamada{right:108px;bottom:22px;max-width:190px;padding:8px 6px 8px 12px}.chamada strong{font-size:14px}.chamada span{font-size:12px}}",
   "@media (max-width:480px){.painel{inset:0;width:100%;max-width:none;height:100%;max-height:none;border:0;border-radius:0}.botao{right:14px;bottom:14px;width:58px;height:58px}.botao img{width:44px;height:44px}.aberto .botao{display:none}}",
+  "@media (prefers-reduced-motion:reduce){.chamada{animation:none}.sinal path{animation:none;opacity:1}}",
   "@media (prefers-reduced-motion:reduce){.painel,.leds i{animation:none}.botao,.principal,.enviar{transition:none}.leds i{opacity:.8}}",
 ].join("");
 
@@ -147,6 +163,7 @@ var HOBI_ICONES = {
   enviar: "M4 12l16-8-6 16-3-7z",
   lupa: "M11 4a7 7 0 105 12l4 4M11 4a7 7 0 010 14",
   lista: "M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01",
+  duvida: "M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3M12 17h.01M12 3a9 9 0 100 18 9 9 0 000-18z",
   telefone: "M5 4h4l2 5-3 2a12 12 0 005 5l2-3 5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z",
   caixa: "M4 8l8-4 8 4v8l-8 4-8-4zM4 8l8 4 8-4M12 12v8",
   joia: "M7 11v8H4v-8zM7 11l4-7a2 2 0 013 2l-1 4h5a2 2 0 012 2l-2 6a2 2 0 01-2 1H7",
@@ -305,14 +322,14 @@ function hobiIniciar(servico, status) {
   var botao = hobiEl("button", "botao", null, { type: "button", "aria-label": "Abrir o chat com " + nome, "aria-expanded": "false" });
   botao.appendChild(HOBI_IMAGENS.cabeca ? hobiImagem("cabeca") : hobiIcone("conversa"));
 
-  var painel = hobiEl("section", "painel", null, { role: "dialog", "aria-label": nome + ", assistente virtual da 4hobby" });
+  var painel = hobiEl("section", "painel", null, { role: "dialog", "aria-label": nome + ", Assistente virtual da 4hobby" });
   painel.hidden = true;
   var topo = hobiEl("header", "topo");
   var avatar = hobiEl("span", "avatar");
   avatar.appendChild(HOBI_IMAGENS.cabeca ? hobiImagem("cabeca") : hobiIcone("conversa"));
   var quem = hobiEl("div", "quem");
   quem.appendChild(hobiEl("strong", null, nome));
-  quem.appendChild(hobiEl("span", null, "assistente virtual da 4hobby"));
+  quem.appendChild(hobiEl("span", null, "Assistente virtual da 4hobby"));
   var fechar = hobiEl("button", "fechar", null, { type: "button", "aria-label": "Fechar o chat" });
   fechar.appendChild(hobiIcone("fechar"));
   topo.appendChild(avatar);
@@ -340,9 +357,53 @@ function hobiIniciar(servico, status) {
   base.appendChild(painel);
   base.appendChild(botao);
 
-  function botaoDoWhatsApp(rotulo) {
-    if (!whatsapp) return null;
-    var link = hobiEl("a", "whats", null, { href: whatsapp, target: "_blank", rel: "noopener noreferrer" });
+  // A chamada ao lado do robo (pedido do dono em 22/11/2026). Aparece 4 s depois, so com a janela fechada; fechada no X ou
+  // depois de o visitante abrir o chat, nao volta naquela aba.
+  var chamada = hobiEl("div", "chamada", null, { role: "note" });
+  chamada.hidden = true;
+  var textoDaChamada = hobiEl("div");
+  textoDaChamada.appendChild(hobiEl("strong", null, nome));
+  textoDaChamada.appendChild(hobiEl("span", null, "Dúvida no seu projeto? Pergunta pra mim"));
+  var dispensar = hobiEl("button", null, null, { type: "button", "aria-label": "Fechar o aviso" });
+  dispensar.appendChild(hobiIcone("fechar"));
+  var sinal = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  sinal.setAttribute("class", "sinal");
+  sinal.setAttribute("viewBox", "0 0 24 30");
+  sinal.setAttribute("aria-hidden", "true");
+  ["M18 11a4 4 0 010 8", "M14 7a9 9 0 010 16", "M10 3a14 14 0 010 24"].forEach(function (desenho) {
+    var arco = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    arco.setAttribute("d", desenho);
+    sinal.appendChild(arco);
+  });
+  // Os arcos abrem PARA O BALAO: o sinal sai da antena do robo (a direita) em direcao a mensagem.
+  sinal.setAttribute("transform", "scale(-1 1)");
+  chamada.appendChild(textoDaChamada);
+  chamada.appendChild(dispensar);
+  chamada.appendChild(sinal);
+  base.appendChild(chamada);
+  function esconderChamada() {
+    chamada.hidden = true;
+    hobiGuardado.gravar("chamada", "vista");
+  }
+  dispensar.onclick = function (evento) {
+    evento.stopPropagation();
+    esconderChamada();
+  };
+  chamada.onclick = function () {
+    esconderChamada();
+    abrir();
+  };
+  if (hobiGuardado.ler("chamada") !== "vista") {
+    setTimeout(function () {
+      if (painel.hidden && hobiGuardado.ler("chamada") !== "vista") chamada.hidden = false;
+    }, 4000);
+  }
+
+  function botaoDoWhatsApp(rotulo, endereco) {
+    // `endereco`: o WhatsApp que o servidor escolheu (o tecnico, no suporte); sem ele, o comercial do /status.
+    var destino = linkDoWhatsApp(endereco) || whatsapp;
+    if (!destino) return null;
+    var link = hobiEl("a", "whats", null, { href: destino, target: "_blank", rel: "noopener noreferrer" });
     link.appendChild(hobiIcone("telefone"));
     link.appendChild(hobiEl("span", null, rotulo || "Falar no WhatsApp"));
     return link;
@@ -566,6 +627,19 @@ function hobiIniciar(servico, status) {
 
   function desenharTroca(troca) {
     var no = hobiEl("div", "resposta");
+    if (troca.local) {
+      // A fala de abertura de um atalho: do Hobi, sem pergunta, sem nota (nao passou pela IA).
+      no.appendChild(hobiEl("p", "fala", troca.texto));
+      if (troca.sugestao) {
+        var sugerido = hobiEl("button", "sugestao", null, { type: "button" });
+        sugerido.appendChild(hobiIcone("caixa"));
+        sugerido.appendChild(hobiEl("span", null, troca.sugestao.rotulo));
+        sugerido.onclick = function () { perguntar(troca.sugestao.mensagem); };
+        no.appendChild(sugerido);
+      }
+      no.__fechada = true;
+      return no;
+    }
     no.appendChild(hobiEl("p", "pergunta", troca.pergunta));
     if (troca.cartoes.length) {
       var cartoes = hobiEl("ol", "cartoes");
@@ -580,7 +654,8 @@ function hobiIniciar(servico, status) {
       if (socorro) no.appendChild(socorro);
     }
     if (troca.passagem) {
-      var passar = botaoDoWhatsApp("Continuar no WhatsApp");
+      var tecnico = troca.passagem.tipo === "tecnico";
+      var passar = botaoDoWhatsApp(tecnico ? "Falar com o suporte técnico" : "Continuar no WhatsApp", troca.passagem.url);
       if (passar) no.appendChild(passar);
       if (troca.passagem.foraDoHorario) no.appendChild(hobiEl("p", "fora", "Estamos fora do horário de atendimento: respondemos no próximo dia útil."));
     }
@@ -606,22 +681,21 @@ function hobiIniciar(servico, status) {
     if (HOBI_IMAGENS.corpo) ola.appendChild(hobiImagem("corpo", nome + ", o robô assistente da 4hobby"));
     ola.appendChild(hobiEl("p", null, String(status.boasVindas || "")));
     var atalhos = hobiEl("div", "atalhos");
-    var achar = hobiEl("button", "atalho", null, { type: "button" });
-    achar.appendChild(hobiIcone("lupa"));
-    achar.appendChild(hobiEl("span", null, "Encontrar um componente"));
-    achar.onclick = function () {
-      modoLista(false);
-      texto.focus();
-    };
-    var colar = hobiEl("button", "atalho", null, { type: "button" });
-    colar.appendChild(hobiIcone("lista"));
-    colar.appendChild(hobiEl("span", null, "Colar lista de peças"));
-    colar.onclick = function () {
-      modoLista(true);
-      texto.focus();
-    };
-    atalhos.appendChild(achar);
-    atalhos.appendChild(colar);
+    var ICONE_DO_ATALHO = { componente: "lupa", duvida: "duvida", lista: "lista" };
+    // Todo atalho ABRE a conversa: o Hobi fala primeiro (fala feita aqui, sem IA) e o campo fica pronto para a resposta.
+    ATALHOS.forEach(function (atalho) {
+      var botaoDoAtalho = hobiEl("button", "atalho", null, { type: "button" });
+      botaoDoAtalho.appendChild(hobiIcone(ICONE_DO_ATALHO[atalho.id]));
+      botaoDoAtalho.appendChild(hobiEl("span", null, atalho.rotulo));
+      botaoDoAtalho.onclick = function () {
+        var abertura = aberturaDoAtalho(atalho.id, contextoAtual());
+        if (!abertura) return;
+        aplicar("abertura", { texto: abertura.texto, sugestao: abertura.sugestao });
+        modoLista(abertura.modoLista);
+        texto.focus();
+      };
+      atalhos.appendChild(botaoDoAtalho);
+    });
     if (whatsapp) {
       var falar = hobiEl("a", "atalho", null, { href: whatsapp, target: "_blank", rel: "noopener noreferrer" });
       falar.appendChild(hobiIcone("telefone"));
@@ -635,7 +709,7 @@ function hobiIniciar(servico, status) {
   function modoLista(ligar) {
     emLista = ligar;
     campo.className = ligar ? "campo em-lista" : "campo";
-    texto.placeholder = ligar ? "Cole a lista, um item por linha.\nEx.: 10 resistor 10k" : "Escreva o que você procura…";
+    texto.placeholder = ligar ? "Cole sua lista aqui" : "Escreva o que você procura…";
     ajustarAltura();
   }
 
@@ -673,7 +747,8 @@ function hobiIniciar(servico, status) {
 
   function contextoAtual() {
     var sku = document.querySelector("[itemprop=sku]");
-    return contextoDaPagina({ classeDoBody: document.body.className, skuNaPagina: sku ? sku.textContent : "" });
+    var nomeDoProduto = document.querySelector("h1.nome-produto, .produto h1, [itemprop=name]");
+    return contextoDaPagina({ classeDoBody: document.body.className, skuNaPagina: sku ? sku.textContent : "", nomeNaPagina: nomeDoProduto ? nomeDoProduto.textContent : "" });
   }
 
   /** Le o fluxo do `/chat` ate o fim. Devolve `true` se algum evento chegou. */
@@ -797,6 +872,7 @@ function hobiIniciar(servico, status) {
 
   function abrir() {
     painel.hidden = false;
+    esconderChamada();
     // No celular a janela ocupa a tela inteira: o botao flutuante sai (ficaria em cima do Enviar) e o X do topo fecha.
     base.className = "hobi aberto";
     botao.setAttribute("aria-expanded", "true");

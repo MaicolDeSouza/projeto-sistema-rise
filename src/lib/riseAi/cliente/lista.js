@@ -50,3 +50,19 @@ export function lerLinhasDaLista(texto) {
   }
   return linhas;
 }
+
+/**
+ * A mensagem parece uma LISTA de pecas? Devolve quantos itens (0 = nao parece). E so a pista que o cerebro da ao modelo
+ * ("use orcarLista"); quem separa cada item e a quantidade e o modelo, entao o cliente cola do jeito que quiser (pedido do
+ * dono em 22/11/2026): uma por linha, separada por virgula ou ponto e virgula, ou colunas de planilha (tabulacao).
+ *
+ * Virgula so separa quando vem seguida de espaco: "2,2k" e "1,5mm" sao valores, nao dois itens. Uma frase comum com uma
+ * virgula ("quero um resistor, para o led") nao vira lista: so a partir de 3 itens.
+ */
+export function pareceLista(texto) {
+  const lido = String(texto ?? "").trim();
+  if (!lido) return 0;
+  const partes = lido.includes("\n") ? lido.split(/\r?\n/) : lido.split(/;|,\s+|\t/);
+  const itens = partes.map((parte) => parte.trim()).filter(Boolean);
+  return itens.length >= 3 ? Math.min(itens.length, MAXIMO_DE_LINHAS) : 0;
+}

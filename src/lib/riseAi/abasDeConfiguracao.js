@@ -1,6 +1,6 @@
 import { registrarAuditoria } from "@/lib/acessos/banco";
 import { recursoPorId } from "@/lib/acessos/recursos";
-import { faltasParaLigar, listaEmTexto, segredosCadastrados, servicoPreparado } from "./canalDaLoja";
+import { faltasParaLigar, listaEmTexto, segredosCadastrados, servicoPreparado, whatsappDaEmpresa } from "./canalDaLoja";
 import { mesclarChatDaLoja } from "./cliente/configuracaoDoCanal";
 import { gravarConfiguracao, lerConfiguracao } from "./configuracao";
 import { ErroDeUso } from "./erros";
@@ -117,7 +117,7 @@ export async function salvarAba(aba, dados, { usuario, pode, env = process.env }
   // Salvar. O servico ja responderia desligado sozinho; aqui o dono fica sabendo o que falta, em vez de achar que ligou.
   if (parcial.chatDaLoja?.ligado === true) {
     const canal = mesclarChatDaLoja((await lerConfiguracao()).chatDaLoja, parcial.chatDaLoja);
-    const faltas = faltasParaLigar({ preparado: servicoPreparado(env), segredos: await segredosCadastrados(), canal });
+    const faltas = faltasParaLigar({ preparado: servicoPreparado(env), segredos: await segredosCadastrados(), canal, empresa: await whatsappDaEmpresa() });
     if (faltas.length) {
       const erro = `Para ligar falta: ${listaEmTexto(faltas)}.`;
       return { ok: false, erro, erros: { "chatDaLoja.ligado": erro } };

@@ -21,7 +21,8 @@ import { normalizar } from "@/lib/texto";
 export const MAXIMO_DE_CARTOES = 8;
 export const MAXIMO_DA_LISTA = 50;
 export const MAXIMO_DA_CONTA = 20;
-export const MOTIVOS_DA_PASSAGEM = ["pediu_pessoa", "pagamento", "pedido", "troca_ou_garantia", "reclamacao", "nao_encontrei", "outro"];
+// `suporte_tecnico` vai para o WhatsApp tecnico da empresa (pedido do dono em 22/11/2026); os demais, para o comercial.
+export const MOTIVOS_DA_PASSAGEM = ["pediu_pessoa", "pagamento", "pedido", "troca_ou_garantia", "reclamacao", "nao_encontrei", "suporte_tecnico", "outro"];
 
 const sku = z.string().trim().min(1).max(64).describe("Código (sku) do produto, como veio de uma busca");
 
@@ -202,7 +203,9 @@ export const FERRAMENTAS_DO_CLIENTE = [
     nome: "passarParaAtendente",
     descricao:
       "Passa a conversa para a equipe da loja pelo WhatsApp. Use quando o visitante pede uma pessoa, ou o assunto é pagamento, " +
-      "pedido já feito, troca, garantia ou reclamação, ou quando você não achou o que ele precisa.",
+      "pedido já feito, troca, garantia ou reclamação, ou quando você não achou o que ele precisa. Use o motivo suporte_tecnico " +
+      "quando ele precisa de suporte técnico que você não resolve (produto com defeito, não funciona, ligação, código, instalação): " +
+      "esse vai para o WhatsApp do suporte técnico; os outros, para o comercial.",
     esquema: z.object({ motivo: z.enum(MOTIVOS_DA_PASSAGEM) }),
     async executar({ motivo }, contexto) {
       contexto.saida.passagem = { motivo };

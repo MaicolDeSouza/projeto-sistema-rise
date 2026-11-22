@@ -60,11 +60,49 @@ export function criarLeitorDoFluxo() {
 
 const temClasse = (classes, nome) => ` ${String(classes == null ? "" : classes)} `.includes(` ${nome} `);
 
-/** O que a pagina da loja diz ao assistente: se e pagina de produto e qual o codigo. O codigo e dado da pagina: so passa com cara de codigo. */
-export function contextoDaPagina({ classeDoBody, skuNaPagina }) {
-  if (!temClasse(classeDoBody, "pagina-produto")) return { pagina: "outra", skuAberto: "" };
+/**
+ * O que a pagina da loja diz ao assistente: se e pagina de produto, qual o codigo e o nome. E dado da pagina: o codigo so
+ * passa com cara de codigo, e o nome vira uma linha so, com no maximo 120 caracteres (a janela o mostra como texto).
+ */
+export function contextoDaPagina({ classeDoBody, skuNaPagina, nomeNaPagina }) {
+  if (!temClasse(classeDoBody, "pagina-produto")) return { pagina: "outra", skuAberto: "", nomeAberto: "" };
   const sku = String(skuNaPagina == null ? "" : skuNaPagina).trim();
-  return { pagina: "produto", skuAberto: /^[A-Za-z0-9._-]{1,64}$/.test(sku) ? sku : "" };
+  const nome = String(nomeNaPagina == null ? "" : nomeNaPagina).replace(/\s+/g, " ").trim().slice(0, 120);
+  return { pagina: "produto", skuAberto: /^[A-Za-z0-9._-]{1,64}$/.test(sku) ? sku : "", nomeAberto: nome };
+}
+
+/**
+ * Os atalhos da saudacao (pedido do dono em 22/11/2026). Cada um ABRE a conversa com uma fala do Hobi, feita aqui mesmo:
+ * nao chama a IA e nao gasta. "Acompanhar meu pedido" entra na fase 3; o WhatsApp e um link a parte.
+ */
+export const ATALHOS = [
+  { id: "componente", rotulo: "Encontrar um componente" },
+  { id: "duvida", rotulo: "Tirar dúvida técnica sobre um produto" },
+  { id: "lista", rotulo: "Colar lista de peças" },
+];
+
+const FALAS_DOS_ATALHOS = {
+  componente: "Qual componente você procura? Pode ser o nome, o código ou para que vai usar.",
+  duvida: "Qual produto você está com dúvida? Pode me passar o nome ou o código.",
+  // Texto escolhido pelo dono (Opcao 2, 22/11/2026): a lista pode vir em qualquer formato.
+  lista: "Pode colar sua lista aqui. Eu analiso e te mostro em instantes o que temos.",
+};
+
+/**
+ * A fala de abertura de um atalho. Na duvida tecnica, se o visitante esta na pagina de um produto, oferece "O produto desta
+ * tela": um clique e a pergunta segue com ele (o codigo ja vai no contexto de toda mensagem).
+ *
+ * @returns {{ texto: string, sugestao: { rotulo: string, mensagem: string } | null, modoLista: boolean } | null}
+ */
+export function aberturaDoAtalho(id, contexto) {
+  const texto = FALAS_DOS_ATALHOS[id];
+  if (!texto) return null;
+  let sugestao = null;
+  if (id === "duvida" && contexto && contexto.pagina === "produto" && contexto.skuAberto) {
+    const nome = contexto.nomeAberto || `o produto ${contexto.skuAberto}`;
+    sugestao = { rotulo: `O produto desta tela: ${nome}`, mensagem: `Tenho uma dúvida técnica sobre este produto: ${nome} (código ${contexto.skuAberto}).` };
+  }
+  return { texto, sugestao, modoLista: id === "lista" };
 }
 
 /** O chat nao existe no carrinho nem no checkout: nada de terceiro entre o cliente e o pagamento. */
@@ -163,7 +201,13 @@ export function conversaVazia() {
   return { trocas: [] };
 }
 
-const trocaNova = (pergunta) => ({ pergunta, status: "", cartoes: [], lista: null, texto: "", passagem: null, erro: null, mensagemId: null, nota: 0, fechada: false });
+// `local`: a fala de abertura de um atalho (feita pela janela, sem pergunta e sem IA); `sugestao`: o botao que ela oferece.
+const trocaNova = (pergunta) => ({ pergunta, status: "", cartoes: [], lista: null, texto: "", passagem: null, erro: null, mensagemId: null, nota: 0, local: false, sugestao: null, fechada: false });
+const sugestaoLida = (bruta) => (ehObjeto(bruta) && typeof bruta.rotulo === "string" && typeof bruta.mensagem === "string" ? { rotulo: bruta.rotulo.slice(0, 200), mensagem: bruta.mensagem.slice(0, 400) } : null);
+const passagemLida = (bruta) =>
+  ehObjeto(bruta)
+    ? { motivo: String(bruta.motivo == null ? "" : bruta.motivo), url: bruta.url == null ? null : String(bruta.url), tipo: bruta.tipo === "tecnico" ? "tecnico" : "comercial", foraDoHorario: bruta.foraDoHorario === true }
+    : null;
 const ehObjeto = (valor) => Boolean(valor) && typeof valor === "object" && !Array.isArray(valor);
 
 /** Troca a ULTIMA troca, se ela ainda esta aberta; senao a conversa volta igual (evento fora de hora nao tem onde entrar). */
@@ -182,6 +226,8 @@ export function aplicarEvento(conversa, { evento, dados }) {
   switch (evento) {
     case "pergunta":
       return { trocas: [...conversa.trocas, trocaNova(String(d.texto == null ? "" : d.texto))] };
+    case "abertura":
+      return { trocas: [...conversa.trocas, { ...trocaNova(""), texto: String(d.texto == null ? "" : d.texto), local: true, sugestao: sugestaoLida(d.sugestao), fechada: true }] };
     case "status":
       return naAberta(conversa, () => ({ status: String(d.texto == null ? "" : d.texto) }));
     case "cartoes":
@@ -191,7 +237,7 @@ export function aplicarEvento(conversa, { evento, dados }) {
     case "texto":
       return naAberta(conversa, () => ({ texto: String(d.texto == null ? "" : d.texto) }));
     case "passagem":
-      return naAberta(conversa, () => ({ passagem: { motivo: String(d.motivo == null ? "" : d.motivo), url: d.url == null ? null : String(d.url), foraDoHorario: d.foraDoHorario === true } }));
+      return naAberta(conversa, () => ({ passagem: passagemLida(d) }));
     case "erro":
       return naAberta(conversa, () => ({ status: "", erro: { texto: String(d.mensagem == null ? "" : d.mensagem), whatsapp: Boolean(d.whatsapp) }, fechada: true }));
     case "fim":
@@ -218,10 +264,12 @@ function trocaLida(bruta) {
     cartoes: Array.isArray(bruta.cartoes) ? bruta.cartoes.filter(ehObjeto) : [],
     lista: ehObjeto(bruta.lista) && Array.isArray(bruta.lista.linhas) ? { linhas: bruta.lista.linhas.filter(ehObjeto), total: Number(bruta.lista.total) || 0 } : null,
     texto: typeof bruta.texto === "string" ? bruta.texto : "",
-    passagem: ehObjeto(bruta.passagem) ? { motivo: String(bruta.passagem.motivo == null ? "" : bruta.passagem.motivo), url: bruta.passagem.url == null ? null : String(bruta.passagem.url), foraDoHorario: bruta.passagem.foraDoHorario === true } : null,
+    passagem: passagemLida(bruta.passagem),
     erro: ehObjeto(bruta.erro) ? { texto: String(bruta.erro.texto == null ? "" : bruta.erro.texto), whatsapp: Boolean(bruta.erro.whatsapp) } : null,
     mensagemId: typeof bruta.mensagemId === "string" ? bruta.mensagemId : null,
     nota: bruta.nota === 1 || bruta.nota === -1 ? bruta.nota : 0,
+    local: bruta.local === true,
+    sugestao: sugestaoLida(bruta.sugestao),
     fechada: true,
   };
   // A pagina mudou no meio da resposta: a troca volta fechada, com o aviso, e a pergunta NAO e reenviada sozinha.

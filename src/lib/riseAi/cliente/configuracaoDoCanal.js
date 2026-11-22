@@ -20,7 +20,8 @@ export function chatDaLojaPadrao() {
     // clientes verem); `true` = todos os visitantes.
     publico: false,
     nome: "Hobi",
-    boasVindas: "Oi! Sou o Hobi, assistente da 4hobby. Precisa de ajuda para achar um componente?",
+    // Diz o que ele faz (pedido do dono em 22/11/2026). "Ver o status do seu pedido" entra quando a fase 3 estiver pronta.
+    boasVindas: "Oi! Sou o Hobi, da 4hobby. Posso te ajudar a achar um componente, tirar dúvida sobre uma peça e montar a lista do seu projeto.",
     // Link wa.me da loja; vazio = sem botao de WhatsApp.
     whatsapp: "",
     // A chave PUBLICA do Turnstile (a secreta fica cifrada em SegredoDoAssistente).
@@ -106,6 +107,17 @@ export function foraDoHorario(horario, agora = Date.now()) {
   const hora = `${parte("hour")}:${parte("minute")}`;
   if (!(horario?.dias ?? []).includes(dia)) return true;
   return !(horario?.turnos ?? []).some(([de, ate]) => hora >= de && hora < ate);
+}
+
+/**
+ * O link `wa.me` de um numero gravado como o Rise grava telefone (so digitos, com DDD, sem o 55; ver src/lib/telefone.js).
+ * Aceita tambem o numero formatado e o que ja vem com o 55. Numero que nao e telefone brasileiro: `null` (sem botao).
+ */
+export function linkDoWhatsappDoNumero(numero) {
+  const digitos = String(numero ?? "").replace(/\D/g, "");
+  if (digitos.length === 10 || digitos.length === 11) return `https://wa.me/55${digitos}`;
+  if ((digitos.length === 12 || digitos.length === 13) && digitos.startsWith("55")) return `https://wa.me/${digitos}`;
+  return null;
 }
 
 /** O que foi salvo por cima do padrao. `limites` se mescla por dentro: salvar um limite nao pode apagar os outros. */

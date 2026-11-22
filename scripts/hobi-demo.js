@@ -37,7 +37,9 @@ const { criarServidorDoAssistente } = await import("../src/lib/riseAi/cliente/se
 const { lerPublicados } = await import("../src/lib/riseAi/cliente/widgetPublicado.js");
 const { lerLinhasDaLista } = await import("../src/lib/riseAi/cliente/lista.js");
 
-const PORTA = 8790;
+const argumentoDaPorta = process.argv.find((item) => item.startsWith("--porta="))?.split("=")[1];
+// `-- --porta=8791`: uma segunda copia ao lado de uma que ja esta aberta (cada porta e outra "loja", com o proprio carrinho).
+const PORTA = Number(argumentoDaPorta) || 8790;
 const ORIGEM = `http://127.0.0.1:${PORTA}`;
 // As chaves de TESTE que a Cloudflare publica para o Turnstile: esta chave publica sempre passa, sem desafio.
 const CHAVE_DE_TESTE_DO_TURNSTILE = "1x00000000000000000000AA";
@@ -52,7 +54,7 @@ const dados = {
   ...reais,
   async configuracaoDoCanal() {
     const config = await reais.configuracaoDoCanal();
-    return { ...config, canal: { ...config.canal, ligado: true, publico: true, whatsapp: config.canal.whatsapp || "https://wa.me/5554999990000", turnstileSiteKey: CHAVE_DE_TESTE_DO_TURNSTILE } };
+    return { ...config, canal: { ...config.canal, ligado: true, publico: true, turnstileSiteKey: CHAVE_DE_TESTE_DO_TURNSTILE } };
   },
   // A porta so confere que os segredos EXISTEM; o provedor desta demonstracao e injetado mais abaixo.
   segredos: async () => ({ openai: "demonstracao", anthropic: "demonstracao", turnstile: "demonstracao" }),
@@ -83,6 +85,11 @@ function provedorDeRoteiro() {
       };
       if (ferramentas.length === 0) return resposta({ texto: "Veja o que encontrei acima." });
 
+      // Suporte tecnico vai ao WhatsApp tecnico dos Dados da empresa (ajuste do dono de 22/11/2026).
+      if (/(n[aã]o funciona|n[aã]o liga|defeito|queimou|suporte)/i.test(pergunta)) {
+        if (!feitas.has("passarParaAtendente")) return resposta({ chamadasDeFerramenta: [chamar("passarParaAtendente", { motivo: "suporte_tecnico" })] });
+        return resposta({ texto: "Vou te passar para o nosso suporte técnico, que continua com você pelo WhatsApp." });
+      }
       if (/\b(atendente|pessoa|humano|whatsapp)\b/i.test(pergunta)) {
         if (!feitas.has("passarParaAtendente")) return resposta({ chamadasDeFerramenta: [chamar("passarParaAtendente", { motivo: "pediu_pessoa" })] });
         return resposta({ texto: "Claro! A nossa equipe continua com você pelo WhatsApp." });

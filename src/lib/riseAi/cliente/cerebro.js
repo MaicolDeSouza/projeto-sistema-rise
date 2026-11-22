@@ -10,7 +10,7 @@ import { foraDoHorario } from "./configuracaoDoCanal";
 import { criarConversasDoCanal } from "./conversasDoCanal";
 import { definicoesDoCliente, executarFerramentaDoCliente } from "./ferramentas";
 import { filtrarSaida } from "./filtroDeSaida";
-import { lerLinhasDaLista } from "./lista";
+import { pareceLista } from "./lista";
 import { criarOrcamentoDoCliente } from "./orcamentoDoCliente";
 import { montarSistemaDoCliente } from "./prompt";
 
@@ -167,6 +167,7 @@ export async function responderAoCliente({ canal, sessaoId, mensagem, contexto =
   const config = await dados.configuracaoDoCanal();
   const loja = config.canal;
   const whatsapp = loja.whatsapp || null;
+  const whatsappTecnico = loja.whatsappTecnico || null;
   const erro = (motivo, mensagemDoErro = TEXTO_DO_ERRO[motivo]) => new ErroDoAtendimento(motivo, { mensagem: mensagemDoErro, whatsapp });
 
   const pergunta = String(mensagem ?? "").trim();
@@ -195,10 +196,11 @@ export async function responderAoCliente({ canal, sessaoId, mensagem, contexto =
     // Sem o conhecimento a resposta sai pior, mas sai.
     console.error("[ia] falha ao ler o conhecimento:", falha?.message ?? falha);
   }
-  const linhasDaLista = pergunta.includes("\n") ? lerLinhasDaLista(pergunta) : [];
+  // Lista em qualquer formato (linhas, virgulas, planilha): o aviso so diz ao modelo que e lista; quem separa e ele.
+  const itensDaLista = pareceLista(pergunta);
   mensagens.push({
     papel: "usuario",
-    conteudo: linhasDaLista.length >= 3 ? `${perguntaMascarada}\n\n[O sistema leu a mensagem como uma lista de ${linhasDaLista.length} itens: use orcarLista.]` : perguntaMascarada,
+    conteudo: itensDaLista >= 3 ? `${perguntaMascarada}\n\n[A mensagem parece uma lista de uns ${itensDaLista} itens: use orcarLista, com um item por peça e a quantidade que o visitante escreveu, onde quer que ela esteja.]` : perguntaMascarada,
   });
 
   const sistema = montarSistemaDoCliente({ nome: loja.nome, promptDoCliente: config.promptDoCliente, contexto });
@@ -261,8 +263,8 @@ export async function responderAoCliente({ canal, sessaoId, mensagem, contexto =
   precos.push(...(contextoDasFerramentas.saida.valores ?? []));
   const veredito = filtrarSaida(resultado.texto, {
     precos,
-    links: [...vistos.map((produto) => produto.link), whatsapp].filter(Boolean),
-    telefonesDaLoja: whatsapp ? [digitosDoTelefone(new URL(whatsapp).pathname.replace(/\D/g, ""))] : [],
+    links: [...vistos.map((produto) => produto.link), whatsapp, whatsappTecnico].filter(Boolean),
+    telefonesDaLoja: [whatsapp, whatsappTecnico].filter(Boolean).map((link) => digitosDoTelefone(new URL(link).pathname.replace(/\D/g, ""))),
   });
   const avisos = [];
   let texto = resultado.texto;
@@ -275,7 +277,11 @@ export async function responderAoCliente({ canal, sessaoId, mensagem, contexto =
   }
   if (resultado.cortada) avisos.push("resposta_cortada");
   if (resultado.limiteAtingido) avisos.push("limite_de_ferramentas");
-  const passagem = passagemDoModelo ? { motivo: passagemDoModelo.motivo, url: whatsapp, foraDoHorario: foraDoHorario(loja.horario, agora) } : null;
+  // Suporte tecnico vai para o WhatsApp tecnico (sem ele cadastrado, cai no comercial); o resto, para o comercial.
+  const tecnico = passagemDoModelo?.motivo === "suporte_tecnico" && whatsappTecnico;
+  const passagem = passagemDoModelo
+    ? { motivo: passagemDoModelo.motivo, url: tecnico ? whatsappTecnico : whatsapp, tipo: tecnico ? "tecnico" : "comercial", foraDoHorario: foraDoHorario(loja.horario, agora) }
+    : null;
 
   const mensagemId = await conversas.gravarResposta(conversa.id, {
     texto,

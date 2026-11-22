@@ -45,6 +45,8 @@ export const TABELAS_PROIBIDAS = [
   "AuditoriaDeAcesso",
   "AvisoTelegram",
   "PropostaParaCliente",
+  // Os dados da empresa (CNPJ, conta, chave Pix): o papel ve so os dois WhatsApp, pela visao `ia_configuracao`.
+  "DadosDaEmpresa",
 ];
 
 // Publicado na loja: ativo e com endereco na Loja Integrada (a mesma regra do perfil `publico` das ferramentas do Rise AI).
@@ -170,5 +172,34 @@ GRANT SELECT, INSERT ON "MensagemIA" TO ${PAPEL};
 GRANT UPDATE ("avaliacao", "comentario", "avaliadoPor", "avaliadoEm") ON "MensagemIA" TO ${PAPEL};
 GRANT SELECT, INSERT ON "GastoIA" TO ${PAPEL};
 GRANT SELECT, INSERT, DELETE ON "ReservaDeGastoIA" TO ${PAPEL};
+`;
+}
+
+/**
+ * A migration `20261122_ia_whatsapp_da_empresa` (pedido do dono em 22/11/2026: o chat usa o WhatsApp comercial cadastrado e, para
+ * suporte tecnico, o WhatsApp tecnico, os dois de Configuracoes > Dados da empresa). A visao `ia_configuracao` ganha DUAS colunas
+ * no fim e nada mais da tabela da empresa; o papel continua sem concessao em `DadosDaEmpresa`.
+ *
+ * `CREATE OR REPLACE VIEW` so aceita colunas novas no FIM, com as antigas iguais e na mesma ordem. A visao parte de uma linha
+ * fixa (`SELECT 1`) para os numeros chegarem mesmo sem a configuracao do Rise AI salva.
+ */
+export function sqlDaMigracaoDoWhatsappDaEmpresa() {
+  return `-- O chat da loja (o Hobi) usa os WhatsApp de Configuracoes > Dados da empresa (pedido do dono em 22/11/2026).
+-- GERADO por src/lib/riseAi/cliente/sqlDoPapel.js (\`sqlDaMigracaoDoWhatsappDaEmpresa\`); o teste:ia-isolamento confere que
+-- este arquivo e igual a saida do gerador. So os dois numeros saem da tabela da empresa; o papel ${PAPEL} nao ganha concessao nela.
+CREATE OR REPLACE VIEW ia_configuracao AS
+SELECT
+    c."dados"->'chatDaLoja' AS "canal",
+    c."dados"#>>'{prompts,atendimento}' AS "promptDoCliente",
+    (c."dados"#>>'{orcamentos,clientesBrl}')::numeric AS "tetoClientesBrl",
+    c."dados"->'tempoLimite' AS "tempoLimite",
+    (c."dados"->>'maxChamadasDeFerramenta')::int AS "maxChamadasDeFerramenta",
+    (c."dados"->>'maxTokensResposta')::int AS "maxTokensResposta",
+    (c."dados"->>'contextoMaxTokens')::int AS "contextoMaxTokens",
+    e."celular" AS "whatsappComercial",
+    e."whatsappTecnico" AS "whatsappTecnico"
+FROM (SELECT 1) AS uma
+LEFT JOIN "ConfiguracaoIA" c ON c."id" = 'unica'
+LEFT JOIN "DadosDaEmpresa" e ON e."id" = 'empresa';
 `;
 }

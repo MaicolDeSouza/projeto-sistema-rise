@@ -19,7 +19,7 @@ const { register } = await import("node:module");
 const { pathToFileURL } = await import("node:url");
 register(new URL("./resolver-alias.js", import.meta.url), pathToFileURL("./"));
 
-const { readFileSync, writeFileSync, mkdirSync } = await import("node:fs");
+const { readFileSync, writeFileSync, mkdirSync, existsSync } = await import("node:fs");
 const { default: pg } = await import("pg");
 
 if (process.env.RISE_PRODUCAO) {
@@ -27,13 +27,17 @@ if (process.env.RISE_PRODUCAO) {
   process.exit(2);
 }
 
-const { PAPEL, COLUNAS_DO_PRODUTO_PUBLICO, TABELAS_PROIBIDAS, sqlDaMigration } = await import("../src/lib/riseAi/cliente/sqlDoPapel.js");
+const { PAPEL, COLUNAS_DO_PRODUTO_PUBLICO, TABELAS_PROIBIDAS, sqlDaMigration, sqlDaMigracaoDoWhatsappDaEmpresa } = await import("../src/lib/riseAi/cliente/sqlDoPapel.js");
 
 const MIGRATION = "prisma/migrations/20261120b_ia_papel_e_visoes/migration.sql";
+// 22/11/2026: a visao da configuracao passou a entregar os dois WhatsApp da empresa (e so eles).
+const MIGRATION_DO_WHATSAPP = "prisma/migrations/20261122_ia_whatsapp_da_empresa/migration.sql";
 if (process.argv.includes("--gravar-migration")) {
   mkdirSync("prisma/migrations/20261120b_ia_papel_e_visoes", { recursive: true });
   writeFileSync(MIGRATION, sqlDaMigration());
-  console.log(`gravado: ${MIGRATION}`);
+  mkdirSync("prisma/migrations/20261122_ia_whatsapp_da_empresa", { recursive: true });
+  writeFileSync(MIGRATION_DO_WHATSAPP, sqlDaMigracaoDoWhatsappDaEmpresa());
+  console.log(`gravado: ${MIGRATION} e ${MIGRATION_DO_WHATSAPP}`);
   process.exit(0);
 }
 
@@ -83,6 +87,8 @@ try {
   // ---------- A migration e a saida do gerador ----------
   const noDisco = readFileSync(MIGRATION, "utf8").replace(/\r\n/g, "\n").trim();
   conferir("a migration e a saida do gerador", noDisco === sqlDaMigration().trim(), true);
+  const doWhatsapp = existsSync(MIGRATION_DO_WHATSAPP) ? readFileSync(MIGRATION_DO_WHATSAPP, "utf8").replace(/\r\n/g, "\n").trim() : "";
+  conferir("a migration do WhatsApp da empresa e a saida do gerador", doWhatsapp === sqlDaMigracaoDoWhatsappDaEmpresa().trim(), true);
 
   // ---------- O papel existe, sem superpoderes e com os tetos ----------
   const [papel] = (await dono.query(`SELECT rolsuper, rolcreatedb, rolcreaterole, rolbypassrls, rolconnlimit, rolconfig, rolcanlogin FROM pg_roles WHERE rolname = $1`, [PAPEL])).rows;
@@ -123,9 +129,14 @@ try {
   conferir("colunas da visao de produto", await colunasDe("ia_produto_publico"), COLUNAS_DO_PRODUTO_PUBLICO);
   const todas = [];
   for (const visao of ["ia_produto_publico", "ia_kit_publico", "ia_conhecimento_publico", "ia_configuracao"]) todas.push(...(await colunasDe(visao)));
+  conferir("a visao da configuracao entrega da empresa SO os dois WhatsApp", (await colunasDe("ia_configuracao")).slice(-2), ["whatsappComercial", "whatsappTecnico"]);
   conferir("nenhuma coluna sensivel nas visoes", todas.filter((coluna) => /custo|estoque|localiza|fornecedor|ncm|margem/i.test(coluna)), []);
   conferir("as visoes rodam com o dono (sem security_invoker)", (await dono.query(`SELECT count(*)::int AS n FROM pg_class WHERE relname LIKE 'ia\\_%' AND relkind = 'v' AND reloptions::text LIKE '%security_invoker%'`)).rows[0].n, 0);
 
+  // A empresa: o papel le os dois WhatsApp pela visao (sao publicos), e nada mais dela (CNPJ, conta, chave Pix ficam de fora).
+  const daEmpresa = (await dono.query(`SELECT "celular", "whatsappTecnico" FROM "DadosDaEmpresa" WHERE "id" = 'empresa'`)).rows[0] ?? {};
+  conferir("os dois WhatsApp chegam pela visao", await linhas(`SELECT "whatsappComercial", "whatsappTecnico" FROM ia_configuracao`), [{ whatsappComercial: daEmpresa.celular ?? null, whatsappTecnico: daEmpresa.whatsappTecnico ?? null }]);
+  conferir("nem a chave Pix nem a conta pela visao", [await codigoSql(`SELECT "chavePix" FROM ia_configuracao`), await codigoSql(`SELECT "conta" FROM ia_configuracao`)], ["42703", "42703"]);
   conferir("o publicado aparece, so com a faixa", await linhas(`SELECT "sku", "preco"::float AS "preco", "faixa" FROM ia_produto_publico WHERE "sku" = 'ZZ-LOJA-PUB'`), [{ sku: "ZZ-LOJA-PUB", preco: 19.9, faixa: "poucas unidades" }]);
   conferir("o que nao esta na loja nao aparece", (await linhas(`SELECT 1 FROM ia_produto_publico WHERE "sku" = 'ZZ-LOJA-OCULTO'`)).length, 0);
   conferir("o inativo nao aparece", (await linhas(`SELECT 1 FROM ia_produto_publico WHERE "sku" = 'ZZ-LOJA-INATIVO'`)).length, 0);

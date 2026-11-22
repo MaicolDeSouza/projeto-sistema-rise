@@ -1,7 +1,9 @@
 import { registrarAuditoria } from "@/lib/acessos/banco";
 import { prisma } from "@/lib/db";
 
-import { PROVEDORES_DO_CANAL } from "./cliente/configuracaoDoCanal";
+import { formatarTelefone } from "@/lib/telefone";
+
+import { PROVEDORES_DO_CANAL, linkDoWhatsappDoNumero } from "./cliente/configuracaoDoCanal";
 import { cifrarSegredo, decifrarSegredo, derivarChave } from "./cliente/segredos";
 import { etiquetaDoWidget, lerPublicados } from "./cliente/widgetPublicado";
 import { PRECOS_USD_POR_MILHAO, endpointPadrao, provedorPorId } from "./modelos";
@@ -83,14 +85,17 @@ export async function testarChaveDoChat(provedor, { env = process.env, criarProv
  * @param {{ preparado: boolean, segredos: Record<string, { cadastrado: boolean }>, canal: object }} situacao
  * @returns {string[]}
  */
-export function faltasParaLigar({ preparado, segredos, canal }) {
+export function faltasParaLigar({ preparado, segredos, canal, empresa }) {
   const faltas = [];
   if (!preparado) faltas.push("o serviço do chat ainda não foi preparado na VPS");
   const principal = canal?.principal?.provedor;
   if (!segredos?.[principal]?.cadastrado) faltas.push(`a chave da IA (${rotuloDoProvedor(principal)})`);
   if (!segredos?.turnstile?.cadastrado) faltas.push("o segredo do Turnstile");
   if (!String(canal?.turnstileSiteKey ?? "").trim()) faltas.push("a chave pública do Turnstile");
-  if (!String(canal?.whatsapp ?? "").trim()) faltas.push("o link do WhatsApp");
+  // O WhatsApp e o comercial de Configuracoes > Dados da empresa (pedido do dono em 22/11/2026). Sem a empresa (chamada
+  // antiga), vale o link do grupo do chat.
+  const temWhatsapp = empresa ? Boolean(linkDoWhatsappDoNumero(empresa.celular)) : Boolean(String(canal?.whatsapp ?? "").trim());
+  if (!temWhatsapp) faltas.push("o WhatsApp comercial em Dados da empresa");
   return faltas;
 }
 
@@ -103,6 +108,12 @@ export function modelosDoCanal() {
     const provedor = modelo.startsWith("claude-") ? "anthropic" : "openai";
     return { valor: `${provedor}/${modelo}`, rotulo: `${modelo} (${rotuloDoProvedor(provedor)})` };
   });
+}
+
+/** Os dois WhatsApp de Configuracoes > Dados da empresa (o comercial e o do suporte tecnico), como estao gravados. */
+export async function whatsappDaEmpresa() {
+  const linha = await prisma.dadosDaEmpresa.findUnique({ where: { id: "empresa" }, select: { celular: true, whatsappTecnico: true } });
+  return { celular: linha?.celular ?? null, whatsappTecnico: linha?.whatsappTecnico ?? null };
 }
 
 /** "a", "a e b", "a, b e c". */
@@ -125,7 +136,7 @@ export async function segredosCadastrados() {
  * @param {{ config: { chatDaLoja: object }, env?: object, agora?: number }} opcoes
  */
 export async function estadoDoChatDaLoja({ config, env = process.env, agora = Date.now() }) {
-  const [segredos, sinal] = await Promise.all([segredosCadastrados(), prisma.sinalDoAssistente.findUnique({ where: { id: "unico" } })]);
+  const [segredos, sinal, empresa] = await Promise.all([segredosCadastrados(), prisma.sinalDoAssistente.findUnique({ where: { id: "unico" } }), whatsappDaEmpresa()]);
   const preparado = servicoPreparado(env);
   const atual = lerPublicados().atual;
   return {
@@ -134,6 +145,7 @@ export async function estadoDoChatDaLoja({ config, env = process.env, agora = Da
     sinal: sinal ? { em: sinal.sinalEm, versao: sinal.versao ?? null, emAndamento: sinal.emAndamento, ultimoErro: sinal.ultimoErro ?? null } : null,
     noAr: Boolean(sinal) && agora - sinal.sinalEm.getTime() <= SINAL_VALE_MS,
     widget: atual ? { versao: atual.versao, etiqueta: etiquetaDoWidget(atual) } : null,
-    faltas: faltasParaLigar({ preparado, segredos, canal: config.chatDaLoja }),
+    whatsapp: { comercial: empresa.celular ? formatarTelefone(empresa.celular) : null, tecnico: empresa.whatsappTecnico ? formatarTelefone(empresa.whatsappTecnico) : null },
+    faltas: faltasParaLigar({ preparado, segredos, canal: config.chatDaLoja, empresa }),
   };
 }
