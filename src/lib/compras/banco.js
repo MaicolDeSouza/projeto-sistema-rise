@@ -409,6 +409,8 @@ function pedidoParaTela(pedido) {
     vinculoId: item.vinculoId,
     sku: item.produto.sku,
     nome: item.produto.tituloBase,
+    // Onde o produto mora no estoque ("M2"), ao lado do codigo: quem recebe a compra guarda sem abrir o cadastro.
+    localizacao: item.produto.localizacao?.trim() || null,
     foto: item.produto.arquivos?.[0] ? urlDe(item.produto.sku, "IMAGEM", item.produto.arquivos[0].arquivo) : null,
     nomeNoFornecedor: item.nomeNoFornecedor,
     codigoNoFornecedor: item.codigoNoFornecedor,
@@ -622,7 +624,7 @@ const INCLUIR_NO_PEDIDO = {
   itens: {
     orderBy: { ordem: "asc" },
     include: {
-      produto: { select: { sku: true, tituloBase: true, tipo: true, estoque: true, arquivos: FOTO_PRINCIPAL } },
+      produto: { select: { sku: true, tituloBase: true, tipo: true, estoque: true, localizacao: true, arquivos: FOTO_PRINCIPAL } },
       lancamentos: { where: { desfeitoEm: null }, orderBy: { lancadoEm: "asc" } },
     },
   },

@@ -167,6 +167,7 @@ export default function BlocoItens({
                     <p className="truncate font-medium" title={item.nome}>{item.nome}</p>
                     <p className="flex items-center gap-1 font-mono text-xs text-suave">
                       {item.sku}
+                      {item.localizacao && <span title="Localização no estoque">· {item.localizacao}</span>}
                       {aliexpress && podeCasar && aoTrocarProduto && !item.quantidadeLancada && (
                         <button
                           type="button"
