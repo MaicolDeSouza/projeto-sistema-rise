@@ -45,6 +45,19 @@ hobi.4hobby.com.br {
 		}
 	}
 
+	# O arquivo do visitante (fase 3, 22/11/2026): so POST (e o OPTIONS do navegador), ate 6 MB. O servico recusa acima de 5 MB
+	# com a resposta certa para a janela; a folga e para o Caddy nao cortar antes.
+	@anexo {
+		method POST OPTIONS
+		path /anexo
+	}
+	handle @anexo {
+		request_body {
+			max_size 6MB
+		}
+		reverse_proxy ia:8787
+	}
+
 	# O arquivo da janela do chat (o nome traz a versao). E publico por natureza: so GET, e so esse formato de nome.
 	@widget {
 		method GET

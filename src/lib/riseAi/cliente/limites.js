@@ -23,6 +23,9 @@ const centavos = (valor) => Math.round(Number(valor) * 100);
  */
 export const LIMITES_DO_PEDIDO = { errosPorSessaoPorDia: 5, consultasPorIpPorHora: 10 };
 
+/** Arquivos por visitante no dia (fase 3). Conta toda tentativa que passou pela verificacao de robo, lida ou nao. */
+export const ANEXOS_POR_SESSAO_POR_DIA = 5;
+
 /**
  * @param {{ limites: { mensagensPorSessaoPorHora: number, mensagensPorIpPorHora: number, respostasAoMesmoTempo: number, brlPorSessaoPorDia: number }, agora?: () => number }} opcoes
  */
@@ -38,6 +41,8 @@ export function criarLimites({ limites, agora = Date.now }) {
   const errosDePedido = new Map();
   /** @type {Map<string, number[]>} */
   const pedidosPorIp = new Map();
+  /** @type {Map<string, { dia: number, anexos: number }>} */
+  const anexos = new Map();
 
   const recentes = (mapa, chave, instante) => (mapa.get(chave) ?? []).filter((quando) => quando > instante - UMA_HORA_MS);
 
@@ -50,9 +55,10 @@ export function criarLimites({ limites, agora = Date.now }) {
       const hoje = Math.floor(instante / UM_DIA_MS);
       for (const [chave, custo] of custos) if (custo.dia !== hoje) custos.delete(chave);
     }
-    if (errosDePedido.size > FAXINA_A_PARTIR_DE) {
+    for (const mapa of [errosDePedido, anexos]) {
+      if (mapa.size <= FAXINA_A_PARTIR_DE) continue;
       const hoje = Math.floor(instante / UM_DIA_MS);
-      for (const [chave, contagem] of errosDePedido) if (contagem.dia !== hoje) errosDePedido.delete(chave);
+      for (const [chave, contagem] of mapa) if (contagem.dia !== hoje) mapa.delete(chave);
     }
   }
 
@@ -116,6 +122,17 @@ export function criarLimites({ limites, agora = Date.now }) {
       if (doIp.length >= LIMITES_DO_PEDIDO.consultasPorIpPorHora) return { ok: false, motivo: "ip" };
       pedidosPorIp.set(ip, [...doIp, instante]);
       return { ok: true };
+    },
+    /** Pede a vez de mandar um arquivo; a aceita ja conta. @returns {boolean} */
+    registrarAnexo(sessaoId) {
+      const instante = agora();
+      faxina(instante);
+      const hoje = Math.floor(instante / UM_DIA_MS);
+      const atual = anexos.get(sessaoId);
+      const usados = atual && atual.dia === hoje ? atual.anexos : 0;
+      if (usados >= ANEXOS_POR_SESSAO_POR_DIA) return false;
+      anexos.set(sessaoId, { dia: hoje, anexos: usados + 1 });
+      return true;
     },
     /** O pedido nao foi achado: conta um erro do visitante no dia. */
     anotarErroDePedido(sessaoId) {

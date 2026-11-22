@@ -1,6 +1,7 @@
 import http from "node:http";
 
 import { eventoSSE } from "../sse";
+import { ErroDoAnexo, TAMANHO_MAXIMO_DO_ANEXO, criarGuardaDeAnexos, lerAnexo, nomeDoAnexo, tipoPelosBytes } from "./anexo";
 import { ErroDoAtendimento } from "./cerebro";
 import { foraDoHorario } from "./configuracaoDoCanal";
 import { criarLimites } from "./limites";
@@ -9,7 +10,8 @@ import { emitirPasse, passeVale } from "./turnstile";
 import { NOME_DO_WIDGET } from "./widgetPublicado";
 
 /**
- * A PORTA do chat da loja: as rotas que a janela do chat usa (spec de 19/11/2026, §5.4 e §8; `/pedido` desde a fase 3).
+ * A PORTA do chat da loja: as rotas que a janela do chat usa (spec de 19/11/2026, §5.4 e §8; `/pedido` e `/anexo` desde a
+ * fase 3).
  * E o unico pedaco do Rise alcancavel da internet sem login, entao tudo aqui falha FECHADO:
  *
  *  - rota que nao e uma das conhecidas: 404, sem corpo;
@@ -31,8 +33,12 @@ const AVISO_GENERICO = "Não consegui responder agora. Tente de novo em instante
 
 class CorpoGrande extends Error {}
 
-/** O corpo do pedido, com teto: acima dele a leitura para e o pedido e recusado (413). */
-function lerCorpo(requisicao) {
+/**
+ * O corpo do pedido, com teto: acima dele a leitura para e o pedido e recusado (413). So o `/anexo` passa de 16 KB.
+ * `esperarOFim`: acima do teto o resto e DESCARTADO ate o fim antes de recusar. E o caso do arquivo: responder no meio do
+ * upload fecha a conexao, e o navegador mostra "falha de rede" no lugar do aviso com o WhatsApp. (O Caddy ja corta em 6 MB.)
+ */
+function lerCorpo(requisicao, teto = TETO_DO_CORPO, { esperarOFim = false } = {}) {
   return new Promise((resolver, rejeitar) => {
     const pedacos = [];
     let total = 0;
@@ -40,17 +46,29 @@ function lerCorpo(requisicao) {
     requisicao.on("data", (pedaco) => {
       if (estourou) return;
       total += pedaco.length;
-      if (total > TETO_DO_CORPO) {
+      if (total > teto) {
         estourou = true;
-        rejeitar(new CorpoGrande());
+        pedacos.length = 0;
+        if (!esperarOFim) rejeitar(new CorpoGrande());
         return;
       }
       pedacos.push(pedaco);
     });
     requisicao.on("end", () => {
-      if (!estourou) resolver(Buffer.concat(pedacos).toString("utf8"));
+      if (!estourou) resolver(Buffer.concat(pedacos));
+      else if (esperarOFim) rejeitar(new CorpoGrande());
     });
     requisicao.on("error", rejeitar);
+  });
+}
+
+/** Descarta o corpo que ainda nao foi lido (recusa antes de ler o arquivo), pelo mesmo motivo do `esperarOFim`. */
+function drenar(requisicao) {
+  return new Promise((pronto) => {
+    if (requisicao.readableEnded) return pronto();
+    requisicao.on("end", pronto);
+    requisicao.on("error", pronto);
+    requisicao.resume();
   });
 }
 
@@ -64,7 +82,7 @@ function lerCorpo(requisicao) {
  * }} dependencias
  * @returns {http.Server & { limites: object }}
  */
-export function criarServidorDoAssistente({ dados, responder, avaliar, verificarRobo, chaveHex, origens, versao = "dev", agora = Date.now, widgets = new Map() }) {
+export function criarServidorDoAssistente({ dados, responder, avaliar, verificarRobo, chaveHex, origens, versao = "dev", agora = Date.now, widgets = new Map(), guardaDeAnexos = criarGuardaDeAnexos({ agora }) }) {
   // Os limites vivem na memoria deste processo; os NUMEROS acompanham o que o dono salvar (relidos junto com a configuracao).
   const numerosDosLimites = {};
   const limites = criarLimites({ limites: numerosDosLimites, agora });
@@ -89,7 +107,7 @@ export function criarServidorDoAssistente({ dados, responder, avaliar, verificar
 
   function cabecalhosDaOrigem(origem) {
     return origem
-      ? { "Access-Control-Allow-Origin": origem, Vary: "Origin", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Allow-Headers": "Content-Type", "Access-Control-Max-Age": "600" }
+      ? { "Access-Control-Allow-Origin": origem, Vary: "Origin", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Allow-Headers": "Content-Type, X-Sessao, X-Nome, X-Passe, X-Turnstile", "Access-Control-Max-Age": "600" }
       : {};
   }
 
@@ -106,7 +124,7 @@ export function criarServidorDoAssistente({ dados, responder, avaliar, verificar
   }
 
   async function corpoJson(requisicao) {
-    const texto = await lerCorpo(requisicao);
+    const texto = (await lerCorpo(requisicao)).toString("utf8");
     const corpo = JSON.parse(texto);
     if (!corpo || typeof corpo !== "object" || Array.isArray(corpo)) throw new SyntaxError("corpo");
     return corpo;
@@ -155,6 +173,54 @@ export function criarServidorDoAssistente({ dados, responder, avaliar, verificar
     return json(resposta, 200, { situacao: "nao_achado", ...comPasse }, cors);
   }
 
+  /**
+   * O arquivo do visitante (fase 3). Corpo cru de ate 5 MB, so nesta rota; a sessao, o nome e a verificacao de robo vem nos
+   * cabecalhos. O arquivo e lido na hora e fica na memoria (`guardaDeAnexos`) ate a pergunta seguinte; nada vai ao disco
+   * nem ao banco aqui. Limite e tamanho estourados respondem com o WhatsApp (pedido do dono em 22/11/2026).
+   */
+  async function aoAnexo(requisicao, resposta, cors) {
+    // Recusa antes de ler o arquivo: o resto do upload e descartado antes da resposta (ver `drenar`).
+    const recusar = async (status, corpo) => {
+      await drenar(requisicao);
+      return json(resposta, status, corpo, cors);
+    };
+    const sessaoId = String(requisicao.headers["x-sessao"] ?? "");
+    if (!SESSAO.test(sessaoId)) return recusar(400, { erro: "sessao" });
+    const atual = await estado();
+    const whatsapp = atual?.canal.whatsapp || null;
+    if (!atual?.ligado) return recusar(503, { erro: "desligado", whatsapp });
+    const ip = ipDe(requisicao);
+    const robo = await conferirRobo({ passe: requisicao.headers["x-passe"], turnstileToken: requisicao.headers["x-turnstile"] }, sessaoId, ip, atual);
+    if (!robo.ok) return recusar(403, { erro: "robo" });
+    const comPasse = robo.passeNovo ? { passe: robo.passeNovo } : {};
+    if (!limites.registrarAnexo(sessaoId)) return recusar(429, { erro: "limite", whatsapp, ...comPasse });
+    if (Number(requisicao.headers["content-length"]) > TAMANHO_MAXIMO_DO_ANEXO) return recusar(413, { erro: "grande", whatsapp, ...comPasse });
+    let bytes;
+    try {
+      bytes = await lerCorpo(requisicao, TAMANHO_MAXIMO_DO_ANEXO, { esperarOFim: true });
+    } catch (erro) {
+      if (erro instanceof CorpoGrande) return json(resposta, 413, { erro: "grande", whatsapp, ...comPasse }, cors);
+      throw erro;
+    }
+    const tipo = tipoPelosBytes(bytes);
+    if (!tipo) return json(resposta, 415, { erro: "tipo", ...comPasse }, cors);
+    let lido;
+    try {
+      lido = await lerAnexo(bytes, tipo);
+    } catch (erro) {
+      if (erro instanceof ErroDoAnexo) return json(resposta, 422, { erro: erro.motivo, ...comPasse }, cors);
+      throw erro;
+    }
+    let nome;
+    try {
+      nome = nomeDoAnexo(decodeURIComponent(String(requisicao.headers["x-nome"] ?? "")));
+    } catch {
+      nome = nomeDoAnexo("");
+    }
+    const anexoId = guardaDeAnexos.guardar(sessaoId, { nome, tipo, ...lido });
+    return json(resposta, 200, { anexoId, nome, tipo, resumo: lido.resumo, ...comPasse }, cors);
+  }
+
   async function aoStatus(resposta, cors) {
     const atual = await estado();
     if (!atual) return json(resposta, 200, { ligado: false }, { ...cors, "Cache-Control": "public, max-age=60" });
@@ -185,6 +251,14 @@ export function criarServidorDoAssistente({ dados, responder, avaliar, verificar
     if (!robo.ok) return json(resposta, 403, { erro: "robo" }, cors);
     const passeNovo = robo.passeNovo;
 
+    // O arquivo que o visitante mandou pelo `/anexo` (fase 3): so o dono da sessao o usa, uma vez. Sumiu (10 min, outro
+    // arquivo no lugar): a janela pede para enviar de novo.
+    let anexo = null;
+    if (corpo.anexoId !== undefined && corpo.anexoId !== null) {
+      anexo = typeof corpo.anexoId === "string" && corpo.anexoId.length <= 40 ? guardaDeAnexos.pegar(sessaoId, corpo.anexoId) : null;
+      if (!anexo) return json(resposta, 400, { erro: "anexo" }, cors);
+    }
+
     const vez = limites.entrar(sessaoId, ip);
     if (!vez.ok) {
       if (vez.motivo === "ocupada") return json(resposta, 409, { erro: "ocupada" }, cors);
@@ -214,7 +288,7 @@ export function criarServidorDoAssistente({ dados, responder, avaliar, verificar
       fluxoAberto = true;
       if (passeNovo) enviar("passe", { passe: passeNovo });
       const contexto = corpo.contexto && typeof corpo.contexto === "object" ? { pagina: String(corpo.contexto.pagina ?? "").slice(0, 40), skuAberto: String(corpo.contexto.skuAberto ?? "").slice(0, 64) } : {};
-      await responder({ sessaoId, mensagem, contexto, aoEvento: enviar, limites });
+      await responder({ sessaoId, mensagem, contexto, aoEvento: enviar, limites, anexo });
     } catch (erro) {
       // O fluxo nem abriu: nao ha como avisar por evento; quem chamou responde o erro generico (500), sem detalhe.
       if (!fluxoAberto) throw erro;
@@ -267,7 +341,7 @@ export function criarServidorDoAssistente({ dados, responder, avaliar, verificar
         });
         return resposta.end(arquivo);
       }
-      if (!["/status", "/chat", "/avaliar", "/pedido"].includes(caminho)) {
+      if (!["/status", "/chat", "/avaliar", "/pedido", "/anexo"].includes(caminho)) {
         resposta.writeHead(404);
         return resposta.end();
       }
@@ -284,6 +358,7 @@ export function criarServidorDoAssistente({ dados, responder, avaliar, verificar
       if (rota === "POST /chat") return await aoChat(requisicao, resposta, cors);
       if (rota === "POST /avaliar") return await aoAvaliar(requisicao, resposta, cors);
       if (rota === "POST /pedido") return await aoPedido(requisicao, resposta, cors);
+      if (rota === "POST /anexo") return await aoAnexo(requisicao, resposta, cors);
       resposta.writeHead(404);
       resposta.end();
     } catch (erro) {
@@ -301,8 +376,9 @@ export function criarServidorDoAssistente({ dados, responder, avaliar, verificar
       resposta.end();
     }
   });
-  // Conexao que nao manda o pedido inteiro em 15 s e solta: quem segura conexoes abertas nao trava o servico.
-  servidor.requestTimeout = 15000;
+  // Conexao que nao manda o pedido inteiro a tempo e solta: quem segura conexoes abertas nao trava o servico. 60 s (eram 15)
+  // por causa do arquivo de ate 5 MB vindo de um celular com sinal fraco (fase 3); os cabecalhos continuam em 10 s.
+  servidor.requestTimeout = 60000;
   servidor.headersTimeout = 10000;
   servidor.limites = limites;
   return servidor;

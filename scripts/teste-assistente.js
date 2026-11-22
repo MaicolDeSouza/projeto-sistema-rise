@@ -503,6 +503,20 @@ try {
   conferir("o evento diz qual formulario e a resposta o devolve", [eventosDoPedido.find(([nome]) => nome === "formulario")?.[1], rPedido.formulario], [{ tipo: "pedido" }, "pedido"]);
   const rSoFormulario = await responderAoCliente({ ...pedido, sessaoId: sessaoDe("r"), mensagem: "rastreio", dependencias: depsCom([roteiroDoPedido[0], { texto: "" }]) });
   conferir("so o formulario, sem texto, tambem e resposta", rSoFormulario.formulario, "pedido");
+  // Fase 3: o arquivo do visitante chega ao modelo como texto (mascarado) ou como imagem; o banco nunca recebe a imagem.
+  const depsDoArquivo = depsCom([{ texto: "Vi a sua lista." }]);
+  const rArquivo = await responderAoCliente({ ...pedido, sessaoId: sessaoDe("s"), mensagem: "Veja o arquivo que enviei", anexo: { nome: "lista.pdf", resumo: "1 página", texto: "10x resistor 10k\n5x LED\n1x Arduino\nCPF 123.456.789-09", cortado: false }, dependencias: depsDoArquivo });
+  const enviadoAoModelo = JSON.stringify(depsDoArquivo.principal.pedidos[0].mensagens.at(-1).conteudo);
+  conferir("o texto do arquivo vai ao modelo, mascarado e com o aviso de lista", [enviadoAoModelo.includes("Arquivo enviado: lista.pdf"), enviadoAoModelo.includes("10x resistor 10k"), enviadoAoModelo.includes("123.456.789-09"), enviadoAoModelo.includes("orcarLista")], [true, true, false, true]);
+  const gravadaDoArquivo = await prisma.mensagemIA.findFirst({ where: { conversaId: rArquivo.conversaId, papel: "USUARIO" }, select: { conteudo: true } });
+  conferir("a conversa grava o nome, o resumo e o texto mascarado", [gravadaDoArquivo?.conteudo.includes("[arquivo: lista.pdf, 1 página]"), gravadaDoArquivo?.conteudo.includes("10x resistor 10k"), gravadaDoArquivo?.conteudo.includes("123.456.789-09")], [true, true, false]);
+  const depsDaFoto = depsCom([{ texto: "Parece um sensor ultrassônico." }]);
+  const rFoto = await responderAoCliente({ ...pedido, sessaoId: sessaoDe("t"), mensagem: "que peça é esta?", anexo: { nome: "foto.jpg", resumo: "imagem", imagem: { mime: "image/jpeg", base64: "QUJD" } }, dependencias: depsDaFoto });
+  const conteudoDaFoto = depsDaFoto.principal.pedidos[0].mensagens.at(-1).conteudo;
+  conferir("a foto vai ao modelo como parte imagem", [Array.isArray(conteudoDaFoto), Array.isArray(conteudoDaFoto) ? conteudoDaFoto.find((parte) => parte.tipo === "imagem")?.base64 : null], [true, "QUJD"]);
+  const gravadaDaFoto = await prisma.mensagemIA.findFirst({ where: { conversaId: rFoto.conversaId, papel: "USUARIO" }, select: { conteudo: true } });
+  conferir("a foto nunca vai ao banco", [gravadaDaFoto?.conteudo.includes("[imagem enviada: foto.jpg]"), gravadaDaFoto?.conteudo.includes("QUJD")], [true, false]);
+  conferir("o prompt explica o arquivo e a foto", [montarSistemaDoCliente({ nome: "Hobi" }).includes("Arquivo enviado"), montarSistemaDoCliente({ nome: "Hobi" }).includes("foto")], [true, true]);
   conferir("o prompt manda abrir o formulario e nunca pedir o documento no texto", [montarSistemaDoCliente({ nome: "Hobi" }).includes("abrirConsultaDePedido"), /nunca peça o número do pedido, CPF, CNPJ ou e-mail/i.test(montarSistemaDoCliente({ nome: "Hobi" }))], [true, true]);
 
   // Item 4: a lista de pecas em qualquer formato (o aviso ao modelo vale tambem para virgula e planilha).
@@ -570,7 +584,9 @@ try {
     };
     const servidor = criarServidorDoAssistente({
       dados: dadosFalsos,
-      responder: async ({ aoEvento }) => {
+      responder: async (pedidoAoCerebro) => {
+        opcoes.aoResponder?.(pedidoAoCerebro);
+        const { aoEvento } = pedidoAoCerebro;
         if (opcoes.atrasoMs) await esperar(opcoes.atrasoMs);
         if (opcoes.erroDoCerebro) throw opcoes.erroDoCerebro;
         aoEvento("cartoes", { itens: [{ sku: "ZZ-LOJA-LED" }] });
@@ -707,6 +723,99 @@ try {
   const comBancoFora = await portaDoBancoFora.postar("/pedido", pedidoCerto);
   conferir("banco fora no pedido: aviso com o WhatsApp, sem detalhe", [comBancoFora.status, comBancoFora.corpo], [503, { erro: "indisponivel", whatsapp: WHATSAPP }]);
   await portaDoBancoFora.fechar();
+  // ---------- Fase 3 (22/11/2026): o arquivo do visitante (anexo), lido na memoria e nunca guardado ----------
+  const { tipoPelosBytes, lerAnexo, criarGuardaDeAnexos, nomeDoAnexo, TAMANHO_MAXIMO_DO_ANEXO, TETO_DO_TEXTO_DO_ANEXO } = await import("../src/lib/riseAi/cliente/anexo.js");
+  const sharp = (await import("sharp")).default;
+  const PDFDocument = (await import("pdfkit")).default;
+  const ExcelJS = (await import("exceljs")).default;
+  const pdfDe = (desenhar) =>
+    new Promise((pronto) => {
+      const documento = new PDFDocument();
+      const partes = [];
+      documento.on("data", (parte) => partes.push(parte));
+      documento.on("end", () => pronto(Buffer.concat(partes)));
+      desenhar(documento);
+      documento.end();
+    });
+  /** Um zip que so tem o diretorio central (o que a conferencia le), com uma entrada do tamanho pedido. */
+  function zipFalso(nome, tamanho) {
+    const nomeEmBytes = Buffer.from(nome);
+    const local = Buffer.concat([Buffer.from([0x50, 0x4b, 0x03, 0x04]), Buffer.alloc(26), nomeEmBytes]);
+    const central = Buffer.alloc(46);
+    central.writeUInt32LE(0x02014b50, 0);
+    central.writeUInt32LE(tamanho, 24);
+    central.writeUInt16LE(nomeEmBytes.length, 28);
+    const diretorio = Buffer.concat([central, nomeEmBytes]);
+    const fim = Buffer.alloc(22);
+    fim.writeUInt32LE(0x06054b50, 0);
+    fim.writeUInt16LE(1, 8);
+    fim.writeUInt16LE(1, 10);
+    fim.writeUInt32LE(diretorio.length, 12);
+    fim.writeUInt32LE(local.length, 16);
+    return Buffer.concat([local, diretorio, fim]);
+  }
+  const fotoComGps = await sharp({ create: { width: 3000, height: 2000, channels: 3, background: "#22aa77" } }).jpeg().withExif({ IFD0: { Copyright: "ZZ-GPS-SECRETO" } }).toBuffer();
+  const pngPequeno = await sharp({ create: { width: 40, height: 40, channels: 4, background: "#ffffff" } }).png().toBuffer();
+  const webpPequeno = await sharp({ create: { width: 40, height: 40, channels: 3, background: "#000000" } }).webp().toBuffer();
+  const pdfComTexto = await pdfDe((documento) => documento.text("Lista do projeto\n10x resistor 10k\n5x LED vermelho\n1x Arduino Uno\nCPF 123.456.789-09"));
+  const pdfSemTexto = await pdfDe((documento) => documento.rect(50, 50, 100, 100).fill("#000000"));
+  const pastaDeTrabalho = new ExcelJS.Workbook();
+  const folhaDaLista = pastaDeTrabalho.addWorksheet("Lista");
+  folhaDaLista.addRow(["Peça", "Qtd"]);
+  folhaDaLista.addRow(["Resistor 10k", 10]);
+  folhaDaLista.addRow(["LED vermelho", 5]);
+  const planilha = Buffer.from(await pastaDeTrabalho.xlsx.writeBuffer());
+
+  conferir("anexo: tipo pelos bytes", [fotoComGps, pngPequeno, webpPequeno, pdfComTexto, planilha, Buffer.from("resistor 10k;10\nled;5\n")].map(tipoPelosBytes), ["jpeg", "png", "webp", "pdf", "xlsx", "texto"]);
+  conferir(
+    "anexo: recusa o executavel renomeado, o HTML e o zip que nao e planilha",
+    [Buffer.concat([Buffer.from("MZ"), Buffer.alloc(200)]), Buffer.from("<!DOCTYPE html><script>alert(1)</script>"), Buffer.from("  <html><body>oi"), zipFalso("word/document.xml", 100)].map(tipoPelosBytes),
+    [null, null, null, null],
+  );
+  const fotoLida = await lerAnexo(fotoComGps, "jpeg");
+  const fotoRegravada = await sharp(Buffer.from(fotoLida.imagem.base64, "base64")).metadata();
+  conferir("anexo: a foto sai reduzida, em JPEG e sem EXIF", [fotoLida.imagem.mime, Math.max(fotoRegravada.width, fotoRegravada.height), fotoRegravada.exif ?? null, fotoLida.resumo], ["image/jpeg", 1280, null, "imagem"]);
+  const pdfLido = await lerAnexo(pdfComTexto, "pdf");
+  conferir("anexo: o PDF vira texto", [pdfLido.texto.includes("10x resistor 10k"), pdfLido.resumo], [true, "1 página"]);
+  conferir("anexo: PDF sem texto (escaneado) e recusado com o motivo", await lerAnexo(pdfSemTexto, "pdf").then(() => null, (falha) => falha.motivo), "escaneado");
+  const planilhaLida = await lerAnexo(planilha, "xlsx");
+  conferir("anexo: a planilha vira linhas separadas por tab", [planilhaLida.texto, planilhaLida.resumo], ["Peça\tQtd\nResistor 10k\t10\nLED vermelho\t5", "3 linhas"]);
+  conferir("anexo: zip-bomba nem e aberto", await lerAnexo(zipFalso("xl/workbook.xml", 0xfffffff0), "xlsx").then(() => null, (falha) => falha.motivo), "ilegivel");
+  conferir("anexo: texto em Latin-1 tambem e lido", (await lerAnexo(Buffer.from("resistor 10k;10\nlâmpada;2\n", "latin1"), "texto")).texto.includes("lâmpada"), true);
+  const textoLongo = await lerAnexo(Buffer.from("a\n".repeat(20000)), "texto");
+  conferir("anexo: texto longo e cortado no teto", [textoLongo.texto.length <= TETO_DO_TEXTO_DO_ANEXO, textoLongo.cortado], [true, true]);
+  conferir("anexo: o nome do arquivo sai sem caminho e curto", [nomeDoAnexo("C:\\fakepath\\lista.pdf"), nomeDoAnexo("../../etc/passwd"), nomeDoAnexo(""), nomeDoAnexo(`${"a".repeat(200)}.pdf`).length], ["lista.pdf", "passwd", "arquivo", 80]);
+  let relogioDaGuarda = 0;
+  const guardaDeTeste = criarGuardaDeAnexos({ agora: () => relogioDaGuarda });
+  const idGuardado = guardaDeTeste.guardar(SESSAO, { nome: "a.csv", texto: "x" });
+  conferir("anexo: o de uma sessao nao serve a outra", guardaDeTeste.pegar("f".repeat(32), idGuardado), null);
+  conferir("anexo: sai da guarda depois de usado", [guardaDeTeste.pegar(SESSAO, idGuardado)?.nome, guardaDeTeste.pegar(SESSAO, idGuardado)], ["a.csv", null]);
+  const idVelho = guardaDeTeste.guardar(SESSAO, { nome: "b.csv", texto: "x" });
+  relogioDaGuarda += 10 * 60 * 1000 + 1;
+  conferir("anexo: depois de 10 minutos ele some", guardaDeTeste.pegar(SESSAO, idVelho), null);
+
+  const anexosRecebidos = [];
+  const portaDoAnexo = await subir({ aoResponder: (pedidoAoCerebro) => anexosRecebidos.push(pedidoAoCerebro.anexo ?? null) });
+  const enviarArquivo = (bytes, { nome = "lista.csv", sessao = SESSAO, token = "token-bom", origem = ORIGEM } = {}) =>
+    fetch(portaDoAnexo.base + "/anexo", { method: "POST", headers: { "Content-Type": "application/octet-stream", Origin: origem, "X-Sessao": sessao, "X-Nome": encodeURIComponent(nome), "X-Turnstile": token }, body: bytes }).then(async (resposta) => ({ status: resposta.status, corpo: await resposta.json().catch(() => null) }));
+  const preflightDoAnexo = await fetch(portaDoAnexo.base + "/anexo", { method: "OPTIONS", headers: { Origin: ORIGEM } });
+  conferir("preflight do anexo aceita os cabecalhos do arquivo", ["X-Sessao", "X-Nome", "X-Passe", "X-Turnstile"].every((cabecalho) => (preflightDoAnexo.headers.get("access-control-allow-headers") ?? "").includes(cabecalho)), true);
+  const subido = await enviarArquivo(Buffer.from("resistor 10k;10\nled;5\narduino;1\n"));
+  conferir("o arquivo sobe e volta o resumo, com o passe", [subido.status, subido.corpo?.tipo, subido.corpo?.resumo, subido.corpo?.nome, typeof subido.corpo?.anexoId, typeof subido.corpo?.passe], [200, "texto", "3 linhas", "lista.csv", "string", "string"]);
+  const chatComAnexo = await portaDoAnexo.postar("/chat", { ...pedidoBom, mensagem: "Veja o arquivo que enviei", anexoId: subido.corpo?.anexoId });
+  conferir("o /chat entrega o anexo ao cerebro", [chatComAnexo.status, anexosRecebidos.at(-1)?.nome, anexosRecebidos.at(-1)?.texto?.includes("resistor 10k")], [200, "lista.csv", true]);
+  conferir("o mesmo anexo nao serve duas vezes", (await portaDoAnexo.postar("/chat", { ...pedidoBom, anexoId: subido.corpo?.anexoId })).corpo, { erro: "anexo" });
+  conferir("anexo sem a verificacao de robo", (await enviarArquivo(Buffer.from("a;1"), { token: "token-ruim" })).status, 403);
+  conferir("tipo recusado pelos bytes, nao pelo nome", (await enviarArquivo(Buffer.concat([Buffer.from("MZ"), Buffer.alloc(100)]), { nome: "lista.pdf" })).corpo?.erro, "tipo");
+  const grande = await enviarArquivo(Buffer.alloc(TAMANHO_MAXIMO_DO_ANEXO + 10, 97));
+  conferir("arquivo maior que 5 MB: o texto e o WhatsApp", [grande.status, grande.corpo?.erro, grande.corpo?.whatsapp], [413, "grande", WHATSAPP]);
+  conferir("PDF escaneado", (await enviarArquivo(pdfSemTexto, { nome: "x.pdf" })).corpo?.erro, "escaneado");
+  conferir("o 5o arquivo do dia ainda passa", (await enviarArquivo(Buffer.from("a;1"))).status, 200);
+  const sextoArquivo = await enviarArquivo(Buffer.from("a;1"));
+  conferir("o 6o arquivo do dia: limite com o WhatsApp", [sextoArquivo.status, sextoArquivo.corpo?.erro, sextoArquivo.corpo?.whatsapp], [429, "limite", WHATSAPP]);
+  conferir("anexo de outra origem", (await enviarArquivo(Buffer.from("a;1"), { origem: "https://outro.site" })).status, 403);
+  await portaDoAnexo.fechar();
+
   const portaDoPedidoDesligada = await subir({ canal: { ligado: false } });
   conferir("pedido com o chat desligado", (await portaDoPedidoDesligada.postar("/pedido", pedidoCerto)).corpo, { erro: "desligado", whatsapp: WHATSAPP });
   await portaDoPedidoDesligada.fechar();
@@ -820,7 +929,8 @@ try {
   const modeloDoCaddy = existsSync(new URL("../deploy/caddy/assistente.modelo", import.meta.url)) ? ler("deploy/caddy/assistente.modelo") : "";
   conferir("o modelo do Caddy e do endereco do Hobi", /^hobi\.4hobby\.com\.br \{/m.test(modeloDoCaddy), true);
   conferir("o modelo do Caddy so tem as quatro rotas", (/\n\t\tpath ([^\n]+)\n/.exec(modeloDoCaddy)?.[1] ?? "").split(/\s+/), ["/status", "/chat", "/avaliar", "/pedido"]);
-  conferir("o modelo manda so essas rotas ao servico, e o resto e 404", [/handle @rotas \{[\s\S]*reverse_proxy ia:8787/.test(modeloDoCaddy), /\n\thandle \{\n\t\trespond 404\n\t\}/.test(modeloDoCaddy), (modeloDoCaddy.match(/reverse_proxy/g) ?? []).length], [true, true, 2]);
+  conferir("o modelo manda so essas rotas ao servico, e o resto e 404", [/handle @rotas \{[\s\S]*reverse_proxy ia:8787/.test(modeloDoCaddy), /\n\thandle \{\n\t\trespond 404\n\t\}/.test(modeloDoCaddy), (modeloDoCaddy.match(/reverse_proxy/g) ?? []).length], [true, true, 3]);
+  conferir("o anexo tem bloco proprio no Caddy, so POST e OPTIONS, ate 6 MB", /@anexo \{\n\t\tmethod POST OPTIONS\n\t\tpath \/anexo\n\t\}\n\thandle @anexo \{\n\t\trequest_body \{\n\t\t\tmax_size 6MB/.test(modeloDoCaddy), true);
   conferir("o modelo limita o corpo e nao segura o fluxo", [/max_size 16KB/.test(modeloDoCaddy), /flush_interval -1/.test(modeloDoCaddy)], [true, true]);
   // So as diretivas contam: o comentario do modelo explica justamente que ele NAO tem login.
   conferir("o modelo nao tem login nem o segredo de borda", /forward_auth|X-Rise-Borda|app:3000|auth:3000/.test(modeloDoCaddy.replace(/^\s*#.*$/gm, "")), false);

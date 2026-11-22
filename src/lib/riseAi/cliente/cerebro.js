@@ -148,6 +148,7 @@ async function rodarLaco({ escolha, provedor, config, sistema, mensagens, contex
 /**
  * @param {{
  *   canal: "LOJA", sessaoId: string, mensagem: string, contexto?: { pagina?: string, skuAberto?: string },
+ *   anexo?: { nome: string, resumo: string, texto?: string, cortado?: boolean, imagem?: { mime: string, base64: string } } | null,
  *   aoEvento?: (nome: string, dados: object) => void,
  *   dependencias: { dados: object, criarProvedor?: (id: string) => Promise<object>, conversas?: object, orcamento?: object, limites?: object, agora?: () => number }
  * }} pedido
@@ -156,7 +157,7 @@ async function rodarLaco({ escolha, provedor, config, sistema, mensagens, contex
  * @returns {Promise<{ conversaId: string, mensagemId: string, texto: string, cartoes: object[], lista: object | null, passagem: object | null, custoBrl: number }>}
  *   Lança `ErroDoAtendimento` (`motivo`: vazia, longa, orcamento, indisponivel).
  */
-export async function responderAoCliente({ canal, sessaoId, mensagem, contexto = {}, aoEvento = () => {}, dependencias }) {
+export async function responderAoCliente({ canal, sessaoId, mensagem, contexto = {}, anexo = null, aoEvento = () => {}, dependencias }) {
   const { dados } = dependencias;
   const conversas = dependencias.conversas ?? criarConversasDoCanal();
   const orcamento = dependencias.orcamento ?? criarOrcamentoDoCliente();
@@ -177,10 +178,17 @@ export async function responderAoCliente({ canal, sessaoId, mensagem, contexto =
   if ((await orcamento.gastoDeHojeBrl(agora)) >= loja.limites.brlPorDia) throw erro("orcamento");
 
   const { texto: perguntaMascarada, mascarados } = mascararDadosPessoais(pergunta);
+  // O arquivo do visitante (fase 3, anexo.js): o texto extraido passa pela MESMA mascara da pergunta, antes do modelo e do
+  // banco; a foto vai so ao modelo (no banco fica "[imagem enviada: nome]").
+  const doArquivo = anexo?.texto ? mascararDadosPessoais(anexo.texto) : null;
+  const nomeDoArquivo = String(anexo?.nome ?? "arquivo").slice(0, 80);
+  let gravado = perguntaMascarada;
+  if (doArquivo) gravado = `${perguntaMascarada}\n[arquivo: ${nomeDoArquivo}, ${anexo.resumo}]\n${doArquivo.texto}`;
+  else if (anexo?.imagem) gravado = `${perguntaMascarada}\n[imagem enviada: ${nomeDoArquivo}]`;
   const conversa = await conversas.abrirConversa({ canal, sessaoId, titulo: tituloDaConversa(perguntaMascarada), agora });
   const historico = cortarHistorico(conversa.historico, config.contextoMaxTokens);
   while (historico.length && historico[0].papel !== "usuario") historico.shift();
-  await conversas.gravarPergunta(conversa.id, perguntaMascarada, { mascarados });
+  await conversas.gravarPergunta(conversa.id, gravado, { mascarados: [...new Set([...mascarados, ...(doArquivo?.mascarados ?? [])])] });
 
   const mensagens = [...historico];
   try {
@@ -197,11 +205,16 @@ export async function responderAoCliente({ canal, sessaoId, mensagem, contexto =
     console.error("[ia] falha ao ler o conhecimento:", falha?.message ?? falha);
   }
   // Lista em qualquer formato (linhas, virgulas, planilha): o aviso so diz ao modelo que e lista; quem separa e ele.
-  const itensDaLista = pareceLista(pergunta);
-  mensagens.push({
-    papel: "usuario",
-    conteudo: itensDaLista >= 3 ? `${perguntaMascarada}\n\n[A mensagem parece uma lista de uns ${itensDaLista} itens: use orcarLista, com um item por peça e a quantidade que o visitante escreveu, onde quer que ela esteja.]` : perguntaMascarada,
-  });
+  let textoAoModelo = perguntaMascarada;
+  if (doArquivo) textoAoModelo = `${perguntaMascarada}\n\nArquivo enviado: ${nomeDoArquivo} (${anexo.resumo}${anexo.cortado ? ", cortado no fim por ser longo" : ""})\n${doArquivo.texto}`;
+  const itensDaLista = pareceLista(doArquivo ? doArquivo.texto : pergunta);
+  if (itensDaLista >= 3) textoAoModelo += `\n\n[A mensagem parece uma lista de uns ${itensDaLista} itens: use orcarLista, com um item por peça e a quantidade que o visitante escreveu, onde quer que ela esteja.]`;
+  if (anexo?.imagem) {
+    textoAoModelo += `\n\n[O visitante enviou a foto ${nomeDoArquivo}.]`;
+    mensagens.push({ papel: "usuario", conteudo: [{ tipo: "texto", texto: textoAoModelo }, { tipo: "imagem", mime: anexo.imagem.mime, base64: anexo.imagem.base64 }] });
+  } else {
+    mensagens.push({ papel: "usuario", conteudo: textoAoModelo });
+  }
 
   const sistema = montarSistemaDoCliente({ nome: loja.nome, promptDoCliente: config.promptDoCliente, contexto });
   const contextoDasFerramentas = { dados, vistos: new Map(), saida: { cartoes: [], lista: null, passagem: null, formulario: null } };

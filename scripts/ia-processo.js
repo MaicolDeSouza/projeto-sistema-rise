@@ -51,8 +51,8 @@ const orcamento = criarOrcamentoDoCliente();
 
 const servidor = criarServidorDoAssistente({
   dados,
-  responder: ({ sessaoId, mensagem, contexto, aoEvento, limites }) =>
-    responderAoCliente({ canal: "LOJA", sessaoId, mensagem, contexto, aoEvento, dependencias: { dados, conversas, orcamento, limites } }),
+  responder: ({ sessaoId, mensagem, contexto, aoEvento, limites, anexo }) =>
+    responderAoCliente({ canal: "LOJA", sessaoId, mensagem, contexto, aoEvento, anexo, dependencias: { dados, conversas, orcamento, limites } }),
   avaliar: (mensagemId, sessaoId, nota) => conversas.avaliar(mensagemId, sessaoId, nota),
   verificarRobo: verificarTurnstile,
   chaveHex: derivarChave(ambiente.chaveHex, "passe"),
