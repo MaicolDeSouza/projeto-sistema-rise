@@ -76,3 +76,18 @@ implementado está no CLAUDE.md, seção "Chat da loja (o Hobi), fase 2", em "Aj
    página e de novo a cada atualização (o X só vale para aquela página); o balão fica **acima** do robô e menos para a esquerda; o
    símbolo de wi-fi no formato dos ícones que o dono mandou (em pé: ponto e arcos), logo acima da antena; texto mais caloroso, com a
    pontuação corrigida a partir da sugestão dele: **"Olá! Está com alguma dúvida? Me pergunte que eu te ajudo."** FEITO.
+
+7. **(22/11/2026) Acompanhar pedido = a FASE 3 da spec.** Dono: "Ter outra opção para procurar por pedido ... sugiro opção igual a
+   mamute, com exceção da linha sobre o whatsapp" (print do Assistente Mamute: atalho "Acompanhar meu pedido" abre um formulário
+   DENTRO da conversa com "Número do pedido", "CPF, CNPJ ou e-mail do cadastro", "Ver na loja" e "Consultar"; o "Pedir status no
+   WhatsApp" NÃO entra).
+   - Hoje: pergunta sobre pedido vira passagem para o WhatsApp comercial (motivo `pedido`); o Hobi não consulta nada.
+   - Já decidido na spec (§5.2, §8, §10, Opção 1 do dono em 19/11/2026): função `ia_situacao_do_pedido(numero, prova)` SECURITY
+     DEFINER (o papel `rise_ia` continua sem ler PedidoDeVenda e Cliente); só pedidos da LI e do Bling; devolve só situação, situação
+     do envio, transportadora, rastreio, link de rastreio e data; "não achei" igual para pedido inexistente e documento errado;
+     limites (5 erros por sessão, 10 consultas por IP por hora, 5 erros por número de pedido por dia no banco); o formulário não passa
+     pela IA e não é gravado (só a contagem de tentativas).
+   - Ainda sem plano escrito.
+
+8. **(22/11/2026) Cabeçalho volta ao início.** Clicar na foto/nome do topo mostra a tela inicial (saudação e atalhos) sem apagar a
+   conversa; escolher um atalho (ou escrever) volta ao histórico inteiro, com a nova fala no fim. FEITO.

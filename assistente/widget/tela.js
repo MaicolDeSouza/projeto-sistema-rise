@@ -52,6 +52,9 @@ var HOBI_CSS = [
   ".avatar{width:38px;height:38px;border-radius:50%;background:var(--papel);display:grid;place-items:center;flex:none}",
   ".avatar img{width:30px;height:30px;display:block}",
   ".quem{flex:1;min-width:0;display:flex;flex-direction:column}",
+  // O cabecalho (foto + nome) volta a tela inicial; a conversa continua guardada (pedido do dono em 22/11/2026).
+  ".inicio{flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:2px 4px 2px 0;border:0;border-radius:10px;background:transparent;color:inherit;text-align:left;transition-property:opacity;transition-duration:.15s}",
+  ".inicio:hover{opacity:.85}",
   ".quem strong{font-size:16px;font-weight:700;display:flex;align-items:center;gap:6px}",
   ".quem strong::after{content:'';width:7px;height:7px;border-radius:50%;background:var(--led);box-shadow:0 0 6px var(--led)}",
   ".quem span{font-size:12.5px;font-weight:600}",
@@ -312,6 +315,8 @@ function hobiIniciar(servico, status) {
     hobiGuardado.gravar("sessao", sessaoId);
   }
   var ocupado = false;
+  // A tela inicial (saudacao e atalhos) por cima da conversa: o historico fica guardado e volta inteiro na proxima pergunta.
+  var noInicio = false;
   var emLista = false;
   // Um no por troca. A troca fechada nao e redesenhada: e nela que moram a quantidade digitada e o "Adicionado".
   var nos = [];
@@ -335,8 +340,10 @@ function hobiIniciar(servico, status) {
   quem.appendChild(hobiEl("span", null, "Assistente virtual da 4hobby"));
   var fechar = hobiEl("button", "fechar", null, { type: "button", "aria-label": "Fechar o chat" });
   fechar.appendChild(hobiIcone("fechar"));
-  topo.appendChild(avatar);
-  topo.appendChild(quem);
+  var irAoInicio = hobiEl("button", "inicio", null, { type: "button", "aria-label": "Voltar para o início" });
+  irAoInicio.appendChild(avatar);
+  irAoInicio.appendChild(quem);
+  topo.appendChild(irAoInicio);
   topo.appendChild(fechar);
 
   var area = hobiEl("div", "conversa", null, { "aria-live": "polite" });
@@ -698,6 +705,7 @@ function hobiIniciar(servico, status) {
       botaoDoAtalho.onclick = function () {
         var abertura = aberturaDoAtalho(atalho.id, contextoAtual());
         if (!abertura) return;
+        voltarParaAConversa();
         aplicar("abertura", { texto: abertura.texto, sugestao: abertura.sugestao });
         modoLista(abertura.modoLista);
         texto.focus();
@@ -722,8 +730,22 @@ function hobiIniciar(servico, status) {
   }
 
   /** Poe a tela de acordo com a conversa: so a troca aberta (e o que ainda nao foi desenhado) e refeita. */
+  function irParaOInicio() {
+    noInicio = true;
+    nos = [];
+    desenhar();
+    area.scrollTop = 0;
+  }
+
+  // Sai da tela inicial: a conversa e redesenhada inteira (nos = []), e a proxima troca entra depois dela.
+  function voltarParaAConversa() {
+    if (!noInicio) return;
+    noInicio = false;
+    nos = [];
+  }
+
   function desenhar() {
-    if (conversa.trocas.length === 0) {
+    if (noInicio || conversa.trocas.length === 0) {
       nos = [];
       area.replaceChildren(desenharSaudacao());
       return;
@@ -834,6 +856,7 @@ function hobiIniciar(servico, status) {
     texto.value = "";
     modoLista(false);
     atualizarContador();
+    voltarParaAConversa();
     aplicar("pergunta", { texto: mensagem });
     mandar(mensagem, true).then(function () {
       // O fluxo acabou sem `fim` nem `erro` (cortado no meio): a troca nao pode ficar "pensando" para sempre.
@@ -905,6 +928,7 @@ function hobiIniciar(servico, status) {
     else fecharPainel();
   };
   fechar.onclick = fecharPainel;
+  irAoInicio.onclick = irParaOInicio;
   painel.addEventListener("keydown", function (evento) {
     if (evento.key === "Escape") {
       evento.stopPropagation();
