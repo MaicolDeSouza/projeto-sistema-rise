@@ -29,37 +29,6 @@ const IMAGENS = [
   { nome: "pensando", arquivo: "hobi-expressoes.jpg", caixa: { left: 828, top: 8, width: 390, height: 364 }, lado: { width: 96, height: 96 }, tolerancia: 4 },
 ];
 
-// O tema do Hobi e laranja, preto e branco (pedido do dono em 22/11/2026: "a cor laranja dos Legendarios"). O robo foi gerado
-// com detalhes VERDES (fones, engrenagem do "4", antena, olhos na tela): so esses pixels mudam de matiz; branco e cinza ficam.
-const MATIZ_DO_LARANJA = 19; // graus: o laranja avermelhado do logo (#FF5000)
-
-/** Troca, no lugar, a matiz dos pixels verdes pela do laranja, mantendo o claro/escuro e a saturacao (o brilho do LED fica). */
-function recolorirOsVerdes(data) {
-  for (let i = 0; i < data.length; i += 4) {
-    if (data[i + 3] === 0) continue;
-    const r = data[i] / 255;
-    const g = data[i + 1] / 255;
-    const b = data[i + 2] / 255;
-    const maior = Math.max(r, g, b);
-    const menor = Math.min(r, g, b);
-    const croma = maior - menor;
-    if (maior !== g || croma < 0.08) continue;
-    const matiz = 60 * ((b - r) / croma + 2);
-    if (matiz < 75 || matiz > 175) continue;
-    const s = maior === 0 ? 0 : croma / maior;
-    // Verde-escuro com a mesma luz vira MARROM (fones e engrenagem ficaram assim): o claro sobe, mantendo a sombra relativa.
-    // So o verde FORTE sobe: o brilho fraco da tela em volta dos olhos (pouca saturacao), clareado, borrava o rosto.
-    const v = s > 0.7 && maior < 0.55 ? Math.min(1, 0.55 + maior * 0.9) : maior;
-    const h = MATIZ_DO_LARANJA / 60;
-    const x = v * s * (1 - Math.abs((h % 2) - 1));
-    const m = v - v * s;
-    // Matiz de 19 graus esta no primeiro sexto do circulo: vermelho no maximo, verde no meio, azul no minimo.
-    data[i] = Math.round((v * s + m) * 255);
-    data[i + 1] = Math.round((x + m) * 255);
-    data[i + 2] = Math.round(m * 255);
-  }
-}
-
 /** Os pixels RGBA com o fundo ligado a borda ja transparente, e a caixa do que sobrou. */
 async function semFundo(arquivo, caixa, tolerancia) {
   let imagem = sharp(arquivo);
@@ -123,7 +92,6 @@ async function semFundo(arquivo, caixa, tolerancia) {
   }
   if (direita < 0) throw new Error(`O recorte de ${path.basename(arquivo)} ficou vazio.`);
   const recorte = { left: esquerda, top: topo, width: direita - esquerda + 1, height: base - topo + 1 };
-  recolorirOsVerdes(data);
   return sharp(data, { raw: { width, height, channels: 4 } }).extract(recorte).png().toBuffer();
 }
 

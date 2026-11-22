@@ -5818,8 +5818,10 @@ publicados na partida).
 
 **Ajustes do dono de 22/11/2026** (lista em `docs/superpowers/plans/2026-11-22-chat-da-loja-ajustes-do-dono.md`, feitos juntos a pedido
 dele: "anote e faça tudo no final"):
-- **Chamada ao lado do robô:** balão "Hobi / Dúvida no seu projeto? Pergunta pra mim" com três arcos de sinal saindo da antena (acendem
-  uma vez); aparece 4 s depois, com a janela fechada; fechada no X ou depois de abrir o chat, não volta naquela aba.
+- **Chamada acima do robô** (refeita no mesmo dia a pedido do dono): balão "Hobi / Olá! Está com alguma dúvida? Me pergunte que eu te
+  ajudo." e, entre ele e o robô, o símbolo de wi-fi EM PÉ (ponto e dois arcos, no desenho dos ícones que o dono mandou) logo acima da
+  antena, acendendo do ponto para os arcos. Aparece **1 s** depois de a página abrir, com a janela fechada; o X e abrir o chat a
+  escondem **só naquela página** (atualizar ou trocar de página mostra de novo; nada é guardado na aba).
 - **WhatsApp:** os números vêm de **Configurações › Dados da empresa** (`celular` = comercial, `whatsappTecnico` = suporte técnico). A
   visão `ia_configuracao` ganhou SÓ essas duas colunas (migration `20261122_ia_whatsapp_da_empresa`, gerada por
   `sqlDaMigracaoDoWhatsappDaEmpresa`; o papel `rise_ia` continua sem concessão em `DadosDaEmpresa`, que entrou nas tabelas proibidas).
@@ -5833,9 +5835,8 @@ dele: "anote e faça tudo no final"):
 - **Lista em qualquer formato:** quem separa itens e quantidades é a IA; `pareceLista` (linhas, `;`, `, ` com espaço, tabulação; 3+
   itens) só avisa o modelo. "2,2k" não separa. Fala do atalho: "Pode colar sua lista aqui. Eu analiso e te mostro em instantes o que
   temos." **Não provado com a IA de verdade** (o provedor falso não lê formato).
-- **Cores:** laranja (o do logo dos Legendários, estimado em `#FF5000` no topo e nos detalhes; `#C2410C` em botão e texto pequeno,
-  por contraste), preto e branco. O mascote teve os verdes trocados por laranja no `recortar-mascote.js` (`recolorirOsVerdes`: só a
-  matiz; o verde-escuro bem saturado é clareado para não virar marrom).
+- **Cores:** o dono testou o tema laranja, preto e branco (logo dos Legendários) e pediu para **voltar ao verde** ("estava melhor"):
+  a janela e o mascote são os verdes de antes (o recolorido saiu do `recortar-mascote.js`).
 - A loja de mentira aceita `-- --porta=8791` (segunda cópia ao lado de uma aberta; preview `hobi-demo-8791`).
 
 **Não visto:** nada disto rodou na VPS; Guardar/Remover/Testar de um segredo e o Copiar da etiqueta não foram clicados na tela (no PC

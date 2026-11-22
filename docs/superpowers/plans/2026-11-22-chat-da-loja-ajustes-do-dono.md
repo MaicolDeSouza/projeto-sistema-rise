@@ -60,7 +60,7 @@ implementado está no CLAUDE.md, seção "Chat da loja (o Hobi), fase 2", em "Aj
      planilha colada e texto corrido ("preciso de 10 resistores de 10k, 5 leds vermelhos e um arduino"). O provedor falso dos
      testes não prova leitura de formato.
 
-5. **(22/11/2026) Cores do Hobi e da janela: laranja, preto e branco** ("cor laranja dos Legendários"). Hoje a janela é verde
+5. **(22/11/2026, DESFEITO no mesmo dia: o dono viu e pediu "Vamos voltar para a cor verde, estava melhor") Cores laranja, preto e branco** ("cor laranja dos Legendários"). Hoje a janela é verde
    (#14532d) e o mascote tem detalhes verdes (fones, engrenagem do "4", luz da antena, olhos na tela).
    - Janela: o verde vira laranja (topo, botão Enviar, Adicionar, cartões numerados, balão da pergunta); preto no texto e no
      contorno; fundo branco. Conferir o contraste do texto branco sobre o laranja (se faltar, o texto do topo vai em preto).
@@ -71,3 +71,8 @@ implementado está no CLAUDE.md, seção "Chat da loja (o Hobi), fase 2", em "Aj
    - Mascote: o dono não escolheu (respondeu só a cor). Padrão adotado (FEITO, mostrado a ele): recolorir por programa os verdes do robô para o laranja e
      MOSTRAR ao dono antes de usar; se não ficar bom, ele gera de novo no Google Flow ou mantém verde.
    - O balão da chamada (item 1) e os arcos de wi-fi seguem as cores novas.
+
+6. **(22/11/2026) Depois de ver os ajustes 1 a 5:** volta ao verde (janela e mascote); a chamada aparece **1 s** depois de abrir a
+   página e de novo a cada atualização (o X só vale para aquela página); o balão fica **acima** do robô e menos para a esquerda; o
+   símbolo de wi-fi no formato dos ícones que o dono mandou (em pé: ponto e arcos), logo acima da antena; texto mais caloroso, com a
+   pontuação corrigida a partir da sugestão dele: **"Olá! Está com alguma dúvida? Me pergunte que eu te ajudo."** FEITO.
