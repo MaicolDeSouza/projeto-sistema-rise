@@ -67,6 +67,8 @@ function conferir(nome, obtido, esperado) {
 async function limpar() {
   // As contas do editor que o Publicar, o Reaproveitar e o envio de preco gravam (09/11/2026; sem chave estrangeira).
   await prisma.contaDoEditorML.deleteMany({ where: { produtoId: { in: (await prisma.produto.findMany({ where: { sku: { startsWith: "ZZ-ML-" } }, select: { id: true } })).map((p) => p.id) } } });
+  // As pecas de kit de teste primeiro: o `componenteId` e Restrict, e um bloco que cai no meio deixaria o banco preso.
+  await prisma.produtoComponente.deleteMany({ where: { OR: [{ kit: { sku: { startsWith: "ZZ-ML-" } } }, { componente: { sku: { startsWith: "ZZ-ML-" } } }] } });
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-ML-" } } });
 }
 
@@ -957,7 +959,7 @@ try {
         const lista = await listarAnunciosML({ busca: "zz-ml" });
         conferir("lista traz os anuncios de teste", lista.total >= 6, true);
         conferir("lista: acha pelo SKU sem diferenciar caixa, so do Mercado Livre", [lista.total, lista.linhas.length, lista.pagina, lista.totalPaginas], [totalDeTeste, totalDeTeste, 1, 1]);
-        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["aguardandoEstoque", "atualizadoEm", "avisosML", "codigo", "estadoML", "estadoMLPedeAcao", "estoque", "fotoUrl", "freteGratis", "icone", "id", "idExterno", "linkDoAnuncio", "linkDoPainel", "preco", "produtoId", "rankingML", "reutilizado", "seloML", "situacaoCanal", "sku", "status", "tipoAnuncio", "titulo", "urlExterna", "vendidos"]);
+        conferir("lista: os campos de cada linha", Object.keys(lista.linhas[0]).sort(), ["aguardandoEstoque", "atualizadoEm", "avisosML", "codigo", "estadoML", "estadoMLPedeAcao", "estoque", "fotoUrl", "freteGratis", "grupo", "icone", "id", "idExterno", "linkDoAnuncio", "linkDoPainel", "pecas", "preco", "produtoId", "rankingML", "reutilizado", "seloML", "situacaoCanal", "sku", "status", "tipoAnuncio", "titulo", "urlExterna", "vendidos"]);
         // As colunas que ordenam (28/10/2026): no servidor, antes de paginar; o vazio vai para o fim nas duas direcoes.
         const porPreco = (direcao) => listarAnunciosML({ busca: "zz-ml", ordenar: "preco", direcao }).then((r) => r.linhas.map((l) => l.preco));
         const [subindo, descendo] = [await porPreco("asc"), await porPreco("desc")];
@@ -2190,6 +2192,37 @@ try {
       await prisma.produtoArquivo.delete({ where: { id: daPeca.id } });
       await prisma.produtoArquivo.delete({ where: { id: semApagada[0] } });
       conferir("kit publicado: foto apagada do produto base tambem acende o '!'", await mudancasDoKit(), ["fotos"]);
+    }
+
+    {
+      // Um anuncio, varios caminhos (pedido do dono em 22/11/2026): o anuncio do produto kit aparece no popup de cada peca.
+      console.log("\nAnuncios de composicao no popup das pecas (22/11/2026)");
+      await limpar();
+      const { anunciosMLDoProduto: doProduto, anunciosDeComposicaoDoProduto } = await import("../src/lib/canaisDeVenda/ml/banco.js");
+      const criar = (sku, extra = {}) => prisma.produto.create({ data: { sku, tituloBase: `ZZ ${sku}`, conferido: true, ...extra } });
+      const p1 = await criar("ZZ-ML-P1");
+      const p2 = await criar("ZZ-ML-P2");
+      const kit = await criar("ZZ-ML-KC", { tipo: "COMPOSICAO" });
+      const kit2 = await criar("ZZ-ML-KD", { tipo: "COMPOSICAO" });
+      await prisma.produtoComponente.createMany({ data: [
+        { kitId: kit.id, componenteId: p1.id, quantidade: 1, ordem: 0 }, { kitId: kit.id, componenteId: p2.id, quantidade: 2, ordem: 1 },
+        { kitId: kit2.id, componenteId: p1.id, quantidade: 3, ordem: 0 },
+      ] });
+      const anuncio = (produtoId, dados) => prisma.anuncio.create({ data: { produtoId, canal: "MERCADO_LIVRE", titulo: "ZZ", dados: { tipoAnuncio: "gold_special", preco: 10, ...dados } } });
+      const simples = await anuncio(p1.id, {});
+      const kitDe2 = await anuncio(p1.id, { composicao: { itens: [{ produtoId: p1.id, quantidade: 2 }], codigo: "ZZ-ML-P1_2", blingProdutoId: null } });
+      const doKit = await anuncio(kit.id, {});
+      const doKit2 = await anuncio(kit2.id, {});
+      const resumo = (linhas) => linhas.map((linha) => [linha.id, linha.grupo, linha.pecas, linha.doProprioProduto]);
+      conferir("popup da peca: os anuncios dela com o grupo (produto e kit de N)", resumo(await doProduto(p1.id)).sort((a, b) => a[1].localeCompare(b[1])),
+        [[kitDe2.id, "kit", "2 unidades", true], [simples.id, "produto", null, true]]);
+      conferir("popup da peca: os anuncios dos kits de composicao que a usam, um por kit, pelo codigo",
+        resumo(await anunciosDeComposicaoDoProduto(p1.id)),
+        [[doKit.id, "composicao", "1× ZZ-ML-P1 + 2× ZZ-ML-P2", false], [doKit2.id, "composicao", "3× ZZ-ML-P1", false]]);
+      conferir("popup da outra peca: so o kit que a usa", resumo(await anunciosDeComposicaoDoProduto(p2.id)), [[doKit.id, "composicao", "1× ZZ-ML-P1 + 2× ZZ-ML-P2", false]]);
+      conferir("popup do kit: o anuncio e dele (abre, exclui e clona por ali)", resumo(await doProduto(kit.id)), [[doKit.id, "composicao", "1× ZZ-ML-P1 + 2× ZZ-ML-P2", true]]);
+      conferir("o proprio kit nao e peca de outro: nada de composicao de fora", await anunciosDeComposicaoDoProduto(kit.id), []);
+      await prisma.produtoComponente.deleteMany({ where: { kitId: { in: [kit.id, kit2.id] } } });
     }
 
     {

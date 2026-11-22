@@ -43,6 +43,7 @@ import { anunciosDoSkuNaConta, candidatosParaReaproveitar, reaproveitarAnuncioML
 import { completarComLinhasGravadas, marcarDuplicados, sincronizarForaDoRiseDoProduto, verificarAnunciosAntigosML } from "@/lib/canaisDeVenda/ml/anunciosAntigos";
 import { lerCategoria, lerCategoriaCompleta, lerCustosDoAnuncio, precoPelaFaixaNoML, precoPorMargemNoML, textoDoErroML } from "@/lib/canaisDeVenda/ml/leitura";
 import {
+  anunciosDeComposicaoDoProduto,
   anunciosMLDoProduto,
   buscarProdutoParaAnuncio,
   carregarAnuncioML,
@@ -207,7 +208,9 @@ export async function listarAnunciosDoProdutoML(produtoId) {
   if (negado) return negado;
   if (!ehId(produtoId)) return PEDIDO_INVALIDO;
   return protegendo(async () => {
-    const [produtos, anuncios] = await Promise.all([contextoDosProdutos([produtoId]), anunciosMLDoProduto(produtoId)]);
+    // Os anuncios dos kits de composicao que usam este produto vem junto, no fim (pedido do dono em 22/11/2026: "varios
+    // caminhos abrem o mesmo anuncio"); as variantes continuam contando so os do proprio produto.
+    const [produtos, anuncios, deComposicao] = await Promise.all([contextoDosProdutos([produtoId]), anunciosMLDoProduto(produtoId), anunciosDeComposicaoDoProduto(produtoId)]);
     // Excluido depois de a lista de Produtos ter carregado: a janela diz isso em vez de abrir vazia.
     // `hasOwn` porque o id vem do navegador: "constructor" acharia a funcao do objeto, nao um produto.
     if (!Object.hasOwn(produtos, produtoId)) return { ok: false, erro: "Produto não encontrado. Ele pode ter sido excluído." };
@@ -216,10 +219,17 @@ export async function listarAnunciosDoProdutoML(produtoId) {
     // Os avisos de concorrencia so com o dado Concorrentes; sem editar, a janela nao oferece anuncio novo.
     const { pode } = await sessaoDeAcessos();
     const acessos = acessosDoEditorML(pode);
-    const linhas = acessos.concorrentes ? anuncios : anuncios.map((anuncio) => ({ ...anuncio, avisosML: [] }));
+    const semConcorrencia = (lista) => (acessos.concorrentes ? lista : lista.map((anuncio) => ({ ...anuncio, avisosML: [] })));
     // As variantes pelas faixas (08/11/2026): o que o produto deve ter no ML pelo preco da loja, e o que ainda falta.
-    // A ordem fixa das linhas (pedido do dono em 09/11/2026): base nas 4 variantes, depois os kits (`ordenarAnunciosDoProduto`).
-    return { ok: true, produto: { id, sku, tituloBase, conferido }, anuncios: ordenarAnunciosDoProduto(linhas), acessos, variantes: variantesDoProduto({ precoVenda, anuncios }) };
+    // A ordem fixa das linhas (pedido do dono em 09/11/2026): base nas 4 variantes, depois os kits (`ordenarAnunciosDoProduto`);
+    // por ultimo os kits de composicao que usam o produto, ja em ordem de codigo.
+    return {
+      ok: true,
+      produto: { id, sku, tituloBase, conferido },
+      anuncios: [...ordenarAnunciosDoProduto(semConcorrencia(anuncios)), ...semConcorrencia(deComposicao)],
+      acessos,
+      variantes: variantesDoProduto({ precoVenda, anuncios }),
+    };
   });
 }
 

@@ -6,7 +6,7 @@ import { conteudoAtualDoAnuncio, fichaDoAnuncio, mudancasDoAnuncio, prazoDoAnunc
 import { ATACADO_DESLIGADO, atacadoPermitido } from "./atacado";
 import { FORMATO_DA_DESCRICAO } from "./descricao";
 import { descontoAdicionalValido } from "./faixas";
-import { irmaoDoAnuncio } from "./kitsNaDescricao";
+import { grupoDoAnuncioML, irmaoDoAnuncio } from "./kitsNaDescricao";
 import { avisosDeVariosProdutos } from "./concorrentes";
 import { precisaAgirNoML, seloDoEstadoML, textoDoEstadoML } from "./estadoNoML";
 import { estadoDoIconeML, motivosDoProblemaML, rotuloDoIconeML, temProblemaNoIconeML } from "./icone";
@@ -639,7 +639,20 @@ export async function salvarPresoML(anuncioId, entrada) {
   }
 }
 
-const DADOS_DA_LINHA = { id: true, produtoId: true, titulo: true, status: true, canal: true, situacaoCanal: true, atualizadoEm: true, dados: true, idExterno: true, urlExterna: true, produto: { select: { sku: true } } };
+// O `tipo` e as pecas do produto (22/11/2026): o grupo da linha no popup e o texto "1× 901202 + 1× 901201" do kit de composicao.
+const DADOS_DA_LINHA = {
+  id: true,
+  produtoId: true,
+  titulo: true,
+  status: true,
+  canal: true,
+  situacaoCanal: true,
+  atualizadoEm: true,
+  dados: true,
+  idExterno: true,
+  urlExterna: true,
+  produto: { select: { sku: true, tipo: true, componentes: { orderBy: { ordem: "asc" }, select: { quantidade: true, componente: { select: { sku: true } } } } } },
+};
 
 // A coluna "Concorrencia" (concorrentes do ML pelo catalogo): os avisos do produto de cada linha, lidos de uma vez, e
 // a posicao do preco do anuncio no ranking dos catalogos ("2º de 5"), com o preco DESTE anuncio (Classico e Premium
@@ -654,11 +667,29 @@ async function comAvisos(linhas) {
   });
 }
 
+/**
+ * O grupo do anuncio no popup do produto e o que ele leva (pedido do dono em 22/11/2026): "2 unidades" no kit de N,
+ * "1× 901202 + 1× 901201" na composicao (as pecas do produto kit, ou os itens do misto antigo do editor, pelo SKU que
+ * `skusDosItens` conhece). Simples: sem texto.
+ */
+function grupoEPecas(anuncio, skusDosItens = new Map()) {
+  const composicao = anuncio.dados?.composicao ?? null;
+  const grupo = grupoDoAnuncioML({ produtoId: anuncio.produtoId, composicao, tipoDoProduto: anuncio.produto?.tipo });
+  if (grupo === "kit") return { grupo, pecas: `${Number(composicao.itens[0].quantidade)} unidades` };
+  if (grupo === "produto") return { grupo, pecas: null };
+  const pecas =
+    anuncio.produto?.tipo === "COMPOSICAO"
+      ? (anuncio.produto.componentes ?? []).map((peca) => `${peca.quantidade}× ${peca.componente.sku}`)
+      : (composicao?.itens ?? []).map((item) => `${Number(item.quantidade)}× ${skusDosItens.get(item.produtoId) ?? "?"}`);
+  return { grupo, pecas: pecas.length > 0 ? pecas.join(" + ") : null };
+}
+
 // O codigo da linha e o do kit, ou o SKU do produto no anuncio simples.
-function linhaDoAnuncio(anuncio) {
+function linhaDoAnuncio(anuncio, skusDosItens) {
   return {
     id: anuncio.id,
     produtoId: anuncio.produtoId,
+    ...grupoEPecas(anuncio, skusDosItens),
     codigo: anuncio.dados?.composicao?.codigo || anuncio.produto.sku,
     // O SKU do produto base e o frete gratis (08/11/2026): `variantesDoProduto` separa o kit (codigo != sku) e le a variante.
     sku: anuncio.produto.sku,
@@ -687,19 +718,53 @@ function linhaDoAnuncio(anuncio) {
   };
 }
 
+/**
+ * As linhas do popup para estes anuncios, com o "!" de cada um (pedido do dono em 09/11/2026: "mostra ! no icone do ML,
+ * porem no popup nao mostra"): a mesma regra do icone da lista, so deste anuncio, com o motivo em texto; `null` quando esta
+ * em dia. `doProprioProduto` diz se o anuncio e do produto do popup ou de um kit que o usa (22/11/2026).
+ */
+async function linhasDoPopup(anuncios, { doProprioProduto }) {
+  // Os SKUs dos itens dos mistos antigos do editor (o produto kit do cadastro ja traz os das pecas).
+  const idsDosItens = [...new Set(anuncios.flatMap((anuncio) => (anuncio.dados?.composicao?.itens ?? []).map((item) => item.produtoId)).filter(Boolean))];
+  const skusDosItens = new Map(
+    idsDosItens.length > 0 ? (await prisma.produto.findMany({ where: { id: { in: idsDosItens } }, select: { id: true, sku: true } })).map((p) => [p.id, p.sku]) : [],
+  );
+  const [linhas, mudancas] = await Promise.all([comAvisos(anuncios.map((anuncio) => linhaDoAnuncio(anuncio, skusDosItens))), mudancasDosAnunciosML(anuncios)]);
+  const porId = new Map(anuncios.map((anuncio) => [anuncio.id, anuncio]));
+  return linhas.map((linha) => {
+    const estado = estadoDoIconeML([{ ...porId.get(linha.id), mudancas: mudancas.get(linha.id) }]);
+    return { ...linha, doProprioProduto, alerta: temProblemaNoIconeML(estado) ? motivosDoProblemaML(estado).join("; ") || "Precisa de atenção." : null };
+  });
+}
+
 /** Os anuncios do Mercado Livre cujo produto principal e este, o mais recente primeiro. */
 export async function anunciosMLDoProduto(produtoId) {
   // `where: { produtoId: undefined }` o Prisma le como "sem filtro": listaria todos os anuncios.
   if (typeof produtoId !== "string" || produtoId === "") return [];
   const anuncios = await prisma.anuncio.findMany({ where: { canal: CANAL, produtoId }, orderBy: { atualizadoEm: "desc" }, select: DADOS_DA_LINHA });
-  // O "!" de cada anuncio no popup do produto (pedido do dono em 09/11/2026: "mostra ! no icone do ML, porem no popup nao
-  // mostra"): a mesma regra do icone da lista, so deste anuncio, com o motivo em texto; `null` quando esta em dia.
-  const [linhas, mudancas] = await Promise.all([comAvisos(anuncios.map(linhaDoAnuncio)), mudancasDosAnunciosML(anuncios)]);
-  const porId = new Map(anuncios.map((anuncio) => [anuncio.id, anuncio]));
-  return linhas.map((linha) => {
-    const estado = estadoDoIconeML([{ ...porId.get(linha.id), mudancas: mudancas.get(linha.id) }]);
-    return { ...linha, alerta: temProblemaNoIconeML(estado) ? motivosDoProblemaML(estado).join("; ") || "Precisa de atenção." : null };
+  return linhasDoPopup(anuncios, { doProprioProduto: true });
+}
+
+/**
+ * Os anuncios dos kits de composicao que USAM este produto como peca (pedido do dono em 22/11/2026: "varios caminhos
+ * (produtos que compoe o kit) abrem o mesmo anuncio"): o anuncio de cada produto kit do cadastro que tem a peca, e o misto
+ * antigo do editor que a tem entre os itens. Separado de `anunciosMLDoProduto` de proposito: as variantes e os duplicados do
+ * "Novo anuncio" contam so os anuncios do proprio produto. Em ordem de codigo, sem repetir.
+ */
+export async function anunciosDeComposicaoDoProduto(produtoId) {
+  if (typeof produtoId !== "string" || produtoId === "") return [];
+  const kitIds = (await prisma.produtoComponente.findMany({ where: { componenteId: produtoId }, select: { kitId: true } })).map((linha) => linha.kitId);
+  const anuncios = await prisma.anuncio.findMany({
+    where: {
+      canal: CANAL,
+      produtoId: { not: produtoId },
+      OR: [{ produtoId: { in: kitIds } }, { dados: { path: ["composicao", "itens"], array_contains: [{ produtoId }] } }],
+    },
+    select: DADOS_DA_LINHA,
   });
+  const linhas = await linhasDoPopup(anuncios, { doProprioProduto: false });
+  // O "Kit de N" de OUTRO produto nao e composicao com esta peca (o array_contains so acha itens com ela, mas por garantia).
+  return linhas.filter((linha) => linha.grupo === "composicao").sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)) || String(a.id).localeCompare(String(b.id)));
 }
 
 /**
