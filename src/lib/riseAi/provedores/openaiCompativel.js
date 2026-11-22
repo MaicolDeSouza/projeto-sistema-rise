@@ -1,4 +1,8 @@
-import { ErroDoProvedor, MOTIVO_PARADA, erroDeStatus, testarPorListagem } from "./contrato";
+import { ErroDoProvedor, MOTIVO_PARADA, erroDeStatus, partesDoConteudo, testarPorListagem } from "./contrato";
+
+/** Partes neutras -> partes da OpenAI (a imagem vai como data URI, sem endereco externo). */
+const partesParaOpenAI = (conteudo) =>
+  partesDoConteudo(conteudo).map((parte) => (parte.tipo === "texto" ? { type: "text", text: parte.texto } : { type: "image_url", image_url: { url: `data:${parte.mime};base64,${parte.base64}` } }));
 
 /**
  * Adaptador para a API "chat/completions" da OpenAI e de tudo o que fala igual: LM Studio, Ollama, OpenAI e o Gemini
@@ -15,8 +19,11 @@ export function mensagensParaOpenAI(sistema, mensagens) {
       // Duas mensagens do usuario seguidas (o conhecimento aprovado e a pergunta) viram uma: o template de chat de
       // alguns modelos locais (Gemma, por exemplo) recusa quem nao alterna usuario e assistente.
       const ultima = lista.at(-1);
-      if (ultima?.role === "user") ultima.content = `${ultima.content}\n\n${mensagem.conteudo}`;
-      else lista.push({ role: "user", content: mensagem.conteudo });
+      // Com imagem (anexo do chat da loja), o conteudo vai em partes; so texto continua string, como sempre foi.
+      const emPartes = Array.isArray(mensagem.conteudo) || Array.isArray(ultima?.content);
+      if (ultima?.role === "user" && emPartes) ultima.content = [...partesParaOpenAI(ultima.content), ...partesParaOpenAI(mensagem.conteudo)];
+      else if (ultima?.role === "user") ultima.content = `${ultima.content}\n\n${mensagem.conteudo}`;
+      else lista.push({ role: "user", content: Array.isArray(mensagem.conteudo) ? partesParaOpenAI(mensagem.conteudo) : mensagem.conteudo });
     } else if (mensagem.papel === "assistente") {
       const item = { role: "assistant", content: mensagem.conteudo ?? "" };
       if (mensagem.chamadas?.length) {

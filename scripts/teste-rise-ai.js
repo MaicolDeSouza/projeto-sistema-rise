@@ -404,6 +404,20 @@ try {
       { role: "assistant", content: "", tool_calls: [{ id: "a1", type: "function", function: { name: "f", arguments: '{"k":1}' } }] },
     );
     conferir("o sistema abre a lista", mensagensParaOpenAI("SISTEMA", [])[0], { role: "system", content: "SISTEMA" });
+    // Chat da loja, fase 3 (22/11/2026): a foto que o visitante anexou vai junto da pergunta.
+    const comImagem = [{ tipo: "texto", texto: "que peça é esta?" }, { tipo: "imagem", mime: "image/jpeg", base64: "QUJD" }];
+    conferir(
+      "imagem do usuario vira image_url com data URI",
+      mensagensParaOpenAI("S", [{ papel: "usuario", conteudo: comImagem }])[1],
+      { role: "user", content: [{ type: "text", text: "que peça é esta?" }, { type: "image_url", image_url: { url: "data:image/jpeg;base64,QUJD" } }] },
+    );
+    conferir(
+      "texto seguido de imagem do usuario vira uma mensagem so, em partes",
+      mensagensParaOpenAI("S", [{ papel: "usuario", conteudo: "contexto" }, { papel: "usuario", conteudo: comImagem }])[1].content.map((parte) => parte.type),
+      ["text", "text", "image_url"],
+    );
+    conferir("mensagem so de texto continua texto puro", mensagensParaOpenAI("S", [{ papel: "usuario", conteudo: "oi" }])[1], { role: "user", content: "oi" });
+    conferir("tipo de imagem fora da lista nao vai", mensagensParaOpenAI("S", [{ papel: "usuario", conteudo: [{ tipo: "imagem", mime: "image/svg+xml", base64: "QUJD" }] }])[1].content, []);
     conferir(
       "ferramenta no formato function",
       ferramentasParaOpenAI([{ nome: "f", descricao: "d", parametros: { type: "object" } }]),
@@ -515,6 +529,18 @@ try {
       { role: "user", content: [{ type: "tool_result", tool_use_id: "a1", content: "{}" }, { type: "tool_result", tool_use_id: "a2", content: '{"ok":true}' }] },
     );
     conferir("so 3 mensagens: nada sobrou", clienteFalso.ultimoParams.messages.length, 3);
+    await provedorA.conversar({
+      modelo: "claude-haiku-5-5",
+      sistema: "S",
+      mensagens: [{ papel: "usuario", conteudo: [{ tipo: "texto", texto: "que peça é esta?" }, { tipo: "imagem", mime: "image/png", base64: "QUJD" }] }],
+      ferramentas: [],
+      maxTokens: 50,
+    });
+    conferir(
+      "imagem do usuario vira bloco image em base64 na Anthropic",
+      clienteFalso.ultimoParams.messages[0],
+      { role: "user", content: [{ type: "text", text: "que peça é esta?" }, { type: "image", source: { type: "base64", media_type: "image/png", data: "QUJD" } }] },
+    );
 
     // Dentro do laço de ferramentas o assistente volta com os blocos EXATOS da API (thinking tem assinatura).
     await provedorA.conversar({

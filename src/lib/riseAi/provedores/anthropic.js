@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 
 import { MODELOS_SUGERIDOS } from "../modelos";
-import { ErroDoProvedor, MOTIVO_PARADA, testarPorListagem } from "./contrato";
+import { ErroDoProvedor, MOTIVO_PARADA, partesDoConteudo, testarPorListagem } from "./contrato";
 
 /**
  * Adaptador da Anthropic pelo SDK oficial (o mesmo que o `src/lib/ia/anuncio.js` usa nos anúncios).
@@ -56,7 +56,11 @@ function mensagensParaAnthropic(mensagens) {
   const lista = [];
   for (const mensagem of mensagens) {
     if (mensagem.papel === "usuario") {
-      lista.push({ role: "user", content: mensagem.conteudo });
+      // Com imagem (anexo do chat da loja), o conteudo vai em blocos; so texto continua string, como sempre foi.
+      const conteudo = Array.isArray(mensagem.conteudo)
+        ? partesDoConteudo(mensagem.conteudo).map((parte) => (parte.tipo === "texto" ? { type: "text", text: parte.texto } : { type: "image", source: { type: "base64", media_type: parte.mime, data: parte.base64 } }))
+        : mensagem.conteudo;
+      lista.push({ role: "user", content: conteudo });
     } else if (mensagem.papel === "assistente") {
       if (mensagem.bruto) {
         lista.push({ role: "assistant", content: mensagem.bruto });

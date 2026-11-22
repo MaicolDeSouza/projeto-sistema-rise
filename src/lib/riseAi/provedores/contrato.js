@@ -6,7 +6,9 @@
  * Só JSDoc e um tipo de erro: sem imports, lido pelos adaptadores, pelo laço, pelo teste e pelo provedor falso.
  *
  * Mensagens neutras (`mensagens` de `conversar`):
- * @typedef {{ papel: "usuario", conteudo: string }} MensagemDoUsuario
+ * @typedef {{ papel: "usuario", conteudo: string | ParteDaMensagem[] }} MensagemDoUsuario  `conteudo` em partes so quando ha
+ *   imagem (o anexo do chat da loja, fase 3); texto puro continua string.
+ * @typedef {{ tipo: "texto", texto: string } | { tipo: "imagem", mime: "image/jpeg" | "image/png" | "image/webp", base64: string }} ParteDaMensagem
  * @typedef {{ papel: "assistente", conteudo: string, chamadas?: { id: string, nome: string, argumentos: object }[], bruto?: unknown }} MensagemDoAssistente
  * @typedef {{ papel: "ferramenta", chamadaId: string, nome: string, conteudo: string }} MensagemDeFerramenta  `conteudo` é JSON
  *
@@ -85,6 +87,19 @@ export class ErroDoProvedor extends Error {
 export const ehErroDeProvedor = (erro) => erro instanceof ErroDoProvedor || typeof erro?.tipo === "string";
 
 /** O erro de uma resposta HTTP que não é 2xx. `corpo` é o texto (já lido) da resposta, só para a mensagem. */
+/** Os tipos de imagem que os dois provedores aceitam; outro tipo nao vai (o anexo ja chega regravado em JPEG). */
+export const TIPOS_DE_IMAGEM = ["image/jpeg", "image/png", "image/webp"];
+
+/**
+ * O conteudo de uma mensagem do usuario como lista de partes (texto vira uma parte; imagem de tipo fora da lista sai).
+ * @param {string | ParteDaMensagem[]} conteudo
+ * @returns {ParteDaMensagem[]}
+ */
+export function partesDoConteudo(conteudo) {
+  if (!Array.isArray(conteudo)) return [{ tipo: "texto", texto: String(conteudo ?? "") }];
+  return conteudo.filter((parte) => (parte?.tipo === "texto" && typeof parte.texto === "string") || (parte?.tipo === "imagem" && TIPOS_DE_IMAGEM.includes(parte.mime) && typeof parte.base64 === "string"));
+}
+
 export function erroDeStatus(status, corpo = "") {
   const trecho = String(corpo ?? "").replace(/\s+/g, " ").trim().slice(0, 300);
   if (status === 401 || status === 403) {
