@@ -934,7 +934,10 @@ export async function salvarPedido(id, entrada) {
       await tx.pedidoDeCompra.update({ where: { id }, data: pedido });
 
       if (dados.itens) {
-        const atuais = await tx.itemDoPedidoDeCompra.findMany({ where: { pedidoId: id }, select: { id: true } });
+        const atuais = await tx.itemDoPedidoDeCompra.findMany({
+          where: { pedidoId: id },
+          select: { id: true, fator: true, quantidadeLancada: true, _count: { select: { linhasAliExpress: true } } },
+        });
         const recebidos = new Map(dados.itens.map((item, indice) => [item.id, { ...item, ordem: indice }]));
         for (const atual of atuais) {
           const item = recebidos.get(atual.id);
@@ -943,6 +946,15 @@ export async function salvarPedido(id, entrada) {
             continue;
           }
           const data = { prazoDias: item.prazoDias ?? null };
+          /*
+            FATOR DO ITEM (pedido do dono em 22/11/2026): o item copia o fator do vinculo quando nasce, e o cabo flat do
+            PC-0024 entrou com 1 antes de o dono pôr 5 no produto (lancaria 5 m em vez de 25). Muda em qualquer pedido
+            aberto, mas so enquanto nada foi lancado (o estoque ja lancado foi multiplicado pelo fator antigo) e nunca no
+            item do AliExpress, cujas linhas ja convertem para unidades do Rise e ficam com 1.
+          */
+          if (item.fator != null && item.fator !== atual.fator && atual.quantidadeLancada === 0 && atual._count.linhasAliExpress === 0) {
+            data.fator = item.fator;
+          }
           if (rascunho) {
             // Campo de preco AUSENTE (quem nao ve custo) mantem o gravado; vazio de proposito vira null.
             Object.assign(data, {

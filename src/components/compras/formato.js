@@ -37,6 +37,7 @@ export function formularioDoPedido(pedido) {
       precoUnitario: paraTexto(item.precoUnitario, 4),
       ipiPercentual: paraTexto(item.ipiPercentual),
       prazoDias: item.prazoDias === null || item.prazoDias === undefined ? "" : String(item.prazoDias),
+      fator: String(item.fator ?? 1),
     })),
     icmsSt: paraTexto(pedido.icmsSt),
     desconto: textoDoDesconto(pedido.descontoTipo, pedido.descontoValor),
@@ -72,6 +73,7 @@ export function entradaDoFormulario(formulario) {
       nomeNoFornecedor: item.nomeNoFornecedor,
       codigoNoFornecedor: item.codigoNoFornecedor,
       observacao: item.observacao ?? null,
+      fator: item.fator,
     })),
   };
 }

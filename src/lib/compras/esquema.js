@@ -40,6 +40,8 @@ const EsquemaDoItem = z.object({
   nomeNoFornecedor: textoOpcional(300).optional(),
   codigoNoFornecedor: textoOpcional(120).optional(),
   observacao: textoOpcional(1000).optional(),
+  // Fator do item (pedido do dono em 22/11/2026): editavel enquanto nada foi lancado; o servidor confere isso.
+  fator: numero("Fator: número inteiro de 1 a 1.000.000.", { minimo: 1, maximo: 1_000_000, inteiro: true }).optional(),
 });
 
 export const EsquemaDoPedido = z.object({

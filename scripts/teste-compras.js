@@ -447,6 +447,16 @@ try {
     conferir("enviado: so prazo e frete mudam", [pedido.itens[0].quantidade, pedido.itens[0].prazoDias, pedido.rastreio, pedido.descontoValor], [10, 9, "BR123", 0]);
     conferir("enviado nao aceita item novo", (await banco.adicionarItem(criado.pedidoId, p3.id)).ok, false);
 
+    // Fator do item editavel (22/11/2026, o cabo flat do PC-0024): muda no enviado enquanto nada foi lancado.
+    await banco.salvarPedido(criado.pedidoId, { itens: [{ ...itens[0], fator: "5" }] });
+    conferir("enviado: fator do item muda sem lancamento", (await banco.lerPedido(criado.pedidoId)).itens[0].fator, 5);
+    const fatorRuim = await banco.salvarPedido(criado.pedidoId, { itens: [{ ...itens[0], fator: "0" }] });
+    conferir("fator 0 recusa no campo", [fatorRuim.ok, Boolean(fatorRuim.erros?.["itens.0.fator"])], [false, true]);
+    await prisma.itemDoPedidoDeCompra.updateMany({ where: { pedidoId: criado.pedidoId }, data: { quantidadeLancada: 1 } });
+    await banco.salvarPedido(criado.pedidoId, { itens: [{ ...itens[0], fator: "7" }] });
+    conferir("item com lancamento mantem o fator", (await banco.lerPedido(criado.pedidoId)).itens[0].fator, 5);
+    await prisma.itemDoPedidoDeCompra.updateMany({ where: { pedidoId: criado.pedidoId }, data: { quantidadeLancada: 0, fator: 1 } });
+
     const outro = await banco.criarPedido(fornecedor.id);
     const achados = await banco.buscarItensParaPedido(outro.pedidoId, "ache");
     conferir("busca pelo codigo no fornecedor", achados.map((achado) => achado.sku), ["ZZ-COMPRA-P3"]);

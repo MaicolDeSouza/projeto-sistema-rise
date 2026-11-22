@@ -246,10 +246,28 @@ export default function BlocoItens({
                       className={`${campo} min-w-16 text-right`}
                     />
                     {/* Fator (06/11/2026): a quantidade e em caixas do fornecedor; no estoque entram caixas x fator. */}
-                    {item.fator > 1 && (
-                      <span className="mt-0.5 block whitespace-nowrap text-right text-[11px] text-suave" title={`1 cx = ${item.fator.toLocaleString("pt-BR")} un. no estoque`}>
-                        cx = {((doTexto(item.quantidade) ?? 0) * item.fator).toLocaleString("pt-BR")} un.
+                    {/* Desde 22/11/2026 o fator e editavel no item enquanto nada foi lancado (o servidor confere); o
+                        item do AliExpress fica de fora, porque as linhas dele ja convertem para unidades do Rise. */}
+                    {editarPrazo && !aliexpress && !item.quantidadeLancada ? (
+                      <span className="mt-0.5 flex items-center justify-end gap-1 whitespace-nowrap text-[11px] text-suave">
+                        ×
+                        <input
+                          inputMode="numeric"
+                          value={item.fator ?? "1"}
+                          aria-invalid={Boolean(erro(indice, "fator"))}
+                          title={erro(indice, "fator") ?? "Fator: unidades no estoque por unidade do fornecedor (rolo de 5 m = 5)"}
+                          onChange={(evento) => aoMudar(indice, "fator", soDigitos(evento.target.value, 7))}
+                          aria-label={`Fator de ${item.sku}`}
+                          className="w-12 rounded border border-borda bg-superficie px-1 py-0.5 text-right text-[11px] tabular-nums focus:border-acento focus:outline-none aria-[invalid=true]:border-rose-500"
+                        />
+                        {Number(item.fator) > 1 && <span>= {((doTexto(item.quantidade) ?? 0) * Number(item.fator)).toLocaleString("pt-BR")} un.</span>}
                       </span>
+                    ) : (
+                      Number(item.fator) > 1 && (
+                        <span className="mt-0.5 block whitespace-nowrap text-right text-[11px] text-suave" title={`1 cx = ${Number(item.fator).toLocaleString("pt-BR")} un. no estoque`}>
+                          cx = {((doTexto(item.quantidade) ?? 0) * Number(item.fator)).toLocaleString("pt-BR")} un.
+                        </span>
+                      )
                     )}
                   </td>
                   {veCusto && (
