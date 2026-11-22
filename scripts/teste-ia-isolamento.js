@@ -287,6 +287,8 @@ try {
     conferir("de fabrica, o servico diz desligado", [status?.ligado, status?.nome], [false, (await prisma.configuracaoIA.findUnique({ where: { id: "unica" } }))?.dados?.chatDaLoja?.nome ?? "Hobi"]);
     const chat = await fetch(`http://127.0.0.1:${PORTA}/chat`, { method: "POST", headers: { "Content-Type": "application/json", Origin: ORIGEM_DA_LOJA }, body: JSON.stringify({ sessaoId: "0".repeat(32), mensagem: "oi" }) });
     conferir("desligado, o /chat responde 503", [chat.status, (await chat.json()).erro], [503, "desligado"]);
+    const pedidoDesligado = await fetch(`http://127.0.0.1:${PORTA}/pedido`, { method: "POST", headers: { "Content-Type": "application/json", Origin: ORIGEM_DA_LOJA }, body: JSON.stringify({ sessaoId: "0".repeat(32), numero: "1001", prova: "12345678909" }) });
+    conferir("o servico de verdade tem a rota /pedido (desligado, 503)", [pedidoDesligado.status, (await pedidoDesligado.json()).erro], [503, "desligado"]);
     conferir("de outra origem, 403", (await fetch(`http://127.0.0.1:${PORTA}/chat`, { method: "POST", headers: { Origin: "https://outro.site" }, body: "{}" })).status, 403);
     conferir("qualquer outro caminho, 404", (await fetch(`http://127.0.0.1:${PORTA}/mcp`)).status, 404);
     const sinalDoServico = (await dono.query(`SELECT "versao", "sinalEm" FROM "SinalDoAssistente" WHERE "id" = 'unico'`)).rows[0];

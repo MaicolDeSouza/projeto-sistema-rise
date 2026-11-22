@@ -17,6 +17,13 @@ const FAXINA_A_PARTIR_DE = 2000;
 const centavos = (valor) => Math.round(Number(valor) * 100);
 
 /**
+ * Os limites do acompanhar pedido (spec §8; fase 3). Do lado do servico: erros por visitante no dia e consultas por IP na
+ * hora. Os do banco (erros por numero, teto geral) moram na funcao `ia_situacao_do_pedido`. Fixos por enquanto: a tela
+ * Canais ainda nao os mostra.
+ */
+export const LIMITES_DO_PEDIDO = { errosPorSessaoPorDia: 5, consultasPorIpPorHora: 10 };
+
+/**
  * @param {{ limites: { mensagensPorSessaoPorHora: number, mensagensPorIpPorHora: number, respostasAoMesmoTempo: number, brlPorSessaoPorDia: number }, agora?: () => number }} opcoes
  */
 export function criarLimites({ limites, agora = Date.now }) {
@@ -27,11 +34,15 @@ export function criarLimites({ limites, agora = Date.now }) {
   /** @type {Map<string, { dia: number, centavos: number }>} */
   const custos = new Map();
   const ativas = new Set();
+  /** @type {Map<string, { dia: number, erros: number }>} */
+  const errosDePedido = new Map();
+  /** @type {Map<string, number[]>} */
+  const pedidosPorIp = new Map();
 
   const recentes = (mapa, chave, instante) => (mapa.get(chave) ?? []).filter((quando) => quando > instante - UMA_HORA_MS);
 
   function faxina(instante) {
-    for (const mapa of [porSessao, porIp]) {
+    for (const mapa of [porSessao, porIp, pedidosPorIp]) {
       if (mapa.size <= FAXINA_A_PARTIR_DE) continue;
       for (const [chave, instantes] of mapa) if (!instantes.some((quando) => quando > instante - UMA_HORA_MS)) mapa.delete(chave);
     }
@@ -39,7 +50,16 @@ export function criarLimites({ limites, agora = Date.now }) {
       const hoje = Math.floor(instante / UM_DIA_MS);
       for (const [chave, custo] of custos) if (custo.dia !== hoje) custos.delete(chave);
     }
+    if (errosDePedido.size > FAXINA_A_PARTIR_DE) {
+      const hoje = Math.floor(instante / UM_DIA_MS);
+      for (const [chave, contagem] of errosDePedido) if (contagem.dia !== hoje) errosDePedido.delete(chave);
+    }
   }
+
+  const errosDePedidoHoje = (sessaoId, instante) => {
+    const contagem = errosDePedido.get(sessaoId);
+    return contagem && contagem.dia === Math.floor(instante / UM_DIA_MS) ? contagem.erros : 0;
+  };
 
   function custoDaSessaoHoje(sessaoId, instante = agora()) {
     const custo = custos.get(sessaoId);
@@ -84,6 +104,24 @@ export function criarLimites({ limites, agora = Date.now }) {
       custos.set(sessaoId, { dia: hoje, centavos: (atual && atual.dia === hoje ? atual.centavos : 0) + centavos(brl || 0) });
     },
     custoDaSessaoHoje: (sessaoId) => custoDaSessaoHoje(sessaoId),
+    /**
+     * Pede uma consulta de pedido. A recusa NAO conta; a consulta aceita conta no IP (achou ou nao).
+     * @returns {{ ok: true } | { ok: false, motivo: "sessao" | "ip" }}
+     */
+    consultarPedido(sessaoId, ip) {
+      const instante = agora();
+      faxina(instante);
+      if (errosDePedidoHoje(sessaoId, instante) >= LIMITES_DO_PEDIDO.errosPorSessaoPorDia) return { ok: false, motivo: "sessao" };
+      const doIp = recentes(pedidosPorIp, ip, instante);
+      if (doIp.length >= LIMITES_DO_PEDIDO.consultasPorIpPorHora) return { ok: false, motivo: "ip" };
+      pedidosPorIp.set(ip, [...doIp, instante]);
+      return { ok: true };
+    },
+    /** O pedido nao foi achado: conta um erro do visitante no dia. */
+    anotarErroDePedido(sessaoId) {
+      const instante = agora();
+      errosDePedido.set(sessaoId, { dia: Math.floor(instante / UM_DIA_MS), erros: errosDePedidoHoje(sessaoId, instante) + 1 });
+    },
     /** Quantas respostas estao em andamento agora (o sinal de vida do servico mostra). */
     emAndamento: () => ativas.size,
   };

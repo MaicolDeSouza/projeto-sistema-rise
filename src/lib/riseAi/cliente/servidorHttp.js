@@ -4,14 +4,15 @@ import { eventoSSE } from "../sse";
 import { ErroDoAtendimento } from "./cerebro";
 import { foraDoHorario } from "./configuracaoDoCanal";
 import { criarLimites } from "./limites";
+import { normalizarPedido, textoDaSituacao } from "./pedido";
 import { emitirPasse, passeVale } from "./turnstile";
 import { NOME_DO_WIDGET } from "./widgetPublicado";
 
 /**
- * A PORTA do chat da loja: as tres rotas que a janela do chat usa (spec de 19/11/2026, §5.4 e §8). E o unico pedaco
- * do Rise alcancavel da internet sem login, entao tudo aqui falha FECHADO:
+ * A PORTA do chat da loja: as rotas que a janela do chat usa (spec de 19/11/2026, §5.4 e §8; `/pedido` desde a fase 3).
+ * E o unico pedaco do Rise alcancavel da internet sem login, entao tudo aqui falha FECHADO:
  *
- *  - rota que nao e uma das tres: 404, sem corpo;
+ *  - rota que nao e uma das conhecidas: 404, sem corpo;
  *  - pedido de outra origem que nao a loja: 403 (o navegador de outro site nao usa o chat da 4hobby);
  *  - chat desligado, sem a chave da IA, sem o segredo do Turnstile ou com o banco fora do ar: `/status` diz desligado e
  *    `/chat` responde 503 com o WhatsApp;
@@ -111,6 +112,49 @@ export function criarServidorDoAssistente({ dados, responder, avaliar, verificar
     return corpo;
   }
 
+  /** O passe assinado ainda vale, ou o Turnstile aprova agora (e sai um passe novo). Vale para o `/chat` e o `/pedido`. */
+  async function conferirRobo(corpo, sessaoId, ip, atual) {
+    if (passeVale(corpo.passe, sessaoId, chaveHex, agora())) return { ok: true, passeNovo: null };
+    const humano = typeof corpo.turnstileToken === "string" && corpo.turnstileToken.length <= 4096 && (await verificarRobo({ token: corpo.turnstileToken, ip, segredo: atual.segredoDoRobo }));
+    return humano ? { ok: true, passeNovo: emitirPasse(sessaoId, chaveHex, agora()) } : { ok: false };
+  }
+
+  /**
+   * O acompanhar pedido (fase 3): o formulario da janela, SEM a IA e sem gravar nada da conversa. O servico so chama a
+   * funcao do banco. Todo limite (do visitante, do IP ou do banco) responde 429 com o WhatsApp comercial, para a janela
+   * mostrar o texto e o link (pedido do dono em 22/11/2026, ao aprovar o plano).
+   */
+  async function aoPedido(requisicao, resposta, cors) {
+    const corpo = await corpoJson(requisicao);
+    const sessaoId = String(corpo.sessaoId ?? "");
+    if (!SESSAO.test(sessaoId)) return json(resposta, 400, { erro: "sessao" }, cors);
+
+    const atual = await estado();
+    const whatsapp = atual?.canal.whatsapp || null;
+    if (!atual?.ligado) return json(resposta, 503, { erro: "desligado", whatsapp }, cors);
+
+    const pedido = normalizarPedido({ numero: corpo.numero, prova: corpo.prova });
+    if (pedido.erro) return json(resposta, 400, { erro: pedido.erro }, cors);
+
+    const ip = ipDe(requisicao);
+    const robo = await conferirRobo(corpo, sessaoId, ip, atual);
+    if (!robo.ok) return json(resposta, 403, { erro: "robo" }, cors);
+    const comPasse = robo.passeNovo ? { passe: robo.passeNovo } : {};
+
+    if (!limites.consultarPedido(sessaoId, ip).ok) return json(resposta, 429, { situacao: "limite", whatsapp, ...comPasse }, cors);
+    let resultado;
+    try {
+      resultado = await dados.situacaoDoPedido(pedido.numero, pedido.prova);
+    } catch (erro) {
+      console.error("[ia] nao consultou o pedido:", erro?.message ?? erro);
+      return json(resposta, 503, { erro: "indisponivel", whatsapp }, cors);
+    }
+    if (resultado?.situacao === "achado" && resultado.pedido) return json(resposta, 200, { situacao: "achado", ...textoDaSituacao(resultado.pedido), ...comPasse }, cors);
+    if (resultado?.situacao === "limite") return json(resposta, 429, { situacao: "limite", whatsapp, ...comPasse }, cors);
+    limites.anotarErroDePedido(sessaoId);
+    return json(resposta, 200, { situacao: "nao_achado", ...comPasse }, cors);
+  }
+
   async function aoStatus(resposta, cors) {
     const atual = await estado();
     if (!atual) return json(resposta, 200, { ligado: false }, { ...cors, "Cache-Control": "public, max-age=60" });
@@ -137,12 +181,9 @@ export function criarServidorDoAssistente({ dados, responder, avaliar, verificar
     if (mensagem.length > atual.canal.limites.caracteresPorMensagem) return json(resposta, 400, { erro: "longa" }, cors);
 
     const ip = ipDe(requisicao);
-    let passeNovo = null;
-    if (!passeVale(corpo.passe, sessaoId, chaveHex, agora())) {
-      const humano = typeof corpo.turnstileToken === "string" && corpo.turnstileToken.length <= 4096 && (await verificarRobo({ token: corpo.turnstileToken, ip, segredo: atual.segredoDoRobo }));
-      if (!humano) return json(resposta, 403, { erro: "robo" }, cors);
-      passeNovo = emitirPasse(sessaoId, chaveHex, agora());
-    }
+    const robo = await conferirRobo(corpo, sessaoId, ip, atual);
+    if (!robo.ok) return json(resposta, 403, { erro: "robo" }, cors);
+    const passeNovo = robo.passeNovo;
 
     const vez = limites.entrar(sessaoId, ip);
     if (!vez.ok) {
@@ -226,7 +267,7 @@ export function criarServidorDoAssistente({ dados, responder, avaliar, verificar
         });
         return resposta.end(arquivo);
       }
-      if (!["/status", "/chat", "/avaliar"].includes(caminho)) {
+      if (!["/status", "/chat", "/avaliar", "/pedido"].includes(caminho)) {
         resposta.writeHead(404);
         return resposta.end();
       }
@@ -242,6 +283,7 @@ export function criarServidorDoAssistente({ dados, responder, avaliar, verificar
       if (rota === "GET /status") return await aoStatus(resposta, cors);
       if (rota === "POST /chat") return await aoChat(requisicao, resposta, cors);
       if (rota === "POST /avaliar") return await aoAvaliar(requisicao, resposta, cors);
+      if (rota === "POST /pedido") return await aoPedido(requisicao, resposta, cors);
       resposta.writeHead(404);
       resposta.end();
     } catch (erro) {

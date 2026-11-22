@@ -556,6 +556,7 @@ try {
         if (opcoes.bancoFora) throw new Error("banco fora do ar");
         return { openai: "sk-zz", anthropic: null, turnstile: "ts-zz", ...(opcoes.segredos ?? {}) };
       },
+      situacaoDoPedido: async (numero, prova) => (opcoes.situacaoDoPedido ? opcoes.situacaoDoPedido(numero, prova) : { situacao: "nao_achado" }),
     };
     const servidor = criarServidorDoAssistente({
       dados: dadosFalsos,
@@ -631,6 +632,74 @@ try {
   conferir("nota fora de 1 e -1", (await portaDaNota.postar("/avaliar", { sessaoId: SESSAO, mensagemId: "zz-m1", nota: 5 })).status, 400);
   await portaDaNota.fechar();
   await porta.fechar();
+
+  // ---------- Fase 3 (22/11/2026): acompanhar pedido, pelo formulario, sem passar pela IA ----------
+  const { normalizarPedido, textoDaSituacao } = await import("../src/lib/riseAi/cliente/pedido.js");
+  conferir("pedido: numero e CPF com mascara", normalizarPedido({ numero: " #1001-a ", prova: "123.456.789-09" }), { numero: "1001A", prova: "12345678909" });
+  conferir("pedido: e-mail em minusculas", normalizarPedido({ numero: "1001", prova: " Zz@Exemplo.com " }), { numero: "1001", prova: "zz@exemplo.com" });
+  conferir("pedido: CNPJ pelos digitos", normalizarPedido({ numero: "1001", prova: "12.345.678/0001-90" }).prova, "12345678000190");
+  conferir("pedido: prova curta", normalizarPedido({ numero: "1001", prova: "1234" }), { erro: "prova" });
+  conferir("pedido: sem numero", normalizarPedido({ numero: " - ", prova: "12345678909" }), { erro: "numero" });
+  conferir("pedido: numero longo demais", normalizarPedido({ numero: "9".repeat(31), prova: "12345678909" }), { erro: "numero" });
+  const situacaoBase = { numero: "1001", canal: "LOJA_INTEGRADA", data: "2026-11-20", status: "ENVIADO", statusDoEnvio: "EM_TRANSITO", transportadora: "Jadlog", rastreio: "ZZ123BR", linkDoRastreio: "https://rastreio.exemplo/ZZ123BR", atualizadoEm: "2026-11-21T12:30:00Z" };
+  conferir(
+    "situacao: titulo, tom, linhas e rastreio (hora de Sao Paulo)",
+    textoDaSituacao(situacaoBase),
+    { titulo: "Enviado", tom: "andamento", linhas: ["Pedido nº 1001 de 20/11/2026", "Envio: Jadlog", "Atualizado em 21/11 às 09:30"], rastreio: { codigo: "ZZ123BR", link: "https://rastreio.exemplo/ZZ123BR" } },
+  );
+  conferir(
+    "situacao: os nove status tem titulo",
+    ["AGUARDANDO_PAGAMENTO", "PAGO", "AGUARDANDO_PECAS", "EM_SEPARACAO", "ENVIADO", "ENTREGUE", "FINALIZADO", "CANCELADO", "DEVOLVIDO"].map((status) => textoDaSituacao({ ...situacaoBase, status }).titulo),
+    ["Aguardando o pagamento", "Pagamento aprovado", "Em separação", "Em separação", "Enviado", "Entregue", "Entregue", "Cancelado", "Devolvido"],
+  );
+  conferir("situacao: entregue e cancelado mudam o tom", [textoDaSituacao({ ...situacaoBase, status: "ENTREGUE" }).tom, textoDaSituacao({ ...situacaoBase, status: "CANCELADO" }).tom], ["ok", "alerta"]);
+  conferir("situacao: link que nao e https sai, o codigo fica", textoDaSituacao({ ...situacaoBase, linkDoRastreio: "javascript:alert(1)" }).rastreio, { codigo: "ZZ123BR", link: null });
+  conferir("situacao: sem rastreio e sem transportadora", (({ linhas, rastreio }) => [linhas.length, rastreio])(textoDaSituacao({ ...situacaoBase, transportadora: null, rastreio: null, linkDoRastreio: null })), [2, null]);
+
+  const consultasDePedido = [];
+  const portaDoPedido = await subir({
+    situacaoDoPedido: async (numero, prova) => {
+      consultasDePedido.push([numero, prova]);
+      return numero === "1001" && prova === "12345678909" ? { situacao: "achado", pedido: situacaoBase } : { situacao: "nao_achado" };
+    },
+  });
+  const respostasAntesDoPedido = respostasTerminadas;
+  const pedidoCerto = { sessaoId: SESSAO, numero: "1001", prova: "123.456.789-09", turnstileToken: "token-bom" };
+  const achou = await portaDoPedido.postar("/pedido", pedidoCerto);
+  conferir("pedido achado: a situacao pronta, com o passe", [achou.status, achou.corpo?.situacao, achou.corpo?.titulo, achou.corpo?.rastreio?.codigo, typeof achou.corpo?.passe], [200, "achado", "Enviado", "ZZ123BR", "string"]);
+  conferir("o servico manda ao banco o numero e a prova normalizados", consultasDePedido[0], ["1001", "12345678909"]);
+  conferir("pedido sem a verificacao de robo", (await portaDoPedido.postar("/pedido", { ...pedidoCerto, turnstileToken: undefined })).status, 403);
+  conferir("prova curta nem chega ao banco", [(await portaDoPedido.postar("/pedido", { ...pedidoCerto, prova: "12" })).corpo, consultasDePedido.length], [{ erro: "prova" }, 1]);
+  const comPasseDoPedido = { ...pedidoCerto, turnstileToken: undefined, passe: achou.corpo?.passe };
+  const pedidoErrado = { ...comPasseDoPedido, prova: "98765432100" };
+  conferir("nao achado, sem dizer o que falhou", (await portaDoPedido.postar("/pedido", pedidoErrado)).corpo, { situacao: "nao_achado" });
+  for (let i = 0; i < 4; i++) await portaDoPedido.postar("/pedido", pedidoErrado);
+  const sextaTentativa = await portaDoPedido.postar("/pedido", comPasseDoPedido);
+  conferir("depois de 5 erros na sessao: limite com o WhatsApp", [sextaTentativa.status, sextaTentativa.corpo], [429, { situacao: "limite", whatsapp: WHATSAPP }]);
+  conferir("o limite da sessao nem chega ao banco", consultasDePedido.length, 6);
+  conferir("o pedido nunca passa pelo cerebro", respostasTerminadas, respostasAntesDoPedido);
+  conferir("pedido de outra origem", (await portaDoPedido.postar("/pedido", pedidoCerto, { origem: "https://outro.site" })).status, 403);
+  await portaDoPedido.fechar();
+  const portaDoIp = await subir({ situacaoDoPedido: async () => ({ situacao: "achado", pedido: situacaoBase }) });
+  for (let i = 0; i < 10; i++) await portaDoIp.postar("/pedido", { ...pedidoCerto, sessaoId: i.toString(16).padStart(32, "0") });
+  const doIp = await portaDoIp.postar("/pedido", { ...pedidoCerto, sessaoId: "e".repeat(32) });
+  conferir("o 11o pedido do mesmo IP na hora: limite com o WhatsApp", [doIp.status, { situacao: doIp.corpo?.situacao, whatsapp: doIp.corpo?.whatsapp }], [429, { situacao: "limite", whatsapp: WHATSAPP }]);
+  await portaDoIp.fechar();
+  const portaDoTetoDoBanco = await subir({ situacaoDoPedido: async () => ({ situacao: "limite" }) });
+  const doTetoDoBanco = await portaDoTetoDoBanco.postar("/pedido", pedidoCerto);
+  conferir("o limite do banco tambem mostra o WhatsApp", [doTetoDoBanco.status, { situacao: doTetoDoBanco.corpo?.situacao, whatsapp: doTetoDoBanco.corpo?.whatsapp }], [429, { situacao: "limite", whatsapp: WHATSAPP }]);
+  await portaDoTetoDoBanco.fechar();
+  const portaDoBancoFora = await subir({
+    situacaoDoPedido: async () => {
+      throw new Error("banco fora do ar");
+    },
+  });
+  const comBancoFora = await portaDoBancoFora.postar("/pedido", pedidoCerto);
+  conferir("banco fora no pedido: aviso com o WhatsApp, sem detalhe", [comBancoFora.status, comBancoFora.corpo], [503, { erro: "indisponivel", whatsapp: WHATSAPP }]);
+  await portaDoBancoFora.fechar();
+  const portaDoPedidoDesligada = await subir({ canal: { ligado: false } });
+  conferir("pedido com o chat desligado", (await portaDoPedidoDesligada.postar("/pedido", pedidoCerto)).corpo, { erro: "desligado", whatsapp: WHATSAPP });
+  await portaDoPedidoDesligada.fechar();
 
   const portaDesligada = await subir({ canal: { ligado: false } });
   conferir("status desligado de fabrica", (await portaDesligada.pegar("/status")).corpo.ligado, false);
@@ -740,7 +809,7 @@ try {
 
   const modeloDoCaddy = existsSync(new URL("../deploy/caddy/assistente.modelo", import.meta.url)) ? ler("deploy/caddy/assistente.modelo") : "";
   conferir("o modelo do Caddy e do endereco do Hobi", /^hobi\.4hobby\.com\.br \{/m.test(modeloDoCaddy), true);
-  conferir("o modelo do Caddy so tem as tres rotas", (/\n\t\tpath ([^\n]+)\n/.exec(modeloDoCaddy)?.[1] ?? "").split(/\s+/), ["/status", "/chat", "/avaliar"]);
+  conferir("o modelo do Caddy so tem as quatro rotas", (/\n\t\tpath ([^\n]+)\n/.exec(modeloDoCaddy)?.[1] ?? "").split(/\s+/), ["/status", "/chat", "/avaliar", "/pedido"]);
   conferir("o modelo manda so essas rotas ao servico, e o resto e 404", [/handle @rotas \{[\s\S]*reverse_proxy ia:8787/.test(modeloDoCaddy), /\n\thandle \{\n\t\trespond 404\n\t\}/.test(modeloDoCaddy), (modeloDoCaddy.match(/reverse_proxy/g) ?? []).length], [true, true, 2]);
   conferir("o modelo limita o corpo e nao segura o fluxo", [/max_size 16KB/.test(modeloDoCaddy), /flush_interval -1/.test(modeloDoCaddy)], [true, true]);
   // So as diretivas contam: o comentario do modelo explica justamente que ele NAO tem login.

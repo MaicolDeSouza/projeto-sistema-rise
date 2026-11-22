@@ -7,8 +7,8 @@
 # Endereco IRMAO de rise.4hobby.com.br, nunca debaixo dele: o cookie de login do painel vale para rise.4hobby.com.br, e
 # um servico publico nesse nome poderia recebe-lo.
 #
-# E o unico bloco do Rise sem login NENHUM, entao so passa o que a janela do chat usa: tres rotas, tres metodos, corpo
-# de ate 16 KB. Todo o resto e 404 aqui mesmo, sem chegar ao servico. Sem forward_auth e sem o segredo de borda: o
+# E o unico bloco do Rise sem login NENHUM, entao so passa o que a janela do chat usa: quatro rotas (`/pedido` desde a
+# fase 3, 22/11/2026), tres metodos, corpo de ate 16 KB. Todo o resto e 404 aqui mesmo, sem chegar ao servico. Sem forward_auth e sem o segredo de borda: o
 # servico `ia` nao le login e nao alcanca o app.
 hobi.4hobby.com.br {
 	import seguranca
@@ -33,7 +33,7 @@ hobi.4hobby.com.br {
 
 	@rotas {
 		method GET POST OPTIONS
-		path /status /chat /avaliar
+		path /status /chat /avaliar /pedido
 	}
 	handle @rotas {
 		request_body {

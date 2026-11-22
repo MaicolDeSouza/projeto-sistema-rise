@@ -213,5 +213,15 @@ export function criarDadosDoCliente({ consultar = null, baseDasFotos = "", chave
     );
   }
 
-  return { buscarProdutos, produtosPorSku, fichaDoProduto, similares, conhecimento, configuracaoDoCanal, segredos, darSinal };
+  /**
+   * O acompanhar pedido (fase 3): SO pela funcao do banco, que confere a prova e conta os erros (sqlDoPapel.js). O papel
+   * nao le `PedidoDeVenda`; o numero e a prova chegam normalizados por `normalizarPedido` (pedido.js).
+   * @returns {Promise<{ situacao: "achado", pedido: object } | { situacao: "nao_achado" } | { situacao: "limite" }>}
+   */
+  async function situacaoDoPedido(numeroDoPedido, prova) {
+    const [linha] = await rodar(`SELECT ia_situacao_do_pedido($1, $2) AS "resultado"`, [numeroDoPedido, prova]);
+    return linha?.resultado ?? { situacao: "nao_achado" };
+  }
+
+  return { buscarProdutos, produtosPorSku, fichaDoProduto, similares, conhecimento, configuracaoDoCanal, segredos, darSinal, situacaoDoPedido };
 }
