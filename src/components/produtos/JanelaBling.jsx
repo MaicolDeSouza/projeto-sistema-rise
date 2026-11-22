@@ -489,6 +489,13 @@ export default function JanelaBling({ produto, aoFechar }) {
             setErro(resultado.erro ?? "O envio não foi concluído.");
           }
         }
+        // O Sincronizar deu certo, mas o estoque espera a escolha do deposito (mais de um no Bling, nenhum padrao): a mesma
+        // pergunta do envio do estoque, no bloco Estoque da janela.
+        const depositosDoEstoque = resultado.estoque?.precisaDeposito;
+        if (resultado.ok && Array.isArray(depositosDoEstoque) && depositosDoEstoque.length > 0) {
+          setDeposito(null);
+          setDepositos({ lista: depositosDoEstoque, motivo: "O Bling tem mais de um depósito e nenhum marcado como padrão: escolha em qual lançar o estoque." });
+        }
 
         // A ultima etapa do popup e a releitura do Bling (so quando o envio mexeu la): "Conferir o resultado no Bling".
         const releu = mudouNoBling(tipo, resultado);
@@ -701,14 +708,12 @@ export default function JanelaBling({ produto, aoFechar }) {
                         }
                       />
                       <div className="space-y-3 border-t border-borda px-4 py-3">
-                        <p className="text-sm text-suave">O estoque do Rise é o saldo do Bling mais os ajustes ainda não enviados.</p>
-
-                        {existeNoBling && estoque.pendentes > 0 && !depositos && (
-                          <button type="button" onClick={() => enviarEstoque()} disabled={pendente} className={CLASSE_DO_BOTAO_SECUNDARIO}>
-                            {qual === "estoque" && <Loader size={15} className="animate-spin" />}
-                            {qual === "estoque" ? "Enviando..." : "Enviar ajustes de estoque"}
-                          </button>
-                        )}
+                        {/* O botao "Enviar ajustes de estoque" saiu (pedido do dono em 22/11/2026): o Sincronizar do rodape
+                            leva o estoque junto. So a escolha do deposito, quando o Bling pede, continua aqui. */}
+                        <p className="text-sm text-suave">
+                          O estoque do Rise é o saldo do Bling mais os ajustes ainda não enviados.
+                          {existeNoBling && estoque.pendentes > 0 && " Eles vão ao Bling no Sincronizar."}
+                        </p>
 
                         {depositos && (
                           <fieldset className={`rounded-lg border p-4 ${CLASSE_DO_TOM.atencao}`}>

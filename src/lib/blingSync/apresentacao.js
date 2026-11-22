@@ -31,6 +31,7 @@ export const ETAPAS_DO_ENVIO = {
     { id: "campos", rotulo: "Enviar os campos" },
     { id: "fotos", rotulo: "Enviar as fotos" },
     { id: "fornecedores", rotulo: "Enviar os fornecedores" },
+    { id: "estoque", rotulo: "Enviar o estoque" },
     { id: "conferir", rotulo: "Conferir o resultado no Bling" },
   ],
   cadastrar: [
@@ -209,6 +210,9 @@ export function resumirEnvio(tipo, resultado, rotulos = {}) {
     if (fornecedores > 0) linhas.push(`Fornecedores enviados: ${fornecedores}.`);
     const linhaDasFotos = linhaDeFotos(resultado.fotos);
     if (linhaDasFotos) linhas.push(linhaDasFotos);
+    // O estoque vai junto desde 22/11/2026: os ajustes levados num lancamento so (ou que se anularam).
+    const ajustes = inteiro(resultado.estoque?.enviados);
+    if (ajustes > 0) linhas.push(`Estoque: ${ajustes} ajuste(s) levado(s) ao Bling.`);
 
     if (ok) {
       return linhas.length > 0

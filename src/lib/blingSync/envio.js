@@ -16,6 +16,7 @@ import { montarCorpoDeCadastro, montarCorpoDeFotos, montarCorpoParcial } from "@
 import { fotosDoBling, fotosDoRise, md5DasFotosDoBling, md5DasFotosDoRise, planoDasFotos } from "@/lib/blingSync/fotos";
 import { config } from "@/lib/integracoes/config";
 import { buscarNoBling, codigosDasPecasNoBling, lerProdutoDoRise } from "@/lib/blingSync/leitura";
+import { ajusteLiquido } from "@/lib/blingSync/estoque";
 import { iniciarProgresso } from "@/lib/blingSync/progresso";
 import { lerSaldosDoBling } from "@/lib/blingSync/saldos";
 import { prisma } from "@/lib/db";
@@ -712,6 +713,30 @@ export async function sincronizarProduto(produtoId, cliente = clienteBling(), de
 
       await gravarSincronizado(produto, campos, fornecedores, planoDasFotos);
       progresso.feita("fornecedores", envio.enviados > 0 ? `${envio.enviados} fornecedor(es)` : "nada a enviar");
+
+      // O estoque vai junto (pedido do dono em 22/11/2026: "o botao sincronizar com bling ja deveria sincronizar tudo"). Depois
+      // do cadastro, que ja foi gravado como sincronizado: uma recusa do estoque nao desfaz os campos, so fica pendente.
+      progresso.andando("estoque");
+      if (produto.movimentosEstoque.length > 0) {
+        const estoque = { enviados: 0, restantes: 0 };
+        const estado = { aviso: null, tentou: false };
+        saida.estoque = estoque;
+        try {
+          const lancado = await lancarPendentes(cliente, produto, {}, estoque, estado, achado);
+          if (lancado.precisaDeposito) {
+            estoque.precisaDeposito = lancado.precisaDeposito;
+            saida.aviso = juntarAvisos(saida.aviso, "O Bling tem mais de um depósito e nenhum marcado como padrão: escolha abaixo em qual lançar o estoque.");
+            progresso.feita("estoque", "escolher o depósito");
+          } else {
+            if (estado.aviso) saida.aviso = juntarAvisos(saida.aviso, estado.aviso);
+            progresso.feita("estoque", `${estoque.enviados} ajuste(s)`);
+          }
+        } catch (erro) {
+          throw new FalhaDoEnvio(`O cadastro foi enviado ao Bling, mas o estoque não: ${textoDaFalha(erro)}${resumoDaFalhaDoEstoque(estoque, estado)}`);
+        }
+      } else {
+        progresso.feita("estoque", "nada a enviar");
+      }
       return { ok: true, ...saida };
     } catch (erro) {
       const motivo = textoDaFalha(erro);
@@ -932,26 +957,31 @@ async function escolherDeposito(cliente, depositoPedido) {
   return { precisaDeposito: depositos.map(({ id, descricao }) => ({ id, descricao })) };
 }
 
+class MarcaIncompleta extends Error {}
+
+/// Dois avisos para a tela numa frase so (o das fotos e o do estoque podem vir juntos).
+const juntarAvisos = (...avisos) => avisos.filter(Boolean).join(" ") || null;
+
 /**
- * Marca o ajuste como enviado, LOGO depois de o Bling aceita-lo (nunca em lote no fim: se o envio
- * parar no meio, o que ja foi tem que estar marcado, senao o proximo envio o lancaria de novo). Falhou:
- * lanca, e o envio para ali.
+ * Marca TODOS os ajustes do lancamento como enviados, numa transacao: todos ou nenhum. Um ajuste que sumiu (excluido, ou
+ * marcado por outro envio) desfaz a marca dos outros, porque o lancamento que o Bling aceitou ja contava com ele. `feito`
+ * diz o que aconteceu antes ("O Bling aceitou o lançamento de entrada de 2", "Os 4 ajustes se anulam").
  */
-async function marcarEnviado(movimento, oQue) {
-  let marcados;
+async function marcarEnviados(movimentos, feito) {
+  const ids = movimentos.map((movimento) => movimento.id);
   try {
-    marcados = await prisma.movimentoEstoque.updateMany({
-      where: { id: movimento.id, enviadoAoBlingEm: null },
-      data: { enviadoAoBlingEm: new Date() },
+    await prisma.$transaction(async (tx) => {
+      const marcados = await tx.movimentoEstoque.updateMany({ where: { id: { in: ids }, enviadoAoBlingEm: null }, data: { enviadoAoBlingEm: new Date() } });
+      if (marcados.count !== ids.length) throw new MarcaIncompleta();
     });
   } catch (erro) {
+    if (erro instanceof MarcaIncompleta) {
+      throw new FalhaDoEnvio(`${feito}, mas algum ajuste não estava mais pendente no Rise (foi excluído, ou marcado por outro envio). Nenhum foi marcado: confira o saldo no Bling.`);
+    }
     throw new FalhaDoEnvio(
-      `O Bling aceitou ${oQue}, mas o Rise não conseguiu marcá-lo como enviado: ${mensagemDe(erro)}. Ele continua pendente aqui: ` +
-        "confira o saldo no Bling antes de enviar de novo, senão ele seria lançado duas vezes.",
+      `${feito}, mas o Rise não conseguiu marcar os ajustes como enviados: ${mensagemDe(erro)}. Eles continuam pendentes aqui: ` +
+        "confira o saldo no Bling antes de enviar de novo, senão o lançamento iria duas vezes.",
     );
-  }
-  if (marcados.count === 0) {
-    throw new FalhaDoEnvio(`O Bling aceitou ${oQue}, mas ele não estava mais pendente no Rise (foi excluído, ou marcado por outro envio). Confira o saldo no Bling.`);
   }
 }
 
@@ -1012,58 +1042,82 @@ export async function enviarAjustesDeEstoque(produtoId, cliente = clienteBling()
   const falhou = (erro, extra = {}) => ({ ok: false, erro, ...saida, ...extra });
 
   return umPorVez(produtoId, falhou, async () => {
-    let aviso = null;
-    let enviando = false;
+    const estado = { aviso: null, tentou: false };
     try {
       const produto = await lerDoRise(produtoId);
-      const pendentes = produto.movimentosEstoque;
-      saida.restantes = pendentes.length;
-
+      // Antes da trava: recusado por ela, a tela ainda diz quantos ficaram pendentes.
+      saida.restantes = produto.movimentosEstoque.length;
       exigirEscrita(cliente, produto.sku);
-      if (pendentes.length === 0) return { ok: true, ...saida };
-
-      const achado = await buscar(cliente, produto.sku);
-      if (achado.situacao === "nao_existe") {
-        throw new FalhaDoEnvio(
-          "O código não foi achado entre os produtos ativos do Bling, então nenhum ajuste foi enviado. Se ele está inativo lá, reative-o; senão cadastre o produto no Bling antes.",
-        );
+      const lancado = await lancarPendentes(cliente, produto, opcoes, saida, estado);
+      if (lancado.precisaDeposito) {
+        return falhou(MENSAGEM_DO_DEPOSITO, { precisaDeposito: lancado.precisaDeposito });
       }
-      if (achado.situacao === "duplicado") throw recusaPorDuplicado(produto.sku, achado.quantidade);
-      // Kit (composicao) com estoque VIRTUAL: o Bling calcula o saldo pelas pecas, e lancar estoque no
-      // kit nao muda o que ele vende. So o kit de estoque proprio ("F", fisico) recebe ajuste; na
-      // duvida (outro valor), nao envia.
-      if (achado.produto?.formato === "E" && achado.produto?.estrutura?.tipoEstoque !== "F") {
-        throw new FalhaDoEnvio(
-          "Este produto é uma composição (kit) no Bling, com o estoque calculado pelas peças: nenhum ajuste foi enviado. Ajuste o estoque das peças.",
-        );
-      }
-
-      const deposito = await escolherDeposito(cliente, opcoes?.depositoId);
-      if (deposito.precisaDeposito) {
-        return falhou("O Bling tem mais de um depósito e nenhum marcado como padrão: escolha em qual lançar os ajustes. Nada foi enviado.", {
-          precisaDeposito: deposito.precisaDeposito,
-        });
-      }
-
-      enviando = true;
-      try {
-        for (const [indice, movimento] of pendentes.entries()) {
-          const oQue = `o ajuste ${indice + 1} de ${pendentes.length} (${descreverAjuste(movimento)})`;
-          const corpo = corpoDoAjuste(achado.id, deposito.id, movimento, oQue);
-          await escrever(() => cliente.post("/estoques", corpo), oQue);
-          saida.enviados++;
-          saida.restantes--;
-          await marcarEnviado(movimento, oQue);
-        }
-      } finally {
-        if (saida.enviados > 0) aviso = await relerSaldo(cliente, produto, achado.id);
-      }
-      return { ok: true, ...saida, ...(aviso ? { aviso } : {}) };
+      return { ok: true, ...saida, ...(estado.aviso ? { aviso: estado.aviso } : {}) };
     } catch (erro) {
-      const resumo = enviando
-        ? ` ${saida.enviados} ajuste(s) enviado(s) antes da falha; ${saida.restantes} continua(m) pendente(s), na mesma ordem, para o próximo envio.`
-        : "";
-      return falhou(`${textoDaFalha(erro)}${resumo}`, aviso ? { aviso } : {});
+      return falhou(`${textoDaFalha(erro)}${resumoDaFalhaDoEstoque(saida, estado)}`, estado.aviso ? { aviso: estado.aviso } : {});
     }
   });
+}
+
+const MENSAGEM_DO_DEPOSITO = "O Bling tem mais de um depósito e nenhum marcado como padrão: escolha em qual lançar os ajustes. Nada foi enviado.";
+
+/// O que ficou pendente quando o lancamento nao foi aceito (os ajustes so saem do Rise juntos).
+function resumoDaFalhaDoEstoque(saida, estado) {
+  return estado.tentou && saida.enviados === 0 ? ` ${saida.restantes} continua(m) pendente(s) no Rise, para o próximo envio.` : "";
+}
+
+/**
+ * Leva ao Bling os ajustes pendentes do produto num lancamento SO, com o saldo liquido (`ajusteLiquido`; pedido do dono
+ * em 22/11/2026). Ajustes que se anulam sao marcados sem chamar o Bling. Senao: busca por codigo (o id do lancamento e o
+ * DESTA busca, nunca o `blingId` guardado: Emenda 11; quem ja buscou passa `achado`), a recusa do kit de estoque virtual,
+ * o deposito, o `POST /estoques`, a marca de todos (todos ou nenhum) e a releitura do saldo. Lanca `FalhaDoEnvio`; o
+ * deposito por escolher volta em `precisaDeposito`. `saida` ({enviados, restantes}) e `estado` ({aviso, tentou}) sao
+ * preenchidos aqui, para quem chamou contar mesmo numa falha. A trava de escrita e de quem chama.
+ */
+async function lancarPendentes(cliente, produto, opcoes, saida, estado, achadoAntes = null) {
+  const pendentes = produto.movimentosEstoque;
+  saida.restantes = pendentes.length;
+  if (pendentes.length === 0) return {};
+
+  const liquido = ajusteLiquido(pendentes);
+  if (!liquido) {
+    await marcarEnviados(pendentes, `Os ${pendentes.length} ajustes se anulam`);
+    saida.enviados = pendentes.length;
+    saida.restantes = 0;
+    return {};
+  }
+
+  const achado = achadoAntes ?? (await buscar(cliente, produto.sku));
+  if (achado.situacao === "nao_existe") {
+    throw new FalhaDoEnvio(
+      "O código não foi achado entre os produtos ativos do Bling, então nenhum ajuste foi enviado. Se ele está inativo lá, reative-o; senão cadastre o produto no Bling antes.",
+    );
+  }
+  if (achado.situacao === "duplicado") throw recusaPorDuplicado(produto.sku, achado.quantidade);
+  // Kit (composicao) com estoque VIRTUAL: o Bling calcula o saldo pelas pecas, e lancar estoque no
+  // kit nao muda o que ele vende. So o kit de estoque proprio ("F", fisico) recebe ajuste; na
+  // duvida (outro valor), nao envia.
+  if (achado.produto?.formato === "E" && achado.produto?.estrutura?.tipoEstoque !== "F") {
+    throw new FalhaDoEnvio(
+      "Este produto é uma composição (kit) no Bling, com o estoque calculado pelas peças: nenhum ajuste foi enviado. Ajuste o estoque das peças.",
+    );
+  }
+
+  const deposito = await escolherDeposito(cliente, opcoes?.depositoId);
+  if (deposito.precisaDeposito) return { precisaDeposito: deposito.precisaDeposito };
+
+  const oQue = `o lançamento de ${descreverAjuste(liquido)} (o total de ${pendentes.length} ajuste(s) pendente(s))`;
+  const corpo = corpoDoAjuste(achado.id, deposito.id, liquido, oQue);
+  estado.tentou = true;
+  let aceito = false;
+  try {
+    await escrever(() => cliente.post("/estoques", corpo), oQue);
+    aceito = true;
+    await marcarEnviados(pendentes, `O Bling aceitou ${oQue}`);
+    saida.enviados = pendentes.length;
+    saida.restantes = 0;
+  } finally {
+    if (aceito) estado.aviso = await relerSaldo(cliente, produto, achado.id);
+  }
+  return {};
 }

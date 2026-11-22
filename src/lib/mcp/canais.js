@@ -94,6 +94,16 @@ async function enviarEstoque(produtoId, bling) {
   }
 }
 
+/** O estoque que o `sincronizarProduto` ja levou, no mesmo formato de `enviarEstoque`. */
+function estoqueDoSincronizar(estoque) {
+  const saida = { enviados: estoque.enviados ?? 0, restantes: estoque.restantes ?? 0 };
+  if (estoque.precisaDeposito) {
+    saida.escolherDepositoNaTela = estoque.precisaDeposito.map((deposito) => deposito.descricao);
+    saida.aviso = "O Bling tem mais de um depósito e nenhum padrão: a pessoa escolhe o depósito no ícone B da lista de Produtos.";
+  }
+  return saida;
+}
+
 const SINCRONIZAR_COM_BLING = {
   nome: "sincronizarComBling",
   descricao: [
@@ -124,7 +134,8 @@ const SINCRONIZAR_COM_BLING = {
       return { ok: false, acao, erro: resultado.erro, blingId: resultado.blingId ?? null, aviso: CONFERIR_NO_BLING, ...(await situacaoAtual(sku)) };
     }
 
-    const estoque = await enviarEstoque(produto.id, bling);
+    // O Sincronizar ja leva o estoque (22/11/2026); o envio separado fica para o Cadastrar, que nao o leva.
+    const estoque = resultado.estoque ? estoqueDoSincronizar(resultado.estoque) : await enviarEstoque(produto.id, bling);
     return {
       ok: true,
       acao,

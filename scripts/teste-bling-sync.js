@@ -1671,7 +1671,7 @@ try {
       conferir(
         "andamento: sincronizar sem diferenca fecha todas as etapas do servidor, terminou, e diz o que nao precisou enviar",
         [andamento.tipo, andamento.terminou, andamento.etapas.map((etapa) => `${etapa.id}:${etapa.estado}:${etapa.detalhe ?? ""}`)],
-        ["sincronizar", true, ["permissao:feito:", "ler:feito:", "campos:feito:nada mudou", "fotos:feito:já iguais", "fornecedores:feito:nada a enviar"]],
+        ["sincronizar", true, ["permissao:feito:", "ler:feito:", "campos:feito:nada mudou", "fotos:feito:já iguais", "fornecedores:feito:nada a enviar", "estoque:feito:nada a enviar"]],
       );
     }
 
@@ -1684,7 +1684,7 @@ try {
       conferir(
         "andamento: codigo que nao existe no Bling para na etapa de ler, com o motivo, e as demais esperam",
         [resultado.ok, andamento.terminou, andamento.etapas.map((etapa) => `${etapa.id}:${etapa.estado}`), andamento.etapas[1].detalhe === resultado.erro],
-        [false, true, ["permissao:feito", "ler:falhou", "campos:espera", "fotos:espera", "fornecedores:espera"], true],
+        [false, true, ["permissao:feito", "ler:falhou", "campos:espera", "fotos:espera", "fornecedores:espera", "estoque:espera"], true],
       );
       conferir("andamento: produto sem envio aberto nao tem andamento", lerProgresso("nao-existe"), null);
     }
@@ -2347,41 +2347,28 @@ try {
     const marcados = async (produtoId) => (await movimentosDe(produtoId)).map((movimento) => movimento.enviadoAoBlingEm instanceof Date);
     const ler = (id) => prisma.produto.findUnique({ where: { id } });
 
-    // --- ENTRADA 3 e SAIDA 1: dois POST, na ordem, no deposito padrao, marcados um a um ---
+    // --- ENTRADA 3 e SAIDA 1: UM POST com o saldo liquido (entrada de 2), no deposito padrao (pedido do dono em
+    // 22/11/2026: um a um, a saida antiga batia no Bling em 0 e travava os outros, que somavam zero) ---
     {
       // O blingId guardado e velho de proposito: o alvo do lancamento e o id da busca por codigo (Emenda 11).
       const produto = await criarComPendentes("ZZ-BS-K1", [["ENTRADA", 3], ["SAIDA", 1]], { blingId: "424242" });
       const falso = novoFalso({ produtos: [noBling("ZZ-BS-K1")], saldos: { "ZZ-BS-K1": 5 } });
-      // No instante do segundo POST o primeiro ajuste ja tem que estar marcado: a marca vem LOGO
-      // depois de cada envio, e nao em lote no fim.
-      const [primeiro] = await movimentosDe(produto.id);
-      const primeiroMarcadoNoSegundoPost = [];
-      let postsVistos = 0;
-      const cliente = {
-        ...falso,
-        post: async (caminho, corpo) => {
-          if (caminho === "/estoques" && ++postsVistos === 2) {
-            primeiroMarcadoNoSegundoPost.push((await prisma.movimentoEstoque.findUnique({ where: { id: primeiro.id } })).enviadoAoBlingEm instanceof Date);
-          }
-          return falso.post(caminho, corpo);
-        },
-      };
+      const cliente = falso;
       const movimentosAntes = await prisma.movimentoEstoque.count({ where: { produtoId: produto.id } });
 
       const resultado = await enviarAjustesDeEstoque(produto.id, cliente);
-      conferir("ENTRADA 3 e SAIDA 1: ok, 2 enviados e 0 restantes", resultado, { ok: true, enviados: 2, restantes: 0 });
+      conferir("ENTRADA 3 e SAIDA 1: ok, os 2 resolvidos e 0 restantes", resultado, { ok: true, enviados: 2, restantes: 0 });
       conferir(
-        "dois POST /estoques na ordem de criadoEm (E e depois S), no id da busca (nao no blingId guardado), no deposito padrao e so com as chaves do contrato",
+        "UM POST /estoques com o liquido (entrada de 2), no id da busca (nao no blingId guardado), no deposito padrao e so com as chaves do contrato",
         postsDeEstoque(falso).map((chamada) => chamada.corpo),
-        [lancamento("E", 3), lancamento("S", 1)],
+        [lancamento("E", 2)],
       );
       conferir(
-        "rotas: exigirEscrita primeiro, a busca por codigo, a leitura, os depositos, os dois POST e a releitura do saldo",
+        "rotas: exigirEscrita primeiro, a busca por codigo, a leitura, os depositos, o POST e a releitura do saldo",
         rotasDe(falso),
-        ["exigirEscrita ZZ-BS-K1", "GET /produtos", `GET /produtos/${ID_NO_BLING}`, "GET /depositos", "POST /estoques", "POST /estoques", "GET /estoques/saldos"],
+        ["exigirEscrita ZZ-BS-K1", "GET /produtos", `GET /produtos/${ID_NO_BLING}`, "GET /depositos", "POST /estoques", "GET /estoques/saldos"],
       );
       conferir("a releitura pede o saldo pelo codigo do Rise (codigos[])", consultaDaChamada(leiturasDeSaldo(falso)[0])["codigos[]"], ["ZZ-BS-K1"]);
-      conferir("o primeiro ajuste ja estava marcado quando o segundo POST saiu", primeiroMarcadoNoSegundoPost, [true]);
       conferir("os dois enviadoAoBlingEm preenchidos", await marcados(produto.id), [true, true]);
       conferir("o Bling ficou com 5 + 3 - 1 = 7", falso.saldo("ZZ-BS-K1"), 7);
       const depois = await ler(produto.id);
@@ -2431,33 +2418,51 @@ try {
       );
     }
 
-    // --- O Bling recusa o segundo (Review Focus 3): para ali, o primeiro fica marcado, o segundo pendente ---
+    // --- O Bling recusa o lancamento liquido (saida de 7 com 4 no Bling): nada marcado, os dois seguem pendentes ---
     {
       const produto = await criarComPendentes("ZZ-BS-K3", [["ENTRADA", 2], ["SAIDA", 9]]);
       const falso = novoFalso({
         produtos: [noBling("ZZ-BS-K3")],
         saldos: { "ZZ-BS-K3": 4 },
-        falhas: [{ metodo: "POST", caminho: "/estoques", status: 400, mensagem: "Saldo insuficiente no deposito", depois: 1 }],
+        falhas: [{ metodo: "POST", caminho: "/estoques", status: 400, mensagem: "Saldo insuficiente no deposito" }],
       });
       const resultado = await enviarAjustesDeEstoque(produto.id, falso);
-      conferir("falha 400 no segundo: ok false, enviados 1, restantes 1, e erro logo depois de ok", [resultado.ok, resultado.enviados, resultado.restantes, Object.keys(resultado)], [false, 1, 1, ["ok", "erro", "enviados", "restantes"]]);
+      conferir("Bling recusa o liquido: ok false, nada resolvido, os 2 restantes", [resultado.ok, resultado.enviados, resultado.restantes, Object.keys(resultado)], [false, 0, 2, ["ok", "erro", "enviados", "restantes"]]);
       conferir(
-        "o erro e legivel: qual ajuste, o HTTP, a mensagem do Bling, e quantos foram e quantos ficaram",
-        [casaTexto(resultado.erro, /ajuste 2 de 2/), casaTexto(resultado.erro, /saida de 9/), casaTexto(resultado.erro, /HTTP 400/), casaTexto(resultado.erro, /Saldo insuficiente no deposito/), casaTexto(resultado.erro, /1 ajuste\(s\) enviado\(s\)/), casaTexto(resultado.erro, /1 continua\(m\) pendente\(s\)/)],
-        [true, true, true, true, true, true],
+        "o erro e legivel: o lancamento (saida de 7, dos 2 ajustes), o HTTP, a mensagem do Bling, e que os 2 continuam pendentes",
+        [casaTexto(resultado.erro, /saida de 7/), casaTexto(resultado.erro, /2 ajuste/), casaTexto(resultado.erro, /HTTP 400/), casaTexto(resultado.erro, /Saldo insuficiente no deposito/), casaTexto(resultado.erro, /2 continua\(m\) pendente\(s\)/)],
+        [true, true, true, true, true],
       );
-      conferir("o primeiro marcado e o segundo AINDA nulo", await marcados(produto.id), [true, false]);
-      conferir("escrita nao tenta de novo: dois POST, o segundo recusado uma vez so", postsDeEstoque(falso).map((chamada) => chamada.corpo.operacao), ["E", "S"]);
-      conferir(
-        "mesmo parando na falha, relê o saldo (ja tinha enviado um) e grava blingSaldo 4 + 2 = 6",
-        [rotasDe(falso).at(-1), (await ler(produto.id)).blingSaldo],
-        ["GET /estoques/saldos", 6],
-      );
-      // O envio seguinte manda so o que ficou, na mesma ordem.
+      conferir("nada marcado", await marcados(produto.id), [false, false]);
+      conferir("escrita nao tenta de novo: um POST so, a saida de 7", postsDeEstoque(falso).map((chamada) => [chamada.corpo.operacao, chamada.corpo.quantidade]), [["S", 7]]);
+      conferir("sem nada aceito, sem releitura do saldo", [leiturasDeSaldo(falso).length, (await ler(produto.id)).blingSaldo], [0, null]);
+      // Com saldo no Bling, o mesmo liquido vai e os dois ficam marcados.
       const deNovo = novoFalso({ produtos: [noBling("ZZ-BS-K3")], saldos: { "ZZ-BS-K3": 20 } });
       const seguinte = await enviarAjustesDeEstoque(produto.id, deNovo);
-      conferir("envio seguinte: so o que ficou pendente (a SAIDA 9)", [seguinte, postsDeEstoque(deNovo).map((chamada) => chamada.corpo)], [{ ok: true, enviados: 1, restantes: 0 }, [lancamento("S", 9)]]);
+      conferir("envio seguinte: o mesmo liquido (saida de 7)", [seguinte, postsDeEstoque(deNovo).map((chamada) => chamada.corpo)], [{ ok: true, enviados: 2, restantes: 0 }, [lancamento("S", 7)]]);
       conferir("e agora os dois estao marcados", await marcados(produto.id), [true, true]);
+    }
+
+    // --- Os ajustes somam ZERO (o 110304: saida 1, entrada 1, entrada 1, saida 1, com o Bling em 0): nenhum lancamento ---
+    {
+      const produto = await criarComPendentes("ZZ-BS-KZ", [["SAIDA", 1], ["ENTRADA", 1], ["ENTRADA", 1], ["SAIDA", 1]]);
+      const falso = novoFalso({ produtos: [noBling("ZZ-BS-KZ")], saldos: { "ZZ-BS-KZ": 0 } });
+      const resultado = await enviarAjustesDeEstoque(produto.id, falso);
+      conferir("soma zero: ok, os 4 resolvidos e 0 restantes", resultado, { ok: true, enviados: 4, restantes: 0 });
+      conferir("soma zero: so a trava, sem POST e sem releitura (o Bling nao muda)", rotasDe(falso), ["exigirEscrita ZZ-BS-KZ"]);
+      conferir("soma zero: os 4 marcados como enviados", await marcados(produto.id), [true, true, true, true]);
+    }
+
+    // --- Balanco no meio: vale o ULTIMO balanco mais o que veio depois (o de antes dele nao conta) ---
+    {
+      const produto = await criarComPendentes("ZZ-BS-KG", [["SAIDA", 3], ["BALANCO", 10], ["ENTRADA", 2], ["SAIDA", 1]]);
+      const falso = novoFalso({ produtos: [noBling("ZZ-BS-KG")], saldos: { "ZZ-BS-KG": 4 } });
+      const resultado = await enviarAjustesDeEstoque(produto.id, falso);
+      conferir(
+        "saida 3, balanco 10, entrada 2, saida 1: UM balanco de 11, os 4 marcados",
+        [resultado, postsDeEstoque(falso).map((chamada) => chamada.corpo), await marcados(produto.id)],
+        [{ ok: true, enviados: 4, restantes: 0 }, [lancamento("B", 11)], [true, true, true, true]],
+      );
     }
 
     // --- Rede caindo no POST: nao marca, nao repete, e manda conferir no Bling ---
@@ -2499,11 +2504,11 @@ try {
       };
       const resultado = await enviarAjustesDeEstoque(produto.id, cliente);
       conferir(
-        "ajuste que some antes da marca: ok false, o erro diz que o Bling aceitou mas ele nao estava mais pendente, e o seguinte NAO sai",
-        [resultado.ok, resultado.enviados, resultado.restantes, casaTexto(resultado.erro, /nao estava mais pendente/), postsDeEstoque(falso).length],
-        [false, 1, 1, true, 1],
+        "ajuste que some antes da marca: ok false, o erro diz que o Bling aceitou mas algum nao estava mais pendente, um POST so",
+        [resultado.ok, casaTexto(resultado.erro, /nao estava mais pendente/), postsDeEstoque(falso).length],
+        [false, true, 1],
       );
-      conferir("o seguinte continua pendente, e o saldo foi relido (2)", [await marcados(produto.id), (await ler(produto.id)).blingSaldo], [[false], 2]);
+      conferir("o que sobrou nao e marcado (a marca e de todos ou de nenhum), e o saldo foi relido (1 + 3 = 4)", [await marcados(produto.id), (await ler(produto.id)).blingSaldo], [[false], 4]);
     }
 
     // --- A releitura falha: os ajustes foram, ok true, e um aviso diz que o saldo nao foi relido ---
@@ -2549,7 +2554,7 @@ try {
         { id: LOJA, descricao: "Loja", situacao: 1, padrao: false, desconsiderarSaldo: false },
         { id: GALPAO, descricao: "Galpao", situacao: 1, padrao: false, desconsiderarSaldo: false },
       ];
-      const produto = await criarComPendentes("ZZ-BS-K7", [["ENTRADA", 1], ["SAIDA", 1]]);
+      const produto = await criarComPendentes("ZZ-BS-K7", [["ENTRADA", 2], ["SAIDA", 1]]);
       const falso = novoFalso({ produtos: [noBling("ZZ-BS-K7")], depositos: doisSemPadrao, saldos: { "ZZ-BS-K7": 5 } });
       const pergunta = await enviarAjustesDeEstoque(produto.id, falso);
       conferir(
@@ -2559,7 +2564,7 @@ try {
       );
       conferir("dois depositos sem padrao: falso.chamadas sem nenhum POST, e nada marcado", [escritasDe(falso).length, await marcados(produto.id)], [0, [false, false]]);
       const escolhido = await enviarAjustesDeEstoque(produto.id, falso, { depositoId: GALPAO });
-      conferir("com depositoId informado: envia os dois nele", [escolhido, postsDeEstoque(falso).map((chamada) => chamada.corpo)], [{ ok: true, enviados: 2, restantes: 0 }, [lancamento("E", 1, GALPAO), lancamento("S", 1, GALPAO)]]);
+      conferir("com depositoId informado: envia o liquido nele", [escolhido, postsDeEstoque(falso).map((chamada) => chamada.corpo)], [{ ok: true, enviados: 2, restantes: 0 }, [lancamento("E", 1, GALPAO)]]);
 
       // O escolhido vence o padrao, e pode chegar como texto (vem da tela).
       const outro = await criarComPendentes("ZZ-BS-K8", [["ENTRADA", 4]]);
@@ -2641,7 +2646,7 @@ try {
 
     // --- Clique duplo ao mesmo tempo: cada ajuste vai uma vez so ---
     {
-      const produto = await criarComPendentes("ZZ-BS-KF", [["ENTRADA", 1], ["SAIDA", 1]]);
+      const produto = await criarComPendentes("ZZ-BS-KF", [["ENTRADA", 2], ["SAIDA", 1]]);
       const falso = novoFalso({ produtos: [noBling("ZZ-BS-KF")], saldos: { "ZZ-BS-KF": 5 } });
       const [a, b] = await Promise.all([enviarAjustesDeEstoque(produto.id, falso), enviarAjustesDeEstoque(produto.id, falso)]);
       conferir(
@@ -2649,7 +2654,7 @@ try {
         [[a.ok, b.ok].sort(), (a.ok ? a : b).enviados, casaTexto((a.ok ? b : a).erro, /em andamento/), (a.ok ? b : a).enviados],
         [[false, true], 2, true, 0],
       );
-      conferir("clique duplo: cada ajuste foi UMA vez so (dois POST) e o Bling ficou com 5", [postsDeEstoque(falso).map((chamada) => chamada.corpo.operacao), falso.saldo("ZZ-BS-KF")], [["E", "S"], 5]);
+      conferir("clique duplo: o liquido foi UMA vez so (um POST) e o Bling ficou com 6", [postsDeEstoque(falso).map((chamada) => chamada.corpo.operacao), falso.saldo("ZZ-BS-KF")], [["E"], 6]);
       conferir("e depois de terminar a trava sai: o seguinte corre (nada pendente)", await enviarAjustesDeEstoque(produto.id, falso), { ok: true, enviados: 0, restantes: 0 });
     }
 
@@ -3016,9 +3021,56 @@ try {
       const falso = criarBlingFalso({ produtos: [noBling("ZZ-BS-AJB")], saldos: { "ZZ-BS-AJB": 5 } });
       const resultado = await ajustarESincronizar(produto.id, { tipo: "ENTRADA", quantidade: 2 }, falso);
       conferir(
-        "pendente antigo: os dois vao ao Bling na ordem (a saida antiga e depois a entrada nova), e tudo fica igual (6)",
+        "pendente antigo: vai junto no MESMO lancamento (saida 1 + entrada 2 = entrada de 1), e tudo fica igual (6)",
         [resultado.ok, resultado.bling, resultado.enviados, resultado.saldoAnterior, resultado.estoque, postsDeEstoque(falso).map((chamada) => chamada.corpo), await pendentesDe(produto.id), await estoqueE(produto.id)],
-        [true, "enviado", 2, 4, 6, [lancamento("S", 1), lancamento("E", 2)], [["SAIDA", 1, true], ["ENTRADA", 2, true]], [6, 6]],
+        [true, "enviado", 2, 4, 6, [lancamento("E", 1)], [["SAIDA", 1, true], ["ENTRADA", 2, true]], [6, 6]],
+      );
+    }
+
+    // --- "Sincronizar com o Bling" manda TAMBEM o estoque (pedido do dono em 22/11/2026: o botao separado "Enviar ajustes
+    // de estoque" saiu da janela) ---
+    {
+      const produto = await criarComPendentes("ZZ-BS-SE1", [["ENTRADA", 2]]);
+      const falso = criarBlingFalso({ produtos: [noBling("ZZ-BS-SE1")], saldos: { "ZZ-BS-SE1": 5 } });
+      const resultado = await sincronizarProduto(produto.id, falso);
+      conferir(
+        "sincronizar com ajuste pendente: ok, estoque com 1 resolvido, a entrada de 2 no Bling e o ajuste marcado",
+        [resultado.ok, resultado.estoque, postsDeEstoque(falso).map((chamada) => chamada.corpo), await marcados(produto.id), falso.saldo("ZZ-BS-SE1")],
+        [true, { enviados: 1, restantes: 0 }, [lancamento("E", 2)], [true], 7],
+      );
+
+      const semPendente = await criarComPendentes("ZZ-BS-SE2", []);
+      const falsoSem = criarBlingFalso({ produtos: [noBling("ZZ-BS-SE2")] });
+      const semEstoque = await sincronizarProduto(semPendente.id, falsoSem);
+      conferir("sincronizar sem ajuste pendente: sem a chave estoque e sem POST /estoques", [semEstoque.ok, "estoque" in semEstoque, postsDeEstoque(falsoSem).length], [true, false, 0]);
+
+      const doisDepositos = await criarComPendentes("ZZ-BS-SE3", [["SAIDA", 1]]);
+      const falsoDois = criarBlingFalso({
+        produtos: [noBling("ZZ-BS-SE3")],
+        saldos: { "ZZ-BS-SE3": 5 },
+        depositos: [
+          { id: 14300000001, descricao: "Loja", situacao: 1, padrao: false, desconsiderarSaldo: false },
+          { id: 14300000002, descricao: "Galpao", situacao: 1, padrao: false, desconsiderarSaldo: false },
+        ],
+      });
+      const pergunta = await sincronizarProduto(doisDepositos.id, falsoDois);
+      conferir(
+        "sincronizar com dois depositos sem padrao: o cadastro vale (ok), o estoque devolve a lista para escolher e nada e marcado",
+        [pergunta.ok, pergunta.estoque?.precisaDeposito?.map((deposito) => deposito.descricao), postsDeEstoque(falsoDois).length, await marcados(doisDepositos.id)],
+        [true, ["Loja", "Galpao"], 0, [false]],
+      );
+
+      const recusado = await criarComPendentes("ZZ-BS-SE4", [["SAIDA", 3]]);
+      const falsoRecusa = criarBlingFalso({
+        produtos: [noBling("ZZ-BS-SE4")],
+        saldos: { "ZZ-BS-SE4": 1 },
+        falhas: [{ metodo: "POST", caminho: "/estoques", status: 400, mensagem: "Saldo insuficiente no estoque" }],
+      });
+      const falha = await sincronizarProduto(recusado.id, falsoRecusa);
+      conferir(
+        "sincronizar com o Bling recusando o estoque: ok false, o erro diz que o cadastro foi e o estoque nao, e o ajuste segue pendente",
+        [falha.ok, casaTexto(falha.erro, /estoque/i), casaTexto(falha.erro, /Saldo insuficiente/), await marcados(recusado.id)],
+        [false, true, true, [false]],
       );
     }
   }
@@ -3093,15 +3145,14 @@ try {
       conferir("icone: o ajuste de estoque foi gravado", ajuste.ok, true);
       conferir("icone: com ajuste de estoque pendente, os motivos incluem estoque (depois de campos)", await iconeDe(produto.id), { cor: "verde", divergente: true, motivos: ["campos", "estoque"] });
 
-      // Sincronizar de novo leva o preco; o ajuste continua pendente (so o envio de estoque o leva).
+      // Sincronizar de novo leva o preco E o ajuste de estoque (desde 22/11/2026 o Sincronizar manda tudo).
       const denovo = await sincronizarProduto(produto.id, falso);
-      conferir("icone: sincronizar de novo leva o preco ao Bling", [denovo.ok, denovo.alterados.map((alterado) => alterado.campo)], [true, ["preco"]]);
-      conferir("icone: depois disso so o ajuste pendente acende o selo (estoque)", await iconeDe(produto.id), { cor: "verde", divergente: true, motivos: ["estoque"] });
-
-      // Ajuste enviado deixa de ser pendente: volta a nao ter o motivo "estoque".
-      const enviado = await enviarAjustesDeEstoque(produto.id, falso);
-      conferir("icone: o envio do ajuste de estoque deu certo", [enviado.ok, enviado.enviados, enviado.restantes], [true, 1, 0]);
+      conferir("icone: sincronizar de novo leva o preco e o ajuste ao Bling", [denovo.ok, denovo.alterados.map((alterado) => alterado.campo), denovo.estoque], [true, ["preco"], { enviados: 1, restantes: 0 }]);
       conferir("icone: ajuste ja enviado nao e pendente: verde, sem selo", await iconeDe(produto.id), VERDE_EM_DIA);
+
+      // Sem nada pendente, o envio separado do estoque nao tem o que mandar.
+      const enviado = await enviarAjustesDeEstoque(produto.id, falso);
+      conferir("icone: o envio separado do estoque nao acha nada pendente", [enviado.ok, enviado.enviados, enviado.restantes], [true, 0, 0]);
 
       // O que o Rise nao envia nao acende o selo: ativo, estoque e nome do fornecedor ficam fora da assinatura.
       await prisma.produto.update({ where: { id: produto.id }, data: { ativo: false, estoque: 77 } });
