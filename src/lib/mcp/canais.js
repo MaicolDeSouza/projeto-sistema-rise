@@ -3,6 +3,7 @@ import { z } from "zod";
 import { skuValido } from "@/lib/arquivos";
 import { prisma } from "@/lib/db";
 import { proximoCodigoLivre } from "@/lib/proposta/codigo";
+import { criarKitDeComposicao } from "@/lib/kitDeComposicao";
 import { UNIDADES } from "@/lib/unidades";
 import { clienteBling } from "@/lib/blingSync/cliente";
 import { cadastrarNoBling, enviarAjustesDeEstoque, sincronizarProduto } from "@/lib/blingSync/envio";
@@ -259,4 +260,57 @@ const CRIAR_PRODUTO = {
   },
 };
 
-export const FERRAMENTAS_DE_CANAIS = [SINCRONIZAR_COM_BLING, SINCRONIZAR_COM_LOJA_INTEGRADA, CRIAR_PRODUTO];
+// ---------------------------------------------------------------------------
+// Criar kit de composicao no Rise (pedido do dono em 22/11/2026: "tem como criar mcp para criar produto com kit de composicao")
+// ---------------------------------------------------------------------------
+
+const CRIAR_KIT = {
+  nome: "criarKit",
+  descricao: [
+    "CRIA um produto KIT (\"Com composição\") no Rise a partir de produtos que já existem, cada um com a quantidade: ex. 1 conector macho + 1 fêmea.",
+    "É o caminho de todo kit de produtos DIFERENTES (o editor do anúncio do ML não aceita); kit de N unidades do MESMO produto continua no anúncio (lerParaPropostaML com quantidade).",
+    "O Rise calcula sozinho: código livre 25xxxx, preço = soma da venda das peças, NCM e categorias da peça de maior quantidade, peso e medidas, localização e estoque pelas peças, e copia as fotos de todas as peças, marcadas.",
+    "Você escreve e manda: o nome do kit (em maiúsculas, como os produtos da loja), a descrição (título, parágrafos e especificações técnicas, no estilo das descrições da loja; o Rise acrescenta \"Itens inclusos\" e \"Garantia\") e o SEO do site: seoTitulo (até 70 caracteres, com o nome do kit e o principal termo de busca) e seoDescricao (até 160 caracteres, o que o kit é e para que serve).",
+    "Cada peça precisa ser produto simples, Conferido e ligado ao Bling. O kit nasce NÃO Conferido e sem Bling: o dono revisa no Rise, carrega a foto do kit montado e cadastra no Bling. ANTES, confira as peças (consultarProduto) e só chame quando a pessoa pedir; mostre a ela o código que ficou.",
+  ].join(" "),
+  esquema: z.object({
+    nome: z.string().trim().min(3).max(200).describe("O nome do kit, ex.: KIT CONECTOR DB25 MACHO E FÊMEA PAINEL PARA FLAT CABLE"),
+    pecas: z
+      .array(z.object({ sku: z.string().trim().min(1).max(64), quantidade: z.number().int().min(1).max(9999) }))
+      .min(1)
+      .max(50)
+      .describe("As peças do kit: o código (SKU) de cada produto e a quantidade dele no kit"),
+    descricao: z.string().trim().min(20).max(10000).describe("A descrição do kit sem os itens inclusos e sem a garantia (o Rise acrescenta)"),
+    seoTitulo: z.string().trim().min(10).max(70).describe("O título de SEO do site (Tag Title), até 70 caracteres"),
+    seoDescricao: z.string().trim().min(30).max(160).describe("A descrição de SEO do site (Meta Description), até 160 caracteres"),
+    marca: z.string().trim().max(60).optional().describe("Sem ela, a marca da peça de maior quantidade"),
+    modelo: z.string().trim().max(60).optional(),
+  }),
+  anotacoes: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  async executar({ nome, pecas, descricao, seoTitulo, seoDescricao, marca, modelo }, contexto) {
+    if (typeof contexto?.pode !== "function" || !contexto.pode("tela.produtos.cadastro", "editar")) {
+      throw new ErroDeFerramenta("Este login não pode criar produto (precisa editar o cadastro de Produtos).");
+    }
+    const igual = await prisma.produto.findFirst({ where: { tituloBase: { equals: nome.trim(), mode: "insensitive" } }, select: { sku: true } });
+    if (igual) throw new ErroDeFerramenta(`Já existe o produto ${igual.sku} com esse nome: não foi criado nada.`);
+    let resultado;
+    try {
+      resultado = await criarKitDeComposicao({ nome, pecas, descricao, seoTitulo, seoDescricao, marca, modelo });
+    } catch (erro) {
+      if (erro?.code === "P2002") throw new ErroDeFerramenta("O código do kit acabou de ser usado por outro produto: tente de novo.");
+      throw erro;
+    }
+    if (!resultado.ok) throw new ErroDeFerramenta(resultado.erro);
+    return {
+      ok: true,
+      sku: resultado.sku,
+      nome: nome.trim(),
+      fotos: resultado.fotos,
+      ...(resultado.avisos.length > 0 ? { avisos: resultado.avisos } : {}),
+      conferido: false,
+      faltaNoRise: ["foto do kit montado", "conferir o cadastro", "cadastrar no Bling"],
+    };
+  },
+};
+
+export const FERRAMENTAS_DE_CANAIS = [SINCRONIZAR_COM_BLING, SINCRONIZAR_COM_LOJA_INTEGRADA, CRIAR_PRODUTO, CRIAR_KIT];

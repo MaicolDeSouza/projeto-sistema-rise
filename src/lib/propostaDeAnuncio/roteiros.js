@@ -30,7 +30,8 @@ import { REGRAS_DAS_VARIANTES } from "@/lib/canaisDeVenda/ml/faixas";
 // e o roteiro deixa de dizer que so o dono sincroniza (pedido do dono: o Claude da Andrea nao tinha como fazer os dois cliques).
 // "13" em 22/11/2026: kit de produtos DIFERENTES nunca no anuncio (o editor recusa); e um produto "Com composicao" do cadastro,
 // e o anuncio sai dele (pedido do dono: "o kit deve sempre ser montado no rise antes").
-export const VERSAO_ROTEIRO_ML = "13";
+// "14" em 22/11/2026: o kit de produtos diferentes se cria com a ferramenta criarKit.
+export const VERSAO_ROTEIRO_ML = "14";
 
 export const ROTEIRO_ML = `ROTEIRO DA PROPOSTA DE ANÚNCIO DO MERCADO LIVRE (Rise / 4hobby), versão ${VERSAO_ROTEIRO_ML}
 
@@ -74,8 +75,9 @@ KIT NO ML: quando o dono pede o anúncio em kit ("anúncio com 10 peças", "kit 
    ligado (código {sku}_{N}), com o custo, o peso e as medidas das N unidades, e calcula o preço do kit; o estoque do
    anúncio é o que o produto monta (estoque ÷ N). Catálogos e links só do MESMO kit (a mesma peça na mesma quantidade).
    KIT DE PRODUTOS DIFERENTES (ex.: 1 conector macho + 1 fêmea) NUNCA vai no anúncio: o editor do ML recusa. Ele é um
-   produto "Com composição" do cadastro do Rise, com código, localização e o kit no Bling; peça ao dono para criar em
-   Produtos (Clonar a peça principal e marcar "Com composição") e só depois faça a proposta do anúncio desse produto kit.
+   produto "Com composição" do cadastro do Rise, com código, localização e o kit no Bling. Crie com criarKit (as peças e as
+   quantidades, a descrição e o SEO que você escreve; o Rise calcula o resto e copia as fotos), ou peça ao dono para criar em
+   Produtos; depois que o dono conferir e cadastrar no Bling, faça a proposta do anúncio desse produto kit.
 3. Monte a proposta:
    - CATEGORIA: uma categoria FOLHA. Se escolher outra que não a provável, chame lerCategoriaML(categoriaId) para ver
      a ficha dela.

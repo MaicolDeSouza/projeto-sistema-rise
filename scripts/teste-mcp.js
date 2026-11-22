@@ -56,7 +56,7 @@ const ANALISE_FORNECEDOR = ["roteiroDaAnaliseDeFornecedor"];
 // O estudo de viabilidade (12/11/2026): trabalho do dono, sem o lembrete de anotar.
 const ESTUDOS = ["roteiroDoEstudoDeViabilidade", "listarEstudosDeViabilidade", "lerParaEstudoDeViabilidade", "calcularEstudoDeViabilidade", "gravarEstudoDeViabilidade"];
 // Sincronizar com o Bling e a Loja Integrada (10/11/2026): escrita pedida pelo dono, sem o lembrete.
-const CANAIS = ["sincronizarComBling", "sincronizarComLojaIntegrada", "criarProduto"];
+const CANAIS = ["sincronizarComBling", "sincronizarComLojaIntegrada", "criarProduto", "criarKit"];
 // O Mapa do estoque pelo chat (15/11/2026): trabalho da Andrea nas prateleiras, sem o lembrete.
 const ESTOQUE = [
   "roteiroDoMapaDoEstoque",
@@ -782,7 +782,7 @@ try {
         descoberta?.instructions === INSTRUCOES && INSTRUCOES.includes("anotarDuvida"),
       ],
       [
-        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "calcularEstudoDeViabilidade", "compararProdutos", "comprasACaminhoDoProduto", "consultarEstoque", "consultarPreco", "consultarProduto", "criarProduto", "desligarCorrecaoDaDescricao", "filtrarProdutos", "folhaDeContato", "gravarCorrecaoDaDescricao", "gravarEstudoDeViabilidade", "gravarPropostaML", "gravarSecao", "historicoDePreco", "lerCategoriaML", "lerParaEstudoDeViabilidade", "lerParaProposta", "lerParaPropostaML", "lerPedidoDeCompra", "lerPedidoDeVenda", "lerProposta", "lerPropostaParaCliente", "listarClientes", "listarConcorrentes", "listarCorrecoesDaDescricao", "listarEstudosDeViabilidade", "listarFornecedores", "listarMarcas", "listarPedidosDeCompra", "listarPedidosDeVenda", "listarPropostasParaCliente", "listarTransportadoras", "marcarReferencias", "montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra", "produtosAbaixoDoMinimo", "reaproveitarAnuncioML", "relatorioDeVendas", "roteiroDaAnaliseDeFornecedor", "roteiroDaProposta", "roteiroDoEstudoDeViabilidade", "sincronizarComBling", "sincronizarComLojaIntegrada", "situacaoDoProduto", ...ESTOQUE, ...FRETE].sort(),
+        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "calcularEstudoDeViabilidade", "compararProdutos", "comprasACaminhoDoProduto", "consultarEstoque", "consultarPreco", "consultarProduto", "criarKit", "criarProduto", "desligarCorrecaoDaDescricao", "filtrarProdutos", "folhaDeContato", "gravarCorrecaoDaDescricao", "gravarEstudoDeViabilidade", "gravarPropostaML", "gravarSecao", "historicoDePreco", "lerCategoriaML", "lerParaEstudoDeViabilidade", "lerParaProposta", "lerParaPropostaML", "lerPedidoDeCompra", "lerPedidoDeVenda", "lerProposta", "lerPropostaParaCliente", "listarClientes", "listarConcorrentes", "listarCorrecoesDaDescricao", "listarEstudosDeViabilidade", "listarFornecedores", "listarMarcas", "listarPedidosDeCompra", "listarPedidosDeVenda", "listarPropostasParaCliente", "listarTransportadoras", "marcarReferencias", "montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra", "produtosAbaixoDoMinimo", "reaproveitarAnuncioML", "relatorioDeVendas", "roteiroDaAnaliseDeFornecedor", "roteiroDaProposta", "roteiroDoEstudoDeViabilidade", "sincronizarComBling", "sincronizarComLojaIntegrada", "situacaoDoProduto", ...ESTOQUE, ...FRETE].sort(),
         // +4 de leitura do Mapa do estoque (roteiro, mapa, caixinha e sugerir), 15/11/2026.
         // +5 de leitura do frete (cotar, cotar o pedido, ler, listar e imprimir), 20/11/2026.
         46,
@@ -1519,6 +1519,57 @@ try {
     const automatico = JSON.parse((await chamar("criarProduto", { nome: "ZZMCP produto automatico" }))?.content?.[0]?.text || "{}");
     conferir("criarProduto: sem codigo usa o proximo livre da faixa 25xxxx", /^25\d{4}$/.test(automatico.sku ?? ""), true);
     if (automatico.sku) await prisma.produto.delete({ where: { sku: automatico.sku } });
+
+    // Criar kit de composicao pelo MCP (22/11/2026): pecas que existem, fotos copiadas e marcadas, categoria e NCM da peca de
+    // maior quantidade, SEO e descricao do Claude, nasce nao Conferido. So escreve ZZ-MCP-KP*, o kit 25xxxx e as pastas deles.
+    console.log("\nCriar kit pelo MCP");
+    const { mkdir: criarPasta, writeFile: gravarArquivo, rm: apagarPasta, access: existeArquivo } = await import("node:fs/promises");
+    const { caminhoDe: caminhoDoArquivo, pastaDoProduto } = await import("../src/lib/arquivos.js");
+    const peca = (sku, extra) => prisma.produto.create({ data: { sku, tituloBase: `ZZMCP ${sku}`, conferido: true, blingId: "9", estoque: 30, ...extra } });
+    const kp1 = await peca("ZZ-MCP-KP1", { precoVenda: 10, pesoKg: 0.01, comprimentoCm: 5, larguraCm: 1, alturaCm: 2, ncm: "8536.69.90", categoriasLI: ["11"], localizacao: "B2" });
+    const kp2 = await peca("ZZ-MCP-KP2", { precoVenda: 5, pesoKg: 0.02, comprimentoCm: 3, larguraCm: 2, alturaCm: 1, ncm: "8544.42.00", categoriasLI: ["22"], localizacao: "C3", estoque: 9 });
+    await peca("ZZ-MCP-KP3", { conferido: false });
+    // Nomes no formato que o Rise gera (32 hexadecimais), o unico que `caminhoDe` aceita.
+    const nomeDeFoto = (letra) => `${letra.repeat(32)}.jpg`;
+    for (const [produto, nomes] of [[kp1, [nomeDeFoto("a"), nomeDeFoto("b")]], [kp2, [nomeDeFoto("c")]]]) {
+      for (const [ordem, nome] of nomes.entries()) {
+        const caminho = caminhoDoArquivo(produto.sku, "IMAGEM", nome);
+        await criarPasta(caminho.replace(/[\\/][^\\/]+$/, ""), { recursive: true });
+        await gravarArquivo(caminho, "jpg");
+        await prisma.produtoArquivo.create({ data: { produtoId: produto.id, tipo: "IMAGEM", papel: "FOTO", arquivo: nome, ordem, principal: ordem === 0 } });
+      }
+    }
+    const pedidoDoKit = {
+      nome: "ZZMCP KIT DE TESTE",
+      pecas: [{ sku: "ZZ-MCP-KP1", quantidade: 1 }, { sku: "zz-mcp-kp2", quantidade: 3 }],
+      descricao: "ZZMCP KIT DE TESTE\n\nTexto do kit de teste para o MCP.",
+      seoTitulo: "Kit de teste do MCP",
+      seoDescricao: "Kit de teste do MCP com as duas pecas, para conferir.",
+    };
+    conferir("criarKit: no tools/list, e nao e so de leitura", [lista.some((f) => f.name === "criarKit"), lista.find((f) => f.name === "criarKit")?.annotations?.readOnlyHint], [true, false]);
+    const kitSemEditar = await chamar("criarKit", pedidoDoKit, quem((r) => r !== "tela.produtos.cadastro"));
+    conferir("criarKit sem editar o cadastro: recusa e nao cria", [kitSemEditar?.isError, await prisma.produto.count({ where: { tituloBase: "ZZMCP KIT DE TESTE" } })], [true, 0]);
+    const comPecaRuim = await chamar("criarKit", { ...pedidoDoKit, pecas: [{ sku: "ZZ-MCP-KP1", quantidade: 1 }, { sku: "ZZ-MCP-KP3", quantidade: 1 }] });
+    conferir("criarKit: peca nao Conferida recusa e nao cria", [comPecaRuim?.isError, await prisma.produto.count({ where: { tituloBase: "ZZMCP KIT DE TESTE" } })], [true, 0]);
+    const semPeca = await chamar("criarKit", { ...pedidoDoKit, pecas: [{ sku: "ZZ-MCP-NAO-EXISTE", quantidade: 2 }] });
+    conferir("criarKit: peca que nao existe recusa com o codigo", [semPeca?.isError, /ZZ-MCP-NAO-EXISTE/.test(semPeca?.content?.[0]?.text ?? "")], [true, true]);
+    const kit = JSON.parse((await chamar("criarKit", pedidoDoKit))?.content?.[0]?.text || "{}");
+    const kitGravado = kit.sku ? await prisma.produto.findUnique({ where: { sku: kit.sku }, include: { componentes: { orderBy: { ordem: "asc" }, include: { componente: { select: { sku: true } } } }, arquivos: { orderBy: { ordem: "asc" } } } }) : null;
+    try {
+      conferir("criarKit: codigo 25xxxx, kit nao Conferido, as pecas na ordem com a quantidade", [kit.ok, /^25\d{4}$/.test(kit.sku ?? ""), kitGravado?.tipo, kitGravado?.unidade, kitGravado?.conferido, kitGravado?.componentes.map((c) => `${c.quantidade}x ${c.componente.sku}`)], [true, true, "COMPOSICAO", "KIT", false, ["1x ZZ-MCP-KP1", "3x ZZ-MCP-KP2"]]);
+      conferir("criarKit: preco pela soma, NCM e categorias da peca de maior quantidade, localizacao e estoque pelas pecas", [Number(kitGravado?.precoVenda), kitGravado?.ncm, kitGravado?.categoriasLI, kitGravado?.localizacao, kitGravado?.estoque], [25, "8544.42.00", ["22"], "ZZ-MCP-KP1(B2) / ZZ-MCP-KP2(C3)", 3]);
+      conferir("criarKit: peso somado, maior comprimento e largura, alturas somadas", [Number(kitGravado?.pesoKg), Number(kitGravado?.comprimentoCm), Number(kitGravado?.larguraCm), Number(kitGravado?.alturaCm)], [0.07, 5, 2, 5]);
+      conferir("criarKit: SEO do Claude e a descricao com os itens inclusos e a garantia", [kitGravado?.seoTituloLI, kitGravado?.seoDescricaoLI, /Itens inclusos: \(Cod:25\d{4}\)\n- 01 ZZMCP ZZ-MCP-KP1;\n- 03 ZZMCP ZZ-MCP-KP2;/i.test(kitGravado?.descricaoBase ?? ""), /Garantia:\n- Garantia Legal de 90 dias/.test(kitGravado?.descricaoBase ?? "")], [pedidoDoKit.seoTitulo, pedidoDoKit.seoDescricao, true, true]);
+      const fotosDoKit = kitGravado?.arquivos.filter((a) => a.tipo === "IMAGEM") ?? [];
+      const noDisco = await Promise.all(fotosDoKit.map((f) => existeArquivo(caminhoDoArquivo(kit.sku, "IMAGEM", f.arquivo)).then(() => true, () => false)));
+      conferir("criarKit: as fotos das pecas copiadas, marcadas, a primeira principal, e no disco", [kit.fotos, fotosDoKit.length, fotosDoKit.every((f) => f.finalizada), fotosDoKit.map((f) => f.principal), noDisco], [3, 3, true, [true, false, false], [true, true, true]]);
+      const repetidoKit = await chamar("criarKit", pedidoDoKit);
+      conferir("criarKit: o mesmo nome de novo recusa", [repetidoKit?.isError, /Já existe/.test(repetidoKit?.content?.[0]?.text ?? "")], [true, true]);
+    } finally {
+      if (kit.sku) await prisma.produto.deleteMany({ where: { sku: kit.sku } });
+      await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-MCP-KP" } } });
+      for (const sku of [kit.sku, "ZZ-MCP-KP1", "ZZ-MCP-KP2"].filter(Boolean)) await apagarPasta(pastaDoProduto(sku), { recursive: true, force: true });
+    }
 
     // O Mapa do estoque pelo chat (15/11/2026): as contas e o Mover estao no teste:estoque3d; aqui, o que e do MCP: as 13
     // ferramentas, o acesso (mapa + Localizacao), o roteiro, o fluxo das fotos (simula, grava), mover, colunas, modelos,
