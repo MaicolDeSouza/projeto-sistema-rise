@@ -247,7 +247,7 @@ function aplicarEvento(conversa, { evento, dados }) {
       return naAberta(conversa, () => ({ status: "", mensagemId: d.mensagemId == null ? null : String(d.mensagemId), fechada: true }));
     case "avaliacao": {
       if (d.nota !== 1 && d.nota !== -1) return conversa;
-      return { trocas: conversa.trocas.map((troca) => (troca.mensagemId && troca.mensagemId === d.mensagemId && troca.nota === 0 ? { ...troca, nota: d.nota } : troca)) };
+      return { trocas: conversa.trocas.map((troca) => (troca.mensagemId && troca.mensagemId === d.mensagemId ? { ...troca, nota: d.nota } : troca)) };
     }
     default:
       return conversa;
@@ -333,6 +333,8 @@ var HOBI_SCRIPT = document.currentScript;
 var HOBI_AVISO_DE_IA = "Este é um assistente de IA. Preço e estoque vêm da loja. Não envie senha nem dados de cartão.";
 var HOBI_ERRO_GERAL = "Não consegui responder agora. Tente de novo em instantes ou fale com a gente pelo WhatsApp.";
 var HOBI_LIMITE_DE_CARACTERES = 2000;
+// Cabem numa linha do campo (~38 caracteres); cada um comeca com maiuscula depois do "Ex.:" (pedido do dono).
+var HOBI_EXEMPLOS = ["Ex.: Sensor de umidade para Arduino", "Ex.: Quero ligar um LED com Arduino", "Ex.: Fonte 12V 5A, relé 5V, LM7805"];
 var HOBI_AVISA_A_PARTIR_DE = 1800;
 
 var HOBI_CSS = [
@@ -658,7 +660,7 @@ function hobiIniciar(servico, status) {
   var confirma = hobiEl("div", "confirma", null, { role: "alert" });
   confirma.hidden = true;
   var campo = hobiEl("form", "campo");
-  var texto = hobiEl("textarea", null, null, { rows: "1", maxlength: String(HOBI_LIMITE_DE_CARACTERES), "aria-label": "Sua mensagem", placeholder: "Escreva o que você procura…" });
+  var texto = hobiEl("textarea", null, null, { rows: "1", maxlength: String(HOBI_LIMITE_DE_CARACTERES), "aria-label": "Sua mensagem", placeholder: HOBI_EXEMPLOS[0] });
   var contador = hobiEl("span", "contador");
   contador.hidden = true;
   var enviar = hobiEl("button", "enviar", null, { type: "submit", "aria-label": "Enviar" });
@@ -926,15 +928,11 @@ function hobiIniciar(servico, status) {
     var ruim = hobiEl("button", null, null, { type: "button", "aria-label": "Resposta ruim", "aria-pressed": String(troca.nota === -1) });
     ruim.appendChild(hobiIcone("ruim"));
     var obrigado = hobiEl("span", null, troca.nota ? "Obrigado pela avaliação." : "");
-    function travar() {
-      boa.disabled = true;
-      ruim.disabled = true;
-    }
-    if (troca.nota) travar();
+    // A nota pode ser trocada (pedido do dono em 22/11/2026); clicar de novo na mesma nao manda nada.
     function avaliar(nota) {
+      if (boa.getAttribute("aria-pressed") === String(nota === 1) && ruim.getAttribute("aria-pressed") === String(nota === -1)) return;
       boa.setAttribute("aria-pressed", String(nota === 1));
       ruim.setAttribute("aria-pressed", String(nota === -1));
-      travar();
       obrigado.textContent = "Obrigado pela avaliação.";
       conversa = aplicarEvento(conversa, { evento: "avaliacao", dados: { mensagemId: troca.mensagemId, nota: nota } });
       guardar();
@@ -1033,7 +1031,7 @@ function hobiIniciar(servico, status) {
   function modoLista(ligar) {
     emLista = ligar;
     campo.className = ligar ? "campo em-lista" : "campo";
-    texto.placeholder = ligar ? "Cole sua lista aqui" : "Escreva o que você procura…";
+    texto.placeholder = ligar ? "Cole sua lista aqui" : HOBI_EXEMPLOS[exemploDaVez];
     ajustarAltura();
   }
 
@@ -1237,6 +1235,13 @@ function hobiIniciar(servico, status) {
   };
   fechar.onclick = fecharPainel;
   irAoInicio.onclick = irParaOInicio;
+  // Os exemplos se revezam no campo vazio (escolha do dono em 22/11/2026): mostram as tres coisas que o Hobi faz.
+  var exemploDaVez = 0;
+  setInterval(function () {
+    if (emLista || texto.value) return;
+    exemploDaVez = (exemploDaVez + 1) % HOBI_EXEMPLOS.length;
+    texto.placeholder = HOBI_EXEMPLOS[exemploDaVez];
+  }, 4000);
   painel.addEventListener("keydown", function (evento) {
     if (evento.key === "Escape") {
       evento.stopPropagation();

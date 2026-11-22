@@ -126,7 +126,8 @@ conferir("o passe nao entra na conversa", JSON.stringify(conversa).includes("123
 const antes = conversa;
 conversa = passo(conversa, "avaliacao", { mensagemId: "m1", nota: -1 });
 conferir("avaliar marca a troca e nao muda a conversa anterior", [conversa.trocas[0].nota, antes.trocas[0].nota], [-1, 0]);
-conferir("a nota nao muda depois de dada", passo(conversa, "avaliacao", { mensagemId: "m1", nota: 1 }).trocas[0].nota, -1);
+// O visitante pode trocar de ideia (pedido do dono em 22/11/2026: "se clicar no da esquerda, nao deixa mudar para o da direita").
+conferir("a nota pode ser trocada", passo(conversa, "avaliacao", { mensagemId: "m1", nota: 1 }).trocas[0].nota, 1);
 conferir("nota invalida e ignorada", passo(antes, "avaliacao", { mensagemId: "m1", nota: 5 }).trocas[0].nota, 0);
 let comErro = passo(passo(conversaVazia(), "pergunta", { texto: "oi" }), "erro", { motivo: "orcamento", mensagem: "O assistente está indisponível agora.", whatsapp: "https://wa.me/5554999990000" });
 conferir("erro fecha a troca com o texto", [comErro.trocas[0].fechada, comErro.trocas[0].erro], [true, { texto: "O assistente está indisponível agora.", whatsapp: true }]);

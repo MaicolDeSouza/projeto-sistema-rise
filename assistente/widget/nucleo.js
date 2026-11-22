@@ -244,7 +244,7 @@ export function aplicarEvento(conversa, { evento, dados }) {
       return naAberta(conversa, () => ({ status: "", mensagemId: d.mensagemId == null ? null : String(d.mensagemId), fechada: true }));
     case "avaliacao": {
       if (d.nota !== 1 && d.nota !== -1) return conversa;
-      return { trocas: conversa.trocas.map((troca) => (troca.mensagemId && troca.mensagemId === d.mensagemId && troca.nota === 0 ? { ...troca, nota: d.nota } : troca)) };
+      return { trocas: conversa.trocas.map((troca) => (troca.mensagemId && troca.mensagemId === d.mensagemId ? { ...troca, nota: d.nota } : troca)) };
     }
     default:
       return conversa;

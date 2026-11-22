@@ -91,3 +91,31 @@ implementado está no CLAUDE.md, seção "Chat da loja (o Hobi), fase 2", em "Aj
 
 8. **(22/11/2026) Cabeçalho volta ao início.** Clicar na foto/nome do topo mostra a tela inicial (saudação e atalhos) sem apagar a
    conversa; escolher um atalho (ou escrever) volta ao histórico inteiro, com a nova fala no fim. FEITO.
+
+9. **(22/11/2026) Joia em cada resposta e histórico no Rise.** Dono: "Ter a opção de joia embaixo de cada resposta do hobi, e isso deve
+   gerar um histórico no rise para eu entender que pontos devo melhorar no chat".
+   - JÁ EXISTE: 👍 👎 embaixo de cada resposta (fase 2), gravado na resposta (`avaliacao`, `avaliadoPor: "visitante"`); a Revisão do
+     dia mostra a conversa como "sinalizada" e "👎 do visitante"; o Consumo conta as negativas por dia.
+   - FALTA (proposta, esperando o dono): (a) uma lista de TODAS as avaliações da loja por período (pergunta, resposta, nota, data,
+     link para a conversa), com filtro só 👎, para ver o que se repete; (b) depois do 👎, perguntar ao visitante "O que faltou?"
+     (texto curto opcional, mascarado como a mensagem) — é o que diz POR QUE ele não gostou; (c) deixar a joia mais visível
+     (hoje é cinza e pequena).
+
+10. **(22/11/2026) Anexar arquivo (clipe ao lado do campo, como a Mamute) e a IA interpretar:** "pode ser lista de peça, imagem e
+    etc". Era não objetivo da 1ª versão na spec (§2, "lista enviada como arquivo"): muda o escopo.
+    - Proposta: clipe à esquerda do campo; aceitar imagem (JPG, PNG, WebP), PDF, planilha (XLSX, CSV) e TXT, até 5 MB, um por vez.
+      Planilha, CSV, TXT e PDF viram TEXTO no servidor e entram como a lista colada (o `orcarLista` de sempre); imagem vai ao modelo
+      com visão (foto de placa, de componente, print de lista ou de esquema).
+    - Segurança (anti-objetivos 1 e 2): rota própria `/anexo` com limite de tamanho no Caddy (hoje o corpo é 16 KB), tipo conferido
+      pelo conteúdo (não pela extensão), leitura do arquivo no serviço `ia` com teto de tempo e de páginas/linhas, nada executado,
+      o arquivo NÃO é guardado (só o texto extraído, mascarado, fica na conversa para a Revisão; a imagem, só a menção "imagem
+      anexada"); conta nos limites por visitante e no orçamento (imagem custa mais).
+    - Custo: imagem no GPT-4.1 mini custa alguns centavos a mais por mensagem; conferir o preço na hora.
+    - Ainda sem plano; esperando o dono escolher o momento (junto da fase 3 ou depois).
+
+11. **(22/11/2026) Exemplos no campo:** três exemplos se revezando a cada 4 s com o campo vazio, cada um com maiúscula depois do
+    "Ex.:" ("Ex.: Sensor de umidade para Arduino" / "Ex.: Quero ligar um LED com Arduino" / "Ex.: Fonte 12V 5A, relé 5V, LM7805"). FEITO.
+12. **(22/11/2026) A joia pode ser trocada:** o cliente clica 👍 e depois 👎 (ou o contrário) e vale a última; o Rise regrava a nota.
+    FEITO.
+- Decisões do dono em 22/11/2026 sobre o resto: o item 9 (histórico das avaliações) fica para depois; os itens 7 (acompanhar
+  pedido) e 10 (anexo) vão num plano só, mostrado a ele antes de implementar.
