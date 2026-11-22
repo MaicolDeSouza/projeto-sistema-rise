@@ -31,7 +31,7 @@ const {
   trocarItensInclusos,
   proximoCodigoDaFaixa,
 } = await import("../src/lib/canaisDeVenda/composicao.js");
-const { custoDoProduto } = await import("../src/lib/canaisDeVenda/custo.js");
+const { custoDoProduto, custoDoKitPelasPecas } = await import("../src/lib/canaisDeVenda/custo.js");
 const { montarDescricaoML } = await import("../src/lib/canaisDeVenda/ml/descricao.js");
 const { rascunhoInicial, aplicarComposicao, descricaoDoRise, medidasDoKit } = await import("../src/lib/canaisDeVenda/ml/rascunho.js");
 const { ABAS_ML, validarRascunhoML, medidasFaltando } = await import("../src/lib/canaisDeVenda/ml/validacao.js");
@@ -140,6 +140,13 @@ try {
     conferir("sem padrao, rascunho do Bling", custoDoProduto({ fornecedores: [], fornecedorRascunho: { precoCusto: 9 }, custo: 7 }), { valor: 9, origem: "rascunho do Bling" });
     conferir("sem os dois, cadastro", custoDoProduto({ fornecedores: [], fornecedorRascunho: null, custo: 7 }), { valor: 7, origem: "cadastro" });
     conferir("sem custo nenhum", custoDoProduto({ fornecedores: [], fornecedorRascunho: null, custo: null }), { valor: null, origem: null });
+    // Produto kit do cadastro (22/11/2026, o 258262 sem preco na proposta): o custo e o das pecas x quantidade, cada peca pela
+    // mesma ordem do produto; faltou o custo de uma peca, o kit fica sem custo (soma parcial pareceria lucro bom).
+    const pecaComCusto = (valor, quantidade) => ({ quantidade, componente: { fornecedores: [{ padrao: true, precoCusto: valor }], fornecedorRascunho: null, custo: null } });
+    conferir("custo do kit: pecas x quantidade", custoDoKitPelasPecas([pecaComCusto(6.5, 1), pecaComCusto(6.5, 1)]), { valor: 13, origem: "peças do kit" });
+    conferir("custo do kit: quantidade e centavos", custoDoKitPelasPecas([pecaComCusto(2.335, 3), { quantidade: 2, componente: { fornecedores: [], fornecedorRascunho: { precoCusto: 1.1 }, custo: null } }]), { valor: 9.21, origem: "peças do kit" });
+    conferir("custo do kit: peca sem custo deixa o kit sem custo", custoDoKitPelasPecas([pecaComCusto(6.5, 1), { quantidade: 1, componente: { fornecedores: [], fornecedorRascunho: null, custo: null } }]), { valor: null, origem: null });
+    conferir("custo do kit: sem pecas, sem custo", custoDoKitPelasPecas([]), { valor: null, origem: null });
   }
 
   // Ficam no nivel do try porque a Tarefa 5 reaproveita estes contextos e rascunhos. Sao

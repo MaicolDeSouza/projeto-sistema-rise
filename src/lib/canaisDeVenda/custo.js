@@ -44,3 +44,23 @@ export function custoDoProduto({ fornecedores, fornecedorRascunho, custo, pecasP
 
   return { valor: null, origem: null };
 }
+
+/**
+ * Custo do produto KIT do cadastro (22/11/2026: o kit 258262 ficou sem preco na proposta do ML, porque o kit nao tem fornecedor
+ * proprio): a soma do custo de cada peca (`custoDoProduto`, a mesma ordem) vezes a quantidade dela, a conta da aba Fornecedores
+ * do kit. Peca sem custo deixa o kit sem custo: uma soma parcial pareceria lucro bom.
+ *
+ * @param {{quantidade: number, componente: object}[]} componentes as linhas de `ProdutoComponente` com a peca
+ */
+export function custoDoKitPelasPecas(componentes) {
+  const lista = Array.isArray(componentes) ? componentes : [];
+  if (lista.length === 0) return { valor: null, origem: null };
+  let soma = 0;
+  for (const linha of lista) {
+    const { valor } = custoDoProduto(linha?.componente ?? {});
+    const quantidade = Number(linha?.quantidade);
+    if (valor === null || !(quantidade > 0)) return { valor: null, origem: null };
+    soma += valor * quantidade;
+  }
+  return { valor: Math.round(soma * 100) / 100, origem: "peças do kit" };
+}

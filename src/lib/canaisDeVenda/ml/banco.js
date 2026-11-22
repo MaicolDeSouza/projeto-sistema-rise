@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { urlDe } from "@/lib/arquivos";
 import { codigoDaComposicao, errosDaComposicao, estoqueDaComposicao, proximoCodigoDaFaixa } from "../composicao";
 import { mudancasDosKits } from "@/lib/composicaoBanco";
-import { custoDoProduto } from "../custo";
+import { custoDoKitPelasPecas, custoDoProduto } from "../custo";
 import { conteudoAtualDoAnuncio, fichaDoAnuncio, mudancasDoAnuncio, prazoDoAnuncio, precoDaLojaDoAnuncio, precoDoAnuncio } from "./acompanhar";
 import { ATACADO_DESLIGADO, atacadoPermitido } from "./atacado";
 import { FORMATO_DA_DESCRICAO } from "./descricao";
@@ -56,8 +56,10 @@ export async function contextoDosProdutos(ids) {
       id: true, sku: true, tituloBase: true, descricaoBase: true, marca: true, modelo: true, ean: true,
       conferido: true, blingId: true, precoVenda: true, estoque: true,
       pesoKg: true, alturaCm: true, larguraCm: true, comprimentoCm: true, garantiaMeses: true,
-      custo: true, pecasProprias: true, fornecedorRascunho: true,
+      custo: true, pecasProprias: true, fornecedorRascunho: true, tipo: true,
       fornecedores: { select: { padrao: true, precoCusto: true } },
+      // As pecas do produto kit do cadastro (22/11/2026): o custo dele e o delas (`custoDoKitPelasPecas`).
+      componentes: { select: { quantidade: true, componente: { select: { custo: true, pecasProprias: true, fornecedorRascunho: true, fornecedores: { select: { padrao: true, precoCusto: true } } } } } },
       arquivos: { where: { tipo: "IMAGEM", papel: "FOTO" }, orderBy: [{ ordem: "asc" }, { criadoEm: "asc" }], select: { id: true, arquivo: true, principal: true, criadoEm: true } },
     },
   });
@@ -86,7 +88,10 @@ export async function contextoDosProdutos(ids) {
         comprimentoCm: numero(p.comprimentoCm),
         // A garantia do produto base vai ao ML nos termos de venda (26/10/2026); no anuncio e so leitura.
         garantiaMeses: p.garantiaMeses ?? null,
-        custo: custoDoProduto({ fornecedores: p.fornecedores, fornecedorRascunho: p.fornecedorRascunho, custo: p.custo, pecasProprias: p.pecasProprias }),
+        custo:
+          p.tipo === "COMPOSICAO"
+            ? custoDoKitPelasPecas(p.componentes)
+            : custoDoProduto({ fornecedores: p.fornecedores, fornecedorRascunho: p.fornecedorRascunho, custo: p.custo, pecasProprias: p.pecasProprias }),
         // `arquivo` e o nome no disco: a impressao do anuncio publicado compara as fotos por ele (acompanhar.js).
         // `criadoEm`: a foto nova do produto entra no kit (`fotosDoKitDoRise`, 28/10/2026).
         imagens: p.arquivos.map((a) => ({ id: a.id, arquivo: a.arquivo, url: urlDe(p.sku, "IMAGEM", a.arquivo), principal: a.principal, criadoEm: a.criadoEm.toISOString() })),
