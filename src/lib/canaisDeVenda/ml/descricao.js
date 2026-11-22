@@ -49,9 +49,10 @@ export function montarDescricaoML({ descricao }) {
  */
 export const FORMATO_DA_DESCRICAO = 2;
 
-// So hifens: o ML recusa caractere fora do Latin-1, entao nada de linha desenhada. 120 cobre a largura da descricao no
-// computador (pedido do dono em 22/11/2026: "as linhas tracejadas devem ir ate final da linha"); 40 ocupava um terco.
-const LINHA = "-".repeat(120);
+// So hifens: o ML recusa caractere fora do Latin-1, entao nada de linha desenhada. Pedido do dono em 22/11/2026: "as linhas
+// tracejadas devem ir ate final da linha". Medido no print do app no Samsung S24 (360 dp): cabem ~80 hifens numa linha;
+// 75 enche a linha com folga para letra maior. 120 (a largura do computador) quebrava em duas linhas no celular.
+const LINHA = "-".repeat(75);
 
 /**
  * As boas-vindas no comeco de todo anuncio (texto do dono em 20/11/2026). Fixo no codigo de proposito: mudar o texto muda a
