@@ -390,6 +390,10 @@ Desconto adicional e o "Compre em kit e economize" na descrição do ML, as recl
 segue travada sem `FRETE_COMPRA`) e o chat da loja fase 2 (o serviço `ia` continua desligado). Conferido: as 6 respostas de
 fora do script e os contêineres de pé. As seções abaixo que dizem "SEM deploy" para esses itens estão obsoletas.
 
+**Deploy 22.11.2026.134 (commit `42e9595`, 22/11/2026):** "Aprovo, pode implementar e subir" do dono; desde o 133 só os
+ajustes da descrição do ML (NF, 70 hífens, linha que fecha o bloco dos kits e a frase do campo de perguntas), sem migration.
+Conferido: as 6 respostas de fora do script e os contêineres de pé.
+
 **Travas de escrita na VPS (decisão do dono em 22/10/2026):** o dono mandou liberar **o Mercado Livre e o Bling para todos os
 códigos** (`ML_PUBLICACAO=true`, `ML_PUBLICACAO_CODIGOS` ausente, `BLING_ESCRITA=true`, `BLING_ESCRITA_CODIGOS` vazio) depois
 de o Publicar recusar com "ML_PUBLICACAO está false"; aplicado só no `.env` da VPS (cópia `.env.bak-AAAAMMDD-HHMMSS` ao lado),
@@ -8276,8 +8280,13 @@ com o roteiro v2** (título inventado no rascunho do ML): refazer a proposta do 
   (`montarDescricaoCompletaML`, `ml/descricao.js`) é as **boas-vindas** (`BOAS_VINDAS_ML`, fixas no código: mudar o texto
   muda a descrição de todo anúncio já convertido), a descrição **sem a seção "Garantia:"** (`semGarantia`; o ML já a mostra;
   o cadastro e a LI não mudam) e, quando há kit maior do mesmo produto no ML, o **bloco dos kits** (`blocoDosKits`: "Kit com
-  3 unidades por R$60,00 (R$20,00 por unidade) + frete grátis" e o link embaixo; linha de 40 hifens, só Latin-1, preço sem
-  espaço depois do R$).
+  3 unidades por R$60,00 (R$20,00 por unidade) + frete grátis" e o link embaixo; só Latin-1, preço sem espaço depois do R$).
+  **Ajustes do dono em 22/11/2026, NO AR em 22.11.2026.134 (`42e9595`):** "nota fiscal" virou **"NF"** nas boas-vindas; a
+  linha tracejada tem **70 hífens** (era 40; medido no print do app num Samsung S24, cabem ~80 numa linha do celular e 120
+  quebravam em duas); o bloco dos kits **fecha com uma linha embaixo** (separa da "Garantia do vendedor" que o ML escreve
+  depois) e termina com a frase **"Não conseguiu abrir o link? Peça pelo campo de perguntas que enviamos o anúncio do kit."**
+  (uma vez só, depois de todos os kits): no app do ML o link da descrição não é clicável. Anúncio já convertido não acende o
+  "!" por isso: pega o texto novo no próximo Sincronizar.
   - **Quais kits** (`ml/kitsNaDescricao.js`, puro): os anúncios do mesmo produto base com MAIS unidades (simples = 1; kit
     `{sku}_{N}` = N; kit misto fica de fora), publicados e ativos ou pausados (encerrado sai; a pausa por estoque não tira,
     senão o "!" piscaria), um por quantidade (o mais barato entre Clássico e Premium), pelo preço que ESTÁ no ML
