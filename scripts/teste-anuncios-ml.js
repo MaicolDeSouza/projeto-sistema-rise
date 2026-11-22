@@ -4125,6 +4125,27 @@ try {
     const estadoIdentificado = (await prisma.anuncio.findUnique({ where: { id: identificado.id }, select: { dados: true } })).dados.publicacao.estadoML;
     conferir("so identificado: sai do catalogo sem '!' e sem aviso", [estadoIdentificado.catalogo, estadoIdentificado.catalogoAviso], [null, null]);
 
+    // Sem estoque o ML tira o anuncio do catalogo e o devolve com o estoque (pedido do dono em 22/11/2026): sem "!".
+    const semEstoque = await prisma.anuncio.create({ data: { produtoId: produto.id, canal: "MERCADO_LIVRE", status: "PUBLICADO", situacaoCanal: "ATIVA", idExterno: "MLB920005", dados: { publicacao: { itemId: "MLB920005" } } } });
+    ml.itens.set("MLB920005", { id: "MLB920005", status: "active", sub_status: [], available_quantity: 2, sold_quantity: 0, catalog_product_id: "MLB44072268", catalog_listing: true, item_relations: [] });
+    const estadoSem = async () => (await prisma.anuncio.findUnique({ where: { id: semEstoque.id }, select: { dados: true } })).dados.publicacao.estadoML;
+    await relerEstadosML({ ml, anuncioIds: [semEstoque.id], agora: new Date("2026-10-25T10:00:00Z"), seguirCatalogo: false });
+    await marcarCatalogoVistoML(semEstoque.id);
+    Object.assign(ml.itens.get("MLB920005"), { status: "paused", sub_status: ["out_of_stock"], available_quantity: 0, catalog_product_id: null, catalog_listing: false });
+    await relerEstadosML({ ml, anuncioIds: [semEstoque.id], agora: new Date("2026-10-25T11:00:00Z"), seguirCatalogo: false });
+    conferir("sem estoque e fora do catalogo: guarda o catalogo e nao avisa", [(await estadoSem()).catalogo?.id, (await estadoSem()).catalogoAviso?.visto], ["MLB44072268", true]);
+    Object.assign(ml.itens.get("MLB920005"), { status: "active", sub_status: [], available_quantity: 3, catalog_product_id: "MLB44072268", catalog_listing: true });
+    await relerEstadosML({ ml, anuncioIds: [semEstoque.id], agora: new Date("2026-10-25T12:00:00Z"), seguirCatalogo: false });
+    conferir("estoque de volta no mesmo catalogo: nada a avisar", [(await estadoSem()).catalogo?.id, (await estadoSem()).catalogoAviso?.visto], ["MLB44072268", true]);
+    // O "saiu" gravado antes da regra, num anuncio hoje sem estoque: o aviso some e o catalogo de antes volta.
+    await prisma.anuncio.update({
+      where: { id: semEstoque.id },
+      data: { dados: { publicacao: { itemId: "MLB920005", estadoML: { ...(await estadoSem()), catalogo: null, catalogoAviso: { de: { id: "MLB44072268", nome: "Cabo" }, para: null, em: "2026-10-25T12:30:00.000Z", visto: false } } } } },
+    });
+    Object.assign(ml.itens.get("MLB920005"), { status: "paused", sub_status: ["out_of_stock"], available_quantity: 0, catalog_product_id: null, catalog_listing: false });
+    await relerEstadosML({ ml, anuncioIds: [semEstoque.id], agora: new Date("2026-10-25T13:00:00Z"), seguirCatalogo: false });
+    conferir("o 'saiu' antigo de anuncio sem estoque some", [(await estadoSem()).catalogo?.id, (await estadoSem()).catalogoAviso], ["MLB44072268", null]);
+
     ml.itens.get("MLB920001").catalog_product_id = null;
     ml.itens.get("MLB920001").catalog_listing = false;
     const saiu = await relerEstadosML({ ...so, agora: new Date("2026-10-25T15:20:00Z") });

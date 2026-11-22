@@ -268,7 +268,13 @@ export async function relerEstadosML({ ml, bling, agora = new Date(), anuncioIds
       // acendeu nada. Fora do catalogo na 1a leitura nao avisa.
       const catalogoAnterior = anterior?.catalogo;
       const proprioNoCatalogo = item.catalog_listing === true && Boolean(item.catalog_product_id);
-      const semLeitura = ligadosFalharam && !proprioNoCatalogo && (item.item_relations ?? []).length > 0;
+      const lidoSemLigados = ligadosFalharam && !proprioNoCatalogo && (item.item_relations ?? []).length > 0;
+      // SEM ESTOQUE o ML tira o anuncio do catalogo e o devolve quando o estoque volta (pedido do dono em 22/11/2026: "saiu
+      // por falta de estoque, nesse caso nao precisa mostrar o !"). Fora do catalogo e sem estoque, o catalogo gravado fica
+      // como estava (sem aviso); com o estoque de volta, ou ele voltou ao mesmo catalogo (nada muda) ou saiu de verdade.
+      const semEstoqueNoML = novo.estoque === 0 || novo.subStatus.includes("out_of_stock");
+      const saiuSemEstoque = semEstoqueNoML && !lidoSemLigados && Boolean(catalogoAnterior?.id) && !catalogoDoItem(item, ligados);
+      const semLeitura = lidoSemLigados || saiuSemEstoque;
       const catalogoId = semLeitura ? (catalogoAnterior?.id ?? null) : catalogoDoItem(item, ligados);
       // Correcao da regra (26/10/2026): o catalogo gravado antes era so o produto que o ML IDENTIFICOU (`catalog_listing:
       // false`), e o anuncio nunca concorreu nele. Sai sem aviso de "saiu do catalogo", e o aviso que apontava para ele some.
@@ -284,7 +290,15 @@ export async function relerEstadosML({ ml, bling, agora = new Date(), anuncioIds
       if (soIdentificado && catalogoAviso?.para?.id === catalogoAnterior.id) catalogoAviso = null;
       if (catalogoMudou) catalogoAviso = { de: catalogoAnterior, para: catalogo, em: agora.toISOString(), visto: false };
       else if (inicial) catalogoAviso = { de: null, para: catalogo, em: agora.toISOString(), visto: false, inicial: true };
-      const gravarCatalogo = catalogoMudou || inicial || soIdentificado || (catalogoAnterior === undefined && catalogo !== undefined);
+      // O "saiu do catalogo" ja gravado de um anuncio que esta SEM estoque (antes desta regra): o aviso some e o catalogo de
+      // antes volta a ser o gravado, para a volta do estoque ser comparada com ele.
+      let desfezSaidaSemEstoque = false;
+      if (semEstoqueNoML && !catalogo?.id && catalogoAviso && !catalogoAviso.visto && !catalogoAviso.para && catalogoAviso.de?.id) {
+        catalogo = catalogoAviso.de;
+        catalogoAviso = null;
+        desfezSaidaSemEstoque = true;
+      }
+      const gravarCatalogo = catalogoMudou || inicial || soIdentificado || desfezSaidaSemEstoque || (catalogoAnterior === undefined && catalogo !== undefined);
       if (!mudou && !gravarCatalogo && situacao === anuncio.situacaoCanal && seguidas === (anterior?.estoqueDiferenteSeguidas ?? 0) && estoqueBling === (anterior?.estoqueBling ?? null)) continue;
       try {
         const desde = mudou || !anterior?.desde ? agora.toISOString() : anterior.desde;
