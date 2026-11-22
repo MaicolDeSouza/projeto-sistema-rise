@@ -13,6 +13,7 @@ import JanelaNovoPedido from "./JanelaNovoPedido";
 import Pergunta from "./Pergunta";
 import { CelulaDoProduto, JanelaProdutosDoPedido } from "./ProdutosDoPedido";
 import SeloDoStatus, { TEXTO_DO_STATUS } from "./SeloDoStatus";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
 /**
  * O prazo com os dias que faltam (pedido do dono em 07/11/2026: "10 dias (21/11)"), so no pedido a caminho. Hoje e
@@ -30,7 +31,7 @@ function TextoDoPrazo({ prazo, faltam }) {
   );
 }
 
-const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const moeda = formatoDeMoeda();
 const FILTROS = ["RASCUNHO", "ENVIADO", "PARCIAL", "FINALIZADO", "CANCELADO"];
 
 /** O botao "Novo pedido" do cabecalho da pagina (a janela mora aqui para nao repetir a lista de fornecedores). */

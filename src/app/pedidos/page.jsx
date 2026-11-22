@@ -40,6 +40,16 @@ function umMesAntes(dia) {
 }
 
 /**
+ * Dias corridos do filtro de datas, com as duas pontas (pedido do dono em 22/11/2026, para o "Diario" das caixinhas:
+ * sabado, domingo e feriado contam, a loja vende todo dia). O "ate" no futuro conta so ate hoje, senao os dias que
+ * ainda nao chegaram puxariam a media para baixo.
+ */
+function diasDoPeriodo(desde, ate) {
+  const dias = Math.round((Date.parse(`${ate}T12:00:00Z`) - Date.parse(`${desde}T12:00:00Z`)) / 86_400_000) + 1;
+  return Math.max(1, dias);
+}
+
+/**
  * Pedidos de venda (spec 5.10): os pedidos do ML, da LI e do Bling que o worker le a cada 5 minutos. Nesta tela o
  * operador ve primeiro os pedidos que pedem acao e a acao principal e abrir o pedido. Periodo padrao: os ultimos 30
  * dias (`desde`/`ate` na URL, dias de Sao Paulo). O lucro so aparece para quem ve custo (`dado.custo`).
@@ -133,7 +143,7 @@ export default async function PedidosDeVendaPage({ searchParams }) {
 
       {erro && <AvisoBanco erro={erro} />}
 
-      <ResumoDosCanais resumo={resumoPorCanal} />
+      <ResumoDosCanais resumo={resumoPorCanal} dias={despacho ? null : diasDoPeriodo(desde, ate < hoje ? ate : hoje)} />
 
       <FiltrosDePedidos
         busca={busca}

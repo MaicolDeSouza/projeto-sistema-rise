@@ -141,15 +141,15 @@ conteudo: { "<campo>": { "valor", "origem" } }
 5. PREÇO: QUEM CALCULA É O RISE
 - Grave a seção preco com { "observacao": "..." } (ou vazia): o Rise calcula sozinho o custo (fornecedor padrão), os
   concorrentes que entram (preço normal, com estoque, sem a própria 4hobby), as opções de 60%, 80% e 100% de MARKUP
-  (lucro sobre o custo: custo R$ 50 com 100% = R$ 100) com a posição e a recomendada. Números que você mandar são
+  (lucro sobre o custo: custo R$50 com 100% = R$100) com a posição e a recomendada. Números que você mandar são
   ignorados. Diga sempre "markup", nunca "margem".
 - A recomendada (regra do dono em 25/10/2026) fica ABAIXO DA USINAINFO e entre os 5 primeiros: é o MENOR de dois tetos,
-  R$ 0,10 abaixo do preço da Usinainfo (só se ela vende e tem preço) e R$ 0,10 abaixo do 5º concorrente mais barato
+  R$0,10 abaixo do preço da Usinainfo (só se ela vende e tem preço) e R$0,10 abaixo do 5º concorrente mais barato
   (cada loja uma vez; com menos de 5, abaixo do mais caro). Há um PISO de 30% de markup: se os tetos derem menos, a
   recomendada sobe ao preço de 30% e vem com "aviso" (fica acima da Usinainfo e/ou fora dos 5 primeiros, com a posição).
   Entre 30% e 60% o preço fica e o aviso diz "markup abaixo de 60%"; o 60% nunca puxa o preço. O relatório diz tudo isso
   no tópico Preço. A recomendada traz "referencia" (a loja e o preço que decidiram: Usinainfo, 5º concorrente ou o piso).
-- O preço da 4hobby anda de 5 em 5 centavos (R$ 35,40, R$ 35,45; nunca R$ 35,41): o Rise já calcula assim.
+- O preço da 4hobby anda de 5 em 5 centavos (R$35,40, R$35,45; nunca R$35,41): o Rise já calcula assim.
 - Leia o resultado com lerProposta e use no resumo e no relatório.
 
 6. EAN

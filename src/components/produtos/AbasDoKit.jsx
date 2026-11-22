@@ -6,6 +6,7 @@ import { Check, Download, ExternalLink, FileText, Loader, Paperclip } from "luci
 
 import { consultarEstoqueFornecedores, documentosDasPecasDoKit } from "@/app/produtos/acoes";
 import { pesoEMedidasDoKit, totaisDoKit } from "@/lib/composicao";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
 /**
  * As abas do produto com composicao (kit) que mostram dados das PECAS (pedido do dono em 07/10/2026):
@@ -13,7 +14,7 @@ import { pesoEMedidasDoKit, totaisDoKit } from "@/lib/composicao";
  * so leitura: o que se edita e a peca, no cadastro dela (o link abre em outra aba para nao perder o kit).
  */
 
-const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const moeda = formatoDeMoeda();
 const formatarMoeda = (valor) => (valor === null || valor === undefined ? "—" : moeda.format(valor));
 const formatarNumero = (valor, casas = 3) =>
   valor === null || valor === undefined ? null : Number(valor).toLocaleString("pt-BR", { maximumFractionDigits: casas });

@@ -6,8 +6,9 @@ import { createPortal } from "react-dom";
 import { Check, Loader, Search, X } from "lucide-react";
 
 import { buscarItemColetadoPorCodigo } from "@/app/produtos/acoes";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
-const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 4 });
+const moeda = formatoDeMoeda({ minimumFractionDigits: 2, maximumFractionDigits: 4 });
 const semCaixa = (texto) => String(texto ?? "").trim().toLocaleLowerCase("pt-BR");
 
 /**

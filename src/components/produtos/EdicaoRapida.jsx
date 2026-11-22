@@ -9,6 +9,7 @@ import { ajustarEstoque, lerSaldoDoAjuste, salvarLocalizacao, salvarPrecoVenda }
 import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
 import { MAXIMO_ESTOQUE, MOTIVOS, TIPOS_DE_MOVIMENTO, novoSaldo } from "@/lib/estoque";
 import { calcularMarkup, corDoMarkup, IMPOSTO_PADRAO, lucroLiquido } from "@/lib/margem";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
 /**
  * Edicao rapida da lista de Produtos (pedido do dono em 30/09/2026): localizacao,
@@ -24,7 +25,7 @@ import { calcularMarkup, corDoMarkup, IMPOSTO_PADRAO, lucroLiquido } from "@/lib
 const CLASSE_CAMPO =
   "w-full rounded border border-borda bg-superficie px-2.5 py-2 text-sm focus:border-acento focus:outline-none";
 
-const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const moeda = formatoDeMoeda();
 
 /**
  * Celula da tabela que abre a edicao. O lapis fica SEMPRE visivel (pedido do dono em

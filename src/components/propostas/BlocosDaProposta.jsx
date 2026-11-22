@@ -360,7 +360,7 @@ export function CartaoTotais({ formulario, totais, editar, erros, aoMudar, veCus
   const desconto = lerDesconto(formulario.desconto);
   const diluido = Boolean(formulario.freteDiluido) && formulario.fretePorConta === "CIF" && totais.frete > 0;
   return (
-    <SecaoDoAnuncio titulo="Totais" ajuda="Desconto geral: 5% para percentual ou 50 para R$ 50,00. Impostos inclusos.">
+    <SecaoDoAnuncio titulo="Totais" ajuda="Desconto geral: 5% para percentual ou 50 para R$50,00. Impostos inclusos.">
       <div className="grid items-start gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
         <div className="space-y-2 text-sm">
           <Rotulo texto="Desconto geral" erro={erros.desconto ?? ("erro" in desconto ? desconto.erro : null)} className="max-w-40">

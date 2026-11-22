@@ -1,3 +1,5 @@
+import { formatoDeMoeda } from "@/lib/dinheiro";
+
 /**
  * Os campos de um produto de mercado: rotulo e presenca.
  *
@@ -68,7 +70,7 @@ export function camposPreenchidos(produto) {
 export function valoresDoProduto(produto) {
   const moeda = (valor) =>
     typeof valor === "number"
-      ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor)
+      ? formatoDeMoeda().format(valor)
       : null;
 
   const situacoes = {

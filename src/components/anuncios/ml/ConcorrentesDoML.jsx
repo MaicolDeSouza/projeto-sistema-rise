@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, ExternalLink, Trophy } from "lucide-react";
 
 import { linhasDoCatalogo, textoDaReputacao, textoDoResumo } from "@/lib/canaisDeVenda/ml/catalogo";
 import { ROTULO_DO_TIPO_ML } from "@/lib/canaisDeVenda/ml/rotulos";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
 /**
  * Pecas da tela dos concorrentes do ML pelo catalogo (spec 2026-10-21-concorrentes-ml-catalogo-design.md), usadas pela
@@ -11,7 +12,7 @@ import { ROTULO_DO_TIPO_ML } from "@/lib/canaisDeVenda/ml/rotulos";
  * em 26/10/2026 (pedido do dono): o Rise acompanha sozinho o catalogo em que o anuncio esta.
  */
 
-const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const MOEDA = formatoDeMoeda();
 // A pagina do catalogo: o ML a abre na oferta que esta ganhando (o botao "Abrir o ganhador", pedido do dono em 11/11/2026).
 export const urlDoCatalogo = (id) => `https://www.mercadolivre.com.br/p/${id}`;
 const nomeDoVendedor = (apelido, id) => apelido || `vendedor ${id}`;

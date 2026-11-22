@@ -10,8 +10,9 @@ import FotoComLupa from "@/components/ui/FotoComLupa";
 import { numeroDoPedido } from "@/lib/compras/regras";
 import { situacaoDeEstoque } from "@/lib/estoqueDoConcorrente";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
-const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 4 });
+const moeda = formatoDeMoeda({ minimumFractionDigits: 2, maximumFractionDigits: 4 });
 
 /** O estoque do fornecedor com o mesmo texto da aba Fornecedores do cadastro (`situacaoDeEstoque`). */
 function textoDoEstoque(estoque) {

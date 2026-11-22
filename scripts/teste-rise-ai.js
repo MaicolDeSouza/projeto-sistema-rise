@@ -973,7 +973,7 @@ try {
     const r7 = await responder({
       texto: "preco",
       usuario: "ZZ-IA-TESTE",
-      dependencias: deps(criarProvedorFalso({ roteiro: [...muitas, { texto: "### Resposta para o cliente\nR$ 38,90" }] }), falsoReservaOk()),
+      dependencias: deps(criarProvedorFalso({ roteiro: [...muitas, { texto: "### Resposta para o cliente\nR$38,90" }] }), falsoReservaOk()),
     });
     conferir("limite de ferramentas: 8 executadas e o aviso", [r7.mensagem.avisos.includes("limite_de_ferramentas"), r7.mensagem.estruturado.ferramentas.length], [true, 8]);
     const r8 = await responder({
@@ -1128,12 +1128,12 @@ try {
     const { custoEmTexto, duracaoEmTexto, idadeDoSaldo, rotuloDoMotivo, rotuloDoProvedor, ehLocal, reais } = await import("../src/components/riseAi/formatos.js");
     console.log("\nFormatos da tela");
 
-    conferir("custo: preco desconhecido nao e zero", [custoEmTexto(null), custoEmTexto(undefined), custoEmTexto(0), custoEmTexto(0.0036), custoEmTexto(1.5)], ["preço não cadastrado", "preço não cadastrado", "R$ 0,00", "R$ 0,0036", "R$ 1,50"]);
+    conferir("custo: preco desconhecido nao e zero", [custoEmTexto(null), custoEmTexto(undefined), custoEmTexto(0), custoEmTexto(0.0036), custoEmTexto(1.5)], ["preço não cadastrado", "preço não cadastrado", "R$0,00", "R$0,0036", "R$1,50"]);
     conferir("duracao", [duracaoEmTexto(420), duracaoEmTexto(4210), duracaoEmTexto(12000)], ["420 ms", "4,2 s", "12 s"]);
     conferir("idade do saldo do Bling", [idadeDoSaldo(null), idadeDoSaldo(0), idadeDoSaldo(20), idadeDoSaldo(90), idadeDoSaldo(60 * 30)], ["estoque do cadastro", "lido agora há pouco", "lido há 20 min", "lido há 1 h", "lido há 1 d"]);
     conferir("motivos da reserva viram frase", [rotuloDoMotivo("conexao"), rotuloDoMotivo("tempo"), rotuloDoMotivo("desconhecido-xyz")], ["sem conexão com o modelo padrão", "o modelo padrão demorou demais para começar", "o modelo padrão falhou"]);
     conferir("rotulo e local", [rotuloDoProvedor("lmstudio"), rotuloDoProvedor("anthropic"), ehLocal("lmstudio"), ehLocal("anthropic"), ehLocal("nao-existe")], ["LM Studio", "Anthropic", true, false, false]);
-    conferir("reais", reais(38.9), "R$ 38,90");
+    conferir("reais", reais(38.9), "R$38,90");
   }
 
   // -------------------------------------------------------------------------
@@ -2023,7 +2023,7 @@ try {
     conferir("filtro: tira o endereco de fora e mantem o permitido", [filtrado.texto.includes("evil.com"), filtrado.texto.includes("https://4hobby.com.br/uno")], [false, true]);
     conferir("filtro: aviso do link removido e nenhum termo interno", filtrado.avisos, ["link_removido"]);
     conferir("filtro: linha que ficou so com 'Link:' sai", filtrado.texto.split("\n").some((linha) => linha.trim() === "Link:"), false);
-    conferir("filtro: termo interno avisa", limparTextoParaOCliente("O custo e R$ 20", {}).avisos, ["termo_interno"]);
+    conferir("filtro: termo interno avisa", limparTextoParaOCliente("O custo e R$20", {}).avisos, ["termo_interno"]);
     conferir("filtro: link em markdown vira texto", limparTextoParaOCliente("Veja [aqui](https://evil.com/z)", {}).texto.includes("evil.com"), false);
 
     // --- perfis: nunca ha um padrao ---
@@ -2091,14 +2091,14 @@ try {
       agoraDoOrcamento: () => Date.UTC(2025, 9, 15, 15),
     });
     const usuario = "ZZ-IA-MODO";
-    const interno = criarProvedorFalso({ roteiro: [{ texto: "O custo do Uno e R$ 12,34, fornecedor ZZ-IA Forn." }] });
+    const interno = criarProvedorFalso({ roteiro: [{ texto: "O custo do Uno e R$12,34, fornecedor ZZ-IA Forn." }] });
     const primeira = await responder({ texto: "qual o custo do Uno?", usuario, dependencias: deps(interno) });
     conferir("pergunta comum roda no modo interno", [primeira.mensagem.estruturado.modo, interno.pedidos[0].sistema === montarSistema({ modo: "interno" })], ["interno", true]);
 
     const cliente = criarProvedorFalso({
       roteiro: [
         { chamadas: [{ nome: "buscarProdutos", argumentos: { termos: "zzia cliente publicada" } }] },
-        { texto: "**Olá!** O PLACA ZZIA CLIENTE PUBLICADA (ZZ-IA-CPUB) custa R$ 50,00.\nLink: https://www.4hobby.com.br/zzia-cliente-pub\nVeja também https://evil.com/x. O custo para nós é R$ 12." },
+        { texto: "**Olá!** O PLACA ZZIA CLIENTE PUBLICADA (ZZ-IA-CPUB) custa R$50,00.\nLink: https://www.4hobby.com.br/zzia-cliente-pub\nVeja também https://evil.com/x. O custo para nós é R$12." },
       ],
     });
     const pedido = await responder({ conversaId: primeira.conversaId, texto: "escreva a resposta para o cliente sobre a placa zzia cliente", usuario, dependencias: deps(cliente) });
@@ -2330,7 +2330,7 @@ try {
     );
 
     // Formatacao
-    conferir("negrito", trechosDe("**R$ 89,90**"), [{ tipo: "negrito", texto: "R$ 89,90" }]);
+    conferir("negrito", trechosDe("**R$89,90**"), [{ tipo: "negrito", texto: "R$89,90" }]);
     conferir("italico com asterisco e com sublinhado", [trechosDe("*oi*")[0].tipo, trechosDe("_oi_")[0].tipo], ["italico", "italico"]);
     conferir("snake_case nao vira italico", tipos("o campo SELLER_SKU e outro_nome"), ["texto"]);
     conferir("codigo", trechosDe("use `analogRead`"), [{ tipo: "texto", texto: "use " }, { tipo: "codigo", texto: "analogRead" }]);
@@ -2357,7 +2357,7 @@ try {
     }
 
     // O que o Copiar copia
-    conferir("texto puro: sem marcas, lista com hifen", textoPuroDoTexto("**R$ 89,90**\n- a\n- b"), "R$ 89,90\n- a\n- b");
+    conferir("texto puro: sem marcas, lista com hifen", textoPuroDoTexto("**R$89,90**\n- a\n- b"), "R$89,90\n- a\n- b");
     conferir("texto puro: lista numerada e titulo", textoPuroDoTexto("### Título\n1. um\n2. dois"), "Título\n1. um\n2. dois");
     conferir("texto puro: link em markdown mantem o endereco", textoPuroDoTexto("Veja [o Uno](https://www.4hobby.com.br/uno)"), "Veja o Uno (https://www.4hobby.com.br/uno)");
     conferir("texto puro: endereco perigoso some", textoPuroDoTexto("[ver](javascript:alert(1))"), "ver");
@@ -2375,9 +2375,9 @@ try {
   console.log("\nEntrega A: barra da resposta");
   {
     const { custoEmTexto, rotuloDaFerramenta } = await import("../src/components/riseAi/formatos.js");
-    conferir("custo normal", custoEmTexto(0.0036), "R$ 0,0036");
-    conferir("custo estimado leva o til", custoEmTexto(0.0036, { estimado: true }), "~R$ 0,0036");
-    conferir("custo zero do modelo local nao ganha til", custoEmTexto(0, { estimado: true }), "R$ 0,00");
+    conferir("custo normal", custoEmTexto(0.0036), "R$0,0036");
+    conferir("custo estimado leva o til", custoEmTexto(0.0036, { estimado: true }), "~R$0,0036");
+    conferir("custo zero do modelo local nao ganha til", custoEmTexto(0, { estimado: true }), "R$0,00");
     conferir("sem preco cadastrado nao vira zero nem estimado", custoEmTexto(null, { estimado: true }), "preço não cadastrado");
     conferir(
       "linha de estado por ferramenta",

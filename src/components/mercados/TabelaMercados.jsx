@@ -33,11 +33,9 @@ import { precoComImpostoTexto, precoDaFaixaTexto } from "@/components/mercados/p
 import { precoComImpostos } from "@/lib/coleta/impostos";
 import { contaDoPrecoOriginal, precoOriginalEmTexto } from "@/lib/coleta/moeda";
 import { detalhePagina, enviarParaEstudoAcao } from "@/app/mercados/acoes";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
-const MOEDA = new Intl.NumberFormat("pt-BR", {
-  style: "currency",
-  currency: "BRL",
-});
+const MOEDA = formatoDeMoeda();
 
 function comoMoeda(valor) {
   return valor === null || valor === undefined ? "—" : MOEDA.format(valor);
@@ -1426,7 +1424,7 @@ export default function TabelaMercados({ linhas, ordenar = "", direcao = "", pod
                   FORNECEDOR TEM DESENHO PROPRIO (ColunaValorFornecedor,
                   22/09/2026): o distribuidor cobra imposto por fora — a Benser
                   escreve "Preco unit. sem IPI" — e o numero que decide e o
-                  total COM imposto, numa linha so ("R$ 8,06 (R$ 7,90 + 2%
+                  total COM imposto, numa linha so ("R$8,06 (R$7,90 + 2%
                   IPI)"), com pronta entrega e reserva divididas como na coluna
                   Estoque.
                 */}

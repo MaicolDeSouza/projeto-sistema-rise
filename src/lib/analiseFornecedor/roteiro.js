@@ -79,7 +79,7 @@ export const ESQUEMA_ANALISE = `FORMATO DOS DADOS (versão 1) · o objeto que en
       "nota": null,                       // opcional: observação curta para o dono
       "rise": {                           // ou null quando não há produto no Rise
         "sku": "190201", "id": "cm...", "nome": "MODULO SENSOR DE CORRENTE ACS712 30A",
-        "custo": 9.5, "venda": 29.9, "estoque": 12, "fornecedor": "Fortek R$ 9,50",
+        "custo": 9.5, "venda": 29.9, "estoque": 12, "fornecedor": "Fortek R$9,50",
         "dono": true                      // true: código confirmado pelo dono ou vínculo existente; false: sugerido
       },
       "ofertas": [                        // concorrentes do MESMO produto, uma por loja

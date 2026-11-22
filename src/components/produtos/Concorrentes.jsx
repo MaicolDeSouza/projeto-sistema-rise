@@ -22,11 +22,9 @@ import {
 import BuscaColetadoPorCodigo from "./BuscaColetadoPorCodigo";
 import FotoComLupa from "@/components/ui/FotoComLupa";
 import CadastroRapidoConcorrente from "./CadastroRapidoConcorrente";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
-const moeda = new Intl.NumberFormat("pt-BR", {
-  style: "currency",
-  currency: "BRL",
-});
+const moeda = formatoDeMoeda();
 
 const percentual = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 1,

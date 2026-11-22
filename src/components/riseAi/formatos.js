@@ -5,7 +5,7 @@ import { provedorPorId } from "@/lib/riseAi/modelos";
  * usam o mesmo arquivo), no padrão da tela: texto com acento, valores em pt-BR.
  */
 
-export const reais = (valor) => `R$ ${Number(valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+export const reais = (valor) => `R$${Number(valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /**
  * O custo de uma resposta. Preço de modelo não cadastrado é `null` e NÃO vira "R$ 0,00": zero é o que o modelo local
@@ -13,9 +13,9 @@ export const reais = (valor) => `R$ ${Number(valor).toLocaleString("pt-BR", { mi
  */
 export function custoEmTexto(custoBrl, { estimado = false } = {}) {
   if (custoBrl === null || custoBrl === undefined) return "preço não cadastrado";
-  if (custoBrl === 0) return "R$ 0,00";
+  if (custoBrl === 0) return "R$0,00";
   // "~" quando o provedor não devolveu o uso (resposta cortada pelo Parar): o valor sai dos caracteres, não de uma medida.
-  return `${estimado ? "~" : ""}R$ ${custoBrl.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
+  return `${estimado ? "~" : ""}R$${custoBrl.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
 }
 
 /** A linha de estado do chat enquanto a IA consulta (o evento `ferramenta` traz o nome). */

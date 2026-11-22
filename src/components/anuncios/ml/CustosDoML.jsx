@@ -6,8 +6,9 @@ import { Loader, RefreshCw } from "lucide-react";
 import { lerCustosML } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { LIMITE_DO_FRETE_GRATIS } from "@/lib/canaisDeVenda/ml/custos";
 import { IMPOSTO_PADRAO } from "@/lib/margem";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
-const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const MOEDA = formatoDeMoeda();
 const PERCENTUAL = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const CATEGORIA_ML = /^MLB\d+$/;
 // Espera depois da ultima tecla no preco (ou da troca de categoria, tipo, logistica) antes de reler os custos no ML.
@@ -32,7 +33,7 @@ function Linha({ rotulo, valor, detalhe, classeDoValor = "" }) {
 function detalheDoFrete(custosML, preco) {
   if (custosML.frete === null) return "(informe as medidas na aba Envio)";
   const peso = custosML.pesoCobrado ? ` · peso ${custosML.pesoCobrado} g` : "";
-  return preco >= LIMITE_DO_FRETE_GRATIS ? `(frete grátis obrigatório${peso})` : `(cobrado pelo ML abaixo de R$ 79${peso})`;
+  return preco >= LIMITE_DO_FRETE_GRATIS ? `(frete grátis obrigatório${peso})` : `(cobrado pelo ML abaixo de R$79${peso})`;
 }
 
 /**

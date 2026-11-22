@@ -13,11 +13,12 @@ import { obterProvedor, PROVEDOR_PADRAO } from "@/lib/frete/provedores/registro"
 import { SITUACAO_DO_ENVIO } from "@/lib/frete/regras";
 import { config } from "@/lib/integracoes/config";
 import { porPaginaDaUrl } from "@/lib/porPagina";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
 export const metadata = { title: "Envios | Sistema Rise" };
 export const dynamic = "force-dynamic";
 
-const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const moeda = formatoDeMoeda();
 
 /** O saldo da carteira, discreto no topo; sem resposta do provedor, some (a lista abre igual). */
 async function saldoDaCarteira() {

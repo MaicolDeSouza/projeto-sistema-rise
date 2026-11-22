@@ -36,11 +36,9 @@ import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { contaDoPrecoOriginal, precoOriginalEmTexto } from "@/lib/coleta/moeda";
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
 import Janela from "@/components/ferramentas/licencas/Janela";
+import { emDinheiro, formatoDeMoeda } from "@/lib/dinheiro";
 
-const moeda = new Intl.NumberFormat("pt-BR", {
-  style: "currency",
-  currency: "BRL",
-});
+const moeda = formatoDeMoeda();
 
 // `precoFornecedor` e o que o fornecedor cobra; `adicionais` o que se soma a ele (pedido do dono em 24/10/2026). O
 // custo da linha (`precoCusto` no vinculo) e o total, calculado em `paraVinculo`.
@@ -61,7 +59,7 @@ function custoNaTela(valor) {
   if (valor === null || valor === undefined) return "—";
   const numero = Number(valor);
   if (Math.abs(numero) >= 1 || numero === 0) return moeda.format(numero);
-  return numero.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  return emDinheiro(numero, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 }
 
 const fatorDaLinha = (vinculo) => (Number(vinculo?.fator) > 1 ? Number(vinculo.fator) : 1);

@@ -7,8 +7,9 @@ import { cancelarEtiquetaAcao } from "@/app/envios/acoes";
 import { CLASSE_CAMPO } from "@/components/cadastros/Campo";
 import { numeroDoEnvio } from "@/lib/frete/regras";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
-const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const moeda = formatoDeMoeda();
 const BOTAO = "inline-flex items-center gap-1.5 rounded px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50";
 
 /** Cancelar a etiqueta ainda nao postada: diz o que volta a carteira e quando, antes do botao vermelho (regra 9). */

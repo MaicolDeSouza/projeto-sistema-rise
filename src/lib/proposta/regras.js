@@ -94,7 +94,7 @@ export function concorrenteDeReferencia(concorrentes) {
   return { ...escolhida, quinto, lojas: lojas.length };
 }
 
-const reais = (centavos) => `R$ ${(centavos / 100).toFixed(2).replace(".", ",")}`;
+const reais = (centavos) => `R$${(centavos / 100).toFixed(2).replace(".", ",")}`;
 
 /**
  * As tres opcoes de markup (60, 80, 100%) com a posicao de cada uma, e a recomendada. REGRA DE 25/10/2026 (pedido do dono:
@@ -146,7 +146,7 @@ export function opcoesDePreco(custo, concorrentes) {
 
   const avisos = [];
   if (noPiso) {
-    avisos.push(`piso de ${MARKUP_MINIMO}% de markup (o teto seria ${reais(teto)}, R$ 0,10 abaixo ${porUsina ? "da Usinainfo" : `do ${decisor.regra}`})`);
+    avisos.push(`piso de ${MARKUP_MINIMO}% de markup (o teto seria ${reais(teto)}, R$0,10 abaixo ${porUsina ? "da Usinainfo" : `do ${decisor.regra}`})`);
     if (usina && centavos >= usina.centavos) avisos.push(`fica acima da Usinainfo (${reais(usina.centavos)})`);
     if (posicao && posicao.posicao > POSICAO_MAXIMA) avisos.push(`fica em ${posicao.posicao}º de ${posicao.total} (fora dos ${POSICAO_MAXIMA} primeiros)`);
   }

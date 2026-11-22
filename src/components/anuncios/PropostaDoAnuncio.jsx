@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { marcaDaProposta, valorProposto } from "@/lib/propostaDeAnuncio/preencher";
+import { emDinheiro } from "@/lib/dinheiro";
 
 /**
  * A proposta de anuncio no editor do canal (spec 2026-10-23, secao 6.3), no molde da proposta no cadastro de produto:
@@ -103,7 +104,7 @@ function JanelaDoRelatorio({ proposta, aoFechar }) {
                     ) : (
                       <span className="min-w-0 flex-1 truncate">{link.titulo || link.url}</span>
                     )}
-                    <span className="tabular-nums">{Number(link.preco).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                    <span className="tabular-nums">{emDinheiro(Number(link.preco))}</span>
                   </li>
                 ))}
               </ul>

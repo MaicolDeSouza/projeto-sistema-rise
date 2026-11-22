@@ -22,8 +22,9 @@ import { ROTULO_DO_TIPO_ML, seloDoAnuncioML } from "@/lib/canaisDeVenda/ml/rotul
 import EditorAnuncioML from "./EditorAnuncioML";
 import JanelaExcluirAnuncioML from "./JanelaExcluirAnuncioML";
 import JanelaReaproveitarML from "./JanelaReaproveitarML";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
-const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const MOEDA = formatoDeMoeda();
 // O preco e as vendas de cada linha (pedido do dono em 09/11/2026); sem o dado, nada aparece (regra 4 do padrao visual).
 const textoDoPreco = (preco) => (preco !== null && preco !== undefined && Number.isFinite(Number(preco)) ? MOEDA.format(Number(preco)) : "");
 // Os blocos do popup, nesta ordem (pedido do dono em 22/11/2026). O `grupo` de cada linha vem do servidor (`grupoDoAnuncioML`).

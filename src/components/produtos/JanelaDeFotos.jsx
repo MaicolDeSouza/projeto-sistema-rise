@@ -15,6 +15,7 @@ import { MAXIMO_PIXELS_PARA_AMPLIAR } from "@/lib/limites";
 import { AmpliacaoDeFoto, ImagemComZoom } from "./ImagemComZoom";
 import PainelNanoBanana from "./PainelNanoBanana";
 import TiraDeFotos from "./TiraDeFotos";
+import { emDinheiro } from "@/lib/dinheiro";
 
 /**
  * Revisao das fotos do produto NOVO, uma a uma (pedido do dono em 21/09/2026).
@@ -67,8 +68,8 @@ const ROTULOS = [
   },
 ];
 
-const reais = (valor) => valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const dolares = (valor) => `US$ ${valor.toFixed(2).replace(".", ",")}`;
+const reais = (valor) => emDinheiro(valor);
+const dolares = (valor) => `US$${valor.toFixed(2).replace(".", ",")}`;
 
 /**
  * O tamanho que a foto TINHA antes do ajuste, para a etiqueta do canto da original. Fotos com o lado
@@ -223,7 +224,7 @@ function FotoEmRevisao({
   // Custo em reais (estimativa, pela cotacao de `cotacaoDolar.js`), com o dolar entre parenteses: o
   // Photoroom cobra em dolar no cartao.
   const custoEmReais = estado ? reais(estado.custoBrl) : null;
-  const custoCompleto = estado ? `${custoEmReais} (${dolares(estado.custoUsd)})` : "US$ 0,10";
+  const custoCompleto = estado ? `${custoEmReais} (${dolares(estado.custoUsd)})` : "US$0,10";
 
   // A esquerda mostra sempre a original ja padronizada; a direita, a previa quando existe e, sem ela,
   // a melhorada ja comprada.

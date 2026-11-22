@@ -1,4 +1,6 @@
-const EM_REAIS = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+import { formatoDeMoeda } from "@/lib/dinheiro";
+
+const EM_REAIS = formatoDeMoeda();
 
 /** Por onde o aviso começa a aparecer (80 % do teto): a mesma regra de `estadoDoOrcamento`. */
 const INICIO_DO_AVISO = 80;

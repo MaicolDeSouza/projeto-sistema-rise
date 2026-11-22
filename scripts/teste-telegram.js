@@ -110,8 +110,8 @@ try {
     const zerou = mensagemDoAviso("produtoZerou", { id: "p1", sku: "100101", nome: "Placa Uno" });
     conferir("produto zerou: texto e caminho", zerou, { texto: "Produto zerou: 100101\nPlaca Uno", caminho: "/produtos/p1" });
     const orc = mensagemDoAviso("orcamento", { escopo: "CLIENTES", estado: "esgotado", percentual: 100, tetoBrl: 70 });
-    conferir("orcamento esgotado tem 2 linhas", orc.texto.split("\n"), ["IA: orçamento dos clientes em 100% do teto de R$ 70,00", "Respostas pagas param até o teto subir."]);
-    conferir("orcamento em aviso tem 1 linha e vai as configuracoes", [mensagemDoAviso("orcamento", { escopo: "INTERNO", estado: "aviso", percentual: 83, tetoBrl: 30 }).texto, orc.caminho], ["IA: orçamento interno em 83% do teto de R$ 30,00", "/rise-ai/configuracoes"]);
+    conferir("orcamento esgotado tem 2 linhas", orc.texto.split("\n"), ["IA: orçamento dos clientes em 100% do teto de R$70,00", "Respostas pagas param até o teto subir."]);
+    conferir("orcamento em aviso tem 1 linha e vai as configuracoes", [mensagemDoAviso("orcamento", { escopo: "INTERNO", estado: "aviso", percentual: 83, tetoBrl: 30 }).texto, orc.caminho], ["IA: orçamento interno em 83% do teto de R$30,00", "/rise-ai/configuracoes"]);
     // Resumo das 20h (19/11/2026): abre com as vendas do dia, cada canal e o lucro; depois as consultas e a IA. A linha
     // das varreduras saiu em 20/11/2026 (pedido do dono).
     const { LIMITE_DE_LINHAS_DO_RESUMO } = await import("../src/lib/telegram/texto.js");
@@ -123,13 +123,13 @@ try {
     conferir("o limite de linhas comum continua 4, e o resumo cabe no dele", [LIMITE_DE_LINHAS, resumo.texto.split("\n").length <= LIMITE_DE_LINHAS_DO_RESUMO], [4, true]);
     conferir("resumo: linhas", resumo.texto.split("\n"), [
       "Resumo de 22/10",
-      "Vendas do dia: 12 · R$ 1.234,50",
-      "Mercado Livre: 8 vendas · R$ 800,00",
-      "Loja Integrada: 1 venda · R$ 400,00",
+      "Vendas do dia: 12 · R$1.234,50",
+      "Mercado Livre: 8 vendas · R$800,00",
+      "Loja Integrada: 1 venda · R$400,00",
       "Bling: 0 vendas",
-      "Lucro do dia: R$ 321,00",
+      "Lucro do dia: R$321,00",
       "Consultas pelo Claude/ChatGPT: 5 (2 anotadas)",
-      "IA no mês: R$ 12,50 de R$ 70,00",
+      "IA no mês: R$12,50 de R$70,00",
       "Produtos que zeraram: 2",
       "• 100101 Placa Uno R3",
       "• 130506 Módulo Relé 5V",
@@ -142,24 +142,24 @@ try {
     conferir("resumo: 18 zerados mostram 15 e 'e mais 3 produtos'; 16, 'e mais 1 produto'", [comZerados(muitosZerados(18)).filter((linha) => linha.startsWith("• ")).length, comZerados(muitosZerados(18)).at(-1), comZerados(muitosZerados(16)).at(-1)], [15, "e mais 3 produtos", "e mais 1 produto"]);
     conferir("resumo: o nome do produto zerado e cortado em 50", comZerados(muitosZerados(1)).at(-1), `• 900000 ${"N".repeat(50)}…`);
     conferir("resumo: sem a linha das varreduras, mesmo se quem calcula ainda mandar", mensagemDoAviso("resumoDoDia", { ...restoDoResumo, vendas: vendasDoResumo, varreduras: { concluidas: 3, falhas: 1 } }).texto.includes("Varredura"), false);
-    conferir("resumo: venda sem custo fica fora do lucro, e o texto diz", mensagemDoAviso("resumoDoDia", { ...restoDoResumo, vendas: { ...vendasDoResumo, semLucro: 2 } }).texto.split("\n")[5], "Lucro do dia: R$ 321,00 (fora 2 vendas sem custo)");
+    conferir("resumo: venda sem custo fica fora do lucro, e o texto diz", mensagemDoAviso("resumoDoDia", { ...restoDoResumo, vendas: { ...vendasDoResumo, semLucro: 2 } }).texto.split("\n")[5], "Lucro do dia: R$321,00 (fora 2 vendas sem custo)");
     conferir("resumo com 5 canais com venda e 18 zerados ainda cabe no limite", mensagemDoAviso("resumoDoDia", { ...restoDoResumo, zerados: muitosZerados(18), vendas: { ...vendasDoResumo, canais: ["MERCADO_LIVRE", "LOJA_INTEGRADA", "BLING", "SHOPEE", "OUTRO"].map((canal) => ({ canal, pedidos: 1, valor: 1 })) } }).texto.split("\n").length, LIMITE_DE_LINHAS_DO_RESUMO);
-    conferir("resumo sem as vendas (aviso antigo): zeros, sem quebrar", mensagemDoAviso("resumoDoDia", restoDoResumo).texto.split("\n").slice(0, 3), ["Resumo de 22/10", "Vendas do dia: 0 · R$ 0,00", "Lucro do dia: R$ 0,00"]);
+    conferir("resumo sem as vendas (aviso antigo): zeros, sem quebrar", mensagemDoAviso("resumoDoDia", restoDoResumo).texto.split("\n").slice(0, 3), ["Resumo de 22/10", "Vendas do dia: 0 · R$0,00", "Lucro do dia: R$0,00"]);
     conferir("resumo vai a revisao do dia", resumo.caminho, "/rise-ai/revisao");
     conferir("falha com trecho neutralizado", mensagemDoAviso("varreduraFalhou", { fonteNome: "Loja X", erro: "HTTP 403 em https://loja.x/p" }), { texto: "Varredura falhou: Loja X\nHTTP 403 em https:∕∕loja.x/p", caminho: "/mercados/fontes" });
     conferir("varredura pelo PC esperando", mensagemDoAviso("varreduraPeloPc", { fonteNome: "Oceantech", pedidoHa: "7 min" }), { texto: "Varredura pelo PC esperando: Oceantech\nPedida há 7 min; o Rise do PC não responde.", caminho: "/mercados/fontes" });
-    conferir("reais com milhar", mensagemDoAviso("orcamento", { escopo: "CLIENTES", estado: "aviso", percentual: 80, tetoBrl: 1234.5 }).texto.endsWith("R$ 1.234,50"), true);
+    conferir("reais com milhar", mensagemDoAviso("orcamento", { escopo: "CLIENTES", estado: "aviso", percentual: 80, tetoBrl: 1234.5 }).texto.endsWith("R$1.234,50"), true);
     // Nova venda (19/11/2026): canal no cabecalho, cliente, uma linha por produto (quantidade, codigo, nome, valor) e o total.
     const { limiteDeLinhasDoTipo, LIMITE_DE_LINHAS_DA_VENDA } = await import("../src/lib/telegram/texto.js");
     const venda = { pedidoId: "v1", canal: "MERCADO_LIVRE", numero: "2000012345", cliente: "Fulano de Tal", total: 85.7 };
     conferir(
       "nova venda: canal, cliente, itens e total",
       mensagemDoAviso("novaVenda", { ...venda, itens: [{ quantidade: 2, sku: "100101", nome: "Módulo Relé 5V", total: 25.8 }, { quantidade: 1, sku: null, nome: "Item fora do Rise", total: 59.9 }] }),
-      { texto: "Nova venda Mercado Livre 2000012345\nCliente: Fulano de Tal\n2× 100101 Módulo Relé 5V · R$ 25,80\n1× Item fora do Rise · R$ 59,90\nTotal: R$ 85,70", caminho: "/pedidos/v1" },
+      { texto: "Nova venda Mercado Livre 2000012345\nCliente: Fulano de Tal\n2× 100101 Módulo Relé 5V · R$25,80\n1× Item fora do Rise · R$59,90\nTotal: R$85,70", caminho: "/pedidos/v1" },
     );
-    conferir("nova venda sem itens e sem cliente: so o cabecalho e o total", mensagemDoAviso("novaVenda", { ...venda, cliente: null }).texto, "Nova venda Mercado Livre 2000012345\nTotal: R$ 85,70");
+    conferir("nova venda sem itens e sem cliente: so o cabecalho e o total", mensagemDoAviso("novaVenda", { ...venda, cliente: null }).texto, "Nova venda Mercado Livre 2000012345\nTotal: R$85,70");
     const muitos = mensagemDoAviso("novaVenda", { ...venda, itens: Array.from({ length: 11 }, (_, i) => ({ quantidade: 1, sku: `10010${i}`, nome: "N".repeat(80), total: 1 })) }).texto.split("\n");
-    conferir("nova venda com 11 itens: 8 linhas de item, 'e mais 3 itens' e o total", [muitos.length, muitos.at(-2), muitos.at(-1), muitos.length <= LIMITE_DE_LINHAS_DA_VENDA], [12, "e mais 3 itens", "Total: R$ 85,70", true]);
+    conferir("nova venda com 11 itens: 8 linhas de item, 'e mais 3 itens' e o total", [muitos.length, muitos.at(-2), muitos.at(-1), muitos.length <= LIMITE_DE_LINHAS_DA_VENDA], [12, "e mais 3 itens", "Total: R$85,70", true]);
     conferir("nova venda com 11 itens cabe na legenda de uma foto (1.024)", muitos.join("\n").length + "\nAbrir no Rise".length <= 1024, true);
     conferir("so a nova venda e o resumo passam de 4 linhas", [limiteDeLinhasDoTipo("novaVenda"), limiteDeLinhasDoTipo("resumoDoDia"), limiteDeLinhasDoTipo("produtoZerou"), limiteDeLinhasDoTipo("orcamento")], [12, 26, 4, 4]);
     conferir("link sem base e nulo", [linkAbrirNoRise("", "/produtos/p1"), linkAbrirNoRise(undefined, "/p")], [null, null]);
@@ -440,11 +440,11 @@ try {
     const marco = new Date("2025-03-15T15:00:00.000Z");
     await prisma.gastoIA.create({ data: { tipo: "BUSCA", escopo: "CLIENTES", provedor: "anthropic", valorUsd: 0, valorBrl: 57, referencia: "zz-tg-gasto-1", criadoEm: marco } });
     await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-15"), cliente, ...soTeste, ...semPausa });
-    conferir("80% do teto dos clientes avisa uma vez", textos().filter((t) => t.startsWith("IA: orçamento dos clientes")), ["IA: orçamento dos clientes em 81% do teto de R$ 70,00"]);
+    conferir("80% do teto dos clientes avisa uma vez", textos().filter((t) => t.startsWith("IA: orçamento dos clientes")), ["IA: orçamento dos clientes em 81% do teto de R$70,00"]);
     await prisma.gastoIA.create({ data: { tipo: "BUSCA", escopo: "CLIENTES", provedor: "anthropic", valorUsd: 0, valorBrl: 20, referencia: "zz-tg-gasto-2", criadoEm: marco } });
     await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-15") + 60000, cliente, ...soTeste, ...semPausa });
     await a.rodarAvisosDoTelegram({ agora: sp2030("2025-03-15") + 120000, cliente, ...soTeste, ...semPausa });
-    conferir("100% avisa uma vez, com a segunda linha", textos().filter((t) => t.startsWith("IA: orçamento dos clientes em 110%")), ["IA: orçamento dos clientes em 110% do teto de R$ 70,00\nRespostas pagas param até o teto subir."]);
+    conferir("100% avisa uma vez, com a segunda linha", textos().filter((t) => t.startsWith("IA: orçamento dos clientes em 110%")), ["IA: orçamento dos clientes em 110% do teto de R$70,00\nRespostas pagas param até o teto subir."]);
 
     // Varredura que falhou nas ultimas 24 h, e a do PC esperando sem o Rise do PC responder.
     const fonte = await prisma.fonteColeta.findFirst({ select: { id: true, nome: true } });
@@ -496,9 +496,9 @@ try {
     const v2 = await criarVenda("ZZ-TG-V2", "LOJA_INTEGRADA", 49.9, [item(0, foto2, "Jumper avulso", 3, 49.9)]);
     const v3 = await criarVenda("ZZ-TG-V3", "BLING", 12, [item(0, semFoto, "Sem foto no Rise", 1, 12)]);
     const lerFoto = async (sku, arquivo) => Buffer.from(`${sku}/${arquivo}`);
-    const textoV1 = "Nova venda Mercado Livre ZZ-TG-V1\nCliente: ZZ TG Cliente\n2× ZZ-TG-FOTO1 Módulo Relé 5V · R$ 25,80\n1× ZZ-TG-FOTO2 Kit 20 Jumpers · R$ 49,90\n1× Item fora do Rise · R$ 10,00\n1× ZZ-TG-FOTO1 Módulo Relé 5V azul · R$ 5,00\nTotal: R$ 90,70";
-    const textoV2 = "Nova venda Loja Integrada ZZ-TG-V2\nCliente: ZZ TG Cliente\n3× ZZ-TG-FOTO2 Jumper avulso · R$ 49,90\nTotal: R$ 49,90";
-    const textoV3 = "Nova venda Bling ZZ-TG-V3\nCliente: ZZ TG Cliente\n1× ZZ-TG-SEMFOTO Sem foto no Rise · R$ 12,00\nTotal: R$ 12,00";
+    const textoV1 = "Nova venda Mercado Livre ZZ-TG-V1\nCliente: ZZ TG Cliente\n2× ZZ-TG-FOTO1 Módulo Relé 5V · R$25,80\n1× ZZ-TG-FOTO2 Kit 20 Jumpers · R$49,90\n1× Item fora do Rise · R$10,00\n1× ZZ-TG-FOTO1 Módulo Relé 5V azul · R$5,00\nTotal: R$90,70";
+    const textoV2 = "Nova venda Loja Integrada ZZ-TG-V2\nCliente: ZZ TG Cliente\n3× ZZ-TG-FOTO2 Jumper avulso · R$49,90\nTotal: R$49,90";
+    const textoV3 = "Nova venda Bling ZZ-TG-V3\nCliente: ZZ TG Cliente\n1× ZZ-TG-SEMFOTO Sem foto no Rise · R$12,00\nTotal: R$12,00";
 
     conferir("fotos da venda: a principal de cada produto, na ordem dos itens e sem repetir", (await a.fotosDaVenda(v1.id, { lerFoto })).map((f) => [f.nome, f.tipo, f.bytes.toString()]), [["b.png", "image/png", "ZZ-TG-FOTO1/b.png"], ["c.jpg", "image/jpeg", "ZZ-TG-FOTO2/c.jpg"]]);
     const sumiu = async (sku, arquivo) => {
@@ -571,7 +571,7 @@ try {
     conferir(
       "o resumo das 20h chega com as vendas, os canais e o lucro",
       falsoR.mensagens.find((m) => m.text.startsWith("Resumo de 20/03"))?.text.split("\n").slice(0, 6),
-      ["Resumo de 20/03", "Vendas do dia: 5 · R$ 245,50", "Mercado Livre: 2 vendas · R$ 150,50", "Loja Integrada: 2 vendas · R$ 55,00", "Bling: 1 venda · R$ 40,00", "Lucro do dia: R$ 36,25 (fora 1 venda sem custo)"],
+      ["Resumo de 20/03", "Vendas do dia: 5 · R$245,50", "Mercado Livre: 2 vendas · R$150,50", "Loja Integrada: 2 vendas · R$55,00", "Bling: 1 venda · R$40,00", "Lucro do dia: R$36,25 (fora 1 venda sem custo)"],
     );
     conferir("o resumo que chega tem 8 linhas e nenhuma de varredura", [falsoR.mensagens.find((m) => m.text.startsWith("Resumo de 20/03"))?.text.split("\n").length, falsoR.mensagens.some((m) => m.text.includes("Varredura"))], [8, false]);
     await gravarConfiguracao({ telegram: { ligado: true, avisos: { ...soVenda, novaVenda: true } } }, { usuario: "zz-tg-admin" });
@@ -598,7 +598,7 @@ try {
     const falsoL2 = criarTelegramFalso();
     await a.rodarAvisosDoTelegram({ agora: agoraReal + 100000, ...comFoto, cliente: criarClienteTelegram({ token: TOKEN, requisitar: falsoL2.requisitar }) });
     conferir("LI: o pagamento aprovado dispara o aviso, e os ja avisados nao repetem", quaisChegaram(falsoL2), [1, 0, 0, 0]);
-    conferir("LI: o aviso do pedido pago e o de nova venda", falsoL2.mensagens.find((m) => m.text.includes("ZZ-TG-L1"))?.text, "Nova venda Loja Integrada ZZ-TG-L1\nCliente: ZZ TG Cliente\nTotal: R$ 10,00");
+    conferir("LI: o aviso do pedido pago e o de nova venda", falsoL2.mensagens.find((m) => m.text.includes("ZZ-TG-L1"))?.text, "Nova venda Loja Integrada ZZ-TG-L1\nCliente: ZZ TG Cliente\nTotal: R$10,00");
     const { pagoEmNoHistoricoDaLI } = await import("../src/lib/pedidos/despacho.js");
     conferir("LI: o pagamento e o 1o passo pago do historico; sem ele, nulo", [pagoEmNoHistoricoDaLI([{ em: "2026-11-20T15:00:00.000Z", statusDaOrigem: "pedido_enviado" }, { em: "2026-11-19T12:00:00.000Z", statusDaOrigem: "pedido_pago" }, { em: "2026-11-18T12:00:00.000Z", statusDaOrigem: "aguardando_pagamento" }])?.toISOString(), pagoEmNoHistoricoDaLI([{ em: "2026-11-18T12:00:00.000Z", statusDaOrigem: "aguardando_pagamento" }]), pagoEmNoHistoricoDaLI(null)], ["2026-11-19T12:00:00.000Z", null, null]);
 

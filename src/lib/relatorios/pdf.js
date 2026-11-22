@@ -12,7 +12,7 @@ const AZUL = "#1d4ed8";
 const VERMELHO = "#b91c1c";
 const CINZA = "#6b7280";
 
-const dinheiro = (valor) => (typeof valor === "number" ? `R$ ${valor.toFixed(2).replace(".", ",")}` : "sem preço");
+const dinheiro = (valor) => (typeof valor === "number" ? `R$${valor.toFixed(2).replace(".", ",")}` : "sem preço");
 const quando = (data) =>
   data
     ? new Date(data).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })

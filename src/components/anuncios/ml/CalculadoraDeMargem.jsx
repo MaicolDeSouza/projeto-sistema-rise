@@ -7,8 +7,9 @@ import { precoPorMargemML } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { custosDoAnuncio, freteQueConta, precoPorMargem } from "@/lib/canaisDeVenda/ml/custos";
 import { IMPOSTO_PADRAO } from "@/lib/margem";
 import { filtrarDecimal, lerDecimal } from "./numeros";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
-const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const MOEDA = formatoDeMoeda();
 const CATEGORIA_ML = /^MLB\d+$/;
 // Sem as taxas lidas, a conta vai ao servidor (que le o ML): espera o dono parar de digitar.
 const ESPERA_DO_SERVIDOR_MS = 600;

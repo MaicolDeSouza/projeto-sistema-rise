@@ -17,8 +17,9 @@ import SecaoDoAnuncio from "./SecaoDoAnuncio";
 import CustosDoML from "./CustosDoML";
 import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
 import { filtrarDecimal, lerDecimal, mostrarDigitado } from "./numeros";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
-const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const MOEDA = formatoDeMoeda();
 const PERCENTUAL = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 const ORIGEM_DO_KIT = "soma de quantidade x custo dos itens";
@@ -91,7 +92,7 @@ function MargemDoPreco({ preco, custo, conta, mensagemSemCusto }) {
  * Aba Preco e custos: o preco de venda (com a calculadora dentro do campo e a margem embaixo) e os Custos totais
  * (fornecedor, taxas do ML e imposto). Concorrentes e ranking do catalogo foram para a aba Catalogo (26/10/2026).
  */
-const MOEDA_DA_PROPOSTA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const MOEDA_DA_PROPOSTA = formatoDeMoeda();
 
 export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContexto, problemas, acessos = { custos: true, concorrentes: true }, precoDaLojaEnviado = null, mudancas = null, anuncioId = null, jaNoML = false }) {
   // Texto do preco como foi digitado (ver `numeros.js`); `null` = nada digitado, mostra o numero.
@@ -378,8 +379,8 @@ function BotaoPrecoPeloLucroDaLoja({ rascunho, custo, temPrecoDaLoja, aplicar, a
             ? `Desconto limitado pelo lucro mínimo de ${MOEDA.format(LUCRO_MINIMO_ML)}.`
             : `Sem espaço para desconto: o lucro já está no mínimo de ${MOEDA.format(LUCRO_MINIMO_ML)}.`
           : baixou
-            ? "Desconto parou em R$ 79,00: abaixo disso o frete e a tarifa mudam."
-            : "Sem espaço para desconto: abaixo de R$ 79,00 o frete e a tarifa mudam.";
+            ? "Desconto parou em R$79,00: abaixo disso o frete e a tarifa mudam."
+            : "Sem espaço para desconto: abaixo de R$79,00 o frete e a tarifa mudam.";
       setResultado({
         // Lucro da loja abaixo do minimo (R$ 5): o preco subiu para deixar R$ 5, em ambar porque e dinheiro (regra 2).
         aviso: resposta.minimoAplicado
@@ -388,7 +389,7 @@ function BotaoPrecoPeloLucroDaLoja({ rascunho, custo, temPrecoDaLoja, aplicar, a
         texto: baixou
           ? `Com o desconto: de ${MOEDA.format(comDesconto.precoSemDesconto)} para ${MOEDA.format(resposta.preco)}${comDesconto.lucro === null ? "" : ` (lucro ${MOEDA.format(comDesconto.lucro)})`}.`
           : resposta.piso
-            ? `Faixa R$ 72–79: sobe para R$ 79 com frete grátis (lucro ${MOEDA.format(resposta.lucro)}).`
+            ? `Faixa R$72–79: sobe para R$79 com frete grátis (lucro ${MOEDA.format(resposta.lucro)}).`
             : `Lucro ${MOEDA.format(resposta.lucro)} mantido como ${nomeDaVariante(resposta)}.`,
       });
     });

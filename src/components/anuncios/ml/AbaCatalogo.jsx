@@ -10,8 +10,9 @@ import { textoDaDisputa, textoDoResumo } from "@/lib/canaisDeVenda/ml/catalogo";
 import { linkDoPainelML } from "@/lib/canaisDeVenda/ml/rotulos";
 import { ResumoDaPosicao, TabelaDoCatalogoAoVivo, urlDoCatalogo } from "./ConcorrentesDoML";
 import SecaoDoAnuncio from "./SecaoDoAnuncio";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
-const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const MOEDA = formatoDeMoeda();
 const PERCENTUAL = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const HORA = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 const FALHA = "Não foi possível falar com o servidor.";

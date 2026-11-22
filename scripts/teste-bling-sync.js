@@ -3238,8 +3238,8 @@ try {
     {
       conferir("valorParaTela: vazio (null, undefined, texto vazio) = null, para a tela dizer 'vazio'", [null, undefined, ""].map((valor) => valorParaTela("nome", valor)), [null, null, null]);
       conferir("valorParaTela: zero e valor, nao vazio (origem 0 = nacional)", [valorParaTela("origem", 0), valorParaTela("estoqueMinimo", 0)], ["0", "0"]);
-      conferir("valorParaTela: preco em reais", valorParaTela("preco", 95), `R$${NBSP}95,00`);
-      conferir("valorParaTela: preco com milhar e centavos", valorParaTela("preco", 1234.5), `R$${NBSP}1.234,50`);
+      conferir("valorParaTela: preco em reais", valorParaTela("preco", 95), `R$95,00`);
+      conferir("valorParaTela: preco com milhar e centavos", valorParaTela("preco", 1234.5), `R$1.234,50`);
       conferir("valorParaTela: peso em kg, medidas em cm e % de tributos", [valorParaTela("peso", 0.25), valorParaTela("altura", 3), valorParaTela("comprimento", 10.5), valorParaTela("percentualTributos", 12.5)], ["0,25 kg", "3 cm", "10,5 cm", "12,5%"]);
       conferir("valorParaTela: peso com 3 casas nao perde precisao", valorParaTela("peso", 0.125), "0,125 kg");
       conferir("valorParaTela: numero sem unidade (estoque minimo)", valorParaTela("estoqueMinimo", 5), "5");
@@ -3303,7 +3303,7 @@ try {
       );
       conferir("resumirEnvio sincronizar ok: titulo, um campo por linha (de ... para ...) e os fornecedores", enviouTudo, {
         titulo: "Sincronizado com o Bling.",
-        linhas: [`Preço: de R$${NBSP}90,00 para R$${NBSP}95,00`, "Nome: de Motor para Motor CC", "Fornecedores enviados: 1."],
+        linhas: [`Preço: de R$90,00 para R$95,00`, "Nome: de Motor para Motor CC", "Fornecedores enviados: 1."],
       });
 
       conferir("resumirEnvio sincronizar ok sem nada a enviar: o Bling ja estava igual", resumirEnvio("sincronizar", { ok: true, alterados: [], fornecedores: { enviados: 0, avisos: [] } }, rotulos), {
@@ -3314,7 +3314,7 @@ try {
       conferir(
         "resumirEnvio sincronizar com falha no meio: diz o que foi antes da falha",
         resumirEnvio("sincronizar", { ok: false, erro: "x", alterados: [{ campo: "preco", de: 90, para: 95 }], fornecedores: { enviados: 0, avisos: [] } }, rotulos),
-        { titulo: "Antes da falha, foi enviado ao Bling:", linhas: [`Preço: de R$${NBSP}90,00 para R$${NBSP}95,00`] },
+        { titulo: "Antes da falha, foi enviado ao Bling:", linhas: [`Preço: de R$90,00 para R$95,00`] },
       );
       conferir("resumirEnvio sincronizar com falha e nada enviado: nada a contar (null)", resumirEnvio("sincronizar", { ok: false, erro: "Escrita bloqueada", alterados: [], fornecedores: { enviados: 0, avisos: [] } }, rotulos), null);
 

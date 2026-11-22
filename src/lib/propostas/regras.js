@@ -1,3 +1,5 @@
+import { emDinheiro, formatoDeMoeda } from "../dinheiro.js";
+
 /**
  * Regras das Propostas para cliente (spec 2026-11-12-propostas-para-cliente-design.md). So contas e listas, sem banco:
  * a tela, o servidor, o PDF e o teste leem as MESMAS contas, para o total da tela nunca divergir do PDF do cliente.
@@ -327,7 +329,7 @@ export function valoresDoPagamento({ total, parcelas, entradaPercentual, entrada
   return { entrada: entrada / 100, restante: restante / 100, parcela: Math.round(restante / vezes) / 100, parcelas: vezes };
 }
 
-const emReais = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const emReais = formatoDeMoeda();
 
 /**
  * O resumo do pagamento que vai no PDF: "Boleto · entrada de 30% (R$ 507,00) · 3x de R$ 394,00" + o texto livre. Com o
@@ -376,7 +378,7 @@ export function pendenciasDoPdf({ clienteNome, itens = [], exigeMarcaModelo = fa
 export function textoDoFaturamentoMinimo(valor) {
   const numero = Number(valor);
   if (!(numero > 0)) return null;
-  return `Valor para faturamento mínimo: ${numero.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }).replace(/\s/g, " ")}`;
+  return `Valor para faturamento mínimo: ${emDinheiro(numero).replace(/\s/g, " ")}`;
 }
 
 /** Link do WhatsApp: telefone em digitos com DDD (lib/telefone.js) e a mensagem. Sem telefone valido = null. */

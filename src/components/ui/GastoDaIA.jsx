@@ -1,3 +1,5 @@
+import { formatoDeMoeda } from "@/lib/dinheiro";
+
 /**
  * Quanto custou a ultima geracao com IA (pedido do dono em 12/10/2026): modelo, tokens e reais, numa linha discreta
  * ao lado do botao que gerou. O numero vem pronto do servidor (`resumoDoGasto`, em `lib/ia/gasto.js`); aqui so se
@@ -6,7 +8,7 @@
  * Os detalhes (quantas chamadas, o valor em dolar e a cotacao) ficam no `title`, para a linha continuar curta.
  */
 const inteiro = new Intl.NumberFormat("pt-BR");
-const reais = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 4 });
+const reais = formatoDeMoeda({ minimumFractionDigits: 2, maximumFractionDigits: 4 });
 
 /// "R$ 0,21 · 8.412 tokens", ou "preço não cadastrado" no lugar dos reais.
 function valorCurto(gasto) {
@@ -48,7 +50,7 @@ export default function GastoDaIA({ gasto, className = "" }) {
   const detalhes =
     `${gasto.chamadas} chamada(s) à IA nesta geração · ${inteiro.format(gasto.entrada)} tokens de entrada e ` +
     `${inteiro.format(gasto.saida)} de saída` +
-    (gasto.usd === null ? "" : ` · US$ ${gasto.usd.toFixed(4)} (cotação fixa do sistema, sem IOF)`);
+    (gasto.usd === null ? "" : ` · US$${gasto.usd.toFixed(4)} (cotação fixa do sistema, sem IOF)`);
   return (
     <p title={detalhes} className={`text-[11px] text-suave tabular-nums ${className}`}>
       {gasto.modelo} · {inteiro.format(gasto.total)} tokens ({inteiro.format(gasto.entrada)} entrada /{" "}

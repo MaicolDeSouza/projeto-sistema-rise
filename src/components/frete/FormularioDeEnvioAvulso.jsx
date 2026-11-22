@@ -181,7 +181,7 @@ export default function FormularioDeEnvioAvulso({ caixas }) {
                 inputMode="decimal"
                 value={item.valor}
                 onChange={(e) => mudarItem(indice, "valor", e.target.value.replace(/[^\d.,]/g, ""))}
-                placeholder="R$ 0,00"
+                placeholder="R$0,00"
                 className="w-28 rounded border border-borda px-2 py-1.5 text-right text-sm tabular-nums focus:border-acento focus:outline-none"
               />
               <button

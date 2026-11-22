@@ -10,13 +10,11 @@ import EmptyState from "@/components/ui/EmptyState";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import BadgeCanal from "@/components/anuncios/BadgeCanal";
 import FiltrosAnuncios from "@/components/anuncios/FiltrosAnuncios";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
 export const dynamic = "force-dynamic";
 
-const moeda = new Intl.NumberFormat("pt-BR", {
-  style: "currency",
-  currency: "BRL",
-});
+const moeda = formatoDeMoeda();
 
 export default async function AnunciosPage({ searchParams }) {
   // Acessos: a lista em ver; Novo anuncio com editar.

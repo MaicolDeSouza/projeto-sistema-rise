@@ -5,6 +5,7 @@ import { Eye, FileText, X } from "lucide-react";
 
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
+import { emDinheiro } from "@/lib/dinheiro";
 
 /**
  * A proposta no cadastro do produto. Ate 21/10/2026 era um quadro com uma linha por secao e "Aplicar escolhidos"; desde
@@ -21,7 +22,7 @@ const ROTULO_DO_CAMPO = {
   origem: "Origem", pesoKg: "Peso (kg)", alturaCm: "Altura (cm)", larguraCm: "Largura (cm)", comprimentoCm: "Comprimento (cm)",
 };
 
-const reais = (valor) => (typeof valor === "number" ? valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—");
+const reais = (valor) => (typeof valor === "number" ? emDinheiro(valor) : "—");
 const posicaoTexto = (posicao) => (posicao ? `${posicao.posicao}º de ${posicao.total}` : "sem posição");
 // A margem vem em porcentagem (46) pelo roteiro, mas a conversa do claude.ai ja gravou como fracao (0.46): as duas
 // viram "46%". Formato pedido pelo dono em 21/10/2026: "R$ 39,38 (46% margem)".

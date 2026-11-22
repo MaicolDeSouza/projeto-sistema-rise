@@ -2639,7 +2639,7 @@ export function normalizarPagina({
 
   if (prices.normal !== null) {
     origens.precoNormal = trayComRiscado
-      ? `dataLayer da Tray (priceSell); o price de R$ ${trayPrecoTabela.toFixed(2).replace(".", ",")} e o riscado`
+      ? `dataLayer da Tray (priceSell); o price de R$${trayPrecoTabela.toFixed(2).replace(".", ",")} e o riscado`
       : vtexPagina?.normal && declaradoNormal === vtexPagina.normal
         ? "preco de tabela da VTEX (listPrice); o itemprop price e o a vista"
         : declaradoNormal
@@ -2932,7 +2932,7 @@ function produtoDaVarianteNuvemshop(base, variante, varias) {
         ? "variante da Nuvemshop (LS.variants)"
         : `variante da Nuvemshop sem codigo — marcado ${SEM_CODIGO}`,
       precoNormal: variante.riscado
-        ? `preco da variante (LS.variants); o riscado de R$ ${variante.riscado.toFixed(2).replace(".", ",")} nao e o preco vigente`
+        ? `preco da variante (LS.variants); o riscado de R$${variante.riscado.toFixed(2).replace(".", ",")} nao e o preco vigente`
         : "preco da variante (LS.variants)",
       precoPromocional:
         variante.aVista !== null

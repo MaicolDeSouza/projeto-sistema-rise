@@ -1,4 +1,6 @@
-const reais = (valor) => valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+import { emDinheiro } from "@/lib/dinheiro";
+
+const reais = (valor) => emDinheiro(valor);
 
 /**
  * "2º de 10": a posicao de preco do produto entre os concorrentes (pedido do dono em 06/10/2026), ao lado de

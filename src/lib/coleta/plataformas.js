@@ -81,7 +81,7 @@ export const PLATAFORMAS = [
       resumo:
         "Sem JSON-LD. O Microdata so tem nome, preco e imagem, com sku VAZIO; codigo, referencia, marca, a vista, descricao e ficha estao no HTML do painel e das abas.",
       preco:
-        'itemprop="price" content="320.00" no painel. O a vista vem escrito: "Ou R$ 304,00 a vista ( - 5% )". Produto sem estoque nao tem preco — o botao vira "avise-me".',
+        'itemprop="price" content="320.00" no painel. O a vista vem escrito: "Ou R$304,00 a vista ( - 5% )". Produto sem estoque nao tem preco — o botao vira "avise-me".',
       imagens: "/_uploads/ProdutoDestaque/ProdutoDestaque_{id}_{n}__orig.jpg (tambem __thumb.webp e __facebook.webp).",
       sitemap: "/sitemap.xml plano: /{slug}/p sao produtos (1.825 na Eletrus), /produtos/... sao categorias.",
       urlProduto: "/{slug}/p",

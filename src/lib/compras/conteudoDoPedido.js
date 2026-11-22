@@ -1,4 +1,5 @@
 import { totaisDoPedido } from "@/lib/compras/regras";
+import { emDinheiro } from "@/lib/dinheiro";
 
 /**
  * O que o FORNECEDOR le do pedido, montado uma vez para o PDF (`pdf.js`) e para o link publico (`paginaPublica.js`,
@@ -65,7 +66,7 @@ export function formatadores(estrangeiro, moeda) {
   const local = estrangeiro ? "en-US" : "pt-BR";
   const codigo = estrangeiro ? moeda : "BRL";
   const dinheiro = (valor, casas = 2) =>
-    Number(valor ?? 0).toLocaleString(local, { style: "currency", currency: codigo, minimumFractionDigits: 2, maximumFractionDigits: casas });
+    emDinheiro(Number(valor ?? 0), { currency: codigo, minimumFractionDigits: 2, maximumFractionDigits: casas }, local);
   return {
     dinheiro,
     unitario: (valor) => (valor === null || valor === undefined ? "—" : dinheiro(valor, 4)),

@@ -1,3 +1,5 @@
+import { formatoDeMoeda } from "@/lib/dinheiro";
+
 /**
  * Regras puras do produto com composicao (kit): um produto feito de outros produtos do Rise,
  * em quantidades (pedido do dono em 07/10/2026). Sem banco, sem rede e sem Next: a tela, as
@@ -290,7 +292,7 @@ export function validarComposicao(itens, { produtoId = null } = {}) {
   return { ok: true };
 }
 
-const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const MOEDA = formatoDeMoeda();
 const NUMERO = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 });
 
 /// Como cada campo do retrato aparece no quadro do kit. O custo, o estoque e a localizacao ficam de fora de

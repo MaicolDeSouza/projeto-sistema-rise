@@ -8,8 +8,9 @@ import { buscarPecasPropriasAcao, enviarFotoDaPecaManualAcao } from "@/app/produ
 import FotoComLupa from "@/components/ui/FotoComLupa";
 import { casasDaPeca, custoDasPecas } from "@/lib/producao/regras";
 import IconeDeEstoque from "./IconeDeEstoque";
+import { emDinheiro } from "@/lib/dinheiro";
 
-const reais = (valor) => Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const reais = (valor) => emDinheiro(Number(valor));
 
 /** O custo de uma linha para a soma: o do produto do Rise, ou o digitado no item manual. */
 function custoDaLinha(peca) {

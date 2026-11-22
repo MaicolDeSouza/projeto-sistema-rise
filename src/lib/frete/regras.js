@@ -108,7 +108,7 @@ export function textoDaCotacao({ cidadeDestino, servicos }) {
   const titulo = cidadeDestino ? `Frete para ${cidadeDestino}:` : "Frete:";
   const linhas = (servicos ?? []).map((servico) => {
     const prazo = servico.prazoDias ? `, ${servico.prazoDias} ${servico.prazoDias === 1 ? "dia útil" : "dias úteis"}` : "";
-    return `${servico.transportadora} ${servico.servicoNome}: R$ ${moeda.format(servico.valorACobrar ?? servico.preco)}${prazo}`;
+    return `${servico.transportadora} ${servico.servicoNome}: R$${moeda.format(servico.valorACobrar ?? servico.preco)}${prazo}`;
   });
   return [titulo, ...linhas].join("\n");
 }
@@ -160,7 +160,7 @@ export function servicoCompravel({ transportadora }) {
   return { ok: true, motivo: null };
 }
 
-const reais = (valor) => `R$ ${moeda.format(Number(valor ?? 0))}`;
+const reais = (valor) => `R$${moeda.format(Number(valor ?? 0))}`;
 const chaveValida = (chave) => String(chave ?? "").replace(/\D/g, "").length === 44;
 
 /**

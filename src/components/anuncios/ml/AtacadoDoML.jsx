@@ -10,8 +10,9 @@ import { LIMITE_DO_FRETE_GRATIS } from "@/lib/canaisDeVenda/ml/custos";
 import MensagensDoCampo, { problemasDoCampo } from "./MensagensDoCampo";
 import { filtrarDecimal, lerDecimal, textoDecimal } from "./numeros";
 import SecaoDoAnuncio from "./SecaoDoAnuncio";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
-const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const MOEDA = formatoDeMoeda();
 
 const MOTIVO_DO_KIT = "Kit não tem preço de atacado: no Mercado Livre a unidade é o kit inteiro e o desconto parece o preço de cada peça.";
 

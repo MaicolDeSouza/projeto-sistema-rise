@@ -7,9 +7,10 @@ import { ExternalLink } from "lucide-react";
 import NotaDeDevolucao from "@/components/pedidos/NotaDeDevolucao";
 import CabecalhoOrdenavel, { parametrosDaOrdenacao } from "@/components/ui/CabecalhoOrdenavel";
 import { TEXTO_DA_RESOLUCAO, TEXTO_DO_GRUPO, TEXTO_DO_TIPO } from "@/lib/pedidos/reclamacoesTextos";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
 const DIA = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "2-digit" });
-const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const MOEDA = formatoDeMoeda();
 
 /**
  * A lista das reclamacoes do Mercado Livre (20/11/2026). Uma linha por reclamacao: quando abriu, de que pedido, o grupo do

@@ -211,7 +211,8 @@ function hobiImagem(nome, alt) {
 function hobiReais(valor) {
   var numero = Number(valor);
   if (valor == null || !isFinite(numero)) return "";
-  return numero.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  // Sem espaco depois do R$ (regra do dono em 22/11/2026, a mesma do src/lib/dinheiro.js; a janela nao importa nada).
+  return numero.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }).replace(/(R\$)[\s ]+/, "$1");
 }
 
 var hobiGuardado = {

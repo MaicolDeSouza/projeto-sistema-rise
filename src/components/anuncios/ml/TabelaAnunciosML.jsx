@@ -13,6 +13,7 @@ import FotoComLupa from "@/components/ui/FotoComLupa";
 import JanelaExcluirAnuncioML from "./JanelaExcluirAnuncioML";
 import { CANAIS } from "@/lib/canais";
 import { ROTULO_DO_TIPO_ML, seloDoAnuncioML } from "@/lib/canaisDeVenda/ml/rotulos";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
 /**
  * Lista dos anuncios do Mercado Livre (a busca e a paginacao moram na pagina). Colunas na ordem do padrao do projeto
@@ -21,7 +22,7 @@ import { ROTULO_DO_TIPO_ML, seloDoAnuncioML } from "@/lib/canaisDeVenda/ml/rotul
  * (`?ordenar=&direcao=`) e e feita no servidor antes de paginar.
  */
 
-const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const moeda = formatoDeMoeda();
 const LOGO_ML = CANAIS.find((canal) => canal.id === "MERCADO_LIVRE")?.logo;
 
 // A cor da situacao vira um ponto; o texto fica neutro e numa linha so (o selo colorido quebrava em duas e saia do eixo).

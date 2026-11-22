@@ -70,7 +70,7 @@ const RESUMOS = {
   listarEnvios: (a) => ["envios", lista(a.situacao), a.termos].filter(Boolean).join(": "),
   imprimirEtiqueta: (a) => `etiqueta de ${a.envio}: link de impressão`,
   prepararEtiqueta: (a) => `etiqueta do pedido ${a.pedido}: preparou`,
-  comprarEtiqueta: (a) => `etiqueta ${a.envio}: comprou por R$ ${a.valorConfirmado}`,
+  comprarEtiqueta: (a) => `etiqueta ${a.envio}: comprou por R$${a.valorConfirmado}`,
   cancelarEtiqueta: (a) => `etiqueta ${a.envio}: cancelou`,
   reenviarAvisoAoCliente: (a) => `envio ${a.envio}: reenviou o aviso`,
 };

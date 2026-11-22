@@ -7,8 +7,9 @@ import { AlertTriangle, Check, Copy, Loader2 } from "lucide-react";
 import { cotarFreteAcao } from "@/app/frete/acoes";
 import CabecalhoOrdenavel from "@/components/ui/CabecalhoOrdenavel";
 import { textoDaCotacao } from "@/lib/frete/regras";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
-const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const moeda = formatoDeMoeda();
 const prazo = (dias) => (dias ? `${dias} ${dias === 1 ? "dia útil" : "dias úteis"}` : "—");
 const paraTexto = (valor) => (valor === null || valor === undefined || valor === "" ? "" : String(valor).replace(".", ","));
 const soDecimal = (texto) => texto.replace(/[^\d.,]/g, "");

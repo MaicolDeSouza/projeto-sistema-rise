@@ -48,5 +48,5 @@ assert.deepEqual(calcularIndicadoresEstoque([
 assert.equal(calcularIndicadoresEstoque(Array.from({ length: 60 }, () => ({
   estoque: 3, custo: "0.10", precoVenda: "1.99",
 }))).receita, "358.20");
-assert.equal(formatarReais("3005.30").replace(/\s/g, " "), "R$ 3.005,30");
+assert.equal(formatarReais("3005.30").replace(/\s/g, " "), "R$3.005,30");
 console.log("OK: totais, centavos, dados ausentes, valor zero, saldos negativos, inativos, kits fora e lista completa.");

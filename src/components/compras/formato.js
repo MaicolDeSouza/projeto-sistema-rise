@@ -1,12 +1,13 @@
 import { lerDesconto, totaisDoPedido } from "@/lib/compras/regras";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
 /**
  * Os campos do editor do pedido sao TEXTO (o operador digita "4,35"); estas funcoes passam do pedido do servidor para
  * o formulario e de volta, e fazem a conta dos totais enquanto se digita. A conta e a de regras.js, a mesma do PDF.
  */
 
-export const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-export const moedaUnitaria = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 4 });
+export const moeda = formatoDeMoeda();
+export const moedaUnitaria = formatoDeMoeda({ minimumFractionDigits: 2, maximumFractionDigits: 4 });
 
 /** 4.35 -> "4,35"; null -> "". */
 export function paraTexto(valor, casasMaximas = 2) {

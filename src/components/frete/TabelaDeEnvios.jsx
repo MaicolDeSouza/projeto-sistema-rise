@@ -6,8 +6,9 @@ import { ExternalLink, Mail, MessageCircle, Truck } from "lucide-react";
 
 import CabecalhoOrdenavel, { parametrosDaOrdenacao } from "@/components/ui/CabecalhoOrdenavel";
 import { numeroDoEnvio, SITUACAO_DO_ENVIO } from "@/lib/frete/regras";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
-const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const moeda = formatoDeMoeda();
 const data = (valor) => (valor ? new Date(valor).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "America/Sao_Paulo" }) : "—");
 /** Os chips de situacao, na ordem do dia a dia (o que pede acao primeiro). */
 const CHIPS = ["A_POSTAR", "POSTADO", "COM_PROBLEMA", "NAO_ENTREGUE", "ENTREGUE", "RASCUNHO", "CANCELADO", "EXPIRADO"];

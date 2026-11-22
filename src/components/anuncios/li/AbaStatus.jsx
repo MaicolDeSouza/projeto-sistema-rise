@@ -4,6 +4,7 @@ import { ExternalLink } from "lucide-react";
 
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { ABAS_LI } from "@/lib/canaisDeVenda/li/validacao";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
 const CLASSE_DO_PROBLEMA = {
   bloqueante: "border-red-200 bg-red-50 text-red-800",
@@ -19,7 +20,7 @@ const dataEHora = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
 });
 
-const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const MOEDA = formatoDeMoeda();
 
 /**
  * O vinculo do produto com o canal da LI DENTRO do Bling (`vinculoBlingLI`, lido ao abrir o editor), em

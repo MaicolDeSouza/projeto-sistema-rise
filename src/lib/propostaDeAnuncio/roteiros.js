@@ -104,7 +104,7 @@ KIT NO ML: quando o dono pede o anúncio em kit ("anúncio com 10 peças", "kit 
      mande url, título e preço de cada um em linksSemCatalogo. Esses links não são salvos no Rise: só entram na posição
      do ranking e no relatório.
 4. gravarPropostaML(sku, categoriaId, atributos, catalogos, linksSemCatalogo, relatorio), com titulo só no kit e
-   quantidade só no kit no ML. O Rise grava o Clássico na variante do preço e, com o Clássico a R$ 150 ou mais, também o
+   quantidade só no kit no ML. O Rise grava o Clássico na variante do preço e, com o Clássico a R$150 ou mais, também o
    Premium + frete grátis (premium na resposta); a variante que já está publicada no Rise não ganha outro rascunho. O
    relatório em tópicos curtos: por que a categoria, de onde veio cada valor da ficha, por que cada catálogo é o mesmo
    produto. Se voltar erro, corrija e grave de novo.

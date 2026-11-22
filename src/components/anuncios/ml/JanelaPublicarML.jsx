@@ -8,8 +8,9 @@ import { igualarPrecoDosOutrosMLAcao, outrosAnunciosMLAcao, prepararPublicacaoML
 import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
 import { ROTULO_DA_ETAPA } from "@/lib/canaisDeVenda/ml/etapas";
 import { ROTULO_DO_TIPO_ML } from "@/lib/canaisDeVenda/ml/rotulos";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
-const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const moeda = formatoDeMoeda();
 
 /**
  * Janela do Publicar do anuncio do Mercado Livre (fase 3). Ao abrir, pede ao servidor a pre-checagem

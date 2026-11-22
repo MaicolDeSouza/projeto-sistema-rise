@@ -9,8 +9,9 @@ import { criarPropostaAcao, excluirPropostaAcao } from "@/app/propostas/acoes";
 import Pergunta from "@/components/compras/Pergunta";
 import CabecalhoOrdenavel, { parametrosDaOrdenacao } from "@/components/ui/CabecalhoOrdenavel";
 import { COR_DA_SITUACAO, SITUACOES, dataBR, numeroDaProposta } from "@/lib/propostas/regras";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
-const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const moeda = formatoDeMoeda();
 
 export function SeloDaSituacao({ situacao }) {
   return (

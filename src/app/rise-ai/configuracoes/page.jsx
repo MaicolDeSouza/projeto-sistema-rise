@@ -41,9 +41,9 @@ async function textoDaCotacao() {
   const cotacao = await garantirCotacaoDoDia();
   if (cotacao.origem === "ptax") {
     const [, mes, dia] = /^\d{4}-(\d{2})-(\d{2})/.exec(cotacao.data ?? "") ?? [];
-    return `PTAX${dia ? ` de ${dia}/${mes}` : ""}: R$ ${cotacao.valor.toFixed(4).replace(".", ",")}`;
+    return `PTAX${dia ? ` de ${dia}/${mes}` : ""}: R$${cotacao.valor.toFixed(4).replace(".", ",")}`;
   }
-  return `cotação fixa de R$ ${emReais(cotacaoDoDolar().valor)}: o Banco Central não respondeu`;
+  return `cotação fixa de R$${emReais(cotacaoDoDolar().valor)}: o Banco Central não respondeu`;
 }
 
 async function versaoParaATela(canal) {

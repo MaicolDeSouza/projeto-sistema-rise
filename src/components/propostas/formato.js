@@ -1,12 +1,13 @@
 import { lerDesconto, totaisDaProposta } from "@/lib/propostas/regras";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
 /**
  * Os campos do editor da proposta sao TEXTO (o operador digita "4,35"); estas funcoes passam da proposta do servidor
  * para o formulario e de volta, e fazem a conta dos totais enquanto se digita (a de regras.js, a mesma do PDF).
  */
 
-export const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-export const moedaUnitaria = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 4 });
+export const moeda = formatoDeMoeda();
+export const moedaUnitaria = formatoDeMoeda({ minimumFractionDigits: 2, maximumFractionDigits: 4 });
 
 export function paraTexto(valor, casas = 2) {
   if (valor === null || valor === undefined || valor === "") return "";

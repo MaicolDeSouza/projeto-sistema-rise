@@ -171,7 +171,7 @@ conferir("igual: nada mudou", mudancasDaPeca(retratoBase, { ...retratoBase }), [
 conferir("sem retrato guardado (kit antigo): nada muda, sem \"!\"", mudancasDaPeca(null, retratoBase), []);
 conferir("numero em texto do Prisma e o mesmo numero; NCM so pelos digitos", mudancasDaPeca(retratoBase, { ...retratoBase, precoVenda: "38.90", ncm: "84733049" }), []);
 // O Intl poe espaco nao separavel depois do "R$": compara com espaco comum.
-conferir("preco mudou", mudancasDaPeca(retratoBase, { ...retratoBase, precoVenda: 42 }).map((m) => m.texto.replace(/\s/g, " ")), ["Preço de venda: R$ 38,90 → R$ 42,00"]);
+conferir("preco mudou", mudancasDaPeca(retratoBase, { ...retratoBase, precoVenda: 42 }).map((m) => m.texto.replace(/\s/g, " ")), ["Preço de venda: R$38,90 → R$42,00"]);
 conferir(
   "nome, descricao, peso, situacao e Conferido",
   mudancasDaPeca(retratoBase, { ...retratoBase, tituloBase: "PLACA UNO R3", descricao: "bbb", pesoKg: 0.03, ativo: false, conferido: false }).map((m) => m.campo),

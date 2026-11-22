@@ -24,7 +24,7 @@ function conferir(rotulo, obtido, esperado) {
 }
 const espera = (ms = 40) => new Promise((resolver) => setTimeout(resolver, ms));
 const fixture = (nome) => JSON.parse(readFileSync(new URL(`./fixtures/analise-fornecedor/${nome}`, import.meta.url), "utf8"));
-const brl = (v) => "R$ " + v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const brl = (v) => "R$" + v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 // --- DOM falso: o bastante para o script do modelo (criar, anexar, trocar, procurar por classe/atributo, eventos)
 function abrirPagina(html, { claude = null, clipboard = null, store = {} } = {}) {
@@ -163,16 +163,16 @@ const p1 = abrirPagina(htmlUsd, {
 await espera(80);
 conferir("US$: os 8 itens na tela", [p1.cartoes(), p1.ids.contagem.textContent], [8, "8 de 8 itens"]);
 conferir("US$: título e pedido com o nome do fornecedor", [p1.doc.title, p1.ids.titulo.textContent, p1.ids.pedidoRot.textContent, p1.ids.pedidoLinha1.textContent], ["ZZ Dólar × concorrentes", "ZZ Dólar × concorrentes", "Pedido de compra · ZZ Dólar", "PC-0099"]);
-conferir("US$: pedido lido ao abrir, só ele", [p1.ids.pedidoLinha2.textContent, chamadas.map((c) => c[1])], ["Rascunho · 1 itens · R$ 1.001,00", ["lerPedidoDeCompra"]]);
+conferir("US$: pedido lido ao abrir, só ele", [p1.ids.pedidoLinha2.textContent, chamadas.map((c) => c[1])], ["Rascunho · 1 itens · R$1.001,00", ["lerPedidoDeCompra"]]);
 conferir("US$: fórmula do custo no cabeçalho", p1.ids.meta.textContent.includes("custo = US$ × câmbio 5,5000 (06/11/2026) × fator 2"), true);
-conferir("custo = US$ × câmbio × fator, com o preço da lista embaixo e o código do fornecedor", [p1.texto(1).includes("R$ 11,00"), p1.texto(1).includes("US$ 1,00"), p1.texto(1).includes("ZZ Dólar · item 1 da lista · cód. A-1")], [true, true, true]);
+conferir("custo = US$ × câmbio × fator, com o preço da lista embaixo e o código do fornecedor", [p1.texto(1).includes("R$11,00"), p1.texto(1).includes("US$1,00"), p1.texto(1).includes("ZZ Dólar · item 1 da lista · cód. A-1")], [true, true, true]);
 conferir("ganho sobre o menor concorrente", [p1.card(1).querySelector(".pct").textContent, p1.texto(1).includes(`${brl(22)}`) && p1.texto(1).includes("menor de 3 lojas: Loja A")], ["100%", true]);
 conferir("comparação com o fornecedor mais barato", p1.texto(1).includes("ZZ Dólar 16% mais caro que Fortek"), true);
 conferir("sem fornecedor: diz que nenhum vende", p1.texto(2).includes("Nenhum fornecedor coletado vende."), true);
 conferir("produto do Rise preenchido com a data dos dados", [p1.ids["sku-1"].value, p1.texto(1).includes("190201 · SENSOR A") && p1.texto(1).includes("(Rise em 07/11)")], ["190201", true]);
 conferir("código sugerido avisa para conferir", p1.texto(2).includes("código sugerido pela análise"), true);
 conferir("sem Rise: Pôr na lista para criar, ligado com a quantidade guardada", [p1.botaoAdd(3).textContent, p1.botaoAdd(3).disabled, p1.ids["qtd-3"].value, p1.motivo(3)], ["Pôr na lista para criar", false, "7", "Vai para a lista de itens para criar no Rise, só com a sua permissão."]);
-conferir("lista criar carregada ao abrir", [p1.ids.pedidoLinha3.textContent.startsWith("Lista para criar no Rise: 1 item · R$ "), p1.texto(7).includes("Na lista para criar: 12 un."), p1.botaoAdd(7).textContent], [true, true, "Trocar quantidade da lista"]);
+conferir("lista criar carregada ao abrir", [p1.ids.pedidoLinha3.textContent.startsWith("Lista para criar no Rise: 1 item · R$"), p1.texto(7).includes("Na lista para criar: 12 un."), p1.botaoAdd(7).textContent], [true, true, "Trocar quantidade da lista"]);
 conferir("lista vincular carregada ao abrir: cartão avisa e o cabeçalho conta", [p1.texto(4).includes("Sem vínculo com ZZ Dólar no Rise: na lista para vincular (170402)"), p1.ids.pedidoLinha3.textContent.endsWith("· Para vincular: 1 item")], [true, true]);
 p1.botaoAdd(3).dispatch("click");
 await espera();
@@ -244,7 +244,7 @@ conferir("código conferido: produto de hoje e botão ligado", [p1.texto(3).incl
 p1.botaoAdd(3).dispatch("click");
 await espera();
 conferir("grava com o fornecedor do Rise, sku, quantidade e preço de 4 casas", chamadas.filter((c) => c[1] === "montarPedidoDeCompra").pop()[2], { fornecedor: "ZZ Fornecedor Dolar", itens: [{ sku: "100113", quantidade: 7, precoUnitario: 22, ipiPercentual: 0 }] });
-conferir("depois de gravar: cabeçalho, cartão e saiu da lista criar", [p1.ids.pedidoLinha2.textContent, p1.texto(3).includes("No PC-0099: 7 un."), bancoDocs.has("criar/n3")], ["Rascunho · 2 itens · R$ 1.002,00", true, false]);
+conferir("depois de gravar: cabeçalho, cartão e saiu da lista criar", [p1.ids.pedidoLinha2.textContent, p1.texto(3).includes("No PC-0099: 7 un."), bancoDocs.has("criar/n3")], ["Rascunho · 2 itens · R$1.002,00", true, false]);
 await espera();
 const vinc3 = gravacoesDb.find((g) => g[0] === "set" && g[1] === "vincular/n3");
 conferir("produto sem vínculo com o fornecedor: vai para a lista vincular com item, código e preço", [vinc3?.[2].n, vinc3?.[2].nome, vinc3?.[2].codigo, vinc3?.[2].sku, vinc3?.[2].fornecedor, vinc3?.[2].precoUnitario], [3, "Placa C sem Rise", null, "100113", "ZZ Fornecedor Dolar", 22]);
@@ -282,7 +282,7 @@ p1.ids.bCopiar.dispatch("click");
 await espera();
 const copiado = copiados.pop() ?? "";
 conferir("Copiar escolhas: pedido com código, quantidade e preço de 4 casas", ["PEDIDO DE COMPRA (PC-0099)", "190201; 20; 11.0000", "100113; 3; 5.5000", "100113; 7; 22.0000"].every((t) => copiado.includes(t)), true);
-conferir("Copiar escolhas: itens para criar e total", [copiado.includes("CRIAR NO RISE (só com a permissão do dono)"), copiado.includes("#7; Roda E; 5; 2.2000"), copiado.includes("4 itens · R$ 401,50")], [true, true, true]);
+conferir("Copiar escolhas: itens para criar e total", [copiado.includes("CRIAR NO RISE (só com a permissão do dono)"), copiado.includes("#7; Roda E; 5; 2.2000"), copiado.includes("4 itens · R$401,50")], [true, true, true]);
 conferir("depois de copiar o botão avisa", p1.ids.bCopiar.textContent, "Copiado: cole na conversa");
 conferir("rascunho local guarda código e quantidade", JSON.parse(p1.store[CHAVE_USD])[3], { sku: "100113", qtd: "7" });
 conferir("nenhuma chamada fora das 3 ferramentas declaradas", [...new Set(chamadas.map((c) => c[1]))].every((t) => ["lerPedidoDeCompra", "consultarProduto", "montarPedidoDeCompra"].includes(t)), true);
@@ -291,7 +291,7 @@ conferir("nenhuma chamada fora das 3 ferramentas declaradas", [...new Set(chamad
 const brlDados = fixture("dados-brl.json");
 const p2 = abrirPagina(montarPagina(modelo, brlDados), { clipboard: { writeText: async () => { throw new Error("negado"); } } });
 await espera(40);
-conferir("R$: custo é o preço da lista, sem US$ e sem linha de preço original", [p2.texto(10).includes("R$ 10,00"), p2.texto(10).includes("US$"), p2.ids.meta.textContent.includes("custo = preço da lista ·")], [true, false, true]);
+conferir("R$: custo é o preço da lista, sem US$ e sem linha de preço original", [p2.texto(10).includes("R$10,00"), p2.texto(10).includes("US$"), p2.ids.meta.textContent.includes("custo = preço da lista ·")], [true, false, true]);
 conferir("R$: título pelo nome (sem apelido) e sem rascunho", [p2.doc.title, p2.ids.pedidoLinha1.textContent], ["ZZ Fornecedor Real × concorrentes", "—"]);
 conferir("fora do claude.ai: o cabeçalho manda usar Copiar escolhas", p2.ids.pedidoLinha2.textContent, "Sem conexão com o Rise nesta visualização: use Copiar escolhas e cole na conversa.");
 p2.digitar("qtd-10", "5");
@@ -306,14 +306,14 @@ conferir("Copiar escolhas liga com 2 itens", [p2.ids.bCopiar.disabled, p2.ids.bC
 p2.ids.bCopiar.dispatch("click");
 await espera();
 const textoAberto = p2.ids.copiaTexto.value;
-conferir("área de transferência negada: o texto abre para copiar", [p2.ids.copia.hidden, textoAberto.includes("PEDIDO DE COMPRA (rascunho novo)"), textoAberto.includes("900100; 5; 10.0000"), textoAberto.includes("#11; Produto Y; 3; 4.0000"), textoAberto.includes("2 itens · R$ 62,00")], [false, true, true, true, true]);
+conferir("área de transferência negada: o texto abre para copiar", [p2.ids.copia.hidden, textoAberto.includes("PEDIDO DE COMPRA (rascunho novo)"), textoAberto.includes("900100; 5; 10.0000"), textoAberto.includes("#11; Produto Y; 3; 4.0000"), textoAberto.includes("2 itens · R$62,00")], [false, true, true, true, true]);
 p2.esc();
 conferir("Esc fecha o texto", p2.ids.copia.hidden, true);
 
 // --- 3. lista em R$ com fator
 const p3 = abrirPagina(montarPagina(modelo, { ...brlDados, fator: 1.5 }));
 await espera(20);
-conferir("R$ com fator: custo × fator e o preço da lista embaixo", [p3.texto(10).includes("R$ 15,00"), p3.texto(10).includes("R$ 10,00"), p3.ids.meta.textContent.includes("custo = preço da lista × fator 1,5")], [true, true, true]);
+conferir("R$ com fator: custo × fator e o preço da lista embaixo", [p3.texto(10).includes("R$15,00"), p3.texto(10).includes("R$10,00"), p3.ids.meta.textContent.includes("custo = preço da lista × fator 1,5")], [true, true, true]);
 
 console.log(falhas ? `\n${falhas} FALHA(S)` : "\nTODOS OS TESTES PASSARAM");
 process.exit(falhas ? 1 : 0);

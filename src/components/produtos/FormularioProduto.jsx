@@ -109,6 +109,7 @@ import {
   salvarProduto,
   promptsDaDescricao,
 } from "@/app/produtos/acoes";
+import { emDinheiro, formatoDeMoeda } from "@/lib/dinheiro";
 
 /// O que o formulario faz quando NAO recebe `acessos` (a tela de hoje, sem restricao). O calculo de verdade e
 /// `acessosDoCadastro` (src/lib/acessos/produto.js), feito no servidor pelas paginas.
@@ -661,10 +662,7 @@ const BORDA_DE_USO = {
 const reais = (valor) =>
   valor === null || valor === undefined
     ? "—"
-    : Number(valor).toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      });
+    : emDinheiro(Number(valor));
 
 /**
  * Campo com um icone DENTRO dele, a direita (desenho do dono). Os campos sao
@@ -1377,7 +1375,7 @@ function CampoPreco({
             {/* Nota pedida pelo dono em 22/09/2026: o imposto entra fixo por
                 enquanto, e a tela avisa disso em vez de parecer definitivo. */}
             <p className="border-t border-borda pt-2 text-[11px] text-suave">
-              % de lucro: quanto o preço passa do custo (R$ 50 com 100% = R$ 100). Imposto de{" "}
+              % de lucro: quanto o preço passa do custo (R$50 com 100% = R$100). Imposto de{" "}
               {(IMPOSTO_PADRAO * 100).toFixed(0)}% descontado só da margem em reais. Fixo por enquanto.
             </p>
           </div>
@@ -2065,7 +2063,7 @@ function textosDasSugestoes(pecas) {
   };
 }
 
-const MOEDA_DA_SOMA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const MOEDA_DA_SOMA = formatoDeMoeda();
 
 /** O campo ainda tem a sugestao anterior? Numeros comparam como numero ("6.80" e "6.8" sao o mesmo). */
 function mesmaSugestao(atual, sugerido) {

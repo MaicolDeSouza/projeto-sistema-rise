@@ -2,6 +2,7 @@ import { config, exigirTravaLiberada } from "./config";
 import { lerConexao, lerSegredo, salvarConexao } from "./conexoes";
 import { limitar, requisitar } from "./httpClient";
 import { obterTokenSobTrava } from "./travaDeRenovacao";
+import { formatoDeMoeda } from "../dinheiro.js";
 
 /**
  * Melhor Envio (modulo de frete, spec 2026-11-18-modulo-de-frete-design.md). Documentacao lida em 18/11/2026
@@ -147,7 +148,7 @@ export const meLer = (caminho, corpo) => chamar("POST", caminho, { corpo, tentat
 /** POST de escrita (carrinho, compra): trava FRETE_COMPRA e uma tentativa so (repetir uma compra compraria duas). */
 export const mePost = (caminho, corpo) => chamar("POST", caminho, { corpo, escrita: true, tentativas: 1 });
 
-const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const moeda = formatoDeMoeda();
 
 /** Teste de conexao: quem e a conta e quanto ha de saldo na carteira. */
 export async function testar() {

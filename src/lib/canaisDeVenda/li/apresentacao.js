@@ -6,6 +6,7 @@
  */
 
 import { ROTULO_DA_ETAPA_LI } from "./etapasCadastro";
+import { formatoDeMoeda } from "../../dinheiro.js";
 
 /**
  * As etapas que o popup de andamento mostra no Sincronizar e no Cadastrar da LI (pedido do dono em 26/10/2026, igual ao do
@@ -39,7 +40,7 @@ export const ETAPAS_DO_ENVIO_LI = {
 const LIMITE_DO_VALOR_NA_FRASE = 60;
 
 const NUMERO = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 });
-const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const MOEDA = formatoDeMoeda();
 
 const SUFIXO_DO_CAMPO = { peso: " kg", altura: " cm", largura: " cm", comprimento: " cm" };
 

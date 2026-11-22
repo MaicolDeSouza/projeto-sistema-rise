@@ -5,6 +5,7 @@ import { ExternalLink, Loader, Plus } from "lucide-react";
 
 import CabecalhoOrdenavel from "@/components/ui/CabecalhoOrdenavel";
 import { ROTULO_DO_TIPO_ML } from "@/lib/canaisDeVenda/ml/rotulos";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
 /**
  * A lista dos anuncios que a conta do ML JA TEM para o SKU e que ainda nao sao do Rise (definicao 4 do dono em 08/11/2026):
@@ -16,7 +17,7 @@ import { ROTULO_DO_TIPO_ML } from "@/lib/canaisDeVenda/ml/rotulos";
  * decrescente -> nada. A ordem inicial e a da acao: ativos primeiro, depois quem vendeu mais.
  */
 
-const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const MOEDA = formatoDeMoeda();
 const ESTADO = { active: "Ativo", paused: "Pausado", under_review: "Em revisão", inactive: "Inativo" };
 
 function comparar(a, b, campo) {

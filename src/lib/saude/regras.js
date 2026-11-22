@@ -165,7 +165,7 @@ export function avaliarIntegracao({ status, ultimoTesteOk, ultimoErro, recusas24
 /** O orcamento da IA no mes (`estadoDoOrcamento`): aviso a partir de 80%, esgotado em 100%. */
 export function avaliarOrcamento({ nivel, percentual, gastoBrl, tetoBrl } = {}) {
   const reais = (valor) => Number(valor ?? 0).toFixed(2).replace(".", ",");
-  const detalhe = `R$ ${reais(gastoBrl)} de R$ ${reais(tetoBrl)} no mês (${Math.round(Number(percentual ?? 0))}%).`;
+  const detalhe = `R$${reais(gastoBrl)} de R$${reais(tetoBrl)} no mês (${Math.round(Number(percentual ?? 0))}%).`;
   if (nivel === "esgotado") return { estado: "falha", detalhe };
   if (nivel === "aviso") return { estado: "atencao", detalhe };
   return { estado: "ok", detalhe };

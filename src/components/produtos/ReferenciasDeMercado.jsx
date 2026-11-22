@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { buscarPorPalavras } from "@/app/produtos/acoes";
+import { emDinheiro } from "@/lib/dinheiro";
 
 const ROTULO_TIPO = {
   FORNECEDOR: { texto: "Fornecedor", classe: "bg-emerald-100 text-emerald-800" },
@@ -95,7 +96,7 @@ export const MAXIMO_MARCADOS = 30;
 const reais = (valor) =>
   valor === null || valor === undefined
     ? "—"
-    : valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    : emDinheiro(valor);
 
 /**
  * Foto principal do produto coletado.

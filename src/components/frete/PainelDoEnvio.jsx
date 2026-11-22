@@ -10,8 +10,9 @@ import { numeroDoEnvio, servicoCompravel, SITUACAO_DO_ENVIO } from "@/lib/frete/
 
 import JanelaDeCancelamento from "./JanelaDeCancelamento";
 import JanelaDeCompra from "./JanelaDeCompra";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
-const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const moeda = formatoDeMoeda();
 const prazo = (dias) => (dias ? `${dias} ${dias === 1 ? "dia útil" : "dias úteis"}` : null);
 const dataHora = (valor) =>
   valor ? new Date(valor).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }) : null;

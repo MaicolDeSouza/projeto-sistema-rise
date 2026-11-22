@@ -146,7 +146,7 @@ conferir(
     regras.valoresDoPagamento({ total: 100, parcelas: 1, entradaTipo: "VALOR", entradaValor: 500 }).entrada,
     regras.textoDoPagamento({ condicaoNome: "28/56 dias", parcelas: 2, entradaTipo: "VALOR", entradaValor: 300, total: 1000 }).replace(/\u00a0/g, " "),
   ],
-  [{ entrada: 300, restante: 700, parcela: 350, parcelas: 2 }, 100, "28/56 dias após emissão da NF · entrada de R$ 300,00 · 2x de R$ 350,00"],
+  [{ entrada: 300, restante: 700, parcela: 350, parcelas: 2 }, 100, "28/56 dias após emissão da NF · entrada de R$300,00 · 2x de R$350,00"],
 );
 conferir("valores: entrada sai das parcelas", regras.valoresDoPagamento({ total: 1182, parcelas: 3, entradaPercentual: 10 }), { entrada: 118.2, restante: 1063.8, parcela: 354.6, parcelas: 3 });
 conferir(
@@ -155,7 +155,7 @@ conferir(
     regras.textoDoPagamento({ condicaoNome: "30/60/90 dias", parcelas: 3, entradaPercentual: 0, total: 1182 }),
     regras.textoDoPagamento({ condicaoNome: "50% de entrada + 50% na entrega", parcelas: 1, entradaPercentual: 50, totais: { total: 1182 } }),
   ].map((texto) => texto.replace(/\u00a0/g, " ")), // o Intl poe espaco nao separavel depois do R$
-  ["30/60/90 dias após emissão da NF · 3x de R$ 394,00", "50% de entrada + 50% na entrega · entrada de 50% (R$ 591,00) · saldo de R$ 591,00"],
+  ["30/60/90 dias após emissão da NF · 3x de R$394,00", "50% de entrada + 50% na entrega · entrada de 50% (R$591,00) · saldo de R$591,00"],
 );
 conferir(
   "pendencias do PDF",
@@ -461,12 +461,12 @@ try {
   conferir(
     "PDF: frete diluido vira 'CIF (Incluso)' e o total nao muda",
     [doFrete.linhasDeTotal.find(([r]) => r === "Frete")?.[1], doFrete.total.replace(/ /g, " ")],
-    ["CIF (Incluso)", `R$ ${comFrete.totais.total.toFixed(2).replace(".", ",")}`],
+    ["CIF (Incluso)", `R$${comFrete.totais.total.toFixed(2).replace(".", ",")}`],
   );
   // Frete no quadro do total (17/11/2026): CIF a parte com o valor, CIF sem valor gratis.
   // (Os totais de `comFrete` sao os do frete diluido, que em centavos da 30,02; sem diluir o frete e o digitado, 30.)
   const freteDe = (mudanca) => conteudoDoFrete({ ...comFrete, ...mudanca, totais: { ...comFrete.totais, ...(mudanca.totais ?? {}) } }, null).linhasDeTotal.find(([r]) => r === "Frete")[1].replace(/\s/g, " ");
-  conferir("PDF: CIF a parte mostra 'CIF R$ 30,00' e CIF sem valor 'CIF (Grátis)'", [freteDe({ freteDiluido: false, totais: { frete: 30 } }), freteDe({ freteDiluido: false, totais: { frete: 0 } })], ["CIF R$ 30,00", "CIF (Grátis)"]);
+  conferir("PDF: CIF a parte mostra 'CIF R$30,00' e CIF sem valor 'CIF (Grátis)'", [freteDe({ freteDiluido: false, totais: { frete: 30 } }), freteDe({ freteDiluido: false, totais: { frete: 0 } })], ["CIF R$30,00", "CIF (Grátis)"]);
   await banco.salvarProposta(p2.numero, { ...comCliente, fretePorConta: "FOB", frete: "30", freteDiluido: true }, { hoje: "2026-11-12" });
   conferir("frete diluido so existe no CIF", (await banco.lerProposta(p2.numero)).freteDiluido, false);
 
@@ -773,7 +773,7 @@ try {
     ["1 item(ns) sem marca ou modelo (o padrão do cliente exige)."],
   );
   conferir("pendencia: sem exigencia nao pede marca", regras.pendenciasDoPdf({ clienteNome: "X", itens: [{ descricaoCliente: "a" }] }), []);
-  conferir("faturamento minimo no formato do SENAI", [regras.textoDoFaturamentoMinimo(50), regras.textoDoFaturamentoMinimo(null)], ["Valor para faturamento mínimo: R$ 50,00", null]);
+  conferir("faturamento minimo no formato do SENAI", [regras.textoDoFaturamentoMinimo(50), regras.textoDoFaturamentoMinimo(null)], ["Valor para faturamento mínimo: R$50,00", null]);
 
   // A p2 ja foi aprovada (pedido de venda): reabre para editar.
   await banco.mudarSituacao(p2.numero, "EM_NEGOCIACAO");
@@ -791,7 +791,7 @@ try {
   const conteudoComPadrao = conteudoDaProposta(relida, { ...empresaFalsa, faturamentoMinimo: 50 });
   conferir(
     "PDF: coluna Marca / Modelo e faturamento minimo",
-    [conteudoComPadrao.colunas.some((c) => c.chave === "marca"), conteudoComPadrao.itens[0].celulas.marca, conteudoComPadrao.blocos.some(([titulo, texto]) => titulo === "Faturamento mínimo" && texto.includes("R$ 50,00"))],
+    [conteudoComPadrao.colunas.some((c) => c.chave === "marca"), conteudoComPadrao.itens[0].celulas.marca, conteudoComPadrao.blocos.some(([titulo, texto]) => titulo === "Faturamento mínimo" && texto.includes("R$50,00"))],
     [true, "GENÉRICA / HTS-315", true],
   );
   conferir("PDF: sem marca e sem padrao, a coluna nao aparece", conteudoDaProposta({ ...relida, padrao: null, itens: relida.itens.map((i) => ({ ...i, marca: null, modelo: null })) }, empresaFalsa).colunas.some((c) => c.chave === "marca"), false);

@@ -119,7 +119,7 @@ export async function colherWooCommerce({ catalogo, origem, secao, limite, orcam
     PIX DA LOJA, APRENDIDO NAS PRIMEIRAS PAGINAS (Makerhero, 09/10/2026).
 
     A Store API nao traz o preco a vista; ele so existe no bloco do Simulador de
-    Parcelas da pagina de cada produto ("R$ 12,25 no PIX"). Abrir a pagina de todo
+    Parcelas da pagina de cada produto ("R$12,25 no PIX"). Abrir a pagina de todo
     produto DOBRARIA a varredura (2 s por visita). O desconto e da loja, entao a
     regra e aprendida com a mesma logica da Tray (pagamento.js: percentual unico e
     o modo de arredondar provado por amostra que separa os dois) e aplicada ao

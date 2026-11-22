@@ -27,7 +27,7 @@ export async function salvarConfigDeFrete(entrada) {
   const erros = {};
   const acrescimo = lerDecimal(entrada?.acrescimoDeEmbalagem);
   const percentual = lerDecimal(entrada?.percentualDePesoExtra);
-  if (acrescimo === null || acrescimo > 100) erros.acrescimoDeEmbalagem = "Valor de R$ 0,00 a R$ 100,00.";
+  if (acrescimo === null || acrescimo > 100) erros.acrescimoDeEmbalagem = "Valor de R$0,00 a R$100,00.";
   if (percentual === null || percentual > 100) erros.percentualDePesoExtra = "Percentual de 0 a 100.";
   const textos = {};
   for (const [campo, limite] of Object.entries(TEXTOS)) {

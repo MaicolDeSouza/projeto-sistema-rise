@@ -1,9 +1,11 @@
+import { formatoDeMoeda } from "@/lib/dinheiro";
+
 /**
  * Formatos da tela de Pedidos de venda: moeda, data e hora em Sao Paulo (o servidor roda em UTC na VPS, e a data do
  * pedido tem de sair igual no PC e la) e a abreviacao do pagamento. Sem imports: serve ao servidor e ao cliente.
  */
 
-export const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+export const moeda = formatoDeMoeda();
 
 const DIA_E_HORA = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const DATA_COMPLETA = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });

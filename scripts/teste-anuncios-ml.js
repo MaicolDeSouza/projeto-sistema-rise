@@ -569,7 +569,7 @@ try {
       conferir("disputa: ganhador e o do winner, nao o 1o da lista", [medida.ganhadorId, medida.ganhadorPreco], ["MLB2652746578", 26]);
       conferir("disputa: fora da disputa com o motivo", textoDaDisputa(medida), { texto: "Você está fora da disputa: o anúncio tem prazo de fabricação.", ganhando: false });
       conferir("disputa: ganhando", textoDaDisputa({ ...medida, status: "winning", motivos: [] }).ganhando, true);
-      conferir("disputa: competindo com o preco para ganhar", textoDaDisputa({ ...medida, status: "competing", motivos: [], precoParaGanhar: 25.9 }).texto, "Você compete, mas não está ganhando; para ganhar: R$ 25,90.");
+      conferir("disputa: competindo com o preco para ganhar", textoDaDisputa({ ...medida, status: "competing", motivos: [], precoParaGanhar: 25.9 }).texto, "Você compete, mas não está ganhando; para ganhar: R$25,90.");
       conferir("disputa: motivo desconhecido sai com o codigo", textoDaDisputa({ ...medida, motivos: ["novo_motivo"] }).texto, "Você está fora da disputa: novo_motivo.");
       conferir("disputa: resposta vazia nao marca nada", [disputaDoPrecoParaGanhar(null, "MLB1"), textoDaDisputa(null)], [null, null]);
     }
@@ -2254,8 +2254,8 @@ try {
       await prisma.produto.update({ where: { id: p1.id }, data: { custo: 3.21, pesoKg: 0.5 } });
       conferir("custo ou peso da peca mudou: o anuncio do kit nao acende", await alertaDoKit(), null);
       await prisma.produto.update({ where: { id: p1.id }, data: { precoVenda: 16.9 } });
-      conferir("preco da peca mudou: o anuncio do kit acende no popup da peca, com o antes e o depois", await alertaDoKit(), "peças do kit mudaram: ZZ-ML-P1 (Preço de venda: — → R$ 16,90)");
-      conferir("e no popup do proprio kit", (await doProduto(kit.id))[0].alerta, "peças do kit mudaram: ZZ-ML-P1 (Preço de venda: — → R$ 16,90)");
+      conferir("preco da peca mudou: o anuncio do kit acende no popup da peca, com o antes e o depois", await alertaDoKit(), "peças do kit mudaram: ZZ-ML-P1 (Preço de venda: — → R$16,90)");
+      conferir("e no popup do proprio kit", (await doProduto(kit.id))[0].alerta, "peças do kit mudaram: ZZ-ML-P1 (Preço de venda: — → R$16,90)");
       conferir("o anuncio da peca nao acende pelo kit", (await doProduto(p1.id)).map((linha) => linha.alerta), [null, null]);
       await prisma.produtoComponente.deleteMany({ where: { kitId: { in: [kit.id, kit2.id] } } });
     }
@@ -3097,7 +3097,7 @@ try {
         concorrentes: [{ vendedorApelido: "ARDU_ROBÓTICA EIRELI", historico: [{ preco: 37.9, lidoEm: new Date("2026-10-21T12:00:00Z") }, { preco: 39.54, lidoEm: new Date("2026-10-20T12:00:00Z") }] }],
         vistoEm: null,
       }),
-      [{ tipo: "preco_baixou", texto: "ARDU_ROBÓTICA EIRELI baixou para R$ 37,90" }],
+      [{ tipo: "preco_baixou", texto: "ARDU_ROBÓTICA EIRELI baixou para R$37,90" }],
     );
   }
 
@@ -3546,7 +3546,7 @@ try {
     await criarPronto("ZZ-ML-PA9", { precoVenda: 58 });
     const comPiso = await gravarPropostaML(ml(), "ZZ-ML-PA9", { categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] });
     const anuncioComPiso = await prisma.anuncio.findUnique({ where: { id: comPiso.anuncioId } });
-    conferir("variante: entre 72 e 79 o rascunho sobe para R$ 79 com frete gratis e avisa", [comPiso.preco.valor, comPiso.preco.variante, anuncioComPiso.dados.preco, anuncioComPiso.dados.envio.freteGratis, anuncioComPiso.dados.tipoAnuncio, comPiso.avisos.some((aviso) => /R\$ 79/.test(aviso.replace(/ /g, " ")))], [79, "classico_frete_gratis", 79, true, "gold_special", true]);
+    conferir("variante: entre 72 e 79 o rascunho sobe para R$ 79 com frete gratis e avisa", [comPiso.preco.valor, comPiso.preco.variante, anuncioComPiso.dados.preco, anuncioComPiso.dados.envio.freteGratis, anuncioComPiso.dados.tipoAnuncio, comPiso.avisos.some((aviso) => /R\$\s?79/.test(aviso.replace(/ /g, " ")))], [79, "classico_frete_gratis", 79, true, "gold_special", true]);
     // Premium (decisao do dono em 08/11/2026): com o Classico a R$ 150 ou mais, a proposta grava TAMBEM o Premium com frete gratis,
     // com o preco do mesmo lucro (a comissao do Premium e maior). Gravar de novo atualiza os mesmos dois rascunhos.
     await criarPronto("ZZ-ML-PA11", { precoVenda: 180 });

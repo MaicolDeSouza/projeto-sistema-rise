@@ -1,5 +1,6 @@
 import { formatarTelefone } from "@/lib/telefone";
 import { TEXTO_DO_FRETE, dataBR, garantiaCurta, hojeEmSaoPaulo, itensComFreteDiluido, nomeDoItemParaOCliente, numeroDaProposta, prazoDaFaixa, textoDoFaturamentoMinimo, textoDoPagamento, textoDoPrazo, totalDoItem } from "@/lib/propostas/regras";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
 /**
  * O que o CLIENTE le, igual no PDF e no link publico (spec 2026-11-12, "PDF e link publico"). Aqui se decide o que
@@ -10,8 +11,8 @@ import { TEXTO_DO_FRETE, dataBR, garantiaCurta, hojeEmSaoPaulo, itensComFreteDil
  * ali eram a descricao e o codigo do cliente, e o nosso nome e codigo nunca saiam).
  */
 
-const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-const unitario = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 4 });
+const moeda = formatoDeMoeda();
+const unitario = formatoDeMoeda({ minimumFractionDigits: 2, maximumFractionDigits: 4 });
 const quantidade = (valor) => Number(valor).toLocaleString("pt-BR", { maximumFractionDigits: 3 });
 
 export const COLUNAS = [

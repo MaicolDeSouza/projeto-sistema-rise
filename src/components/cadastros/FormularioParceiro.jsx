@@ -136,7 +136,7 @@ export default function FormularioParceiro({ slug, parceiro, fontes, usos, somen
               placeholder="1"
               erro={erros.fatorImportacao}
               defaultValue={valor("fatorImportacao") === "" ? "" : String(valor("fatorImportacao"))}
-              ajuda="Frete e impostos da importação. Fator 2: R$ 10 convertidos viram R$ 20 de custo. Vazio = 1."
+              ajuda="Frete e impostos da importação. Fator 2: R$10 convertidos viram R$20 de custo. Vazio = 1."
             />
             <div className="md:col-span-2">
               <Campo

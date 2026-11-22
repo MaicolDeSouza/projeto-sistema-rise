@@ -53,7 +53,7 @@ function textoDaMensagem(mensagem) {
 }
 
 function linhaDoProduto(produto) {
-  const preco = typeof produto.preco === "number" ? ` | R$ ${produto.preco.toFixed(2).replace(".", ",")}` : "";
+  const preco = typeof produto.preco === "number" ? ` | R$${produto.preco.toFixed(2).replace(".", ",")}` : "";
   const estoque = typeof produto.estoque === "number" ? ` | ${produto.estoque} em estoque` : "";
   return `- ${produto.sku} | ${produto.nome}${preco}${estoque}`;
 }

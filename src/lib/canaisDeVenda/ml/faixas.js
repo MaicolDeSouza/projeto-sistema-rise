@@ -51,10 +51,10 @@ export const ROTULO_DA_VARIANTE = {
  * leem daqui, para as duas nunca dizerem coisas diferentes.
  */
 export const REGRAS_DAS_VARIANTES = [
-  "Preço no ML abaixo de R$ 72: um anúncio, Clássico sem frete.",
-  "De R$ 72 a R$ 78,99: sobe para R$ 79, Clássico + frete grátis (o frete grátis é obrigatório a partir de R$ 79).",
-  "De R$ 79 a R$ 149,99: um anúncio, Clássico + frete grátis.",
-  "A partir de R$ 150: dois anúncios, Clássico + frete grátis e Premium + frete grátis.",
+  "Preço no ML abaixo de R$72: um anúncio, Clássico sem frete.",
+  "De R$72 a R$78,99: sobe para R$79, Clássico + frete grátis (o frete grátis é obrigatório a partir de R$79).",
+  "De R$79 a R$149,99: um anúncio, Clássico + frete grátis.",
+  "A partir de R$150: dois anúncios, Clássico + frete grátis e Premium + frete grátis.",
   "O preço de cada anúncio deixa no ML o mesmo lucro em R$ que o produto deixa na loja.",
   "Kit: a faixa vale pelo preço do anúncio do kit, e o lucro é o da loja vezes a quantidade.",
 ];

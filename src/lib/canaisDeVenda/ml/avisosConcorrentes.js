@@ -3,7 +3,7 @@
  * sem imports: o editor (navegador) e a lista de anuncios (servidor) usam o mesmo texto.
  */
 
-const reais = (valor) => `R$ ${Number(valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const reais = (valor) => `R$${Number(valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const depoisDe = (data, vistoEm) => !vistoEm || new Date(data) > new Date(vistoEm);
 const centavos = (valor) => (valor === null || valor === undefined ? null : Math.round(Number(valor) * 100));
 

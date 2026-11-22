@@ -12,6 +12,7 @@ import ProporCorrecao from "./ProporCorrecao";
 import SugestoesDaIA from "./SugestoesDaIA";
 import { ROTULO_DA_PASSAGEM, ROTULO_DO_FILTRO, resumoDaRespostaDaLoja } from "@/lib/riseAi/revisaoDaLoja";
 import { custoEmTexto, rotuloDoProvedor } from "./formatos";
+import { emDinheiro } from "@/lib/dinheiro";
 
 const ROTULOS_DA_SUSPEITA = {
   sem_resultado: "IA: sem resultado",
@@ -44,7 +45,7 @@ function RespostaDaLoja({ mensagem }) {
   const { cartoes, lista, passagem, barrada } = resumoDaRespostaDaLoja(mensagem.estruturado);
   const notaDoVisitante = mensagem.avaliadoPor === "visitante" && mensagem.avaliacao ? mensagem.avaliacao : 0;
   if (cartoes.length === 0 && !lista && !passagem && !barrada && !notaDoVisitante) return null;
-  const reais = (valor) => (valor == null ? "" : Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }));
+  const reais = (valor) => (valor == null ? "" : emDinheiro(Number(valor)));
   return (
     <div className="flex flex-col gap-2 rounded-md border border-borda bg-fundo px-3 py-2.5 text-xs">
       {barrada && (

@@ -166,7 +166,7 @@ export function vereditoPelasRegras(contas) {
   if (motivos.length) return { veredito: "NAO_VALE", motivos };
 
   if (markup < LIMITES.markupMinimo) motivos.push(`Markup de ${markup}% (abaixo de ${LIMITES.markupMinimo}%).`);
-  if (lucro < LIMITES.lucroMinimo) motivos.push(`Lucro de R$ ${lucro.toFixed(2).replace(".", ",")} por unidade (abaixo de R$ ${LIMITES.lucroMinimo}).`);
+  if (lucro < LIMITES.lucroMinimo) motivos.push(`Lucro de R$${lucro.toFixed(2).replace(".", ",")} por unidade (abaixo de R$${LIMITES.lucroMinimo}).`);
   if (motivos.length) return { veredito: "NAO_VALE", motivos };
 
   if (markup < LIMITES.markupBom) motivos.push(`Markup de ${markup}% (abaixo de ${LIMITES.markupBom}%).`);
@@ -176,7 +176,7 @@ export function vereditoPelasRegras(contas) {
   if (contas?.lucro?.freteEstimado) motivos.push("Frete estimado (sem as medidas do pacote).");
   const minimo = contas?.lucro?.precoMinimo ?? null;
   const menor = contas?.mercado?.precoMenor ?? null;
-  if (minimo !== null && menor !== null && menor < minimo) motivos.push(`Menor preço do mercado (R$ ${menor.toFixed(2).replace(".", ",")}) abaixo do nosso mínimo.`);
+  if (minimo !== null && menor !== null && menor < minimo) motivos.push(`Menor preço do mercado (R$${menor.toFixed(2).replace(".", ",")}) abaixo do nosso mínimo.`);
 
   return { veredito: motivos.length ? "VALE_COM_RESSALVA" : "VALE", motivos };
 }

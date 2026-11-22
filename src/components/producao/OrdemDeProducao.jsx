@@ -11,6 +11,7 @@ import FotoComLupa from "@/components/ui/FotoComLupa";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import { custoDasPecas } from "@/lib/producao/regras";
+import { emDinheiro } from "@/lib/dinheiro";
 
 const PASSOS = [
   { situacao: "ABERTA", texto: "Aberta", data: "criadoEm" },
@@ -18,7 +19,7 @@ const PASSOS = [
   { situacao: "CONCLUIDA", texto: "Concluída", data: "concluidaEm" },
 ];
 
-const reais = (valor) => (valor === null || valor === undefined ? "—" : Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }));
+const reais = (valor) => (valor === null || valor === undefined ? "—" : emDinheiro(Number(valor)));
 const data = (valor) => (valor ? new Date(valor).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : null);
 const numero = (valor) => Number(valor).toLocaleString("pt-BR", { maximumFractionDigits: 3 });
 

@@ -10,6 +10,7 @@ import {
   salvarPromptDoModelo,
 } from "@/app/produtos/acoes-nanobanana";
 import { ImagemComZoom } from "./ImagemComZoom";
+import { emDinheiro } from "@/lib/dinheiro";
 
 /**
  * A aba "Nano Banana" da janela de fotos (spec §7, layout B): o quadro com a ultima geracao e, embaixo dele,
@@ -24,8 +25,8 @@ import { ImagemComZoom } from "./ImagemComZoom";
  * em dolar, no cartao, e a confirmacao diz os dois.
  */
 
-const reais = (valor) => valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const dolares = (valor) => `US$ ${valor.toFixed(3).replace(".", ",")}`;
+const reais = (valor) => emDinheiro(valor);
+const dolares = (valor) => `US$${valor.toFixed(3).replace(".", ",")}`;
 
 async function tentar(acao) {
   try {

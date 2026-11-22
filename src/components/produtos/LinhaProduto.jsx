@@ -21,6 +21,7 @@ import IconeLojaIntegrada from "./IconeLojaIntegrada";
 import JanelaShopee from "./JanelaShopee";
 import MarcaNaoAnunciar from "./MarcaNaoAnunciar";
 import { naoAnunciaEm } from "@/lib/canaisDeVenda/naoAnunciar";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
 /// O produto sem estado conhecido do Bling: cinza, sem selo (nunca sincronizado e sem pendencia).
 const ICONE_BLING_PADRAO = { cor: "cinza", divergente: false, motivos: [] };
@@ -174,10 +175,7 @@ export default function LinhaProduto({
   const foraDoRiseML = iconeML.foraDoRise > 0 ? `, ${iconeML.foraDoRise} ${iconeML.foraDoRise === 1 ? "anúncio" : "anúncios"} na conta fora do Rise` : "";
   const rotuloML = `${naoML ? `Mercado Livre: marcado para não anunciar${foraDoRiseML}` : iconeML.proposta ? "Mercado Livre: Proposta pronta, aguardando aprovação" : rotuloDoIconeML(iconeML)}${sufixoInativo}`;
 
-  const moeda = new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
+  const moeda = formatoDeMoeda();
 
   return (
     <tr

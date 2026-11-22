@@ -5,6 +5,7 @@ import { Copy, Loader, Search, X } from "lucide-react";
 
 import { buscarPorCodigo } from "@/app/produtos/acoes";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
+import { emDinheiro } from "@/lib/dinheiro";
 
 const ROTULO_TIPO = {
   RISE: { texto: "Rise", classe: "bg-sky-100 text-sky-800" },
@@ -16,7 +17,7 @@ const ROTULO_TIPO = {
 const reais = (valor) =>
   valor === null || valor === undefined
     ? null
-    : valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    : emDinheiro(valor);
 
 /**
  * Busca um codigo no banco e entrega os campos a quem chamou.

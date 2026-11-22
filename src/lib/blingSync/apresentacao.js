@@ -1,3 +1,5 @@
+import { formatoDeMoeda } from "@/lib/dinheiro";
+
 /**
  * Textos e contas do pop-up do Bling (`JanelaBling.jsx`) e do botao "Sincronizar estoque com Bling"
  * (`BotaoSincronizarEstoque.jsx`): como um valor aparece na tela, o resumo do que um envio fez, o
@@ -45,7 +47,7 @@ export const ETAPAS_DO_ENVIO = {
 /// caracteres, e a lista completa de diferencas ja esta na janela.
 const LIMITE_DO_VALOR_NA_FRASE = 60;
 
-const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const MOEDA = formatoDeMoeda();
 const NUMERO = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 });
 
 /// A unidade que cada campo numerico leva. Os valores ja chegam normalizados (peso em kg, medidas em

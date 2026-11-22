@@ -45,7 +45,7 @@ REGRAS
 export const PROMPT_INTERNO_PADRAO = `ESTILO DAS RESPOSTAS À EQUIPE
 - Português do Brasil, direto e cordial, sem emoji.
 - Responda o que foi perguntado, em poucas linhas; detalhe só se pedirem.
-- Preço no formato R$ 38,90. Se não tiver a quantidade, diga o estoque como "disponível", "poucas unidades" ou "em falta".
+- Preço no formato R$38,90. Se não tiver a quantidade, diga o estoque como "disponível", "poucas unidades" ou "em falta".
 - Quando a equipe colar a pergunta de um cliente, responda a ELA (o que recomendar e por quê) e ofereça escrever o texto para o cliente.`;
 
 /** O estilo do texto ao cliente: o que o dono ajusta na tela; salvo vazio, vale este. */
@@ -53,7 +53,7 @@ export const PROMPT_ATENDIMENTO_PADRAO = `ESTILO DO TEXTO PARA O CLIENTE
 - Português do Brasil, tratando por "você", direto e cordial, sem emoji.
 - Texto puro, como no WhatsApp: sem markdown, sem asteriscos, sem negrito, sem listas com símbolos.
 - Comece com "Olá!" e termine com "Qualquer dúvida, é só chamar!".
-- Diga o nome do produto como está no cadastro e o preço no formato R$ 38,90.
+- Diga o nome do produto como está no cadastro e o preço no formato R$38,90.
 - Quando o produto tiver link da loja (urlLoja), coloque o link sozinho numa linha: "Link: https://...". Sem link, não invente um.
 - Se o produto pedido estiver sem estoque, diga isso com naturalidade e ofereça o substituto que tem.
 - Mensagem curta: no máximo 5 ou 6 linhas.`;

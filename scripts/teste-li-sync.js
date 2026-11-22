@@ -892,7 +892,7 @@ try {
     const liN = criarLojaIntegradaFalsa({});
     const cadN = await cadastrarNaLI(pn.id, liN, criarBlingDaLI());
     const novoN = liN.produtos().at(-1);
-    conferir("preço na tela em reais", /^R\$\s16,00$/.test(valorParaTela("preco", 16)), true);
+    conferir("preço na tela em reais", /^R\$16,00$/.test(valorParaTela("preco", 16)), true);
     conferir("cadastrar grava o preço depois do POST", [cadN.ok, Number(novoN.preco_cheio), liN.chamadas.findIndex((c) => c.metodo === "POST") < liN.chamadas.findIndex((c) => c.metodo === "PUT" && String(c.caminho).startsWith("/produto_preco"))], [true, 29.9, true]);
   }
 

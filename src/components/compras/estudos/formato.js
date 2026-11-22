@@ -1,7 +1,9 @@
+import { formatoDeMoeda } from "@/lib/dinheiro";
+
 /** Formatacao e cores dos estudos de viabilidade, para a lista e o relatorio lerem o mesmo. */
 
 export const moeda = (valor) =>
-  valor === null || valor === undefined ? "—" : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
+  valor === null || valor === undefined ? "—" : formatoDeMoeda().format(valor);
 
 export const data = (valor) => (valor ? new Date(valor).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—");
 

@@ -40,7 +40,7 @@ function Calculado({ rotulo, valor }) {
 export function BlocoTotais({ formulario, totais, editar, erros, aoMudar }) {
   const desconto = lerDesconto(formulario.desconto);
   return (
-    <SecaoDoAnuncio titulo="Totais da compra" ajuda="Desconto: digite 5% para percentual ou 50 para R$ 50,00. O percentual incide sobre os produtos.">
+    <SecaoDoAnuncio titulo="Totais da compra" ajuda="Desconto: digite 5% para percentual ou 50 para R$50,00. O percentual incide sobre os produtos.">
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_auto]">
         <div className="grid grid-cols-2 gap-3 rounded-md border border-borda p-3">
           <p className="col-span-2 -mt-0.5 text-xs font-semibold text-texto">Impostos</p>

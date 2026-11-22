@@ -216,7 +216,7 @@ conferir(
   conferir("pagamento e proposta", [text.includes("Boleto em 3x"), text.includes("4512")], [true, true]);
   // O campo Frete (transportadora, CIF/FOB) saiu do PDF (pedido do dono em 26/10/2026); o valor do frete fica nos totais.
   conferir("sem o campo Frete no PDF", [/\(FOB\)|\(CIF\)/.test(text), text.includes("Transportes X")], [false, false]);
-  conferir("valor do frete continua nos totais", text.includes("R$ 20,00"), true);
+  conferir("valor do frete continua nos totais", text.includes("R$20,00"), true);
 
   // Fornecedor estrangeiro: ingles, dolar sem o fator, sem IPI (pedido do dono em 06/11/2026).
   const { dolarSemFator } = await import("../src/lib/compras/dadosDoPdf.js");

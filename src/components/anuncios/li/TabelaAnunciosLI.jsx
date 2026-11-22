@@ -11,6 +11,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import FotoComLupa from "@/components/ui/FotoComLupa";
 import { CANAIS } from "@/lib/canais";
 import { STATUS_LI } from "@/lib/canaisDeVenda/li/rotulos";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
 /**
  * Lista dos anuncios da Loja Integrada (busca e paginacao moram na pagina). Colunas na ordem do padrao do projeto, a mesma
@@ -18,7 +19,7 @@ import { STATUS_LI } from "@/lib/canaisDeVenda/li/rotulos";
  * por ultimo, o icone da LI igual ao da lista de Produtos (com o "!"). A ordem mora na URL e e feita no banco antes de paginar.
  */
 
-const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const moeda = formatoDeMoeda();
 const LOGO_LI = CANAIS.find((canal) => canal.id === "LOJA_INTEGRADA")?.logo;
 
 // A cor da situacao vira um ponto e o texto fica neutro, numa linha so (o mesmo desenho da lista do ML).

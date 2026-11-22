@@ -8,8 +8,9 @@ import GraficoCotacao from "@/components/ferramentas/GraficoCotacao";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import Card from "@/components/ui/Card";
 import { PERIODOS, dataBr, dataHoraBr } from "@/lib/ferramentas/cotacao";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
-const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 4 });
+const MOEDA = formatoDeMoeda({ minimumFractionDigits: 4 });
 const PERCENTUAL = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const ULTIMOS_DIAS_NA_TABELA = 10;

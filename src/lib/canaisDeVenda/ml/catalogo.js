@@ -212,7 +212,7 @@ const MOTIVO_DA_DISPUTA = {
 export function textoDaDisputa(disputa) {
   if (!disputa?.status) return null;
   const motivos = disputa.motivos.map((m) => MOTIVO_DA_DISPUTA[m] ?? m).join("; ");
-  const reais = (valor) => `R$ ${Number(valor).toFixed(2).replace(".", ",")}`;
+  const reais = (valor) => `R$${Number(valor).toFixed(2).replace(".", ",")}`;
   if (disputa.status === "winning") return { texto: "Você está ganhando este catálogo.", ganhando: true };
   if (disputa.status === "sharing_first_place") return { texto: "Você divide o 1º lugar com outro anúncio.", ganhando: true };
   if (disputa.status === "competing") {

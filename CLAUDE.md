@@ -58,8 +58,10 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
 - **Marca e Modelo** sempre em MAIÚSCULAS (ver "Produtos: Buscar por código").
 - **Valor em dinheiro SEM espaço depois do símbolo** (regra do dono em 22/11/2026: "Sempre quando houver valor R$ ou $
   não precisa ter espaço entre eles"): `R$18.195,36`, `US$12,50`, nunca `R$ 18.195,36`. O `Intl.NumberFormat` com
-  `style: "currency"` põe um espaço (NBSP) depois do símbolo; código novo que mostra valor tira esse espaço. Ajuste das
-  telas que já existem: esperando a escolha do dono do alcance.
+  `style: "currency"` põe um espaço (NBSP) depois do símbolo, então **todo formato de moeda passa por `src/lib/dinheiro.js`**
+  (`formatoDeMoeda(opcoes)` no lugar do `new Intl.NumberFormat`, `emDinheiro(valor)` no lugar do `toLocaleString`) e
+  texto montado à mão escreve `R$${valor}`. Aplicado em 22/11/2026 a todo o Rise (Opção 1 do dono: telas, PDFs, Telegram,
+  MCP, relatório, prompts e a janela do chat da loja), 99 arquivos.
 - **Texto da descrição** (pedidos do dono em 03/11/2026, `normalizarDescricao` em `src/lib/ia/revisaoDescricao.js`): sempre
   uma linha em branco depois do título (`espacoAposTitulo`; só quando a 1ª linha é um título em maiúsculas) e o valor de cada
   "- Nome: valor" das Especificações técnicas começando com maiúscula (`maiusculaNoValor`, também dentro de
@@ -6438,6 +6440,11 @@ cabe sem rolar; mais estreito rola de lado em vez de sumir com a Descrição). T
   **Bling:** data prevista em dia sem envio vale até o fim do dia útil seguinte. **ML:** o `sla` do ML fica como vem (é ele que conta
   na reputação); só a estimativa pelo `buffering` vai para o dia útil. Os já gravados: `node scripts/recalcular-prazo-de-despacho.js
   --simular | --confirmo` (relê o histórico da LI; repetir dá o mesmo). Testes no `teste:pedidos`.
+- **"Diário" nas caixinhas de Vendas** (pedido do dono em 22/11/2026, Opção 1: dias corridos): na mesma linha, "Vendas
+  R$18.195,36 (139 vendas) (Diário=R$568,60/4,3 vendas)" e "Lucro R$5.494,07 (59%) * (Diário=R$171,69)", o total dividido
+  pelos dias do filtro de datas com as duas pontas (`diasDoPeriodo` em `app/pedidos/page.jsx`; "até" no futuro conta até hoje;
+  some no "Enviar hoje"). Corta em vez de arredondar (centavo e 1 casa das vendas). Para caber numa linha, as caixinhas ficam
+  em 2 colunas até 2040 px de tela (4 colunas só acima; medido: a linha de Vendas pede ~420 px).
 - **Aguardando peças pela venda da última peça** (pergunta do dono: "a venda pode ter sido justamente da última peça, aí você olha
   que está zerado o estoque, mas é que foi dado baixa da última peça devido à última venda"): o estoque do Rise é o saldo do Bling
   lido de hora em hora, e o Bling baixa na venda; a conta antiga descontava o pedido de novo. `calcularPecas` agora devolve ao saldo o

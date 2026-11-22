@@ -16,6 +16,7 @@ import { aplicarProposta, montarProposta } from "./preencher";
 import { precoDaPropostaML } from "./preco";
 import { VERSAO_ROTEIRO_ML } from "./roteiros";
 import { exigirProdutoPronto } from "./situacao";
+import { emDinheiro } from "@/lib/dinheiro";
 
 /**
  * A proposta do anuncio do Mercado Livre (spec 2026-10-23, Entrega 2): categoria, titulo, ficha, os catalogos sugeridos
@@ -383,7 +384,7 @@ async function anunciosForaDoRise(cliente, produto, avisos) {
   const doRise = await prisma.anuncio.findMany({ where: { canal: CANAL, produtoId: produto.id, idExterno: { not: null } }, select: { idExterno: true } });
   const candidatos = candidatosParaReaproveitar(lidos.itens, { idsDoRise: new Set(doRise.map((anuncio) => anuncio.idExterno)), sku: produto.sku });
   if (candidatos.length > 0) {
-    const reais = (valor) => Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const reais = (valor) => emDinheiro(Number(valor));
     const linhas = candidatos.map((c) =>
       [c.id, c.kit ? `kit de ${c.kit}` : null, ROTULO_DO_TIPO_ML[c.tipoAnuncio] ?? c.tipoAnuncio, c.freteGratis ? "frete grátis" : "sem frete", Number.isFinite(c.preco) ? reais(c.preco) : null, `${c.vendidos} venda(s)`, c.status]
         .filter(Boolean)

@@ -2,7 +2,7 @@ import { PROVEDOR_DO_MCP, custoEmTexto, duracaoEmTexto, ehLocal, rotuloDoProvedo
 
 const numero = (valor) => Number(valor).toLocaleString("pt-BR");
 const comoData = (dia) => dia.split("-").reverse().join("/");
-const dolar = (valor) => `US$ ${Number(valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
+const dolar = (valor) => `US$${Number(valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
 
 const CABECALHOS = [
   { rotulo: "Respostas", ajuda: "Respostas que o modelo deu (as mensagens de erro ficam em Falhas)." },

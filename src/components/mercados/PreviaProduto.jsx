@@ -11,8 +11,9 @@ import RegrasDeCompra from "@/components/mercados/RegrasDeCompra";
 import { precoComImpostos } from "@/lib/coleta/impostos";
 import { MOEDAS_COM_COTACAO, simboloDaMoeda } from "@/lib/coleta/moeda";
 import { ROTULOS_CAMPOS, valoresDoProduto } from "@/lib/coleta/campos";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
-const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const MOEDA = formatoDeMoeda();
 
 /** Em real, "R$ 15,95"; na moeda que a pagina declarou (o teste nao converte), "US$ 15,95". */
 function formatarPreco(valor, moeda) {
@@ -276,7 +277,7 @@ export default function PreviaProduto({ produto, indice }) {
                     }
                   >
                     {/*
-                      Preco ausente e travessao, nunca R$ 0,00: fornecedor de
+                      Preco ausente e travessao, nunca R$0,00: fornecedor de
                       portal fechado nao publica preco, e formatar null como
                       zero diria que o produto e de graca.
                     */}

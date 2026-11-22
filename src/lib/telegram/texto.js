@@ -57,7 +57,7 @@ function formatarReais(valor) {
 /** "2× 100101 Módulo Relé 5V · R$ 25,80": o que o cliente comprou (kit conta como 1), o nosso código e o valor da linha. */
 function linhaDoItemDaVenda({ quantidade, sku, nome, total }) {
   const produto = [sku ? trechoSeguro(sku, 20) : "", trechoSeguro(nome, 50)].filter(Boolean).join(" ");
-  return `${Number(quantidade) || 1}× ${produto} · R$ ${formatarReais(total)}`;
+  return `${Number(quantidade) || 1}× ${produto} · R$${formatarReais(total)}`;
 }
 
 const VENDAS_VAZIAS = { pedidos: 0, valor: 0, lucro: 0, semLucro: 0, canais: [] };
@@ -91,7 +91,7 @@ const TIPOS = {
   }),
   orcamento: ({ escopo, estado, percentual, tetoBrl }) => ({
     linhas: [
-      `IA: orçamento ${ESCOPO[escopo] ?? escopo} em ${Math.round(Number(percentual))}% do teto de R$ ${formatarReais(tetoBrl)}`,
+      `IA: orçamento ${ESCOPO[escopo] ?? escopo} em ${Math.round(Number(percentual))}% do teto de R$${formatarReais(tetoBrl)}`,
       ...(estado === "esgotado" ? ["Respostas pagas param até o teto subir."] : []),
     ],
     caminho: "/rise-ai/configuracoes",
@@ -116,7 +116,7 @@ const TIPOS = {
       cliente ? `Cliente: ${trechoSeguro(cliente, 60)}` : "",
       ...itens.slice(0, MAXIMO_DE_ITENS_DA_VENDA).map(linhaDoItemDaVenda),
       itens.length > MAXIMO_DE_ITENS_DA_VENDA ? `e mais ${itens.length - MAXIMO_DE_ITENS_DA_VENDA} ${itens.length - MAXIMO_DE_ITENS_DA_VENDA === 1 ? "item" : "itens"}` : "",
-      `Total: R$ ${formatarReais(total)}`,
+      `Total: R$${formatarReais(total)}`,
     ],
     caminho: `/pedidos/${pedidoId}`,
   }),
@@ -125,7 +125,7 @@ const TIPOS = {
     linhas: [
       `Reclamação no Mercado Livre: pedido ${trechoSeguro(numero, 40)}`,
       `${TEXTO_DO_GRUPO[grupo] ?? "Reclamação"}${motivo ? `: ${trechoSeguro(motivo, 80)}` : ""}${textoDaReputacao(afeta) ? ` (${textoDaReputacao(afeta)})` : ""}`,
-      `R$ ${formatarReais(total)} fora do faturamento e do lucro até a mediação fechar.`,
+      `R$${formatarReais(total)} fora do faturamento e do lucro até a mediação fechar.`,
     ],
     caminho: `/pedidos/${pedidoId}`,
   }),
@@ -133,7 +133,7 @@ const TIPOS = {
   notaDevolucao: ({ pedidoId, numero, total }) => ({
     linhas: [
       `Devolução postada: pedido ${trechoSeguro(numero, 40)}`,
-      `Emita a nota de devolução de R$ ${formatarReais(total)} no faturador do Mercado Livre e marque no Rise.`,
+      `Emita a nota de devolução de R$${formatarReais(total)} no faturador do Mercado Livre e marque no Rise.`,
     ],
     caminho: `/pedidos/${pedidoId}`,
   }),
@@ -150,11 +150,11 @@ const TIPOS = {
   resumoDoDia: ({ dia, vendas = VENDAS_VAZIAS, consultas, anotadas, zerados, ia }) => ({
     linhas: [
       `Resumo de ${dia}`,
-      `Vendas do dia: ${vendas.pedidos} · R$ ${formatarReais(vendas.valor)}`,
-      ...vendas.canais.slice(0, MAXIMO_DE_CANAIS_DO_RESUMO).map((canal) => `${NOME_DO_CANAL[canal.canal] ?? canal.canal}: ${quantasVendas(canal.pedidos)}${canal.pedidos > 0 ? ` · R$ ${formatarReais(canal.valor)}` : ""}`),
-      `Lucro do dia: R$ ${formatarReais(vendas.lucro)}${vendas.semLucro > 0 ? ` (fora ${quantasVendas(vendas.semLucro)} sem custo)` : ""}`,
+      `Vendas do dia: ${vendas.pedidos} · R$${formatarReais(vendas.valor)}`,
+      ...vendas.canais.slice(0, MAXIMO_DE_CANAIS_DO_RESUMO).map((canal) => `${NOME_DO_CANAL[canal.canal] ?? canal.canal}: ${quantasVendas(canal.pedidos)}${canal.pedidos > 0 ? ` · R$${formatarReais(canal.valor)}` : ""}`),
+      `Lucro do dia: R$${formatarReais(vendas.lucro)}${vendas.semLucro > 0 ? ` (fora ${quantasVendas(vendas.semLucro)} sem custo)` : ""}`,
       `Consultas pelo Claude/ChatGPT: ${consultas} (${anotadas} anotadas)`,
-      `IA no mês: R$ ${formatarReais(ia.gastoBrl)} de R$ ${formatarReais(ia.tetoBrl)}`,
+      `IA no mês: R$${formatarReais(ia.gastoBrl)} de R$${formatarReais(ia.tetoBrl)}`,
       ...linhasDosZerados(zerados),
     ],
     caminho: "/rise-ai/revisao",

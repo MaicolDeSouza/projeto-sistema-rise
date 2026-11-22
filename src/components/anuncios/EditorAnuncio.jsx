@@ -75,11 +75,11 @@ function AbaBase({ base }) {
       </div>
       <Campo
         rotulo="Custo"
-        valor={base.custo ? `R$ ${base.custo.toFixed(2)}` : null}
+        valor={base.custo ? `R$${base.custo.toFixed(2)}` : null}
       />
       <Campo
         rotulo="Preço de venda"
-        valor={base.precoVenda ? `R$ ${base.precoVenda.toFixed(2)}` : null}
+        valor={base.precoVenda ? `R$${base.precoVenda.toFixed(2)}` : null}
       />
       <Campo rotulo="Estoque" valor={String(base.estoque)} />
       <Campo

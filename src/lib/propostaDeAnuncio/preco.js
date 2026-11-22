@@ -3,6 +3,7 @@ import { LIMITE_DA_SEGUNDA_VARIANTE } from "@/lib/canaisDeVenda/ml/faixas";
 import { lerCustosDoAnuncio, precoPorMargemNoML } from "@/lib/canaisDeVenda/ml/leitura";
 import { montarRanking } from "@/lib/canaisDeVenda/ml/ranking";
 import { lucroLiquido } from "@/lib/margem";
+import { emDinheiro } from "@/lib/dinheiro";
 
 /**
  * O preco da proposta do Mercado Livre, regra do dono desde 05/11/2026: "o valor de venda deve respeitar para que o lucro
@@ -22,7 +23,7 @@ import { lucroLiquido } from "@/lib/margem";
 
 const centavos = (valor) => Math.round(Number(valor) * 100);
 const dinheiro = (valor) => centavos(valor) / 100;
-const reais = (valor) => Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const reais = (valor) => emDinheiro(Number(valor));
 
 /** Para baixo e para cima ao multiplo de 5 centavos, em centavos inteiros (59,90 * 100 em ponto flutuante engana). */
 export function paraBaixo5(valor) {
@@ -101,7 +102,7 @@ export async function precoDaPropostaML(cliente, rascunho, { custo, precoNaLoja,
     valor = LIMITE_DO_FRETE_GRATIS;
     conta = await contaEm(valor);
     variante = `${tipo}_frete_gratis`;
-    avisos.push(`O preço sem frete (${reais(semFrete)}) cai entre R$ 72 e R$ 79: sobe para ${reais(valor)} com frete grátis${conta?.lucro != null ? ` (lucro de ${reais(conta.lucro)} no ML)` : ""}.`);
+    avisos.push(`O preço sem frete (${reais(semFrete)}) cai entre R$72 e R$79: sobe para ${reais(valor)} com frete grátis${conta?.lucro != null ? ` (lucro de ${reais(conta.lucro)} no ML)` : ""}.`);
   }
 
   const ranking = montarRanking({ preco: valor, catalogos: (precos ?? []).map((preco) => ({ primeiro: { preco } })) });

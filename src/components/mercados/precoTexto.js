@@ -1,5 +1,6 @@
 import { precoComImpostos } from "@/lib/coleta/impostos";
 import { simboloDaMoeda } from "@/lib/coleta/moeda";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
 /**
  * Formatacao de preco compartilhada entre a lista (TabelaMercados) e o
@@ -8,7 +9,7 @@ import { simboloDaMoeda } from "@/lib/coleta/moeda";
  * arquivo divergiria em silencio na primeira mudanca.
  */
 
-const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const MOEDA = formatoDeMoeda();
 
 /** "R$ 8,06", ou "US$ 11,88" quando o valor esta na moeda do site (faixas de quantidade da Adafruit, 08/11/2026). */
 export function comoMoeda(valor, moeda = null) {

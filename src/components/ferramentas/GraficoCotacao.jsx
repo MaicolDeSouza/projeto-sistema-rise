@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 
 import { dataBr, dataCurta, pontosDoGrafico } from "@/lib/ferramentas/cotacao";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
 const ALTURA = 280;
 
-const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 4 });
+const MOEDA = formatoDeMoeda({ minimumFractionDigits: 4 });
 const EIXO = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /**

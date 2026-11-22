@@ -1,6 +1,7 @@
 import { Decimal } from "@prisma/client/runtime/client";
 
 import { rascunhoVale } from "../fornecedorRascunho.js";
+import { formatoDeMoeda } from "../dinheiro.js";
 
 // Mesma origem do custo mostrado no formulario do produto. Um vinculo PADRAO
 // substitui o rascunho do Bling, mesmo quando seu preco ainda nao foi preenchido;
@@ -57,8 +58,5 @@ export function calcularIndicadoresEstoque(produtos) {
 }
 
 export function formatarReais(valor) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(valor);
+  return formatoDeMoeda().format(valor);
 }

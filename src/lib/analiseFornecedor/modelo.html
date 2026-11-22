@@ -230,8 +230,8 @@ const NOME_CURTO = DADOS.apelido || DADOS.fornecedor;
 const EM_DOLAR = DADOS.moeda === "USD";
 const CAMBIO = EM_DOLAR ? Number(DADOS.cambio) : 1;
 const FATOR = Number(DADOS.fator) > 0 ? Number(DADOS.fator) : 1;
-const brl = (v, casas = 2) => v == null ? "—" : "R$ " + Number(v).toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
-const naMoedaDaLista = (v) => (EM_DOLAR ? "US$ " : "R$ ") + Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const brl = (v, casas = 2) => v == null ? "—" : "R$" + Number(v).toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
+const naMoedaDaLista = (v) => (EM_DOLAR ? "US$" : "R$") + Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const custoDaLista = (x) => Math.round(x.preco * CAMBIO * FATOR * 100) / 100;
 // O pedido aceita 4 casas: o item de poucos centavos em centenas de pecas nao perde no arredondamento.
 const precoDoPedido = (x) => Math.round(x.preco * CAMBIO * FATOR * 10000) / 10000;

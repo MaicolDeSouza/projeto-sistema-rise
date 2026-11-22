@@ -15,6 +15,7 @@ import { ETAPAS_DO_ENVIO, fraseDasDivergencias, mudouNoBling, resumirEnvio, valo
 import { etapasComOResultado, etapasIniciais as etapasIniciaisDe, lerAndamentoNoServidor as lerAndamento, mesclarEtapas } from "@/lib/andamentoDoEnvio";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
 import AndamentoDoEnvio from "./AndamentoDoEnvio";
+import { emDinheiro } from "@/lib/dinheiro";
 
 /**
  * Janela aberta pelo icone do Bling na lista de Produtos: o que o Bling tem sob o codigo do produto,
@@ -252,7 +253,7 @@ function BlocoDeFotos({ fotos }) {
 const ROTULO_DO_VINCULO = { precoCusto: "Custo", codigo: "Código", descricao: "Descrição", padrao: "Padrão" };
 function valorDoVinculo(campo, valor) {
   if (valor === null || valor === undefined || valor === "") return "vazio";
-  if (campo === "precoCusto") return Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  if (campo === "precoCusto") return emDinheiro(Number(valor));
   if (campo === "padrao") return valor ? "sim" : "não";
   return String(valor);
 }

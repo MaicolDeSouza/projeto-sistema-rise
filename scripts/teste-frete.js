@@ -198,12 +198,12 @@ conferir("todos recusados", separarServicos([lista[2]], 1), { atendem: [], recus
 conferir(
   "texto",
   textoDaCotacao({ cidadeDestino: "São Paulo (SP)", servicos: separarServicos(lista, 1).atendem }),
-  "Frete para São Paulo (SP):\nCorreios PAC: R$ 19,40, 6 dias úteis\nCorreios SEDEX: R$ 29,85, 2 dias úteis",
+  "Frete para São Paulo (SP):\nCorreios PAC: R$19,40, 6 dias úteis\nCorreios SEDEX: R$29,85, 2 dias úteis",
 );
 conferir(
   "texto com 1 dia",
   textoDaCotacao({ cidadeDestino: "Caxias do Sul (RS)", servicos: [{ ...lista[0], prazoDias: 1, valorACobrar: 11.8 }] }),
-  "Frete para Caxias do Sul (RS):\nCorreios SEDEX: R$ 11,80, 1 dia útil",
+  "Frete para Caxias do Sul (RS):\nCorreios SEDEX: R$11,80, 1 dia útil",
 );
 conferir(
   "decimal",
@@ -234,7 +234,7 @@ const pronto = { status: "RASCUNHO", medidaConferida: true, tipoDeDocumento: "NF
 conferir("pronto para comprar", motivosParaNaoComprar({ envio: pronto, saldo: 100, travaLiberada: true }), []);
 conferir("trava vem primeiro", motivosParaNaoComprar({ envio: pronto, saldo: 100, travaLiberada: false })[0], "A compra de etiquetas está travada (FRETE_COMPRA).");
 conferir("já comprada", motivosParaNaoComprar({ envio: { ...pronto, status: "A_POSTAR" }, saldo: 100, travaLiberada: true }), ["Esta etiqueta já foi comprada."]);
-conferir("saldo curto", motivosParaNaoComprar({ envio: pronto, saldo: 10, travaLiberada: true }), ["Saldo insuficiente: R$ 10,00 na carteira para R$ 25,84."]);
+conferir("saldo curto", motivosParaNaoComprar({ envio: pronto, saldo: 10, travaLiberada: true }), ["Saldo insuficiente: R$10,00 na carteira para R$25,84."]);
 conferir("chave curta", motivosParaNaoComprar({ envio: { ...pronto, chaveNfe: "123" }, saldo: 100, travaLiberada: true }), ["Informe a chave da NF-e ou use declaração de conteúdo."]);
 conferir("sem documento", motivosParaNaoComprar({ envio: { ...pronto, tipoDeDocumento: null }, saldo: 100, travaLiberada: true }), ["Informe a chave da NF-e ou use declaração de conteúdo."]);
 conferir(
@@ -826,7 +826,7 @@ try {
   const envio3 = await comItens("ZZ-FRETE-COMPRA-3");
   await conferirPacote(envio3.id, medido, "zz");
   falso.saldo = 5;
-  conferir("saldo curto recusa", (await comprarEtiqueta(envio3.id, "zz")).erro, "Saldo insuficiente: R$ 5,00 na carteira para R$ 28,85.");
+  conferir("saldo curto recusa", (await comprarEtiqueta(envio3.id, "zz")).erro, "Saldo insuficiente: R$5,00 na carteira para R$28,85.");
   falso.saldo = 123.45;
   await prisma.$executeRaw`UPDATE "Envio" SET status = 'COMPRANDO', "atualizadoEm" = now() - interval '10 minutes' WHERE id = ${envio3.id}`;
   conferir("comprando parado é retomado", (await comprarEtiqueta(envio3.id, "zz")).envio?.status, "A_POSTAR");
@@ -1237,7 +1237,7 @@ try {
   conferir(
     "mcp comprar: valor diferente recusa",
     await erroDe(mcpFrete.comprarEtiquetaMcp({ envio: preparada.envio, valorConfirmado: 20, confirmo: true }, podeTudo)),
-    "O preço preparado é R$ 28,85, não R$ 20,00: confira com a pessoa.",
+    "O preço preparado é R$28,85, não R$20,00: confira com a pessoa.",
   );
   await prisma.envio.update({ where: { id: doPedido3.id }, data: { cotadoEm: new Date(Date.now() - 31 * 60 * 1000) } });
   conferir(

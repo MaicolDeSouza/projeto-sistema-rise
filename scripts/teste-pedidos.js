@@ -1130,7 +1130,7 @@ try {
     const meus = (lista, ids = [nova.id, velha.id, parada.id]) => lista.filter((a) => ids.some((id) => a.chave.endsWith(`:${id}`)));
     const asParadas = [parada.id, recemParada.id];
     const novas = meus(await avisosDevidos("novaVenda", { agora }));
-    conferir("telegram: nova venda de pedido recem lido", novas.map((a) => [a.chave, mensagemDoAviso("novaVenda", a.dados).texto]), [[`nova-venda:${nova.id}`, "Nova venda Mercado Livre ZZ-PED-TG1\nCliente: ZZ Ped Nicollas\nTotal: R$ 49,70"]]);
+    conferir("telegram: nova venda de pedido recem lido", novas.map((a) => [a.chave, mensagemDoAviso("novaVenda", a.dados).texto]), [[`nova-venda:${nova.id}`, "Nova venda Mercado Livre ZZ-PED-TG1\nCliente: ZZ Ped Nicollas\nTotal: R$49,70"]]);
     conferir("telegram: venda antiga nao avisa", novas.some((a) => a.chave.endsWith(velha.id)), false);
     const paradas = meus(await avisosDevidos("aguardandoPecas", { agora }), asParadas);
     conferir("telegram: aguardando pecas com a falta no texto (o vendido ha 5 min ainda nao avisa)", paradas.map((a) => mensagemDoAviso("aguardandoPecas", a.dados).texto), ["Pedido ZZ-PED-TG3 aguardando peças\nfalta 2× 900211 (previsão 12/11)"]);

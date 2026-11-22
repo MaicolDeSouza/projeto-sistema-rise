@@ -7,8 +7,9 @@ import { comprarEtiquetaAcao, conferirPacoteAcao } from "@/app/envios/acoes";
 import { bordaDoCampo, CLASSE_CAMPO } from "@/components/cadastros/Campo";
 import ConclusaoDoEnvio from "@/components/ui/ConclusaoDoEnvio";
 import { propsDoFundo } from "@/lib/fundoDaJanela";
+import { formatoDeMoeda } from "@/lib/dinheiro";
 
-const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const moeda = formatoDeMoeda();
 const BOTAO = "inline-flex items-center gap-1.5 rounded px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50";
 
 /**

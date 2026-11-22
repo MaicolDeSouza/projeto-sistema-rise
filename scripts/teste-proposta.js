@@ -37,7 +37,7 @@ function conferir(nome, condicao) {
   conferir("opcoesDePreco traz os markups 60, 80 e 100", JSON.stringify(resultado.opcoes.map((o) => o.markup)) === "[60,80,100]");
   conferir("cada opcao traz o preco e a posicao", resultado.opcoes.every((o) => o.preco > 0 && o.posicao?.posicao >= 1));
   // Regra de 24/10/2026 (pedido do dono): R$ 0,10 abaixo do 5º concorrente (Loja E, R$ 70) = R$ 69,90, em 5º.
-  conferir("recomendada: R$ 0,10 abaixo do 5º concorrente", resultado.recomendada?.preco === 69.9);
+  conferir("recomendada: R$0,10 abaixo do 5º concorrente", resultado.recomendada?.preco === 69.9);
   conferir("recomendada: fica em 5º", resultado.recomendada?.posicao.posicao === 5 && resultado.recomendada.posicao.total === 7);
   conferir("recomendada: diz quem decidiu", resultado.recomendada?.referencia?.loja === "Loja E" && resultado.recomendada.referencia.regra === "5º concorrente");
   conferir("recomendada: markup com uma casa (69,90 / 18,90 = 269,8%)", resultado.recomendada?.markup === 269.8);
@@ -45,14 +45,14 @@ function conferir(nome, condicao) {
   conferir("com recomendada, sem motivo", resultado.motivoSemRecomendada === null);
 
   const tres = opcoesDePreco(18.9, [30, 40, 50].map((preco, i) => ({ loja: `L${i}`, preco })));
-  conferir("menos de 5: R$ 0,10 abaixo do mais caro", tres.recomendada?.preco === 49.9 && tres.recomendada.referencia.regra === "concorrente mais caro (menos de 5)");
+  conferir("menos de 5: R$0,10 abaixo do mais caro", tres.recomendada?.preco === 49.9 && tres.recomendada.referencia.regra === "concorrente mais caro (menos de 5)");
   const quebrado = opcoesDePreco(10, [20, 21, 22, 23, 35.93, 50].map((preco, i) => ({ loja: `L${i}`, preco })));
-  conferir("5º a R$ 35,93: vai a R$ 35,80 (para baixo, de 5 em 5 centavos)", quebrado.recomendada?.preco === 35.8);
+  conferir("5º a R$35,93: vai a R$35,80 (para baixo, de 5 em 5 centavos)", quebrado.recomendada?.preco === 35.8);
   const repetida = opcoesDePreco(10, [
     { loja: "A", preco: 20 }, { loja: "a ", preco: 25 }, { loja: "B", preco: 30 }, { loja: "C", preco: 40 }, { loja: "D", preco: 50 },
     { loja: "E", preco: 60 }, { loja: "F", preco: 15, indisponivel: true },
   ]);
-  conferir("loja repetida conta uma vez e a sem estoque fica de fora (5º = E, R$ 60)", repetida.recomendada?.preco === 59.9);
+  conferir("loja repetida conta uma vez e a sem estoque fica de fora (5º = E, R$60)", repetida.recomendada?.preco === 59.9);
   const apertada = opcoesDePreco(30, [30, 32, 34, 36, 39.9].map((preco, i) => ({ loja: `L${i}`, preco })));
   conferir("markup entre 30% e 60%: recomenda o mesmo preco, com aviso", apertada.recomendada?.preco === 39.8 && /60%/.test(apertada.recomendada.aviso ?? "") && !/piso/.test(apertada.recomendada.aviso ?? ""));
 }
@@ -82,7 +82,7 @@ function conferir(nome, condicao) {
   const lojas = (precos) => Object.entries(precos).map(([loja, preco]) => ({ loja, preco }));
   // Usinainfo a 40 e o 5º a 60: o teto dela (39,90) e o menor. 3ª mais barata.
   const abaixo = opcoesDePreco(18.9, lojas({ A: 30, B: 35, Usinainfo: 40, C: 50, D: 60, E: 70, F: 80 }));
-  conferir("Usinainfo: fica R$ 0,10 abaixo dela, antes do 5º", abaixo.recomendada?.preco === 39.9 && abaixo.recomendada.referencia.loja === "Usinainfo" && abaixo.recomendada.referencia.regra === "Usinainfo");
+  conferir("Usinainfo: fica R$0,10 abaixo dela, antes do 5º", abaixo.recomendada?.preco === 39.9 && abaixo.recomendada.referencia.loja === "Usinainfo" && abaixo.recomendada.referencia.regra === "Usinainfo");
   conferir("Usinainfo: em 3º lugar, markup alto, sem aviso", abaixo.recomendada?.posicao.posicao === 3 && abaixo.recomendada.markup === 111.1 && abaixo.recomendada.aviso === null);
 
   // Usinainfo mais cara que o 5º (70): o top 5 e o teto, e abaixo dela ja esta.
@@ -103,9 +103,9 @@ function conferir(nome, condicao) {
 
   // O piso manda quando o teto da Usinainfo da menos de 30%: custo 32,53 (o Pro Micro); 30% = 42,29 -> 42,30; Usinainfo a 41,00.
   const piso = opcoesDePreco(32.53, lojas({ Robocore: 45.9, Smartkits: 47.9, Piscaled: 48.3, Usinainfo: 41, Eletrogate: 55.9 }));
-  conferir("piso: sobe a R$ 42,30 (30%), acima da Usinainfo", piso.recomendada?.preco === 42.3 && piso.recomendada.markup === 30);
+  conferir("piso: sobe a R$42,30 (30%), acima da Usinainfo", piso.recomendada?.preco === 42.3 && piso.recomendada.markup === 30);
   conferir("piso: o aviso diz o piso, o teto e que fica acima da Usinainfo",
-    /piso de 30% de markup \(o teto seria R\$ 40,90, R\$ 0,10 abaixo da Usinainfo\)/.test(piso.recomendada?.aviso ?? "") && /fica acima da Usinainfo \(R\$ 41,00\)/.test(piso.recomendada?.aviso ?? ""));
+    /piso de 30% de markup \(o teto seria R\$40,90, R\$0,10 abaixo da Usinainfo\)/.test(piso.recomendada?.aviso ?? "") && /fica acima da Usinainfo \(R\$41,00\)/.test(piso.recomendada?.aviso ?? ""));
   conferir("piso: continua entre os 5 primeiros (2º de 6) e a referencia e o piso", piso.recomendada?.posicao.posicao === 2 && !/fora dos 5/.test(piso.recomendada.aviso) && piso.recomendada.referencia.regra === "piso de 30% de markup" && piso.recomendada.referencia.loja === "Usinainfo");
 
   // Piso exatamente no teto: o teto (40,90) da markup de 30,3%? custo 31,40 -> 30% = 40,82 -> 40,85; teto 40,90 cumpre, sem piso.
@@ -928,7 +928,7 @@ try {
     conferir("preco: so entram os com estoque e sem a propria loja (2 lojas + o produto)", preco.opcoes[0].posicao?.total === 3);
     conferir("preco: a lista diz quem entrou e quem ficou de fora", preco.concorrentesUsados?.length === 2 && preco.foraDaConta?.some((f) => /4hobby/i.test(f.loja)) && preco.foraDaConta?.some((f) => f.loja === "ZZ-PROP Preco C"));
     // So 2 lojas com estoque (A a 30 e B a 40): R$ 0,10 abaixo da mais cara (24/10/2026), margem com uma casa.
-    conferir("preco: recomendada R$ 0,10 abaixo do mais caro com estoque (menos de 5)", preco.recomendada?.preco === 39.9 && preco.recomendada.referencia?.loja === "ZZ-PROP Preco B" && preco.recomendada.markup === 299 && preco.motivoSemRecomendada === null);
+    conferir("preco: recomendada R$0,10 abaixo do mais caro com estoque (menos de 5)", preco.recomendada?.preco === 39.9 && preco.recomendada.referencia?.loja === "ZZ-PROP Preco B" && preco.recomendada.markup === 299 && preco.motivoSemRecomendada === null);
 
     await prisma.produto.create({ data: { sku: "ZZ-PROP-12", tituloBase: "SEM CUSTO" } });
     const semCusto = await gravarProposta("ZZ-PROP-12", { secao: "preco", conteudo: {} });

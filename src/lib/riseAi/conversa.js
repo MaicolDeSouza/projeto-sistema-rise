@@ -298,7 +298,7 @@ async function rodarLaco({ id, modelo, provedor, config, sistema, mensagens, per
 }
 
 /** O texto de erro que a pessoa lê, conforme o que falhou. A mensagem de banco ou de código nunca vai para a tela. */
-const emReais = (valor) => `R$ ${Number(valor ?? 0).toFixed(2).replace(".", ",")}`;
+const emReais = (valor) => `R$${Number(valor ?? 0).toFixed(2).replace(".", ",")}`;
 
 function textoDoErro({ erroInesperado, orcamentoEsgotado, semModelo, escolhaReserva, falhaPadrao, falhaReserva }) {
   if (orcamentoEsgotado) {

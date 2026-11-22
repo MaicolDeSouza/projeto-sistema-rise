@@ -6,19 +6,33 @@ import { moeda, moedaComSinal } from "./formato";
 
 const vendasTexto = (n) => (n === 1 ? "1 venda" : `${n} vendas`);
 const porcento = new Intl.NumberFormat("pt-BR", { style: "percent", maximumFractionDigits: 0 });
+const umaCasa = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
+
+// O "Diario" (pedido do dono em 22/11/2026) corta em vez de arredondar ("se faltar 7,9 mostrar 7,9"): o centavo do
+// valor e a casa das vendas.
+const cortar = (valor, casas) => Math.trunc(valor * 10 ** casas) / 10 ** casas;
+const vendasPorDia = (n) => {
+  const porDia = cortar(n, 1);
+  return porDia === 1 ? "1 venda" : `${umaCasa.format(porDia)} vendas`;
+};
+
+/** "(Diário=R$568,60/4,3 vendas)" e "(Diário=R$171,69)": o total dividido pelos dias corridos do filtro de datas. */
+function Diario({ children }) {
+  return <span className="text-xs font-normal text-suave"> (Diário={children})</span>;
+}
 
 /** Uma linha da caixinha: rotulo pequeno a esquerda, valor a direita (as tres linhas alinham pelo valor). */
 function Linha({ rotulo, children, title }) {
   return (
     <div className="flex items-baseline justify-between gap-3" title={title}>
       <span className="text-xs text-suave">{rotulo}</span>
-      <span className="text-right text-sm font-semibold tabular-nums">{children}</span>
+      <span className="whitespace-nowrap text-right text-sm font-semibold tabular-nums">{children}</span>
     </div>
   );
 }
 
 /** Uma caixinha: a de um canal (com o logo) ou a Geral (`geral`, em destaque azul, sem logo). */
-function Caixa({ resumo, geral = false }) {
+function Caixa({ resumo, dias, geral = false }) {
   const canal = geral ? null : canalPorId(resumo.canal);
   const temLucro = "lucro" in resumo;
   const semVenda = resumo.pedidos === 0;
@@ -34,6 +48,11 @@ function Caixa({ resumo, geral = false }) {
         <div className="space-y-0.5">
           <Linha rotulo="Vendas">
             {moeda.format(resumo.faturamento)} <span className="font-normal text-suave">({vendasTexto(resumo.pedidos)})</span>
+            {dias && (
+              <Diario>
+                {moeda.format(cortar(resumo.faturamento / dias, 2))}/{vendasPorDia(resumo.pedidos / dias)}
+              </Diario>
+            )}
           </Linha>
           {temLucro && (
             <Linha
@@ -47,6 +66,7 @@ function Caixa({ resumo, geral = false }) {
               <span className={resumo.lucro < 0 ? "text-red-600" : "text-emerald-700"}>{moedaComSinal(resumo.lucro)}</span>
               {resumo.markup !== null && <span className="font-normal text-suave"> ({porcento.format(resumo.markup)})</span>}
               {resumo.semLucro > 0 && <span className="ml-1 text-amber-600">*</span>}
+              {dias && <Diario>{moedaComSinal(cortar(resumo.lucro / dias, 2))}</Diario>}
             </Linha>
           )}
           <Linha rotulo="Ticket médio">{moeda.format(resumo.ticket)}</Linha>
@@ -69,14 +89,16 @@ function Caixa({ resumo, geral = false }) {
  * Geral, com as mesmas linhas somando os tres canais (ela substituiu o "Lucro no periodo" do canto). Seguem os filtros
  * da lista menos o de canal (`resumoDosCanais`). Cancelados e devolvidos nao entram nas vendas nem no ticket.
  */
-export default function ResumoDosCanais({ resumo }) {
+export default function ResumoDosCanais({ resumo, dias = null }) {
   if (!resumo) return null;
   return (
-    <div className="mb-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+    // Quatro lado a lado so em tela muito larga: com o "Diario" na mesma linha (pedido do dono em 22/11/2026) a linha de
+    // Vendas pede ~420 px de caixinha (medido com R$18.195,36), e em 4 colunas abaixo de ~2040 px ela nao cabe.
+    <div className="mb-3 grid grid-cols-1 gap-2.5 min-[768px]:grid-cols-2 min-[2040px]:grid-cols-4">
       {resumo.canais.map((c) => (
-        <Caixa key={c.canal} resumo={c} />
+        <Caixa key={c.canal} resumo={c} dias={dias} />
       ))}
-      <Caixa resumo={resumo.geral} geral />
+      <Caixa resumo={resumo.geral} dias={dias} geral />
     </div>
   );
 }

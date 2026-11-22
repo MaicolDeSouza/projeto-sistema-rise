@@ -275,7 +275,7 @@ function exigirAvisar(pode) {
 /** A confirmacao da pessoa vale por pouco tempo: o preco do Melhor Envio muda, e o preparado de ontem nao e o de hoje. */
 const VALIDADE_DA_PREPARACAO_MS = 30 * 60 * 1000;
 const moeda = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const reais = (valor) => `R$ ${moeda.format(Number(valor))}`;
+const reais = (valor) => `R$${moeda.format(Number(valor))}`;
 const centavos = (valor) => Math.round(valor * 100) / 100;
 const erroDaLib = (resultado) => (resultado.erros ? Object.values(resultado.erros).join(" ") : resultado.erro);
 
