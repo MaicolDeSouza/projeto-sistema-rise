@@ -82,7 +82,12 @@ function provedorDeRoteiro() {
     async conversar({ modelo, mensagens, ferramentas }) {
       const resposta = (campos) => ({ texto: "", chamadasDeFerramenta: [], uso: { entrada: 400, saida: 80 }, modelo, motivoParada: "fim", ...campos });
       const ultimaDoVisitante = mensagens.findLastIndex((mensagem) => mensagem.papel === "usuario");
-      const pergunta = String(mensagens[ultimaDoVisitante]?.conteudo ?? "").split("\n\n[O sistema leu")[0];
+      const doVisitante = mensagens[ultimaDoVisitante]?.conteudo;
+      // A foto (fase 3) so e lida pela IA de verdade: aqui a janela mostra que ela chegou.
+      if (Array.isArray(doVisitante)) return resposta({ texto: "Recebi a sua foto. Na loja de verdade a IA olha a foto e procura a peça. (Resposta de demonstração, sem IA.)" });
+      const pergunta = String(doVisitante ?? "").split("\n\n[O sistema leu")[0];
+      // O texto do arquivo (PDF, planilha, CSV) vem depois de "Arquivo enviado:"; a lista e lida dali.
+      const doArquivo = /\nArquivo enviado: [^\n]*\n([\s\S]*?)(?:\n\n\[A mensagem parece|$)/.exec(pergunta);
       const depois = mensagens.slice(ultimaDoVisitante + 1);
       const resultados = depois.filter((mensagem) => mensagem.papel === "ferramenta");
       const feitas = new Set(resultados.map((mensagem) => mensagem.nome));
@@ -110,7 +115,9 @@ function provedorDeRoteiro() {
         return resposta({ texto: "Claro! A nossa equipe continua com você pelo WhatsApp." });
       }
 
-      const linhas = pergunta.includes("\n") ? lerLinhasDaLista(pergunta) : [];
+      const textoDaLista = doArquivo ? doArquivo[1] : pergunta;
+      const linhas = textoDaLista.includes("\n") ? lerLinhasDaLista(textoDaLista) : [];
+      if (doArquivo && linhas.length < 2) return resposta({ texto: "Recebi o seu arquivo. Na loja de verdade a IA lê e responde sobre ele. (Resposta de demonstração, sem IA.)" });
       if (linhas.length >= 2) {
         if (!feitas.has("orcarLista")) return resposta({ chamadasDeFerramenta: [chamar("orcarLista", { itens: linhas.slice(0, 50).map((linha) => ({ termos: linha.termos, quantidade: linha.quantidade })) })] });
         const orcada = lido(resultados.at(-1));

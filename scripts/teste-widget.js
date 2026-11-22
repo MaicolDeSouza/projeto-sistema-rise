@@ -120,7 +120,7 @@ conversa = passo(conversa, "fim", { mensagemId: "m1" });
 conferir(
   "pergunta + cartoes + texto + fim = UMA troca fechada",
   conversa.trocas,
-  [{ pergunta: "quero ligar um LED", status: "", cartoes: [{ sku: "ZZ-1" }, { sku: "ZZ-2" }], lista: null, texto: "Veja <b>acima</b>.", passagem: null, erro: null, mensagemId: "m1", nota: 0, local: false, sugestao: null, formulario: null, pedido: null, fechada: true }],
+  [{ pergunta: "quero ligar um LED", status: "", cartoes: [{ sku: "ZZ-1" }, { sku: "ZZ-2" }], lista: null, texto: "Veja <b>acima</b>.", passagem: null, erro: null, mensagemId: "m1", nota: 0, local: false, sugestao: null, formulario: null, pedido: null, anexo: null, fechada: true }],
 );
 conferir("o passe nao entra na conversa", JSON.stringify(conversa).includes("123.abc"), false);
 const antes = conversa;
@@ -159,7 +159,7 @@ conferir(
 conferir("abertura: pagina de produto sem codigo nao oferece", aberturaDoAtalho("duvida", { pagina: "produto", skuAberto: "", nomeAberto: "X" }).sugestao, null);
 conferir("atalho desconhecido", aberturaDoAtalho("outro", {}), null);
 const aberta = passo(conversaVazia(), "abertura", { texto: "Qual produto?", sugestao: { rotulo: "O produto desta tela: X", mensagem: "Duvida sobre X" } });
-conferir("a fala de abertura entra na conversa como troca local, fechada e sem pergunta", aberta.trocas, [{ pergunta: "", status: "", cartoes: [], lista: null, texto: "Qual produto?", passagem: null, erro: null, mensagemId: null, nota: 0, local: true, sugestao: { rotulo: "O produto desta tela: X", mensagem: "Duvida sobre X" }, formulario: null, pedido: null, fechada: true }]);
+conferir("a fala de abertura entra na conversa como troca local, fechada e sem pergunta", aberta.trocas, [{ pergunta: "", status: "", cartoes: [], lista: null, texto: "Qual produto?", passagem: null, erro: null, mensagemId: null, nota: 0, local: true, sugestao: { rotulo: "O produto desta tela: X", mensagem: "Duvida sobre X" }, formulario: null, pedido: null, anexo: null, fechada: true }]);
 conferir("a fala de abertura volta igual da aba", lerGuardada(paraGuardar(aberta)), aberta);
 conferir("sugestao guardada com lixo e descartada", lerGuardada(JSON.stringify({ trocas: [{ pergunta: "", texto: "x", local: true, fechada: true, sugestao: { rotulo: 5 } }] })).trocas[0].sugestao, null);
 
@@ -217,6 +217,33 @@ conferir("outro (Review Focus 1)", [textoDoErroHttp(502, "<html>"), textoDoErroH
   const guardada = paraGuardar(conversa);
   conferir("o resultado fica guardado na aba (sem a prova)", [lerGuardada(guardada).trocas.at(-1).pedido?.rastreio?.codigo, guardada.includes("12345678909")], ["ZZ123BR", false]);
   conferir("o formulario tambem volta ao recarregar", lerGuardada(guardada).trocas[0].formulario, "pedido");
+}
+
+// ---------- Fase 3 (22/11/2026): anexar arquivo (foto, PDF, planilha, CSV, TXT) ----------
+{
+  const nucleo = await import("../assistente/widget/nucleo.js");
+  const { anexoPermitido, resultadoDoAnexo, aplicarEvento, conversaVazia, paraGuardar, lerGuardada, textoDoErroHttp, TEXTOS_DO_ANEXO } = nucleo;
+  const MB = 1024 * 1024;
+  conferir("anexo: foto, PDF, planilha, CSV e TXT passam", [["a.jpg", "image/jpeg"], ["b.png", "image/png"], ["c.pdf", "application/pdf"], ["d.xlsx", ""], ["e.csv", "text/csv"], ["f.txt", "text/plain"], ["g.webp", "image/webp"]].map(([nome, tipo]) => anexoPermitido({ nome, tamanho: 1000, tipo }).ok), [true, true, true, true, true, true, true]);
+  conferir("anexo: maior que 5 MB, com o WhatsApp (pedido do dono)", anexoPermitido({ nome: "a.pdf", tamanho: 5 * MB + 1, tipo: "application/pdf" }), { ok: false, texto: "Arquivo maior que 5 MB. Envie pelo WhatsApp:", whatsapp: true });
+  conferir("anexo: tipo nao aceito", anexoPermitido({ nome: "a.exe", tamanho: 10, tipo: "application/x-msdownload" }), { ok: false, texto: TEXTOS_DO_ANEXO.tipo, whatsapp: false });
+  conferir("anexo: vazio", anexoPermitido({ nome: "a.txt", tamanho: 0, tipo: "text/plain" }).ok, false);
+  conferir("anexo: o texto do tipo", TEXTOS_DO_ANEXO.tipo, "Tipo de arquivo não aceito. Envie foto, PDF, planilha (.xlsx), CSV ou TXT.");
+  conferir("anexo: subiu", resultadoDoAnexo(200, { anexoId: "abc", nome: "lista.csv", tipo: "texto", resumo: "3 linhas", passe: "p" }), { ok: true, anexoId: "abc", nome: "lista.csv", resumo: "3 linhas" });
+  conferir("anexo: o limite do dia mostra o WhatsApp", resultadoDoAnexo(429, { erro: "limite" }), { ok: false, texto: "Você chegou ao limite de arquivos de hoje. Envie pelo WhatsApp:", whatsapp: true });
+  conferir("anexo: grande no servidor tambem", resultadoDoAnexo(413, { erro: "grande" }).whatsapp, true);
+  conferir("anexo: PDF escaneado", resultadoDoAnexo(422, { erro: "escaneado" }).texto, "Este PDF é uma imagem escaneada. Mande uma foto da lista ou a lista em texto.");
+  conferir("anexo: ilegivel", resultadoDoAnexo(422, { erro: "ilegivel" }).texto, "Não consegui ler este arquivo.");
+  conferir("anexo: tipo recusado pelo servidor", resultadoDoAnexo(415, { erro: "tipo" }).texto, TEXTOS_DO_ANEXO.tipo);
+  conferir("anexo: fora do ar", resultadoDoAnexo(0, null).whatsapp, true);
+  let conversa = aplicarEvento(conversaVazia(), { evento: "pergunta", dados: { texto: "Veja o arquivo que enviei", anexo: { nome: "lista.csv" } } });
+  conversa = aplicarEvento(conversa, { evento: "anexoLido", dados: { resumo: "3 linhas" } });
+  conferir("a pergunta leva o nome do arquivo e o resumo", conversa.trocas[0].anexo, { nome: "lista.csv", resumo: "3 linhas" });
+  conferir("pergunta sem arquivo", aplicarEvento(conversaVazia(), { evento: "pergunta", dados: { texto: "oi" } }).trocas[0].anexo, null);
+  conferir("o nome do arquivo e texto curto", aplicarEvento(conversaVazia(), { evento: "pergunta", dados: { texto: "x", anexo: { nome: "a".repeat(300) } } }).trocas[0].anexo.nome.length, 80);
+  const guardada = lerGuardada(paraGuardar(conversa));
+  conferir("ao recarregar, o arquivo aparece pelo nome", guardada.trocas[0].anexo, { nome: "lista.csv", resumo: "3 linhas" });
+  conferir("o arquivo que expirou", textoDoErroHttp(400, { erro: "anexo" }), { texto: "O arquivo expirou. Envie de novo.", whatsapp: false });
 }
 
 console.log(`\n${total - falhas} de ${total} ok${falhas ? `, ${falhas} FALHA(S)` : ""}`);

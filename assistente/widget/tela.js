@@ -17,7 +17,7 @@
 /* global window, document, fetch, location, sessionStorage, crypto, AbortController, TextDecoder, setTimeout, clearTimeout */
 /* global ATALHOS, aberturaDoAtalho, aplicarEvento, contextoDaPagina, conversaVazia, criarLeitorDoFluxo, deveAparecer, enderecoDoCarrinho, fotoPermitida */
 /* global lerGuardada, linkDaLoja, linkDoWhatsApp, novaSessaoId, paginaProibida, paraGuardar, pareceDadoSensivel, textoDoErroHttp */
-/* global resultadoDoPedido */
+/* global anexoPermitido, resultadoDoAnexo, resultadoDoPedido */
 
 var HOBI_IMAGENS = __HOBI_IMAGENS__;
 // So existe enquanto o proprio arquivo esta sendo executado: e dele que sai o endereco do servico.
@@ -173,6 +173,22 @@ var HOBI_CSS = [
   ".situacao .acoes{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}",
   ".situacao .acoes a{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border:1px solid var(--verde);border-radius:10px;color:var(--verde);font-weight:600;text-decoration:none;transition-property:background-color;transition-duration:.15s}",
   ".situacao .acoes a:hover{background:var(--nevoa)}",
+  // Anexar arquivo (fase 3): o clipe a esquerda do campo, a faixa do arquivo escolhido e o arquivo junto da pergunta.
+  ".clipe{width:40px;height:40px;flex:none;border:0;border-radius:12px;background:transparent;color:var(--suave);display:grid;place-items:center;transition-property:background-color,color;transition-duration:.15s}",
+  ".clipe:hover{background:var(--nevoa);color:var(--verde)}.clipe[disabled]{opacity:.5;cursor:default}",
+  ".clipe svg{width:20px;height:20px}",
+  ".anexado{display:flex;align-items:center;gap:8px;padding:6px 8px 6px 12px;border-top:1px solid var(--borda);background:var(--nevoa);font-size:13px}",
+  ".anexado>svg{width:16px;height:16px;flex:none;color:var(--verde)}",
+  ".anexado .nome{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}",
+  ".anexado .tamanho{color:var(--suave);font-variant-numeric:tabular-nums}",
+  ".anexado button{width:32px;height:32px;flex:none;border:0;border-radius:8px;background:transparent;color:var(--suave);display:grid;place-items:center}",
+  ".anexado button:hover{background:var(--papel)}.anexado button svg{width:14px;height:14px}",
+  ".anexado.com-erro{background:#fff4f2;color:var(--erro);flex-wrap:wrap}",
+  ".anexado.com-erro .aviso-do-arquivo{flex:1;min-width:0}",
+  ".anexado.com-erro .whats{min-height:34px}",
+  ".arquivo{align-self:flex-end;display:inline-flex;align-items:center;gap:6px;max-width:85%;padding:6px 10px;border:1px solid var(--borda);border-radius:10px;background:var(--papel);font-size:12px;color:var(--suave)}",
+  ".arquivo svg{width:14px;height:14px;flex:none;color:var(--verde)}",
+  ".arquivo span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
   "@media (max-width:480px){.chamada{right:60px;bottom:100px;max-width:200px;padding:8px 6px 8px 12px}.chamada strong{font-size:14px}.chamada span{font-size:12px}.sinal{right:27px;bottom:76px}}",
   "@media (max-width:480px){.painel{inset:0;width:100%;max-width:none;height:100%;max-height:none;border:0;border-radius:0}.botao{right:14px;bottom:14px;width:58px;height:58px}.botao img{width:44px;height:44px}.aberto .botao{display:none}}",
   "@media (prefers-reduced-motion:reduce){.chamada{animation:none}.sinal path,.sinal circle{animation:none;opacity:1}}",
@@ -192,6 +208,7 @@ var HOBI_ICONES = {
   joia: "M7 11v8H4v-8zM7 11l4-7a2 2 0 013 2l-1 4h5a2 2 0 012 2l-2 6a2 2 0 01-2 1H7",
   ruim: "M17 13V5h3v8zM17 13l-4 7a2 2 0 01-3-2l1-4H6a2 2 0 01-2-2l2-6a2 2 0 012-1h9",
   pedido: "M3 7h11v9H3zM14 10h4l3 3v3h-7M7 19a2 2 0 100-4 2 2 0 000 4zM17 19a2 2 0 100-4 2 2 0 000 4z",
+  clipe: "M21 11.5l-8.6 8.6a5 5 0 01-7.1-7.1l8.6-8.6a3.3 3.3 0 014.7 4.7l-8.6 8.6a1.7 1.7 0 01-2.4-2.4l7.9-7.9",
 };
 
 function hobiIcone(nome) {
@@ -374,14 +391,24 @@ function hobiIniciar(servico, status) {
   contador.hidden = true;
   var enviar = hobiEl("button", "enviar", null, { type: "submit", "aria-label": "Enviar" });
   enviar.appendChild(hobiIcone("enviar"));
+  // O clipe (fase 3): foto, PDF, planilha, CSV ou TXT de ate 5 MB. Colar uma imagem no campo (Ctrl+V) tambem anexa.
+  var clipe = hobiEl("button", "clipe", null, { type: "button", "aria-label": "Anexar arquivo", title: "Anexar foto, PDF, planilha, CSV ou TXT (até 5 MB)" });
+  clipe.appendChild(hobiIcone("clipe"));
+  var escolher = hobiEl("input", null, null, { type: "file", accept: "image/jpeg,image/png,image/webp,.pdf,.xlsx,.csv,.txt", tabindex: "-1", "aria-hidden": "true" });
+  escolher.hidden = true;
+  var anexado = hobiEl("div", "anexado", null, { role: "status" });
+  anexado.hidden = true;
+  campo.appendChild(clipe);
   campo.appendChild(texto);
   campo.appendChild(contador);
   campo.appendChild(enviar);
+  campo.appendChild(escolher);
 
   painel.appendChild(topo);
   painel.appendChild(hobiEl("p", "aviso", HOBI_AVISO_DE_IA));
   painel.appendChild(area);
   painel.appendChild(confirma);
+  painel.appendChild(anexado);
   painel.appendChild(campo);
   base.appendChild(painel);
   base.appendChild(botao);
@@ -674,6 +701,12 @@ function hobiIniciar(servico, status) {
       return no;
     }
     no.appendChild(hobiEl("p", "pergunta", troca.pergunta));
+    if (troca.anexo) {
+      var arquivo = hobiEl("div", "arquivo");
+      arquivo.appendChild(hobiIcone("clipe"));
+      arquivo.appendChild(hobiEl("span", null, troca.anexo.resumo ? troca.anexo.nome + " (" + troca.anexo.resumo + ")" : troca.anexo.nome));
+      no.appendChild(arquivo);
+    }
     if (troca.cartoes.length) {
       var cartoes = hobiEl("ol", "cartoes");
       troca.cartoes.forEach(function (produto, posicao) { cartoes.appendChild(desenharCartao(produto, posicao)); });
@@ -894,6 +927,7 @@ function hobiIniciar(servico, status) {
   function ocupar(sim) {
     ocupado = sim;
     enviar.disabled = sim;
+    clipe.disabled = sim;
     texto.disabled = sim;
     if (!sim && !painel.hidden) texto.focus();
   }
@@ -938,8 +972,78 @@ function hobiIniciar(servico, status) {
     aplicar("erro", { mensagem: resultado.texto, whatsapp: resultado.whatsapp });
   }
 
+  // ---------- o arquivo do visitante (fase 3) ----------
+  var pendente = null;
+
+  function tamanhoLegivel(bytes) {
+    return bytes < 1024 * 1024 ? Math.max(1, Math.round(bytes / 1024)) + " KB" : (bytes / (1024 * 1024)).toFixed(1).replace(".", ",") + " MB";
+  }
+
+  /** A faixa acima do campo: o arquivo escolhido (com o X), ou o aviso de por que ele nao pode ir (com o WhatsApp quando e limite). */
+  function mostrarAnexado() {
+    anexado.replaceChildren();
+    if (!pendente) {
+      anexado.hidden = true;
+      return;
+    }
+    anexado.hidden = false;
+    if (pendente.erro) {
+      anexado.className = "anexado com-erro";
+      anexado.appendChild(hobiEl("span", "aviso-do-arquivo", pendente.erro.texto));
+      var socorro = pendente.erro.whatsapp ? botaoDoWhatsApp("Falar no WhatsApp") : null;
+      if (socorro) anexado.appendChild(socorro);
+    } else {
+      anexado.className = "anexado";
+      anexado.appendChild(hobiIcone("clipe"));
+      anexado.appendChild(hobiEl("span", "nome", pendente.arquivo.name || "arquivo"));
+      anexado.appendChild(hobiEl("span", "tamanho", tamanhoLegivel(pendente.arquivo.size)));
+    }
+    var tirar = hobiEl("button", null, null, { type: "button", "aria-label": pendente.erro ? "Fechar o aviso" : "Tirar o arquivo" });
+    tirar.appendChild(hobiIcone("fechar"));
+    tirar.onclick = function () {
+      escolherArquivo(null);
+      texto.focus();
+    };
+    anexado.appendChild(tirar);
+  }
+
+  function escolherArquivo(arquivo) {
+    if (!arquivo) pendente = null;
+    else {
+      var conferido = anexoPermitido({ nome: arquivo.name, tamanho: arquivo.size, tipo: arquivo.type });
+      pendente = conferido.ok ? { arquivo: arquivo } : { erro: conferido };
+    }
+    mostrarAnexado();
+  }
+
+  /** Sobe o arquivo ao `/anexo`. `repetir`: refaz o desafio do robo uma vez se o passe guardado for recusado. */
+  function enviarArquivo(arquivo, repetir) {
+    return comRobo()
+      .then(function (robo) {
+        var cabecalhos = { "Content-Type": arquivo.type || "application/octet-stream", "X-Sessao": sessaoId, "X-Nome": encodeURIComponent(arquivo.name || "arquivo") };
+        if (robo.passe) cabecalhos["X-Passe"] = robo.passe;
+        else cabecalhos["X-Turnstile"] = robo.turnstileToken;
+        return fetch(servico + "/anexo", { method: "POST", credentials: "omit", headers: cabecalhos, body: arquivo }).then(function (resposta) {
+          return resposta
+            .json()
+            .catch(function () { return null; })
+            .then(function (lido) {
+              if (lido && typeof lido.passe === "string") hobiGuardado.gravar("passe", lido.passe);
+              if (resposta.status === 403 && robo.passe && repetir) {
+                hobiGuardado.apagar("passe");
+                return enviarArquivo(arquivo, false);
+              }
+              return resultadoDoAnexo(resposta.status, lido);
+            });
+        });
+      })
+      .catch(function (erro) {
+        return resultadoDoAnexo(erro && erro.message === "robo" ? 403 : 0, null);
+      });
+  }
+
   /** Uma tentativa de mandar a mensagem. `repetir`: ainda pode refazer o desafio do robo uma vez se o passe for recusado. */
-  function mandar(mensagem, repetir) {
+  function mandar(mensagem, repetir, anexoId) {
     var passe = hobiGuardado.ler("passe");
     var comToken = passe
       ? Promise.resolve(null)
@@ -948,6 +1052,7 @@ function hobiIniciar(servico, status) {
       .then(function (token) {
         aplicar("status", { texto: "Pensando…" });
         var corpo = { sessaoId: sessaoId, mensagem: mensagem, contexto: contextoAtual() };
+        if (anexoId) corpo.anexoId = anexoId;
         if (passe) corpo.passe = passe;
         else corpo.turnstileToken = token;
         return fetch(servico + "/chat", { method: "POST", credentials: "omit", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
@@ -961,7 +1066,7 @@ function hobiIniciar(servico, status) {
           .then(function (corpo) {
             if (resposta.status === 403 && corpo && corpo.erro === "robo" && passe && repetir) {
               hobiGuardado.apagar("passe");
-              return mandar(mensagem, false);
+              return mandar(mensagem, false, anexoId);
             }
             falhar(textoDoErroHttp(resposta.status, corpo));
             return null;
@@ -972,7 +1077,7 @@ function hobiIniciar(servico, status) {
       });
   }
 
-  function perguntar(mensagem) {
+  function perguntar(mensagem, arquivo) {
     if (ocupado) return;
     ocupar(true);
     confirma.hidden = true;
@@ -980,8 +1085,21 @@ function hobiIniciar(servico, status) {
     modoLista(false);
     atualizarContador();
     voltarParaAConversa();
-    aplicar("pergunta", { texto: mensagem });
-    mandar(mensagem, true).then(function () {
+    pendente = null;
+    mostrarAnexado();
+    aplicar("pergunta", { texto: mensagem, anexo: arquivo ? { nome: arquivo.name || "arquivo" } : null });
+    // Com arquivo, ele sobe primeiro (e lido no servico); a pergunta vai depois, com o `anexoId`.
+    var antes = arquivo ? (aplicar("status", { texto: "Lendo o arquivo…" }), enviarArquivo(arquivo, true)) : Promise.resolve(null);
+    antes
+      .then(function (subido) {
+        if (subido && !subido.ok) {
+          falhar({ texto: subido.texto, whatsapp: subido.whatsapp });
+          return null;
+        }
+        if (subido) aplicar("anexoLido", { resumo: subido.resumo });
+        return mandar(mensagem, true, subido ? subido.anexoId : null);
+      })
+      .then(function () {
       // O fluxo acabou sem `fim` nem `erro` (cortado no meio): a troca nao pode ficar "pensando" para sempre.
       var ultima = conversa.trocas[conversa.trocas.length - 1];
       if (ultima && !ultima.fechada) falhar(textoDoErroHttp(0, null));
@@ -991,14 +1109,17 @@ function hobiIniciar(servico, status) {
 
   function tentarEnviar() {
     var mensagem = texto.value.trim();
-    if (!mensagem || ocupado) return;
+    var arquivo = pendente && pendente.arquivo ? pendente.arquivo : null;
+    if (ocupado || (!mensagem && !arquivo)) return;
+    // So o arquivo, sem texto: a pergunta vai com uma frase padrao.
+    if (!mensagem) mensagem = "Veja o arquivo que enviei";
     var sensivel = pareceDadoSensivel(mensagem);
     if (sensivel && confirma.hidden) {
       confirma.replaceChildren();
       confirma.appendChild(hobiEl("span", null, sensivel === "cpf" ? "Parece um CPF. Enviar mesmo assim?" : "Parece um número de cartão. Enviar mesmo assim?"));
       var sim = hobiEl("button", null, "Enviar", { type: "button" });
       var nao = hobiEl("button", null, "Corrigir", { type: "button" });
-      sim.onclick = function () { perguntar(mensagem); };
+      sim.onclick = function () { perguntar(mensagem, arquivo); };
       nao.onclick = function () {
         confirma.hidden = true;
         texto.focus();
@@ -1009,7 +1130,7 @@ function hobiIniciar(servico, status) {
       nao.focus();
       return;
     }
-    perguntar(mensagem);
+    perguntar(mensagem, arquivo);
   }
 
   function ajustarAltura() {
@@ -1052,6 +1173,22 @@ function hobiIniciar(servico, status) {
   };
   fechar.onclick = fecharPainel;
   irAoInicio.onclick = irParaOInicio;
+  clipe.onclick = function () {
+    if (!ocupado) escolher.click();
+  };
+  escolher.onchange = function () {
+    escolherArquivo(escolher.files && escolher.files[0] ? escolher.files[0] : null);
+    escolher.value = "";
+    texto.focus();
+  };
+  // Colar um print (Ctrl+V) no campo anexa a imagem; colar texto continua colando texto.
+  texto.addEventListener("paste", function (evento) {
+    var arquivos = evento.clipboardData && evento.clipboardData.files;
+    if (arquivos && arquivos.length) {
+      evento.preventDefault();
+      escolherArquivo(arquivos[0]);
+    }
+  });
   // Os exemplos se revezam no campo vazio (escolha do dono em 22/11/2026): mostram as tres coisas que o Hobi faz.
   var exemploDaVez = 0;
   setInterval(function () {

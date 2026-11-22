@@ -125,6 +125,45 @@ function rastreioLido(bruto) {
   return { codigo: linhaCurta(bruto.codigo, 60), link };
 }
 
+/** Os textos do anexo. Tamanho e limite terminam em ":" porque o botao do WhatsApp vem logo depois (pedido do dono). */
+export const TEXTOS_DO_ANEXO = {
+  grande: "Arquivo maior que 5 MB. Envie pelo WhatsApp:",
+  limite: "Você chegou ao limite de arquivos de hoje. Envie pelo WhatsApp:",
+  tipo: "Tipo de arquivo não aceito. Envie foto, PDF, planilha (.xlsx), CSV ou TXT.",
+  vazio: "Este arquivo está vazio.",
+  escaneado: "Este PDF é uma imagem escaneada. Mande uma foto da lista ou a lista em texto.",
+  ilegivel: "Não consegui ler este arquivo.",
+  robo: "Não consegui confirmar que você não é um robô. Tente de novo.",
+  indisponivel: "Não consegui receber o arquivo agora. Envie pelo WhatsApp:",
+};
+export const TAMANHO_MAXIMO_DO_ANEXO = 5 * 1024 * 1024;
+const TIPOS_DO_ANEXO = ["image/jpeg", "image/png", "image/webp", "application/pdf", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "text/csv", "text/plain"];
+const EXTENSOES_DO_ANEXO = /\.(jpe?g|png|webp|pdf|xlsx|csv|txt)$/i;
+
+/**
+ * O arquivo escolhido pode subir? So a conferencia da janela (tamanho e cara do tipo); quem decide pelos bytes e o servico.
+ * @returns {{ ok: true } | { ok: false, texto: string, whatsapp: boolean }}
+ */
+export function anexoPermitido({ nome, tamanho, tipo }) {
+  if (!(Number(tamanho) > 0)) return { ok: false, texto: TEXTOS_DO_ANEXO.vazio, whatsapp: false };
+  if (Number(tamanho) > TAMANHO_MAXIMO_DO_ANEXO) return { ok: false, texto: TEXTOS_DO_ANEXO.grande, whatsapp: true };
+  if (!TIPOS_DO_ANEXO.includes(String(tipo == null ? "" : tipo)) && !EXTENSOES_DO_ANEXO.test(String(nome == null ? "" : nome))) return { ok: false, texto: TEXTOS_DO_ANEXO.tipo, whatsapp: false };
+  return { ok: true };
+}
+
+/** A resposta do `POST /anexo` para a janela. */
+export function resultadoDoAnexo(status, corpo) {
+  const c = ehObjeto(corpo) ? corpo : {};
+  const falha = (texto, whatsapp) => ({ ok: false, texto, whatsapp });
+  if (status === 200 && typeof c.anexoId === "string") return { ok: true, anexoId: c.anexoId, nome: linhaCurta(c.nome, 80) || "arquivo", resumo: linhaCurta(c.resumo, 40) || "" };
+  if (status === 413) return falha(TEXTOS_DO_ANEXO.grande, true);
+  if (status === 429) return falha(TEXTOS_DO_ANEXO.limite, true);
+  if (status === 415) return falha(TEXTOS_DO_ANEXO.tipo, false);
+  if (status === 422) return falha(c.erro === "escaneado" ? TEXTOS_DO_ANEXO.escaneado : TEXTOS_DO_ANEXO.ilegivel, false);
+  if (status === 403) return falha(TEXTOS_DO_ANEXO.robo, false);
+  return falha(TEXTOS_DO_ANEXO.indisponivel, true);
+}
+
 /** O resultado do pedido como a janela o guarda e desenha, conferido campo a campo (vem do servico ou da aba). */
 function pedidoLido(bruto) {
   if (!ehObjeto(bruto) || typeof bruto.situacao !== "string") return null;
@@ -252,7 +291,9 @@ export function conversaVazia() {
 
 // `local`: a fala de abertura de um atalho (feita pela janela, sem pergunta e sem IA); `sugestao`: o botao que ela oferece.
 // `formulario`: "pedido" quando a troca mostra o formulario do pedido; `pedido`: o resultado de uma consulta (troca local).
-const trocaNova = (pergunta) => ({ pergunta, status: "", cartoes: [], lista: null, texto: "", passagem: null, erro: null, mensagemId: null, nota: 0, local: false, sugestao: null, formulario: null, pedido: null, fechada: false });
+// `anexo`: { nome, resumo } do arquivo que foi junto da pergunta (o conteudo nunca fica na janela).
+const trocaNova = (pergunta) => ({ pergunta, status: "", cartoes: [], lista: null, texto: "", passagem: null, erro: null, mensagemId: null, nota: 0, local: false, sugestao: null, formulario: null, pedido: null, anexo: null, fechada: false });
+const anexoLido = (bruto) => (ehObjeto(bruto) && bruto.nome != null ? { nome: linhaCurta(bruto.nome, 80) || "arquivo", resumo: linhaCurta(bruto.resumo, 40) || "" } : null);
 const formularioLido = (bruto) => (bruto === "pedido" ? "pedido" : null);
 const sugestaoLida = (bruta) => (ehObjeto(bruta) && typeof bruta.rotulo === "string" && typeof bruta.mensagem === "string" ? { rotulo: bruta.rotulo.slice(0, 200), mensagem: bruta.mensagem.slice(0, 400) } : null);
 const passagemLida = (bruta) =>
@@ -276,7 +317,9 @@ export function aplicarEvento(conversa, { evento, dados }) {
   const d = ehObjeto(dados) ? dados : {};
   switch (evento) {
     case "pergunta":
-      return { trocas: [...conversa.trocas, trocaNova(String(d.texto == null ? "" : d.texto))] };
+      return { trocas: [...conversa.trocas, { ...trocaNova(String(d.texto == null ? "" : d.texto)), anexo: anexoLido(d.anexo) }] };
+    case "anexoLido":
+      return naAberta(conversa, (troca) => ({ anexo: troca.anexo ? { ...troca.anexo, resumo: linhaCurta(d.resumo, 40) || "" } : null }));
     case "abertura":
       return { trocas: [...conversa.trocas, { ...trocaNova(""), texto: String(d.texto == null ? "" : d.texto), local: true, sugestao: sugestaoLida(d.sugestao), formulario: formularioLido(d.formulario), fechada: true }] };
     case "formulario":
@@ -329,6 +372,7 @@ function trocaLida(bruta) {
     sugestao: sugestaoLida(bruta.sugestao),
     formulario: formularioLido(bruta.formulario),
     pedido: pedidoLido(bruta.pedido),
+    anexo: anexoLido(bruta.anexo),
     fechada: true,
   };
   // A pagina mudou no meio da resposta: a troca volta fechada, com o aviso, e a pergunta NAO e reenviada sozinha.
@@ -355,6 +399,7 @@ export function textoDoErroHttp(status, corpo) {
   if (status === 409) return { texto: "Espere a resposta anterior terminar.", whatsapp: false };
   if (status === 413 || (status === 400 && erro === "longa")) return { texto: "A mensagem ficou longa demais. Mande em partes.", whatsapp: false };
   if (status === 400 && erro === "vazia") return { texto: "Escreva a sua pergunta.", whatsapp: false };
+  if (status === 400 && erro === "anexo") return { texto: "O arquivo expirou. Envie de novo.", whatsapp: false };
   if (status === 403 && erro === "robo") return { texto: "Não consegui confirmar que você não é um robô. Tente de novo.", whatsapp: false };
   if (status === 429) return { texto: `Você chegou ao limite de mensagens por agora. Tente mais tarde${COM_WHATSAPP}`, whatsapp: true };
   if (status === 503 && erro === "lotado") return { texto: `Muita gente por aqui agora. Tente em instantes${COM_WHATSAPP}`, whatsapp: true };
