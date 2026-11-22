@@ -11,10 +11,14 @@ import { medidasInternas } from "@/lib/estoque3d/regras";
 
 import { CampoDaJanela, Coluna, JanelaDeFormulario, cm, useOrdemDaTabela } from "./Pecas";
 
+/** cm³ em litros: "0,91 L" e "56,7 L" (duas casas abaixo de 10 L, para as pequenas nao virarem todas "1 L"). */
+const litros = (cm3) => `${(cm3 / 1000).toLocaleString("pt-BR", { maximumFractionDigits: cm3 < 10000 ? 2 : 1 })} L`;
+
+// Preto: todas as caixinhas da loja sao pretas (dono em 22/11/2026); o modelo novo ja nasce assim.
 const NOVO = {
   id: null,
   nome: "",
-  cor: "#2f5d8a",
+  cor: "#2b2f36",
   larguraCm: "",
   alturaCm: "",
   profundidadeCm: "",
@@ -66,11 +70,16 @@ export default function AbaCaixinhas({ modelos, podeEditar }) {
   const [excluindo, setExcluindo] = useState(null);
   const [erro, setErro] = useState(null);
   const [pendente, iniciar] = useTransition();
-  // "interna" ordena pelo volume de dentro; sem as tres medidas fica vazio (vai para o fim na ordenacao).
-  const linhas = modelos.map((modelo) => {
-    const deDentro = medidasInternas(modelo);
-    return { ...modelo, interna: deDentro ? deDentro.largura * deDentro.altura * deDentro.profundidade : null };
-  });
+  // "interna" e o volume de dentro (cm³); sem as tres medidas fica vazio. "volume" e o que guarda pecas: o interno, ou o de fora
+  // vezes o volume util. A lista abre do menor volume para o maior (pedido do dono em 22/11/2026); o cabecalho ainda reordena.
+  const linhas = modelos
+    .map((modelo) => {
+      const deDentro = medidasInternas(modelo);
+      const interna = deDentro ? deDentro.largura * deDentro.altura * deDentro.profundidade : null;
+      const deFora = modelo.larguraCm * modelo.alturaCm * modelo.profundidadeCm * modelo.fatorUtil;
+      return { ...modelo, interna, volume: interna ?? (Number.isFinite(deFora) ? deFora : null) };
+    })
+    .sort((a, b) => (a.volume ?? Infinity) - (b.volume ?? Infinity));
   const { ordenadas, cabecalho } = useOrdemDaTabela(linhas);
   // Regra 4 do padrao visual: a coluna da medida interna so aparece quando algum modelo a tem.
   const temInterna = linhas.some((modelo) => modelo.interna !== null);
@@ -112,7 +121,7 @@ export default function AbaCaixinhas({ modelos, podeEditar }) {
               <Coluna cabecalho={cabecalho} campo="alturaCm" rotulo="Altura (cm)" className="text-right" />
               <Coluna cabecalho={cabecalho} campo="profundidadeCm" rotulo="Profund. (cm)" className="text-right" />
               {temInterna && <Coluna cabecalho={cabecalho} campo="interna" rotulo="Interna L×A×P (cm)" className="text-right" />}
-              <Coluna cabecalho={cabecalho} campo="fatorUtil" rotulo="Volume útil" className="text-right" />
+              <Coluna cabecalho={cabecalho} campo="volume" rotulo="Volume" className="text-right" />
               <Coluna cabecalho={cabecalho} campo="pesoVazioKg" rotulo="Peso vazia (kg)" className="text-right" />
               <Coluna cabecalho={cabecalho} campo="produtos" rotulo="Produtos" className="text-right" />
               <th className="w-20 px-3 py-2.5" />
@@ -137,11 +146,12 @@ export default function AbaCaixinhas({ modelos, podeEditar }) {
                   </td>
                 )}
                 <td className="px-3 py-2 text-right tabular-nums">
-                  {modelo.interna === null ? (
-                    `${Math.round(modelo.fatorUtil * 100)}%`
+                  {/* nowrap: "0,91 L interno" numa linha so, mesmo com a tabela apertada. */}
+                  {modelo.volume === null ? (
+                    "—"
                   ) : (
-                    <span className="text-suave" title="As peças que cabem são contadas pelas medidas internas.">
-                      interna
+                    <span className="whitespace-nowrap" title={modelo.interna === null ? `Medida de fora × ${Math.round(modelo.fatorUtil * 100)}% de volume útil` : "Volume interno: as peças que cabem são contadas pelas medidas de dentro."}>
+                      {litros(modelo.volume)} <span className="text-suave">{modelo.interna === null ? `(${Math.round(modelo.fatorUtil * 100)}% útil)` : "interno"}</span>
                     </span>
                   )}
                 </td>

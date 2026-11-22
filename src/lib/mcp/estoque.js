@@ -390,7 +390,8 @@ const SALVAR_MODELO = {
     if (!atual && (!larguraCm || !alturaCm || !profundidadeCm)) throw new ErroDeFerramenta(`O modelo "${nome}" não existe: para criá-lo, diga a largura, a altura e a profundidade em cm.`);
     const dados = {
       nome: nomeNovo ?? atual?.nome ?? nome,
-      cor: cor ?? atual?.cor ?? "#60a5fa",
+      // Preto: todas as caixinhas da loja sao pretas (dono em 22/11/2026).
+      cor: cor ?? atual?.cor ?? "#2b2f36",
       larguraCm: larguraCm ?? numeroDe(atual.larguraCm),
       alturaCm: alturaCm ?? numeroDe(atual.alturaCm),
       profundidadeCm: profundidadeCm ?? numeroDe(atual.profundidadeCm),
