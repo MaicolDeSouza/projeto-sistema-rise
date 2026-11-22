@@ -401,6 +401,12 @@ do kit mostra "código do kit · título" com o selo "Kit de N unidades" (kit mi
 em dia útil em Vendas, ritmo até a meta com uma casa em Produtos, ordem das caixinhas no Mapa do estoque), sem migration.
 Conferido no PC (kit de 2 de teste, criado e excluído) e, na VPS, as 6 respostas de fora e os contêineres de pé.
 
+**Deploy 22.11.2026.136 (commit `97d4deb`, 22/11/2026):** "Sobe e exclui" do dono. Levou o kit de composição pelo cadastro
+(seção própria, abaixo de "Produto com composição"), a correção do "!" do kit com texto editado (`9454248`) e um commit de outra
+sessão (`f2f038d`, Telegram: produto zerado no resumo das 20h), sem migration. Conferido: as 6 respostas de fora e os
+contêineres de pé. Depois, o rascunho 258262 (kit misto montado no editor) foi excluído na VPS pelas mesmas funções do botão
+(`conferirExclusaoML` deu "rascunho", sem MLB; `excluirAnuncioML` tirou só o rascunho do Rise).
+
 **Travas de escrita na VPS (decisão do dono em 22/10/2026):** o dono mandou liberar **o Mercado Livre e o Bling para todos os
 códigos** (`ML_PUBLICACAO=true`, `ML_PUBLICACAO_CODIGOS` ausente, `BLING_ESCRITA=true`, `BLING_ESCRITA_CODIGOS` vazio) depois
 de o Publicar recusar com "ML_PUBLICACAO está false"; aplicado só no `.env` da VPS (cópia `.env.bak-AAAAMMDD-HHMMSS` ao lado),
@@ -5052,7 +5058,7 @@ script recusava qualquer outra lista), apagado depois.
   não tem peso nem medidas cadastrados, e a sugestão de peso/medidas do kit fica incompleta.
 - Kit dentro de kit, variação e o anúncio de kit do ML (`dados.composicao`) continuam separados do produto kit.
 
-### Kit de composição pelo cadastro, um anúncio por vários caminhos (22/11/2026, SEM deploy)
+### Kit de composição pelo cadastro, um anúncio por vários caminhos (22/11/2026, NO AR em 22.11.2026.136)
 
 Pedido do dono ao querer anunciar 1 conector DB25 macho (901202) + 1 fêmea (901201): "o kit deve sempre ser montado no rise
 antes, pois tenho que definir o código, ter as localizações para facilitar a separação do produto ... também tem que criar kit
@@ -5090,8 +5096,8 @@ no bling". Spec `docs/superpowers/specs/2026-11-22-kit-de-composicao-no-ml-desig
   **Menores adiados:** a lista do ML mostra "?" no `title` das peças do misto antigo; "Kit de N" de um produto que já é kit cai
   no bloco de composição; um item único de OUTRO produto no editor passa a trava (vira o Kit de N dele); kit antigo com mínimo
   ou máximo gravado mantém o valor escondido; a lista do ML lê as peças de todos os anúncios antes de paginar.
-- **Ainda não feito:** excluir o rascunho 258262 na VPS (o misto montado no editor em 22/11/2026, decisão C1, espera o ok do
-  dono na hora); criar o kit DB25 em Produtos e o anúncio dele é o primeiro uso real.
+- **NO AR em 22.11.2026.136** (`97d4deb`); o rascunho 258262 foi excluído na VPS no mesmo dia (decisão C1, "Sobe e exclui").
+  **Falta:** o primeiro uso real, que é o dono criar o kit DB25 macho + fêmea em Produtos e o anúncio do ML dele.
 
 ## Canais de Venda: Loja Integrada (06 a 07/10/2026)
 
