@@ -228,6 +228,9 @@ export async function gravarColeta({
 
       for (const { guardada, linha } of alteradas) {
         const dados = { ...paraGravar(linha), vistoEm: coletadoEm };
+        // NCM que a loja nao publica nao apaga o guardado (pedido do dono em 22/11/2026): o da Nightech veio da NF,
+        // gravado a mao, e o site dela nao traz NCM.
+        if (!dados.ncm) delete dados.ncm;
 
         /*
           O SALDO ANTERIOR, com a data em que ele foi visto.
