@@ -247,6 +247,32 @@ try {
       conferir("despacho: enviado nao mostra", comStatus("ENVIADO", "EM_TRANSITO", "2026-11-08T19:30:00.000Z"), null);
     }
     {
+      // Dias de envio (pedido do dono em 22/11/2026): sabado, domingo e feriado (nacional, RS e Caxias do Sul) nao contam.
+      const { domingoDePascoa, feriadoDe, ehDiaUtil, diaUtilAPartirDe, proximoDiaUtil } = await import("../src/lib/diasUteis.js");
+      const { prazoDeDespachoLI, prazoDeDespachoBling, prazoDeDespachoML, prazoDeUmDiaUtil } = await import("../src/lib/pedidos/despacho.js");
+      conferir("Pascoa de 2026 e 2027", [domingoDePascoa(2026), domingoDePascoa(2027)], ["2026-04-05", "2027-03-28"]);
+      conferir(
+        "feriados: Consciencia Negra, Sexta-feira Santa, Farroupilha, aniversario de Caxias, Carnaval e Corpus Christi",
+        ["2026-11-20", "2026-04-03", "2026-09-20", "2026-06-01", "2026-02-17", "2026-06-04", "2026-11-19"].map(feriadoDe),
+        ["Dia da Consciência Negra", "Sexta-feira Santa", "Revolução Farroupilha", "Aniversário de Caxias do Sul", "Carnaval (terça)", "Corpus Christi", null],
+      );
+      conferir("dia util: sabado, domingo e feriado nao; quinta sim", ["2026-11-21", "2026-11-22", "2026-11-20", "2026-11-19"].map(ehDiaUtil), [false, false, false, true]);
+      conferir("proximo dia util: quinta 19/11 pula o feriado e o fim de semana", proximoDiaUtil("2026-11-19"), "2026-11-23");
+      conferir("dia util a partir de: dia util fica, sabado vai para segunda", [diaUtilAPartirDe("2026-11-18"), diaUtilAPartirDe("2026-11-21")], ["2026-11-18", "2026-11-23"]);
+      // Os dois casos da tela do dono: LI paga quinta 19/11 22:18 e sexta (feriado) 20/11 15:42 vencem segunda 23/11.
+      conferir("LI: pago quinta 22:18 com a sexta feriado vence segunda 22:18", prazoDeUmDiaUtil(new Date("2026-11-19T22:18:00-03:00")).toISOString(), "2026-11-24T01:18:00.000Z");
+      conferir("LI: pago no feriado 15:42 vence segunda 15:42", prazoDeUmDiaUtil(new Date("2026-11-20T15:42:00-03:00")).toISOString(), "2026-11-23T18:42:00.000Z");
+      conferir("LI: pago terca vence quarta na mesma hora", prazoDeUmDiaUtil(new Date("2026-11-17T10:00:00-03:00")).toISOString(), "2026-11-18T13:00:00.000Z");
+      conferir(
+        "LI: o prazo do pedido usa o dia util",
+        prazoDeDespachoLI({ historico: [{ em: "2026-11-21T12:00:00.000Z", statusDaOrigem: "pedido_pago" }], tipoDeEnvio: "pac" }).despacharAte,
+        "2026-11-23T12:00:00.000Z",
+      );
+      conferir("Bling: data prevista num sabado vale ate segunda 23:59", prazoDeDespachoBling({ dataPrevista: "2026-11-21" }).despacharAte, "2026-11-24T02:59:00.000Z");
+      conferir("ML: buffering no feriado vai para o dia util seguinte", prazoDeDespachoML({ shipment: { shipping_option: { buffering: { date: "2026-11-20T00:00:00.000Z" } } } }).despacharAte, "2026-11-23T19:30:00.000Z");
+      conferir("ML: o sla do ML fica como veio, mesmo num sabado", prazoDeDespachoML({ sla: { expected_date: "2026-11-21T12:00:00-03:00" } }).despacharAte, "2026-11-21T15:00:00.000Z");
+    }
+    {
       // Status unico de Vendas (08/11/2026): a regra da linha e a do filtro dao a MESMA situacao em toda combinacao.
       const STATUS_TODOS = ["AGUARDANDO_PAGAMENTO", "PAGO", "AGUARDANDO_PECAS", "EM_SEPARACAO", "ENVIADO", "ENTREGUE", "FINALIZADO", "CANCELADO", "DEVOLVIDO"];
       const ENVIOS_TODOS = ["SEM_ENVIO", "A_POSTAR", "POSTADO", "EM_TRANSITO", "ENTREGUE", "NAO_ENTREGUE", "DEVOLVIDO", "CANCELADO"];

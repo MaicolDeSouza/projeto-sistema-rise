@@ -6307,6 +6307,14 @@ cabe sem rolar; mais estreito rola de lado em vez de sumir com a Descrição). T
   `dataPrevista` do pedido de venda** (só o dia, gravado 23:59 e mostrado sem hora; `prazoDeDespachoBling`). "Enviar hoje" conta os
   três (pago/em separação/aguardando peças, a postar ou sem envio). **Pedido já gravado só ganha o prazo quando for relido** (o
   canal mudou algo): logo depois do deploy os abertos da LI e do Bling ficam sem prazo até a próxima mudança.
+- **Prazo em dia útil (pedido do dono em 22/11/2026: "não fizemos envio no sábado, domingo e feriados ... deve saber os feriados
+  regionais para o endereço da loja, no caso Caxias do Sul"):** `src/lib/diasUteis.js` (puro) conhece os nacionais fixos (o 20/11
+  incluso), a Sexta-feira Santa pela Páscoa, o 20/09 do RS, o 01/06 de Caxias do Sul e, como dia sem envio, Carnaval (seg e ter)
+  e Corpus Christi (ponto facultativo); feriado de um ano só entra em `FERIADOS_AVULSOS`. **LI:** as 24 h viram "a mesma hora no
+  1º dia útil depois do pagamento" (`prazoDeUmDiaUtil`: pago quinta 19/11 22:18, com a sexta feriado, vence segunda 23/11 22:18).
+  **Bling:** data prevista em dia sem envio vale até o fim do dia útil seguinte. **ML:** o `sla` do ML fica como vem (é ele que conta
+  na reputação); só a estimativa pelo `buffering` vai para o dia útil. Os já gravados: `node scripts/recalcular-prazo-de-despacho.js
+  --simular | --confirmo` (relê o histórico da LI; repetir dá o mesmo). Testes no `teste:pedidos`.
 - **Aguardando peças pela venda da última peça** (pergunta do dono: "a venda pode ter sido justamente da última peça, aí você olha
   que está zerado o estoque, mas é que foi dado baixa da última peça devido à última venda"): o estoque do Rise é o saldo do Bling
   lido de hora em hora, e o Bling baixa na venda; a conta antiga descontava o pedido de novo. `calcularPecas` agora devolve ao saldo o

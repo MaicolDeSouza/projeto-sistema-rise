@@ -10,6 +10,8 @@
  * Puro: sem banco e sem rede.
  */
 
+import { diaUtilAPartirDe, proximoDiaUtil } from "@/lib/diasUteis";
+
 const FUSO = "America/Sao_Paulo";
 // O Brasil nao tem horario de verao: Sao Paulo e -03:00 o ano todo.
 const DESLOCAMENTO = "-03:00";
@@ -42,7 +44,9 @@ export function prazoDeDespachoML({ sla = null, shipment = null } = {}) {
   if (doSla && !Number.isNaN(doSla.getTime())) return { despacharAte: doSla.toISOString(), despachoEstimado: false };
   // O buffering vem como data UTC a meia-noite ("2026-11-12T00:00:00.000Z"): vale o DIA escrito, nao o instante.
   const dia = String(shipment?.shipping_option?.buffering?.date ?? "").slice(0, 10);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dia)) return { despacharAte: new Date(`${dia}T${HORA_PADRAO_DA_AGENCIA}:00${DESLOCAMENTO}`).toISOString(), despachoEstimado: true };
+  // A estimativa cai no dia util seguinte quando a liberacao e num sabado, domingo ou feriado (o `sla`, quando vem, e do ML
+  // e fica como esta: e ele que conta na reputacao).
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dia)) return { despacharAte: new Date(`${diaUtilAPartirDe(dia)}T${HORA_PADRAO_DA_AGENCIA}:00${DESLOCAMENTO}`).toISOString(), despachoEstimado: true };
   return { despacharAte: null, despachoEstimado: null };
 }
 
@@ -78,7 +82,18 @@ export function prazoDeDespachoLI({ historico = [], statusDaOrigem = null, dataD
   const pagoNoHistorico = pagoEmNoHistoricoDaLI(historico);
   const pagoEm = pagoNoHistorico ?? (PAGO_NA_LI.has(statusDaOrigem) && dataDaVenda ? new Date(dataDaVenda) : null);
   if (!pagoEm || Number.isNaN(pagoEm.getTime())) return nada;
-  return { despacharAte: new Date(pagoEm.getTime() + UM_DIA_MS).toISOString(), despachoEstimado: !pagoNoHistorico };
+  return { despacharAte: prazoDeUmDiaUtil(pagoEm).toISOString(), despachoEstimado: !pagoNoHistorico };
+}
+
+/**
+ * As 24 h contam em dia util (pedido do dono em 22/11/2026: a loja nao envia sabado, domingo e feriado): a mesma hora do
+ * pagamento no primeiro dia util DEPOIS do dia dele. Pago quinta 22:18 com a sexta feriado vence segunda 22:18; pago no
+ * sabado vence segunda na mesma hora. Sem horario de verao, somar dias inteiros mantem a hora de Sao Paulo.
+ */
+export function prazoDeUmDiaUtil(pagoEm) {
+  const dia = diaEmSaoPaulo(pagoEm);
+  const dias = Math.round((Date.parse(proximoDiaUtil(dia)) - Date.parse(dia)) / UM_DIA_MS);
+  return new Date(new Date(pagoEm).getTime() + dias * UM_DIA_MS);
 }
 
 /** O prazo so do dia (Bling): a hora 23:59 nao vai para a tela. */
@@ -92,7 +107,8 @@ const FIM_DO_DIA = "23:59";
 export function prazoDeDespachoBling({ dataPrevista = null } = {}) {
   const dia = String(dataPrevista ?? "").slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dia) || dia.startsWith("0000")) return { despacharAte: null, despachoEstimado: null };
-  const limite = new Date(`${dia}T${FIM_DO_DIA}:00${DESLOCAMENTO}`);
+  // Data prevista num sabado, domingo ou feriado vale ate o fim do dia util seguinte (22/11/2026).
+  const limite = new Date(`${diaUtilAPartirDe(dia)}T${FIM_DO_DIA}:00${DESLOCAMENTO}`);
   return Number.isNaN(limite.getTime()) ? { despacharAte: null, despachoEstimado: null } : { despacharAte: limite.toISOString(), despachoEstimado: false };
 }
 
