@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { urlDe } from "@/lib/arquivos";
 import { codigoDaComposicao, errosDaComposicao, estoqueDaComposicao, proximoCodigoDaFaixa } from "../composicao";
+import { mudancasDosKits } from "@/lib/composicaoBanco";
 import { custoDoProduto } from "../custo";
 import { conteudoAtualDoAnuncio, fichaDoAnuncio, mudancasDoAnuncio, prazoDoAnuncio, precoDaLojaDoAnuncio, precoDoAnuncio } from "./acompanhar";
 import { ATACADO_DESLIGADO, atacadoPermitido } from "./atacado";
@@ -719,6 +720,15 @@ function linhaDoAnuncio(anuncio, skusDosItens) {
 }
 
 /**
+ * As pecas que mudaram desde o ultimo Salvar de cada PRODUTO KIT destes anuncios (22/11/2026), pelo id do kit: o "!" do
+ * anuncio do kit quando o preco de uma peca muda (`estadoDoIconeML`, opcao `pecasDoKit`). Anuncio de produto simples nao conta.
+ */
+async function pecasMudadasDosKits(anuncios) {
+  const kits = anuncios.filter((anuncio) => anuncio.produto?.tipo === "COMPOSICAO").map((anuncio) => anuncio.produtoId);
+  return kits.length > 0 ? mudancasDosKits(kits) : new Map();
+}
+
+/**
  * As linhas do popup para estes anuncios, com o "!" de cada um (pedido do dono em 09/11/2026: "mostra ! no icone do ML,
  * porem no popup nao mostra"): a mesma regra do icone da lista, so deste anuncio, com o motivo em texto; `null` quando esta
  * em dia. `doProprioProduto` diz se o anuncio e do produto do popup ou de um kit que o usa (22/11/2026).
@@ -729,10 +739,14 @@ async function linhasDoPopup(anuncios, { doProprioProduto }) {
   const skusDosItens = new Map(
     idsDosItens.length > 0 ? (await prisma.produto.findMany({ where: { id: { in: idsDosItens } }, select: { id: true, sku: true } })).map((p) => [p.id, p.sku]) : [],
   );
-  const [linhas, mudancas] = await Promise.all([comAvisos(anuncios.map((anuncio) => linhaDoAnuncio(anuncio, skusDosItens))), mudancasDosAnunciosML(anuncios)]);
+  const [linhas, mudancas, pecasDosKits] = await Promise.all([
+    comAvisos(anuncios.map((anuncio) => linhaDoAnuncio(anuncio, skusDosItens))),
+    mudancasDosAnunciosML(anuncios),
+    pecasMudadasDosKits(anuncios),
+  ]);
   const porId = new Map(anuncios.map((anuncio) => [anuncio.id, anuncio]));
   return linhas.map((linha) => {
-    const estado = estadoDoIconeML([{ ...porId.get(linha.id), mudancas: mudancas.get(linha.id) }]);
+    const estado = estadoDoIconeML([{ ...porId.get(linha.id), mudancas: mudancas.get(linha.id) }], { pecasDoKit: pecasDosKits.get(linha.produtoId) ?? [] });
     return { ...linha, doProprioProduto, alerta: temProblemaNoIconeML(estado) ? motivosDoProblemaML(estado).join("; ") || "Precisa de atenção." : null };
   });
 }
@@ -812,11 +826,12 @@ async function comFotoEIcone(linhas, anuncios) {
       })
     ).reverse().map((arquivo) => [arquivo.produtoId, arquivo]),
   );
-  const mudancas = await mudancasDosAnunciosML(linhas.map((linha) => porId.get(linha.id)).filter(Boolean));
+  const daPagina = linhas.map((linha) => porId.get(linha.id)).filter(Boolean);
+  const [mudancas, pecasDosKits] = await Promise.all([mudancasDosAnunciosML(daPagina), pecasMudadasDosKits(daPagina)]);
   return linhas.map((linha) => {
     const anuncio = porId.get(linha.id);
     const capa = arquivos.get(anuncio?.dados?.imagens?.[0]) ?? principais.get(linha.produtoId) ?? null;
-    const icone = estadoDoIconeML([{ ...anuncio, mudancas: mudancas.get(linha.id) }]);
+    const icone = estadoDoIconeML([{ ...anuncio, mudancas: mudancas.get(linha.id) }], { pecasDoKit: pecasDosKits.get(linha.produtoId) ?? [] });
     return {
       ...linha,
       fotoUrl: capa ? urlDe(capa.produto.sku, "IMAGEM", capa.arquivo) : null,

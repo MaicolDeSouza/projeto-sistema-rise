@@ -253,6 +253,18 @@ try {
       ehKitMisto({ itens: [{ produtoId: "a", quantidade: 1 }, { produtoId: "b", quantidade: 1 }] }),
       ehKitMisto({ itens: [{ produtoId: "a", quantidade: 1 }, { produtoId: "", quantidade: 1 }] }),
     ], [false, false, true, false]);
+    {
+      // O "!" do anuncio do kit de composicao (22/11/2026): so o preco de venda das pecas conta, com o antes e o depois.
+      const { estadoDoIconeML, temProblemaNoIconeML, motivosDoProblemaML } = await import("../src/lib/canaisDeVenda/ml/icone.js");
+      const pecas = [
+        { sku: "901202", mudancas: [{ campo: "Preço de venda", texto: "Preço de venda: R$ 14,90 → R$ 16,90" }, { campo: "Peso", texto: "Peso: 0,01 kg → 0,02 kg" }] },
+        { sku: "901201", mudancas: [{ campo: "NCM", texto: "NCM: 1 → 2" }] },
+      ];
+      const estado = estadoDoIconeML([{ canal: "MERCADO_LIVRE", status: "RASCUNHO" }], { pecasDoKit: pecas });
+      conferir("icone: preco de peca do kit acende o '!' com o motivo", [temProblemaNoIconeML(estado), motivosDoProblemaML(estado)], [true, ["peças do kit mudaram: 901202 (Preço de venda: R$ 14,90 → R$ 16,90)"]]);
+      const semPreco = estadoDoIconeML([{ canal: "MERCADO_LIVRE", status: "RASCUNHO" }], { pecasDoKit: [pecas[1]] });
+      conferir("icone: outra mudanca de peca nao acende, e o estado fica igual ao de antes", [temProblemaNoIconeML(semPreco), JSON.stringify(semPreco) === JSON.stringify(estadoDoIconeML([{ canal: "MERCADO_LIVRE", status: "RASCUNHO" }]))], [false, true]);
+    }
     conferir("kit misto: o recado diz o caminho", RECUSA_DO_KIT_MISTO, 'Kit de produtos diferentes se monta em Produtos (tipo "Com composição"). No anúncio só entra o kit de N unidades do mesmo produto.');
     conferir("unidades do anuncio: simples 1, kit de um produto N, misto ou de outro produto nada", [unidadesDoAnuncio({ produtoId: "a", composicao: null }), unidadesDoAnuncio({ produtoId: "a", composicao: { itens: [{ produtoId: "a", quantidade: "3" }] } }), unidadesDoAnuncio({ produtoId: "a", composicao: { itens: [{ produtoId: "a", quantidade: 2 }, { produtoId: "b", quantidade: 1 }] } }), unidadesDoAnuncio({ produtoId: "a", composicao: { itens: [{ produtoId: "b", quantidade: 2 }] } }), unidadesDoAnuncio({ produtoId: "a", composicao: { itens: [{ produtoId: "a", quantidade: 0 }] } })], [1, 3, null, null, null]);
     const linhaIrma = (extra = {}) => ({ produtoId: "a", status: "PUBLICADO", situacaoCanal: "ATIVA", idExterno: "MLB123", urlExterna: "https://produto.mercadolivre.com.br/MLB-123-x", dados: { preco: 60, envio: { freteGratis: false }, composicao: { itens: [{ produtoId: "a", quantidade: 3 }] }, publicacao: { enviado: { preco: 58 } } }, ...extra });
@@ -2222,6 +2234,22 @@ try {
       conferir("popup da outra peca: so o kit que a usa", resumo(await anunciosDeComposicaoDoProduto(p2.id)), [[doKit.id, "composicao", "1× ZZ-ML-P1 + 2× ZZ-ML-P2", false]]);
       conferir("popup do kit: o anuncio e dele (abre, exclui e clona por ali)", resumo(await doProduto(kit.id)), [[doKit.id, "composicao", "1× ZZ-ML-P1 + 2× ZZ-ML-P2", true]]);
       conferir("o proprio kit nao e peca de outro: nada de composicao de fora", await anunciosDeComposicaoDoProduto(kit.id), []);
+
+      // O "!" do anuncio do kit quando o PRECO de uma peca muda (pedido do dono em 22/11/2026). O retrato e o do ultimo Salvar
+      // do kit; o custo e o resto do retrato nao contam aqui.
+      const { retratoDaPeca } = await import("../src/lib/composicaoBanco.js");
+      for (const peca of [p1, p2]) {
+        const lida = await prisma.produto.findUnique({ where: { id: peca.id }, include: { arquivos: true } });
+        await prisma.produtoComponente.updateMany({ where: { kitId: kit.id, componenteId: peca.id }, data: { retrato: retratoDaPeca(lida) } });
+      }
+      const alertaDoKit = async () => (await anunciosDeComposicaoDoProduto(p1.id)).find((linha) => linha.id === doKit.id).alerta;
+      conferir("kit com as pecas como no ultimo Salvar: sem '!'", await alertaDoKit(), null);
+      await prisma.produto.update({ where: { id: p1.id }, data: { custo: 3.21, pesoKg: 0.5 } });
+      conferir("custo ou peso da peca mudou: o anuncio do kit nao acende", await alertaDoKit(), null);
+      await prisma.produto.update({ where: { id: p1.id }, data: { precoVenda: 16.9 } });
+      conferir("preco da peca mudou: o anuncio do kit acende no popup da peca, com o antes e o depois", await alertaDoKit(), "peças do kit mudaram: ZZ-ML-P1 (Preço de venda: — → R$ 16,90)");
+      conferir("e no popup do proprio kit", (await doProduto(kit.id))[0].alerta, "peças do kit mudaram: ZZ-ML-P1 (Preço de venda: — → R$ 16,90)");
+      conferir("o anuncio da peca nao acende pelo kit", (await doProduto(p1.id)).map((linha) => linha.alerta), [null, null]);
       await prisma.produtoComponente.deleteMany({ where: { kitId: { in: [kit.id, kit2.id] } } });
     }
 

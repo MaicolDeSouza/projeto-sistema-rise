@@ -102,7 +102,8 @@ export async function iconesDosProdutos(produtos) {
         iconeML: {
           ...estadoDoIconeML(
             produto.anuncios.map((anuncio) => ({ ...anuncio, mudancas: mudancasML.get(anuncio.id) })),
-            { foraDoRise: produto.anunciosForaDoRiseML ?? [] },
+            // O kit com preco de peca mudado acende o ML dele (22/11/2026); a peca nao acende pelo kit (so o kit esta no mapa).
+            { foraDoRise: produto.anunciosForaDoRiseML ?? [], pecasDoKit: alteracoesDosKits.get(produto.id) ?? [] },
           ),
           // O "P" da proposta de anuncio do ML (spec 2026-10-23): so o booleano vai a lista.
           proposta: produto.anuncios.some((anuncio) => anuncio.canal === "MERCADO_LIVRE" && Boolean(anuncio.dados?.proposta)),

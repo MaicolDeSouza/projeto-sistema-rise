@@ -45,7 +45,10 @@ const NOME_DA_PARTE = {
  */
 // `foraDoRise`: as linhas de `AnuncioForaDoRiseML` do produto (botao "Verificar anuncios antigos", 09/11/2026), so na lista de
 // Produtos; o "!" pede o Reaproveitar (o ML nao aceita anuncio duplicado).
-export function estadoDoIconeML(anuncios, { foraDoRise = [], agora = new Date() } = {}) {
+// `pecasDoKit` (22/11/2026): as pecas que mudaram desde o ultimo Salvar do produto kit deste anuncio (`mudancasDosKits`). So o
+// preco de venda conta (pedido do dono: "caso eu altere o valor de algum produto do kit, deve mostrar !"); o resto do retrato
+// ja acende o "!" do kit no Rise. Quem chama passa so para o anuncio do PROPRIO kit: a peca nao acende pelo kit.
+export function estadoDoIconeML(anuncios, { foraDoRise = [], agora = new Date(), pecasDoKit = [] } = {}) {
   const doML = (Array.isArray(anuncios) ? anuncios : []).filter(ehDoML);
   const paraTras = doML.filter((anuncio) => estaPublicado(anuncio) && (anuncio.mudancas?.partes?.length ?? 0) > 0);
   const partes = new Set(paraTras.flatMap((anuncio) => anuncio.mudancas.partes));
@@ -58,7 +61,13 @@ export function estadoDoIconeML(anuncios, { foraDoRise = [], agora = new Date() 
   // Publicar do editor. A situacao no canal pode nem ter sido lida ainda (o Reaproveitar nao a grava), por isso o status basta.
   const pendente = (anuncio) => reutilizadoPendente(anuncio.dados?.publicacao);
   const publicados = doML.filter((anuncio) => estaPublicado(anuncio) && !pendente(anuncio));
+  const precosDasPecas = (Array.isArray(pecasDoKit) ? pecasDoKit : []).flatMap((peca) =>
+    // O `campo` e o rotulo do retrato (`CAMPOS_DO_RETRATO` em composicao.js), nao a chave do banco.
+    (peca?.mudancas ?? []).filter((mudanca) => mudanca.campo === "Preço de venda").map((mudanca) => `${peca.sku} (${mudanca.texto})`),
+  );
   return {
+    // So quando ha, como o `foraDoRise`: o objeto do icone sem o aviso fica igual ao de antes.
+    ...(doML.length > 0 && precosDasPecas.length > 0 ? { pecasDoKitMudaram: precosDasPecas } : {}),
     // So quando ha: o objeto do icone sem anuncio antigo fica igual ao de antes.
     ...(Array.isArray(foraDoRise) && foraDoRise.length > 0 ? { foraDoRise: foraDoRise.length } : {}),
     publicado: publicados.length > 0,
@@ -112,7 +121,7 @@ function textoDoDesatualizado(partes) {
 
 /** O selo "!" do icone: a mesma condicao na lista de Produtos, na lista do ML e em cada linha do popup do produto. */
 export function temProblemaNoIconeML(estado) {
-  return Boolean(estado?.erro || estado?.foraDoRise > 0 || estado?.reutilizado || estado?.desatualizado || estado?.precisaAgirNoML || estado?.estoqueDivergenteNoML || estado?.catalogoMudouNoML || estado?.naoFaturaNoML);
+  return Boolean(estado?.erro || estado?.foraDoRise > 0 || estado?.reutilizado || estado?.desatualizado || estado?.precisaAgirNoML || estado?.estoqueDivergenteNoML || estado?.catalogoMudouNoML || estado?.naoFaturaNoML || estado?.pecasDoKitMudaram?.length > 0);
 }
 
 /**
@@ -126,11 +135,12 @@ const TEXTO_DO_REUTILIZADO = "reutilizado da conta, esperando a sua revisão";
 // "2 anuncios na conta fora do Rise" (09/11/2026): o motivo do "!" de quem tem anuncio antigo para reaproveitar.
 const textoDoForaDoRise = (quantos) => `${quantos} ${quantos === 1 ? "anúncio" : "anúncios"} na conta fora do Rise`;
 
-export function motivosDoProblemaML({ foraDoRise = 0, erro = false, reutilizado = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [], precisaAgirNoML: barrado = false, estadosNoML = [], estoqueDivergenteNoML = false, estoquesNoML = [], catalogoMudouNoML = false, catalogosNoML = [], naoFaturaNoML = false } = {}) {
+export function motivosDoProblemaML({ foraDoRise = 0, erro = false, reutilizado = false, desatualizado = false, naoConferido = false, partesDesatualizadas = [], precisaAgirNoML: barrado = false, estadosNoML = [], estoqueDivergenteNoML = false, estoquesNoML = [], catalogoMudouNoML = false, catalogosNoML = [], naoFaturaNoML = false, pecasDoKitMudaram = [] } = {}) {
   const motivos = [];
   if (foraDoRise > 0) motivos.push(textoDoForaDoRise(foraDoRise));
   if (reutilizado) motivos.push(TEXTO_DO_REUTILIZADO);
   if (desatualizado) motivos.push(naoConferido ? "ainda não conferido com o produto" : textoDoDesatualizado(partesDesatualizadas));
+  if (pecasDoKitMudaram.length > 0) motivos.push(`peças do kit mudaram: ${pecasDoKitMudaram.join("; ")}`);
   if (barrado) motivos.push(...estadosNoML.map((texto) => texto.charAt(0).toLowerCase() + texto.slice(1)));
   if (estoqueDivergenteNoML) motivos.push(...estoquesNoML.map(({ ml, bling }) => `estoque no ML ${ml}, no Bling ${bling}`));
   if (catalogoMudouNoML) motivos.push(...catalogosNoML);
