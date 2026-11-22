@@ -85,6 +85,7 @@ export default async function EditarProdutoPage({ params, searchParams }) {
         dominioLojaIntegrada={config.lojaIntegrada.dominio}
         acessos={acessos}
         caixinha={caixinha}
+        abaInicial={typeof busca?.aba === "string" ? busca.aba : null}
       />
     </>
   );

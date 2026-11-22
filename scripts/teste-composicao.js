@@ -23,6 +23,7 @@ const {
   mudancasDaPeca,
   ncmsDasPecas,
   ncmDoKit,
+  categoriasDoKit,
   pesoEMedidasDoKit,
   totaisDoKit,
   validarComposicao,
@@ -120,6 +121,10 @@ conferir("ncm do kit: o da peca de maior quantidade", ncmDoKit([{ ncm: "8536.69.
 conferir("ncm do kit: empate fica com a primeira", ncmDoKit([{ ncm: "8536.69.90", quantidade: 2 }, { ncm: "8544.42.00", quantidade: 2 }]), "8536.69.90");
 conferir("ncm do kit: a maior sem NCM passa para a seguinte com NCM", ncmDoKit([{ ncm: "", quantidade: 5 }, { ncm: "8536.69.90", quantidade: 1 }, { ncm: "8544.42.00", quantidade: 2 }]), "8544.42.00");
 conferir("ncm do kit: sem pecas ou sem NCM nenhum, nada", [ncmDoKit([]), ncmDoKit(null), ncmDoKit([{ ncm: null, quantidade: 2 }])], [null, null, null]);
+// Categorias do kit (22/11/2026): as da peca de maior quantidade que tenha alguma, com o SKU dela para o texto da sugestao.
+conferir("categorias do kit: as da peca de maior quantidade", categoriasDoKit([{ sku: "A", categoriasLI: ["1"], quantidade: 1 }, { sku: "B", categoriasLI: ["2", "3"], quantidade: 2 }]), { sku: "B", ids: ["2", "3"] });
+conferir("categorias do kit: empate fica com a primeira; sem categoria passa a seguinte", [categoriasDoKit([{ sku: "A", categoriasLI: ["1"], quantidade: 1 }, { sku: "B", categoriasLI: ["2"], quantidade: 1 }]), categoriasDoKit([{ sku: "A", categoriasLI: [], quantidade: 5 }, { sku: "B", categoriasLI: ["2"], quantidade: 1 }])], [{ sku: "A", ids: ["1"] }, { sku: "B", ids: ["2"] }]);
+conferir("categorias do kit: nenhuma peca com categoria, nada", [categoriasDoKit([]), categoriasDoKit([{ sku: "A", quantidade: 2 }])], [null, null]);
 
 console.log("\nValidacao da composicao");
 const PROPRIO = "kit-1";

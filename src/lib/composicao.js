@@ -238,6 +238,24 @@ export function ncmDoKit(pecas) {
 }
 
 /**
+ * As categorias sugeridas ao kit (pedido do dono em 22/11/2026: "deve sugerir a categoria"): as da peca de MAIOR quantidade
+ * que tenha alguma, a mesma regra do NCM (`ncmDoKit`); empate, a primeira. `{ sku, ids }` (o SKU vai no texto da sugestao)
+ * ou `null`.
+ *
+ * @param {{sku: string, categoriasLI?: string[], quantidade: number|string}[]} pecas
+ */
+export function categoriasDoKit(pecas) {
+  let escolhida = null;
+  for (const peca of Array.isArray(pecas) ? pecas : []) {
+    const ids = Array.isArray(peca?.categoriasLI) ? peca.categoriasLI.map(String).filter(Boolean) : [];
+    if (ids.length === 0) continue;
+    const quantidade = Number(peca?.quantidade) || 0;
+    if (!escolhida || quantidade > escolhida.quantidade) escolhida = { sku: peca.sku, ids, quantidade };
+  }
+  return escolhida ? { sku: escolhida.sku, ids: escolhida.ids } : null;
+}
+
+/**
  * Valida a lista de pecas que vem do navegador ANTES de gravar: lista nao vazia, cada item com id
  * e quantidade inteira de 1 a 9999, pelo menos 2 unidades no total (um kit de uma unidade e o
  * proprio produto), sem peca repetida e sem o proprio produto. O que e peca permitida (simples,

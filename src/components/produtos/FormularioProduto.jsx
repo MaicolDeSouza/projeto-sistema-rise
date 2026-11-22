@@ -58,7 +58,7 @@ import { medidasDaDescricao } from "@/lib/medidas";
 import { posicaoDePreco } from "@/lib/posicaoDePreco";
 import { gerarEanDoSku } from "@/lib/eanInterno";
 import { indisponivel, ordenarPrecosDasReferencias, situacaoDeEstoque } from "@/lib/estoqueDoConcorrente";
-import { codigoSugeridoDoKit, localizacaoDoKit, ncmDoKit, ncmsDasPecas, pesoEMedidasDoKit, totaisDoKit } from "@/lib/composicao";
+import { categoriasDoKit, codigoSugeridoDoKit, localizacaoDoKit, ncmDoKit, ncmsDasPecas, pesoEMedidasDoKit, totaisDoKit } from "@/lib/composicao";
 import { DocumentosDasPecas, FornecedoresDoKit, MedidasDoKit } from "./AbasDoKit";
 import CaixinhaDoProduto from "@/components/estoque3d/CaixinhaDoProduto";
 import BuscarPorCodigo from "./BuscarPorCodigo";
@@ -2098,10 +2098,12 @@ export default function FormularioProduto({
   acessos = ACESSO_TOTAL,
   // Bloco "Caixinha do estoque" (Mapa do estoque, 12/11/2026): so no produto que ja existe e para quem ve o mapa.
   caixinha = null,
+  // A aba de abertura pelo link (`?aba=fornecedores`, 22/11/2026: o "Link Rise" das pecas do kit). So ids de ABAS valem.
+  abaInicial = null,
 }) {
   const router = useRouter();
   const somenteLeitura = !acessos.editar;
-  const [aba, setAba] = useState("caracteristicas");
+  const [aba, setAba] = useState(() => (ABAS.some((item) => item.id === abaInicial) ? abaInicial : "caracteristicas"));
   const [aberturaDocumentos, setAberturaDocumentos] = useState(0);
   // Tipo do produto e pecas do kit: estado da tela (a aba Composicao edita em memoria, e so o Salvar grava).
   // Controlados, e nao `defaultValue`: o tipo decide quais abas aparecem, e a remontagem dos campos
@@ -2926,7 +2928,8 @@ export default function FormularioProduto({
   async function trazerFotosDaPeca(pecaId) {
     if (pecaId === origemId && imagensDoPainel.current.some((imagem) => imagem.daOrigem)) {
       setImagensLote((lista) =>
-        lista.map((imagem) => (imagem.daOrigem ? { ...imagem, daPeca: pecaId, finalizada: false } : imagem)),
+        // Marcadas (pedido do dono em 22/11/2026: "todas as fotos que compoe o kit devem nascer marcadas"; era sem check).
+        lista.map((imagem) => (imagem.daOrigem ? { ...imagem, daPeca: pecaId, finalizada: true } : imagem)),
       );
       return;
     }
@@ -2947,7 +2950,7 @@ export default function FormularioProduto({
     // A peca pode ter saido do kit enquanto as fotos baixavam.
     if (!pecasDasFotos.current.split(",").includes(pecaId)) return;
     const vagas = Math.max(0, MAXIMO_FOTOS_NO_PAINEL - imagensDoPainel.current.length);
-    const novas = resposta.imagens.slice(0, vagas).map((imagem) => ({ ...imagem, finalizada: false, daPeca: pecaId }));
+    const novas = resposta.imagens.slice(0, vagas).map((imagem) => ({ ...imagem, finalizada: true, daPeca: pecaId }));
     if (novas.length < resposta.imagens.length) {
       setErroAcao(
         `O painel guarda até ${MAXIMO_FOTOS_NO_PAINEL} fotos: ${resposta.imagens.length - novas.length} foto(s) de uma peça ficaram de fora.`,
@@ -2965,7 +2968,8 @@ export default function FormularioProduto({
     if (sairam.length > 0) {
       setImagensLote((lista) =>
         lista.filter(
-          (imagem) => !(imagem.daPeca && sairam.includes(imagem.daPeca) && !imagem.daOrigem && imagem.finalizada !== true),
+          // Desde 22/11/2026 elas chegam marcadas: a peca que sai leva todas as que trouxe (a de origem fica, era do painel).
+          (imagem) => !(imagem.daPeca && sairam.includes(imagem.daPeca) && !imagem.daOrigem),
         ),
       );
     }
@@ -3114,6 +3118,12 @@ export default function FormularioProduto({
   );
   // A venda das pecas somada, para o "Soma das pecas" embaixo do preco do kit (nula com a soma incompleta).
   const somaDasPecas = ehKit ? totaisDoKit(pecas).venda : null;
+  // As categorias da peca de maior quantidade, sugeridas ao kit na aba Categorias (pedido do dono em 22/11/2026). A faixa so
+  // aparece quando falta alguma delas no kit; usar e um clique, nada e marcado sozinho.
+  const categoriasDaPeca = ehKit ? categoriasDoKit(pecas) : null;
+  const sugestaoDeCategoriasDoKit = categoriasDaPeca
+    ? { ids: categoriasDaPeca.ids, texto: `as categorias da peça ${categoriasDaPeca.sku}`, rotulo: "Peça do kit", botao: "Usar as da peça" }
+    : null;
   const custoPadrao = ehKit
     ? totaisDoKit(pecas).custo
     : pecasLigadas
@@ -4418,7 +4428,11 @@ export default function FormularioProduto({
                 }}
                 ativo={aba === "categorias"}
                 acessos={{ ia: acessos.ia }}
-                propostaSugerida={daProposta?.nasListas?.categoriasLI ? { ids: daProposta.nasListas.categoriasLI.valor, texto: daProposta.nasListas.categoriasLI.origem } : null}
+                propostaSugerida={
+                  daProposta?.nasListas?.categoriasLI
+                    ? { ids: daProposta.nasListas.categoriasLI.valor, texto: daProposta.nasListas.categoriasLI.origem }
+                    : sugestaoDeCategoriasDoKit
+                }
                 marcaDaProposta={<MarcaDaProposta nome="categoriasLI" />}
               />
             </div>

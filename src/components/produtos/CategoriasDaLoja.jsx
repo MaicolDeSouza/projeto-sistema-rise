@@ -98,10 +98,11 @@ export default function CategoriasDaLoja({ inicial, lerCampo, aoAlterar, ativo, 
       {propostaSugerida && propostaSugerida.ids.some((id) => !marcadas.includes(id)) && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
           <span className="min-w-0">
-            <span className="font-semibold uppercase">Proposta</span> sugere: {propostaSugerida.texto}
+            {/* `rotulo` e `botao` (22/11/2026): a mesma faixa sugere tambem as categorias da peca do kit. */}
+            <span className="font-semibold uppercase">{propostaSugerida.rotulo ?? "Proposta"}</span> sugere: {propostaSugerida.texto}
           </span>
           <button type="button" onClick={() => mudar(propostaSugerida.ids)} className="rounded border border-amber-300 bg-white px-2.5 py-1 font-medium hover:bg-amber-100">
-            Usar a proposta
+            {propostaSugerida.botao ?? "Usar a proposta"}
           </button>
         </div>
       )}

@@ -121,6 +121,8 @@ const PECA = {
   larguraCm: true,
   comprimentoCm: true,
   ncm: true,
+  // A categoria sugerida ao kit pela peca de maior quantidade (pedido do dono em 22/11/2026).
+  categoriasLI: true,
   fornecedorRascunho: true,
   fornecedores: {
     where: { padrao: true },
@@ -168,6 +170,7 @@ export function pecaParaTela(produto, quantidade = 1) {
     larguraCm: numeroOuNull(produto.larguraCm),
     alturaCm: numeroOuNull(produto.alturaCm),
     ncm: produto.ncm ?? null,
+    categoriasLI: Array.isArray(produto.categoriasLI) ? produto.categoriasLI : [],
     fornecedor: padrao
       ? {
           id: padrao.id,

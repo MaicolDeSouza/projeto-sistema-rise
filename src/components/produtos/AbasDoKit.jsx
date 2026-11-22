@@ -111,14 +111,17 @@ export function FornecedoresDoKit({ pecas, ativo }) {
               <th className="px-3 py-2">Descrição no fornecedor</th>
               <th className="px-3 py-2">Código</th>
               <th className="px-3 py-2 text-right">Custo</th>
+              {/* Pedido do dono em 22/11/2026: o preco de venda de cada peca ao lado do custo, e o link da peca no Rise. */}
+              <th className="px-3 py-2 text-right">Preço venda</th>
               <th className="px-3 py-2 text-right">Estoque fornec.</th>
               <th className="px-3 py-2">Link</th>
+              <th className="px-3 py-2">Link Rise</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-borda">
             {pecas.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-3 py-4 text-center text-suave">
+                <td colSpan={10} className="px-3 py-4 text-center text-suave">
                   O kit ainda não tem peças (aba Composição).
                 </td>
               </tr>
@@ -152,6 +155,9 @@ export function FornecedoresDoKit({ pecas, ativo }) {
                     {peca.custo === null ? <span className="text-amber-700">sem custo</span> : formatarMoeda(peca.custo)}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
+                    {peca.precoVenda === null || peca.precoVenda === undefined ? <span className="text-amber-700">sem preço</span> : formatarMoeda(peca.precoVenda)}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
                     {fornecedor?.id ? <EstoqueDoFornecedor info={estoques[fornecedor.id]} /> : "—"}
                   </td>
                   <td className="px-3 py-2">
@@ -162,6 +168,18 @@ export function FornecedoresDoKit({ pecas, ativo }) {
                     ) : (
                       "—"
                     )}
+                  </td>
+                  <td className="px-3 py-2">
+                    {/* A peca no Rise ja na aba Fornecedores/Concorrentes (`?aba=` da pagina do produto), em nova janela. */}
+                    <a
+                      href={`/produtos/${peca.componenteId}?aba=fornecedores`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Abrir a peça no Rise, na aba Fornecedores / Concorrentes"
+                      className="inline-flex items-center gap-1 text-acento hover:underline"
+                    >
+                      Abrir <ExternalLink size={12} />
+                    </a>
                   </td>
                 </tr>
               );
