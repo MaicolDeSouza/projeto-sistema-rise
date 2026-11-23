@@ -210,7 +210,7 @@ function FreteDoAliExpress({ aliexpress }) {
   );
 }
 
-export function BlocoFrete({ formulario, transportadoras, editar, aoMudar, aliexpress = null }) {
+export function BlocoFrete({ formulario, transportadoras, editar, aoMudar, aliexpress = null, children = null }) {
   if (aliexpress) return <FreteDoAliExpress aliexpress={aliexpress} />;
   const escolhida = transportadoras.find((transportadora) => transportadora.id === formulario.transportadoraId);
   const outra = !formulario.transportadoraId;
@@ -272,6 +272,8 @@ export function BlocoFrete({ formulario, transportadoras, editar, aoMudar, aliex
           </div>
         </Campo>
       </div>
+      {/* O rastreio da J&T (23/11/2026), quando o codigo salvo e da J&T. */}
+      {children}
     </SecaoDoAnuncio>
   );
 }

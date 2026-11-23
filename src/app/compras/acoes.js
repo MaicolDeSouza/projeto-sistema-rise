@@ -24,6 +24,7 @@ import {
   salvarPedido,
 } from "@/lib/compras/banco";
 import { linkPublicoDoPedido } from "@/lib/compras/linkPublico";
+import { atualizarRastreioDaCompra } from "@/lib/compras/rastreioJT/banco";
 import { semPrecos, semPrecosNaEntrada, semValorDasNotas } from "@/lib/compras/projecao";
 import { prisma } from "@/lib/db";
 
@@ -314,5 +315,23 @@ export async function lerComprasDoMLAcao() {
   } catch (erro) {
     console.error("[compras] compras do ML:", erro);
     return { ok: false, erro: "Não foi possível ler as compras do ML." };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rastreio da J&T (23/11/2026): o worker le a cada 6 h; o botao do bloco Frete le na hora (gasta 1 consulta do mes)
+// ---------------------------------------------------------------------------
+
+/** "Atualizar rastreio": consulta o PacoteVicio agora e devolve o pedido relido (ou o motivo, sem o documento). */
+export async function atualizarRastreioAcao(pedidoId) {
+  const negado = await negarSemAcesso("tela.compras.pedidos", "editar");
+  if (negado) return negado;
+  try {
+    const lido = await atualizarRastreioDaCompra(String(pedidoId ?? ""));
+    revalidar();
+    return { ...lido, pedido: await pedidoParaQuemVe(pedidoId) };
+  } catch (erro) {
+    console.error("[compras] rastreio da J&T:", erro?.message ?? erro);
+    return { ok: false, erro: "Não foi possível consultar o rastreio da J&T." };
   }
 }

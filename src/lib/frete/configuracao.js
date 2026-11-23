@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db";
 
+import { formatarCpf, validarCpf } from "@/lib/documentos";
+
 import { lerDecimal } from "./regras";
 
 /**
@@ -35,9 +37,16 @@ export async function salvarConfigDeFrete(entrada) {
     if (valor.length > limite) erros[campo] = `No máximo ${limite} caracteres.`;
     textos[campo] = valor || null;
   }
+  // CPF alternativo do rastreio da J&T nas compras (23/11/2026): so muda quando o campo vem (quem nao o manda nao apaga).
+  const documento = {};
+  if (entrada && Object.hasOwn(entrada, "documentoRastreioJT")) {
+    const cpf = String(entrada.documentoRastreioJT ?? "").trim();
+    if (cpf && !validarCpf(cpf)) erros.documentoRastreioJT = "CPF inválido.";
+    else documento.documentoRastreioJT = cpf ? formatarCpf(cpf) : null;
+  }
   if (Object.keys(erros).length) return { ok: false, erros };
 
-  const dados = { acrescimoDeEmbalagem: acrescimo, percentualDePesoExtra: percentual, ...textos };
+  const dados = { acrescimoDeEmbalagem: acrescimo, percentualDePesoExtra: percentual, ...textos, ...documento };
   await prisma.configDeFrete.upsert({ where: { id: ID }, update: dados, create: { id: ID, ...PADRAO, ...dados } });
   return { ok: true };
 }

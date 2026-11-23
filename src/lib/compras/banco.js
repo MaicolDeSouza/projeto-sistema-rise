@@ -22,6 +22,8 @@ import { alertasDoPedido, avisosDoPedido, diasAte, entregaPeloRastreio, faseDoPe
 import { apagarComprovanteDoDisco, apagarNotaFiscalDoDisco, apagarPastaDoPedido, apagarPropostaDoPedido, guardarComprovante, guardarNotaFiscal, moverPropostaParaPedido } from "@/lib/compras/arquivos";
 import { lerXmlDaNfe } from "@/lib/compras/notaFiscalXml";
 import { nomeDoCanal } from "@/lib/compras/aliexpress/casamento";
+import { rastreioParaTela } from "@/lib/compras/rastreioJT/banco";
+import { alertaDoRastreio, codigoDaJT, faseDoRastreio } from "@/lib/compras/rastreioJT/regras";
 
 /**
  * Banco do modulo Compras (spec 2026-10-26-modulo-compras-design.md). Sem conferencia de acesso: quem chama (as
@@ -469,6 +471,8 @@ function pedidoParaTela(pedido) {
     totais: totaisDoPedido({ itens, ...editaveis }),
     origem: pedido.origem,
     aliexpress: blocoDoAliExpress(pedido.aliexpress, pedido.origem),
+    // O rastreio da J&T pelo PacoteVicio (23/11/2026), so o do codigo que esta no pedido.
+    rastreioJT: rastreioParaTela(rastreioJTVigente(pedido)),
     // Os avisos ambar do pedido do AliExpress: os mesmos motivos do "!" da lista (atraso, rastreio, situacao la, sem
     // produto, entregue) mais o Virtual pendente, que so a tela do pedido resolve.
     avisos: pedido.aliexpress
@@ -493,6 +497,9 @@ function pedidoParaTela(pedido) {
  */
 function motivosDoPedido(pedido, itens) {
   const ali = pedido.aliexpress;
+  const jt = rastreioJTVigente(pedido)?.situacao ? rastreioJTVigente(pedido) : null;
+  const falta = itens.reduce((soma, item) => soma + faltaLancar(item), 0);
+  const entregueJT = jt?.situacao === "delivered" ? (jt.entregueEm ?? jt.situacaoEm ?? new Date()) : null;
   const prazo = prazoDoPedido({
     status: pedido.status,
     enviadoEm: pedido.enviadoEm,
@@ -502,27 +509,35 @@ function motivosDoPedido(pedido, itens) {
   const alertas = alertasDoPedido({
     status: pedido.status,
     prazoFim: prazo?.fim ?? null,
-    entregueEm: ali?.entregueEm ?? null,
+    entregueEm: ali?.entregueEm ?? entregueJT,
     canceladoNoAliExpressEm: ali?.canceladoNoAliExpressEm ?? null,
-    faltaLancar: itens.reduce((soma, item) => soma + faltaLancar(item), 0),
+    faltaLancar: falta,
     estoqueLancado: itens.some((item) => item.quantidadeLancada > 0),
     linhasPendentes: ali ? ali.linhas.filter((linha) => !linha.itemId).length : 0,
     ultimosEventos: (ali?.pacotes ?? []).map((pacote) => ({ codigo: pacote.ultimoCodigo, descricao: pacote.ultimoEvento, em: pacote.ultimoEventoEm })),
     statusNoAliExpress: ali?.statusTexto ?? null,
     rastreioLidoEm: ali?.rastreioLidoEm ?? null,
     canal: nomeDoCanal(pedido.origem),
+    alertaJT: jt ? alertaDoRastreio(jt) : null,
   });
   const fase = faseDoPedido({
     origem: pedido.origem,
     status: pedido.status,
-    faltaLancar: itens.reduce((soma, item) => soma + faltaLancar(item), 0),
-    entregueEm: ali?.entregueEm ?? null,
+    faltaLancar: falta,
+    entregueEm: ali?.entregueEm ?? entregueJT,
     pacotes: ali?.pacotes ?? [],
     prazoFim: prazo?.fim ?? null,
     rastreioLidoEm: ali?.rastreioLidoEm ?? null,
     statusNoAliExpress: ali?.statusTexto ?? null,
+    faseJT: jt ? faseDoRastreio({ situacao: jt.situacao, faltaLancar: falta }) : null,
   });
   return { prazo, alertas, fase };
+}
+
+/** O rastreio da J&T que vale: so o do pedido feito no Rise e do MESMO codigo que esta no pedido (trocado = recomeca). */
+function rastreioJTVigente(pedido) {
+  const linha = pedido.origem === "RISE" ? pedido.rastreioJT : null;
+  return linha && linha.codigo === codigoDaJT(pedido.rastreio) ? linha : null;
 }
 
 /** Os enderecos do pedido e do rastreio no canal. ML: a lista de compras (a pagina da compra pede login e muda de formato) e,
@@ -628,6 +643,7 @@ const INCLUIR_NO_PEDIDO = {
       lancamentos: { where: { desfeitoEm: null }, orderBy: { lancadoEm: "asc" } },
     },
   },
+  rastreioJT: true,
   // Pedido importado do AliExpress (spec 2026-10-28): os dados crus, as linhas (casadas e pendentes) e os pacotes.
   aliexpress: {
     include: {
@@ -697,6 +713,7 @@ export async function listarPedidos({ status, busca, pagina = 1, porPagina = 25,
       include: {
         fornecedor: { select: { nome: true } },
         itens: { orderBy: { ordem: "asc" }, select: { quantidade: true, quantidadeLancada: true, prazoDias: true, precoUnitario: true, ipiPercentual: true, produto: { select: { sku: true, tituloBase: true, arquivos: { where: { tipo: "IMAGEM", papel: "FOTO" }, orderBy: { ordem: "asc" }, take: 1, select: { arquivo: true } } } } } },
+        rastreioJT: { select: { codigo: true, situacao: true, situacaoEm: true, entregueEm: true, eventos: true } },
         aliexpress: {
           select: {
             loja: true,

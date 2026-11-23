@@ -330,6 +330,9 @@ export function faseDoPedido({
   agora = new Date(),
   rastreioLidoEm = null,
   statusNoAliExpress = null,
+  // Pedido do Rise com rastreio da J&T (23/11/2026): a fase pronta de `faseDoRastreio` (rastreioJT/regras.js; este arquivo
+  // nao tem imports) e, entregue, a data em `entregueEm`.
+  faseJT = null,
 }) {
   if (status !== "ENVIADO" && status !== "PARCIAL") return null;
   const lista = pacotes ?? [];
@@ -342,8 +345,11 @@ export function faseDoPedido({
   const atrasado = Boolean(prazoFim) && faltaLancar > 0 && diaEmSaoPaulo(agora) > diaEmSaoPaulo(prazoFim);
 
   if (origem !== "ALIEXPRESS" && origem !== "MERCADO_LIVRE") {
+    if (entregueEm) return faltaLancar > 0 ? com("Aguardando conferência", "conferencia") : null;
+    if (faseJT?.tom === "problema") return com(faseJT.rotulo, faseJT.tom);
     if (atrasado) return com("Atrasado", "problema");
-    return status === "PARCIAL" ? com("Recebido em parte", "parcial") : com("Aguardando entrega", "neutro");
+    if (status === "PARCIAL") return com("Recebido em parte", "parcial");
+    return faseJT ? com(faseJT.rotulo, faseJT.tom) : com("Aguardando entrega", "neutro");
   }
   if (entregueEm || entregaPeloRastreio(lista)) return faltaLancar > 0 ? com("Aguardando conferência", "conferencia") : null;
   const problema = lista.map((pacote) => faseDoEvento(eventoDe(pacote))).find((fase) => fase?.tom === "problema");
@@ -417,9 +423,11 @@ export function alertasDoPedido({
   statusNoAliExpress = null,
   rastreioLidoEm = null,
   canal = "AliExpress",
+  // O "!" do rastreio da J&T (23/11/2026), pronto de `alertaDoRastreio` (rastreioJT/regras.js): so problema.
+  alertaJT = null,
 }) {
   if (status !== "ENVIADO" && status !== "PARCIAL") return [];
-  const alertas = [];
+  const alertas = alertaJT ? [alertaJT] : [];
   const diaDe = (data) => new Date(data).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
   // Chegou pelo rastreio = entregue, mesmo com o pedido ainda "Aguardando a entrega" no AliExpress (PC-0015, 04/11/2026).
   const chegou = Boolean(entregueEm) || ((ultimosEventos ?? []).length > 0 && ultimosEventos.every((evento) => entregueNoRastreio(evento)));

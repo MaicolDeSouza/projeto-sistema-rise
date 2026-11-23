@@ -9,11 +9,13 @@ import { adicionarItemAcao, desfazerCasamentoAliExpressAcao, mudarStatusAcao, sa
 import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
 import { marcarTelaIniciada } from "@/components/mercados/NavegacaoDoTopo";
 import { faltaLancar } from "@/lib/compras/regras";
+import { ehDaJT } from "@/lib/compras/rastreioJT/regras";
 import { lerListaDaTela, pedirVoltaNaRolagem } from "@/lib/ultimaListaDaTela";
 import { AvisosAliExpress, ResumoAliExpress } from "./AliExpressDoPedido";
 import BlocoItens from "./BlocoItens";
 import ComprovantesDePagamento from "./ComprovantesDePagamento";
 import NotasFiscais from "./NotasFiscais";
+import RastreioDaJT from "./RastreioDaJT";
 import { BlocoFrete, BlocoObservacoes, BlocoPagamento, BlocoProposta, BlocoTotais } from "./BlocosDoPedido";
 import { entradaDoFormulario, formularioDoPedido, totaisDoFormulario } from "./formato";
 import Pergunta from "./Pergunta";
@@ -121,6 +123,11 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
 
   const pendentes = pedido.itens.filter((item) => faltaLancar(item) > 0);
   const casavel = podeCasar && podeEditar && !["FINALIZADO", "CANCELADO"].includes(pedido.status);
+  // O rastreio da J&T (23/11/2026) pelo codigo SALVO: o digitado e ainda nao salvo nao e consultado.
+  const jtSalvo =
+    !pedido.aliexpress &&
+    pedido.status !== "RASCUNHO" &&
+    (Boolean(pedido.rastreioJT) || ehDaJT({ rastreio: pedido.rastreio, transportadora: pedido.transportadora?.nome ?? pedido.transportadoraNome }));
 
   // "Trocar produto" do pedido do AliExpress: o item volta a ser linha sem produto (so sem estoque lancado).
   const trocarProduto = (item) =>
@@ -348,7 +355,17 @@ export default function EditorPedido({ pedidoInicial, transportadoras, podeEdita
           </BlocoPagamento>
           {/* Nota fiscal num bloco proprio ao lado de Pagamento (11/11/2026, Opcao 1 do dono). */}
           <NotasFiscais pedidoId={pedido.id} inicial={pedido.notasFiscais ?? []} podeEditar={podeEditar} />
-          <BlocoFrete formulario={formulario} transportadoras={transportadoras} editar={!fechado} aoMudar={mudar} aliexpress={pedido.aliexpress} />
+          <BlocoFrete formulario={formulario} transportadoras={transportadoras} editar={!fechado} aoMudar={mudar} aliexpress={pedido.aliexpress}>
+            {jtSalvo && (
+              <RastreioDaJT
+                key={pedido.rastreio}
+                pedidoId={pedido.id}
+                inicial={pedido.rastreioJT}
+                podeAtualizar={podeEditar && formulario.rastreio === (pedido.rastreio ?? "")}
+                motivoSemBotao={podeEditar ? "Salve o pedido com o código novo antes de consultar." : "Sem permissão para editar pedidos de compra."}
+              />
+            )}
+          </BlocoFrete>
           <BlocoProposta formulario={formulario} editar={!fechado} aoMudar={mudar}>
             {extras.arquivoDaProposta?.({ pedido, editar: !fechado, formulario, mudar })}
           </BlocoProposta>

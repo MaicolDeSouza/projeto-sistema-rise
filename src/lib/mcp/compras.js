@@ -197,6 +197,17 @@ function pedidoParaConversa(pedido, veCusto) {
       transportadora: visto.transportadora?.nome ?? visto.transportadoraNome ?? null,
       porConta: visto.fretePorConta,
       rastreio: visto.rastreio,
+      // O rastreio da J&T pelo PacoteVicio (23/11/2026): situacao, entrega e eventos, nunca o documento do destinatario.
+      rastreioJT: visto.rastreioJT
+        ? {
+            situacao: visto.rastreioJT.rotulo,
+            atualizadaEm: emTexto(visto.rastreioJT.situacaoEm),
+            entregueEm: emTexto(visto.rastreioJT.entregueEm),
+            erro: visto.rastreioJT.erro,
+            eventos: visto.rastreioJT.eventos.map((evento) => ({ em: emTexto(evento.em), descricao: evento.descricao, local: evento.local })),
+            fonte: "Rastreio por PacoteVício (pacotevicio.dev)",
+          }
+        : null,
     },
     // Pedido importado do AliExpress (28/10/2026): o numero la, a loja, a situacao no site e os pacotes com o rastreio.
     aliexpress: visto.aliexpress ? aliexpressParaConversa(visto.aliexpress) : null,

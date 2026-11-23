@@ -2458,9 +2458,37 @@ model PedidoDeCompra {
   notasFiscais NotaFiscalCompra[]
   /// Codigos reversos: o fornecedor posta para a 4hobby com o frete da 4hobby (modulo de frete, fase 3).
   envios       Envio[]
+  /// O rastreio da J&T pelo PacoteVicio (23/11/2026), quando o rastreio digitado e da J&T.
+  rastreioJT   RastreioDaCompra?
 
   @@index([status])
   @@index([fornecedorId, status])
+}
+
+/// O rastreio da J&T de um pedido de compra, lido pelo PacoteVicio (spec 2026-11-23-rastreio-jt-nas-compras-design.md).
+/// Um por pedido; `codigo` diferente do rastreio do pedido = o operador trocou o codigo, e a leitura recomeca.
+model RastreioDaCompra {
+  id               String         @id @default(cuid())
+  pedidoDeCompraId String         @unique
+  pedidoDeCompra   PedidoDeCompra @relation(fields: [pedidoDeCompraId], references: [id], onDelete: Cascade)
+  codigo           String
+  /// Status normalizado do PacoteVicio (in_transit, delivered...); null = a J&T ainda nao achou.
+  situacao         String?
+  situacaoEm       DateTime?
+  entregueEm       DateTime?
+  /// Ate 50 eventos, do mais recente: [{ em, situacao, descricao, local }], com o de atribuicao do plano Basico.
+  eventos          Json?
+  /// Qual documento a J&T aceitou: "CNPJ" ou "CPF". O numero nunca e gravado aqui.
+  documento        String?
+  lidoEm           DateTime?
+  /// Null = encerrado (entregue ou devolvido).
+  proximaLeituraEm DateTime?
+  erro             String?
+  consultas        Int            @default(0)
+  criadoEm         DateTime       @default(now())
+  atualizadoEm     DateTime       @updatedAt
+
+  @@index([proximaLeituraEm])
 }
 
 /// Um produto do pedido. Guarda COPIA do nome, codigo e link no fornecedor: o vinculo (ProdutoFornecedor) pode mudar
@@ -3447,28 +3475,33 @@ model CaixaDeEnvio {
 
 /// Uma linha so (id "frete"): o que a cotacao soma e o texto do aviso ao cliente (Configuracoes > Envios).
 model ConfigDeFrete {
-  id                    String   @id
+  id                     String    @id
   /// Somado ao frete cotado no valor cobrado do cliente (a caixinha e o plastico bolha; dono, 18/11/2026).
-  acrescimoDeEmbalagem  Decimal  @default(1) @db.Decimal(12, 2)
+  acrescimoDeEmbalagem   Decimal   @default(1) @db.Decimal(12, 2)
   /// Folga de peso de embalagem sobre itens + caixa vazia, em %.
-  percentualDePesoExtra Decimal  @default(10) @db.Decimal(5, 2)
+  percentualDePesoExtra  Decimal   @default(10) @db.Decimal(5, 2)
   /// Quando o cliente e avisado: "POSTADO" (fase 2).
-  momentoDoAviso        String   @default("POSTADO")
-  assuntoDoEmail        String?
-  textoDoEmail          String?
-  textoDoWhatsapp       String?
+  momentoDoAviso         String    @default("POSTADO")
+  assuntoDoEmail         String?
+  textoDoEmail           String?
+  textoDoWhatsapp        String?
   /// "TERMICA" (10x15) ou "A4".
-  formatoDeImpressao    String?
+  formatoDeImpressao     String?
   /// Saldo da carteira do Melhor Envio (pedido do dono em 23/11/2026): abaixo deste valor sai o aviso no Telegram.
-  limiteDeSaldo         Decimal   @default(50) @db.Decimal(12, 2)
+  limiteDeSaldo          Decimal   @default(50) @db.Decimal(12, 2)
   /// Senha da recarga pelo Rise, cifrada (scrypt "sal:hash"). Nula = a senha inicial que o dono pediu (ver saldo.js).
-  senhaDaRecarga        String?
+  senhaDaRecarga         String?
   /// O ultimo saldo lido pelo worker (de hora em hora e depois de cada etiqueta comprada).
-  saldoAtual            Decimal?  @db.Decimal(12, 2)
-  saldoLidoEm           DateTime?
+  saldoAtual             Decimal?  @db.Decimal(12, 2)
+  saldoLidoEm            DateTime?
   /// Desde quando o saldo esta abaixo do limite (null = acima): cada queda vira UM aviso no Telegram.
-  saldoBaixoDesde       DateTime?
-  atualizadoEm          DateTime @updatedAt
+  saldoBaixoDesde        DateTime?
+  /// CPF alternativo do rastreio da J&T nas compras (23/11/2026): quando a J&T nao acha com o CNPJ da empresa.
+  documentoRastreioJT    String?
+  /// As consultas ao PacoteVicio no mes (teto da rotina automatica): o mes em Sao Paulo ("2026-11") e quantas.
+  rastreioMes            String?
+  rastreioConsultasNoMes Int       @default(0)
+  atualizadoEm           DateTime  @updatedAt
 }
 
 /// Cada pedido de recarga do saldo do Melhor Envio feito pelo Rise (pedido do dono em 23/11/2026). O Rise so GERA a

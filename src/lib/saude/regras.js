@@ -19,6 +19,7 @@ export const ROTINAS_DO_WORKER = [
   { id: "reclamacoesML", rotulo: "Reclamações do Mercado Livre" },
   { id: "propostas", rotulo: "Propostas vencidas" },
   { id: "envios", rotulo: "Envios (rastreio)" },
+  { id: "rastreioCompras", rotulo: "Rastreio da J&T nas compras" },
   { id: "telegram", rotulo: "Avisos do Telegram" },
   { id: "rotinaSemanal", rotulo: "Rodada semanal e relatório" },
   { id: "fotoMensal", rotulo: "Foto mensal de preço e estoque" },

@@ -72,6 +72,7 @@
     "pedidos:conferir-mp": "node scripts/conferir-mercado-pago.js",
     "teste:aliexpress": "node scripts/teste-aliexpress.js",
     "teste:compras-ml": "node scripts/teste-compras-ml.js",
+    "teste:rastreio-jt": "node scripts/teste-rastreio-jt.js",
     "teste:estoque3d": "node scripts/teste-estoque3d.js",
     "teste:estudos": "node scripts/teste-estudos.js",
     "teste:extensao-aliexpress": "node scripts/teste-extensao-aliexpress.js",

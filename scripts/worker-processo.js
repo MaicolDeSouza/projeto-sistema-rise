@@ -63,6 +63,7 @@ const { registrarRotina, registrarMemoria } = await import("../src/lib/saude/reg
 const { rodarLeituraDePedidos, processarNotificacoes } = await import("../src/lib/pedidos/leitura.js");
 const { recalcularPecasDosPedidosAbertos } = await import("../src/lib/pedidos/banco.js");
 const { lerComprasDoML } = await import("../src/lib/compras/mercadoLivre/compras.js");
+const { rodarRastreioDasCompras } = await import("../src/lib/compras/rastreioJT/banco.js");
 const { lerReclamacoesML } = await import("../src/lib/pedidos/reclamacoesML.js");
 const { vencerPropostas } = await import("../src/lib/propostas/banco.js");
 const { rodarRastreioDosEnvios } = await import("../src/lib/frete/rastreio.js");
@@ -98,6 +99,10 @@ let comprasMLLidasEm = 0;
 /// O rastreio dos envios comprados pelo Rise (modulo de frete, fase 2): a cada 15 min, como na spec (sem webhook).
 const RASTREIO_DOS_ENVIOS_MS = 15 * 60 * 1000;
 let enviosRastreadosEm = 0;
+/// O rastreio da J&T nos pedidos de compra (23/11/2026, PacoteVicio): confere a cada 30 min quem venceu; cada pedido e
+/// lido a cada 6 h. So LEITURA. Sem PACOTEVICIO_API_KEY nao consulta nada.
+const RASTREIO_DAS_COMPRAS_MS = 30 * 60 * 1000;
+let comprasRastreadasEm = 0;
 const SALDO_DO_FRETE_MS = 60 * 60 * 1000;
 let saldoDoFreteLidoEm = 0;
 /// Propostas para cliente (12/11/2026): a aberta com a validade vencida vira Vencida. A lista tambem vence ao abrir; o
@@ -638,6 +643,13 @@ async function laco() {
         const envios = await rodarRotina("envios", RASTREIO_DOS_ENVIOS_MS, () => rodarRastreioDosEnvios());
         if (envios.ok === false) logErro(`envios: rastreio nao lido: ${envios.erro}`);
         else if (envios.mudados > 0 || envios.expirados > 0) log(`envios: ${envios.mudados} mudaram de ${envios.consultados}, ${envios.avisados} aviso(s), ${envios.expirados} expirado(s)`);
+      }
+      // `rodarRastreioDasCompras` so lanca quando o banco cai; PacoteVicio fora do ar vira erro no pedido e nova tentativa.
+      if (!FONTES && !SO_NO_PC && Date.now() - comprasRastreadasEm >= RASTREIO_DAS_COMPRAS_MS) {
+        comprasRastreadasEm = Date.now();
+        const jt = await rodarRotina("rastreioCompras", RASTREIO_DAS_COMPRAS_MS, () => rodarRastreioDasCompras());
+        if (jt.teto) logErro("rastreio da J&T: teto do mes atingido; o botao do pedido ainda consulta");
+        if (jt.consultados > 0) log(`rastreio da J&T: ${jt.consultados} consultado(s), ${jt.mudados} mudaram, ${jt.entregues} entregue(s), ${jt.problemas} com problema, ${jt.erros} falha(s)`);
       }
       // O saldo da carteira do Melhor Envio, de hora em hora (pedido do dono em 23/11/2026): abaixo do limite, a rotina do
       // Telegram manda o aviso com o botao "Adicionar saldo". Falha so vai ao log; o saldo gravado fica.

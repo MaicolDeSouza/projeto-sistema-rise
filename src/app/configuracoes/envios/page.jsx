@@ -30,6 +30,7 @@ export default async function EnviosPage() {
           // O limite do aviso de saldo e se a senha da recarga ainda e a inicial (a gravada nunca vai a tela).
           limiteDeSaldo: Number(config.limiteDeSaldo),
           senhaInicial: !config.senhaDaRecarga,
+          documentoRastreioJT: config.documentoRastreioJT ?? "",
         }}
         podeEditar={podeEditar}
       />

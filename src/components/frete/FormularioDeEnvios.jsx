@@ -24,6 +24,7 @@ export default function FormularioDeEnvios({ inicial, podeEditar }) {
     textoDoWhatsapp: inicial.textoDoWhatsapp ?? "",
     limiteDeSaldo: paraTexto(Number(inicial.limiteDeSaldo ?? 50).toFixed(2)),
     senhaNova: "",
+    documentoRastreioJT: inicial.documentoRastreioJT ?? "",
   });
   const [erros, setErros] = useState({});
   const [salvo, setSalvo] = useState(false);
@@ -98,6 +99,20 @@ export default function FormularioDeEnvios({ inicial, podeEditar }) {
             disabled={!podeEditar}
             value={campos.senhaNova}
             onChange={(e) => mudarTexto("senhaNova", e.target.value)}
+          />
+        </div>
+        <h2 className="mt-6 border-t border-borda pt-4 text-sm font-semibold">Rastreio da J&T nas compras</h2>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          <Campo
+            nome="documentoRastreioJT"
+            rotulo="CPF alternativo"
+            ajuda="A J&T pede o documento de quem recebe. O Rise tenta primeiro o CNPJ de Dados da empresa; se a compra veio no seu nome, usa este CPF."
+            erro={erros.documentoRastreioJT}
+            inputMode="numeric"
+            maxLength={14}
+            disabled={!podeEditar}
+            value={campos.documentoRastreioJT}
+            onChange={(e) => mudarTexto("documentoRastreioJT", e.target.value.replace(/[^\d.-]/g, ""))}
           />
         </div>
         <h2 className="mt-6 border-t border-borda pt-4 text-sm font-semibold">Aviso de postagem ao cliente</h2>
