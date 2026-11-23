@@ -309,8 +309,11 @@ export function criarServidorDoAssistente({ dados, responder, avaliar, verificar
     const sessaoId = String(corpo.sessaoId ?? "");
     const mensagemId = String(corpo.mensagemId ?? "");
     if (!SESSAO.test(sessaoId) || !mensagemId || mensagemId.length > 64 || (corpo.nota !== 1 && corpo.nota !== -1)) return json(resposta, 400, { erro: "avaliacao" }, cors);
+    // O comentario do 👎 (22/11/2026): texto de ate 500 caracteres, ou nada.
+    const comentario = corpo.comentario === undefined || corpo.comentario === null ? null : corpo.comentario;
+    if (comentario !== null && (typeof comentario !== "string" || comentario.length > 500)) return json(resposta, 400, { erro: "avaliacao" }, cors);
     // 204 sempre: nao revela se a mensagem existe nem de quem e.
-    await avaliar(mensagemId, sessaoId, corpo.nota).catch((erro) => console.error("[ia] nao gravou a avaliacao:", erro?.message ?? erro));
+    await avaliar(mensagemId, sessaoId, corpo.nota, comentario === null ? null : comentario.trim() || null).catch((erro) => console.error("[ia] nao gravou a avaliacao:", erro?.message ?? erro));
     resposta.writeHead(204, cors);
     resposta.end();
   }

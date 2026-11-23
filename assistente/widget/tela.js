@@ -132,6 +132,14 @@ var HOBI_CSS = [
   ".nota button[aria-pressed=true] svg{fill:currentColor;width:18px;height:18px}",
   ".nota button[disabled]{cursor:default}",
   ".nota span{font-size:12px;color:var(--suave)}",
+  // A caixinha do 👎 (pedido do dono em 22/11/2026, frase da Opcao 1): opcional, embaixo da nota.
+  ".opiniao{display:grid;gap:8px;padding:10px 12px;border:1px solid var(--borda);border-radius:12px;background:var(--nevoa)}",
+  ".opiniao strong{font-size:13px;color:var(--tinta)}",
+  ".opiniao textarea{min-height:60px;padding:8px 10px;border:1px solid var(--borda);border-radius:10px;resize:vertical;font:inherit;font-size:13px;color:var(--tinta);background:var(--papel)}",
+  ".opiniao textarea:focus{outline:2px solid var(--verde);outline-offset:1px;border-color:var(--verde)}",
+  ".opiniao .principal{justify-self:start;height:36px}",
+  ".opiniao-ok{margin:0;font-size:12px;color:var(--suave)}",
+  ".avaliacao{display:grid;gap:8px}",
   ".confirma{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fff7e6;border-top:1px solid #f1d9a6;font-size:13px}",
   ".confirma span{flex:1}",
   ".confirma button{height:36px;padding:0 10px;border:1px solid var(--borda);border-radius:8px;background:var(--papel)}",
@@ -668,21 +676,53 @@ function hobiIniciar(servico, status) {
     ruim.appendChild(hobiIcone("ruim"));
     var obrigado = hobiEl("span", null, troca.nota ? "Obrigado pela avaliação." : "");
     // A nota pode ser trocada (pedido do dono em 22/11/2026); clicar de novo na mesma nao manda nada.
+    // O 👎 abre a caixinha para o visitante contar o que faltou (opcional: a nota ja foi gravada). O comentario vai mascarado
+    // ao banco e aparece na Revisao do dia.
+    var opiniao = hobiEl("form", "opiniao", null, { novalidate: "" });
+    opiniao.hidden = true;
+    opiniao.appendChild(hobiEl("strong", null, "Poxa! Conta pra gente o que faltou?"));
+    var relato = hobiEl("textarea", null, null, { maxlength: "500", rows: "2", "aria-label": "O que faltou na resposta", placeholder: "Ex.: não achou a peça, preço errado, não entendeu a pergunta" });
+    opiniao.appendChild(relato);
+    opiniao.appendChild(hobiEl("button", "principal", "Enviar", { type: "submit" }));
+    var agradecido = hobiEl("p", "opiniao-ok", "Obrigado! Isso ajuda o Hobi a melhorar.");
+    agradecido.hidden = true;
+    function postarNota(nota, comentario) {
+      var corpo = { sessaoId: sessaoId, mensagemId: troca.mensagemId, nota: nota };
+      if (comentario) corpo.comentario = comentario;
+      fetch(servico + "/avaliar", { method: "POST", credentials: "omit", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) }).catch(function () {});
+    }
     function avaliar(nota) {
       if (boa.getAttribute("aria-pressed") === String(nota === 1) && ruim.getAttribute("aria-pressed") === String(nota === -1)) return;
       boa.setAttribute("aria-pressed", String(nota === 1));
       ruim.setAttribute("aria-pressed", String(nota === -1));
-      obrigado.textContent = "Obrigado pela avaliação.";
+      obrigado.textContent = nota === 1 ? "Obrigado pela avaliação." : "";
+      opiniao.hidden = nota !== -1;
+      agradecido.hidden = true;
       conversa = aplicarEvento(conversa, { evento: "avaliacao", dados: { mensagemId: troca.mensagemId, nota: nota } });
       guardar();
-      fetch(servico + "/avaliar", { method: "POST", credentials: "omit", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessaoId: sessaoId, mensagemId: troca.mensagemId, nota: nota }) }).catch(function () {});
+      postarNota(nota, null);
+      if (nota === -1) {
+        relato.focus();
+        rolarParaOFim();
+      }
     }
+    opiniao.onsubmit = function (evento) {
+      evento.preventDefault();
+      var comentario = relato.value.trim();
+      if (comentario) postarNota(-1, comentario);
+      opiniao.hidden = true;
+      agradecido.hidden = false;
+    };
     boa.onclick = function () { avaliar(1); };
     ruim.onclick = function () { avaliar(-1); };
     caixa.appendChild(boa);
     caixa.appendChild(ruim);
     caixa.appendChild(obrigado);
-    return caixa;
+    var avaliacao = hobiEl("div", "avaliacao");
+    avaliacao.appendChild(caixa);
+    avaliacao.appendChild(opiniao);
+    avaliacao.appendChild(agradecido);
+    return avaliacao;
   }
 
   function desenharTroca(troca) {

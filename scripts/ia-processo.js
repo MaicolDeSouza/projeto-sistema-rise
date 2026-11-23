@@ -53,7 +53,7 @@ const servidor = criarServidorDoAssistente({
   dados,
   responder: ({ sessaoId, mensagem, contexto, aoEvento, limites, anexo }) =>
     responderAoCliente({ canal: "LOJA", sessaoId, mensagem, contexto, aoEvento, anexo, dependencias: { dados, conversas, orcamento, limites } }),
-  avaliar: (mensagemId, sessaoId, nota) => conversas.avaliar(mensagemId, sessaoId, nota),
+  avaliar: (mensagemId, sessaoId, nota, comentario) => conversas.avaliar(mensagemId, sessaoId, nota, comentario),
   verificarRobo: verificarTurnstile,
   chaveHex: derivarChave(ambiente.chaveHex, "passe"),
   origens: ambiente.origens,

@@ -169,7 +169,7 @@ const orcamento = criarOrcamentoDoCliente();
 const assistente = criarServidorDoAssistente({
   dados,
   responder: ({ sessaoId, mensagem, contexto, aoEvento, limites, anexo }) => responderAoCliente({ canal: "LOJA", sessaoId, mensagem, contexto, aoEvento, anexo, dependencias: { dados, conversas, orcamento, limites, criarProvedor } }),
-  avaliar: (mensagemId, sessaoId, nota) => conversas.avaliar(mensagemId, sessaoId, nota),
+  avaliar: (mensagemId, sessaoId, nota, comentario) => conversas.avaliar(mensagemId, sessaoId, nota, comentario),
   // So a chave de teste chega aqui: basta o navegador ter devolvido um token.
   verificarRobo: async ({ token }) => typeof token === "string" && token.length > 0,
   chaveHex: "de".repeat(32),

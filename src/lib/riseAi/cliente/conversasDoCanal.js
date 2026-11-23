@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db";
 
+import { mascararDadosPessoais } from "../mascarar";
+
 /**
  * A conversa de um CLIENTE (canal LOJA) no banco. Usa as mesmas tabelas do Rise AI (`ConversaIA`, `MensagemIA`), para a
  * Revisao do dia e as sugestoes valerem tambem aqui; o usuario de banco do servico so alcanca as linhas deste canal
@@ -86,15 +88,21 @@ export function criarConversasDoCanal() {
       return mensagem.id;
     },
 
-    /** 👍 ou 👎 do visitante numa resposta DA SESSAO DELE. `false` (sem dizer por que) em qualquer outro caso. */
-    async avaliar(mensagemId, sessaoId, nota) {
+    /**
+     * 👍 ou 👎 do visitante numa resposta DA SESSAO DELE. `false` (sem dizer por que) em qualquer outro caso.
+     * `comentario` (so no 👎; pedido do dono em 22/11/2026: "Poxa! Conta pra gente o que faltou?") e gravado mascarado, como
+     * a pergunta; sem comentario, o que ja estava fica. O 👍 tira o comentario (ele era sobre a resposta ruim).
+     */
+    async avaliar(mensagemId, sessaoId, nota, comentario = null) {
       if (nota !== 1 && nota !== -1) return false;
       const mensagem = await prisma.mensagemIA.findFirst({
         where: { id: String(mensagemId ?? ""), papel: "ASSISTENTE", conversa: { usuario: usuarioDe(sessaoId) } },
         select: { id: true },
       });
       if (!mensagem) return false;
-      await prisma.mensagemIA.update({ where: { id: mensagem.id }, data: { avaliacao: nota, avaliadoPor: "visitante", avaliadoEm: new Date() } });
+      const texto = typeof comentario === "string" ? mascararDadosPessoais(comentario.trim().slice(0, 500)).texto : "";
+      const doComentario = nota === 1 ? { comentario: null } : texto ? { comentario: texto } : {};
+      await prisma.mensagemIA.update({ where: { id: mensagem.id }, data: { avaliacao: nota, avaliadoPor: "visitante", avaliadoEm: new Date(), ...doComentario } });
       return true;
     },
   };

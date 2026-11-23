@@ -595,7 +595,7 @@ try {
         respostasTerminadas++;
       },
       avaliar: async (...argumentos) => {
-        (opcoes.avaliacoes ?? []).push(argumentos);
+        (opcoes.avaliacoes ?? []).push(argumentos.length === 3 ? [...argumentos, null] : argumentos);
         return true;
       },
       verificarRobo: async ({ token }) => token === "token-bom",
@@ -654,7 +654,12 @@ try {
   const avaliacoes = [];
   const portaDaNota = await subir({ avaliacoes });
   conferir("avaliar devolve 204", (await portaDaNota.postar("/avaliar", { sessaoId: SESSAO, mensagemId: "zz-m1", nota: -1 })).status, 204);
-  conferir("avaliar chega ao banco com a sessao", avaliacoes, [["zz-m1", SESSAO, -1]]);
+  conferir("avaliar chega ao banco com a sessao", avaliacoes, [["zz-m1", SESSAO, -1, null]]);
+  // O 👎 com o comentario do visitante (pedido do dono em 22/11/2026: "Poxa! Conta pra gente o que faltou?").
+  conferir("avaliar com comentario", (await portaDaNota.postar("/avaliar", { sessaoId: SESSAO, mensagemId: "zz-m1", nota: -1, comentario: "  nao achou o sensor  " })).status, 204);
+  conferir("o comentario chega ao banco sem os espacos", avaliacoes.at(-1), ["zz-m1", SESSAO, -1, "nao achou o sensor"]);
+  conferir("comentario acima de 500 caracteres", (await portaDaNota.postar("/avaliar", { sessaoId: SESSAO, mensagemId: "zz-m1", nota: -1, comentario: "a".repeat(501) })).status, 400);
+  conferir("comentario que nao e texto", (await portaDaNota.postar("/avaliar", { sessaoId: SESSAO, mensagemId: "zz-m1", nota: -1, comentario: 5 })).status, 400);
   conferir("nota fora de 1 e -1", (await portaDaNota.postar("/avaliar", { sessaoId: SESSAO, mensagemId: "zz-m1", nota: 5 })).status, 400);
   await portaDaNota.fechar();
   await porta.fechar();
@@ -1211,6 +1216,14 @@ try {
   conferir("resumo de uma resposta barrada de verdade (a do preco inventado)", [daReprovada.barrada?.motivo, daReprovada.barrada?.texto.includes("59,90"), daReprovada.passagem, daReprovada.cartoes.length], ["preco", true, "filtro", 1]);
 
   conferir("o visitante avalia a propria resposta", await criarConversasDoCanal().avaliar(r.mensagemId, pedido.sessaoId, -1), true);
+  await criarConversasDoCanal().avaliar(r.mensagemId, pedido.sessaoId, -1, "faltou o resistor; meu CPF 123.456.789-09");
+  const comentada = await prisma.mensagemIA.findUnique({ where: { id: r.mensagemId }, select: { avaliacao: true, comentario: true } });
+  conferir("o comentario do visitante e gravado mascarado", [comentada?.avaliacao, comentada?.comentario?.includes("faltou o resistor"), comentada?.comentario?.includes("123.456.789-09")], [-1, true, false]);
+  await criarConversasDoCanal().avaliar(r.mensagemId, pedido.sessaoId, -1);
+  conferir("o 👎 de novo sem comentario nao apaga o comentario", (await prisma.mensagemIA.findUnique({ where: { id: r.mensagemId }, select: { comentario: true } }))?.comentario?.includes("faltou o resistor"), true);
+  await criarConversasDoCanal().avaliar(r.mensagemId, pedido.sessaoId, 1);
+  conferir("trocar para 👍 tira o comentario", (await prisma.mensagemIA.findUnique({ where: { id: r.mensagemId }, select: { comentario: true } }))?.comentario, null);
+  await criarConversasDoCanal().avaliar(r.mensagemId, pedido.sessaoId, -1);
   const doDia = await conversasDoDia(hojeEmSaoPaulo(), { administrador: true });
   const daLoja = doDia.find((conversa) => conversa.id === r.conversaId);
   conferir("Revisao: a conversa da loja vem com o canal, o visitante e sinalizada pelo 👎 dele", [daLoja?.canal, daLoja?.visitante, daLoja?.sinalizada, daLoja?.cliente], ["LOJA", "zz-aaa", true, null]);
