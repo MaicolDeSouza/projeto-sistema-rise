@@ -165,7 +165,8 @@ function CampoDeSegredo({ nome, rotulo, ajuda, situacao, podeEditar, preparado, 
         </button>
       </div>
       <div className="flex min-h-9 flex-wrap items-center gap-3 text-xs">
-        <span className={situacao.cadastrado ? "text-emerald-700" : "text-suave"}>{situacao.cadastrado ? `Cadastrada${situacao.em ? ` em ${diaEMes(situacao.em)}` : ""}` : "Não cadastrada"}</span>
+        {/* Regra 8 do Padrao visual: campo travado diz por que numa linha, nao so no title (o dono achou que colar estava quebrado). */}
+        <span className={situacao.cadastrado ? "text-emerald-700" : podeEditar && !preparado ? "text-amber-700" : "text-suave"}>{situacao.cadastrado ? `Cadastrada${situacao.em ? ` em ${diaEMes(situacao.em)}` : ""}` : podeEditar && !preparado ? NAO_PREPARADO : "Não cadastrada"}</span>
         {aviso && (
           <span className={aviso.tipo === "ok" ? "text-emerald-700" : "text-red-700"} role="status">
             {aviso.texto}
