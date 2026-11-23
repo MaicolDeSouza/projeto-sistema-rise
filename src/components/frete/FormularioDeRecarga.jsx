@@ -153,7 +153,8 @@ export default function FormularioDeRecarga({ situacao, recargas, valoresRapidos
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {recarga.link && (
               <a href={recarga.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-                <ExternalLink size={15} /> Abrir pagamento
+                {/* Medido em 23/11/2026: no Pix o link e a imagem do QR Code (e o copia e cola vem no `digitable`). */}
+                <ExternalLink size={15} /> {recarga.forma === "PIX" ? "Ver QR Code" : "Abrir boleto"}
               </a>
             )}
             {recarga.digitavel && (
@@ -179,7 +180,7 @@ export default function FormularioDeRecarga({ situacao, recargas, valoresRapidos
                   <td className="truncate px-4 py-2" title={linha.erro ?? undefined}>
                     {linha.status === "GERADA" && linha.link ? (
                       <a href={linha.link} target="_blank" rel="noreferrer" className="text-acento hover:underline">
-                        Abrir pagamento
+                        {linha.forma === "PIX" ? "Ver QR Code" : "Abrir boleto"}
                       </a>
                     ) : linha.status === "GERADA" ? (
                       <span className="text-emerald-700">Gerada</span>
