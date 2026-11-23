@@ -454,6 +454,20 @@ catálogo gravado fica; com o estoque de volta, ou voltou ao mesmo ou saiu de ve
 dois commits do chat da loja de outra sessão, com a migration `20261123_ia_situacao_do_pedido` (backup de 320 MB antes).
 Conferido: as 6 respostas de fora.
 
+**Deploy 23.11.2026.143 (commit `34afc05`, 23/11/2026):** "Sim, subir e testar" do dono. Levou as caixinhas de Vendas que
+**nascem escondidas** com o botão "Mostrar resumo" e o "(R$570,29/4,3 vendas por dia)" no lugar do "Diário" (`cdbf477`), e o
+**saldo do Melhor Envio** (`34afc05`, migration `20261123c_saldo_do_frete`, backup de 327 MB antes): o worker lê o saldo de hora
+em hora e depois de cada etiqueta (`lerEGravarSaldo` em `lib/frete/saldo.js`, grava `ConfigDeFrete.saldoAtual/saldoLidoEm`) e,
+abaixo do limite (`limiteDeSaldo`, R$50, em Configurações › Envios), marca `saldoBaixoDesde`; o aviso `saldoFrete` do Telegram
+sai UMA vez por queda (chave com essa data) com o botão "Adicionar saldo" (`ROTULO_DO_BOTAO`, `rotulo` no `enviarMensagem`). A
+página `/envios/saldo` (o saldo no topo de Envios leva a ela) gera a recarga pela API (`POST /api/v2/me/balance`, `gateway:
+"yapay-transparente"`, `slug` pix/boleto, `value` "10.00", `redirect_url`; `meCobrar` sem a trava FRETE_COMPRA, porque só gera
+a cobrança) com a **senha da recarga** (inicial "123"; a gravada em Configurações › Envios fica em scrypt) e só para quem compra
+etiqueta; cada pedido fica em `RecargaDoFrete` com a resposta inteira. **Medido na 1ª recarga real (Pix de R$10, sem pagar):** o
+link do Pix vem em `payment.link` (a imagem SVG do QR Code) e o copia e cola em `digitable`; o token atual tem permissão. O 1º
+aviso real saiu na hora (saldo R$26,60). Levou também oito commits do chat da loja de outra sessão. Conferido: as 6 respostas.
+O `45bd440c` (botão "Ver QR Code" / "Abrir boleto") ficou SEM deploy.
+
 **Travas de escrita na VPS (decisão do dono em 22/10/2026):** o dono mandou liberar **o Mercado Livre e o Bling para todos os
 códigos** (`ML_PUBLICACAO=true`, `ML_PUBLICACAO_CODIGOS` ausente, `BLING_ESCRITA=true`, `BLING_ESCRITA_CODIGOS` vazio) depois
 de o Publicar recusar com "ML_PUBLICACAO está false"; aplicado só no `.env` da VPS (cópia `.env.bak-AAAAMMDD-HHMMSS` ao lado),
