@@ -1394,6 +1394,8 @@ function hobiIniciar(servico, status) {
   /** A faixa acima do campo: o arquivo escolhido (com o X), ou o aviso de por que ele nao pode ir (com o WhatsApp quando e limite). */
   function mostrarAnexado() {
     anexado.replaceChildren();
+    // Escolher o arquivo so o prepara; quem envia e a seta (o dono esperou resposta so de escolher, 22/11/2026).
+    texto.placeholder = pendente && pendente.arquivo ? "Escreva sobre o arquivo ou clique em enviar" : emLista ? "Cole sua lista aqui" : HOBI_EXEMPLOS[exemploDaVez];
     if (!pendente) {
       anexado.hidden = true;
       return;
@@ -1604,7 +1606,7 @@ function hobiIniciar(servico, status) {
   // Os exemplos se revezam no campo vazio (escolha do dono em 22/11/2026): mostram as tres coisas que o Hobi faz.
   var exemploDaVez = 0;
   setInterval(function () {
-    if (emLista || texto.value) return;
+    if (emLista || texto.value || pendente) return;
     exemploDaVez = (exemploDaVez + 1) % HOBI_EXEMPLOS.length;
     texto.placeholder = HOBI_EXEMPLOS[exemploDaVez];
   }, 4000);
