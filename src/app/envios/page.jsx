@@ -11,7 +11,6 @@ import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { COLUNAS_DOS_ENVIOS, listarEnvios } from "@/lib/frete/envios";
 import { obterProvedor, PROVEDOR_PADRAO } from "@/lib/frete/provedores/registro";
 import { SITUACAO_DO_ENVIO } from "@/lib/frete/regras";
-import { config } from "@/lib/integracoes/config";
 import { porPaginaDaUrl } from "@/lib/porPagina";
 import { formatoDeMoeda } from "@/lib/dinheiro";
 
@@ -63,15 +62,10 @@ export default async function EnviosPage({ searchParams }) {
         acao={
           <div className="flex items-center gap-4">
             {saldo !== null && veCusto && (
-              <a
-                href={`${config.melhorEnvio.urlBase.replace(/\/+$/, "")}/painel`}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm text-suave hover:text-acento"
-                title="Saldo da carteira do Melhor Envio (recarregar no painel)"
-              >
+              // Desde 23/11/2026 o saldo leva a recarga pelo Rise (Pix ou boleto pela API, com a senha da recarga).
+              <Link href="/envios/saldo" className="text-sm text-suave hover:text-acento" title="Saldo da carteira do Melhor Envio: adicionar saldo">
                 Saldo <span className="font-medium tabular-nums text-texto">{moeda.format(saldo)}</span>
-              </a>
+              </Link>
             )}
             {podeComprar && (
               <Link

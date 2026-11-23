@@ -137,6 +137,11 @@ const TIPOS = {
     ],
     caminho: `/pedidos/${pedidoId}`,
   }),
+  // Saldo da carteira do Melhor Envio abaixo do limite (23/11/2026): o botao "Adicionar saldo" abre a recarga do Rise.
+  saldoFrete: ({ saldo, limite }) => ({
+    linhas: [`Saldo do Melhor Envio baixo: R$${formatarReais(saldo)}`, `Limite do aviso: R$${formatarReais(limite)}. Sem saldo a etiqueta não é comprada.`],
+    caminho: "/envios/saldo",
+  }),
   aguardandoPecas: ({ pedidoId, numero, pecas }) => ({
     linhas: [`Pedido ${trechoSeguro(numero, 40)} aguardando peças`, trechoSeguro(pecas)],
     caminho: `/pedidos/${pedidoId}`,

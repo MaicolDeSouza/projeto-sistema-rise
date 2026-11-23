@@ -22,6 +22,8 @@ export default function FormularioDeEnvios({ inicial, podeEditar }) {
     assuntoDoEmail: inicial.assuntoDoEmail ?? "",
     textoDoEmail: inicial.textoDoEmail ?? "",
     textoDoWhatsapp: inicial.textoDoWhatsapp ?? "",
+    limiteDeSaldo: paraTexto(Number(inicial.limiteDeSaldo ?? 50).toFixed(2)),
+    senhaNova: "",
   });
   const [erros, setErros] = useState({});
   const [salvo, setSalvo] = useState(false);
@@ -42,6 +44,8 @@ export default function FormularioDeEnvios({ inicial, podeEditar }) {
       if (resposta?.ok) {
         setErros({});
         setSalvo(true);
+        // A senha gravada nao volta a tela: o campo limpa.
+        setCampos((atual) => ({ ...atual, senhaNova: "" }));
       } else setErros(resposta?.erros ?? { geral: resposta?.erro ?? "Não foi possível salvar." });
     });
   }
@@ -69,6 +73,31 @@ export default function FormularioDeEnvios({ inicial, podeEditar }) {
             disabled={!podeEditar}
             value={campos.percentualDePesoExtra}
             onChange={(e) => mudar("percentualDePesoExtra", e.target.value)}
+          />
+        </div>
+        <h2 className="mt-6 border-t border-borda pt-4 text-sm font-semibold">Saldo do Melhor Envio</h2>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          <Campo
+            nome="limiteDeSaldo"
+            rotulo="Avisar no Telegram abaixo de (R$)"
+            ajuda="Quando o saldo da carteira cai abaixo deste valor, sai um aviso no Telegram com o botão Adicionar saldo."
+            erro={erros.limiteDeSaldo}
+            inputMode="decimal"
+            disabled={!podeEditar}
+            value={campos.limiteDeSaldo}
+            onChange={(e) => mudar("limiteDeSaldo", e.target.value)}
+          />
+          <Campo
+            nome="senhaNova"
+            rotulo="Nova senha da recarga"
+            ajuda={`Pedida em Adicionar saldo. Em branco mantém a atual${inicial.senhaInicial ? " (hoje a senha inicial)" : ""}.`}
+            erro={erros.senhaNova}
+            type="password"
+            autoComplete="new-password"
+            maxLength={64}
+            disabled={!podeEditar}
+            value={campos.senhaNova}
+            onChange={(e) => mudarTexto("senhaNova", e.target.value)}
           />
         </div>
         <h2 className="mt-6 border-t border-borda pt-4 text-sm font-semibold">Aviso de postagem ao cliente</h2>

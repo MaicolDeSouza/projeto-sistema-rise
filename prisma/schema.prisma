@@ -3459,7 +3459,38 @@ model ConfigDeFrete {
   textoDoWhatsapp       String?
   /// "TERMICA" (10x15) ou "A4".
   formatoDeImpressao    String?
+  /// Saldo da carteira do Melhor Envio (pedido do dono em 23/11/2026): abaixo deste valor sai o aviso no Telegram.
+  limiteDeSaldo         Decimal   @default(50) @db.Decimal(12, 2)
+  /// Senha da recarga pelo Rise, cifrada (scrypt "sal:hash"). Nula = a senha inicial que o dono pediu (ver saldo.js).
+  senhaDaRecarga        String?
+  /// O ultimo saldo lido pelo worker (de hora em hora e depois de cada etiqueta comprada).
+  saldoAtual            Decimal?  @db.Decimal(12, 2)
+  saldoLidoEm           DateTime?
+  /// Desde quando o saldo esta abaixo do limite (null = acima): cada queda vira UM aviso no Telegram.
+  saldoBaixoDesde       DateTime?
   atualizadoEm          DateTime @updatedAt
+}
+
+/// Cada pedido de recarga do saldo do Melhor Envio feito pelo Rise (pedido do dono em 23/11/2026). O Rise so GERA a
+/// cobranca (Pix ou boleto) pela API; quem paga e o dono, no link que volta.
+model RecargaDoFrete {
+  id           String   @id @default(cuid())
+  valor        Decimal  @db.Decimal(12, 2)
+  /// "PIX" ou "BOLETO".
+  forma        String
+  /// "GERADA" (o link voltou) ou "FALHOU".
+  status       String
+  link         String?
+  /// A linha digitavel do boleto ou o Pix copia e cola, quando o provedor devolve.
+  digitavel    String?
+  idNoProvedor String?
+  pedidoPor    String?
+  erro         String?
+  /// A resposta inteira do provedor: o campo do link nao esta na documentacao e foi aprendido aqui.
+  resposta     Json?
+  criadoEm     DateTime @default(now())
+
+  @@index([criadoEm])
 }
 
 enum DirecaoDoEnvio {

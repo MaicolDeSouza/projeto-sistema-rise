@@ -80,7 +80,7 @@ export function criarClienteTelegram({ token, requisitar = requisitarPadrao, bas
      * Texto puro, sem `parse_mode`, e o botao "Abrir no Rise" quando ha `urlPublica`. Recusa, sem chamar, texto acima
      * do limite de linhas ou de caracteres: um aviso que estourou e defeito de quem o montou.
      */
-    enviarMensagem: (chatId, texto, { caminho, limiteDeLinhas = LIMITE_DE_LINHAS } = {}) => {
+    enviarMensagem: (chatId, texto, { caminho, limiteDeLinhas = LIMITE_DE_LINHAS, rotulo = ROTULO_DO_LINK } = {}) => {
       const linhas = String(texto ?? "").split("\n").length;
       if (linhas > limiteDeLinhas || String(texto ?? "").length > LIMITE_DE_CARACTERES) return Promise.resolve({ ok: false, erro: "Mensagem acima do limite." });
       const url = caminho ? linkAbrirNoRise(urlPublica, caminho) : null;
@@ -88,7 +88,8 @@ export function criarClienteTelegram({ token, requisitar = requisitarPadrao, bas
         chat_id: String(chatId),
         text: String(texto),
         disable_web_page_preview: true,
-        ...(url ? { reply_markup: { inline_keyboard: [[{ text: ROTULO_DO_LINK, url }]] } } : {}),
+        // O botao do aviso de saldo diz "Adicionar saldo" (23/11/2026); os demais, "Abrir no Rise".
+        ...(url ? { reply_markup: { inline_keyboard: [[{ text: rotulo || ROTULO_DO_LINK, url }]] } } : {}),
       });
     },
 

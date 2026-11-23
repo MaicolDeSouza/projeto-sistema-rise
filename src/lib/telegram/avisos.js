@@ -12,7 +12,9 @@ import { ESCOPOS, estadoDoOrcamento, mesDeSaoPaulo } from "@/lib/riseAi/orcament
 import { limitesDoDia } from "@/lib/riseAi/revisao";
 import { coletarSaude, itensEmFalha } from "@/lib/saude/coletar";
 import { avisoDeCatalogoPendente, textoDoAvisoDeCatalogo } from "@/lib/canaisDeVenda/ml/estadoNoML";
-import { TIPOS_DE_AVISO } from "./avisosTipos";
+import { situacaoDoSaldo } from "@/lib/frete/saldo";
+
+import { ROTULO_DO_BOTAO, TIPOS_DE_AVISO } from "./avisosTipos";
 import { textoDoMotivo } from "@/lib/pedidos/reclamacoesTextos";
 import { MAXIMO_DE_FOTOS, criarClienteTelegram } from "./cliente";
 import { SERVICO_TELEGRAM } from "./estado";
@@ -416,10 +418,22 @@ async function pedidosAguardandoPecas({ agora }) {
   return pedidos.map((p) => ({ chave: `aguardando-pecas:${p.id}`, dados: { pedidoId: p.id, numero: p.numero, pecas: linhaDasFaltas(p.pecas) } }));
 }
 
+/**
+ * O saldo da carteira do Melhor Envio abaixo do limite (pedido do dono em 23/11/2026): UM aviso por queda. A chave leva o
+ * instante em que o saldo caiu (`saldoBaixoDesde`, gravado pelo worker), entao so volta a avisar depois de o saldo subir
+ * acima do limite e cair de novo.
+ */
+async function saldoDoFreteBaixo() {
+  const situacao = await situacaoDoSaldo();
+  if (!situacao.baixoDesde || situacao.saldo === null) return [];
+  return [{ chave: `saldo-frete:${new Date(situacao.baixoDesde).toISOString()}`, dados: { saldo: situacao.saldo, limite: situacao.limite } }];
+}
+
 const CALCULO = {
   novaVenda: novasVendas,
   reclamacaoML: reclamacoesAbertas,
   notaDevolucao: devolucoesSemNota,
+  saldoFrete: saldoDoFreteBaixo,
   aguardandoPecas: pedidosAguardandoPecas,
   catalogoML: () => catalogosDoML(),
   saudeDoRise: saudeEmVermelho,
@@ -444,6 +458,7 @@ export function caminhoDoAviso(chave) {
   if (fato === "pc-esperando" || fato === "varredura-falhou") return "/mercados/fontes";
   if (fato === "resumo") return "/rise-ai/revisao";
   if (fato === "saude") return "/configuracoes/saude";
+  if (fato === "saldo-frete") return "/envios/saldo";
   if (fato === "catalogo-ml") return `/canais-de-venda/mercado-livre/${id}`;
   return null;
 }
@@ -494,7 +509,7 @@ export async function rodarAvisosDoTelegram({ agora = Date.now(), env = process.
     let falhas = 0;
     for (const [indice, aviso] of pendentes.entries()) {
       if (indice > 0) await esperar(pausaMs);
-      const opcoes = { caminho: caminhoDoAviso(aviso.chave), limiteDeLinhas: limiteDeLinhasDoTipo(aviso.tipo) };
+      const opcoes = { caminho: caminhoDoAviso(aviso.chave), limiteDeLinhas: limiteDeLinhasDoTipo(aviso.tipo), rotulo: ROTULO_DO_BOTAO[aviso.tipo] };
       let resposta = null;
       if (aviso.tipo === "novaVenda") {
         const fotos = await fotosDaVenda(aviso.chave.split(":")[1], { lerFoto }).catch(() => []);

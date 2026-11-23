@@ -1,4 +1,4 @@
-import { meGet, meLer, mePost } from "@/lib/integracoes/melhorenvio";
+import { meCobrar, meGet, meLer, mePost } from "@/lib/integracoes/melhorenvio";
 import { dataDoProvedor, eventosDasDatas, numeroDoEnvio, statusDoProvedor, validadeDaEtiqueta } from "../regras";
 
 import { ErroDoProvedor, MENSAGENS } from "./erro";
@@ -75,6 +75,37 @@ async function cotar({ origem, destino, pacote, valorDeclarado }) {
 async function saldo() {
   const dados = await chamarComErro(() => meGet("/api/v2/me/balance"));
   return { saldo: Number(dados?.balance ?? 0), reservado: Number(dados?.reserved ?? 0) };
+}
+
+/**
+ * Gera a recarga da carteira (`POST /api/v2/me/balance`, documentacao lida em 23/11/2026: gateway "yapay-transparente",
+ * slug "pix" ou "boleto", value em texto "10.50", redirect_url; boleto de empresa com company_name e cnpj). A documentacao
+ * diz que volta "um link para o QR Code (pix) ou PDF (boleto)" sem dizer o campo: le os candidatos e guarda a resposta.
+ * @returns {Promise<{ link: string|null, digitavel: string|null, id: string|null, resposta: object }>}
+ */
+async function recarregar({ valor, forma, redirectUrl, empresa = null }) {
+  const corpo = {
+    gateway: "yapay-transparente",
+    slug: forma === "BOLETO" ? "boleto" : "pix",
+    value: Number(valor).toFixed(2),
+    ...(redirectUrl ? { redirect_url: redirectUrl } : {}),
+    ...(forma === "BOLETO" && empresa?.nome && empresa?.cnpj ? { company_name: empresa.nome, cnpj: somenteDigitos(empresa.cnpj) } : {}),
+  };
+  const dados = await chamarComErro(() => meCobrar("/api/v2/me/balance", corpo));
+  return { ...linkDaRecarga(dados), resposta: dados ?? {} };
+}
+
+const ehLink = (valor) => typeof valor === "string" && /^https?:\/\//i.test(valor.trim());
+
+/** Os candidatos ao link e ao codigo da recarga, na ordem do mais provavel (puro: o teste le direto). */
+export function linkDaRecarga(dados) {
+  const pagamento = dados?.payment ?? {};
+  const resposta = typeof pagamento.response === "string" ? (() => { try { return JSON.parse(pagamento.response); } catch { return {}; } })() : (pagamento.response ?? {});
+  const candidatos = [pagamento.link, resposta?.url_payment, resposta?.payment?.url_payment, resposta?.qrcode_path, resposta?.payment?.qrcode_path, dados?.redirect, pagamento.redirect];
+  const link = candidatos.find(ehLink)?.trim() ?? null;
+  const codigos = [dados?.digitable, resposta?.qrcode_original_path, resposta?.payment?.qrcode_original_path, resposta?.linha_digitavel, resposta?.payment?.linha_digitavel];
+  const digitavel = codigos.find((valor) => typeof valor === "string" && valor.trim() && !ehLink(valor))?.trim() ?? null;
+  return { link, digitavel, id: pagamento.id !== undefined && pagamento.id !== null ? String(pagamento.id) : null };
 }
 
 const texto = (valor, limite) => (valor === null || valor === undefined || valor === "" ? undefined : String(valor).slice(0, limite));
@@ -222,6 +253,7 @@ export const melhorEnvio = {
   capacidades: { reverso: true, formatosDeImpressao: ["TERMICA", "A4"], declaracaoDeConteudo: true },
   cotar,
   saldo,
+  recarregar,
   corpoDoCarrinho,
   comprar,
   imprimir,

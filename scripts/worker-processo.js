@@ -66,6 +66,7 @@ const { lerComprasDoML } = await import("../src/lib/compras/mercadoLivre/compras
 const { lerReclamacoesML } = await import("../src/lib/pedidos/reclamacoesML.js");
 const { vencerPropostas } = await import("../src/lib/propostas/banco.js");
 const { rodarRastreioDosEnvios } = await import("../src/lib/frete/rastreio.js");
+const { lerEGravarSaldo } = await import("../src/lib/frete/saldo.js");
 
 /// Os avisos do Telegram (Rise AI, Entrega C1): a cada minuto, so o worker normal. A rotina nao faz nada com o bot
 /// desligado, sem token ou sem ninguem vinculado, e nunca lanca. Desde 19/11/2026 roda num relogio PROPRIO
@@ -97,6 +98,8 @@ let comprasMLLidasEm = 0;
 /// O rastreio dos envios comprados pelo Rise (modulo de frete, fase 2): a cada 15 min, como na spec (sem webhook).
 const RASTREIO_DOS_ENVIOS_MS = 15 * 60 * 1000;
 let enviosRastreadosEm = 0;
+const SALDO_DO_FRETE_MS = 60 * 60 * 1000;
+let saldoDoFreteLidoEm = 0;
 /// Propostas para cliente (12/11/2026): a aberta com a validade vencida vira Vencida. A lista tambem vence ao abrir; o
 /// worker cobre o "!" e os numeros dos filtros de quem nao abriu a lista.
 const VENCE_PROPOSTAS_MS = 60 * 60 * 1000;
@@ -635,6 +638,13 @@ async function laco() {
         const envios = await rodarRotina("envios", RASTREIO_DOS_ENVIOS_MS, () => rodarRastreioDosEnvios());
         if (envios.ok === false) logErro(`envios: rastreio nao lido: ${envios.erro}`);
         else if (envios.mudados > 0 || envios.expirados > 0) log(`envios: ${envios.mudados} mudaram de ${envios.consultados}, ${envios.avisados} aviso(s), ${envios.expirados} expirado(s)`);
+      }
+      // O saldo da carteira do Melhor Envio, de hora em hora (pedido do dono em 23/11/2026): abaixo do limite, a rotina do
+      // Telegram manda o aviso com o botao "Adicionar saldo". Falha so vai ao log; o saldo gravado fica.
+      if (!FONTES && !SO_NO_PC && Date.now() - saldoDoFreteLidoEm >= SALDO_DO_FRETE_MS) {
+        saldoDoFreteLidoEm = Date.now();
+        const lido = await lerEGravarSaldo();
+        if (lido.ok && lido.baixoDesde) log(`frete: saldo do Melhor Envio R$${lido.saldo} abaixo do limite R$${lido.limite}`);
       }
       // A fila dos webhooks (fase 2): a cada volta, para a venda nova aparecer em segundos e nao em ate 5 min. A linha
       // que falha conta tentativa e desiste na 5a; a rotina acima continua cobrindo o pedido.

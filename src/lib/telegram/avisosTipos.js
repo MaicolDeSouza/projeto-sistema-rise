@@ -4,7 +4,7 @@
  * `avisosDevidos` (avisos.js).
  */
 
-export const TIPOS_DE_AVISO = ["resumoDoDia", "produtoZerou", "orcamento", "varreduraPeloPc", "varreduraFalhou", "saudeDoRise", "catalogoML", "novaVenda", "aguardandoPecas", "reclamacaoML", "notaDevolucao"];
+export const TIPOS_DE_AVISO = ["resumoDoDia", "produtoZerou", "orcamento", "varreduraPeloPc", "varreduraFalhou", "saudeDoRise", "catalogoML", "novaVenda", "aguardandoPecas", "reclamacaoML", "notaDevolucao", "saldoFrete"];
 
 export const ROTULO_DO_AVISO = {
   resumoDoDia: "Resumo do dia às 20h",
@@ -19,7 +19,11 @@ export const ROTULO_DO_AVISO = {
   aguardandoPecas: "Pedido aguardando peças",
   reclamacaoML: "Reclamação aberta no Mercado Livre",
   notaDevolucao: "Devolução postada: emitir a nota de devolução",
+  saldoFrete: "Saldo do Melhor Envio abaixo do limite",
 };
+
+/** O texto do botao de cada aviso: "Abrir no Rise", menos o do saldo, que leva a recarga (pedido do dono em 23/11/2026). */
+export const ROTULO_DO_BOTAO = { saldoFrete: "Adicionar saldo" };
 
 /** O que a configuracao de fabrica traz: bot desligado e todos os avisos marcados (ligar o bot ja manda tudo). */
 export function telegramPadrao() {

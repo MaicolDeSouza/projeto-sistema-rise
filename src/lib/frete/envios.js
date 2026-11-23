@@ -4,6 +4,7 @@ import { config } from "@/lib/integracoes/config";
 
 import { cotarFrete } from "./cotacao";
 import { obterProvedor } from "./provedores/registro";
+import { lerEGravarSaldo } from "./saldo";
 import { linkDoRastreio, motivosParaNaoComprar } from "./regras";
 
 /**
@@ -318,6 +319,9 @@ export async function comprarEtiqueta(envioId, login, { aoComprar } = {}) {
   }
   console.info(`[frete] etiqueta do envio ${envio.numero} comprada por ${login ?? "?"}`);
   if (envio.pedidoDeVendaId && aoComprar) await aoComprar(envio.pedidoDeVendaId).catch((erro) => console.error("[frete] lucro do pedido:", erro?.message ?? erro));
+  // O saldo depois da compra (pedido do dono em 23/11/2026): a etiqueta que derruba o saldo abaixo do limite avisa no
+  // Telegram na proxima volta da rotina, sem esperar a leitura de hora em hora. Nunca lanca.
+  await lerEGravarSaldo({ provedor: provedorDo(envio) });
   return { ok: true, envio: await lerEnvio(envio.id) };
 }
 

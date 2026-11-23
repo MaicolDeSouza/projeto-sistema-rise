@@ -35,6 +35,9 @@ const falso = {
   ultimoCarrinho: null,
   precoDaEtiqueta: 25.84,
   saldo: 123.45,
+  /** A recarga da carteira (23/11/2026): os corpos recebidos e, se o teste quiser, outra resposta. */
+  recargas: [],
+  respostaDaRecarga: null,
   /** "checkout" | "generate" | "tracking" | null */
   falharEm: null,
   recusarCancelamento: false,
@@ -62,6 +65,11 @@ const servidor = http.createServer((pedido, resposta) => {
       return responder(200, { token_type: "Bearer", expires_in: 2592000, access_token: `acesso-${n}`, refresh_token: `renova-${n}` });
     }
     if (caminho === "/api/v2/me") return responder(200, { id: "zz", firstname: "ZZ", lastname: "Frete", email: "zz-frete@exemplo.test" });
+    // A recarga (23/11/2026) e o POST na mesma rota: devolve o formato da documentacao, com o link onde o falso mandar.
+    if (caminho === "/api/v2/me/balance" && pedido.method === "POST") {
+      falso.recargas.push(corpo);
+      return responder(200, falso.respostaDaRecarga ?? { payment: { id: 77, value: Number(corpo.value), status: "pending", link: "https://pagamento.exemplo.test/pix/77" }, redirect: "https://sandbox.exemplo.test/checkout/notify/77", message: "", digitable: null });
+    }
     if (caminho === "/api/v2/me/balance") return responder(200, { balance: falso.saldo, reserved: 0, debts: 0 });
     if (caminho === "/api/v2/me/shipment/calculate") {
       if (falso.proxima) {
@@ -835,6 +843,76 @@ try {
   await prisma.envio.update({ where: { id: envio4.id }, data: { status: "COMPRANDO" } });
   conferir("comprando agora não é retomado", (await comprarEtiqueta(envio4.id, "zz")).erro, "Esta etiqueta já está sendo comprada.");
 
+  // O saldo e a recarga (pedido do dono em 23/11/2026): aviso no Telegram abaixo do limite e recarga pela API com senha.
+  console.log("\nSaldo e recarga");
+  {
+    const saldoLib = await import("../src/lib/frete/saldo.js");
+    // Os campos do saldo do dono voltam no fim deste bloco (a restauracao geral da configuracao roda antes dele, e a compra
+    // acima ja gravou o saldo do falso): os do comeco do teste, lidos em `configDoDono`.
+    const saldoDoDono = configDoDono
+      ? { limiteDeSaldo: configDoDono.limiteDeSaldo, senhaDaRecarga: configDoDono.senhaDaRecarga, saldoAtual: configDoDono.saldoAtual, saldoLidoEm: configDoDono.saldoLidoEm, saldoBaixoDesde: configDoDono.saldoBaixoDesde }
+      : null;
+    const { linkDaRecarga } = await import("../src/lib/frete/provedores/melhorEnvio.js");
+    const { avisosDevidos } = await import("../src/lib/telegram/avisos.js");
+    const t0 = new Date("2026-11-23T10:00:00Z");
+    conferir(
+      "regra: cai abaixo marca a hora; continua baixo mantém; volta acima limpa; sem leitura não mexe",
+      [
+        saldoLib.proximoSaldoBaixoDesde({ saldo: 30, limite: 50, desdeAnterior: null, agora: t0 })?.toISOString(),
+        saldoLib.proximoSaldoBaixoDesde({ saldo: 20, limite: 50, desdeAnterior: t0, agora: new Date() })?.toISOString(),
+        saldoLib.proximoSaldoBaixoDesde({ saldo: 50, limite: 50, desdeAnterior: t0, agora: new Date() }),
+        saldoLib.proximoSaldoBaixoDesde({ saldo: null, limite: 50, desdeAnterior: t0, agora: new Date() })?.toISOString(),
+      ],
+      [t0.toISOString(), t0.toISOString(), null, t0.toISOString()],
+    );
+    conferir("valor digitado", ["150", "150,50", "1.500,00", "R$ 80", "abc", ""].map(saldoLib.lerValorDaRecarga), [150, 150.5, 1500, 80, null, null]);
+    conferir(
+      "link da recarga: o payment.link, senão o que vem na resposta; a linha do boleto separada",
+      [
+        linkDaRecarga({ payment: { id: 1, link: "https://a.test/pix" }, redirect: "https://b.test" }).link,
+        linkDaRecarga({ payment: { id: 2, link: null }, redirect: "https://b.test/checkout" }).link,
+        linkDaRecarga({ payment: { id: 3, response: JSON.stringify({ url_payment: "https://c.test/boleto.pdf", linha_digitavel: "34191.79001" }) } }),
+      ],
+      ["https://a.test/pix", "https://b.test/checkout", { link: "https://c.test/boleto.pdf", digitavel: "34191.79001", id: "3" }],
+    );
+
+    falso.saldo = 30;
+    const lido = await saldoLib.lerEGravarSaldo();
+    conferir("saldo abaixo do limite (R$50): grava e marca a queda", [lido.ok, lido.saldo, Boolean(lido.baixoDesde)], [true, 30, true]);
+    const aviso = await avisosDevidos("saldoFrete", {});
+    conferir("aviso do Telegram: um, com o saldo e o limite", [aviso.length, aviso[0]?.chave.startsWith("saldo-frete:"), aviso[0]?.dados], [1, true, { saldo: 30, limite: 50 }]);
+    falso.saldo = 25;
+    await saldoLib.lerEGravarSaldo();
+    conferir("continua baixo: a mesma chave (um aviso por queda)", (await avisosDevidos("saldoFrete", {}))[0]?.chave, aviso[0]?.chave);
+    falso.saldo = 200;
+    await saldoLib.lerEGravarSaldo();
+    conferir("saldo de volta: sem aviso", (await avisosDevidos("saldoFrete", {})).length, 0);
+
+    const senhaErrada = await saldoLib.gerarRecarga({ valor: "100", forma: "PIX", senha: "999", login: "zz" });
+    conferir("senha errada recusa sem chamar o Melhor Envio", [senhaErrada.ok, senhaErrada.erros?.senha, falso.recargas.length], [false, "Senha incorreta.", 0]);
+    const valorBaixo = await saldoLib.gerarRecarga({ valor: "5", forma: "PIX", senha: "123", login: "zz" });
+    conferir("valor abaixo do mínimo recusa", Boolean(valorBaixo.erros?.valor), true);
+    const pix = await saldoLib.gerarRecarga({ valor: "100", forma: "PIX", senha: "123", login: "zz" });
+    conferir("Pix com a senha inicial: o corpo da documentação e o link", [pix.ok, falso.recargas.at(-1), pix.recarga?.link, pix.recarga?.status], [true, { gateway: "yapay-transparente", slug: "pix", value: "100.00" }, "https://pagamento.exemplo.test/pix/77", "GERADA"]);
+    falso.respostaDaRecarga = { payment: { id: 78, link: null }, redirect: null, message: "", digitable: null };
+    const semLink = await saldoLib.gerarRecarga({ valor: "50", forma: "BOLETO", senha: "123", login: "zz" });
+    conferir("sem link na resposta: falha e guarda a resposta", [semLink.ok, semLink.recarga?.status, falso.recargas.at(-1)?.slug], [false, "FALHOU", "boleto"]);
+    falso.respostaDaRecarga = null;
+    conferir("senha nova curta recusa", (await saldoLib.salvarSaldoDoFrete({ limiteDeSaldo: "50", senhaNova: "ab" })).erros?.senhaNova, "A senha tem de 3 a 64 caracteres.");
+    await saldoLib.salvarSaldoDoFrete({ limiteDeSaldo: "60,00", senhaNova: "nova-zz" });
+    const linhaCifrada = await prisma.configDeFrete.findUnique({ where: { id: "frete" }, select: { senhaDaRecarga: true, limiteDeSaldo: true } });
+    conferir("senha gravada cifrada e o limite novo", [/^[0-9a-f]{32}:[0-9a-f]{64}$/.test(linhaCifrada.senhaDaRecarga ?? ""), Number(linhaCifrada.limiteDeSaldo)], [true, 60]);
+    conferir(
+      "com a senha nova, a inicial deixa de valer",
+      [(await saldoLib.gerarRecarga({ valor: "100", forma: "PIX", senha: "123", login: "zz" })).erros?.senha, (await saldoLib.gerarRecarga({ valor: "100", forma: "PIX", senha: "nova-zz", login: "zz" })).ok],
+      ["Senha incorreta.", true],
+    );
+    conferir("histórico das recargas", (await saldoLib.ultimasRecargas(10)).filter((linha) => linha.pedidoPor === "zz").length, 3);
+    await prisma.recargaDoFrete.deleteMany({ where: { pedidoPor: "zz" } });
+    await prisma.configDeFrete.update({ where: { id: "frete" }, data: saldoDoDono ?? { limiteDeSaldo: 50, senhaDaRecarga: null, saldoAtual: null, saldoLidoEm: null, saldoBaixoDesde: null } });
+    falso.saldo = 123.45;
+  }
+
   console.log("\nImprimir e cancelar");
   conferir("imprimir rascunho recusa", (await linkDaEtiqueta(envio4.id)).erro, "A etiqueta ainda não foi comprada.");
   const link = await linkDaEtiqueta(envio.id);
@@ -1312,6 +1390,13 @@ try {
 // ---------------------------------------------------------------------------
 
 servidor.close();
+// O saldo do Melhor Envio do dono (23/11/2026): toda compra de teste rele o saldo do falso; os campos do comeco voltam aqui.
+if (configDoDono) {
+  await prisma.configDeFrete.update({
+    where: { id: "frete" },
+    data: { limiteDeSaldo: configDoDono.limiteDeSaldo, senhaDaRecarga: configDoDono.senhaDaRecarga, saldoAtual: configDoDono.saldoAtual, saldoLidoEm: configDoDono.saldoLidoEm, saldoBaixoDesde: configDoDono.saldoBaixoDesde },
+  });
+}
 await prisma.$disconnect();
 console.log(falhas ? `\n${falhas} falha(s)` : "\nTudo certo.");
 process.exit(falhas ? 1 : 0);

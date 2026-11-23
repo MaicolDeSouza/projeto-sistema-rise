@@ -6,6 +6,7 @@ import { negarSemAcesso, podeAgora, sessaoDeAcessos } from "@/lib/acessos/servid
 import { marcarWhatsapp, reenviarEmail } from "@/lib/frete/aviso";
 import { buscarDestinatarios, cancelarEtiqueta, comprarEtiqueta, conferirPacote, criarEnvioAvulso, linkDaEtiqueta } from "@/lib/frete/envios";
 import { obterProvedor, PROVEDOR_PADRAO } from "@/lib/frete/provedores/registro";
+import { gerarRecarga } from "@/lib/frete/saldo";
 import { recalcularLucroDoPedido } from "@/lib/pedidos/banco";
 
 /**
@@ -136,6 +137,27 @@ export async function marcarWhatsappAcao(id) {
   return protegendo(async () => {
     const resultado = await marcarWhatsapp(id);
     revalidatePath("/envios");
+    return resultado;
+  });
+}
+
+/**
+ * Gera a recarga da carteira do Melhor Envio (pedido do dono em 23/11/2026): Pix ou boleto, pela API, com a senha da
+ * recarga. So quem compra etiqueta (mexe com dinheiro). O Rise so gera a cobranca: quem paga e o dono, no link que volta.
+ */
+export async function gerarRecargaAcao(entrada) {
+  const negado = await negarSemAcesso("acao.envios.comprarEtiqueta", "executar");
+  if (negado) return negado;
+  return protegendo(async () => {
+    const urlPublica = String(process.env.APP_URL_PUBLICA ?? "").replace(/\/+$/, "");
+    const resultado = await gerarRecarga({
+      valor: entrada?.valor,
+      forma: entrada?.forma,
+      senha: entrada?.senha,
+      login: await loginAtual(),
+      urlDeVolta: urlPublica ? `${urlPublica}/envios/saldo` : null,
+    });
+    revalidatePath("/envios/saldo");
     return resultado;
   });
 }

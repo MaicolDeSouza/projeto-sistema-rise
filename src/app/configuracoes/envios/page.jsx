@@ -27,6 +27,9 @@ export default async function EnviosPage() {
           assuntoDoEmail: config.assuntoDoEmail,
           textoDoEmail: config.textoDoEmail,
           textoDoWhatsapp: config.textoDoWhatsapp,
+          // O limite do aviso de saldo e se a senha da recarga ainda e a inicial (a gravada nunca vai a tela).
+          limiteDeSaldo: Number(config.limiteDeSaldo),
+          senhaInicial: !config.senhaDaRecarga,
         }}
         podeEditar={podeEditar}
       />

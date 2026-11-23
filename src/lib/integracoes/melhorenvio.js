@@ -148,6 +148,12 @@ export const meLer = (caminho, corpo) => chamar("POST", caminho, { corpo, tentat
 /** POST de escrita (carrinho, compra): trava FRETE_COMPRA e uma tentativa so (repetir uma compra compraria duas). */
 export const mePost = (caminho, corpo) => chamar("POST", caminho, { corpo, escrita: true, tentativas: 1 });
 
+/**
+ * POST que GERA uma cobranca (a recarga da carteira, pedido do dono em 23/11/2026): nao gasta saldo, entao nao passa pela
+ * trava FRETE_COMPRA, mas e uma tentativa so (repetir geraria duas cobrancas). Quem paga e o dono, no link que volta.
+ */
+export const meCobrar = (caminho, corpo) => chamar("POST", caminho, { corpo, tentativas: 1 });
+
 const moeda = formatoDeMoeda();
 
 /** Teste de conexao: quem e a conta e quanto ha de saldo na carteira. */
