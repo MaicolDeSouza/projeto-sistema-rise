@@ -1428,6 +1428,9 @@ function hobiIniciar(servico, status) {
       pendente = conferido.ok ? { arquivo: arquivo } : { erro: conferido };
     }
     mostrarAnexado();
+    // Escolheu (ou colou) um arquivo valido: ja vai para o chat, com o texto que estiver no campo (pedido do dono em
+    // 22/11/2026: "ao selecionar ja enviar"). So fica esperando na faixa se uma resposta ainda estiver em andamento.
+    if (pendente && pendente.arquivo && !ocupado) tentarEnviar();
   }
 
   /** Sobe o arquivo ao `/anexo`. `repetir`: refaz o desafio do robo uma vez se o passe guardado for recusado. */
