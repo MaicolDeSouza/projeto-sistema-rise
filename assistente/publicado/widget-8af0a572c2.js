@@ -538,7 +538,10 @@ var HOBI_CSS = [
   ".nota button{width:40px;height:36px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--suave);display:grid;place-items:center;transition-property:background-color,color;transition-duration:.15s}",
   ".nota button:hover{background:var(--nevoa);color:var(--tinta)}",
   ".nota button svg{width:16px;height:16px}",
-  ".nota button[aria-pressed=true]{color:var(--verde);background:var(--nevoa);border-color:var(--borda)}",
+  // Marcada, a maozinha fica PREENCHIDA: verde no "util" e vermelha no "ruim" (pedido do dono em 22/11/2026).
+  ".nota button[aria-pressed=true]{background:transparent}",
+  ".nota .boa[aria-pressed=true]{color:#16a34a}.nota .ruim[aria-pressed=true]{color:var(--erro)}",
+  ".nota button[aria-pressed=true] svg{fill:currentColor;width:18px;height:18px}",
   ".nota button[disabled]{cursor:default}",
   ".nota span{font-size:12px;color:var(--suave)}",
   ".confirma{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fff7e6;border-top:1px solid #f1d9a6;font-size:13px}",
@@ -1071,9 +1074,9 @@ function hobiIniciar(servico, status) {
 
   function desenharNota(troca) {
     var caixa = hobiEl("div", "nota");
-    var boa = hobiEl("button", null, null, { type: "button", "aria-label": "Resposta útil", "aria-pressed": String(troca.nota === 1) });
+    var boa = hobiEl("button", "boa", null, { type: "button", "aria-label": "Resposta útil", "aria-pressed": String(troca.nota === 1) });
     boa.appendChild(hobiIcone("joia"));
-    var ruim = hobiEl("button", null, null, { type: "button", "aria-label": "Resposta ruim", "aria-pressed": String(troca.nota === -1) });
+    var ruim = hobiEl("button", "ruim", null, { type: "button", "aria-label": "Resposta ruim", "aria-pressed": String(troca.nota === -1) });
     ruim.appendChild(hobiIcone("ruim"));
     var obrigado = hobiEl("span", null, troca.nota ? "Obrigado pela avaliação." : "");
     // A nota pode ser trocada (pedido do dono em 22/11/2026); clicar de novo na mesma nao manda nada.
