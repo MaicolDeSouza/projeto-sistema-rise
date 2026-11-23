@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Wallet } from "lucide-react";
 
 import TabelaDeEnvios from "@/components/frete/TabelaDeEnvios";
 import NavegacaoDoTopo from "@/components/mercados/NavegacaoDoTopo";
@@ -11,6 +11,7 @@ import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { COLUNAS_DOS_ENVIOS, listarEnvios } from "@/lib/frete/envios";
 import { obterProvedor, PROVEDOR_PADRAO } from "@/lib/frete/provedores/registro";
 import { SITUACAO_DO_ENVIO } from "@/lib/frete/regras";
+import { situacaoDoSaldo } from "@/lib/frete/saldo";
 import { porPaginaDaUrl } from "@/lib/porPagina";
 import { formatoDeMoeda } from "@/lib/dinheiro";
 
@@ -43,7 +44,7 @@ export default async function EnviosPage({ searchParams }) {
   const sentido = params?.direcao === "asc" ? "asc" : "desc";
   const veCusto = acesso.pode("dado.custo", "ver");
 
-  const [{ linhas, total, contagemPorStatus }, saldo] = await Promise.all([
+  const [{ linhas, total, contagemPorStatus }, saldoAoVivo] = await Promise.all([
     listarEnvios({ status, busca, ordenar: veCusto || ordenar !== "custo" ? ordenar : null, sentido, pagina: paginaPedida, por: POR_PAGINA }),
     saldoDaCarteira(),
   ]);
@@ -52,6 +53,11 @@ export default async function EnviosPage({ searchParams }) {
   // O custo e dado sensivel (regra do pedido): sai no servidor para quem nao o ve.
   const linhasNaTela = veCusto ? linhas : linhas.map((linha) => ({ ...linha, custo: null }));
   const podeComprar = acesso.pode("acao.envios.comprarEtiqueta", "executar");
+  // O limite do aviso do Telegram pinta o saldo de ambar (o mesmo de Configuracoes > Envios). Sem resposta do Melhor Envio
+  // agora, vale o ultimo saldo lido pelo worker: o "Comprar saldo" nao some quando a leitura falha.
+  const { limite, saldo: saldoGravado } = await situacaoDoSaldo().catch(() => ({ limite: 50, saldo: null }));
+  const saldo = saldoAoVivo ?? saldoGravado;
+  const baixo = saldo !== null && saldo < limite;
 
   return (
     <>
@@ -62,10 +68,28 @@ export default async function EnviosPage({ searchParams }) {
         acao={
           <div className="flex items-center gap-4">
             {saldo !== null && veCusto && (
-              // Desde 23/11/2026 o saldo leva a recarga pelo Rise (Pix ou boleto pela API, com a senha da recarga).
-              <Link href="/envios/saldo" className="text-sm text-suave hover:text-acento" title="Saldo da carteira do Melhor Envio: adicionar saldo">
-                Saldo <span className="font-medium tabular-nums text-texto">{moeda.format(saldo)}</span>
-              </Link>
+              // O saldo da carteira e o "Comprar saldo" (pedido do dono em 23/11/2026: "para que fique claro onde comprar"):
+              // ambar abaixo do limite do aviso; o "Novo envio" segue como a acao principal da tela.
+              <div
+                className={`flex items-center gap-2.5 rounded-lg border py-1 pr-1 pl-3 ${baixo ? "border-amber-300 bg-amber-50" : "border-borda bg-superficie"}`}
+                title={baixo ? `Abaixo do limite do aviso (${moeda.format(limite)})` : "Saldo da carteira do Melhor Envio"}
+              >
+                <Wallet size={16} className={baixo ? "text-amber-600" : "text-suave"} aria-hidden="true" />
+                <span className="flex flex-col leading-tight">
+                  <span className="text-[11px] text-suave">Saldo Melhor Envio</span>
+                  <span className={`text-sm font-semibold tabular-nums ${baixo ? "text-amber-700" : "text-texto"}`}>{moeda.format(saldo)}</span>
+                </span>
+                {podeComprar && (
+                  <Link
+                    href="/envios/saldo"
+                    className={`ml-1 inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                      baixo ? "border-amber-400 bg-amber-500 text-white hover:bg-amber-600" : "border-acento text-acento hover:bg-acento/10"
+                    }`}
+                  >
+                    <Plus size={13} aria-hidden="true" /> Comprar saldo
+                  </Link>
+                )}
+              </div>
             )}
             {podeComprar && (
               <Link

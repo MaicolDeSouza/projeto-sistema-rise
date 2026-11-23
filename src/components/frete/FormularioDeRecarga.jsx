@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Copy, ExternalLink, Loader2 } from "lucide-react";
+import { Copy, ExternalLink, Loader2, ShoppingCart, Wallet } from "lucide-react";
 
 import { gerarRecargaAcao } from "@/app/envios/acoes";
 import Card from "@/components/ui/Card";
@@ -22,7 +22,11 @@ export default function FormularioDeRecarga({ situacao, recargas, valoresRapidos
   const [resultado, setResultado] = useState(null);
   const [copiado, setCopiado] = useState(false);
   const [pendente, iniciar] = useTransition();
-  const baixo = situacao.saldo !== null && situacao.saldo < situacao.limite;
+  const semLeitura = situacao.saldo === null;
+  const baixo = !semLeitura && situacao.saldo < situacao.limite;
+  // O valor do botao: o mesmo que o servidor le ("150", "150,50", "1.500,00"); fora da faixa, o botao diz so "Comprar saldo".
+  const lido = Number(valor.includes(",") ? valor.replace(/\./g, "").replace(",", ".") : valor);
+  const valorNaTela = Number.isFinite(lido) && lido >= minimo && lido <= maximo ? lido : null;
 
   function gerar(evento) {
     evento.preventDefault();
@@ -54,15 +58,25 @@ export default function FormularioDeRecarga({ situacao, recargas, valoresRapidos
 
   return (
     <div className="max-w-2xl space-y-4">
-      <Card>
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="text-sm text-suave">Saldo atual</span>
-          <span className={`text-2xl font-semibold tabular-nums ${baixo ? "text-amber-700" : "text-texto"}`}>{situacao.saldo === null ? "—" : moeda.format(situacao.saldo)}</span>
+      {/* O saldo em destaque (pedido do dono em 23/11/2026: "deixe mais bonito a amostra do saldo"): ambar abaixo do limite. */}
+      <div className={`flex items-center gap-4 rounded-xl border p-5 ${semLeitura ? "border-borda bg-superficie" : baixo ? "border-amber-300 bg-amber-50" : "border-emerald-200 bg-emerald-50/60"}`}>
+        <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${semLeitura ? "bg-fundo text-suave" : baixo ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"}`}>
+          <Wallet size={24} aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-suave">Saldo da carteira do Melhor Envio</p>
+          <p className={`text-3xl font-bold tabular-nums ${semLeitura ? "text-suave" : baixo ? "text-amber-700" : "text-emerald-700"}`}>{semLeitura ? "—" : moeda.format(situacao.saldo)}</p>
+          <p className="mt-0.5 text-xs text-suave">{situacao.lidoEm ? `Lido às ${dataHora.format(new Date(situacao.lidoEm))}` : "Saldo não lido: confira a conexão em Integrações"}</p>
         </div>
-        <p className="mt-1 text-right text-xs text-suave">
-          {situacao.lidoEm ? `Lido às ${dataHora.format(new Date(situacao.lidoEm))}` : "Saldo não lido"} · aviso no Telegram abaixo de {moeda.format(situacao.limite)}
-        </p>
-      </Card>
+        {!semLeitura && (
+          <span
+            className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${baixo ? "bg-amber-200/70 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}
+            title="O aviso no Telegram sai abaixo deste valor (Configurações › Envios)"
+          >
+            {baixo ? `Abaixo de ${moeda.format(situacao.limite)}` : `Acima de ${moeda.format(situacao.limite)}`}
+          </span>
+        )}
+      </div>
 
       {podeRecarregar && (
         <form onSubmit={gerar}>
@@ -89,7 +103,7 @@ export default function FormularioDeRecarga({ situacao, recargas, valoresRapidos
                     title={erros.valor ?? `De ${moeda.format(minimo)} a ${moeda.format(maximo)}`}
                     value={valor}
                     onChange={(e) => setValor(e.target.value.replace(/[^\d.,]/g, ""))}
-                    className={`${CAMPO} w-32 text-right tabular-nums`}
+                    className={`${CAMPO.replace("w-full", "w-32")} text-right tabular-nums`}
                   />
                 </div>
                 {erros.valor && <p className="mt-1 text-xs text-red-600">{erros.valor}</p>}
@@ -136,8 +150,9 @@ export default function FormularioDeRecarga({ situacao, recargas, valoresRapidos
                   title={senha ? undefined : "Digite a senha da recarga"}
                   className="inline-flex items-center gap-1.5 rounded-md bg-acento px-4 py-2 text-sm font-semibold text-white hover:bg-acento/90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {pendente && <Loader2 size={14} className="animate-spin" />}
-                  Gerar pagamento
+                  {pendente ? <Loader2 size={15} className="animate-spin" /> : <ShoppingCart size={15} aria-hidden="true" />}
+                  {/* "Comprar" deixa claro onde comprar (pedido do dono em 23/11/2026); o valor acompanha a escolha. */}
+                  {valorNaTela ? `Comprar ${moeda.format(valorNaTela)} de saldo` : "Comprar saldo"}
                 </button>
               </div>
             </div>

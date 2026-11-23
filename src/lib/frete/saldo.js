@@ -42,7 +42,8 @@ export async function lerEGravarSaldo({ provedor = obterProvedor(PROVEDOR_PADRAO
     await prisma.configDeFrete.update({ where: { id: ID }, data: { saldoAtual: centavos(saldo), saldoLidoEm: agora, saldoBaixoDesde: desde } });
     return { ok: true, saldo: centavos(saldo), limite: Number(linha.limiteDeSaldo), baixoDesde: desde };
   } catch (erro) {
-    console.error("[frete] leitura do saldo:", erro?.message ?? erro);
+    // Aviso, nao erro: sem conexao (o PC) ou o Melhor Envio fora do ar sao estados esperados, e o saldo gravado fica.
+    console.warn("[frete] leitura do saldo:", erro?.message ?? erro);
     return { ok: false, erro: erro?.message ?? String(erro) };
   }
 }
