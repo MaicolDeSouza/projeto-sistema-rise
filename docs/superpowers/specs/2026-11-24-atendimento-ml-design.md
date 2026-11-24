@@ -181,10 +181,36 @@ aberto. Ele é sempre o *conteúdo* da resposta, nunca um comando. Texto solto n
 toque em Escrever / Editar na pergunta") e nada mais. Pergunta respondida pelo Rise ou pelo app do ML: o bot atualiza a
 mensagem do aviso e tira os botões.
 
+### MCP (pedido do dono em 24/11/2026: "quero MCP para todas... solicitar as perguntas por MCP e responder por MCP também")
+
+Vale para as três fases, com as mesmas ferramentas (o `tipo` escolhe: pergunta, pós-venda ou reclamação):
+
+- `listarAtendimentosML` (tipo, situação, página): as abertas primeiro, com o anúncio ou o pedido e há quanto tempo esperam.
+- `lerAtendimentoML` (id): o mesmo contexto que a IA do Rise recebe (pergunta ou conversa com dados pessoais mascarados,
+  anúncio, ficha, outros anúncios do produto com as etiquetas `[ANUNCIO:MLB...]`, respostas anteriores, limite de
+  caracteres, bloqueios do ML). Quem redige é o próprio Claude ou ChatGPT do dono: **não gasta a IA do Rise**.
+- `prepararRespostaML` (id, texto): grava o rascunho, troca as etiquetas pelos links, passa o filtro e devolve o texto
+  **exatamente como vai sair** e um código de confirmação de uso único (10 min, preso àquele texto).
+- `enviarRespostaML` (id, código): o mesmo envio da tela (trava do `.env`, envio único, releitura no ML). Sem o código, ou
+  com o texto mudado depois do preparo, recusa.
+- `ignorarAtendimentoML` (id).
+
+**Por que dois passos** (como a compra da etiqueta no MCP do frete): a pergunta do comprador entra no contexto do assistente
+de fora, e um texto de ataque poderia tentar fazê-lo responder sozinho. Com o preparo e a confirmação, o texto final passa
+pelo dono na conversa antes de ir ao ML, e a descrição da ferramenta manda o assistente mostrar o texto e esperar o "pode
+enviar". O filtro e as travas valem igual: nada sai pelo MCP que não sairia pela tela.
+
+Sem dado pessoal do comprador em nenhuma ferramenta (nome, CPF, endereço, telefone), como no MCP do frete.
+
 ### Permissão
 
-Recurso novo de Acessos, **não delegável** (só o Administrador): "Responder atendimento do Mercado Livre". Vale para a tela,
-para as ações e para o chat do Telegram. A Andrea não vê o item no menu.
+Dois recursos novos de Acessos, que nascem **só com o Administrador** (o Maicol):
+
+- "Responder atendimento do Mercado Livre": a tela, as ações e o chat do Telegram.
+- "Atendimento do Mercado Livre pelo MCP": as cinco ferramentas (ler também, porque mostra as conversas).
+
+O MCP já confere o `pode()` de cada login, então outro login não vê nem as ferramentas. Para liberar a Andrea no futuro,
+basta marcar o recurso na função dela, sem código novo. Até lá ela não vê o item no menu nem as ferramentas.
 
 ### Rise AI › Configurações
 
@@ -220,14 +246,15 @@ no Telegram. O gasto aparece no Consumo, no escopo interno, com a origem "Atendi
 ## Fora desta entrega
 
 Resposta automática sem aprovação; iniciar conversa de pós-venda; enviar anexos; ações de resolução da reclamação;
-a Andrea respondendo; ferramentas no MCP; apagar ou ocultar pergunta; bloquear comprador.
+a Andrea respondendo (fica a um clique em Acessos); apagar ou ocultar pergunta; bloquear comprador.
 
 ## Testes
 
 `npm run teste:atendimento-ml`, com ML falso, Telegram falso e provedor de IA falso, sem rede: chegada pela notificação e
 pela busca de segurança; pergunta respondida fora do Rise; envio único com dois cliques ao mesmo tempo; a trava do `.env`;
 o filtro (link de fora, telefone, e-mail, link do ML permitido, etiqueta trocada pelo endereço certo, kit inexistente);
-texto de ataque na pergunta; o bot ignorando chat não vinculado e texto solto; o vínculo pelo caminho novo. O
+texto de ataque na pergunta; o bot ignorando chat não vinculado e texto solto; o vínculo pelo caminho novo; o MCP (login
+sem o recurso não vê as ferramentas, enviar sem código ou com o texto mudado recusa, nenhum dado pessoal na saída). O
 `teste:telegram` continua passando.
 
 ## Decisões minhas, para o dono conferir
