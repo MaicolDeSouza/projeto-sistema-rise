@@ -691,24 +691,29 @@ export default function ItensDaProposta({ numero, itens, editar, veCusto, erros,
                           padrao que exige (SENAI) mostra os dois campos aqui, porque sem eles o PDF fica travado. */}
                       {exigeMarcaModelo && (
                         <div className="mt-1.5 flex gap-2">
-                          <input
-                            value={item.marca}
-                            disabled={!editar}
-                            placeholder="Marca"
-                            aria-label="Marca"
-                            aria-invalid={!item.marca.trim()}
-                            onChange={(e) => mudarItem(indice, "marca", e.target.value.slice(0, 100))}
-                            className={`${celula} py-1 text-xs`}
-                          />
-                          <input
-                            value={item.modelo}
-                            disabled={!editar}
-                            placeholder="Modelo"
-                            aria-label="Modelo"
-                            aria-invalid={!item.modelo.trim()}
-                            onChange={(e) => mudarItem(indice, "modelo", e.target.value.slice(0, 150))}
-                            className={`${celula} py-1 text-xs`}
-                          />
+                          {/* Rotulo visivel (pedido do dono em 24/11/2026): preenchido, o placeholder some e nao se sabia qual era qual. */}
+                          <label className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <span className="text-[11px] font-medium text-suave">Marca</span>
+                            <input
+                              value={item.marca}
+                              disabled={!editar}
+                              placeholder="Marca"
+                              aria-invalid={!item.marca.trim()}
+                              onChange={(e) => mudarItem(indice, "marca", e.target.value.slice(0, 100))}
+                              className={`${celula} py-1 text-xs`}
+                            />
+                          </label>
+                          <label className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <span className="text-[11px] font-medium text-suave">Modelo</span>
+                            <input
+                              value={item.modelo}
+                              disabled={!editar}
+                              placeholder="Modelo"
+                              aria-invalid={!item.modelo.trim()}
+                              onChange={(e) => mudarItem(indice, "modelo", e.target.value.slice(0, 150))}
+                              className={`${celula} py-1 text-xs`}
+                            />
+                          </label>
                         </div>
                       )}
                     </td>
