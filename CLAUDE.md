@@ -363,6 +363,7 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Pedidos | **Pedidos de venda, fase 1 (04/11/2026, NO AR na VPS desde 04.11.2026.60):** o worker lê a cada 5 min os pedidos do ML, da LI e do Bling (desde 01/11/2026), cria o cliente pelo CPF/CNPJ, casa os itens com os produtos, calcula status, peças em falta e lucro estimado × real; lista `/pedidos`, tela do pedido com abas, taxas da LI e nível do cliente. Ver "Pedidos de venda (04/11/2026)" |
 | Propostas | **Propostas para cliente, fase 1 (12/11/2026, SEM deploy):** proposta comercial que vive só no Rise (nº 2026, 2027…), cliente do Rise ou do Bling (ou provisório, sem cadastro), itens com a descrição e o código do cliente, prazo por item, pagamento, frete, OC/obs. da NF, validade de 15 dias que vence sozinha, "!" de contato, PDF, link público com WhatsApp, cotação anexada e pedido de venda no Bling na aprovada. Ver "Propostas para cliente (12/11/2026)" |
 | Frete | **Módulo de frete, fase 1 (cotação) NO AR na VPS desde 19.11.2026.130, Melhor Envio de produção conectado em 19/11/2026.** **Fase 2 (etiqueta, rastreio e aviso) NO AR desde o deploy 20.11.2026.131** (`FRETE_COMPRA` e `EMAIL_ENVIO` ainda fechadas na VPS): comprar, imprimir e cancelar a etiqueta no pedido do Bling e no envio avulso, lista de Envios (bloco novo), rotina de rastreio no worker, custo da etiqueta no lucro e aviso ao cliente por e-mail (trava `EMAIL_ENVIO`) e WhatsApp. **MCP do frete (9 ferramentas, compra em dois passos) pronto em 20/11/2026, SEM deploy.** Reverso, a 3. Ver "Módulo de frete (18/11/2026)" |
+| Atendimento ML | **Fase 1 (perguntas dos anúncios) PRONTA em 24/11/2026, SEM deploy** (leva as migrations `20261124c_atendimento_ml` e `20261124d_gasto_atendimento_ml`): tela `/atendimento`, sugestão da IA só no botão, envio único com a trava `ML_RESPONDER_PERGUNTAS`, a pergunta no Telegram com botões (o bot passou a escutar) e 5 ferramentas no MCP com envio em dois passos. Fases 2 (pós-venda) e 3 (reclamações) na spec, não feitas. Ver "Atendimento do Mercado Livre (24/11/2026)" |
 | Financeiro | Esqueleto |
 
 **O que está no ar (24/10/2026):** o deploy 24.10.2026.29 (commit `5ede491`) subiu TUDO o que estava na main até esse commit
@@ -548,6 +549,7 @@ npm run hobi:demo                 # a LOJA DE MENTIRA do chat (http://127.0.0.1:
 npm run hobi:montar               # monta e publica a janela do chat em assistente/publicado/ (nome pelo conteúdo + integridade). Rodar depois de mexer em assistente/widget/ ou no mascote e commitar o publicado junto; nunca apagar publicado antigo depois que a etiqueta estiver na loja
 npm run hobi:mascote              # recorta o fundo das imagens do mascote (docs/mascote-hobi/) e grava os .webp de assistente/mascote/; `-- --conferir` grava também cada recorte sobre fundo escuro em dados/diag/
 npm run teste:ia-isolamento       # 95 asserções do usuário de banco `rise_ia` (com os dois WhatsApp da empresa pela visão e a função do pedido: prova, mesma resposta para o não achado, 5 erros por número, número só em hash): veste o papel no Postgres de verdade e tenta ler o proibido (18 tabelas negadas, nenhuma coluna sensível nas visões, conversas e orçamento só do canal de cliente), a migration igual ao gerador, uma conversa inteira e o serviço de verdade (`scripts/ia-processo.js`) rodando como `rise_ia` num ambiente sem as chaves do Rise. Postgres local, SEM rede; dá ao papel uma senha de uso único e a tira no fim; recusa rodar na produção e onde o papel já tem login
+npm run teste:atendimento-ml      # 142 asserções do Atendimento do ML, fase 1 (perguntas): banco, filtro e etiquetas de link, chegada pela notificação e pela rotina, envio único (dois ao mesmo tempo, respondida fora, trava), contexto sem dado interno, sugestão da IA, acessos, o bot que escuta e o vínculo pelo ouvinte, a pergunta no Telegram (botões, resposta escrita, texto solto) e o MCP em dois passos. ML, Telegram e IA FALSOS (SEM rede, SEM gasto); Postgres local, só escreve ZZ-ATD-* / zz-atd-* e devolve o estado do bot do dono; `-- --manter` deixa 3 perguntas ZZ-ATD-T* para conferir a tela
 npm run teste:saude               # 80 asserções da Saúde do Rise (com a linha "Assistente da loja"): regras (rotinas, worker, disco, backup, memória, banco, integrações, orçamento, varreduras, PC, healthchecks, certificado digital), o aviso do Telegram, a gravação em RotinaDoWorker e a coleta nos modos PC e VPS. Postgres local, SEM rede; só escreve zz-saude-*
 npm run teste:acessos             # 207 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição, as projeções do lançamento 2 (Painel, lista de Produtos, Cadastros, canais, Scraper, Indicadores), "Ver como", Histórico e o guarda estático de src/app (sem lista de exceções). Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
 npm run teste:proposta            # 339 asserções da proposta automática de produto (com as seções de categorias e SEO da loja e as Correções da descrição no banco): regras de preço/medidas/NCM, validação do plano, gravação por seção (fotos padronizadas em proposta/), aplicar ao formulário, Salvar marcando aplicadas, fotos para a reserva, Conferido com pergunta e o script de verdade (Postgres local, SEM rede; só escreve produtos ZZ-PROP-* e as pastas deles)
@@ -8780,6 +8782,78 @@ Arquivo `src/lib/mcp/frete.js`, registrado em `servidor.js` (leituras com o lemb
   o link do WhatsApp fica só na tela. Só pedido do Bling (ML e LI recusam).
 - **Testado** no `teste:frete` contra o Melhor Envio falso e no `teste:mcp` (lista de ferramentas). **Não testado de
   verdade:** nada pelo Claude conectado; a primeira compra real pelo chat depende do deploy e de `FRETE_COMPRA=true` na VPS.
+
+## Atendimento do Mercado Livre (24/11/2026)
+
+Pedido do dono: "Gostaria de responder às perguntas do ML via rise e via telegram. Ao clicar para responder deve usar a IA
+que tem todas informacoes da loja para formular uma resposta. Após eu aprovar responde no ML." Spec:
+`docs/superpowers/specs/2026-11-24-atendimento-ml-design.md` (três fases); plano da fase 1:
+`docs/superpowers/plans/2026-11-24-atendimento-ml-fase-1-perguntas.md` (11 tarefas, inline, commits `cc4fcf6a` a `1873df34`).
+**Fase 1 pronta e testada no PC, SEM DEPLOY.** Fases 2 (mensagens de pós-venda, limite de 350 caracteres) e 3 (mensagens das
+reclamações) estão na spec e não foram feitas.
+
+**Decisões do dono:** a IA só redige quando ele pede (botão "Sugerir com IA"); no Telegram ele escreve e edita respondendo
+à mensagem do bot; só ele responde ("Apenas eu"; pelo MCP, "apenas Maicol e futuramente a Andrea"); a resposta aceita link,
+mas só do Mercado Livre, e a IA monta o link certo do kit pedido.
+
+- **Onde mora:** `src/lib/atendimentoML/` (`filtro.js` e `etiquetas.js` puros; `perguntas.js` a chegada; `banco.js` lista,
+  rascunho, ignorar; `enviar.js` o ÚNICO `POST /answers` do Rise; `contexto.js`, `prompt.js`, `sugerir.js` a IA;
+  `telegram.js` o aviso e os tratadores), `src/lib/telegram/entrada.js` (o bot que escuta), `src/lib/mcp/atendimentoML.js`,
+  `src/app/atendimento/` e `src/components/atendimento/`. Banco: `AtendimentoML`, `EstadoDoBotTelegram`,
+  `ComandoDeVinculoTelegram` e o valor `ATENDIMENTO_ML` em `TipoDeGastoIA`.
+- **Chegada:** o tópico `questions` entra na fila de notificações que já existia (`/questions/{id}`, `tratarRecurso`), e a
+  rotina `atendimentoML` do worker (5 min, linha na Saúde) busca as sem resposta e relê as abertas que sumiram da busca: é
+  assim que a resposta dada pelo app do ML fecha a linha (`FECHADA_FORA`). **Do dono:** marcar **Questions** nas notificações
+  do aplicativo do Rise no painel de desenvolvedor do ML; sem isso as perguntas ainda chegam, em até 5 min.
+- **Envio único (`enviarResposta`):** linha ABERTA com rascunho → filtro de novo → trava `ML_RESPONDER_PERGUNTAS` (nasce
+  `false`; lida de `process.env` na hora) → marca `enviandoDesde` de forma atômica (só quem marcou segue; trava com mais de
+  2 min é tratada como solta) → relê a pergunta no ML (respondida ou apagada fora: fecha, nada sai) → `POST /answers`, uma
+  tentativa. O `post` do cliente do ML também exige `ML_PUBLICACAO=true`. A resposta do ML não pode ser editada depois.
+- **Filtro:** texto da IA (e o preparado pelo MCP) só leva link vindo da troca de etiqueta; texto digitado pelo dono leva
+  qualquer `https://` em mercadolivre.com.br e subdomínios; telefone, e-mail, CPF/CNPJ e link de fora barram. O que barra
+  não é consertado: volta o trecho. A janela roda o mesmo filtro enquanto se digita; o servidor confere de novo no envio.
+- **Link do kit:** a IA nunca escreve endereço. Ela escreve `[ANUNCIO:MLB123]` e o código troca pelo `Anuncio.urlExterna`.
+  `outrosAnuncios` = anúncios ML do mesmo produto, PUBLICADO e ATIVA no Rise **e** ativos com `available_quantity > 0` no
+  ML agora (multiget); sem a conferência no ML nenhum é oferecido.
+- **O que a IA recebe (`montarContexto`):** a pergunta mascarada, o anúncio como está no ML (título, preço, disponível
+  sim/não, ficha, descrição), o produto só com os campos públicos (os da visão `ia_produto_publico`), os outros anúncios e
+  até 10 respostas anteriores. Nunca custo, fornecedor, margem, localização nem quantidade em estoque (o teste varre as
+  chaves). Uma chamada, sem ferramentas, orçamento INTERNO, modelo padrão e reserva da configuração; gasto `ATENDIMENTO_ML`.
+- **Tela `/atendimento`** (bloco "Atendimento ML", com o número de abertas no menu): chips de situação, cabeçalho que ordena,
+  a janela da pergunta (Sugerir com IA, Ignorar, Enviar ao ML com confirmação, "Inserir o link de"). **Ajustes da IA** (o
+  prompt do ML e o limite de caracteres, `ConfiguracaoIA.dados.atendimentoML`) ficam num botão desta tela, não em Rise AI ›
+  Configurações como a spec dizia.
+- **O bot passou a ESCUTAR** (`rodarEntradaDoTelegram`, relógio próprio no worker, espera longa de 15 s, `offset` no banco;
+  a leitura não grava `LogIntegracao`). **Só com `RISE_PRODUCAO`** (a VPS) ou `TELEGRAM_ESCUTAR=1`: o PC é cópia do banco e
+  dois leitores do mesmo bot roubam mensagens um do outro. Só é ouvido o chat vinculado de quem tem
+  `acao.atendimentoML.responder`; o resto é descartado em silêncio. Texto recebido nunca é comando: só vale respondendo ao
+  pedido "Escreva a resposta" de uma pergunta aberta, e é sempre o conteúdo da resposta.
+- **Vínculo do Telegram mudou por dentro:** com um ouvinte vivo (`EstadoDoBotTelegram` tocado há menos de 2 min), a tela
+  "Conferir vínculo" lê os `/vincular` que o ouvinte guardou (`ComandoDeVinculoTelegram`, só o hash); sem ouvinte (PC, worker
+  parado), segue o caminho antigo (uma leitura do `getUpdates`). A tela não mudou e o `teste:telegram` segue igual.
+- **Aviso `perguntaML`** (ligável na aba Canais): mandado por `avisarPerguntasNovas`, e não pela rotina comum, porque tem
+  botões próprios (Sugerir com IA, Escrever / Editar, Ignorar, Abrir no Rise). A linha de `AvisoTelegram` só nasce quando a
+  mensagem saiu: a rotina comum reenviaria a pendente como texto sem botões. Pergunta que fecha por qualquer caminho tem o
+  aviso editado e perde os botões (`atualizarAvisoFechado`).
+- **MCP:** `listarAtendimentosML`, `lerAtendimentoML`, `prepararRespostaML`, `enviarRespostaML`, `ignorarAtendimentoML`.
+  Quem redige é o assistente do dono (não gasta a IA do Rise). O envio é em dois passos: o preparo devolve o texto final e um
+  código (HMAC do id, do texto e da hora, com a `ENCRYPTION_KEY`; 10 min; não é gravado), e o envio só sai com ele. As
+  ferramentas aparecem na lista para todo login e recusam quem não tem a permissão (o padrão do servidor).
+- **Acessos:** `tela.atendimento`, `acao.atendimentoML.responder` (tela e Telegram) e `acao.atendimentoML.mcp`. Delegáveis,
+  fora da função Atendimento: liberar a Andrea é marcar na função dela. **Atenção:** enquanto ela estiver como Administrador
+  temporário (até 30/11/2026), ela vê e pode responder.
+- **Não visto:** nenhuma pergunta real do ML, nenhum `POST /answers` real, nenhuma sugestão com IA paga, nenhum clique real
+  no Telegram e nada pelo Claude conectado. A tela foi conferida no navegador com 3 perguntas de teste (lista, janela,
+  trecho barrado ao digitar, trava). O limite de 2000 caracteres da resposta não está na documentação do ML: conferir no
+  primeiro envio real.
+
+### Roteiro do dono para ligar
+
+1. "sobe" (deploy, com backup antes: há duas migrations).
+2. Painel de desenvolvedor do ML › aplicativo do Rise › Notificações: marcar **Questions**.
+3. Rise AI › Configurações › Canais: conferir o aviso "Pergunta nova no Mercado Livre" marcado.
+4. Abrir **Atendimento ML**: as perguntas sem resposta aparecem em até 5 min. Testar "Sugerir com IA" (gasta centavos).
+5. No `.env` da VPS, `ML_RESPONDER_PERGUNTAS=true` e reiniciar: só então o "Enviar ao ML" publica.
 
 ## Trabalho em paralelo: worktrees
 
