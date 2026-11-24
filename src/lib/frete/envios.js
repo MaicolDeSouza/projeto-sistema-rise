@@ -64,13 +64,19 @@ function remetenteDaEmpresa(empresa) {
   };
 }
 
-/** O pedido do Bling muitas vezes vem sem e-mail ou telefone do comprador: o cadastro do cliente completa (o aviso precisa). */
-function destinatarioDoPedido(pedido) {
+/**
+ * O pedido do Bling muitas vezes vem sem e-mail ou telefone do comprador: o cadastro do cliente completa (o aviso precisa).
+ * Os e-mails do rastreio do cadastro (24/11/2026) vem ANTES do comprador: na empresa, quem recebe nao e quem compra; o
+ * aviso vai a todos eles (`emails`, so quando ha).
+ */
+export function destinatarioDoPedido(pedido) {
   const entrega = pedido.enderecoDeEntrega ?? {};
+  const doRastreio = (pedido.cliente?.emailsRastreio ?? []).filter(Boolean);
   return {
     nome: entrega.nome || pedido.nomeDoComprador || null,
     documento: pedido.documentoDoComprador ?? pedido.cliente?.documento ?? null,
-    email: pedido.emailDoComprador || pedido.cliente?.email || null,
+    email: doRastreio[0] || pedido.emailDoComprador || pedido.cliente?.email || null,
+    ...(doRastreio.length ? { emails: doRastreio } : {}),
     telefone: pedido.telefoneDoComprador || pedido.cliente?.telefone || null,
     endereco: {
       cep: String(entrega.cep ?? "").replace(/\D/g, ""),
@@ -105,7 +111,7 @@ export async function salvarRascunhoDoPedido(pedidoDeVendaId, { pacote, servico,
 
   const pedido = await prisma.pedidoDeVenda.findUnique({
     where: { id: String(pedidoDeVendaId ?? "") },
-    include: { itens: { orderBy: { ordem: "asc" } }, cliente: { select: { documento: true, email: true, telefone: true } } },
+    include: { itens: { orderBy: { ordem: "asc" } }, cliente: { select: { documento: true, email: true, telefone: true, emailsRastreio: true } } },
   });
   if (!pedido) return { ok: false, erro: "Pedido não encontrado." };
   const empresa = await lerDadosDaEmpresa();

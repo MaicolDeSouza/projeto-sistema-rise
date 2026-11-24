@@ -1071,6 +1071,22 @@ try {
   conferir("não manda de novo", [(await avisarCliente(envio.id, { transporte })).enviado, enviados.length], [false, 1]);
   conferir("reenviar o já enviado recusa", (await reenviarEmail(envio.id, { transporte })).erro?.startsWith("O e-mail já foi enviado em"), true);
 
+  // E-mails do rastreio do cadastro do cliente (24/11/2026): vem antes do e-mail do comprador e o aviso vai a todos.
+  const { destinatarioDoPedido } = await import("../src/lib/frete/envios.js");
+  const pedidoB2B = { emailDoComprador: "comprador@zz.test", cliente: { email: "geral@zz.test", emailsRastreio: ["almox@zz.test", "compras@zz.test"] }, enderecoDeEntrega: {} };
+  conferir(
+    "rastreio: os do cadastro vem antes do comprador",
+    [destinatarioDoPedido(pedidoB2B).email, destinatarioDoPedido(pedidoB2B).emails],
+    ["almox@zz.test", ["almox@zz.test", "compras@zz.test"]],
+  );
+  const semListaDeRastreio = destinatarioDoPedido({ ...pedidoB2B, cliente: { email: "geral@zz.test", emailsRastreio: [] } });
+  conferir("rastreio: sem a lista, como hoje", [semListaDeRastreio.email, "emails" in semListaDeRastreio], ["comprador@zz.test", false]);
+  const paraVarios = await postado({ destinatario: { ...DESTINATARIO_ZZ, nome: "Maria da Silva", emails: ["a@zz.test", "b@zz.test"] } });
+  // Transporte proprio: o `enviados` comum e contado pelos testes de reenvio logo abaixo.
+  const enviadosVarios = [];
+  await avisarCliente(paraVarios.id, { transporte: { sendMail: async (mensagem) => (enviadosVarios.push(mensagem), { messageId: "zz-varios" }) } });
+  conferir("rastreio: o aviso vai a todos os e-mails do cadastro", enviadosVarios[0]?.to, "a@zz.test, b@zz.test");
+
   const semEmail = await postado({ destinatario: { ...DESTINATARIO_ZZ, email: null } });
   conferir("sem e-mail", (await avisarCliente(semEmail.id, { transporte })).erro, "Cliente sem e-mail: use o WhatsApp.");
   conferir("sem e-mail fica registrado", (await lerEnvio(semEmail.id)).avisoEmailErro, "Cliente sem e-mail: use o WhatsApp.");

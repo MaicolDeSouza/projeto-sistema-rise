@@ -52,7 +52,9 @@ export async function avisarCliente(envioId, { transporte } = {}) {
     await prisma.envio.update({ where: { id: envio.id }, data: { avisoEmailEm: null, avisoEmailErro: erro } });
     return { ok: false, enviado: false, erro };
   };
-  const para = String(envio?.destinatario?.email ?? "").trim();
+  // Os e-mails do rastreio do cadastro do cliente vao todos juntos (24/11/2026); sem eles, o do destinatario, como antes.
+  const varios = (Array.isArray(envio?.destinatario?.emails) ? envio.destinatario.emails : []).map((email) => String(email ?? "").trim()).filter(Boolean);
+  const para = varios.length ? varios.join(", ") : String(envio?.destinatario?.email ?? "").trim();
   if (!para) return falhou(SEM_EMAIL);
 
   const modelo = textos(await lerConfigDeFrete());
