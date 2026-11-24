@@ -28,9 +28,9 @@ export function Painel({ id, aba, somenteLeitura = false, children }) {
  * O foco do teclado e um anel na cor de destaque, por dentro da aba: o contorno
  * preto padrao do navegador ficava pesado em volta do titulo.
  */
-export function BarraDeAbas({ abas, aba, aoMudar, comErro, children }) {
+export function BarraDeAbas({ abas, aba, aoMudar, comErro, compacta = false, children }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-borda pr-3">
+    <div className={`flex items-center justify-between ${compacta ? "gap-2" : "gap-3"} border-b border-borda pr-3`}>
       <div role="tablist" className="flex overflow-x-auto">
         {abas.map((item) => (
           <button
@@ -39,7 +39,8 @@ export function BarraDeAbas({ abas, aba, aoMudar, comErro, children }) {
             role="tab"
             aria-selected={aba === item.id}
             onClick={() => aoMudar(item.id)}
-            className={`flex shrink-0 items-center gap-1.5 border-b-2 px-4 py-3 text-sm whitespace-nowrap focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none focus-visible:ring-inset ${
+            // `compacta` (24/11/2026, so o Cliente): com 7 abas e o tipo da pessoa na barra, px-4 fazia a barra rolar em 1366 px.
+            className={`flex shrink-0 items-center gap-1.5 border-b-2 ${compacta ? "px-3" : "px-4"} py-3 text-sm whitespace-nowrap focus-visible:ring-2 focus-visible:ring-acento focus-visible:outline-none focus-visible:ring-inset ${
               aba === item.id
                 ? "border-acento font-medium text-texto"
                 : "border-transparent text-suave hover:text-texto"

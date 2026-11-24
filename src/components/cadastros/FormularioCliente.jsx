@@ -14,6 +14,7 @@ import Card from "@/components/ui/Card";
 import { BarraDeAbas, Painel, useAbasDoFormulario } from "./Abas";
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "./Campo";
 import ArquivosDoCliente from "./ArquivosDoCliente";
+import CondicoesComerciais from "./CondicoesComerciais";
 import ContatosDoCliente from "./ContatosDoCliente";
 import EnderecoDoCliente from "./EnderecoDoCliente";
 import ListaDeValores from "./ListaDeValores";
@@ -35,7 +36,17 @@ const ABAS = [
   { id: "cadastro", rotulo: "Dados cadastrais" },
   { id: "endereco", rotulo: "Endereço" },
   { id: "contato", rotulo: "Contato" },
+  // As condicoes que a proposta deste cliente recebe, a NF, o rastreio e o portal (24/11/2026; substituem o padrao).
+  // Rotulo curto: com Pedidos e Licencas, "Condicoes comerciais" fazia a barra de abas rolar em largura de notebook.
+  { id: "condicoes", rotulo: "Condições" },
   { id: "adicionais", rotulo: "Dados adicionais" },
+];
+
+/** Contribuinte de ICMS (24/11/2026), os tres casos do Bling; no lugar da caixa "IE isenta". */
+const CONTRIBUINTES = [
+  { valor: "CONTRIBUINTE", rotulo: "Contribuinte" },
+  { valor: "ISENTO", rotulo: "Isento" },
+  { valor: "NAO_CONTRIBUINTE", rotulo: "Não contribuinte" },
 ];
 
 /// Em que aba mora cada campo com erro. Serve ao ponto vermelho do titulo da aba e
@@ -48,16 +59,29 @@ const ABA_DO_CAMPO = {
   inscricaoEstadual: "cadastro",
   inscricaoMunicipal: "cadastro",
   nivel: "cadastro",
+  indicadorIe: "cadastro",
   telefones: "contato",
   emails: "contato",
-  emailsNotaFiscal: "contato",
   contatos: "contato",
   sexo: "contato",
   naturalidade: "contato",
+  emailsNotaFiscal: "condicoes",
+  transportadoraId: "condicoes",
+  condicaoPagamentoId: "condicoes",
+  propostaValidadeDias: "condicoes",
+  propostaFormaPagamento: "condicoes",
+  propostaPagamentoTexto: "condicoes",
+  propostaFretePorConta: "condicoes",
+  propostaGarantia: "condicoes",
+  propostaAc: "condicoes",
+  propostaObservacoes: "condicoes",
+  propostaExigencias: "condicoes",
+  notaFiscalObservacao: "condicoes",
+  emailsRastreio: "condicoes",
+  portalUrl: "condicoes",
+  portalUsuario: "condicoes",
+  portalObservacao: "condicoes",
   clienteDesde: "adicionais",
-  transportadoraId: "adicionais",
-  padraoPropostaId: "adicionais",
-  condicaoPagamentoId: "adicionais",
   observacoes: "adicionais",
 };
 
@@ -132,11 +156,13 @@ function EscolhaDoNivel({ nivel, erro }) {
  * observacoes nao sao desenhados (o servidor nem os mandou), e a aba que ficaria vazia some. O Salvar os mantem como
  * estao no banco.
  */
-export default function FormularioCliente({ cliente, transportadoras, condicoes = [], padroes = [], arquivos = null, hoje, somenteLeitura = false, semPessoal = false, pedidos = null, veLucro = false, licencas = null }) {
+export default function FormularioCliente({ cliente, transportadoras, condicoes = [], arquivos = null, hoje, somenteLeitura = false, semPessoal = false, pedidos = null, veLucro = false, licencas = null }) {
   const router = useRouter();
   const inicial = cliente ?? { ativo: true };
   const [tipo, setTipo] = useState(inicial.tipoPessoa ?? "FISICA");
-  const [ieIsento, setIeIsento] = useState(inicial.ieIsento ?? false);
+  // Contribuinte de ICMS (24/11/2026); "Isento" desabilita a IE, como a caixa "IE isenta" fazia.
+  const [indicadorIe, setIndicadorIe] = useState(inicial.indicadorIe ?? (inicial.ieIsento ? "ISENTO" : ""));
+  const ieIsento = indicadorIe === "ISENTO";
   const { aba, setAba, comErro, levarAoPrimeiroErro, aoInvalidar } = useAbasDoFormulario({
     abas: ABAS,
     abaDoCampo,
@@ -144,7 +170,8 @@ export default function FormularioCliente({ cliente, transportadoras, condicoes 
 
   const [estado, acao, enviando] = useActionState(async (anterior, formData) => {
     const resultado = await salvarCliente(cliente?.id ?? null, anterior, formData);
-    if (resultado.ok) router.push("/cadastros/clientes");
+    // Gravado, mas o Bling recusou os dados fiscais (24/11/2026): fica na tela para o aviso ser lido.
+    if (resultado.ok && !resultado.aviso) router.push("/cadastros/clientes");
     else if (resultado.erros) levarAoPrimeiroErro(resultado.erros);
     return resultado;
   }, null);
@@ -203,6 +230,7 @@ export default function FormularioCliente({ cliente, transportadoras, condicoes 
           {somenteLeitura ? "Voltar" : "Cancelar"}
         </Link>
         {estado?.erro && <span className="text-sm text-red-700">{estado.erro}</span>}
+        {estado?.ok && estado.aviso && <span className="rounded bg-amber-50 px-2 py-1 text-sm text-amber-800">{estado.aviso}</span>}
         {estado && !estado.ok && !estado.erro && (
           <span className="text-sm text-red-700">Confira os campos marcados.</span>
         )}
@@ -211,7 +239,7 @@ export default function FormularioCliente({ cliente, transportadoras, condicoes 
       <Card className="p-0">
         {/* O tipo da pessoa fica na barra das abas: ele decide o que aparece em TODAS
             elas (Fantasia e IE na primeira, Sexo e Pessoas de contato em Contato). */}
-        <BarraDeAbas abas={abasVisiveis} aba={abaAtiva} aoMudar={setAba} comErro={comErro(erros)}>
+        <BarraDeAbas abas={abasVisiveis} aba={abaAtiva} aoMudar={setAba} comErro={comErro(erros)} compacta>
           <fieldset disabled={somenteLeitura} className="m-0 min-w-0 border-0 p-0">
             <EscolhaDoTipo tipo={tipo} aoMudar={setTipo} />
           </fieldset>
@@ -272,17 +300,12 @@ export default function FormularioCliente({ cliente, transportadoras, condicoes 
             />
           </div>
 
-          <div className={`${soJuridica} flex items-end pb-2`}>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                name="ieIsento"
-                checked={ieIsento}
-                onChange={(evento) => setIeIsento(evento.target.checked)}
-                className="h-4 w-4 accent-acento"
-              />
-              IE Isento
-            </label>
+          <div className={soJuridica}>
+            <span className="flex items-center gap-1 text-sm font-semibold">Contribuinte de ICMS</span>
+            <div className="mt-1">
+              <EscolhaEntreOpcoes nome="indicadorIe" rotulo="Contribuinte de ICMS" opcoes={CONTRIBUINTES} valor={indicadorIe} aoMudar={setIndicadorIe} />
+            </div>
+            {erros.indicadorIe && <p className="mt-1 text-[11px] text-red-700">{erros.indicadorIe}</p>}
           </div>
 
           <div className={soJuridica}>
@@ -329,15 +352,6 @@ export default function FormularioCliente({ cliente, transportadoras, condicoes 
             erro={erros.emails}
             type="email"
           />
-          {/* Onde o cliente recebe a nota fiscal eletronica (ex.: o almoxarifado da FUNPEC); a lista e separada do e-mail principal. */}
-          <ListaDeValores
-            nome="emailsNotaFiscal"
-            rotulo="E-mail para nota fiscal"
-            rotuloIncluir="incluir e-mail da nota"
-            inicial={cliente?.emailsNotaFiscal}
-            erro={erros.emailsNotaFiscal}
-            type="email"
-          />
         </div>
         )}
 
@@ -374,6 +388,17 @@ export default function FormularioCliente({ cliente, transportadoras, condicoes 
         )}
       </Painel>
 
+      <Painel id="condicoes" aba={abaAtiva} somenteLeitura={somenteLeitura}>
+        <CondicoesComerciais
+          cliente={cliente}
+          erros={erros}
+          transportadoras={transportadoras}
+          condicoes={condicoes}
+          semPessoal={semPessoal}
+          somenteLeitura={somenteLeitura}
+        />
+      </Painel>
+
       <Painel id="adicionais" aba={abaAtiva} somenteLeitura={somenteLeitura}>
         <div className="grid gap-4 md:grid-cols-3">
           <Campo
@@ -384,76 +409,7 @@ export default function FormularioCliente({ cliente, transportadoras, condicoes 
             defaultValue={valor("clienteDesde") || hoje}
           />
 
-          <Campo
-            nome="transportadoraId"
-            rotulo="Transportadora preferida"
-            erro={erros.transportadoraId}
-            ajuda="Escolhida do cadastro de Transportadoras."
-          >
-            <select
-              id="transportadoraId"
-              name="transportadoraId"
-              defaultValue={valor("transportadoraId")}
-              className={`${CLASSE_CAMPO} ${bordaDoCampo(erros.transportadoraId)}`}
-            >
-              <option value="">Nenhuma</option>
-              {transportadoras.map((transportadora) => (
-                <option key={transportadora.id} value={transportadora.id}>
-                  {transportadora.nome}
-                </option>
-              ))}
-            </select>
-            {transportadoras.length === 0 && (
-              <p className="mt-1 text-[11px] text-suave">
-                Nenhuma transportadora cadastrada.{" "}
-                <Link href="/cadastros/transportadoras/novo" className="text-acento hover:underline">
-                  Cadastrar
-                </Link>
-              </p>
-            )}
-          </Campo>
-
-          {/* Condicao preferida (13/11/2026): a proposta nova deste cliente ja vem com ela no Pagamento. */}
-          <Campo nome="condicaoPagamentoId" rotulo="Condição de pagamento preferida" erro={erros.condicaoPagamentoId} ajuda="A proposta deste cliente já vem com esta condição no Pagamento.">
-            <select
-              id="condicaoPagamentoId"
-              name="condicaoPagamentoId"
-              defaultValue={valor("condicaoPagamentoId")}
-              className={`${CLASSE_CAMPO} ${bordaDoCampo(erros.condicaoPagamentoId)}`}
-            >
-              <option value="">Nenhuma</option>
-              {condicoes.map((condicao) => (
-                <option key={condicao.id} value={condicao.id}>
-                  {condicao.nome}
-                </option>
-              ))}
-            </select>
-            {condicoes.length === 0 && (
-              <p className="mt-1 text-[11px] text-suave">
-                Nenhuma condição cadastrada.{" "}
-                <Link href="/cadastros/condicoes" className="text-acento hover:underline">
-                  Cadastrar
-                </Link>
-              </p>
-            )}
-          </Campo>
-
-          {/* O padrao de proposta (13/11/2026): a proposta nova deste cliente nasce com as regras dele. */}
-          <Campo nome="padraoPropostaId" rotulo="Padrão de proposta" erro={erros.padraoPropostaId} ajuda="A proposta nova deste cliente já nasce com as regras do padrão (validade, pagamento, frete, marca e modelo).">
-            <select
-              id="padraoPropostaId"
-              name="padraoPropostaId"
-              defaultValue={valor("padraoPropostaId")}
-              className={`${CLASSE_CAMPO} ${bordaDoCampo(erros.padraoPropostaId)}`}
-            >
-              <option value="">Sem padrão</option>
-              {padroes.map((padrao) => (
-                <option key={padrao.id} value={padrao.id}>
-                  {padrao.nome}
-                </option>
-              ))}
-            </select>
-          </Campo>
+          {/* Transportadora e condicao preferidas foram para a aba Condicoes comerciais (24/11/2026). */}
         </div>
 
         {cliente?.id && arquivos !== null && (
