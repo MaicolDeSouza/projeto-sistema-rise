@@ -58,6 +58,39 @@ try {
     await limpar();
   }
 
+  // ---------------------------------------------------------------------------------------------------------------
+  console.log("\n# Tarefa 2: filtro e etiquetas");
+  {
+    const { trocarEtiquetas } = await import("../src/lib/atendimentoML/etiquetas.js");
+    const { filtrarResposta, linkDoMercadoLivre } = await import("../src/lib/atendimentoML/filtro.js");
+    const URL_KIT = "https://produto.mercadolivre.com.br/MLB-111-x";
+
+    const troca = trocarEtiquetas("Kit de 10: [ANUNCIO:MLB111]", [{ itemId: "MLB111", url: URL_KIT }]);
+    conferir("etiqueta vira link", [troca.texto, troca.links], [`Kit de 10: ${URL_KIT}`, [URL_KIT]]);
+    const semAnuncio = trocarEtiquetas("veja [ANUNCIO:MLB999] aqui", []);
+    conferir("etiqueta desconhecida sai do texto", [semAnuncio.desconhecidas, semAnuncio.texto], [["MLB999"], "veja aqui"]);
+    conferir("etiqueta com hifen e minuscula", trocarEtiquetas("[anuncio:mlb-111]", [{ itemId: "MLB111", url: URL_KIT }]).texto, URL_KIT);
+
+    conferir("host do ML", [linkDoMercadoLivre("https://www.mercadolivre.com.br/p/MLB1"), linkDoMercadoLivre("https://mercadolivre.com.br/x"), linkDoMercadoLivre("http://www.mercadolivre.com.br/x"), linkDoMercadoLivre("https://mercadolivre.com.br.evil.com/x"), linkDoMercadoLivre("https://evilmercadolivre.com.br/x"), linkDoMercadoLivre("nada")], [true, true, false, false, false, false]);
+
+    const f = (texto, origem = "DONO", extra = {}) => filtrarResposta({ texto, origem, limite: 2000, ...extra });
+    conferir("dono: link do ML passa", f("Segue: https://www.mercadolivre.com.br/p/MLB1.").ok, true);
+    conferir("dono: link de fora barra", [f("veja https://4hobby.com.br/x").ok, f("veja https://4hobby.com.br/x").barrados[0]], [false, { trecho: "https://4hobby.com.br/x", motivo: "link" }]);
+    conferir("dominio parecido barra", f("https://mercadolivre.com.br.evil.com/x").ok, false);
+    conferir("sem protocolo barra", f("acesse www.4hobby.com.br").barrados[0]?.motivo, "link");
+    conferir("dominio solto barra", f("procure 4hobby.com.br no navegador").barrados[0]?.motivo, "link");
+    conferir("encurtado barra", f("bit.ly/abc").barrados[0]?.motivo, "link");
+    conferir("http do ML barra (so https)", f("http://www.mercadolivre.com.br/p/MLB1").ok, false);
+    conferir("IA: link do ML fora da troca barra", f("https://www.mercadolivre.com.br/p/MLB1", "IA").ok, false);
+    conferir("IA: link da troca passa", f(`Temos: ${URL_KIT}`, "IA", { linksDaTroca: [URL_KIT] }).ok, true);
+    conferir("telefone barra", f("me chama no 54 98122-2300").barrados[0]?.motivo, "telefone");
+    conferir("email barra", f("fale em contato@loja.com").barrados.map((b) => b.motivo), ["email"]);
+    conferir("cpf barra", f("meu cpf 529.982.247-25").barrados[0]?.motivo, "documento");
+    conferir("medida nao e telefone nem link", f("Fonte 12V 5A, 110/220V, 60x40x30 mm, 1000 unidades, modelo HC-SR04 v2.0.").ok, true);
+    conferir("tamanho", filtrarResposta({ texto: "a".repeat(11), origem: "DONO", limite: 10 }).barrados[0]?.motivo, "tamanho");
+    conferir("vazio", f("   ").barrados[0]?.motivo, "vazio");
+  }
+
   // MARCADOR: blocos novos entram acima desta linha.
 } finally {
   if (!MANTER) await limpar();
