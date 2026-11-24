@@ -10,6 +10,7 @@ import { FERRAMENTAS_DE_CORRECOES } from "./correcoes.js";
 import { FERRAMENTAS_DO_ESTOQUE } from "./estoque.js";
 import { FERRAMENTAS_DE_ESTUDOS } from "./estudos.js";
 import { FERRAMENTAS_DE_FRETE_ESCRITA, FERRAMENTAS_DE_FRETE_LEITURA } from "./frete.js";
+import { FERRAMENTAS_DO_ATENDIMENTO_ESCRITA, FERRAMENTAS_DO_ATENDIMENTO_LEITURA } from "./atendimentoML.js";
 import { FERRAMENTAS_DO_CATALOGO } from "./catalogo.js";
 import { horasDeBrasilia } from "./horario.js";
 import { FERRAMENTA_MERCADO } from "./mercado.js";
@@ -62,6 +63,9 @@ const ANOTACAO = { readOnlyHint: false, destructiveHint: false, idempotentHint: 
  * anotacao da duvida. Conferem o `pode()` do login por conta propria. So a anotacao escreve.
  */
 const SO_LEITURA_DO_MCP = [FERRAMENTA_MERCADO, ...FERRAMENTAS_DO_CATALOGO, ...FERRAMENTAS_DE_CADASTRO, ...FERRAMENTAS_DE_COMPRAS_LEITURA, ...FERRAMENTAS_DE_PEDIDOS_DE_VENDA, ...FERRAMENTAS_DE_PROPOSTAS_PARA_CLIENTE, ...FERRAMENTAS_DE_FRETE_LEITURA];
+// O Atendimento do ML (24/11/2026): ler as perguntas e responder em dois passos (preparar, confirmar com o codigo). Todas
+// conferem acao.atendimentoML.mcp (so o dono; a Andrea quando ele liberar) e o envio passa pela trava ML_RESPONDER_PERGUNTAS.
+// Sao trabalho do dono, nao duvida de atendimento: sem o lembrete de anotar, inclusive as duas de leitura.
 // A proposta de anuncio (spec 2026-10-23) entra junto com a de produto: mesmo registro, sem o lembrete.
 // A marcacao das referencias (25/10/2026) vai junto: etapa de antes da proposta, sem o lembrete.
 // O pedido de compra montado pela conversa (26/10/2026) tambem: cada uma traz as proprias anotacoes de escrita.
@@ -85,6 +89,8 @@ const PROPOSTAS = [
   ...FERRAMENTAS_DE_ESTUDOS,
   ...FERRAMENTAS_DO_ESTOQUE,
   ...FERRAMENTAS_DE_FRETE_ESCRITA,
+  ...FERRAMENTAS_DO_ATENDIMENTO_LEITURA,
+  ...FERRAMENTAS_DO_ATENDIMENTO_ESCRITA,
 ];
 const SO_DO_MCP = [...SO_LEITURA_DO_MCP, FERRAMENTA_ANOTAR, ...PROPOSTAS];
 // A proposta de produto (spec 2026-10-21) nao e pergunta de atendimento: sem o lembrete de anotar, como a propria anotacao.

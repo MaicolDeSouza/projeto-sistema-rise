@@ -400,8 +400,8 @@ try {
       const autorizados = async () => new Set([...(await chatsAutorizados({ env }))].filter((chat) => chat.startsWith("9900000")));
       conferir("so quem pode responder e ouvido", [...(await autorizados())], [CHAT_DO_DONO]);
 
-      const segundos = Math.floor(Date.now() / 1000);
-      const texto = (id, chat, text) => ({ update_id: id, message: { message_id: id, date: segundos, chat: { id: Number(chat), type: "private", first_name: "ZZ" }, from: { id: Number(chat) }, text } });
+      // A data e a do momento em que a mensagem e criada: o vinculo so aceita o `/vincular` de DEPOIS do codigo.
+      const texto = (id, chat, text) => ({ update_id: id, message: { message_id: id, date: Math.floor(Date.now() / 1000), chat: { id: Number(chat), type: "private", first_name: "ZZ" }, from: { id: Number(chat) }, text } });
       const clique = (id, chat, data) => ({ update_id: id, callback_query: { id: `cq${id}`, from: { id: Number(chat) }, message: { message_id: 7, chat: { id: Number(chat), type: "private" } }, data } });
       const rodar = async (falso, tratadores, extra = {}) => rodarEntradaDoTelegram({ cliente: criarClienteTelegram({ token: TOKEN, requisitar: falso.requisitar, requisitarSemRegistro: falso.requisitar }), esperaS: 0, tratadores, autorizados, ...extra });
       await prisma.estadoDoBotTelegram.upsert({ where: { id: "bot" }, update: { offset: 100 }, create: { id: "bot", offset: 100 } });
@@ -578,6 +578,78 @@ try {
       conferir("com foto: vai a foto, a legenda com o kit e os botoes", [foto?.metodo, foto?.caption.split(String.fromCharCode(10))[1], foto?.reply_markup.inline_keyboard[0][0].callback_data, (await lerAtendimento(d)).telegramMensagemId > 0], ["sendPhoto", "ZZ ATD Com foto (Kit de 10)", `at:${d}:s`, true]);
     } finally {
       await limparTg();
+      await limparOResto();
+      await limpar();
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------------------------------
+  console.log("\n# Tarefa 10: MCP");
+  {
+    const mcp = await import("../src/lib/mcp/atendimentoML.js");
+    const { aplicarPerguntaLida } = await import("../src/lib/atendimentoML/perguntas.js");
+    const { lerAtendimento, salvarRascunho } = await import("../src/lib/atendimentoML/banco.js");
+    const { criarMlPerguntasFalso } = await import("./lib/mlPerguntasFalso.js");
+    const U = (n) => `https://produto.mercadolivre.com.br/MLB-${n}-zz-atd`;
+    const erroDe = async (promessa) => promessa.then(() => null, (erro) => (erro?.name === "ErroDeFerramenta" ? erro.message : `OUTRO ERRO: ${erro?.message}`));
+    try {
+      const p = await prisma.produto.create({ data: { sku: "ZZ-ATD-M1", tituloBase: "ZZ ATD Módulo relé", descricaoBase: "Relé 5V.", custo: 2, estoque: 9 } });
+      const criar = (idExterno, extra = {}) => prisma.anuncio.create({ data: { produtoId: p.id, canal: "MERCADO_LIVRE", idExterno, status: "PUBLICADO", situacaoCanal: "ATIVA", urlExterna: U(idExterno.slice(3)), titulo: `ZZ ATD ${idExterno}`, ...extra } });
+      await criar("MLB9900000031");
+      await criar("MLB9900000032", { dados: { composicao: { itens: [{ produtoId: p.id, quantidade: 10 }] } } });
+      const ml = criarMlPerguntasFalso();
+      ml.porItem("MLB9900000031", { title: "Módulo relé", price: 9.9, available_quantity: 5, status: "active", attributes: [] });
+      ml.porItem("MLB9900000032", { title: "Kit 10 relés", price: 80, available_quantity: 2, status: "active", attributes: [] });
+      const id = (await aplicarPerguntaLida(ml.porPergunta({ id: "ZZ-ATD-70", item: "MLB9900000031", texto: "Tem kit com 10? Meu telefone é 54 98122-2300" }))).id;
+
+      const pode = (recurso, nivel) => recurso === "acao.atendimentoML.mcp" && nivel === "executar";
+      const dono = { pode, usuario: "zz-atd-dono", ml, env: { ML_RESPONDER_PERGUNTAS: "true" } };
+      const semAcesso = { pode: () => false, usuario: "zz-atd-outro", ml, env: { ML_RESPONDER_PERGUNTAS: "true" } };
+      const NEGADO = "Este login não pode usar o atendimento do Mercado Livre pelo assistente.";
+
+      conferir("as cinco ferramentas", [...mcp.FERRAMENTAS_DO_ATENDIMENTO_LEITURA, ...mcp.FERRAMENTAS_DO_ATENDIMENTO_ESCRITA].map((f) => f.nome), ["listarAtendimentosML", "lerAtendimentoML", "prepararRespostaML", "enviarRespostaML", "ignorarAtendimentoML"]);
+      conferir(
+        "login sem o recurso e recusado nas cinco",
+        [await erroDe(mcp.listarAtendimentosMcp({}, semAcesso)), await erroDe(mcp.lerAtendimentoMcp({ id }, semAcesso)), await erroDe(mcp.prepararRespostaMcp({ id, texto: "x" }, semAcesso)), await erroDe(mcp.enviarRespostaMcp({ id, codigo: "00000000", confirmo: true }, semAcesso)), await erroDe(mcp.ignorarAtendimentoMcp({ id, confirmo: true }, semAcesso))],
+        [NEGADO, NEGADO, NEGADO, NEGADO, NEGADO],
+      );
+
+      const lista = await mcp.listarAtendimentosMcp({ limite: 100 }, dono);
+      const naLista = lista.atendimentos.find((a) => a.id === id);
+      conferir("a lista traz a pergunta mascarada e o anuncio", [naLista?.pergunta.includes("98122-2300"), naLista?.anuncio, naLista?.situacao, naLista?.temRascunho], [false, "ZZ ATD MLB9900000031", "aberta", false]);
+
+      const lido = await mcp.lerAtendimentoMcp({ id }, dono);
+      const emTexto = JSON.stringify(lido);
+      conferir("ler: sem telefone, sem endereco e sem dado interno", [emTexto.includes("98122-2300"), /https?:\/\//.test(emTexto), /custo|fornecedor|margem|estoque/i.test(emTexto)], [false, false, false]);
+      conferir("ler: traz a etiqueta do kit de 10 e como usa-la", [lido.outrosAnuncios.map((a) => [a.etiqueta, a.unidadesDoKit]), lido.comoResponder.includes("[ANUNCIO:")], [[["[ANUNCIO:MLB9900000032]", 10]], true]);
+
+      const barrado = await erroDe(mcp.prepararRespostaMcp({ id, texto: "Fale no WhatsApp 54 98122-2300" }, dono));
+      conferir("preparar: texto barrado e recusado com o trecho", barrado?.includes("telefone"), true);
+      conferir("preparar: etiqueta que nao e deste produto e recusada", (await erroDe(mcp.prepararRespostaMcp({ id, texto: "Veja [ANUNCIO:MLB9900000001]" }, dono)))?.includes("MLB9900000001"), true);
+      conferir("preparar: endereco escrito a mao e recusado", (await erroDe(mcp.prepararRespostaMcp({ id, texto: `Veja ${U("9900000032")}` }, dono)))?.includes("link"), true);
+
+      const preparada = await mcp.prepararRespostaMcp({ id, texto: "Temos sim! O kit com 10 está aqui: [ANUNCIO:MLB9900000032]" }, dono);
+      const final = `Temos sim! O kit com 10 está aqui: ${U("9900000032")}`;
+      conferir("preparar devolve o texto exatamente como vai sair, e o codigo", [preparada.textoFinal, /^[0-9a-f]{8}$/.test(preparada.codigo), (await lerAtendimento(id)).rascunho, ml.respostasEnviadas.length], [final, true, final, 0]);
+
+      conferir("enviar com codigo errado", [await erroDe(mcp.enviarRespostaMcp({ id, codigo: "deadbeef", confirmo: true }, dono)), ml.respostasEnviadas.length], ["O código não confere com a resposta preparada. Prepare de novo e mostre o texto à pessoa.", 0]);
+      const outra = (await aplicarPerguntaLida(ml.porPergunta({ id: "ZZ-ATD-71", item: "MLB9900000031", texto: "Bivolt?" }))).id;
+      await salvarRascunho({ id: outra, texto: "Não, é 5V.", origem: "DONO", por: "zz-atd-dono" });
+      conferir("codigo de outro atendimento nao vale", (await erroDe(mcp.enviarRespostaMcp({ id: outra, codigo: preparada.codigo, confirmo: true }, dono)))?.startsWith("O código não confere"), true);
+      conferir("codigo vencido (11 min depois)", (await erroDe(mcp.enviarRespostaMcp({ id, codigo: preparada.codigo, confirmo: true }, { ...dono, agora: Date.now() + 11 * 60 * 1000 })))?.startsWith("A confirmação venceu"), true);
+      await salvarRascunho({ id, texto: `${final} Obrigado!`, origem: "DONO", por: "zz-atd-dono" });
+      conferir("rascunho mudado depois do preparo invalida o codigo", [(await erroDe(mcp.enviarRespostaMcp({ id, codigo: preparada.codigo, confirmo: true }, dono)))?.startsWith("O código não confere"), ml.respostasEnviadas.length], [true, 0]);
+
+      const deNovo = await mcp.prepararRespostaMcp({ id, texto: "Temos sim! O kit com 10 está aqui: [ANUNCIO:MLB9900000032]" }, dono);
+      conferir("trava do .env desligada: o MCP tambem nao envia", (await erroDe(mcp.enviarRespostaMcp({ id, codigo: deNovo.codigo, confirmo: true }, { ...dono, env: { ML_RESPONDER_PERGUNTAS: "false" } })))?.includes("ML_RESPONDER_PERGUNTAS"), true);
+      const enviado = await mcp.enviarRespostaMcp({ id, codigo: deNovo.codigo, confirmo: true }, dono);
+      const depois = await lerAtendimento(id);
+      conferir("enviar com o codigo certo: um POST, pelo MCP", [enviado.enviado, ml.respostasEnviadas, depois.status, depois.respondidaVia, depois.respondidaPor], [true, [{ question_id: "ZZ-ATD-70", text: final }], "RESPONDIDA", "MCP", "zz-atd-dono"]);
+      conferir("o mesmo codigo de novo nao reenvia", [(await erroDe(mcp.enviarRespostaMcp({ id, codigo: deNovo.codigo, confirmo: true }, dono))) !== null, ml.respostasEnviadas.length], [true, 1]);
+
+      conferir("ignorar pelo MCP", [(await mcp.ignorarAtendimentoMcp({ id: outra, confirmo: true }, dono)).ignorado, (await lerAtendimento(outra)).status], [true, "IGNORADA"]);
+      conferir("id que nao existe", await erroDe(mcp.lerAtendimentoMcp({ id: "zzatdnaoexiste" }, dono)), "Atendimento não encontrado: use o id que veio em listarAtendimentosML.");
+    } finally {
       await limparOResto();
       await limpar();
     }
