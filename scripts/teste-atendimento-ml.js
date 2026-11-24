@@ -52,6 +52,17 @@ async function limparOResto() {
   await prisma.auditoriaDeAcesso.deleteMany({ where: { quem: { startsWith: "zz-atd-" } } });
 }
 
+/** `--manter`: tres perguntas de exemplo (uma num anuncio de verdade do banco local, se houver) para conferir a tela. */
+async function semearParaATela() {
+  const agora = Date.now();
+  const anuncio = await prisma.anuncio.findFirst({ where: { canal: "MERCADO_LIVRE", status: "PUBLICADO", idExterno: { not: null } }, select: { id: true, idExterno: true, produtoId: true } });
+  const base = { tipo: "PERGUNTA", situacaoNoML: "UNANSWERED", itemId: anuncio?.idExterno ?? "MLB9900000001", anuncioId: anuncio?.id ?? null, produtoId: anuncio?.produtoId ?? null };
+  await prisma.atendimentoML.create({ data: { ...base, idExterno: "ZZ-ATD-T1", textoDoCliente: "Boa tarde, funciona em 3.3V? Tem kit com 10 unidades?", recebidaEm: new Date(agora - 12 * 60000) } });
+  await prisma.atendimentoML.create({ data: { ...base, itemId: "MLB9900000777", anuncioId: null, produtoId: null, idExterno: "ZZ-ATD-T2", textoDoCliente: "Emite nota fiscal?", recebidaEm: new Date(agora - 3 * 3600000), rascunho: "Olá! Sim, toda compra vai com nota fiscal.", rascunhoOrigem: "MANUAL", rascunhoEm: new Date() } });
+  await prisma.atendimentoML.create({ data: { ...base, idExterno: "ZZ-ATD-T3", textoDoCliente: "É original?", recebidaEm: new Date(agora - 26 * 3600000), status: "RESPONDIDA", respostaEnviada: "Olá! Sim, produto novo e original.", respondidaEm: new Date(agora - 25 * 3600000), respondidaVia: "RISE", respondidaPor: "zz-atd-dono" } });
+  console.log("\n--manter: 3 perguntas ZZ-ATD-T* deixadas para a tela (/atendimento). Rodar o teste sem --manter as apaga.");
+}
+
 try {
   await limpar();
   await limparOResto();
@@ -368,7 +379,8 @@ try {
 
   // MARCADOR: blocos novos entram acima desta linha.
 } finally {
-  if (!MANTER) await limpar();
+  await limpar();
+  if (MANTER) await semearParaATela().catch((erro) => console.error("--manter falhou:", erro?.message ?? erro));
   await prisma.$disconnect();
 }
 

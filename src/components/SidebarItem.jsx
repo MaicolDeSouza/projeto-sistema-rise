@@ -31,6 +31,7 @@ export default function SidebarItem({
   pathname,
   aberto = false,
   aoAlternar,
+  contador = 0,
 }) {
   const Icone = bloco.icone;
   const filhos = bloco.filhos ?? [];
@@ -61,10 +62,17 @@ export default function SidebarItem({
       )}
 
       <Icone size={18} strokeWidth={1.75} className="shrink-0" />
+      {/* Recolhido nao ha lugar para o numero: fica um ponto no canto do icone. */}
+      {recolhida && contador > 0 && <span aria-hidden="true" className="absolute top-1.5 right-3 h-2 w-2 rounded-full bg-amber-400" />}
 
       {!recolhida && (
         <>
           <span className="truncate">{bloco.rotulo}</span>
+          {contador > 0 && (
+            <span className="ml-auto shrink-0 rounded-full bg-amber-400 px-1.5 py-0.5 text-[11px] leading-none font-semibold text-slate-900 tabular-nums" aria-label={`${contador} esperando`}>
+              {contador > 99 ? "99+" : contador}
+            </span>
+          )}
           {!bloco.pronto && (
             <span className="ml-auto shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[10px] tracking-wide text-menu-texto/70">
               em breve

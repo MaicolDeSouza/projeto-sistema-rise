@@ -105,7 +105,7 @@ function Usuario({ sessao, recolhida }) {
  * `ordemSalva`: os hrefs na ordem que a pessoa arrumou (pedido do dono em 09/11/2026: segurar 0,4 s um botao e arrastar,
  * a mesma dinamica dos cartoes; salva por usuario, pagina "menu"). Bloco novo entra no fim; sem ordem salva vale a do Rise.
  */
-export default function Sidebar({ sessao = null, hrefsOcultos = [], ordemSalva = null }) {
+export default function Sidebar({ sessao = null, hrefsOcultos = [], ordemSalva = null, contadores = {} }) {
   const pathname = usePathname();
 
   const recolhida = useSyncExternalStore(
@@ -287,6 +287,8 @@ export default function Sidebar({ sessao = null, hrefsOcultos = [], ordemSalva =
                 }`}
               >
                 <SidebarItem
+                  // O que espera por alguem naquele bloco (hoje, so as perguntas abertas do Atendimento ML).
+                  contador={contadores[bloco.href] ?? 0}
                   bloco={bloco}
                   ativo={ativo}
                   recolhida={recolhida}

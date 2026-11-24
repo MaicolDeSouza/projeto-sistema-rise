@@ -7,6 +7,7 @@ import TravaDaRolagem from "@/components/ui/TravaDaRolagem";
 import { blocos } from "@/lib/blocos";
 import { blocosOcultos } from "@/lib/acessos/resolucao";
 import { sessaoDeAcessos } from "@/lib/acessos/servidor";
+import { contarAbertas } from "@/lib/atendimentoML/banco";
 import { chaveDaSessao, lerOrdemDosCartoes } from "@/lib/ordemDosCartoes/banco";
 import { sessaoDoRise } from "@/lib/sessao";
 import "./globals.css";
@@ -33,6 +34,9 @@ export default async function RootLayout({ children }) {
   const hrefsOcultos = blocosOcultos(acesso.permissoes, blocos.map((bloco) => bloco.href).filter((href) => href !== "/"));
   // A ordem dos botoes do menu que a pessoa arrumou (09/11/2026, por usuario; sem ordem salva, a do Rise).
   const ordemDoMenu = await lerOrdemDosCartoes(chaveDaSessao(acesso), "menu");
+  // O numero ao lado do "Atendimento ML": as perguntas que esperam resposta (24/11/2026). So para quem ve o bloco, e
+  // uma falha do banco aqui nunca derruba o menu.
+  const contadores = hrefsOcultos.includes("/atendimento") ? {} : { "/atendimento": await contarAbertas().catch(() => 0) };
 
   return (
     <html
@@ -41,7 +45,7 @@ export default async function RootLayout({ children }) {
     >
       <body className="min-h-full">
         <div className="flex min-h-screen flex-col lg:flex-row">
-          <Sidebar sessao={sessao} hrefsOcultos={hrefsOcultos} ordemSalva={ordemDoMenu} />
+          <Sidebar sessao={sessao} hrefsOcultos={hrefsOcultos} ordemSalva={ordemDoMenu} contadores={contadores} />
           <main className="min-w-0 flex-1 px-4 py-6 lg:px-8 lg:py-8">
             {children}
           </main>

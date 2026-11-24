@@ -41,10 +41,34 @@ export async function linksDosAnunciosDoProduto(produtoId) {
 async function anunciosDasLinhas(linhas) {
   const ids = [...new Set(linhas.map((l) => l.anuncioId).filter(Boolean))];
   if (ids.length === 0) return new Map();
-  const anuncios = await prisma.anuncio.findMany({ where: { id: { in: ids } }, select: { id: true, titulo: true, idExterno: true, dados: true, urlExterna: true, produto: { select: { id: true, sku: true, tituloBase: true } } } });
+  const anuncios = await prisma.anuncio.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, titulo: true, idExterno: true, dados: true, urlExterna: true, produto: { select: { id: true, sku: true, tituloBase: true, arquivos: { where: { tipo: "IMAGEM" }, orderBy: { principal: "desc" }, take: 1, select: { arquivo: true } } } } },
+  });
   return new Map(
-    anuncios.map((a) => [a.id, { titulo: a.titulo || a.produto?.tituloBase || "", itemId: a.idExterno, url: a.urlExterna, sku: a.produto?.sku ?? null, produtoId: a.produto?.id ?? null, unidadesDoKit: unidadesDoKitDoAnuncio(a.dados) }]),
+    anuncios.map((a) => {
+      const foto = a.produto?.arquivos?.[0]?.arquivo;
+      return [
+        a.id,
+        {
+          titulo: a.titulo || a.produto?.tituloBase || "",
+          itemId: a.idExterno,
+          url: a.urlExterna,
+          sku: a.produto?.sku ?? null,
+          produtoId: a.produto?.id ?? null,
+          unidadesDoKit: unidadesDoKitDoAnuncio(a.dados),
+          // O mesmo endereco das fotos do produto no Rise (atras do login).
+          foto: foto && a.produto?.sku ? `/api/arquivos/${encodeURIComponent(a.produto.sku)}/imagens/${encodeURIComponent(foto)}` : null,
+        },
+      ];
+    }),
   );
+}
+
+/** Quantas perguntas ha em cada situacao (os numeros dos chips da tela). */
+export async function contagemPorStatus(tipo = "PERGUNTA") {
+  const grupos = await prisma.atendimentoML.groupBy({ by: ["status"], where: { tipo }, _count: { _all: true } });
+  return Object.fromEntries(grupos.map((grupo) => [grupo.status, grupo._count._all]));
 }
 
 function ondeDaLista({ tipo, status, filtros, soPrefixo }) {
