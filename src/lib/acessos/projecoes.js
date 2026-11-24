@@ -53,7 +53,24 @@ export function pastaPublica(pasta) {
  * `telefones`, `emails`, `enderecos`, `contatos`, `observacoes`) e o `contato` da linha da lista (telefone e e-mail
  * juntos). Sem o dado, nada disso sai do servidor.
  */
-const PESSOAIS_NA_TELA = ["documento", "telefones", "emails", "emailsNotaFiscal", "enderecos", "contatos", "observacoes", "contato"];
+// O portal de compras, os e-mails do rastreio e a observacao da NF (24/11/2026) tambem sao dado pessoal do cliente: o
+// acesso ao portal e de quem ve o cadastro inteiro. A senha nem entra aqui: so vai `temSenhaDoPortal`.
+const PESSOAIS_NA_TELA = [
+  "documento",
+  "telefones",
+  "emails",
+  "emailsNotaFiscal",
+  "enderecos",
+  "contatos",
+  "observacoes",
+  "contato",
+  "emailsRastreio",
+  "notaFiscalObservacao",
+  "portalUrl",
+  "portalUsuario",
+  "portalObservacao",
+  "temSenhaDoPortal",
+];
 
 /** O cliente (da tela ou da lista) sem o dado pessoal quando a pessoa nao o ve. Devolve uma copia. */
 export function projetarCliente(cliente, pode) {
@@ -72,6 +89,11 @@ const PESSOAIS_GRAVADOS = {
   email: null,
   emailsAdicionais: [],
   emailsNotaFiscal: [],
+  emailsRastreio: [],
+  notaFiscalObservacao: null,
+  portalUrl: null,
+  portalUsuario: null,
+  portalObservacao: null,
 };
 
 /**

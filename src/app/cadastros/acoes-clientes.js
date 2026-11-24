@@ -3,8 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { negarSemAcesso, sessaoDeAcessos } from "@/lib/acessos/servidor";
+import { registrarAuditoria } from "@/lib/acessos/banco";
+import { negarSemAcesso, negarSemAcessos, sessaoDeAcessos } from "@/lib/acessos/servidor";
 import { pessoalPreservado } from "@/lib/acessos/projecoes";
+import { indicadorIeDoFormulario, lerCondicoesDoFormulario } from "@/lib/clientes/condicoes";
+import { senhaDoPortalDoCliente, senhaDoPortalParaGravar } from "@/lib/clientes/portal";
 import { prisma } from "@/lib/db";
 import {
   UFS,
@@ -91,14 +94,29 @@ export async function salvarCliente(id, _anterior, formData) {
   // Sem o dado pessoal a tela nem desenha documento, telefones, e-mails, enderecos, contatos e observacoes: o que chega
   // sem eles NAO e "apagar", e as colunas vem do banco (`pessoalPreservado`), antes da validacao (o documento e
   // obrigatorio). Enderecos e contatos nem sao tocados. Cliente novo exige o documento, entao exige o dado.
-  const { pode } = await sessaoDeAcessos();
+  const sessao = await sessaoDeAcessos();
+  const { pode } = sessao;
   const comPessoal = pode("dado.pessoalDoCliente", "editar");
   if (!comPessoal && !id) return { ok: false, erro: "Sem permissão para Dados pessoais do cliente." };
   let atual = null;
   if (!comPessoal) {
     atual = await prisma.cliente.findUnique({
       where: { id },
-      select: { documento: true, observacoes: true, telefone: true, telefonesAdicionais: true, email: true, emailsAdicionais: true, emailsNotaFiscal: true },
+      select: {
+        documento: true,
+        observacoes: true,
+        telefone: true,
+        telefonesAdicionais: true,
+        email: true,
+        emailsAdicionais: true,
+        emailsNotaFiscal: true,
+        // O portal, o rastreio e a obs. da NF tambem sao dado pessoal (24/11/2026): quem nao os ve nao os apaga.
+        emailsRastreio: true,
+        notaFiscalObservacao: true,
+        portalUrl: true,
+        portalUsuario: true,
+        portalObservacao: true,
+      },
     });
     if (!atual) return { ok: false, erro: "Este cliente não existe mais. Volte para a lista." };
   }
@@ -144,6 +162,10 @@ export async function salvarCliente(id, _anterior, formData) {
   const nivelLido = lerNivelDoCliente(campos.nivel);
   if (nivelLido.erro) erros.nivel = nivelLido.erro;
 
+  // A aba "Condicoes comerciais" (24/11/2026): as condicoes da proposta, a NF, o rastreio e o portal.
+  const condicoesLidas = lerCondicoesDoFormulario(campos, formData);
+  Object.assign(erros, condicoesLidas.erros);
+
   if (Object.keys(erros).length > 0) return { ok: false, erros };
 
   const dados = pessoalPreservado(
@@ -155,9 +177,13 @@ export async function salvarCliente(id, _anterior, formData) {
       email: emails[0] ?? null,
       emailsAdicionais: emails.slice(1),
       emailsNotaFiscal,
+      ...condicoesLidas.dados,
     },
     pode,
   );
+  // A senha do portal so muda com o dado pessoal e quando foi digitada (vazio = mantem; "Apagar" = zera). Vai cifrada.
+  const senhaDoPortal = comPessoal ? senhaDoPortalParaGravar({ nova: campos.portalSenhaNova, apagar: campos.portalSenhaApagar === "on" }) : undefined;
+  if (senhaDoPortal !== undefined) dados.portalSenhaCifrada = senhaDoPortal;
   const fisica = dados.tipoPessoa === "FISICA";
 
   if (dados.documento) {
@@ -172,16 +198,17 @@ export async function salvarCliente(id, _anterior, formData) {
       inscricaoEstadual: null,
       inscricaoMunicipal: null,
       ieIsento: false,
+      indicadorIe: null,
     });
   } else {
-    Object.assign(dados, { sexo: null, naturalidade: null, ieIsento: campos.ieIsento === "on" });
+    // Contribuinte de ICMS (24/11/2026) no lugar da caixa "IE isenta": o `ieIsento` segue gravado por ele.
+    Object.assign(dados, { sexo: null, naturalidade: null, ...indicadorIeDoFormulario(campos, "JURIDICA") });
     // IE isento e o oposto de ter inscricao: os dois juntos se contradizem.
     if (dados.ieIsento) dados.inscricaoEstadual = null;
   }
   dados.ativo = campos.ativo === "on";
   dados.nivel = nivelLido.nivel;
-  // O padrao de proposta (13/11/2026): vazio = sem padrao; id que nao existe cai no P2003 abaixo.
-  dados.padraoPropostaId = String(campos.padraoPropostaId ?? "").trim() || null;
+  // O padrao de proposta deixou de ser gravado (24/11/2026): as condicoes moram no proprio cliente.
 
   // Data de "cliente desde": vazia no cadastro novo vale hoje (padrao do banco);
   // vazia na edicao mantem a que ja estava.
@@ -218,6 +245,15 @@ export async function salvarCliente(id, _anterior, formData) {
               update: endereco,
             })
           : tx.clienteEndereco.deleteMany({ where: { clienteId: salvo.id, tipo } });
+
+      // A troca da senha do portal fica no Historico, sem o valor (24/11/2026).
+      if (senhaDoPortal !== undefined) {
+        await registrarAuditoria(tx, {
+          quem: sessao.login || "pc",
+          oQue: senhaDoPortal === null ? "cliente.portal.apagarSenha" : "cliente.portal.trocarSenha",
+          alvo: salvo.id,
+        });
+      }
 
       // Sem o dado pessoal a tela nao tinha enderecos nem contatos: o que esta gravado fica como esta.
       if (!comPessoal) return salvo;
@@ -257,6 +293,17 @@ export async function salvarCliente(id, _anterior, formData) {
     }
     return { ok: false, erro: erro?.message ?? "Não foi possível salvar." };
   }
+}
+
+/**
+ * O "Mostrar" da senha do portal (24/11/2026): so quem edita o cliente E ve o dado pessoal; a vista fica no Historico, sem
+ * a senha. A resposta leva so a senha, nunca a cifra.
+ */
+export async function senhaDoPortalAcao(clienteId) {
+  const negado = await negarSemAcessos(["tela.cadastros.clientes", "editar"], ["dado.pessoalDoCliente", "ver"]);
+  if (negado) return negado;
+  const sessao = await sessaoDeAcessos();
+  return senhaDoPortalDoCliente(String(clienteId ?? ""), { quem: sessao.login || "pc" });
 }
 
 /** Exclui o cliente; enderecos, contatos e arquivos vao junto (`Cascade`; a pasta dos arquivos e apagada). */

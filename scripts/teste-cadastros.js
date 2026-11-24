@@ -475,7 +475,79 @@ try {
 
   const semVinculo = await produtoCom("ZZ-CAD-PADRAO-5", []);
   conferir("sem vinculo: nada a marcar", await garantirPadraoDoUnico(semVinculo.id), false);
+
+  // -------------------------------------------------------------------------
+  // Condicoes comerciais do cliente (24/11/2026): leitura da aba, ICMS e a senha cifrada do portal
+  // -------------------------------------------------------------------------
+  console.log("\nCondicoes comerciais do cliente");
+  const condicoes = await import("../src/lib/clientes/condicoes.js");
+  const portal = await import("../src/lib/clientes/portal.js");
+  const { projetarCliente, pessoalPreservado } = await import("../src/lib/acessos/projecoes.js");
+  const fd = (pares) => {
+    const formulario = new FormData();
+    for (const [chave, valor] of pares) formulario.append(chave, valor);
+    return formulario;
+  };
+  const lidoRuim = condicoes.lerCondicoesDoFormulario(
+    { propostaValidadeDias: "0", propostaFormaPagamento: "Cheque", portalUrl: "ftp://x", propostaFretePorConta: "FOB", propostaFreteDiluido: "on" },
+    fd([]),
+  );
+  conferir("condicoes: validade, forma e link recusados", Object.keys(lidoRuim.erros).sort(), ["portalUrl", "propostaFormaPagamento", "propostaValidadeDias"]);
+  conferir("condicoes: diluir so no CIF", condicoes.lerCondicoesDoFormulario({ propostaFretePorConta: "FOB", propostaFreteDiluido: "on" }, fd([])).dados.propostaFreteDiluido, false);
+  const lidoBom = condicoes.lerCondicoesDoFormulario(
+    { propostaValidadeDias: "30", propostaFormaPagamento: "Transferência", propostaFretePorConta: "CIF", propostaFreteDiluido: "on", propostaAc: " Adler Truber ", portalUrl: "https://portal.fiesc.com.br", propostaMarcaModelo: "on" },
+    fd([["emailsRastreio", "Almox@ZZ.test"], ["emailsRastreio", ""]]),
+  );
+  conferir(
+    "condicoes: le a aba",
+    [lidoBom.erros, lidoBom.dados.propostaValidadeDias, lidoBom.dados.propostaFretePorConta, lidoBom.dados.propostaFreteDiluido, lidoBom.dados.propostaAc, lidoBom.dados.propostaMarcaModelo, lidoBom.dados.propostaAssinar, lidoBom.dados.emailsRastreio, lidoBom.dados.portalUrl, lidoBom.dados.propostaObservacoes],
+    // O e-mail fica como digitado (o lerEmails so compara sem caixa, para nao repetir), igual aos outros e-mails do cadastro.
+    [{}, 30, "CIF", true, "Adler Truber", true, false, ["Almox@ZZ.test"], "https://portal.fiesc.com.br", null],
+  );
+  conferir(
+    "ICMS: juridica isenta e fisica",
+    [condicoes.indicadorIeDoFormulario({ indicadorIe: "ISENTO" }, "JURIDICA"), condicoes.indicadorIeDoFormulario({ indicadorIe: "ISENTO" }, "FISICA")],
+    [{ indicadorIe: "ISENTO", ieIsento: true }, { indicadorIe: null, ieIsento: false }],
+  );
+  conferir("ICMS: codigos do Bling", ["CONTRIBUINTE", "ISENTO", "NAO_CONTRIBUINTE", null].map(condicoes.indicadorIeDoBling), [1, 2, 9, null]);
+
+  const SENHA = "Sênh@ 123 çãõ ";
+  const cifrada = portal.senhaDoPortalParaGravar({ nova: SENHA, apagar: false });
+  conferir("portal: cifrada sem a senha em texto", [typeof cifrada, cifrada.includes("Sênh")], ["string", false]);
+  conferir("portal: volta igual, com acento e espaco", portal.abrirSenhaDoPortal(cifrada), { ok: true, senha: SENHA });
+  conferir("portal: vazio mantem, apagar zera", [portal.senhaDoPortalParaGravar({ nova: "", apagar: false }), portal.senhaDoPortalParaGravar({ nova: "x", apagar: true })], [undefined, null]);
+  conferir("portal: outra chave da aviso", portal.abrirSenhaDoPortal("aaa.bbb.ccc"), { ok: false, erro: "Senha gravada com outra chave; grave de novo." });
+  conferir("portal: sem senha gravada", portal.abrirSenhaDoPortal(null), { ok: false, erro: "Nenhuma senha gravada." });
+
+  const comPortal = await prisma.cliente.create({ data: { nome: "ZZ Cliente Portal", tipoPessoa: "JURIDICA", portalUsuario: "zz-usuario", portalSenhaCifrada: cifrada } });
+  const linhaCrua = await prisma.$queryRaw`SELECT * FROM "Cliente" WHERE "id" = ${comPortal.id}`;
+  conferir("portal: a linha do banco nao tem a senha em texto", JSON.stringify(linhaCrua).includes("Sênh"), false);
+  const vista = await portal.senhaDoPortalDoCliente(comPortal.id, { quem: "zz-teste" });
+  const auditoria = await prisma.auditoriaDeAcesso.findMany({ where: { quem: "zz-teste" } });
+  conferir(
+    "portal: Mostrar devolve a senha e registra no Historico, sem ela",
+    [vista, auditoria.map((linha) => [linha.oQue, linha.alvo, linha.antes, linha.depois]), JSON.stringify(auditoria).includes("Sênh")],
+    [{ ok: true, senha: SENHA }, [["cliente.portal.verSenha", comPortal.id, null, null]], false],
+  );
+
+  conferir(
+    "projecao: sem dado pessoal, o portal e o rastreio nao saem",
+    projetarCliente({ nome: "x", portalUsuario: "u", portalUrl: "https://p", portalObservacao: "o", emailsRastreio: ["a@zz.test"], temSenhaDoPortal: true, notaFiscalObservacao: "n" }, () => false),
+    { nome: "x" },
+  );
+  const preservado = pessoalPreservado(
+    { portalUsuario: "u", portalUrl: "https://p", portalObservacao: "o", emailsRastreio: ["a@zz.test"], notaFiscalObservacao: "n" },
+    { nome: "x" },
+    () => false,
+  );
+  conferir(
+    "projecao: quem nao ve dado pessoal salva sem apagar o portal e o rastreio",
+    [preservado.portalUsuario, preservado.portalUrl, preservado.portalObservacao, preservado.emailsRastreio, preservado.notaFiscalObservacao],
+    ["u", "https://p", "o", ["a@zz.test"], "n"],
+  );
 } finally {
+  await prisma.auditoriaDeAcesso.deleteMany({ where: { quem: "zz-teste" } });
+  await prisma.cliente.deleteMany({ where: { nome: { startsWith: "ZZ Cliente Portal" } } });
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-CAD-PADRAO-" } } });
   await prisma.concorrente.deleteMany({ where: { nome: { startsWith: PREFIXO } } });
   await prisma.fornecedor.deleteMany({ where: { nome: { startsWith: PREFIXO } } });

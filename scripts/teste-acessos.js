@@ -699,10 +699,17 @@ try {
       { id: "c1", nome: "ZZ", tipoPessoa: "FISICA", sexo: "MASCULINO" },
     );
     conferir("o cliente recebido nao e alterado", cliente.documento, "123");
-    const doBanco = { documento: "111.444.777-35", observacoes: "do banco", telefone: "54988990008", telefonesAdicionais: ["5433334444"], email: "b@b.c", emailsAdicionais: [], emailsNotaFiscal: ["nf@b.c"] };
-    const doFormulario = { documento: "", observacoes: null, telefone: null, telefonesAdicionais: [], email: null, emailsAdicionais: [], emailsNotaFiscal: [] };
+    // O portal, o rastreio e a obs. da NF entraram como dado pessoal em 24/11/2026.
+    const doBanco = {
+      documento: "111.444.777-35", observacoes: "do banco", telefone: "54988990008", telefonesAdicionais: ["5433334444"], email: "b@b.c", emailsAdicionais: [], emailsNotaFiscal: ["nf@b.c"],
+      emailsRastreio: ["r@b.c"], notaFiscalObservacao: "obs nf", portalUrl: "https://p.b.c", portalUsuario: "u", portalObservacao: "o",
+    };
+    const doFormulario = {
+      documento: "", observacoes: null, telefone: null, telefonesAdicionais: [], email: null, emailsAdicionais: [], emailsNotaFiscal: [],
+      emailsRastreio: [], notaFiscalObservacao: null, portalUrl: null, portalUsuario: null, portalObservacao: null,
+    };
     conferir("sem o dado: os campos pessoais vem do banco, nunca do formulario", pessoalPreservado(doBanco, { ...doFormulario, nome: "Novo" }, semPessoal), { ...doBanco, nome: "Novo" });
-    conferir("sem o dado e sem cliente no banco: nada pessoal entra", pessoalPreservado(null, { ...doBanco, nome: "N" }, semPessoal), { documento: null, observacoes: null, telefone: null, telefonesAdicionais: [], email: null, emailsAdicionais: [], emailsNotaFiscal: [], nome: "N" });
+    conferir("sem o dado e sem cliente no banco: nada pessoal entra", pessoalPreservado(null, { ...doBanco, nome: "N" }, semPessoal), { documento: null, observacoes: null, telefone: null, telefonesAdicionais: [], email: null, emailsAdicionais: [], emailsNotaFiscal: [], emailsRastreio: [], notaFiscalObservacao: null, portalUrl: null, portalUsuario: null, portalObservacao: null, nome: "N" });
     conferir("com o dado: valem os do formulario", pessoalPreservado(doBanco, doFormulario, comPessoal), doFormulario);
   }
 
