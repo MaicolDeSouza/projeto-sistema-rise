@@ -120,6 +120,11 @@ const LISTA = [
   acao("acao.pedidos.emitirNF", "Criar NF pelo pedido", "tela.pedidos", "Desligada pela trava NFE_EMISSAO."),
   acao("acao.pedidos.baixarNF", "Baixar NF e XML do pedido", "tela.pedidos"),
   acao("acao.pedidos.marcarNotaDeDevolucao", "Marcar a nota de devolução do Mercado Livre", "tela.pedidos"),
+  // Atendimento do ML (spec 2026-11-24): o dono pediu "apenas eu" e, pelo MCP, "apenas Maicol e futuramente a Andrea".
+  // Sao delegaveis para ele liberar a Andrea com um clique, mas NAO entram na funcao Atendimento (semeadura.js).
+  tela("tela.atendimento", "Atendimento ML", "/atendimento"),
+  acao("acao.atendimentoML.responder", "Responder perguntas do Mercado Livre (tela e Telegram)", "tela.atendimento", "Publica a resposta no Mercado Livre. Não dá para editar depois de enviada."),
+  acao("acao.atendimentoML.mcp", "Atendimento do Mercado Livre pelo Claude ou ChatGPT (MCP)", "tela.atendimento", "Ler as perguntas e responder pelo assistente, com confirmação em dois passos."),
   // Modulo de frete (18/11/2026): cotar no pedido grava o rascunho do envio (sem gastar saldo; comprar e a fase 2).
   acao("acao.envios.cotarNoPedido", "Cotar frete e escolher o serviço no pedido", "tela.pedidos"),
   // Modulo de frete, fase 2 (19/11/2026): a lista de Envios, comprar e cancelar etiqueta (gasta saldo; o dono pediu "so

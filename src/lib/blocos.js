@@ -4,6 +4,7 @@ import {
   Boxes,
   LayoutDashboard,
   Megaphone,
+  MessageCircleQuestion,
   Package,
   Radar,
   PieChart,
@@ -127,6 +128,14 @@ export const blocos = [
     icone: ShoppingCart,
     resumo: "Vendas de todos os canais em um só lugar",
     // Pedidos de venda (04/11/2026): a lista dos pedidos do ML, da LI e do Bling.
+    pronto: true,
+  },
+  {
+    // Atendimento do ML (24/11/2026): as perguntas dos anuncios, com resposta aprovada pelo dono. Logo depois de Vendas.
+    href: "/atendimento",
+    rotulo: "Atendimento ML",
+    icone: MessageCircleQuestion,
+    resumo: "Perguntas do Mercado Livre, com sugestão da IA e resposta aprovada",
     pronto: true,
   },
   {

@@ -352,6 +352,20 @@ try {
     await limpar();
   }
 
+  // ---------------------------------------------------------------------------------------------------------------
+  console.log("\n# Tarefa 6: acessos e menu");
+  {
+    const { RECURSOS, recursoPorId } = await import("../src/lib/acessos/recursos.js");
+    const { PERMISSOES_DA_ATENDIMENTO } = await import("../src/lib/acessos/semeadura.js");
+    const { blocos } = await import("../src/lib/blocos.js");
+    const NOVOS = ["tela.atendimento", "acao.atendimentoML.responder", "acao.atendimentoML.mcp"];
+    conferir("os tres recursos existem", NOVOS.map((id) => recursoPorId(id)?.tipo ?? null), ["tela", "acao", "acao"]);
+    conferir("a tela e a entrada do bloco e as acoes dependem dela", [recursoPorId("tela.atendimento")?.grupo, recursoPorId("acao.atendimentoML.responder")?.pai, recursoPorId("acao.atendimentoML.mcp")?.pai], ["/atendimento", "tela.atendimento", "tela.atendimento"]);
+    conferir("o pai vem antes dos filhos", RECURSOS.findIndex((r) => r.id === "tela.atendimento") < RECURSOS.findIndex((r) => r.id === "acao.atendimentoML.responder"), true);
+    conferir("a funcao Atendimento (a da Andrea) nasce sem nenhum deles", PERMISSOES_DA_ATENDIMENTO.filter((p) => NOVOS.includes(p.recurso)), []);
+    conferir("o bloco esta no menu, logo depois de Vendas", [blocos.find((b) => b.href === "/atendimento")?.rotulo, blocos.findIndex((b) => b.href === "/atendimento") - blocos.findIndex((b) => b.href === "/pedidos")], ["Atendimento ML", 1]);
+  }
+
   // MARCADOR: blocos novos entram acima desta linha.
 } finally {
   if (!MANTER) await limpar();
