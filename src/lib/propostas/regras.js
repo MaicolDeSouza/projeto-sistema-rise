@@ -360,16 +360,17 @@ export function textoDoPagamento({ condicaoNome, formaPagamento, parcelas, entra
 }
 
 /** O que falta para gerar o PDF: item sem nome (nem do Rise nem do cliente) e proposta sem item (o motivo do botao). */
-export function pendenciasDoPdf({ clienteNome, itens = [], exigeMarcaModelo = false }) {
+export function pendenciasDoPdf({ clienteNome, itens = [], mostrarMarcaModelo = false }) {
   const pendencias = [];
   if (!String(clienteNome ?? "").trim()) pendencias.push("Informe o cliente.");
   if (itens.length === 0) pendencias.push("Inclua ao menos um item.");
   const semNome = itens.filter((item) => !nomeDoItemParaOCliente(item)).length;
   if (semNome) pendencias.push(`${semNome} item(ns) sem o produto.`);
-  // O padrao do cliente pede marca e modelo (SENAI, 13/11/2026): item sem marca ou sem modelo trava o PDF.
-  if (exigeMarcaModelo) {
+  // A proposta mostra Marca / Modelo (SENAI, 13/11/2026; desde 24/11/2026 a caixa e da proposta, vinda do cadastro do
+  // cliente): item sem marca ou sem modelo trava o PDF.
+  if (mostrarMarcaModelo) {
     const semMarca = itens.filter((item) => !String(item.marca ?? "").trim() || !String(item.modelo ?? "").trim()).length;
-    if (semMarca) pendencias.push(`${semMarca} item(ns) sem marca ou modelo (o padrão do cliente exige).`);
+    if (semMarca) pendencias.push(`${semMarca} item(ns) sem marca ou modelo (Marca/Modelo no PDF está marcado).`);
   }
   return pendencias;
 }
@@ -412,6 +413,88 @@ export function camposDoPadrao(padrao, { hoje = hojeEmSaoPaulo() } = {}) {
   if (padrao.observacoesCliente) campos.observacoesCliente = padrao.observacoesCliente;
   // So liga (17/11/2026, FUNPEC): como os outros campos vazios do padrao, o padrao sem a marca nao desmarca a proposta.
   if (padrao.assinarDigitalmente) campos.assinarDigitalmente = true;
+  return campos;
+}
+
+// ---------------------------------------------------------------- condicoes do cliente (24/11/2026)
+
+/**
+ * A regra geral, quando o cliente nao diz nada: era o padrao "Cliente comum" (13/11/2026), que deixou de ser linha do
+ * banco quando as condicoes foram para o cadastro do cliente.
+ */
+export const CONDICOES_GERAIS = { validadeDias: 15, fretePorConta: "A_COMBINAR", garantia: "90 dias" };
+
+const preenchido = (valor) => valor !== null && valor !== undefined && String(valor).trim() !== "";
+const textoOuNulo = (valor) => (preenchido(valor) ? String(valor).trim() : null);
+
+/**
+ * O cliente tem condicoes comerciais proprias? Transportadora e condicao preferida NAO contam: muitos clientes de hoje so
+ * tem uma delas, e conta-las faria a regra geral apagar o que o operador ja pos na proposta desses clientes. A observacao
+ * da NF conta (senao o cliente que so tem ela nunca a levaria a proposta).
+ */
+export function temCondicoes(cliente) {
+  if (!cliente) return false;
+  const textos = [
+    cliente.propostaValidadeDias,
+    cliente.propostaFormaPagamento,
+    cliente.propostaPagamentoTexto,
+    cliente.propostaFretePorConta,
+    cliente.propostaGarantia,
+    cliente.propostaAc,
+    cliente.propostaObservacoes,
+    cliente.propostaExigencias,
+    cliente.notaFiscalObservacao,
+  ];
+  const caixas = [cliente.propostaFreteDiluido, cliente.propostaMarcaModelo, cliente.propostaAssinar, cliente.propostaFaturamentoMinimo];
+  return textos.some(preenchido) || caixas.some((caixa) => caixa === true);
+}
+
+/**
+ * Os campos da proposta pelas condicoes do cliente (nomes do formulario do editor). TODOS vem: o que o cliente deixa
+ * vazio sai da regra geral, senao trocar do cliente A para o B deixaria rastro de A. Transportadora e condicao so vem
+ * quando o cliente tem uma (costumam sair da cotacao do frete). `cliente` nulo = so a regra geral. Texto vazio = null.
+ */
+export function condicoesDoCliente(cliente, { hoje = hojeEmSaoPaulo() } = {}) {
+  const c = cliente ?? {};
+  const fretePorConta = c.propostaFretePorConta || CONDICOES_GERAIS.fretePorConta;
+  const campos = { validadeAte: somarDias(hoje, Number(c.propostaValidadeDias) || CONDICOES_GERAIS.validadeDias) };
+  if (c.condicaoPagamentoId) campos.condicaoPagamentoId = c.condicaoPagamentoId;
+  campos.formaPagamento = textoOuNulo(c.propostaFormaPagamento);
+  campos.pagamentoTexto = textoOuNulo(c.propostaPagamentoTexto);
+  campos.fretePorConta = fretePorConta;
+  // Diluir o frete so existe no CIF (a mesma regra do esquema da proposta).
+  campos.freteDiluido = fretePorConta === "CIF" && c.propostaFreteDiluido === true;
+  if (c.transportadoraId) campos.transportadoraId = c.transportadoraId;
+  campos.garantia = garantiaCurta(c.propostaGarantia || CONDICOES_GERAIS.garantia);
+  // O A/C vai pelo nome: o Salvar liga ao contato do cliente com o mesmo nome, ou fica como texto (17/11/2026).
+  campos.contatoId = null;
+  campos.contatoNome = textoOuNulo(c.propostaAc);
+  campos.observacoesCliente = textoOuNulo(c.propostaObservacoes);
+  campos.observacoesNf = textoOuNulo(c.notaFiscalObservacao);
+  campos.assinarDigitalmente = c.propostaAssinar === true;
+  campos.mostrarMarcaModelo = c.propostaMarcaModelo === true;
+  campos.mostrarFaturamentoMinimo = c.propostaFaturamentoMinimo === true;
+  campos.condicoesDoClienteId = cliente?.id ?? null;
+  return campos;
+}
+
+/**
+ * O que muda na proposta ao ligar um cliente: a MESMA regra na tela e no Salvar (pedido do dono em 24/11/2026: "a
+ * proposta deve se adequar com as condicoes salvas no cadastro", com "os campos abertos para modificacao").
+ *  - cliente com condicoes, ainda nao aplicadas: as dele;
+ *  - o mesmo cliente de novo: nada (o operador editou depois, e o Salvar seguinte nao pode desfazer);
+ *  - cliente sem condicoes e a proposta com as de outro cliente: a regra geral (sem o "28 dias da FIESC" do anterior);
+ *  - cliente sem condicoes e proposta sem marcador: nada; so a tela (`preencherVazios`) poe a transportadora e a condicao
+ *    preferidas onde o campo esta vazio, como antes. No servidor isso repreencheria o campo esvaziado de proposito.
+ */
+export function camposAoLigarCliente(cliente, formulario = {}, { hoje = hojeEmSaoPaulo(), preencherVazios = false } = {}) {
+  if (!cliente) return {};
+  if (temCondicoes(cliente)) return formulario.condicoesDoClienteId === cliente.id ? {} : condicoesDoCliente(cliente, { hoje });
+  if (formulario.condicoesDoClienteId) return condicoesDoCliente(null, { hoje });
+  if (!preencherVazios) return {};
+  const campos = {};
+  if (!formulario.transportadoraId && cliente.transportadoraId) campos.transportadoraId = cliente.transportadoraId;
+  if (!formulario.condicaoPagamentoId && cliente.condicaoPagamentoId) campos.condicaoPagamentoId = cliente.condicaoPagamentoId;
   return campos;
 }
 

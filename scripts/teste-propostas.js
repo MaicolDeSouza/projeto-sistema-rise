@@ -225,6 +225,42 @@ const digestGravado = ondeDigest >= 0 ? derDaAssinatura.subarray(ondeDigest + oi
 const { createHash } = await import("node:crypto");
 conferir("PDF assinado: o digest confere com o conteudo", digestGravado, createHash("sha256").update(conteudoAssinado).digest("hex"));
 
+// Condicoes comerciais no cadastro do cliente (24/11/2026): o que muda na proposta ao ligar um cliente.
+console.log("\nCondicoes do cliente (24/11/2026)");
+const SENAI_SC = {
+  id: "c1", propostaValidadeDias: 30, propostaFormaPagamento: "Transferência", propostaPagamentoTexto: "28 dias DDL",
+  propostaFretePorConta: "CIF", propostaFreteDiluido: true, propostaGarantia: "90 dias", propostaAc: "Adler Truber",
+  propostaMarcaModelo: false, propostaAssinar: false, propostaFaturamentoMinimo: true, propostaObservacoes: "Frete CIF",
+  propostaExigencias: "1. x", notaFiscalObservacao: null, transportadoraId: "t1", condicaoPagamentoId: "cond_28_dias",
+};
+const DO_SENAI_SC = {
+  validadeAte: "2026-12-24", condicaoPagamentoId: "cond_28_dias", formaPagamento: "Transferência", pagamentoTexto: "28 dias DDL",
+  fretePorConta: "CIF", freteDiluido: true, transportadoraId: "t1", garantia: "90 dias", contatoId: null, contatoNome: "Adler Truber",
+  observacoesCliente: "Frete CIF", observacoesNf: null, assinarDigitalmente: false, mostrarMarcaModelo: false,
+  mostrarFaturamentoMinimo: true, condicoesDoClienteId: "c1",
+};
+const GERAIS = {
+  validadeAte: "2026-12-09", formaPagamento: null, pagamentoTexto: null, fretePorConta: "A_COMBINAR", freteDiluido: false,
+  garantia: "90 dias", contatoId: null, contatoNome: null, observacoesCliente: null, observacoesNf: null,
+  assinarDigitalmente: false, mostrarMarcaModelo: false, mostrarFaturamentoMinimo: false, condicoesDoClienteId: null,
+};
+const hojeDasCondicoes = { hoje: "2026-11-24" };
+conferir("condicoes: as do SENAI SC", regras.condicoesDoCliente(SENAI_SC, hojeDasCondicoes), DO_SENAI_SC);
+conferir("condicoes: sem cliente = regra geral", regras.condicoesDoCliente(null, hojeDasCondicoes), GERAIS);
+conferir("condicoes: diluir so no CIF", regras.condicoesDoCliente({ ...SENAI_SC, propostaFretePorConta: "FOB" }, hojeDasCondicoes).freteDiluido, false);
+conferir("tem condicoes: transportadora e condicao nao contam", regras.temCondicoes({ id: "x", transportadoraId: "t1", condicaoPagamentoId: "c" }), false);
+conferir("tem condicoes: so a caixa de assinar ou so a obs. da NF", [regras.temCondicoes({ propostaAssinar: true }), regras.temCondicoes({ notaFiscalObservacao: "x" })], [true, true]);
+conferir("ligar: 1a vez aplica", regras.camposAoLigarCliente(SENAI_SC, { condicoesDoClienteId: null }, hojeDasCondicoes), DO_SENAI_SC);
+conferir("ligar: o mesmo cliente nao reaplica", regras.camposAoLigarCliente(SENAI_SC, { condicoesDoClienteId: "c1", formaPagamento: "PIX" }, hojeDasCondicoes), {});
+conferir("ligar: id velho de outro cliente aplica", regras.camposAoLigarCliente(SENAI_SC, { condicoesDoClienteId: "outro" }, hojeDasCondicoes), DO_SENAI_SC);
+conferir("ligar: de SENAI SC para cliente sem condicoes volta a regra geral", regras.camposAoLigarCliente({ id: "c2" }, { condicoesDoClienteId: "c1" }, hojeDasCondicoes), GERAIS);
+conferir(
+  "ligar: sem condicoes e sem id, a tela preenche o vazio",
+  regras.camposAoLigarCliente({ id: "c2", transportadoraId: "t9", condicaoPagamentoId: "c9" }, { condicoesDoClienteId: null, transportadoraId: "", condicaoPagamentoId: "c1" }, { ...hojeDasCondicoes, preencherVazios: true }),
+  { transportadoraId: "t9" },
+);
+conferir("ligar: sem condicoes, o servidor nao preenche nada", regras.camposAoLigarCliente({ id: "c2", transportadoraId: "t9" }, { condicoesDoClienteId: null, transportadoraId: "" }, hojeDasCondicoes), {});
+
 // ---------------------------------------------------------------------------
 // Banco: limpeza e documentos de teste
 // ---------------------------------------------------------------------------
@@ -768,9 +804,9 @@ try {
   );
   await padroes.excluirPadrao(salvoQueAssina.id);
   conferir(
-    "pendencia: sem marca ou modelo quando o padrao exige",
-    regras.pendenciasDoPdf({ clienteNome: "X", itens: [{ descricaoCliente: "a", marca: "OEM", modelo: "" }], exigeMarcaModelo: true }),
-    ["1 item(ns) sem marca ou modelo (o padrão do cliente exige)."],
+    "pendencia: sem marca ou modelo quando a proposta mostra Marca/Modelo",
+    regras.pendenciasDoPdf({ clienteNome: "X", itens: [{ descricaoCliente: "a", marca: "OEM", modelo: "" }], mostrarMarcaModelo: true }),
+    ["1 item(ns) sem marca ou modelo (Marca/Modelo no PDF está marcado)."],
   );
   conferir("pendencia: sem exigencia nao pede marca", regras.pendenciasDoPdf({ clienteNome: "X", itens: [{ descricaoCliente: "a" }] }), []);
   conferir("faturamento minimo no formato do SENAI", [regras.textoDoFaturamentoMinimo(50), regras.textoDoFaturamentoMinimo(null)], ["Valor para faturamento mínimo: R$50,00", null]);
