@@ -305,7 +305,6 @@ async function limpar() {
   await prisma.propostaParaCliente.deleteMany({ where: { OR: [{ clienteNome: { startsWith: "ZZ Proposta" } }, { clienteId: { in: ids } }] } });
   await prisma.cliente.deleteMany({ where: { id: { in: ids } } });
   await prisma.produto.deleteMany({ where: { sku: { startsWith: "ZZ-PROP-CLI-" } } });
-  await prisma.padraoDeProposta.deleteMany({ where: { nome: { startsWith: "ZZ Proposta" } } });
 }
 await limpar();
 
@@ -887,40 +886,11 @@ try {
   );
   conferir("proposta: nada do portal na leitura", JSON.stringify(await banco.lerProposta(pc.numero)).includes("portal"), false);
 
-  // Padroes de proposta, marca/modelo, faturamento minimo e ficha cadastral (13/11/2026)
+  // Marca/modelo, faturamento minimo e exigencias (13/11/2026; desde 24/11/2026 pelas caixas da proposta e pelo cadastro
+  // do cliente, sem os padroes de proposta, que sairam)
   // -------------------------------------------------------------------------
-  console.log("\nPadroes de proposta");
-  const padroes = await import("../src/lib/propostas/padroes.js");
-  conferir("padrao: nome e validade obrigatorios", Object.keys(padroes.conferirPadrao({ nome: "", validadeDias: "0" }).erros).sort(), ["nome", "validadeDias"]);
-  conferir("padrao: forma de pagamento fora da lista", Boolean(padroes.conferirPadrao({ nome: "X", validadeDias: "30", formaPagamento: "Cheque" }).erros?.formaPagamento), true);
-  const salvoPadrao = await padroes.salvarPadrao(null, {
-    nome: "ZZ Proposta Padrao SENAI",
-    validadeDias: "30",
-    formaPagamento: "Transferência",
-    pagamentoTexto: "Depósito, 15 dias da entrega",
-    fretePorConta: "CIF",
-    exigeMarcaModelo: true,
-    exigencias: "1. Marca e modelo\n\n2. Impostos inclusos ",
-  });
-  conferir("padrao: grava", salvoPadrao.ok, true);
-  conferir("padrao: nome repetido", (await padroes.salvarPadrao(null, { nome: "ZZ Proposta Padrao SENAI", validadeDias: "10" })).erros?.nome, "Já existe um padrão com este nome.");
-  const lidoPadrao = await padroes.lerPadrao(salvoPadrao.id);
-  conferir(
-    "padrao: campos que vao para a proposta",
-    regras.camposDoPadrao(lidoPadrao, { hoje: "2026-11-13" }),
-    { padraoId: salvoPadrao.id, validadeAte: "2026-12-13", fretePorConta: "CIF", formaPagamento: "Transferência", pagamentoTexto: "Depósito, 15 dias da entrega" },
-  );
-  conferir("padrao: exigencias uma por linha, sem vazias", regras.linhasDasExigencias(lidoPadrao.exigencias), ["1. Marca e modelo", "2. Impostos inclusos"]);
-  // Padrao que ja assina (17/11/2026, FUNPEC): grava, le e liga a marca da proposta; sem a marca nao desliga.
-  conferir("padrao: le a marca de assinar", [padroes.conferirPadrao({ nome: "X", validadeDias: "30", assinarDigitalmente: "on" }).dados.assinarDigitalmente, padroes.conferirPadrao({ nome: "X", validadeDias: "30" }).dados.assinarDigitalmente], [true, false]);
-  const salvoQueAssina = await padroes.salvarPadrao(null, { nome: "ZZ Proposta Padrao que assina", validadeDias: "30", assinarDigitalmente: true });
-  const lidoQueAssina = await padroes.lerPadrao(salvoQueAssina.id);
-  conferir(
-    "padrao: a marca de assinar vai para a proposta",
-    [lidoQueAssina.assinarDigitalmente, regras.camposDoPadrao(lidoQueAssina, { hoje: "2026-11-17" }).assinarDigitalmente, "assinarDigitalmente" in regras.camposDoPadrao(lidoPadrao)],
-    [true, true, false],
-  );
-  await padroes.excluirPadrao(salvoQueAssina.id);
+  console.log("\nMarca/modelo, faturamento minimo e exigencias");
+  conferir("exigencias uma por linha, sem vazias", regras.linhasDasExigencias("1. Marca e modelo\n\n2. Impostos inclusos "), ["1. Marca e modelo", "2. Impostos inclusos"]);
   conferir(
     "pendencia: sem marca ou modelo quando a proposta mostra Marca/Modelo",
     regras.pendenciasDoPdf({ clienteNome: "X", itens: [{ descricaoCliente: "a", marca: "OEM", modelo: "" }], mostrarMarcaModelo: true }),
@@ -934,14 +904,14 @@ try {
   const comPadrao = await banco.lerProposta(p2.numero);
   const entradaComPadrao = {
     ...comPadrao,
-    padraoId: salvoPadrao.id,
+    mostrarMarcaModelo: true,
     desconto: "",
     itens: comPadrao.itens.map((item, i) => ({ ...item, marca: i === 0 ? "GENÉRICA" : null, modelo: i === 0 ? "HTS-315" : null })),
   };
   const salvaComPadrao = await banco.salvarProposta(p2.numero, entradaComPadrao);
   if (!salvaComPadrao.ok) console.log(JSON.stringify(salvaComPadrao));
   const relida = await banco.lerProposta(p2.numero);
-  conferir("proposta: grava o padrao e a marca/modelo do item", [salvaComPadrao.ok, relida.padrao?.nome, relida.itens[0].marca, relida.itens[0].modelo], [true, "ZZ Proposta Padrao SENAI", "GENÉRICA", "HTS-315"]);
+  conferir("proposta: grava a caixa Marca/Modelo e a marca/modelo do item", [salvaComPadrao.ok, relida.mostrarMarcaModelo, relida.itens[0].marca, relida.itens[0].modelo], [true, true, "GENÉRICA", "HTS-315"]);
   // Desde 24/11/2026 o PDF le as caixas da PROPOSTA (vindas do cadastro do cliente), nao o padrao.
   const comAsCaixas = { ...relida, mostrarMarcaModelo: true, mostrarFaturamentoMinimo: true };
   const conteudoComPadrao = conteudoDaProposta(comAsCaixas, { ...empresaFalsa, faturamentoMinimo: 50 });
@@ -960,9 +930,6 @@ try {
   );
   const pdfComPadrao = await pdfDaProposta(comAsCaixas, { ...empresaFalsa, faturamentoMinimo: 50 }, {});
   conferir("PDF com marca gerado", pdfComPadrao.subarray(0, 5).toString("latin1"), "%PDF-");
-
-  await prisma.cliente.update({ where: { id: noRise.id }, data: { padraoPropostaId: salvoPadrao.id } });
-  conferir("padrao em uso por cliente nao sai", (await padroes.excluirPadrao(salvoPadrao.id)).ok, false);
 
   // Item do Rise sem foto gravada usa a 1a foto do produto base (pedido do dono em 13/11/2026, Proposta 2028).
   const comFotoDoProduto = banco.propostaParaTela({

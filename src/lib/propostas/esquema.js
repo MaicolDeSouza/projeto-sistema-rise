@@ -89,7 +89,6 @@ export function conferirProposta(entrada = {}) {
   dados.contatoId = texto(entrada.contatoId, 40);
   // O A/C digitado a mao (pedido do dono em 17/11/2026): fica so na proposta, sem virar contato do cliente.
   dados.contatoNome = texto(entrada.contatoNome, 120);
-  dados.padraoId = texto(entrada.padraoId, 40);
 
   dados.condicaoPagamentoId = texto(entrada.condicaoPagamentoId, 40);
   dados.formaPagamento = texto(entrada.formaPagamento, 60);

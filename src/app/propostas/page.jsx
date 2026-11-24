@@ -1,6 +1,3 @@
-import Link from "next/link";
-import { ListChecks } from "lucide-react";
-
 import TabelaPropostas, { BotaoNovaProposta } from "@/components/propostas/TabelaPropostas";
 import NavegacaoDoTopo from "@/components/mercados/NavegacaoDoTopo";
 import Paginacao from "@/components/mercados/Paginacao";
@@ -45,10 +42,7 @@ export default async function PropostasPage({ searchParams }) {
         descricao={total === 1 ? "1 proposta." : `${total} propostas.`}
         acao={
           <div className="flex items-start gap-2">
-            {/* Padroes por tipo de cliente (13/11/2026): secundario, ao lado da acao principal. */}
-            <Link href="/propostas/padroes" className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm text-texto hover:bg-superficie hover:text-acento" title="Padrões de proposta por tipo de cliente (SENAI, Instituto Federal...)">
-              <ListChecks size={16} /> Padrões
-            </Link>
+            {/* O link "Padroes" saiu em 24/11/2026: as condicoes moram no cadastro do cliente (aba Condicoes). */}
             {podeEditar && <BotaoNovaProposta />}
           </div>
         }

@@ -1420,10 +1420,6 @@ model Cliente {
   /// Propostas comerciais feitas para este cliente (12/11/2026).
   propostas      PropostaParaCliente[]
 
-  /// O padrao de proposta do cliente (SENAI, Instituto Federal, cliente comum; pedido do dono em 13/11/2026): a proposta
-  /// nova dele ja nasce com as regras do padrao. SetNull: apagar o padrao nao apaga o cliente.
-  padraoPropostaId String?
-  padraoProposta   PadraoDeProposta?  @relation(fields: [padraoPropostaId], references: [id], onDelete: SetNull)
   /// Ficha cadastral (cartao CNPJ) e outros documentos do cliente (13/11/2026).
   arquivos         ArquivoDoCliente[]
 
@@ -3278,11 +3274,6 @@ model PropostaParaCliente {
   /// Formatado (lib/documentos.js).
   clienteDocumento String?
 
-  /// O padrao aplicado (13/11/2026). As regras foram COPIADAS para os campos da proposta; este id so diz qual era e traz
-  /// as exigencias do cliente para a tela.
-  padraoId String?
-  padrao   PadraoDeProposta? @relation(fields: [padraoId], references: [id], onDelete: SetNull)
-
   /// O A/C do PDF.
   contatoId   String?
   contato     ClienteContato? @relation(fields: [contatoId], references: [id], onDelete: SetNull)
@@ -3453,34 +3444,6 @@ model AnexoDaProposta {
   criadoEm     DateTime @default(now())
 
   @@index([propostaId])
-}
-
-/// Padrao de proposta por tipo de cliente (pedido do dono em 13/11/2026: "um padrao para o Senai, outro para Instituto
-/// Federal e o padrao para cliente comum"). A proposta nova do cliente com padrao nasce com estes campos preenchidos; as
-/// `exigencias` (a lista do cliente, ex.: as 15 regras do SENAI) ficam a vista no editor e nunca vao ao PDF.
-model PadraoDeProposta {
-  id    String  @id @default(cuid())
-  nome  String  @unique
-  ativo Boolean @default(true)
-
-  validadeDias        Int             @default(15)
-  formaPagamento      String?
-  pagamentoTexto      String?
-  fretePorConta       FreteDaProposta @default(A_COMBINAR)
-  garantia            String?
-  observacoesCliente  String?
-  /// Coluna Marca / Modelo no PDF e o "!" do item sem marca.
-  exigeMarcaModelo    Boolean         @default(false)
-  /// O que o cliente pede para a proposta (texto livre, uma regra por linha). So na tela.
-  exigencias          String?
-  /// A proposta com este padrao ja nasce com "Assinar digitalmente" marcado (pedido do dono em 17/11/2026, FUNPEC).
-  assinarDigitalmente Boolean         @default(false)
-
-  criadoEm     DateTime @default(now())
-  atualizadoEm DateTime @updatedAt
-
-  clientes  Cliente[]
-  propostas PropostaParaCliente[]
 }
 
 /// Arquivo do cliente: a ficha cadastral (cartao CNPJ) e outros documentos (13/11/2026). Em dados/clientes/<clienteId>/,

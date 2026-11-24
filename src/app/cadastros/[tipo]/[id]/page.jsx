@@ -10,7 +10,6 @@ import { PARCEIROS } from "@/lib/cadastros";
 import { ordenarCondicoes } from "@/lib/condicoesDePagamento";
 import { formatarTelefone } from "@/lib/telefone";
 import { listarArquivosDoCliente } from "@/lib/clientes/arquivos";
-import { listarPadroes } from "@/lib/propostas/padroes";
 import PageHeader from "@/components/ui/PageHeader";
 import AvisoBanco from "@/components/ui/AvisoBanco";
 import FormularioCliente from "@/components/cadastros/FormularioCliente";
@@ -194,9 +193,8 @@ export default async function EditarCadastroPage({ params }) {
         const pedidos = await listarPedidosDeVenda({ clienteId: id, porPagina: 50 });
         dadosDoCliente.pedidos = { ...pedidos, linhas: pedidos.linhas.map((linha) => projetarLinhaDaLista(linha, pode)) };
       }
-      // Padroes de proposta e a ficha cadastral (13/11/2026). A ficha traz dado pessoal: so com o dado.
+      // A ficha cadastral (13/11/2026). A ficha traz dado pessoal: so com o dado.
       if (dadosDoCliente) {
-        dadosDoCliente.padroes = (await listarPadroes()).filter((p) => p.ativo || p.id === dadosDoCliente.cliente.padraoPropostaId).map(({ id, nome }) => ({ id, nome }));
         dadosDoCliente.arquivos = semPessoal ? null : JSON.parse(JSON.stringify(await listarArquivosDoCliente(id)));
       }
       // A aba Licencas (Licencas Softwares, 05/11/2026): as vagas de licenca do cliente, para quem ve a tela de Licencas.
@@ -266,7 +264,6 @@ export default async function EditarCadastroPage({ params }) {
           somenteLeitura={somenteLeitura}
           transportadoras={dadosDoCliente.transportadoras}
           condicoes={dadosDoCliente.condicoes}
-          padroes={dadosDoCliente.padroes}
           arquivos={dadosDoCliente.arquivos}
           pedidos={dadosDoCliente.pedidos ?? null}
           licencas={dadosDoCliente.licencas ?? null}

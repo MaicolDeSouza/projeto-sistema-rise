@@ -518,6 +518,12 @@ try {
   conferir("portal: vazio mantem, apagar zera", [portal.senhaDoPortalParaGravar({ nova: "", apagar: false }), portal.senhaDoPortalParaGravar({ nova: "x", apagar: true })], [undefined, null]);
   conferir("portal: outra chave da aviso", portal.abrirSenhaDoPortal("aaa.bbb.ccc"), { ok: false, erro: "Senha gravada com outra chave; grave de novo." });
   conferir("portal: sem senha gravada", portal.abrirSenhaDoPortal(null), { ok: false, erro: "Nenhuma senha gravada." });
+  // O lerCampos do Salvar corta as pontas de todo campo: a senha e lida direto do formulario, com os espacos.
+  conferir(
+    "portal: a senha do formulario chega com os espacos das pontas",
+    [portal.senhaDoFormulario(fd([["portalSenhaNova", " senha com espaço "], ["portalSenhaApagar", "on"]])), portal.senhaDoFormulario(fd([]))],
+    [{ nova: " senha com espaço ", apagar: true }, { nova: "", apagar: false }],
+  );
 
   const comPortal = await prisma.cliente.create({ data: { nome: "ZZ Cliente Portal", tipoPessoa: "JURIDICA", portalUsuario: "zz-usuario", portalSenhaCifrada: cifrada } });
   const linhaCrua = await prisma.$queryRaw`SELECT * FROM "Cliente" WHERE "id" = ${comPortal.id}`;

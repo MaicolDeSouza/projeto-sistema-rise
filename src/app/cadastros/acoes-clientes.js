@@ -7,7 +7,7 @@ import { registrarAuditoria } from "@/lib/acessos/banco";
 import { negarSemAcesso, negarSemAcessos, sessaoDeAcessos } from "@/lib/acessos/servidor";
 import { pessoalPreservado } from "@/lib/acessos/projecoes";
 import { indicadorIeDoFormulario, lerCondicoesDoFormulario } from "@/lib/clientes/condicoes";
-import { senhaDoPortalDoCliente, senhaDoPortalParaGravar } from "@/lib/clientes/portal";
+import { senhaDoFormulario, senhaDoPortalDoCliente, senhaDoPortalParaGravar } from "@/lib/clientes/portal";
 import { prisma } from "@/lib/db";
 import { atualizarFiscalDoContatoNoBling } from "@/lib/propostas/cliente";
 import {
@@ -186,7 +186,7 @@ export async function salvarCliente(id, _anterior, formData) {
     pode,
   );
   // A senha do portal so muda com o dado pessoal e quando foi digitada (vazio = mantem; "Apagar" = zera). Vai cifrada.
-  const senhaDoPortal = comPessoal ? senhaDoPortalParaGravar({ nova: campos.portalSenhaNova, apagar: campos.portalSenhaApagar === "on" }) : undefined;
+  const senhaDoPortal = comPessoal ? senhaDoPortalParaGravar(senhaDoFormulario(formData)) : undefined;
   if (senhaDoPortal !== undefined) dados.portalSenhaCifrada = senhaDoPortal;
   const fisica = dados.tipoPessoa === "FISICA";
 
@@ -295,9 +295,6 @@ export async function salvarCliente(id, _anterior, formData) {
       };
     }
     if (erro?.code === "P2003") {
-      if (String(erro?.meta?.field_name ?? erro?.message ?? "").includes("padraoProposta")) {
-        return { ok: false, erros: { padraoPropostaId: "Este padrão de proposta não existe mais." } };
-      }
       return { ok: false, erros: { transportadoraId: "Esta transportadora não existe mais." } };
     }
     if (erro?.code === "P2025") {

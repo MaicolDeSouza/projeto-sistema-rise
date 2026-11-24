@@ -21,6 +21,15 @@ export function senhaDoPortalParaGravar({ nova, apagar } = {}) {
   return cifrar({ senha: senha.slice(0, MAXIMO_SENHA) });
 }
 
+/**
+ * A senha nova e o "Apagar" do formulario do cliente, lidos direto do FormData: o `lerCampos` do Salvar corta as pontas de
+ * todo campo, e a senha com espaco no comeco ou no fim seria gravada errada, sem aviso.
+ */
+export function senhaDoFormulario(formData) {
+  const nova = formData?.get?.("portalSenhaNova");
+  return { nova: typeof nova === "string" ? nova : "", apagar: formData?.get?.("portalSenhaApagar") === "on" };
+}
+
 /** A senha decifrada, ou o motivo. Cifra de outra chave (a copia do banco no PC, por exemplo) e aviso, nunca erro 500. */
 export function abrirSenhaDoPortal(cifrada) {
   if (!cifrada) return { ok: false, erro: "Nenhuma senha gravada." };

@@ -412,29 +412,8 @@ export function mensagemDoWhatsApp({ numero, nome, link }) {
   return `${ola} Segue a ${numeroDaProposta(numero)} da 4hobby: ${link}`;
 }
 
-// ---------------------------------------------------------------- padroes de proposta (13/11/2026)
-
-/**
- * O que o padrao preenche no formulario da proposta (os nomes dos campos do editor). A validade conta a partir de hoje.
- * Campo vazio no padrao NAO apaga o da proposta (`undefined`): so o que o padrao define e copiado.
- */
-export function camposDoPadrao(padrao, { hoje = hojeEmSaoPaulo() } = {}) {
-  if (!padrao) return {};
-  const campos = {
-    padraoId: padrao.id,
-    validadeAte: somarDias(hoje, Number(padrao.validadeDias) || 15),
-    fretePorConta: padrao.fretePorConta,
-  };
-  if (padrao.formaPagamento) campos.formaPagamento = padrao.formaPagamento;
-  if (padrao.pagamentoTexto) campos.pagamentoTexto = padrao.pagamentoTexto;
-  if (padrao.garantia) campos.garantia = garantiaCurta(padrao.garantia);
-  if (padrao.observacoesCliente) campos.observacoesCliente = padrao.observacoesCliente;
-  // So liga (17/11/2026, FUNPEC): como os outros campos vazios do padrao, o padrao sem a marca nao desmarca a proposta.
-  if (padrao.assinarDigitalmente) campos.assinarDigitalmente = true;
-  return campos;
-}
-
 // ---------------------------------------------------------------- condicoes do cliente (24/11/2026)
+// Substituem os padroes de proposta de 13/11/2026 (tabela PadraoDeProposta e camposDoPadrao, removidos).
 
 /**
  * A regra geral, quando o cliente nao diz nada: era o padrao "Cliente comum" (13/11/2026), que deixou de ser linha do

@@ -109,7 +109,6 @@ const INCLUIR = {
   },
   contatos: { orderBy: { em: "desc" } },
   anexos: { orderBy: { criadoEm: "asc" } },
-  padrao: { select: { id: true, nome: true, exigeMarcaModelo: true, exigencias: true } },
   cliente: {
     select: {
       id: true,
@@ -121,7 +120,6 @@ const INCLUIR = {
       email: true,
       inscricaoEstadual: true,
       blingContatoId: true,
-      padraoPropostaId: true,
       // As exigencias do cliente aparecem ao vivo no editor (24/11/2026), nunca no PDF.
       propostaExigencias: true,
       enderecos: true,
@@ -183,8 +181,6 @@ export function propostaParaTela(proposta, { hoje = hojeEmSaoPaulo() } = {}) {
     clienteDocumento: proposta.clienteDocumento,
     contatoId: proposta.contatoId,
     contatoNome: proposta.contatoNome,
-    padraoId: proposta.padraoId ?? null,
-    padrao: proposta.padrao ?? null,
     condicaoPagamentoId: proposta.condicaoPagamentoId,
     condicaoNome: proposta.condicaoPagamento?.nome ?? null,
     formaPagamento: proposta.formaPagamento,
@@ -382,7 +378,6 @@ export async function salvarProposta(numeroDaProposta, entrada, { manterCusto = 
   const transportadora = dados.transportadoraId
     ? await prisma.transportadora.findUnique({ where: { id: dados.transportadoraId }, select: { id: true, nome: true, nomeFantasia: true } })
     : null;
-  const padrao = dados.padraoId ? await prisma.padraoDeProposta.findUnique({ where: { id: dados.padraoId }, select: { id: true } }) : null;
   const condicao = dados.condicaoPagamentoId
     ? await prisma.condicaoPagamento.findUnique({ where: { id: dados.condicaoPagamentoId }, select: { id: true } })
     : null;
@@ -431,7 +426,6 @@ export async function salvarProposta(numeroDaProposta, entrada, { manterCusto = 
         ...copiaDoCliente,
         contatoId,
         contatoNome,
-        padraoId: padrao?.id ?? null,
         condicaoPagamentoId: condicao?.id ?? null,
         formaPagamento: dados.formaPagamento,
         parcelas: dados.parcelas,

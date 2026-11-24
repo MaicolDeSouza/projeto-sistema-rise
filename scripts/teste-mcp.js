@@ -1146,6 +1146,10 @@ try {
         email: "zz-mcp@cliente.invalid",
         transportadoraId: transportadora.id,
         observacoes: "prefere entrega pela manha",
+        // O portal de compras (24/11/2026): nem o acesso nem a cifra da senha podem sair pelo MCP.
+        portalUrl: "https://portal.zz-mcp.invalid",
+        portalUsuario: "zz-mcp-usuario-do-portal",
+        portalSenhaCifrada: "zz.cifra.mcp",
         enderecos: { create: [{ tipo: "GERAL", cep: "95000-000", uf: "RS", cidade: "Caxias do Sul", bairro: "Centro", logradouro: "Rua Um", numero: "10" }] },
         contatos: { create: [] },
       },
@@ -1162,6 +1166,12 @@ try {
       "clientes: documento, contatos, endereco, transportadora e observacoes para quem ve dados pessoais",
       [cliente.nome, cliente.tipoPessoa, cliente.documento, cliente.telefone, cliente.email, cliente.endereco?.cidade, cliente.endereco?.logradouro, cliente.transportadora, cliente.observacoes],
       ["ZZ-MCP Cliente Silva", "Pessoa Física", "529.982.247-25", "(54) 98899-0008", "zz-mcp@cliente.invalid", "Caxias do Sul", "Rua Um", "ZZ-MCP Transportes", "prefere entrega pela manha"],
+    );
+    const saidaDosClientes = JSON.stringify(clientes);
+    conferir(
+      "clientes: o portal de compras (link, usuario e a cifra da senha) nunca sai pelo MCP",
+      ["portal", "zz-mcp-usuario-do-portal", "zz.cifra.mcp"].map((trecho) => saidaDosClientes.includes(trecho)),
+      [false, false, false],
     );
     const semPessoal = (await chamar("listarClientes", { termos: "zz-mcp" }, sem("dado.pessoalDoCliente"))).clientes[0];
     conferir(
