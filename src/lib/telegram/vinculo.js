@@ -18,6 +18,10 @@ export const VALIDADE_DO_CODIGO_MS = 10 * 60 * 1000;
 export const TENTATIVAS_QUE_SILENCIAM = 5;
 
 const COMANDO = /^\/vincular\s+(\S+)/i;
+/// O mesmo padrao, para o ouvinte do bot (`entrada.js`) reconhecer e guardar o comando.
+export const COMANDO_DE_VINCULO = COMANDO;
+/// Ouvinte que tocou `EstadoDoBotTelegram` ha menos que isto esta vivo: e ele quem le o Telegram, nao a tela.
+const OUVINTE_VIVO_MS = 2 * 60 * 1000;
 
 export function gerarCodigo(aleatorio = randomInt) {
   let codigo = "";
@@ -63,6 +67,29 @@ export function avaliarAtualizacoes(updates, { hash, criadoEm, agora = Date.now(
   return { achado: validos.at(-1) ?? null, anulado: silenciados.size > 0, ultimoUpdateId };
 }
 
+/**
+ * A mesma avaliacao, sobre os `/vincular` que o ouvinte do bot guardou (`ComandoDeVinculoTelegram`: chat, nome, @ e o
+ * hash do codigo digitado). Puro. `ultimoUpdateId` e sempre nulo: quem confirma a leitura no Telegram e o ouvinte.
+ */
+export function avaliarComandos(comandos, { hash, agora = Date.now() } = {}) {
+  const errosPorChat = new Map();
+  const acertos = [];
+  for (const comando of comandos ?? []) {
+    if (new Date(comando.recebidoEm).getTime() > Number(agora) + 60 * 1000) continue;
+    if (comando.codigoHash === hash) acertos.push({ chatId: comando.chatId, nome: comando.nome, usuario: comando.usuario ?? null, updateId: comando.updateId });
+    else errosPorChat.set(comando.chatId, (errosPorChat.get(comando.chatId) ?? 0) + 1);
+  }
+  const silenciados = new Set([...errosPorChat].filter(([, erros]) => erros >= TENTATIVAS_QUE_SILENCIAM).map(([chatId]) => chatId));
+  const validos = acertos.filter((acerto) => !silenciados.has(acerto.chatId));
+  return { achado: validos.at(-1) ?? null, anulado: silenciados.size > 0, ultimoUpdateId: null };
+}
+
+/** Ha um worker lendo o bot agora? (`rodarEntradaDoTelegram` toca a linha a cada rodada, mesmo sem novidade.) */
+async function ouvinteVivo(agora) {
+  const estado = await prisma.estadoDoBotTelegram.findUnique({ where: { id: "bot" }, select: { atualizadoEm: true } }).catch(() => null);
+  return Boolean(estado) && Number(agora) - estado.atualizadoEm.getTime() < OUVINTE_VIVO_MS;
+}
+
 async function lerUsuario(usuarioId) {
   const usuario = await prisma.usuarioRise.findUnique({ where: { id: usuarioId } });
   if (!usuario) throw new Error("Usuário não encontrado.");
@@ -95,10 +122,19 @@ export async function localizarVinculo(usuarioId, { cliente, agora = Date.now() 
     await limparCodigo(usuarioId);
     return { ok: false, motivo: "expirado" };
   }
-  const leitura = await cliente.getUpdates();
-  if (!leitura.ok) return { ok: false, motivo: "telegram", erro: leitura.erro };
   const criadoEm = usuario.codigoDeVinculoExpiraEm.getTime() - VALIDADE_DO_CODIGO_MS;
-  const { achado, anulado, ultimoUpdateId } = avaliarAtualizacoes(leitura.dados ?? [], { hash: usuario.codigoDeVinculoHash, criadoEm, agora });
+  let avaliacao;
+  if (await ouvinteVivo(agora)) {
+    // O worker esta lendo o Telegram (Atendimento do ML, 24/11/2026): a tela le o que ele guardou. Ler o `getUpdates`
+    // daqui tambem faria os dois leitores se atropelarem.
+    const comandos = await prisma.comandoDeVinculoTelegram.findMany({ where: { recebidoEm: { gte: new Date(Math.floor(criadoEm / 1000) * 1000) } }, orderBy: { updateId: "asc" } });
+    avaliacao = avaliarComandos(comandos, { hash: usuario.codigoDeVinculoHash, agora });
+  } else {
+    const leitura = await cliente.getUpdates();
+    if (!leitura.ok) return { ok: false, motivo: "telegram", erro: leitura.erro };
+    avaliacao = avaliarAtualizacoes(leitura.dados ?? [], { hash: usuario.codigoDeVinculoHash, criadoEm, agora });
+  }
+  const { achado, anulado, ultimoUpdateId } = avaliacao;
   if (anulado) {
     await limparCodigo(usuarioId);
     return { ok: false, motivo: "anulado" };
@@ -138,6 +174,8 @@ export async function confirmarVinculo(usuarioId, chatId, { cliente, quem, agora
     throw erro;
   }
   if (leitura.ultimoUpdateId !== null) await cliente.confirmarAtualizacoes(leitura.ultimoUpdateId);
+  // O que o ouvinte guardou daquele chat ja serviu.
+  await prisma.comandoDeVinculoTelegram.deleteMany({ where: { chatId: leitura.chat.chatId } }).catch(() => {});
   const envio = await cliente.enviarMensagem(leitura.chat.chatId, `Telegram ligado ao Rise para ${usuario.nome}.\nOs avisos chegam por aqui.`, { caminho: "/rise-ai/configuracoes" });
   return { ok: true, chat: leitura.chat, ...(envio.ok ? {} : { aviso: `Vinculado, mas a mensagem de boas-vindas não saiu: ${envio.erro}` }) };
 }

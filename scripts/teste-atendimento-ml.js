@@ -377,6 +377,90 @@ try {
     conferir("o bloco esta no menu, logo depois de Vendas", [blocos.find((b) => b.href === "/atendimento")?.rotulo, blocos.findIndex((b) => b.href === "/atendimento") - blocos.findIndex((b) => b.href === "/pedidos")], ["Atendimento ML", 1]);
   }
 
+  // ---------------------------------------------------------------------------------------------------------------
+  console.log("\n# Tarefa 8: o bot passa a escutar");
+  {
+    const { criarClienteTelegram } = await import("../src/lib/telegram/cliente.js");
+    const { rodarEntradaDoTelegram, chatsAutorizados } = await import("../src/lib/telegram/entrada.js");
+    const v = await import("../src/lib/telegram/vinculo.js");
+    const { criarTelegramFalso } = await import("./lib/telegramFalso.js");
+    const TOKEN = `123456789:${"A".repeat(35)}`;
+    const CHAT_DO_DONO = "990000001";
+    const estadoDoDono = await prisma.estadoDoBotTelegram.findUnique({ where: { id: "bot" } });
+    const limparBot = async () => {
+      await prisma.comandoDeVinculoTelegram.deleteMany({ where: { chatId: { startsWith: "9900000" } } });
+      await prisma.usuarioRise.deleteMany({ where: { login: { startsWith: "zz-atd-" } } });
+    };
+    await limparBot();
+    try {
+      const adminFn = await prisma.funcaoRise.upsert({ where: { nome: "Administrador" }, update: {}, create: { nome: "Administrador", descricao: "Vê e edita tudo.", fixa: true } });
+      await prisma.usuarioRise.create({ data: { login: "zz-atd-dono", nome: "ZZ ATD Dono", telegramChatId: CHAT_DO_DONO, funcoes: { create: [{ funcaoId: adminFn.id }] } } });
+      await prisma.usuarioRise.create({ data: { login: "zz-atd-semfuncao", nome: "ZZ ATD Sem funcao", telegramChatId: "990000002" } });
+      const env = { RISE_PRODUCAO: "1" };
+      const autorizados = async () => new Set([...(await chatsAutorizados({ env }))].filter((chat) => chat.startsWith("9900000")));
+      conferir("so quem pode responder e ouvido", [...(await autorizados())], [CHAT_DO_DONO]);
+
+      const segundos = Math.floor(Date.now() / 1000);
+      const texto = (id, chat, text) => ({ update_id: id, message: { message_id: id, date: segundos, chat: { id: Number(chat), type: "private", first_name: "ZZ" }, from: { id: Number(chat) }, text } });
+      const clique = (id, chat, data) => ({ update_id: id, callback_query: { id: `cq${id}`, from: { id: Number(chat) }, message: { message_id: 7, chat: { id: Number(chat), type: "private" } }, data } });
+      const rodar = async (falso, tratadores, extra = {}) => rodarEntradaDoTelegram({ cliente: criarClienteTelegram({ token: TOKEN, requisitar: falso.requisitar, requisitarSemRegistro: falso.requisitar }), esperaS: 0, tratadores, autorizados, ...extra });
+      await prisma.estadoDoBotTelegram.upsert({ where: { id: "bot" }, update: { offset: 100 }, create: { id: "bot", offset: 100 } });
+
+      const vistos = [];
+      const tratadores = { clique: async (cq) => vistos.push(`clique:${cq.data}`), texto: async (mensagem) => vistos.push(`texto:${mensagem.text}`) };
+      const falso = criarTelegramFalso({ updates: [texto(100, "990000002", "oi"), clique(101, "990000002", "at:x:v"), clique(102, CHAT_DO_DONO, "at:abc:s"), texto(103, CHAT_DO_DONO, "Sim, serve.")] });
+      const primeira = await rodar(falso, tratadores);
+      conferir("so o chat autorizado chega aos tratadores", [primeira.ok, primeira.lidas, vistos], [true, 4, ["clique:at:abc:s", "texto:Sim, serve."]]);
+      conferir("o offset avanca para depois da ultima", (await prisma.estadoDoBotTelegram.findUnique({ where: { id: "bot" } })).offset, 104);
+      conferir("chat nao autorizado nao recebe resposta nenhuma", [falso.mensagens.length, falso.cliques.length], [0, 0]);
+      conferir("a leitura pede mensagens e cliques a partir do offset", [falso.chamadas[0].metodo, falso.chamadas[0].corpo.offset, falso.chamadas[0].corpo.allowed_updates], ["getUpdates", 100, ["message", "callback_query"]]);
+      await rodar(falso, tratadores);
+      conferir("a rodada seguinte nao rele nada", vistos.length, 2);
+
+      // Tratador que lanca nao trava a fila.
+      const falso2 = criarTelegramFalso({ updates: [clique(104, CHAT_DO_DONO, "at:a:v"), clique(105, CHAT_DO_DONO, "at:b:v")] });
+      const passou = [];
+      const comErro = await rodar(falso2, { clique: async (cq) => (cq.data === "at:a:v" ? Promise.reject(new Error("zz quebrou")) : passou.push(cq.data)) });
+      conferir("erro num tratador nao impede a seguinte", [comErro.ok, comErro.erros, passou, (await prisma.estadoDoBotTelegram.findUnique({ where: { id: "bot" } })).offset], [true, 1, ["at:b:v"], 106]);
+
+      // Telegram fora do ar: nao lanca e nao perde o lugar.
+      const falso3 = criarTelegramFalso({ falhas: { getUpdates: { status: 502, description: "Bad Gateway" } } });
+      const fora = await rodar(falso3, tratadores);
+      conferir("telegram fora: nao lanca e o offset fica", [fora.ok, (await prisma.estadoDoBotTelegram.findUnique({ where: { id: "bot" } })).offset], [false, 106]);
+
+      // O vinculo passa a ler o que o ouvinte guardou (so o hash do codigo).
+      const novo = await prisma.usuarioRise.create({ data: { login: "zz-atd-novo", nome: "ZZ ATD Novo" } });
+      const { codigo } = await v.iniciarVinculo(novo.id, { quem: "zz-atd-dono" });
+      const falso4 = criarTelegramFalso({ updates: [texto(106, "990000009", `/vincular ${codigo.toLowerCase()}`), texto(107, "990000008", "/vincular ERRADO123456")] });
+      await rodar(falso4, tratadores);
+      const guardados = await prisma.comandoDeVinculoTelegram.findMany({ where: { chatId: { startsWith: "9900000" } }, orderBy: { updateId: "asc" } });
+      conferir("o /vincular vira linha com o hash, nunca o codigo", [guardados.map((g) => g.chatId), guardados[0].codigoHash === v.hashDoCodigo(codigo), JSON.stringify(guardados).includes(codigo)], [["990000009", "990000008"], true, false]);
+      const semGetUpdates = criarTelegramFalso();
+      const clienteDaTela = criarClienteTelegram({ token: TOKEN, requisitar: semGetUpdates.requisitar, urlPublica: "https://rise.exemplo" });
+      const achado = await v.localizarVinculo(novo.id, { cliente: clienteDaTela });
+      conferir("a tela acha o chat pelo que o ouvinte guardou, sem ler o Telegram", [achado.ok, achado.chat?.chatId, achado.chat?.nome, semGetUpdates.chamadas.length], [true, "990000009", "ZZ", 0]);
+      const confirmado = await v.confirmarVinculo(novo.id, "990000009", { cliente: clienteDaTela, quem: "zz-atd-dono" });
+      conferir("confirmar grava o chat, manda a boas-vindas e apaga o comando", [confirmado.ok, (await prisma.usuarioRise.findUnique({ where: { id: novo.id } })).telegramChatId, semGetUpdates.mensagens.length, await prisma.comandoDeVinculoTelegram.count({ where: { chatId: "990000009" } })], [true, "990000009", 1, 0]);
+
+      const outro = await prisma.usuarioRise.create({ data: { login: "zz-atd-outro", nome: "ZZ ATD Outro" } });
+      await v.iniciarVinculo(outro.id, { quem: "zz-atd-dono" });
+      const falso5 = criarTelegramFalso({ updates: [1, 2, 3, 4, 5].map((n) => texto(107 + n, "990000007", `/vincular CHUTE${n}AAAAAA`)) });
+      await rodar(falso5, tratadores);
+      conferir("cinco codigos errados de um chat anulam o codigo", [(await v.localizarVinculo(outro.id, { cliente: clienteDaTela })).motivo, (await prisma.usuarioRise.findUnique({ where: { id: outro.id } })).codigoDeVinculoHash], ["anulado", null]);
+
+      // Ouvinte parado ha mais de 2 min: a tela volta a ler o Telegram direto (como antes).
+      await prisma.$executeRaw`UPDATE "EstadoDoBotTelegram" SET "atualizadoEm" = now() - interval '10 minutes' WHERE "id" = 'bot'`;
+      const { codigo: codigo2 } = await v.iniciarVinculo(outro.id, { quem: "zz-atd-dono" });
+      const direto = criarTelegramFalso({ updates: [texto(900, "990000006", `/vincular ${codigo2}`)] });
+      const peloTelegram = await v.localizarVinculo(outro.id, { cliente: criarClienteTelegram({ token: TOKEN, requisitar: direto.requisitar }) });
+      conferir("sem ouvinte, a tela le o Telegram direto", [peloTelegram.ok, peloTelegram.chat?.chatId, direto.chamadas[0]?.metodo], [true, "990000006", "getUpdates"]);
+    } finally {
+      await limparBot();
+      if (estadoDoDono) await prisma.estadoDoBotTelegram.update({ where: { id: "bot" }, data: { offset: estadoDoDono.offset } });
+      else await prisma.estadoDoBotTelegram.deleteMany({ where: { id: "bot" } });
+    }
+  }
+
   // MARCADOR: blocos novos entram acima desta linha.
 } finally {
   await limpar();

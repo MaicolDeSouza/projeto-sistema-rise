@@ -41,16 +41,32 @@ export function mascararToken(texto, token = null) {
   return saida;
 }
 
+/** `[[{ texto, dados } | { texto, url }]]` no formato do Telegram. `dados` (o que volta no clique) tem no maximo 64 bytes. */
+function tecladoDe(botoes) {
+  return botoes.map((linha) => linha.map((botao) => (botao.url ? { text: String(botao.texto), url: String(botao.url) } : { text: String(botao.texto), callback_data: String(botao.dados).slice(0, 64) })));
+}
+
 /**
- * @param {{ token: string, requisitar?: Function, base?: string, urlPublica?: string }} opcoes
+ * O mesmo contrato do `requisitar` do httpClient (`{ ok, status, dados }`), SEM gravar `LogIntegracao`: so a leitura das
+ * atualizacoes usa (`lerAtualizacoes`), porque roda o tempo todo. Nunca lanca por resposta ruim; lanca no tempo esgotado
+ * ou na rede, e o `chamar` devolve o erro mascarado.
+ */
+async function requisitarSemLog({ url, corpo, timeoutMs = 30000 }) {
+  const resposta = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo ?? {}), signal: AbortSignal.timeout(timeoutMs) });
+  const dados = await resposta.json().catch(() => null);
+  return { ok: resposta.ok, status: resposta.status, dados };
+}
+
+/**
+ * @param {{ token: string, requisitar?: Function, requisitarSemRegistro?: Function, base?: string, urlPublica?: string }} opcoes
  *   `urlPublica` e a `APP_URL_PUBLICA`: sem ela o aviso vai sem o botao "Abrir no Rise" (o caso do PC).
  */
-export function criarClienteTelegram({ token, requisitar = requisitarPadrao, base = BASE_TELEGRAM, urlPublica = process.env.APP_URL_PUBLICA } = {}) {
+export function criarClienteTelegram({ token, requisitar = requisitarPadrao, requisitarSemRegistro = requisitarSemLog, base = BASE_TELEGRAM, urlPublica = process.env.APP_URL_PUBLICA } = {}) {
   if (!tokenValido(token)) throw new Error("Token do bot inválido.");
 
-  async function chamar(metodo, corpo, { timeoutMs = 15000 } = {}) {
+  async function chamar(metodo, corpo, { timeoutMs = 15000, semRegistro = false } = {}) {
     try {
-      const resposta = await requisitar({
+      const resposta = await (semRegistro ? requisitarSemRegistro : requisitar)({
         servico: "TELEGRAM",
         url: `${base}/bot${token}/${metodo}`,
         metodo: "POST",
@@ -126,5 +142,57 @@ export function criarClienteTelegram({ token, requisitar = requisitarPadrao, bas
 
     /** So para o Telegram descartar o que ja foi lido ate `ultimoUpdateId` (idempotencia da leitura do vinculo). */
     confirmarAtualizacoes: (ultimoUpdateId) => chamar("getUpdates", { offset: Number(ultimoUpdateId) + 1, limit: 1, timeout: 0 }),
+
+    // --- O bot que ESCUTA (Atendimento do ML, 24/11/2026). Ate aqui o cliente so enviava. ---
+
+    /**
+     * As atualizacoes a partir de `offset`, em espera longa (`esperaS` segundos sem nada novo antes de voltar vazio).
+     * Mensagens e cliques de botao. E chamada o tempo todo pelo worker: por isso NAO grava `LogIntegracao` (seriam
+     * milhares de linhas por dia sem informacao nenhuma); o erro continua voltando mascarado.
+     */
+    lerAtualizacoes: ({ offset = 0, esperaS = 20, limite = 100 } = {}) =>
+      chamar("getUpdates", { offset: Number(offset), limit: limite, timeout: esperaS, allowed_updates: ["message", "callback_query"] }, { timeoutMs: (esperaS + 10) * 1000, semRegistro: true }),
+
+    /** Fecha o "carregando" do botao clicado; `texto` aparece como um aviso curto no topo do chat. */
+    responderAoClique: (callbackId, texto = null) => chamar("answerCallbackQuery", { callback_query_id: String(callbackId), ...(texto ? { text: String(texto).slice(0, 190) } : {}) }),
+
+    /**
+     * Texto puro com botoes proprios. `botoes` e uma grade `[[{ texto, dados } | { texto, url }]]`; `entidades` marca
+     * trechos (o rascunho vai como `code`, que o Telegram copia com um toque); `forcarResposta` abre o campo de resposta
+     * do chat apontado para esta mensagem (e exclui os botoes: o Telegram aceita um `reply_markup` so).
+     */
+    enviarComBotoes: (chatId, texto, { botoes = null, entidades = null, forcarResposta = false, dica = null } = {}) => {
+      if (String(texto ?? "").length > LIMITE_DE_CARACTERES) return Promise.resolve({ ok: false, erro: "Mensagem acima do limite." });
+      const marcacao = forcarResposta ? { force_reply: true, ...(dica ? { input_field_placeholder: String(dica).slice(0, 64) } : {}) } : botoes?.length ? { inline_keyboard: tecladoDe(botoes) } : null;
+      return chamar("sendMessage", { chat_id: String(chatId), text: String(texto), disable_web_page_preview: true, ...(entidades?.length ? { entities: entidades } : {}), ...(marcacao ? { reply_markup: marcacao } : {}) });
+    },
+
+    /**
+     * Uma foto com legenda e botoes proprios (o aviso da pergunta do ML). Sem foto, usar `enviarComBotoes`.
+     * @param {{ bytes: Buffer, nome?: string, tipo?: string }} foto
+     */
+    enviarFotoComBotoes: (chatId, foto, legenda, { botoes = null } = {}) => {
+      if (String(legenda ?? "").length > LIMITE_DA_LEGENDA) return Promise.resolve({ ok: false, erro: "Mensagem acima do limite." });
+      const formulario = new FormData();
+      formulario.append("chat_id", String(chatId));
+      formulario.append("photo", new Blob([foto.bytes], { type: foto.tipo ?? "image/jpeg" }), foto.nome ?? "foto.jpg");
+      formulario.append("caption", String(legenda ?? ""));
+      if (botoes?.length) formulario.append("reply_markup", JSON.stringify({ inline_keyboard: tecladoDe(botoes) }));
+      return chamar("sendPhoto", formulario, { timeoutMs: TEMPO_DO_ENVIO_DE_FOTO_MS });
+    },
+
+    /**
+     * Troca o texto (ou a legenda, quando a mensagem tem foto) e os botoes de uma mensagem ja enviada. `botoes` vazio
+     * tira os botoes. "message is not modified" (o mesmo texto de novo) conta como certo.
+     */
+    editarMensagem: async (chatId, mensagemId, { texto, botoes = [], comFoto = false, entidades = null }) => {
+      const corpo = { chat_id: String(chatId), message_id: Number(mensagemId), reply_markup: { inline_keyboard: tecladoDe(botoes ?? []) } };
+      const limite = comFoto ? LIMITE_DA_LEGENDA : LIMITE_DE_CARACTERES;
+      const conteudo = String(texto ?? "").slice(0, limite);
+      const resposta = comFoto
+        ? await chamar("editMessageCaption", { ...corpo, caption: conteudo, ...(entidades?.length ? { caption_entities: entidades } : {}) })
+        : await chamar("editMessageText", { ...corpo, text: conteudo, disable_web_page_preview: true, ...(entidades?.length ? { entities: entidades } : {}) });
+      return !resposta.ok && /not modified/i.test(resposta.erro ?? "") ? { ok: true, dados: null } : resposta;
+    },
   };
 }

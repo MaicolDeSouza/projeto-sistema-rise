@@ -17,6 +17,8 @@ export function criarTelegramFalso({ bot = { id: 1, username: "rise_bot", first_
   const chamadas = [];
   const mensagens = [];
   const fotos = [];
+  const cliques = [];
+  const edicoes = [];
   let proximaMensagem = 1;
 
   const resposta = (status, dados) => ({ ok: status >= 200 && status < 300, status, duracaoMs: 1, dados });
@@ -62,8 +64,17 @@ export function criarTelegramFalso({ bot = { id: 1, username: "rise_bot", first_
       const enviadas = Array.from({ length: quantas }, () => ({ message_id: proximaMensagem++, chat: { id: envio.chat_id } }));
       return resposta(200, { ok: true, result: metodo === "sendPhoto" ? enviadas[0] : enviadas });
     }
+    // O bot que escuta (Atendimento do ML, 24/11/2026): a resposta ao clique de um botao e a edicao de uma mensagem.
+    if (metodo === "answerCallbackQuery") {
+      cliques.push(corpo);
+      return resposta(200, { ok: true, result: true });
+    }
+    if (metodo === "editMessageText" || metodo === "editMessageCaption" || metodo === "editMessageReplyMarkup") {
+      edicoes.push({ metodo, ...corpo });
+      return resposta(200, { ok: true, result: { message_id: corpo.message_id, chat: { id: corpo.chat_id } } });
+    }
     throw new Error(`Telegram falso: metodo desconhecido ${metodo}`);
   }
 
-  return { requisitar, chamadas, mensagens, fotos, updates };
+  return { requisitar, chamadas, mensagens, fotos, updates, cliques, edicoes };
 }

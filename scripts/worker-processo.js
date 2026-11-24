@@ -76,6 +76,16 @@ const { lerEGravarSaldo } = await import("../src/lib/frete/saldo.js");
 /// aviso do 130506 saiu 7 min atrasado.
 const { ligarRelogioDosAvisos } = await import("../src/lib/telegram/relogio.js");
 let relogioDosAvisos = null;
+/// O bot do Telegram ESCUTANDO (Atendimento do ML, 24/11/2026): o worker le as atualizacoes em espera longa, num relogio
+/// proprio. So na VPS (`RISE_PRODUCAO`): o PC e uma copia do banco, e dois leitores do mesmo bot se atropelam e roubam as
+/// mensagens um do outro. `TELEGRAM_ESCUTAR=1` liga no PC, para testar com um bot de teste.
+const { rodarEntradaDoTelegram, clienteDoBotCadastrado, ENTRADA_DO_TELEGRAM_MS } = await import("../src/lib/telegram/entrada.js");
+const ESCUTAR_O_TELEGRAM = Boolean(process.env.RISE_PRODUCAO) || process.env.TELEGRAM_ESCUTAR === "1";
+/// Sem token cadastrado, ou com o Telegram fora do ar, a rodada espera isto antes de tentar de novo (nao gira em falso).
+const PAUSA_DA_ENTRADA_MS = 10 * 1000;
+let relogioDaEntrada = null;
+/// O que o bot faz com um clique ou um texto de quem pode responder: hoje, so as perguntas do Atendimento do ML.
+const tratadoresDoTelegram = {};
 
 /// A batida do healthchecks.io (HEALTHCHECKS_WORKER_URL, opcional): a pane do proprio worker nao tem como avisar pelo
 /// Telegram, entao quem avisa e o e-mail do healthchecks quando a batida para. So o worker normal.
@@ -768,6 +778,7 @@ function sair(codigo, motivo) {
     while (emCurso.size > 0) await dormir(250);
     // A rodada de avisos em curso termina antes de o banco ser solto (senao gravaria "enviado" sem conexao).
     await relogioDosAvisos?.parar();
+    await relogioDaEntrada?.parar();
 
     try {
       await fila.encerrarWorker(WORKER_ID);
@@ -943,6 +954,23 @@ if (!FONTES && !SO_NO_PC) {
       else if (avisos.motivo === "erro") logErro("telegram: a rotina de avisos falhou (ver o log acima)");
     },
     aoErro: (erro) => logErro(`telegram: rodada nao registrada: ${mensagem(erro)}`),
+  });
+}
+// A escuta do bot: cada rodada e uma espera longa no Telegram (volta na hora quando chega um clique ou uma mensagem).
+if (!FONTES && !SO_NO_PC && ESCUTAR_O_TELEGRAM) {
+  relogioDaEntrada = ligarRelogioDosAvisos({
+    intervaloMs: ENTRADA_DO_TELEGRAM_MS,
+    rodar: async () => {
+      if (encerrando) return;
+      const cliente = await clienteDoBotCadastrado();
+      if (!cliente) return void (await dormir(PAUSA_DA_ENTRADA_MS));
+      const entrada = await rodarEntradaDoTelegram({ cliente, tratadores: tratadoresDoTelegram });
+      if (!entrada.ok) {
+        logErro(`telegram: leitura do bot falhou: ${entrada.erro}`);
+        await dormir(PAUSA_DA_ENTRADA_MS);
+      } else if (entrada.erros) logErro(`telegram: ${entrada.erros} atualizacao(oes) do bot nao tratada(s) (ver o log acima)`);
+    },
+    aoErro: (erro) => logErro(`telegram: escuta do bot: ${mensagem(erro)}`),
   });
 }
 await laco();
