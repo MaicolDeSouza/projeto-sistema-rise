@@ -149,19 +149,38 @@ try {
     conferir("falha com trecho neutralizado", mensagemDoAviso("varreduraFalhou", { fonteNome: "Loja X", erro: "HTTP 403 em https://loja.x/p" }), { texto: "Varredura falhou: Loja X\nHTTP 403 em https:∕∕loja.x/p", caminho: "/mercados/fontes" });
     conferir("varredura pelo PC esperando", mensagemDoAviso("varreduraPeloPc", { fonteNome: "Oceantech", pedidoHa: "7 min" }), { texto: "Varredura pelo PC esperando: Oceantech\nPedida há 7 min; o Rise do PC não responde.", caminho: "/mercados/fontes" });
     conferir("reais com milhar", mensagemDoAviso("orcamento", { escopo: "CLIENTES", estado: "aviso", percentual: 80, tetoBrl: 1234.5 }).texto.endsWith("R$1.234,50"), true);
-    // Nova venda (19/11/2026): canal no cabecalho, cliente, uma linha por produto (quantidade, codigo, nome, valor) e o total.
+    // Nova venda (19/11/2026; desenho do dono em 24/11/2026): "Canal de venda:" (a LI e o Bling com o pedido ao lado, o
+    // ML sem), cliente, uma linha por produto com o valor de UMA peca, o envio (LI e Bling) ou "Enviar até" (ML) e o total.
     const { limiteDeLinhasDoTipo, LIMITE_DE_LINHAS_DA_VENDA } = await import("../src/lib/telegram/texto.js");
     const venda = { pedidoId: "v1", canal: "MERCADO_LIVRE", numero: "2000012345", cliente: "Fulano de Tal", total: 85.7 };
+    const quartaAs18 = "2026-11-25T21:00:00.000Z";
     conferir(
-      "nova venda: canal, cliente, itens e total",
-      mensagemDoAviso("novaVenda", { ...venda, itens: [{ quantidade: 2, sku: "100101", nome: "Módulo Relé 5V", total: 25.8 }, { quantidade: 1, sku: null, nome: "Item fora do Rise", total: 59.9 }] }),
-      { texto: "Nova venda Mercado Livre 2000012345\nCliente: Fulano de Tal\n2× 100101 Módulo Relé 5V · R$25,80\n1× Item fora do Rise · R$59,90\nTotal: R$85,70", caminho: "/pedidos/v1" },
+      "nova venda do ML: canal sem o pedido, cliente, itens com o valor de uma peca, enviar ate e total (o envio nao aparece)",
+      mensagemDoAviso("novaVenda", { ...venda, enviarAte: quartaAs18, envio: { transportadora: "Correios", servico: "Sedex" }, itens: [{ quantidade: 2, sku: "100101", nome: "Módulo Relé 5V", total: 25.8 }, { quantidade: 1, sku: null, nome: "Item fora do Rise", total: 59.9 }] }),
+      { texto: "Canal de venda: Mercado Livre\nCliente: Fulano de Tal\n2× 100101 Módulo Relé 5V - R$12,90 cada\n1× Item fora do Rise - R$59,90\nEnviar até: 25/11 (quarta)\nTotal: R$85,70", caminho: "/pedidos/v1" },
     );
-    conferir("nova venda sem itens e sem cliente: so o cabecalho e o total", mensagemDoAviso("novaVenda", { ...venda, cliente: null }).texto, "Nova venda Mercado Livre 2000012345\nTotal: R$85,70");
-    const muitos = mensagemDoAviso("novaVenda", { ...venda, itens: Array.from({ length: 11 }, (_, i) => ({ quantidade: 1, sku: `10010${i}`, nome: "N".repeat(80), total: 1 })) }).texto.split("\n");
-    conferir("nova venda com 11 itens: 8 linhas de item, 'e mais 3 itens' e o total", [muitos.length, muitos.at(-2), muitos.at(-1), muitos.length <= LIMITE_DE_LINHAS_DA_VENDA], [12, "e mais 3 itens", "Total: R$85,70", true]);
+    conferir("nova venda sem itens e sem cliente: so o canal e o total", mensagemDoAviso("novaVenda", { ...venda, cliente: null }).texto, "Canal de venda: Mercado Livre\nTotal: R$85,70");
+    conferir(
+      "enviar ate: o dia e o de Sao Paulo, sabado sem '-feira', e data invalida ou ausente tira a linha",
+      ["2026-11-26T02:00:00.000Z", "2026-11-28T15:00:00.000Z", "x", null].map((enviarAte) => mensagemDoAviso("novaVenda", { ...venda, cliente: null, enviarAte }).texto.split("\n")[1]),
+      ["Enviar até: 25/11 (quarta)", "Enviar até: 28/11 (sábado)", "Total: R$85,70", "Total: R$85,70"],
+    );
+    conferir(
+      "nova venda da LI: 'LI' com o pedido ao lado, e o envio com a transportadora e o servico (sem 'enviar ate')",
+      mensagemDoAviso("novaVenda", { ...venda, canal: "LOJA_INTEGRADA", numero: "15234", total: 42.15, enviarAte: quartaAs18, envio: { transportadora: "Correios", servico: "Sedex" }, itens: [{ quantidade: 3, sku: "920327", nome: "Resistor 10k 1/4W", total: 0.75 }] }).texto,
+      "Canal de venda: LI - Pedido: 15234\nCliente: Fulano de Tal\n3× 920327 Resistor 10k 1/4W - R$0,25 cada\nEnvio: Correios (Sedex)\nTotal: R$42,15",
+    );
+    const doBling = (envio) => mensagemDoAviso("novaVenda", { ...venda, canal: "BLING", numero: "8841", envio }).texto.split("\n");
+    conferir("nova venda do Bling: o pedido ao lado do canal", doBling({ transportadora: "Jadlog", servico: "Package" }), ["Canal de venda: Bling - Pedido: 8841", "Cliente: Fulano de Tal", "Envio: Jadlog (Package)", "Total: R$85,70"]);
+    conferir(
+      "envio: so a transportadora, so o servico, os dois iguais (uma vez) e nenhum (sem linha)",
+      [{ transportadora: "Jadlog", servico: null }, { transportadora: null, servico: ".Package" }, { transportadora: "SEDEX", servico: "sedex" }, {}, null].map((envio) => doBling(envio).at(-2)),
+      ["Envio: Jadlog", "Envio: .Package", "Envio: SEDEX", "Cliente: Fulano de Tal", "Cliente: Fulano de Tal"],
+    );
+    const muitos = mensagemDoAviso("novaVenda", { ...venda, canal: "LOJA_INTEGRADA", envio: { transportadora: "T".repeat(60), servico: "S".repeat(60) }, itens: Array.from({ length: 11 }, (_, i) => ({ quantidade: 1, sku: `10010${i}`, nome: "N".repeat(80), total: 1 })) }).texto.split("\n");
+    conferir("nova venda com 11 itens: 8 linhas de item, 'e mais 3 itens', o envio e o total", [muitos.length, muitos.at(-3), muitos.at(-2).length, muitos.at(-1), muitos.length <= LIMITE_DE_LINHAS_DA_VENDA], [13, "e mais 3 itens", "Envio: ".length + 31 + 2 + 31 + 1, "Total: R$85,70", true]);
     conferir("nova venda com 11 itens cabe na legenda de uma foto (1.024)", muitos.join("\n").length + "\nAbrir no Rise".length <= 1024, true);
-    conferir("so a nova venda e o resumo passam de 4 linhas", [limiteDeLinhasDoTipo("novaVenda"), limiteDeLinhasDoTipo("resumoDoDia"), limiteDeLinhasDoTipo("produtoZerou"), limiteDeLinhasDoTipo("orcamento")], [12, 26, 4, 4]);
+    conferir("so a nova venda e o resumo passam de 4 linhas", [limiteDeLinhasDoTipo("novaVenda"), limiteDeLinhasDoTipo("resumoDoDia"), limiteDeLinhasDoTipo("produtoZerou"), limiteDeLinhasDoTipo("orcamento")], [13, 26, 4, 4]);
     conferir("link sem base e nulo", [linkAbrirNoRise("", "/produtos/p1"), linkAbrirNoRise(undefined, "/p")], [null, null]);
     conferir("link tira a barra final da base", linkAbrirNoRise("https://rise.4hobby.com.br/", "/produtos/p1"), "https://rise.4hobby.com.br/produtos/p1");
     let lancou = null;
@@ -486,19 +505,24 @@ try {
     const semFoto = await prisma.produto.create({ data: { sku: "ZZ-TG-SEMFOTO", tituloBase: "ZZ TG Sem foto", estoque: 5 } });
     const agoraReal = Date.now();
     const item = (ordem, produto, titulo, quantidade, total, quantidadeDoKit = 1) => ({ ordem, produtoId: produto?.id ?? null, titulo, quantidade, quantidadeDoKit, precoUnitario: total, desconto: 0, total });
-    const criarVenda = (numero, canal, total, itens) =>
+    const criarVenda = (numero, canal, total, itens, extra = {}) =>
       prisma.pedidoDeVenda.create({
-        data: { origem: canal, canal, idExterno: numero, numero, dataDaVenda: new Date(agoraReal - 60 * 60 * 1000), atualizadoNaOrigemEm: new Date(agoraReal), statusDaOrigem: "paid", status: "PAGO", enderecoDeEntrega: {}, pagamento: [], envio: {}, historico: [], totalProdutos: total, desconto: 0, freteCobrado: 0, total, nomeDoComprador: "ZZ TG Cliente", itens: { create: itens } },
+        data: { origem: canal, canal, idExterno: numero, numero, dataDaVenda: new Date(agoraReal - 60 * 60 * 1000), atualizadoNaOrigemEm: new Date(agoraReal), statusDaOrigem: "paid", status: "PAGO", enderecoDeEntrega: {}, pagamento: [], envio: {}, historico: [], totalProdutos: total, desconto: 0, freteCobrado: 0, total, nomeDoComprador: "ZZ TG Cliente", ...extra, itens: { create: itens } },
       });
     // V1: dois produtos com foto (um deles vendido como Kit de 20, gravado em 20 unidades), um item fora do Rise e o
-    // primeiro produto repetido em outro anuncio (a foto dele vai uma vez so).
-    const v1 = await criarVenda("ZZ-TG-V1", "MERCADO_LIVRE", 90.7, [item(0, foto1, "Módulo Relé 5V", 2, 25.8), item(1, foto2, "Kit 20 Jumpers", 20, 49.9, 20), item(2, null, "Item fora do Rise", 1, 10), item(3, foto1, "Módulo Relé 5V azul", 1, 5)]);
-    const v2 = await criarVenda("ZZ-TG-V2", "LOJA_INTEGRADA", 49.9, [item(0, foto2, "Jumper avulso", 3, 49.9)]);
-    const v3 = await criarVenda("ZZ-TG-V3", "BLING", 12, [item(0, semFoto, "Sem foto no Rise", 1, 12)]);
+    // primeiro produto repetido em outro anuncio (a foto dele vai uma vez so). Desde 24/11/2026 o aviso do ML nao traz o
+    // numero do pedido: as vendas do ML do teste sao achadas pelo nome do cliente ou pelo titulo do item.
+    const v1 = await criarVenda("ZZ-TG-V1", "MERCADO_LIVRE", 90.7, [item(0, foto1, "Módulo Relé 5V", 2, 25.8), item(1, foto2, "Kit 20 Jumpers", 20, 49.9, 20), item(2, null, "Item fora do Rise", 1, 10), item(3, foto1, "Módulo Relé 5V azul", 1, 5)], {
+      nomeDoComprador: "ZZ TG Cliente V1",
+      despacharAte: new Date("2026-11-25T21:00:00.000Z"),
+      envio: { transportadora: "me2", servico: "Coleta" },
+    });
+    const v2 = await criarVenda("ZZ-TG-V2", "LOJA_INTEGRADA", 49.9, [item(0, foto2, "Jumper avulso", 3, 49.9)], { envio: { transportadora: "Correios", servico: "Sedex" }, despacharAte: new Date("2026-11-25T21:00:00.000Z") });
+    const v3 = await criarVenda("ZZ-TG-V3", "BLING", 12, [item(0, semFoto, "Sem foto no Rise", 1, 12)], { envio: { transportadora: "Jadlog", servico: null } });
     const lerFoto = async (sku, arquivo) => Buffer.from(`${sku}/${arquivo}`);
-    const textoV1 = "Nova venda Mercado Livre ZZ-TG-V1\nCliente: ZZ TG Cliente\n2× ZZ-TG-FOTO1 Módulo Relé 5V · R$25,80\n1× ZZ-TG-FOTO2 Kit 20 Jumpers · R$49,90\n1× Item fora do Rise · R$10,00\n1× ZZ-TG-FOTO1 Módulo Relé 5V azul · R$5,00\nTotal: R$90,70";
-    const textoV2 = "Nova venda Loja Integrada ZZ-TG-V2\nCliente: ZZ TG Cliente\n3× ZZ-TG-FOTO2 Jumper avulso · R$49,90\nTotal: R$49,90";
-    const textoV3 = "Nova venda Bling ZZ-TG-V3\nCliente: ZZ TG Cliente\n1× ZZ-TG-SEMFOTO Sem foto no Rise · R$12,00\nTotal: R$12,00";
+    const textoV1 = "Canal de venda: Mercado Livre\nCliente: ZZ TG Cliente V1\n2× ZZ-TG-FOTO1 Módulo Relé 5V - R$12,90 cada\n1× ZZ-TG-FOTO2 Kit 20 Jumpers - R$49,90\n1× Item fora do Rise - R$10,00\n1× ZZ-TG-FOTO1 Módulo Relé 5V azul - R$5,00\nEnviar até: 25/11 (quarta)\nTotal: R$90,70";
+    const textoV2 = "Canal de venda: LI - Pedido: ZZ-TG-V2\nCliente: ZZ TG Cliente\n3× ZZ-TG-FOTO2 Jumper avulso - R$16,63 cada\nEnvio: Correios (Sedex)\nTotal: R$49,90";
+    const textoV3 = "Canal de venda: Bling - Pedido: ZZ-TG-V3\nCliente: ZZ TG Cliente\n1× ZZ-TG-SEMFOTO Sem foto no Rise - R$12,00\nEnvio: Jadlog\nTotal: R$12,00";
 
     conferir("fotos da venda: a principal de cada produto, na ordem dos itens e sem repetir", (await a.fotosDaVenda(v1.id, { lerFoto })).map((f) => [f.nome, f.tipo, f.bytes.toString()]), [["b.png", "image/png", "ZZ-TG-FOTO1/b.png"], ["c.jpg", "image/jpeg", "ZZ-TG-FOTO2/c.jpg"]]);
     const sumiu = async (sku, arquivo) => {
@@ -511,7 +535,7 @@ try {
     const clienteV = criarClienteTelegram({ token: TOKEN, requisitar: falsoV.requisitar, urlPublica: "https://rise.4hobby.com.br" });
     const comFoto = { cliente: clienteV, ...soTeste, ...semPausa, lerFoto };
     await a.rodarAvisosDoTelegram({ agora: agoraReal, ...comFoto });
-    const albumV1 = falsoV.fotos.find((f) => f.media?.[0]?.caption?.includes("ZZ-TG-V1"));
+    const albumV1 = falsoV.fotos.find((f) => f.media?.[0]?.caption?.includes("Cliente V1"));
     conferir(
       "venda com dois produtos: album com uma foto de cada e o texto na legenda",
       [albumV1?.metodo, albumV1?.chat_id, albumV1?.arquivos.map((x) => [x.nome, x.tipo]), albumV1?.media[0].caption, albumV1?.media[0].caption_entities?.[0].url],
@@ -521,8 +545,8 @@ try {
     conferir("venda com um produto: uma foto com a legenda e o botao", [fotoV2?.metodo, fotoV2?.arquivos.map((x) => x.nome), fotoV2?.caption, fotoV2?.reply_markup?.inline_keyboard[0][0].url], ["sendPhoto", ["c.jpg"], textoV2, `https://rise.4hobby.com.br/pedidos/${v2.id}`]);
     const textoSemFoto = falsoV.mensagens.find((m) => m.text.includes("ZZ-TG-V3"));
     conferir("venda de produto sem foto: so o texto, com o botao", [textoSemFoto?.text, textoSemFoto?.reply_markup?.inline_keyboard[0][0].url, falsoV.fotos.some((f) => JSON.stringify(f).includes("ZZ-TG-V3"))], [textoV3, `https://rise.4hobby.com.br/pedidos/${v3.id}`, false]);
-    conferir("a venda com foto nao sai tambem em texto", falsoV.mensagens.some((m) => m.text.includes("ZZ-TG-V1") || m.text.includes("ZZ-TG-V2")), false);
-    const linhasDasVendas = await prisma.avisoTelegram.findMany({ where: { chatId: "zz-tg-chat-dono", tipo: "novaVenda", texto: { contains: "ZZ-TG-V" } }, select: { enviadoEm: true, tentativas: true } });
+    conferir("a venda com foto nao sai tambem em texto", falsoV.mensagens.some((m) => m.text.includes("Cliente V1") || m.text.includes("ZZ-TG-V2")), false);
+    const linhasDasVendas = await prisma.avisoTelegram.findMany({ where: { chatId: "zz-tg-chat-dono", tipo: "novaVenda", OR: [v1, v2, v3].map((v) => ({ chave: { startsWith: `nova-venda:${v.id}:` } })) }, select: { enviadoEm: true, tentativas: true } });
     conferir("as tres vendas ficam marcadas como enviadas, numa tentativa", [linhasDasVendas.length, linhasDasVendas.every((l) => l.enviadoEm && l.tentativas === 1)], [3, true]);
     const fotosAntes = falsoV.fotos.length;
     await a.rodarAvisosDoTelegram({ agora: agoraReal + 60000, ...comFoto });
@@ -584,7 +608,7 @@ try {
     const ha = (ms) => new Date(agoraReal - ms);
     const vendaComSituacao = (numero, { canal = "LOJA_INTEGRADA", status, statusDaOrigem, vendidaHa, historico = [] }) =>
       prisma.pedidoDeVenda.create({
-        data: { origem: canal, canal, idExterno: numero, numero, dataDaVenda: ha(vendidaHa), criadoEm: ha(vendidaHa), atualizadoNaOrigemEm: new Date(agoraReal), statusDaOrigem, status, enderecoDeEntrega: {}, pagamento: [], envio: {}, historico, totalProdutos: 10, desconto: 0, freteCobrado: 0, total: 10, nomeDoComprador: "ZZ TG Cliente" },
+        data: { origem: canal, canal, idExterno: numero, numero, dataDaVenda: ha(vendidaHa), criadoEm: ha(vendidaHa), atualizadoNaOrigemEm: new Date(agoraReal), statusDaOrigem, status, enderecoDeEntrega: {}, pagamento: [], envio: {}, historico, totalProdutos: 10, desconto: 0, freteCobrado: 0, total: 10, nomeDoComprador: `ZZ TG Cliente ${numero}` },
       });
     const l1 = await vendaComSituacao("ZZ-TG-L1", { status: "AGUARDANDO_PAGAMENTO", statusDaOrigem: "aguardando_pagamento", vendidaHa: HORA / 2 });
     await vendaComSituacao("ZZ-TG-L2", { status: "PAGO", statusDaOrigem: "pedido_pago", vendidaHa: 72 * HORA, historico: [{ em: ha(72 * HORA).toISOString(), statusDaOrigem: "aguardando_pagamento" }, { em: ha(HORA / 2).toISOString(), statusDaOrigem: "pedido_pago" }] });
@@ -598,7 +622,7 @@ try {
     const falsoL2 = criarTelegramFalso();
     await a.rodarAvisosDoTelegram({ agora: agoraReal + 100000, ...comFoto, cliente: criarClienteTelegram({ token: TOKEN, requisitar: falsoL2.requisitar }) });
     conferir("LI: o pagamento aprovado dispara o aviso, e os ja avisados nao repetem", quaisChegaram(falsoL2), [1, 0, 0, 0]);
-    conferir("LI: o aviso do pedido pago e o de nova venda", falsoL2.mensagens.find((m) => m.text.includes("ZZ-TG-L1"))?.text, "Nova venda Loja Integrada ZZ-TG-L1\nCliente: ZZ TG Cliente\nTotal: R$10,00");
+    conferir("LI: o aviso do pedido pago e o de nova venda", falsoL2.mensagens.find((m) => m.text.includes("ZZ-TG-L1"))?.text, "Canal de venda: LI - Pedido: ZZ-TG-L1\nCliente: ZZ TG Cliente ZZ-TG-L1\nTotal: R$10,00");
     const { pagoEmNoHistoricoDaLI } = await import("../src/lib/pedidos/despacho.js");
     conferir("LI: o pagamento e o 1o passo pago do historico; sem ele, nulo", [pagoEmNoHistoricoDaLI([{ em: "2026-11-20T15:00:00.000Z", statusDaOrigem: "pedido_enviado" }, { em: "2026-11-19T12:00:00.000Z", statusDaOrigem: "pedido_pago" }, { em: "2026-11-18T12:00:00.000Z", statusDaOrigem: "aguardando_pagamento" }])?.toISOString(), pagoEmNoHistoricoDaLI([{ em: "2026-11-18T12:00:00.000Z", statusDaOrigem: "aguardando_pagamento" }]), pagoEmNoHistoricoDaLI(null)], ["2026-11-19T12:00:00.000Z", null, null]);
 
@@ -606,15 +630,15 @@ try {
     await criarVenda("ZZ-TG-V4", "MERCADO_LIVRE", 30, [item(0, foto1, "Recusada A", 1, 10), item(1, foto2, "Recusada B", 1, 20)]);
     const recusa = criarTelegramFalso({ falhas: { sendMediaGroup: { status: 400, description: "Bad Request: PHOTO_INVALID_DIMENSIONS" } } });
     await a.rodarAvisosDoTelegram({ agora: agoraReal + 120000, ...comFoto, cliente: criarClienteTelegram({ token: TOKEN, requisitar: recusa.requisitar }) });
-    const linhaV4 = await prisma.avisoTelegram.findFirst({ where: { chatId: "zz-tg-chat-dono", texto: { contains: "ZZ-TG-V4" } } });
-    conferir("album recusado: a venda sai em texto e fica enviada", [recusa.chamadas.filter((c) => c.metodo === "sendMediaGroup").length, recusa.mensagens.filter((m) => m.text.includes("ZZ-TG-V4")).length, Boolean(linhaV4?.enviadoEm), linhaV4?.erro], [1, 1, true, null]);
+    const linhaV4 = await prisma.avisoTelegram.findFirst({ where: { chatId: "zz-tg-chat-dono", texto: { contains: "Recusada A" } } });
+    conferir("album recusado: a venda sai em texto e fica enviada", [recusa.chamadas.filter((c) => c.metodo === "sendMediaGroup").length, recusa.mensagens.filter((m) => m.text.includes("Recusada A")).length, Boolean(linhaV4?.enviadoEm), linhaV4?.erro], [1, 1, true, null]);
 
     // Chat que bloqueou o bot: a recusa da foto ja basta, sem a segunda tentativa em texto.
     await criarVenda("ZZ-TG-V5", "MERCADO_LIVRE", 20, [item(0, foto2, "Bloqueada", 1, 20)]);
     const bloqV = criarTelegramFalso({ falhas: { sendPhoto: { status: 403, description: "Forbidden: bot was blocked by the user" } } });
     await a.rodarAvisosDoTelegram({ agora: agoraReal + 180000, ...comFoto, cliente: criarClienteTelegram({ token: TOKEN, requisitar: bloqV.requisitar }) });
-    const linhaV5 = await prisma.avisoTelegram.findFirst({ where: { chatId: "zz-tg-chat-dono", texto: { contains: "ZZ-TG-V5" } } });
-    conferir("bloqueado na foto: nao tenta o texto e nao insiste", [bloqV.mensagens.filter((m) => m.text.includes("ZZ-TG-V5")).length, linhaV5?.tentativas, linhaV5?.enviadoEm], [0, 3, null]);
+    const linhaV5 = await prisma.avisoTelegram.findFirst({ where: { chatId: "zz-tg-chat-dono", texto: { contains: "Bloqueada" } } });
+    conferir("bloqueado na foto: nao tenta o texto e nao insiste", [bloqV.mensagens.filter((m) => m.text.includes("Bloqueada")).length, linhaV5?.tentativas, linhaV5?.enviadoEm], [0, 3, null]);
   }
 
   {

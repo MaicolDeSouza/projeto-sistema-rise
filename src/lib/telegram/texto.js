@@ -9,10 +9,11 @@ import { mascararDadosPessoais } from "@/lib/riseAi/mascarar";
 
 export const LIMITE_DE_LINHAS = 4;
 export const LIMITE_DO_TRECHO = 120;
-/// A nova venda lista os produtos (pedido do dono em 19/11/2026): cabecalho, cliente, ate 8 itens, "e mais N" e o total.
-/// Com 50 caracteres por nome o texto cabe nos 1.024 da legenda de uma foto do Telegram.
+/// A nova venda lista os produtos (pedido do dono em 19/11/2026): cabecalho, cliente, ate 8 itens, "e mais N", a linha
+/// do envio (24/11/2026) e o total. Com 50 caracteres por nome o texto cabe nos 1.024 da legenda de uma foto do
+/// Telegram; se um dia passar (codigos e nomes todos no teto), o Telegram recusa a foto e o aviso sai em texto.
 export const MAXIMO_DE_ITENS_DA_VENDA = 8;
-export const LIMITE_DE_LINHAS_DA_VENDA = MAXIMO_DE_ITENS_DA_VENDA + 4;
+export const LIMITE_DE_LINHAS_DA_VENDA = MAXIMO_DE_ITENS_DA_VENDA + 5;
 /// O resumo das 20h abre com as vendas (19/11/2026): titulo, total, ate 4 canais, lucro, consultas e IA. A linha das
 /// varreduras saiu em 20/11/2026 (pedido do dono: "pode remover a varredura da mensagem").
 /// Desde 22/11/2026 (pedido do dono: "A mensagem de produto zerado deve mostrar junto com o relatorio das 20hrs") o
@@ -54,10 +55,37 @@ function formatarReais(valor) {
   return `${inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, ".")},${centavos}`;
 }
 
-/** "2× 100101 Módulo Relé 5V · R$ 25,80": o que o cliente comprou (kit conta como 1), o nosso código e o valor da linha. */
+/**
+ * "2× 100101 Módulo Relé 5V - R$12,90 cada": o que o cliente comprou (kit conta como 1), o nosso código e o valor de
+ * UMA peça (desenho do dono em 24/11/2026; até ali era o valor da linha). O unitário é o total da linha dividido pela
+ * quantidade, para já levar o desconto do item; "cada" só aparece com mais de uma.
+ */
 function linhaDoItemDaVenda({ quantidade, sku, nome, total }) {
+  const quantos = Number(quantidade) || 1;
   const produto = [sku ? trechoSeguro(sku, 20) : "", trechoSeguro(nome, 50)].filter(Boolean).join(" ");
-  return `${Number(quantidade) || 1}× ${produto} · R$${formatarReais(total)}`;
+  return `${quantos}× ${produto} - R$${formatarReais(Number(total) / quantos)}${quantos > 1 ? " cada" : ""}`;
+}
+
+/**
+ * "Envio: Correios (Sedex)": a transportadora e, entre parenteses, o servico, como a Loja Integrada e o Bling gravam
+ * no pedido. So um dos dois (ou os dois iguais): so ele. Nenhum: sem linha.
+ */
+function linhaDoEnvio(envio) {
+  const transportadora = trechoSeguro(envio?.transportadora ?? "", 30);
+  const servico = trechoSeguro(envio?.servico ?? "", 30);
+  if (!transportadora && !servico) return "";
+  if (!transportadora || !servico || transportadora.toLowerCase() === servico.toLowerCase()) return `Envio: ${transportadora || servico}`;
+  return `Envio: ${transportadora} (${servico})`;
+}
+
+const DIA_COM_SEMANA = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", weekday: "long" });
+
+/** "25/11 (quarta)": o dia de Sao Paulo do limite de despacho do Mercado Livre. Sem data (ou data invalida): vazio. */
+function diaComSemana(quando) {
+  const data = quando ? new Date(quando) : null;
+  if (!data || Number.isNaN(data.getTime())) return "";
+  const partes = Object.fromEntries(DIA_COM_SEMANA.formatToParts(data).map((parte) => [parte.type, parte.value]));
+  return `${partes.day}/${partes.month} (${partes.weekday.replace(/-feira$/, "")})`;
 }
 
 const VENDAS_VAZIAS = { pedidos: 0, valor: 0, lucro: 0, semLucro: 0, canais: [] };
@@ -82,6 +110,8 @@ function linhasDosZerados(zerados) {
 
 const ESCOPO = { CLIENTES: "dos clientes", INTERNO: "interno" };
 const NOME_DO_CANAL = { MERCADO_LIVRE: "Mercado Livre", LOJA_INTEGRADA: "Loja Integrada", BLING: "Bling", SHOPEE: "Shopee" };
+/// Na nova venda o dono escreve a Loja Integrada como "LI" (24/11/2026); o resumo das 20h segue com o nome inteiro.
+const CANAL_NA_VENDA = { ...NOME_DO_CANAL, LOJA_INTEGRADA: "LI" };
 
 /** Cada tipo monta as linhas e diz para onde o botao "Abrir no Rise" leva. `dados` vem de quem calculou o aviso. */
 const TIPOS = {
@@ -109,17 +139,25 @@ const TIPOS = {
     caminho: `/canais-de-venda/mercado-livre/${anuncioId}`,
   }),
   // Pedidos de venda (fase 2): o nome do cliente passa pelo trecho seguro (mascara telefone/documento se vierem juntos).
-  // Desde 19/11/2026 (pedido do dono) lista cada produto: quantidade, nome e valor; o canal fica no cabecalho.
-  novaVenda: ({ pedidoId, canal, numero, cliente, total, itens = [] }) => ({
-    linhas: [
-      `Nova venda ${NOME_DO_CANAL[canal] ?? canal} ${trechoSeguro(numero, 40)}`,
-      cliente ? `Cliente: ${trechoSeguro(cliente, 60)}` : "",
-      ...itens.slice(0, MAXIMO_DE_ITENS_DA_VENDA).map(linhaDoItemDaVenda),
-      itens.length > MAXIMO_DE_ITENS_DA_VENDA ? `e mais ${itens.length - MAXIMO_DE_ITENS_DA_VENDA} ${itens.length - MAXIMO_DE_ITENS_DA_VENDA === 1 ? "item" : "itens"}` : "",
-      `Total: R$${formatarReais(total)}`,
-    ],
-    caminho: `/pedidos/${pedidoId}`,
-  }),
+  // Desde 19/11/2026 (pedido do dono) lista cada produto: quantidade, nome e valor.
+  // Desde 24/11/2026 (desenho do dono) abre com "Canal de venda:": a Loja Integrada (escrita "LI") e o Bling levam o
+  // numero do pedido ao lado, o Mercado Livre nao ("CASO FOR ML NAO PRECISA"); o item mostra o valor de uma peca; antes do
+  // total vem o envio (LI e Bling: transportadora e servico) ou a data limite de despacho (ML: "Enviar até").
+  novaVenda: ({ pedidoId, canal, numero, cliente, total, itens = [], envio = null, enviarAte = null }) => {
+    const doML = canal === "MERCADO_LIVRE";
+    const ate = doML ? diaComSemana(enviarAte) : "";
+    return {
+      linhas: [
+        `Canal de venda: ${CANAL_NA_VENDA[canal] ?? canal}${doML ? "" : ` - Pedido: ${trechoSeguro(numero, 40)}`}`,
+        cliente ? `Cliente: ${trechoSeguro(cliente, 60)}` : "",
+        ...itens.slice(0, MAXIMO_DE_ITENS_DA_VENDA).map(linhaDoItemDaVenda),
+        itens.length > MAXIMO_DE_ITENS_DA_VENDA ? `e mais ${itens.length - MAXIMO_DE_ITENS_DA_VENDA} ${itens.length - MAXIMO_DE_ITENS_DA_VENDA === 1 ? "item" : "itens"}` : "",
+        doML ? (ate ? `Enviar até: ${ate}` : "") : linhaDoEnvio(envio),
+        `Total: R$${formatarReais(total)}`,
+      ],
+      caminho: `/pedidos/${pedidoId}`,
+    };
+  },
   // Reclamacao aberta no ML (20/11/2026): o grupo do motivo, o que o comprador disse e o efeito na reputacao.
   reclamacaoML: ({ pedidoId, numero, total, grupo, motivo, afeta }) => ({
     linhas: [

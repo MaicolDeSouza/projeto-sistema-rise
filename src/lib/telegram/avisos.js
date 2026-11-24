@@ -299,6 +299,9 @@ async function novasVendas({ agora }) {
     nomeDoComprador: true,
     total: true,
     dataDaVenda: true,
+    // 24/11/2026 (desenho do dono): a LI e o Bling mostram a transportadora e o servico; o ML, a data limite de despacho.
+    envio: true,
+    despacharAte: true,
     itens: { orderBy: { ordem: "asc" }, select: { titulo: true, quantidade: true, quantidadeDoKit: true, total: true, produto: { select: { sku: true } } } },
   };
   const [lidasHaPouco, daLojaIntegrada] = await Promise.all([
@@ -315,7 +318,16 @@ async function novasVendas({ agora }) {
   const pedidos = [...lidasHaPouco, ...pagasHaPouco].sort((a, b) => a.dataDaVenda - b.dataDaVenda);
   return pedidos.map((p) => ({
     chave: `nova-venda:${p.id}`,
-    dados: { pedidoId: p.id, canal: p.canal, numero: p.numero, cliente: p.nomeDoComprador, total: Number(p.total), itens: p.itens.map(itemDoAviso) },
+    dados: {
+      pedidoId: p.id,
+      canal: p.canal,
+      numero: p.numero,
+      cliente: p.nomeDoComprador,
+      total: Number(p.total),
+      itens: p.itens.map(itemDoAviso),
+      envio: { transportadora: p.envio?.transportadora ?? null, servico: p.envio?.servico ?? null },
+      enviarAte: p.despacharAte ? p.despacharAte.toISOString() : null,
+    },
   }));
 }
 
