@@ -8,7 +8,7 @@ import { linkPublicoAcao, marcarEnviadaAcao, mudarSituacaoAcao, registrarContato
 import Pergunta from "@/components/compras/Pergunta";
 import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
 import { marcarTelaIniciada } from "@/components/mercados/NavegacaoDoTopo";
-import { MOTIVOS_DE_RECUSA, camposDoPadrao, dataBR, linhasDasExigencias, linkDoWhatsApp, mensagemDoWhatsApp, numeroDaProposta, pendenciasDoPdf, precisaContato } from "@/lib/propostas/regras";
+import { MOTIVOS_DE_RECUSA, camposAoLigarCliente, dataBR, linhasDasExigencias, linkDoWhatsApp, mensagemDoWhatsApp, numeroDaProposta, pendenciasDoPdf, precisaContato } from "@/lib/propostas/regras";
 import { lerListaDaTela, pedirVoltaNaRolagem } from "@/lib/ultimaListaDaTela";
 import { CartaoCondicoesDaProposta, CartaoFrete, CartaoNotasEAnexos, CartaoPagamento, CartaoTotais } from "./BlocosDaProposta";
 import CartaoCliente, { campo, Rotulo } from "./CartaoCliente";
@@ -24,7 +24,7 @@ import { AnexosDaProposta, JanelaContato, JanelaPedidoDeVenda, JanelaRecusar } f
  * principal e Salvar, e o "Gerar PDF" fecha a linha de botoes. Aprovar, Recusar, Reabrir e o pedido de venda moram no
  * menu da situacao. Aprovada e Recusada ficam so leitura (Reabrir volta a Em negociacao).
  */
-export default function EditorProposta({ propostaInicial, transportadoras, condicoes, padroes = [], certificado = null, caixas = [], podeEditar, podePedidoDeVenda }) {
+export default function EditorProposta({ propostaInicial, transportadoras, condicoes, certificado = null, caixas = [], podeEditar, podePedidoDeVenda }) {
   const router = useRouter();
   const [proposta, setProposta] = useState(propostaInicial);
   const [cliente, setCliente] = useState(propostaInicial.cliente);
@@ -43,10 +43,13 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
   const editar = podeEditar && !proposta.soLeitura;
   const alterado = useMemo(() => JSON.stringify(formulario) !== JSON.stringify(base), [formulario, base]);
   const totais = useMemo(() => totaisDoFormulario(formulario), [formulario]);
-  // O padrao em uso: o da lista (pode ter mudado) ou o gravado na proposta (padrao desativado some da lista).
-  const padrao = padroes.find((p) => p.id === formulario.padraoId) ?? (proposta.padrao?.id === formulario.padraoId ? proposta.padrao : null);
-  const exigeMarcaModelo = Boolean(padrao?.exigeMarcaModelo);
-  const pendencias = pendenciasDoPdf({ clienteNome: formulario.clienteNome || cliente?.nome, itens: formulario.itens, exigeMarcaModelo });
+  // Marca / Modelo no PDF e uma caixa da proposta (24/11/2026), vinda do cadastro do cliente; antes vinha do padrao.
+  const exigeMarcaModelo = Boolean(formulario.mostrarMarcaModelo);
+  const pendencias = pendenciasDoPdf({ clienteNome: formulario.clienteNome || cliente?.nome, itens: formulario.itens, mostrarMarcaModelo: exigeMarcaModelo });
+  // O cliente ligado deu as condicoes desta proposta: o selo "Condicoes do cadastro" e as exigencias dele.
+  const clienteLigado = formulario.clienteId ? cliente : null;
+  const doCadastro = Boolean(formulario.condicoesDoClienteId) && formulario.condicoesDoClienteId === formulario.clienteId;
+  const exigencias = linhasDasExigencias(clienteLigado?.propostaExigencias);
 
   useEffect(() => {
     if (!alterado) return undefined;
@@ -124,39 +127,33 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
     setCotacao(null);
   }
 
-  /** Escolher o padrao copia as regras dele para a proposta (validade, pagamento, frete, garantia, observacoes). */
-  // "Cliente comum" (pedido do dono em 17/11/2026): e a opcao vazia do seletor, e nao um padrao. Escolher aplica as regras
-  // do padrao "Cliente comum" (validade, frete, garantia) mas a proposta fica SEM padrao, como antes: o PDF so mostra o
-  // faturamento minimo a quem tem padrao (SENAI). Por isso o padrao "Cliente comum" nao aparece de novo na lista.
-  const padraoComum = padroes.find((p) => p.id === "padrao-cliente-comum" || p.nome.trim().toLowerCase() === "cliente comum") ?? null;
-  const padroesDaLista = padroes.filter((p) => p.id !== padraoComum?.id);
-  function aplicarPadrao(id) {
-    const escolhido = id ? padroes.find((p) => p.id === id) : null;
-    setFormulario((antes) => {
-      if (escolhido && escolhido.id !== padraoComum?.id) return { ...antes, ...camposDoPadrao(escolhido) };
-      return { ...antes, ...camposDoPadrao(padraoComum), padraoId: "" };
-    });
-  }
-
+  /**
+   * Ligar o cliente aplica as condicoes do cadastro dele (24/11/2026, dono: "a proposta deve se adequar com as condicoes
+   * salvas no cadastro"), pela MESMA regra do Salvar (`camposAoLigarCliente`): uma vez por cliente, e os campos continuam
+   * editaveis. Cliente sem condicoes so preenche a transportadora e a condicao vazias, como antes.
+   */
   function ligarCliente(lido) {
     setCliente(lido);
-    // O cliente com padrao (SENAI...) traz as regras dele, se a proposta ainda nao tem padrao escolhido.
-    const doCliente = padroes.find((p) => p.id === lido.padraoPropostaId);
-    setFormulario((antes) => ({
-      ...antes,
-      ...(doCliente && !antes.padraoId ? camposDoPadrao(doCliente) : {}),
-      clienteId: lido.id,
-      clienteNome: lido.nome,
-      clienteDocumento: lido.documento ?? "",
-      contatoId: "",
-      contatoNome: "",
-      // So preenche o que esta vazio: trocar de cliente nao apaga o que o operador ja escolheu.
-      transportadoraId: antes.transportadoraId || lido.transportadoraId || "",
-      condicaoPagamentoId: antes.condicaoPagamentoId || lido.condicoesPreferidas?.[0]?.id || "",
-    }));
+    setFormulario((antes) => {
+      const remendo = camposAoLigarCliente(lido, antes, { preencherVazios: true });
+      // O formulario guarda texto vazio, nao nulo (o marcador das condicoes e a excecao).
+      const paraOFormulario = Object.fromEntries(
+        Object.entries(remendo).map(([campo, valor]) => [campo, valor === null && campo !== "condicoesDoClienteId" ? "" : valor]),
+      );
+      return {
+        ...antes,
+        ...paraOFormulario,
+        clienteId: lido.id,
+        clienteNome: lido.nome,
+        clienteDocumento: lido.documento ?? "",
+        contatoId: "",
+        contatoNome: paraOFormulario.contatoNome ?? "",
+      };
+    });
   }
   function desligarCliente() {
     setCliente(null);
+    // O marcador das condicoes fica: ligar depois um cliente sem condicoes volta os campos a regra geral.
     setFormulario((antes) => ({ ...antes, clienteId: null, contatoId: "", contatoNome: "", clienteNome: "", clienteDocumento: "", clienteTelefone: "", clienteEmail: "" }));
   }
 
@@ -368,34 +365,23 @@ export default function EditorProposta({ propostaInicial, transportadoras, condi
         <div>
           <CartaoCliente
             seletorDoPadrao={
-              // Ao lado do titulo "Cliente" (pedido do dono em 17/11/2026); sem padrao = "Cliente comum".
-              <select
-                value={formulario.padraoId === padraoComum?.id ? "" : formulario.padraoId}
-                disabled={!editar}
-                onChange={(e) => aplicarPadrao(e.target.value)}
-                aria-label="Padrão do cliente"
-                title="Padrão do cliente: aplica validade, pagamento, frete, garantia e observações do padrão"
-                className="rounded-md border border-borda bg-superficie py-1 pr-7 pl-2 text-sm font-normal focus:border-acento focus:ring-2 focus:ring-acento/20 focus:outline-none disabled:bg-fundo disabled:text-suave"
-              >
-                <option value="">Cliente comum</option>
-                {padroesDaLista.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nome}
-                  </option>
-                ))}
-                {padrao && padrao.id !== padraoComum?.id && !padroes.some((p) => p.id === padrao.id) && <option value={padrao.id}>{padrao.nome}</option>}
-              </select>
+              // No lugar do seletor de padrao (24/11/2026): um selo de estado, sem texto explicativo (regra 2).
+              doCadastro ? (
+                <span title="Vieram do cadastro do cliente; mudar aqui não muda o cadastro" className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                  Condições do cadastro
+                </span>
+              ) : null
             }
             formulario={formulario}
-            cliente={formulario.clienteId ? cliente : null}
+            cliente={clienteLigado}
             editar={editar} erros={erros} aoMudar={mudar} aoLigarCliente={ligarCliente} aoDesligarCliente={desligarCliente} />
         </div>
 
-        {linhasDasExigencias(padrao?.exigencias).length > 0 && (
+        {exigencias.length > 0 && (
           <details open className="rounded-lg border border-amber-200 bg-amber-50/60 px-4 py-3 text-sm">
-            <summary className="cursor-pointer font-semibold text-amber-900">Exigências do cliente ({padrao.nome}) · só na tela, não vão ao PDF</summary>
+            <summary className="cursor-pointer font-semibold text-amber-900">Exigências do cliente · só na tela, não vão ao PDF</summary>
             <ol className="mt-2 grid gap-x-6 gap-y-1 text-amber-950 md:grid-cols-2">
-              {linhasDasExigencias(padrao.exigencias).map((linha) => (
+              {exigencias.map((linha) => (
                 <li key={linha}>{linha}</li>
               ))}
             </ol>

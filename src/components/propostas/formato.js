@@ -67,7 +67,11 @@ export function formularioDaProposta(proposta) {
     clienteDocumento: proposta.clienteDocumento ?? "",
     contatoId: proposta.contatoId ?? "",
     contatoNome: proposta.contatoNome ?? "",
-    padraoId: proposta.padraoId ?? "",
+    // As condicoes do cadastro do cliente (24/11/2026): o marcador vai SEMPRE ao servidor, para ele saber o que a tela ja
+    // aplicou e nao reaplicar por cima da edicao; as duas caixas do PDF sao da proposta.
+    condicoesDoClienteId: proposta.condicoesDoClienteId ?? null,
+    mostrarMarcaModelo: Boolean(proposta.mostrarMarcaModelo),
+    mostrarFaturamentoMinimo: Boolean(proposta.mostrarFaturamentoMinimo),
     condicaoPagamentoId: proposta.condicaoPagamentoId ?? "",
     formaPagamento: proposta.formaPagamento ?? "",
     parcelas: String(proposta.parcelas ?? 1),

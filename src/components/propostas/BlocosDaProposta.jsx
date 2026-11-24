@@ -132,6 +132,17 @@ export function CartaoCondicoesDaProposta({ formulario, editar, editarValidade, 
         </Rotulo>
       </div>
       <AssinarDigitalmente formulario={formulario} editar={editar} certificado={certificado} aoMudar={aoMudar} />
+      {/* O que o PDF mostra (24/11/2026; antes vinha do padrao do cliente): comeca pelo cadastro do cliente e muda aqui. */}
+      <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
+        <div className="flex items-center gap-3">
+          <Interruptor ligado={Boolean(formulario.mostrarMarcaModelo)} desabilitado={!editar} rotulo="Marca/Modelo no PDF" aoMudar={(v) => aoMudar("mostrarMarcaModelo", v)} />
+          <span className="text-sm font-medium text-texto">Marca/Modelo no PDF</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <Interruptor ligado={Boolean(formulario.mostrarFaturamentoMinimo)} desabilitado={!editar} rotulo="Faturamento mínimo no PDF" aoMudar={(v) => aoMudar("mostrarFaturamentoMinimo", v)} />
+          <span className="text-sm font-medium text-texto">Faturamento mínimo no PDF</span>
+        </div>
+      </div>
       {vencida && <p className="mt-3 text-xs text-suave">Venceu em {dataBR(venceuEm)}. Escolha uma nova validade e salve para reabrir.</p>}
     </SecaoDoAnuncio>
   );

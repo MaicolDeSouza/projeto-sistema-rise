@@ -4,8 +4,9 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { CloudUpload, Loader2, Search, X } from "lucide-react";
 
-import { buscarClienteAcao, clienteParaPropostaAcao, enviarClienteAoBlingAcao, usarContatoDoBlingAcao } from "@/app/propostas/acoes";
+import { buscarClienteAcao, clienteParaPropostaAcao, clientePeloDocumentoAcao, enviarClienteAoBlingAcao, usarContatoDoBlingAcao } from "@/app/propostas/acoes";
 import SecaoDoAnuncio from "@/components/anuncios/ml/SecaoDoAnuncio";
+import { validarCnpj, validarCpf } from "@/lib/documentos";
 import { entregaParaMostrar, linhasDoCliente } from "@/lib/propostas/conteudo";
 import { formatarTelefone } from "@/lib/telefone";
 import CampoComLista from "./CampoComLista";
@@ -49,6 +50,19 @@ export default function CartaoCliente({ seletorDoPadrao = null, formulario, clie
     }, 350);
     return () => clearTimeout(relogio);
   }, [texto]);
+
+  // O CNPJ digitado na proposta provisoria (24/11/2026, dono: "busque as condicoes do cliente pelo CNPJ"): ao sair do campo,
+  // com documento valido e sem cliente ligado, o cliente do Rise com esse documento e ligado (e as condicoes dele entram).
+  // Documento incompleto ou invalido nao faz nada: o Salvar ja mostra o erro no campo.
+  const procurarPeloDocumento = () => {
+    const digitos = String(formulario.clienteDocumento ?? "").replace(/\D/g, "");
+    const valido = (digitos.length === 11 && validarCpf(digitos)) || (digitos.length === 14 && validarCnpj(digitos));
+    if (!editar || formulario.clienteId || !valido) return;
+    iniciar(async () => {
+      const achado = await clientePeloDocumentoAcao(digitos);
+      if (achado) aoLigarCliente(achado);
+    });
+  };
 
   const escolherDoRise = (id) =>
     iniciar(async () => {
@@ -183,7 +197,7 @@ export default function CartaoCliente({ seletorDoPadrao = null, formulario, clie
           <input value={formulario.clienteNome} disabled={!editar} aria-invalid={Boolean(erros.clienteNome)} onChange={(e) => aoMudar("clienteNome", e.target.value)} className={campo} />
         </Rotulo>
         <Rotulo texto="CPF/CNPJ" erro={erros.clienteDocumento}>
-          <input value={formulario.clienteDocumento} disabled={!editar} inputMode="numeric" aria-invalid={Boolean(erros.clienteDocumento)} onChange={(e) => aoMudar("clienteDocumento", e.target.value.replace(/[^\d./-]/g, "").slice(0, 18))} className={`${campo} tabular-nums`} />
+          <input value={formulario.clienteDocumento} disabled={!editar} inputMode="numeric" aria-invalid={Boolean(erros.clienteDocumento)} onChange={(e) => aoMudar("clienteDocumento", e.target.value.replace(/[^\d./-]/g, "").slice(0, 18))} onBlur={procurarPeloDocumento} className={`${campo} tabular-nums`} />
         </Rotulo>
         <Rotulo texto="Telefone" erro={erros.clienteTelefone}>
           <input

@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 
 import { negarSemAcesso, negarSemAcessos, podeAgora, sessaoDeAcessos } from "@/lib/acessos/servidor";
 import {
+  SELECAO_DE_CONDICOES,
   buscarProdutosParaProposta,
+  clienteParaCondicoes,
   criarProposta,
   excluirProposta,
   lerProposta,
@@ -15,7 +17,7 @@ import {
   salvarProposta,
   semCusto,
 } from "@/lib/propostas/banco";
-import { buscarClienteParaProposta, copiarContatoDoBling, enviarClienteAoBling } from "@/lib/propostas/cliente";
+import { buscarClienteParaProposta, copiarContatoDoBling, documentoValido, enviarClienteAoBling } from "@/lib/propostas/cliente";
 import { estoqueDosItens } from "@/lib/propostas/estoque";
 import { prisma } from "@/lib/db";
 
@@ -116,10 +118,11 @@ export async function clienteParaPropostaAcao(clienteId) {
 }
 
 async function clienteParaProposta(clienteId) {
-  return prisma.cliente.findUnique({
+  const linha = await prisma.cliente.findUnique({
     where: { id: clienteId },
     select: {
-      id: true,
+      // As condicoes comerciais (24/11/2026): o mesmo `select` do Salvar, para a tela aplicar a mesma regra. Nada do portal.
+      ...SELECAO_DE_CONDICOES,
       nome: true,
       nomeFantasia: true,
       documento: true,
@@ -130,12 +133,23 @@ async function clienteParaProposta(clienteId) {
       // Enderecos: a tela mostra os dados completos e o endereco de entrega, iguais aos do PDF (pedido do dono em 17/11/2026).
       enderecos: true,
       blingContatoId: true,
-      padraoPropostaId: true,
-      transportadoraId: true,
-      condicoesPreferidas: { orderBy: { nome: "asc" }, take: 1, select: { id: true } },
       contatos: { orderBy: { nome: "asc" }, select: { id: true, nome: true, cargo: true, telefone: true, email: true } },
     },
   });
+  return clienteParaCondicoes(linha);
+}
+
+/**
+ * O CNPJ (ou CPF) digitado na proposta provisoria, ao sair do campo (24/11/2026, dono: "busque as condicoes do cliente
+ * pelo CNPJ"): o cliente do Rise com esse documento, para a tela liga-lo e aplicar as condicoes. So no Rise: o do Bling vira
+ * cadastro no Salvar, como antes, e nasce sem condicoes.
+ */
+export async function clientePeloDocumentoAcao(documento) {
+  if (!(await podeAgora("tela.propostas", "ver"))) return null;
+  const doc = documentoValido(String(documento ?? "").slice(0, 30));
+  if (!doc) return null;
+  const achado = await prisma.cliente.findUnique({ where: { documento: doc.formatado }, select: { id: true } });
+  return achado ? clienteParaProposta(achado.id) : null;
 }
 
 export async function enviarClienteAoBlingAcao(clienteId) {
