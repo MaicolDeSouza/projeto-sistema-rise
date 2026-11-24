@@ -454,6 +454,9 @@ const CALCULO = {
   orcamento: orcamentosNoLimite,
   varreduraPeloPc: pedidosDoPcEsperando,
   varreduraFalhou: varredurasQueFalharam,
+  // A pergunta do ML tem botoes proprios: quem a manda e `avisarPerguntasNovas` (atendimentoML/telegram.js). Aqui o tipo
+  // so existe para o interruptor da aba Canais.
+  perguntaML: () => [],
 };
 
 /** Os avisos devidos de um tipo, ainda SEM o destinatario (a chave final e `<chave>:<chatId>`). */

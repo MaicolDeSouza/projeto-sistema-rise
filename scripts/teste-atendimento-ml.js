@@ -461,6 +461,128 @@ try {
     }
   }
 
+  // ---------------------------------------------------------------------------------------------------------------
+  console.log("\n# Tarefa 9: a pergunta no Telegram");
+  {
+    const { criarClienteTelegram } = await import("../src/lib/telegram/cliente.js");
+    const { TIPOS_DE_AVISO, ROTULO_DO_AVISO } = await import("../src/lib/telegram/avisosTipos.js");
+    const { avisarPerguntasNovas, criarTratadoresDoAtendimento, atualizarAvisoFechado } = await import("../src/lib/atendimentoML/telegram.js");
+    const { aplicarPerguntaLida } = await import("../src/lib/atendimentoML/perguntas.js");
+    const { lerAtendimento } = await import("../src/lib/atendimentoML/banco.js");
+    const { enviarResposta } = await import("../src/lib/atendimentoML/enviar.js");
+    const { criarTelegramFalso } = await import("./lib/telegramFalso.js");
+    const { criarMlPerguntasFalso } = await import("./lib/mlPerguntasFalso.js");
+    const TOKEN = `123456789:${"A".repeat(35)}`;
+    const CHAT = "990000001";
+    const limparTg = async () => {
+      await prisma.avisoTelegram.deleteMany({ where: { chatId: { startsWith: "9900000" } } });
+      await prisma.usuarioRise.deleteMany({ where: { login: { startsWith: "zz-atd-" } } });
+    };
+    await limparTg();
+    try {
+      conferir("o tipo de aviso existe, com rotulo", [TIPOS_DE_AVISO.includes("perguntaML"), ROTULO_DO_AVISO.perguntaML], [true, "Pergunta nova no Mercado Livre"]);
+      const adminFn = await prisma.funcaoRise.upsert({ where: { nome: "Administrador" }, update: {}, create: { nome: "Administrador", descricao: "Vê e edita tudo.", fixa: true } });
+      await prisma.usuarioRise.create({ data: { login: "zz-atd-dono", nome: "ZZ ATD Dono", telegramChatId: CHAT, funcoes: { create: [{ funcaoId: adminFn.id }] } } });
+      const env = { RISE_PRODUCAO: "1", ML_RESPONDER_PERGUNTAS: "true" };
+      const autorizados = async () => new Set([CHAT]);
+      const ligado = { telegram: { ligado: true, avisos: { perguntaML: true } } };
+
+      const ml = criarMlPerguntasFalso();
+      ml.porItem("MLB9900000001", { title: "Sensor ultrassônico", price: 12.5, available_quantity: 30, status: "active", attributes: [] });
+      const falso = criarTelegramFalso();
+      const cliente = criarClienteTelegram({ token: TOKEN, requisitar: falso.requisitar, urlPublica: "https://rise.exemplo" });
+      const id = (await aplicarPerguntaLida(ml.porPergunta({ id: "ZZ-ATD-60", item: "MLB9900000001", texto: "Serve no Arduino? Me chama no zap @fulano" }))).id;
+      const avisar = (extra = {}) => avisarPerguntasNovas({ cliente, env, configuracao: ligado, autorizados, soPrefixo: "ZZ-ATD-", urlPublica: "https://rise.exemplo", ...extra });
+
+      conferir("bot desligado ou aviso desmarcado: nada sai", [(await avisar({ configuracao: { telegram: { ligado: false, avisos: { perguntaML: true } } } })).mandados, (await avisar({ configuracao: { telegram: { ligado: true, avisos: { perguntaML: false } } } })).mandados, falso.mensagens.length], [0, 0, 0]);
+      const primeira = await avisar();
+      const aviso = falso.mensagens[0];
+      conferir("o aviso sai uma vez, com a pergunta neutralizada", [primeira.mandados, aviso.chat_id, aviso.text.includes("Serve no Arduino?"), aviso.text.includes("@fulano"), aviso.text.split("\n")[0]], [1, CHAT, true, false, "Pergunta no Mercado Livre"]);
+      conferir("os botoes e os dados de cada um", aviso.reply_markup.inline_keyboard.map((linha) => linha.map((b) => b.callback_data ?? b.url)), [[`at:${id}:s`, `at:${id}:e`], [`at:${id}:i`, "https://rise.exemplo/atendimento"]]);
+      conferir("os dados do botao cabem em 64 bytes", Buffer.byteLength(`at:${id}:s`) <= 64, true);
+      conferir("a segunda rodada nao repete e a mensagem fica guardada", [(await avisar()).mandados, falso.mensagens.length, (await lerAtendimento(id)).telegramMensagemId, (await lerAtendimento(id)).telegramChatId], [0, 1, 1, CHAT]);
+
+      // O provedor falso da sugestao.
+      let resposta = "Serve sim, é compatível com Arduino.";
+      const criarProvedor = async () => ({ conversar: async (pedido) => ({ texto: resposta, chamadasDeFerramenta: [], uso: { entrada: 10, saida: 5 }, motivoParada: "fim", modelo: pedido.modelo }) });
+      const configuracaoDaIA = { padrao: { provedor: "zz-atd-falso", modelo: "zz-m" }, reserva: null, orcamentos: { internoBrl: 30 }, endpoints: {}, atendimentoML: { prompt: "", limiteDaPergunta: 2000 } };
+      const tratadores = criarTratadoresDoAtendimento({ ml, env, sugestao: { criarProvedor, configuracao: configuracaoDaIA } });
+      let n = 0;
+      const clicar = (acao, alvo = id, mensagem = { message_id: 1, chat: { id: Number(CHAT) }, text: "Pergunta no Mercado Livre" }) => tratadores.clique({ id: `cq${++n}`, data: `at:${alvo}:${acao}`, from: { id: Number(CHAT) }, message: mensagem }, { cliente, chatId: CHAT });
+      const escrever = (text, responderA) => tratadores.texto({ message_id: 500 + ++n, chat: { id: Number(CHAT), type: "private" }, text, ...(responderA ? { reply_to_message: { message_id: responderA } } : {}) }, { cliente, chatId: CHAT });
+      const ultima = () => falso.mensagens.at(-1);
+      const dados = (mensagem) => (mensagem.reply_markup?.inline_keyboard ?? []).flat().map((b) => b.callback_data ?? b.url);
+
+      await clicar("s");
+      const sugestao = ultima();
+      const trecho = sugestao.entities?.[0];
+      conferir("a sugestao vira rascunho e chega num bloco que copia com um toque", [(await lerAtendimento(id)).rascunho, (await lerAtendimento(id)).rascunhoOrigem, trecho?.type, sugestao.text.slice(trecho.offset, trecho.offset + trecho.length)], [resposta, "IA", "code", resposta]);
+      conferir("a sugestao vem com Enviar, Escrever e Ignorar", dados(sugestao), [`at:${id}:v`, `at:${id}:e`, `at:${id}:i`]);
+      conferir("o clique e respondido (fecha o carregando)", falso.cliques.length >= 1, true);
+
+      await clicar("e");
+      const pedido = ultima();
+      const pedidoId = falso.mensagens.length; // o falso numera as mensagens na ordem
+      conferir("Escrever / Editar abre o campo de resposta", [pedido.reply_markup.force_reply, pedido.text.startsWith("Escreva a resposta"), (await lerAtendimento(id)).telegramPedidoId], [true, true, pedidoId]);
+
+      const antesDoSolto = falso.mensagens.length;
+      await escrever("oi, tudo bem?");
+      conferir("texto solto nao muda nada e ganha so a dica", [(await lerAtendimento(id)).rascunho, falso.mensagens.length - antesDoSolto, ultima().text], [resposta, 1, "Para responder, toque em Escrever / Editar na pergunta."]);
+      await escrever("/enviar agora", 9999);
+      conferir("resposta a uma mensagem que nao e o pedido tambem nao muda nada", (await lerAtendimento(id)).rascunho, resposta);
+
+      await escrever("Compre no site https://4hobby.com.br", pedidoId);
+      conferir("texto com link de fora: mostra o trecho e nao oferece o envio", [ultima().text.includes("https:∕∕4hobby.com.br") || ultima().text.includes("4hobby.com.br"), dados(ultima())], [true, [`at:${id}:e`]]);
+      await clicar("e");
+      await escrever("Serve sim! Qualquer dúvida, pergunte.", falso.mensagens.length);
+      const previa = ultima();
+      conferir("a resposta escrita vira o rascunho e volta para conferir", [(await lerAtendimento(id)).rascunho, (await lerAtendimento(id)).rascunhoOrigem, previa.text.startsWith("Vai ficar assim:"), dados(previa), (await lerAtendimento(id)).telegramPedidoId], ["Serve sim! Qualquer dúvida, pergunte.", "IA_EDITADA", true, [`at:${id}:v`, `at:${id}:e`], null]);
+
+      const travado = criarTratadoresDoAtendimento({ ml, env: { ...env, ML_RESPONDER_PERGUNTAS: "false" }, sugestao: { criarProvedor, configuracao: configuracaoDaIA } });
+      await travado.clique({ id: "cqT", data: `at:${id}:v`, from: { id: Number(CHAT) }, message: { message_id: 3, chat: { id: Number(CHAT) }, text: "Vai ficar assim:" } }, { cliente, chatId: CHAT });
+      conferir("Enviar com a trava desligada: diz o motivo e nada sai", [ml.respostasEnviadas.length, falso.cliques.at(-1).text.includes("ML_RESPONDER_PERGUNTAS")], [0, true]);
+
+      await Promise.all([clicar("v"), clicar("v")]);
+      const enviada = await lerAtendimento(id);
+      conferir("Enviar duas vezes: um POST so", [ml.respostasEnviadas.length, enviada.status, enviada.respondidaVia, enviada.respondidaPor], [1, "RESPONDIDA", "TELEGRAM", "zz-atd-dono"]);
+      const doAviso = falso.edicoes.filter((e) => e.message_id === 1).at(-1);
+      conferir("o aviso da pergunta perde os botoes e diz que foi respondida", [doAviso?.reply_markup.inline_keyboard, /Respondida às \d\d:\d\d/.test(doAviso?.text ?? "")], [[], true]);
+      await escrever("mudei de ideia", falso.mensagens.length);
+      conferir("depois de respondida, nenhum texto muda a resposta", (await lerAtendimento(id)).respostaEnviada, "Serve sim! Qualquer dúvida, pergunte.");
+
+      // Dados forjados ou de pergunta que nao existe.
+      const cliquesAntes = falso.cliques.length;
+      await clicar("v", "zzatdnaoexiste");
+      await tratadores.clique({ id: "cqX", data: "apagar tudo", from: { id: Number(CHAT) }, message: { message_id: 1, chat: { id: Number(CHAT) } } }, { cliente, chatId: CHAT });
+      conferir("dado desconhecido nao quebra", [falso.cliques[cliquesAntes].text, falso.cliques.length - cliquesAntes], ["Pergunta não encontrada.", 2]);
+
+      // Respondida pelo Rise e ignorada: o aviso do Telegram acompanha.
+      const b = (await aplicarPerguntaLida(ml.porPergunta({ id: "ZZ-ATD-61", item: "MLB9900000001", texto: "Tem garantia?" }))).id;
+      await avisar();
+      const mensagemDoB = (await lerAtendimento(b)).telegramMensagemId;
+      await prisma.atendimentoML.update({ where: { id: b }, data: { rascunho: "Sim, 90 dias.", rascunhoOrigem: "MANUAL" } });
+      await enviarResposta({ id: b, por: "zz-atd-dono", via: "RISE", ml, env });
+      await atualizarAvisoFechado(b, { cliente });
+      conferir("respondida pelo Rise: o aviso do Telegram e editado", /Respondida às \d\d:\d\d pelo Rise/.test(falso.edicoes.filter((e) => e.message_id === mensagemDoB).at(-1)?.text ?? ""), true);
+      const c = (await aplicarPerguntaLida(ml.porPergunta({ id: "ZZ-ATD-62", item: "MLB9900000001", texto: "Faz desconto?" }))).id;
+      await avisar();
+      await clicar("i", c, { message_id: (await lerAtendimento(c)).telegramMensagemId, chat: { id: Number(CHAT) }, text: "Pergunta no Mercado Livre" });
+      conferir("Ignorar pelo Telegram", [(await lerAtendimento(c)).status, falso.edicoes.at(-1).text.endsWith("Ignorada no Rise.")], ["IGNORADA", true]);
+
+      // Produto com foto: o aviso vai como foto, com a legenda e os mesmos botoes.
+      const comFoto = await prisma.produto.create({ data: { sku: "ZZ-ATD-PF", tituloBase: "ZZ ATD Com foto", arquivos: { create: [{ tipo: "IMAGEM", papel: "FOTO", arquivo: "zz-atd.jpg", principal: true }] } } });
+      await prisma.anuncio.create({ data: { produtoId: comFoto.id, canal: "MERCADO_LIVRE", idExterno: "MLB9900000020", status: "PUBLICADO", titulo: "ZZ ATD Com foto", dados: { composicao: { itens: [{ produtoId: comFoto.id, quantidade: 10 }] } } } });
+      const d = (await aplicarPerguntaLida(ml.porPergunta({ id: "ZZ-ATD-63", item: "MLB9900000020", texto: "Vem com cabo?" }))).id;
+      await avisar({ lerFoto: async () => Buffer.from([1, 2, 3]) });
+      const foto = falso.fotos.at(-1);
+      conferir("com foto: vai a foto, a legenda com o kit e os botoes", [foto?.metodo, foto?.caption.split(String.fromCharCode(10))[1], foto?.reply_markup.inline_keyboard[0][0].callback_data, (await lerAtendimento(d)).telegramMensagemId > 0], ["sendPhoto", "ZZ ATD Com foto (Kit de 10)", `at:${d}:s`, true]);
+    } finally {
+      await limparTg();
+      await limparOResto();
+      await limpar();
+    }
+  }
+
   // MARCADOR: blocos novos entram acima desta linha.
 } finally {
   await limpar();

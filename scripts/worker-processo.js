@@ -85,7 +85,8 @@ const ESCUTAR_O_TELEGRAM = Boolean(process.env.RISE_PRODUCAO) || process.env.TEL
 const PAUSA_DA_ENTRADA_MS = 10 * 1000;
 let relogioDaEntrada = null;
 /// O que o bot faz com um clique ou um texto de quem pode responder: hoje, so as perguntas do Atendimento do ML.
-const tratadoresDoTelegram = {};
+const { avisarPerguntasNovas, atualizarAvisoFechado, criarTratadoresDoAtendimento } = await import("../src/lib/atendimentoML/telegram.js");
+const tratadoresDoTelegram = criarTratadoresDoAtendimento();
 
 /// A batida do healthchecks.io (HEALTHCHECKS_WORKER_URL, opcional): a pane do proprio worker nao tem como avisar pelo
 /// Telegram, entao quem avisa e o e-mail do healthchecks quando a batida para. So o worker normal.
@@ -677,6 +678,8 @@ async function laco() {
         atendimentoMLLidoEm = Date.now();
         const atendimento = await rodarRotina("atendimentoML", ATENDIMENTO_ML_MS, () => rodarAtendimentoML());
         if (atendimento?.novas || atendimento?.fechadas) log(`perguntas do ML: ${atendimento.novas} nova(s), ${atendimento.fechadas} fechada(s) fora do Rise`);
+        // A pergunta respondida pelo app do ML perde os botoes no Telegram (`atualizarAvisoFechado` nunca lanca).
+        for (const id of atendimento?.fechadasIds ?? []) await atualizarAvisoFechado(id);
       }
       // A fila dos webhooks (fase 2): a cada volta, para a venda nova aparecer em segundos e nao em ate 5 min. A linha
       // que falha conta tentativa e desiste na 5a; a rotina acima continua cobrindo o pedido.
@@ -952,6 +955,9 @@ if (!FONTES && !SO_NO_PC) {
       const avisos = await rodarRotina("telegram", AVISOS_TELEGRAM_MS, () => rodarAvisosDoTelegram());
       if (avisos.mandados || avisos.falhas) log(`telegram: ${avisos.mandados} aviso(s) mandado(s), ${avisos.falhas} falha(s)`);
       else if (avisos.motivo === "erro") logErro("telegram: a rotina de avisos falhou (ver o log acima)");
+      // As perguntas novas do ML, com os botoes (Atendimento do ML). Nunca lanca; sem bot ligado nao faz nada.
+      const perguntas = await avisarPerguntasNovas();
+      if (perguntas.mandados || perguntas.falhas) log(`telegram: ${perguntas.mandados} pergunta(s) do ML avisada(s), ${perguntas.falhas} falha(s)`);
     },
     aoErro: (erro) => logErro(`telegram: rodada nao registrada: ${mensagem(erro)}`),
   });

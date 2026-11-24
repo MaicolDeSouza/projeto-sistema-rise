@@ -4,7 +4,7 @@
  * `avisosDevidos` (avisos.js).
  */
 
-export const TIPOS_DE_AVISO = ["resumoDoDia", "produtoZerou", "orcamento", "varreduraPeloPc", "varreduraFalhou", "saudeDoRise", "catalogoML", "novaVenda", "aguardandoPecas", "reclamacaoML", "notaDevolucao", "saldoFrete"];
+export const TIPOS_DE_AVISO = ["resumoDoDia", "produtoZerou", "orcamento", "varreduraPeloPc", "varreduraFalhou", "saudeDoRise", "catalogoML", "novaVenda", "aguardandoPecas", "reclamacaoML", "notaDevolucao", "saldoFrete", "perguntaML"];
 
 export const ROTULO_DO_AVISO = {
   resumoDoDia: "Resumo do dia às 20h",
@@ -20,6 +20,9 @@ export const ROTULO_DO_AVISO = {
   reclamacaoML: "Reclamação aberta no Mercado Livre",
   notaDevolucao: "Devolução postada: emitir a nota de devolução",
   saldoFrete: "Saldo do Melhor Envio abaixo do limite",
+  // Atendimento do ML (24/11/2026): a mensagem tem botoes proprios (Sugerir com IA, Escrever / Editar, Ignorar) e e
+  // mandada por `src/lib/atendimentoML/telegram.js`, nao pela rotina comum dos avisos.
+  perguntaML: "Pergunta nova no Mercado Livre",
 };
 
 /** O texto do botao de cada aviso: "Abrir no Rise", menos o do saldo, que leva a recarga (pedido do dono em 23/11/2026). */

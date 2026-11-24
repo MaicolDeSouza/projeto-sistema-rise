@@ -8,6 +8,7 @@ import { montarContexto } from "@/lib/atendimentoML/contexto";
 import { enviarResposta, respostaDePerguntaLiberada, TEXTO_DA_TRAVA } from "@/lib/atendimentoML/enviar";
 import { textoDoBarrado } from "@/lib/atendimentoML/filtro";
 import { sugerirResposta } from "@/lib/atendimentoML/sugerir";
+import { atualizarAvisoFechado } from "@/lib/atendimentoML/telegram";
 import { gravarConfiguracao } from "@/lib/riseAi/configuracao";
 
 /**
@@ -85,6 +86,8 @@ export async function enviarAcao(id, texto) {
     if (salvo.motivo === "nao-aberta") return { ok: false, erro: "Esta pergunta não está mais aberta." };
     const envio = await enviarResposta({ id, por, via: "RISE" });
     revalidatePath("/atendimento");
+    // O aviso da pergunta no Telegram perde os botoes (nunca lanca; sem bot nao faz nada).
+    if (envio.ok || envio.motivo === "fechada-fora") await atualizarAvisoFechado(id);
     if (!envio.ok) return { ok: false, erro: envio.mensagem, barrados: avisos(envio.barrados), fechada: envio.motivo === "fechada-fora" };
     return { ok: true };
   });
@@ -95,6 +98,7 @@ export async function ignorarAcao(id) {
   return comAcesso(async (por) => {
     const feito = await ignorarAtendimento({ id, por });
     revalidatePath("/atendimento");
+    if (feito.ok) await atualizarAvisoFechado(id);
     return feito.ok ? { ok: true } : { ok: false, erro: "Esta pergunta não está mais aberta." };
   });
 }

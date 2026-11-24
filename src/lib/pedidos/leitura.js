@@ -9,6 +9,7 @@ import { normalizarPedidoLI } from "@/lib/pedidos/li";
 import { classificarLojaDoBling, normalizarPedidoBling } from "@/lib/pedidos/bling";
 import { adiarConferenciaDoMercadoPago, aplicarPedidoLido, espelharNoBling, marcarFalhaDoMercadoPago, pedidosParaConferirNoMercadoPago, pedidosParaReconferir, reabrirLucroDoPedido } from "@/lib/pedidos/banco";
 import { aplicarPerguntaLida, lerPerguntaDoML } from "@/lib/atendimentoML/perguntas";
+import { atualizarAvisoFechado } from "@/lib/atendimentoML/telegram";
 
 /**
  * A leitura dos pedidos por origem (spec 5.2): a rotina `pedidos` do worker, a cada 5 min, pede a cada origem so o que
@@ -432,7 +433,9 @@ async function tratarRecurso(origem, recurso, clientes, memoria, agora) {
     // A pergunta de um anuncio (Atendimento do ML, 24/11/2026). Pergunta que o ML nao tem mais (404) nao pede nada.
     if (tipo === "questions") {
       const pergunta = await lerPerguntaDoML(clientes.ml, id);
-      if (pergunta) await aplicarPerguntaLida(pergunta, { agora: new Date(agora) });
+      const aplicada = pergunta ? await aplicarPerguntaLida(pergunta, { agora: new Date(agora) }) : null;
+      // Respondida pelo app do ML: o aviso do Telegram perde os botoes (nunca lanca; sem bot nao faz nada).
+      if (aplicada?.fechou) await atualizarAvisoFechado(aplicada.id);
       return;
     }
     // `null` = compra da propria conta (nao e venda): ignorada aqui.
