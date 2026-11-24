@@ -1427,6 +1427,40 @@ model Cliente {
   /// Ficha cadastral (cartao CNPJ) e outros documentos do cliente (13/11/2026).
   arquivos         ArquivoDoCliente[]
 
+  // Condicoes comerciais do cliente (24/11/2026, dono: "cada cliente muda mesmo sendo SENAI"): substituem o padrao de
+  // proposta. A proposta COPIA estas colunas ao ligar o cliente (camposAoLigarCliente) e os campos dela continuam
+  // editaveis; mudar aqui depois nao muda proposta nenhuma. Vazio = a regra geral (CONDICOES_GERAIS).
+  propostaValidadeDias      Int?
+  /// Uma de FORMAS_DE_PAGAMENTO (src/lib/propostas/regras.js).
+  propostaFormaPagamento    String?
+  /// Texto do PDF depois do resumo do pagamento ("28 dias DDL na conta do Portal FIESC").
+  propostaPagamentoTexto    String?
+  propostaFretePorConta     FreteDaProposta?
+  /// So vale com CIF: o frete entra no preco dos itens.
+  propostaFreteDiluido      Boolean          @default(false)
+  propostaGarantia          String?
+  /// O A/C das propostas: o nome de um contato (o Salvar da proposta liga pelo nome) ou texto livre ("Grupo de Compras").
+  propostaAc                String?
+  propostaMarcaModelo       Boolean          @default(false)
+  propostaAssinar           Boolean          @default(false)
+  propostaFaturamentoMinimo Boolean          @default(false)
+  propostaObservacoes       String?
+  /// Uma por linha; so na tela da proposta, nunca no PDF.
+  propostaExigencias        String?
+  /// Contribuinte de ICMS, igual ao indicadorIe do contato do Bling (1, 2, 9). O `ieIsento` segue gravado por ele.
+  indicadorIe               IndicadorIe?
+  /// Vira o "Para a nota fiscal" (observacoesNf) da proposta.
+  notaFiscalObservacao      String?
+  /// Para onde vai o aviso de rastreio do envio, antes do e-mail do comprador (quem recebe nao e quem compra).
+  emailsRastreio            String[]         @default([])
+  /// Portal de compras do cliente (Portal de Compras FIESC...), onde a 4hobby e fornecedora.
+  portalUrl                 String?
+  portalUsuario             String?
+  /// A senha do portal CIFRADA (cifrar de src/lib/crypto.js, AES-256-GCM). Uma por cliente, por isso nao mora na Conexao
+  /// (uma por servico). Nunca vai ao navegador, ao MCP, ao PDF nem ao Historico: so o "Mostrar" a decifra.
+  portalSenhaCifrada        String?
+  portalObservacao          String?
+
   enderecos       ClienteEndereco[]
   contatos        ClienteContato[]
   /// Vagas de licenca de software entregues a este cliente (Ferramentas > Licencas Softwares).
@@ -1436,6 +1470,14 @@ model Cliente {
   atualizadoEm DateTime @updatedAt
 
   @@index([transportadoraId])
+}
+
+/// Contribuinte de ICMS do cliente (24/11/2026), com os mesmos tres casos do indicadorIe do Bling: 1 contribuinte,
+/// 2 isento de inscricao, 9 nao contribuinte (a FUNPEC, consumidor final).
+enum IndicadorIe {
+  CONTRIBUINTE
+  ISENTO
+  NAO_CONTRIBUINTE
 }
 
 /// Endereco do cliente. Uma linha GERAL e, SO se a entrega for em outro lugar,
@@ -3270,6 +3312,13 @@ model PropostaParaCliente {
   /// O PDF (no Rise e pelo link) sai assinado pelo certificado digital da empresa (17/11/2026, "apenas as marcadas").
   assinarDigitalmente Boolean         @default(false)
   prazoTransporteDias Int?
+  /// Coluna Marca / Modelo no PDF e o "!" do item sem marca (24/11/2026; antes vinha do padrao do cliente).
+  mostrarMarcaModelo       Boolean    @default(false)
+  /// A linha "Faturamento minimo" no PDF (o valor mora em DadosDaEmpresa; antes saia com qualquer padrao).
+  mostrarFaturamentoMinimo Boolean    @default(false)
+  /// O cliente cujas condicoes ja foram aplicadas aqui: o Salvar seguinte nao reaplica e nao desfaz a edicao do operador.
+  /// Texto simples, sem relacao: e so um marcador.
+  condicoesDoClienteId     String?
 
   descontoTipo  TipoDeDesconto?
   descontoValor Decimal         @default(0) @db.Decimal(12, 2)

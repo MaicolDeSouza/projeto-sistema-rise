@@ -49,7 +49,7 @@ Os cinco casos que o desenho implica e que mais podem morder quem usa; cada um t
 
 ---
 
-### Tarefa 1: Banco (colunas novas e cópia dos padrões)
+### Task 1: Banco (colunas novas e cópia dos padrões)
 
 **Arquivos:**
 - Modificar: `prisma/schema.prisma` (`model Cliente` em ~1367, `model PropostaParaCliente` em ~3219, enum novo)
@@ -103,7 +103,7 @@ Expected: as mesmas asserções de antes, 0 falhas.
 
 ---
 
-### Tarefa 2: Regras puras das condições
+### Task 2: Regras puras das condições
 
 **Arquivos:**
 - Modificar: `src/lib/propostas/regras.js` (perto de `camposDoPadrao`, ~396)
@@ -188,7 +188,7 @@ Expected: 0 falhas.
 
 ---
 
-### Tarefa 3: A proposta recebe as condições no servidor, e o PDF lê as caixas da proposta
+### Task 3: A proposta recebe as condições no servidor, e o PDF lê as caixas da proposta
 
 **Arquivos:**
 - Modificar: `src/lib/propostas/esquema.js` (`conferirProposta`, ~79-131)
@@ -264,7 +264,7 @@ Expected: 0 falhas.
 
 ---
 
-### Tarefa 4: Cadastro no servidor (condições, ICMS e senha do portal)
+### Task 4: Cadastro no servidor (condições, ICMS e senha do portal)
 
 **Arquivos:**
 - Criar: `src/lib/clientes/condicoes.js` (puro), `src/lib/clientes/portal.js`
@@ -352,7 +352,7 @@ Expected: 0 falhas nos dois.
 
 ---
 
-### Tarefa 5: Contribuinte de ICMS e e-mails da NF no contato do Bling
+### Task 5: Contribuinte de ICMS e e-mails da NF no contato do Bling
 
 **Arquivos:**
 - Modificar: `src/lib/clientes/condicoes.js` (função nova), `src/lib/propostas/cliente.js` (`enviarClienteAoBling` ~192,
@@ -404,7 +404,7 @@ Expected: 0 falhas.
 
 ---
 
-### Tarefa 6: Tela do cadastro (aba "Condições comerciais")
+### Task 6: Tela do cadastro (aba "Condições comerciais")
 
 **Arquivos:**
 - Modificar: `src/components/cadastros/FormularioCliente.jsx` (`ABAS` ~34, `ABA_DO_CAMPO` ~43, aba Cadastro ~221-300,
@@ -459,7 +459,7 @@ Expected: sem erro nos arquivos tocados.
 
 ---
 
-### Tarefa 7: Tela da proposta
+### Task 7: Tela da proposta
 
 **Arquivos:**
 - Modificar: `src/components/propostas/EditorProposta.jsx` (~47-49, `aplicarPadrao`/`ligarCliente`/`desligarCliente`
@@ -517,7 +517,7 @@ Expected: sem erro nos arquivos tocados.
 
 ---
 
-### Tarefa 8: E-mails do rastreio
+### Task 8: E-mails do rastreio
 
 **Arquivos:**
 - Modificar: `src/lib/frete/envios.js` (`destinatarioDoPedido` ~68, exportada; `select` do `cliente` ~108)
@@ -559,7 +559,7 @@ Expected: 0 falhas.
 
 ---
 
-### Tarefa 9: Retirar os padrões e fechar
+### Task 9: Retirar os padrões e fechar
 
 **Arquivos:**
 - Apagar: `src/app/propostas/padroes/page.jsx`, `src/app/propostas/acoes-padroes.js`,
