@@ -31,6 +31,15 @@ function conferir(nome, obtido, esperado) {
 
 console.log("\nRegras das propostas");
 conferir("numero", regras.numeroDaProposta(2026), "Proposta 2026");
+conferir("nome do PDF", regras.nomeDoPdfDaProposta(2027, "FUNDAÇÃO COPPETEC"), "Proposta comercial 2027 - FUNDACAO COPPETEC.pdf");
+conferir("nome do PDF assinado", regras.nomeDoPdfDaProposta(2027, "Fundação Coppetec", { assinado: true }), "Proposta comercial 2027 - Fundacao Coppetec (assinada).pdf");
+conferir("nome do PDF sem caractere proibido", regras.nomeDoPdfDaProposta(2030, ' Pecas "Sul" / Filial: RS? '), "Proposta comercial 2030 - Pecas Sul Filial RS.pdf");
+conferir("nome do PDF sem cliente", regras.nomeDoPdfDaProposta(2031, ""), "Proposta comercial 2031.pdf");
+conferir(
+  "nome do PDF com cliente longo corta na palavra",
+  regras.nomeDoPdfDaProposta(2032, "FUNDACAO COORDENACAO DE PROJETOS PESQUISAS E ESTUDOS TECNOLOGICOS COPPETEC"),
+  "Proposta comercial 2032 - FUNDACAO COORDENACAO DE PROJETOS PESQUISAS E ESTUDOS.pdf",
+);
 conferir("hoje em SP perto da meia-noite", regras.hojeEmSaoPaulo(new Date("2026-11-13T02:30:00Z")), "2026-11-12");
 conferir("validade padrao 15 dias", regras.validadePadrao("2026-11-25"), "2026-12-10");
 conferir("data BR", regras.dataBR(new Date("2026-11-12T00:00:00Z")), "12/11/2026");
@@ -1067,6 +1076,7 @@ try {
     const respostaDoPdf = await pedirPdf();
     const pdfDoLink = Buffer.from(await respostaDoPdf.arrayBuffer()).toString("latin1");
     conferir("link publico: /pdf da marcada sai assinado", [respostaDoPdf.status, respostaDoPdf.headers.get("content-type"), pdfDoLink.includes("/ByteRange")], [200, "application/pdf", true]);
+    conferir("link publico: nome do PDF assinado", /^attachment; filename="Proposta comercial \d+ - .+ \(assinada\)\.pdf"$/.test(respostaDoPdf.headers.get("content-disposition")), true);
     conferir("link publico: chave errada da 404", (await rotaDoPdfPublico.GET(new Request("https://x/"), { params: Promise.resolve({ chave: "x".repeat(43) }) })).status, 404);
     await prisma.propostaParaCliente.update({ where: { numero: p2.numero }, data: { assinarDigitalmente: false } });
     const { readFileSync: lerCaddy } = await import("node:fs");

@@ -137,6 +137,24 @@ export function numeroDaProposta(numero) {
   return `Proposta ${numero}`;
 }
 
+/**
+ * Nome do arquivo do PDF (pedido do dono em 24/11/2026): "Proposta comercial 2027 - Fundacao Coppetec.pdf", sem acento,
+ * com as maiusculas do cadastro. Sem acento porque e-mail e WhatsApp trocam letra acentuada por "_"; os caracteres que o
+ * Windows recusa em nome de arquivo saem; o nome do cliente para em 60 letras, cortado na palavra.
+ */
+export function nomeDoPdfDaProposta(numero, clienteNome, { assinado = false } = {}) {
+  let cliente = String(clienteNome ?? "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[^\x20-\x7e]/g, "")
+    .replace(/[\\/:*?"<>|]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (cliente.length > 60) cliente = cliente.slice(0, 61).replace(/\s+\S*$/, "") || cliente.slice(0, 60);
+  cliente = cliente.replace(/[\s.]+$/, "");
+  return `Proposta comercial ${numero}${cliente ? ` - ${cliente}` : ""}${assinado ? " (assinada)" : ""}.pdf`;
+}
+
 /** Data de hoje (AAAA-MM-DD) em Sao Paulo: perto da meia-noite o UTC ja e "amanha". */
 export function hojeEmSaoPaulo(agora = new Date()) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: FUSO, year: "numeric", month: "2-digit", day: "2-digit" }).format(agora);

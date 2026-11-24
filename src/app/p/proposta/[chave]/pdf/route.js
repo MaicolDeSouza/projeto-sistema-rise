@@ -1,5 +1,6 @@
 import { propostaPelaChavePublica } from "@/lib/propostas/linkPublico";
 import { pdfParaEnviar } from "@/lib/propostas/pdfParaEnviar";
+import { nomeDoPdfDaProposta } from "@/lib/propostas/regras";
 
 /**
  * O PDF assinado pelo link publico (17/11/2026): a pagina e HTML e nao leva assinatura, entao a proposta marcada "Assinar
@@ -17,7 +18,7 @@ export async function GET(_requisicao, { params }) {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Length": String(bytes.length),
-      "Content-Disposition": `attachment; filename="proposta-${proposta.numero}-assinada.pdf"`,
+      "Content-Disposition": `attachment; filename="${nomeDoPdfDaProposta(proposta.numero, proposta.clienteNome, { assinado: true })}"`,
       "Referrer-Policy": "no-referrer",
       "Cache-Control": "private, no-store",
       "X-Robots-Tag": "noindex, nofollow",
