@@ -73,3 +73,17 @@ export function indicadorIeDoFormulario(campos = {}, tipoPessoa) {
 export function indicadorIeDoBling(indicadorIe) {
   return { CONTRIBUINTE: 1, ISENTO: 2, NAO_CONTRIBUINTE: 9 }[indicadorIe] ?? null;
 }
+
+/**
+ * O que o contato do Bling recebe do fiscal do cliente (24/11/2026): o contribuinte de ICMS e os e-mails da NF, que o Bling
+ * usa ao emitir a nota. So as chaves com valor. Os campos foram LIDOS do Bling (estudo de 04/10/2026) e nunca gravados de
+ * verdade: o separador de varios e-mails ("," ou ";") ainda nao foi medido; o 1o envio real e num contato de teste.
+ */
+export function camposFiscaisDoContato(cliente) {
+  const campos = {};
+  const indicadorIe = indicadorIeDoBling(cliente?.indicadorIe);
+  if (indicadorIe) campos.indicadorIe = indicadorIe;
+  const emails = (cliente?.emailsNotaFiscal ?? []).filter(Boolean);
+  if (emails.length) campos.emailNotaFiscal = emails.join(",");
+  return campos;
+}

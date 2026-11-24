@@ -9,6 +9,7 @@ import { pessoalPreservado } from "@/lib/acessos/projecoes";
 import { indicadorIeDoFormulario, lerCondicoesDoFormulario } from "@/lib/clientes/condicoes";
 import { senhaDoPortalDoCliente, senhaDoPortalParaGravar } from "@/lib/clientes/portal";
 import { prisma } from "@/lib/db";
+import { atualizarFiscalDoContatoNoBling } from "@/lib/propostas/cliente";
 import {
   UFS,
   formatarCep,
@@ -120,6 +121,9 @@ export async function salvarCliente(id, _anterior, formData) {
     });
     if (!atual) return { ok: false, erro: "Este cliente não existe mais. Volte para a lista." };
   }
+
+  // O fiscal de antes (24/11/2026): mudou o ICMS ou os e-mails da NF de quem ja esta no Bling, o contato de la e atualizado.
+  const fiscalAntes = id ? await prisma.cliente.findUnique({ where: { id }, select: { blingContatoId: true, indicadorIe: true, emailsNotaFiscal: true } }) : null;
 
   const campos = lerCampos(formData);
   if (!comPessoal) Object.assign(campos, { documento: atual.documento ?? "", observacoes: atual.observacoes ?? "" });
@@ -274,6 +278,14 @@ export async function salvarCliente(id, _anterior, formData) {
     });
 
     revalidatePath("/cadastros", "layout");
+    const mudouFiscal =
+      fiscalAntes?.blingContatoId &&
+      (fiscalAntes.indicadorIe !== cliente.indicadorIe || JSON.stringify(fiscalAntes.emailsNotaFiscal ?? []) !== JSON.stringify(cliente.emailsNotaFiscal ?? []));
+    if (mudouFiscal) {
+      // Falha do Bling nao desfaz o Salvar: o cadastro do Rise fica, e o aviso diz o que nao foi.
+      const noBling = await atualizarFiscalDoContatoNoBling(cliente.id);
+      if (!noBling.ok) return { ok: true, id: cliente.id, aviso: `Gravado no Rise; o Bling recusou os dados fiscais: ${noBling.erro}` };
+    }
     return { ok: true, id: cliente.id };
   } catch (erro) {
     if (erro?.code === "P2002") {

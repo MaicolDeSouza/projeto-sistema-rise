@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { clienteBling } from "@/lib/blingSync/cliente";
+import { camposFiscaisDoContato } from "@/lib/clientes/condicoes";
 import { exigirTravaLiberada } from "@/lib/integracoes/config";
 import { formatarCep, formatarCnpj, formatarCpf, validarCnpj, validarCpf } from "@/lib/documentos";
 import { telefoneParaGravar } from "@/lib/telefone";
@@ -216,6 +217,8 @@ export async function enviarClienteAoBling(clienteId, { bling = clienteBling(), 
         ...(cliente.inscricaoEstadual ? { ie: cliente.inscricaoEstadual } : {}),
         ...(cliente.telefone ? { celular: cliente.telefone } : {}),
         ...(cliente.email ? { email: cliente.email } : {}),
+        // Contribuinte de ICMS e os e-mails da NF (24/11/2026).
+        ...camposFiscaisDoContato(cliente),
         ...(geral
           ? {
               endereco: {
@@ -245,6 +248,40 @@ export async function enviarClienteAoBling(clienteId, { bling = clienteBling(), 
     }
     await ligarIdDoBling(db, cliente.id, blingContatoId);
     return { ok: true, blingContatoId };
+  } catch (erro) {
+    if (erro instanceof FalhaDoBling) return { ok: false, erro: erro.message };
+    throw erro;
+  }
+}
+
+/**
+ * O contribuinte de ICMS e os e-mails da NF do cliente que JA esta no Bling (24/11/2026): o `enviarClienteAoBling` so cria.
+ * O PUT do Bling substitui o contato inteiro, entao le o contato e devolve ELE INTEIRO com os dois campos trocados (sem o
+ * id, que vai no caminho); igual, nao grava. Nunca medido num contato real: o 1o uso e num contato de teste.
+ */
+export async function atualizarFiscalDoContatoNoBling(clienteId, { bling = clienteBling(), db = prisma, exigirEscrita = escritaDoBling } = {}) {
+  const cliente = await db.cliente.findUnique({ where: { id: clienteId }, select: { blingContatoId: true, indicadorIe: true, emailsNotaFiscal: true } });
+  if (!cliente?.blingContatoId) return { ok: true, mudou: false };
+  try {
+    const lido = (await lerDoBling(bling, `/contatos/${cliente.blingContatoId}`, {}, "a leitura do cliente"))?.dados?.data;
+    if (!lido) return { ok: false, erro: "O Bling não devolveu o contato do cliente." };
+    const fiscais = camposFiscaisDoContato(cliente);
+    const igual = Object.entries(fiscais).every(([campo, valor]) => String(lido[campo] ?? "") === String(valor));
+    if (igual) return { ok: true, mudou: false };
+    try {
+      exigirEscrita();
+    } catch (erro) {
+      return { ok: false, erro: erro.message };
+    }
+    const { id: _id, ...contato } = lido;
+    let resposta;
+    try {
+      resposta = await bling.put(`/contatos/${cliente.blingContatoId}`, { ...contato, ...fiscais });
+    } catch (erro) {
+      return { ok: false, erro: `Falha ao gravar os dados fiscais no Bling: ${erro?.message ?? erro}` };
+    }
+    if (!resposta?.ok) return { ok: false, erro: `O Bling recusou os dados fiscais (HTTP ${resposta?.status ?? "?"}).` };
+    return { ok: true, mudou: true };
   } catch (erro) {
     if (erro instanceof FalhaDoBling) return { ok: false, erro: erro.message };
     throw erro;

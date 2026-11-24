@@ -389,6 +389,47 @@ try {
   const reenvio = await cliente.enviarClienteAoBling(recusa.clienteId, opcoes);
   conferir("Enviar ao Bling depois cria la", [reenvio.ok, Boolean(reenvio.blingContatoId)], [true, true]);
 
+  // Contribuinte de ICMS e e-mails da NF no contato do Bling (24/11/2026): ao criar e ao mudar no cadastro.
+  console.log("\nICMS e e-mails da NF no Bling");
+  const CNPJ_FISCAL = cnpjDeTeste(999990000801);
+  if (await prisma.cliente.findUnique({ where: { documento: cliente.documentoValido(CNPJ_FISCAL).formatado } })) throw new Error("Documento de teste do fiscal já existe: troque a base.");
+  const comFiscal = await prisma.cliente.create({
+    data: {
+      nome: "ZZ Proposta Fiscal",
+      tipoPessoa: "JURIDICA",
+      documento: cliente.documentoValido(CNPJ_FISCAL).formatado,
+      nomeFantasia: "ZZ Fiscal Fantasia",
+      telefone: "54988990077",
+      indicadorIe: "ISENTO",
+      ieIsento: true,
+      emailsNotaFiscal: ["nf1@zz.test"],
+      enderecos: { create: [{ tipo: "GERAL", logradouro: "Rua Fiscal", numero: "7", bairro: "Centro", cep: "95000-000", cidade: "Caxias do Sul", uf: "RS" }] },
+    },
+  });
+  const criadoFiscal = await cliente.enviarClienteAoBling(comFiscal.id, opcoes);
+  const postFiscal = falso.chamadas.filter((c) => c.metodo === "POST" && c.caminho === "/contatos").at(-1);
+  conferir("Bling: o contato novo leva ICMS e e-mail da NF", [criadoFiscal.ok, postFiscal?.corpo?.indicadorIe, postFiscal?.corpo?.emailNotaFiscal], [true, 2, "nf1@zz.test"]);
+  await prisma.cliente.update({ where: { id: comFiscal.id }, data: { indicadorIe: "NAO_CONTRIBUINTE", ieIsento: false, emailsNotaFiscal: ["nf@zz.test", "almox@zz.test"] } });
+  const fiscal = await cliente.atualizarFiscalDoContatoNoBling(comFiscal.id, opcoes);
+  const caminhoDoFiscal = `/contatos/${criadoFiscal.blingContatoId}`;
+  const putFiscal = falso.chamadas.filter((c) => c.metodo === "PUT" && c.caminho === caminhoDoFiscal).at(-1);
+  conferir("Bling: grava ICMS e e-mails da NF", [fiscal, putFiscal?.corpo?.indicadorIe, putFiscal?.corpo?.emailNotaFiscal], [{ ok: true, mudou: true }, 9, "nf@zz.test,almox@zz.test"]);
+  // O PUT do Bling substitui o contato inteiro: o que nao for mandado de volta seria apagado la.
+  conferir(
+    "Bling: o PUT leva o contato inteiro de volta",
+    [putFiscal?.corpo?.fantasia, putFiscal?.corpo?.celular, putFiscal?.corpo?.endereco?.geral?.endereco, putFiscal?.corpo?.numeroDocumento, "id" in (putFiscal?.corpo ?? {})],
+    ["ZZ Fiscal Fantasia", "54988990077", "Rua Fiscal", CNPJ_FISCAL, false],
+  );
+  // O falso registra tambem as leituras: conta so as gravacoes (le o contato para comparar, e nao grava).
+  const gravacoesNoFalso = () => falso.chamadas.filter((c) => c.metodo !== "GET").length;
+  const gravacoesAntes = gravacoesNoFalso();
+  conferir("Bling: igual nao grava de novo", [await cliente.atualizarFiscalDoContatoNoBling(comFiscal.id, opcoes), gravacoesNoFalso()], [{ ok: true, mudou: false }, gravacoesAntes]);
+  await prisma.cliente.update({ where: { id: comFiscal.id }, data: { emailsNotaFiscal: ["outro@zz.test"] } });
+  const travado = await cliente.atualizarFiscalDoContatoNoBling(comFiscal.id, { bling: falso, exigirEscrita: () => { throw new Error("BLING_ESCRITA está false."); } });
+  conferir("Bling: trava fechada nao grava", [travado.ok, /BLING_ESCRITA/.test(travado.erro ?? "")], [false, true]);
+  const semBling = await prisma.cliente.create({ data: { nome: "ZZ Proposta Fiscal Sem Bling", tipoPessoa: "JURIDICA" } });
+  conferir("Bling: cliente fora do Bling nao chama o Bling", await cliente.atualizarFiscalDoContatoNoBling(semBling.id, opcoes), { ok: true, mudou: false });
+
   // -------------------------------------------------------------------------
   // Gravacao, numeracao, situacao e lista
   // -------------------------------------------------------------------------
