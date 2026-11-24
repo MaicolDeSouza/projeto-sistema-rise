@@ -117,11 +117,16 @@ texto aberto) com a mesma cifra.
 
 `PropostaParaCliente.padraoId`, `Cliente.padraoPropostaId` e a tabela `PadraoDeProposta`.
 
-### Migration (uma só, SQL, com backup antes como em todo deploy)
+### Migrations (SQL, com backup antes como em todo deploy)
+
+Duas, para o código continuar rodando entre as tarefas: a 1ª (`20261124_condicoes_do_cliente`) faz os passos 1 a 4; a 2ª
+(`20261124b_sem_padroes_de_proposta`) faz o passo 5, junto com a retirada do código dos padrões. As duas sobem no mesmo
+deploy.
 
 1. Cria as colunas e o enum.
 2. Propostas existentes (para nenhum PDF mudar): `mostrarMarcaModelo = padrao.exigeMarcaModelo`,
-   `mostrarFaturamentoMinimo = (padraoId IS NOT NULL)`, `condicoesDoClienteId = clienteId`.
+   `mostrarFaturamentoMinimo = (padraoId IS NOT NULL)`, e `condicoesDoClienteId = clienteId` só nas propostas cujo cliente
+   recebe condições no passo 3 (assim o Salvar seguinte não reaplica por cima do que foi enviado).
 3. Cada padrão que não é o "Cliente comum" vai para os clientes ligados a ele (`padraoPropostaId`): validade, forma, texto,
    frete, garantia, observações, exigências, `exigeMarcaModelo` → `propostaMarcaModelo`, `assinarDigitalmente` →
    `propostaAssinar`, e `propostaFaturamentoMinimo = true` (era o comportamento de todo cliente com padrão).
@@ -136,7 +141,8 @@ Compras – FUNPEC", frete diluído e assinatura.
 
 - `CONDICOES_GERAIS`: validade 15 dias, frete `A_COMBINAR`, garantia "90 dias", textos vazios, caixas desmarcadas. É o
   "Cliente comum" de hoje, que deixa de ser linha do banco.
-- `temCondicoes(cliente)`: verdadeiro se o cliente tem **qualquer** coluna `proposta*` preenchida ou marcada. Transportadora e
+- `temCondicoes(cliente)`: verdadeiro se o cliente tem **qualquer** coluna `proposta*` preenchida ou marcada, ou a
+  `notaFiscalObservacao` (senão o cliente que só tem a observação da NF nunca a levaria à proposta). Transportadora e
   condição preferida **não contam**: muitos clientes de hoje só têm uma delas, e contá-las faria a regra geral apagar o que o
   operador já pôs na proposta desses clientes.
 - Cliente **sem** condições segue a regra de hoje: transportadora e 1ª condição preferida só preenchem o campo vazio.
@@ -152,10 +158,18 @@ Compras – FUNPEC", frete diluído e assinatura.
 
 ## Quando as condições entram
 
-**Regra única, na tela e no servidor:** a proposta recebe as condições quando liga a um cliente **diferente** do
-`condicoesDoClienteId` dela **e** o cliente `temCondicoes`. Cliente sem condições (recém-criado, por exemplo) só marca o
-`condicoesDoClienteId` e não mexe em nada. Depois disso o operador edita à vontade, e nada reaplica enquanto o cliente for o
-mesmo.
+**Regra única, na tela e no servidor (`camposAoLigarCliente`):**
+
+- Cliente que `temCondicoes` e é **diferente** do `condicoesDoClienteId` da proposta: aplica as condições dele e grava
+  `condicoesDoClienteId` = ele.
+- Cliente **sem** condições e a proposta com `condicoesDoClienteId` de outro cliente (os campos vieram do cadastro dele):
+  volta os campos à `CONDICOES_GERAIS` e limpa o `condicoesDoClienteId`. Sem isso, trocar do SENAI SC para outro cliente
+  deixaria o "28 dias na conta da FIESC" na proposta.
+- Cliente sem condições e a proposta sem `condicoesDoClienteId`: não mexe em nada (o cliente recém-criado pela proposta
+  cai aqui).
+- `condicoesDoClienteId` só é gravado quando condições foram de fato aplicadas, então o selo e a regra leem o mesmo dado.
+
+Depois disso o operador edita à vontade, e nada reaplica enquanto o cliente for o mesmo.
 
 - **Busca (Rise ou Bling):** `ligarCliente` aplica `condicoesDoCliente` por cima do formulário. O `clienteParaProposta`
   (em `app/propostas/acoes.js`) passa a trazer as colunas `proposta*`, `notaFiscalObservacao`, `transportadoraId` e a 1ª
@@ -167,7 +181,10 @@ mesmo.
   **e** do que a entrada mandou, e o cliente `temCondicoes`, o servidor aplica `condicoesDoCliente` sobre os campos
   comerciais da entrada. A tela manda o `condicoesDoClienteId` que já aplicou, então o servidor não reaplica o que a tela fez.
   Script que quer valores diferentes do cadastro salva uma vez (recebe as condições) e salva de novo com o que muda.
-- **Desligar o cliente:** os campos ficam como estão e o `condicoesDoClienteId` é limpo.
+- **Desligar o cliente:** os campos e o `condicoesDoClienteId` ficam como estão (o selo some, porque não há cliente ligado);
+  ligar depois um cliente sem condições volta os campos à regra geral, pela regra acima.
+- O "preencher transportadora e condição vazias" de hoje fica **só na tela**: no servidor ele repreencheria a cada Salvar o
+  campo que o operador esvaziou de propósito.
 - Proposta em situação só leitura nunca recebe nada (como hoje).
 
 ## Telas
