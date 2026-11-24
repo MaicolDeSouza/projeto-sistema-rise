@@ -99,6 +99,8 @@ try {
     conferir("sem protocolo barra", f("acesse www.4hobby.com.br").barrados[0]?.motivo, "link");
     conferir("dominio solto barra", f("procure 4hobby.com.br no navegador").barrados[0]?.motivo, "link");
     conferir("encurtado barra", f("bit.ly/abc").barrados[0]?.motivo, "link");
+    conferir("dominio de terminacao incomum, com caminho ou sem, barra", [f("veja loja.xyz/produto-1").ok, f("mais em arduino.cc").ok, f("minhaloja.tech").ok], [false, false, false]);
+    conferir("nome de arquivo e versao nao viram link", f("Grave o sketch.ino pelo Node.js 20.1, firmware v1.2.3, pino D1.5").ok, true);
     conferir("http do ML barra (so https)", f("http://www.mercadolivre.com.br/p/MLB1").ok, false);
     conferir("IA: link do ML fora da troca barra", f("https://www.mercadolivre.com.br/p/MLB1", "IA").ok, false);
     conferir("IA: link da troca passa", f(`Temos: ${URL_KIT}`, "IA", { linksDaTroca: [URL_KIT] }).ok, true);

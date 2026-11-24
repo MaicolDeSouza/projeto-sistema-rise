@@ -17,7 +17,9 @@ const COM_PROTOCOLO = /\b[a-z][a-z0-9+.-]*:\/\/[^\s<>"']+/gi;
 const COM_WWW = /(?<![\w@./-])www\.[^\s<>"']+/gi;
 // Dominio solto ("4hobby.com.br", "bit.ly/abc"): so com terminacao de site, para "v2.0" e "12.5V" nao virarem link.
 const DOMINIO_SOLTO =
-  /(?<![\w@./-])[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)*\.(?:com|net|org|br|io|ly|me|app|shop|store|link|site|online|info|gg|tv|co|gl|to|page|dev)(?:\.[a-z]{2})?(?![\w-])(?:\/[^\s<>"']*)?/gi;
+  /(?<![\w@./-])[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)*\.(?:com|net|org|br|io|ly|me|app|shop|store|link|site|online|info|gg|tv|co|gl|to|page|dev|xyz|top|club|biz|cc|ws|vip|art|tech|ai|us|ar|pt|es|loja)(?:\.[a-z]{2})?(?![\w-])(?:\/[^\s<>"']*)?/gi;
+// Qualquer "nome.algo/caminho" (terminacao que a lista acima nao conhece): o caminho depois da barra denuncia o endereco.
+const DOMINIO_COM_CAMINHO = /(?<![\w@./-])[a-z0-9][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)+\/[^\s<>"']+/gi;
 
 const PADRAO_DO_TIPO = {
   email: /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/,
@@ -43,7 +45,7 @@ export function linkDoMercadoLivre(url) {
 /** Os enderecos do texto, na ordem em que aparecem, sem repetir o mesmo trecho achado por dois padroes. */
 function enderecosDo(texto) {
   const achados = [];
-  for (const padrao of [COM_PROTOCOLO, COM_WWW, DOMINIO_SOLTO]) {
+  for (const padrao of [COM_PROTOCOLO, COM_WWW, DOMINIO_SOLTO, DOMINIO_COM_CAMINHO]) {
     for (const casou of texto.matchAll(padrao)) {
       const trecho = semPontuacaoNoFim(casou[0]);
       const inicio = casou.index;
