@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { codigoDaComposicao, custoDaComposicao, errosDaComposicao } from "@/lib/canaisDeVenda/composicao";
 import { completarFichaPelaDescricao, problemasDosAtributos } from "@/lib/canaisDeVenda/ml/atributos";
-import { contextoDosProdutos, carregarAnuncioML, novoRascunhoML, salvarRascunhoML } from "@/lib/canaisDeVenda/ml/banco";
+import { contextoDosProdutos, carregarAnuncioML, novoRascunhoML, salvarPublicadoML, salvarRascunhoML } from "@/lib/canaisDeVenda/ml/banco";
 import { catalogosDosMeusAnuncios, lerPrimeiroDoCatalogo, sugerirCatalogos } from "@/lib/canaisDeVenda/ml/catalogo";
 import { eanDoKit } from "@/lib/canaisDeVenda/ml/eanDoKit";
 import { LIMITE_DO_PREMIUM, REGRAS_DAS_VARIANTES, ROTULO_DA_VARIANTE, rascunhoDaVariante, varianteDoRascunho } from "@/lib/canaisDeVenda/ml/faixas";
@@ -291,8 +291,15 @@ export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, quan
   const jaPublicado = preco.variante ? await publicadoDaVariante(produto.id, kit, preco.variante) : null;
   let anuncioId = null;
   let propostaDoClassico = null;
+  // O que a proposta marca no editor: no rascunho, tudo o que ela preencheu; no publicado, so a ficha (o resto nao foi mexido).
+  let marcas = { campos, sugestoes, valores };
   if (jaPublicado) {
     avisos.unshift(`O ${ROTULO_DA_VARIANTE[preco.variante] ?? preco.variante} deste produto já está no Rise (${jaPublicado.idExterno ?? jaPublicado.id}): a proposta não criou outro.`);
+    const naFicha = await fichaNoPublicado(jaPublicado.id, { categoriaId: propostos.categoriaId, ficha, avisos });
+    if (naFicha) {
+      anuncioId = jaPublicado.id;
+      marcas = naFicha;
+    }
   } else {
     const salvo = await salvarRascunhoML(existente?.id ?? null, segunda.rascunho);
     if (!salvo.ok) throw new ErroDeFerramenta(`O rascunho do Mercado Livre não foi gravado: ${salvo.erro}`);
@@ -307,7 +314,7 @@ export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, quan
       : null;
 
   if (anuncioId) {
-    propostaDoClassico = montarProposta({ versaoDoRoteiro: VERSAO_ROTEIRO_ML, campos, sugestoes, valores, relatorio, extras: { avisos, catalogosSugeridos: aceitos, links, preco: doPreco(preco) } });
+    propostaDoClassico = montarProposta({ versaoDoRoteiro: VERSAO_ROTEIRO_ML, ...marcas, relatorio, extras: { avisos, catalogosSugeridos: aceitos, links, preco: doPreco(preco) } });
     await gravarProposta(anuncioId, propostaDoClassico);
   }
   return {
@@ -322,6 +329,35 @@ export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, quan
     catalogosSugeridos: aceitos,
     avisos,
   };
+}
+
+/**
+ * A ficha da proposta no anuncio que ja esta no Rise publicado na variante (pedido do dono em 24/11/2026: "quando mando criar
+ * proposta no ML e um anuncio e reutilizado, nao esta sendo preenchida a aba de descricao tecnica"). O reaproveitado nasce so
+ * com a marca e o modelo do produto, e a proposta pulava ele inteiro. Agora: os atributos vazios recebem o da proposta e os
+ * preenchidos com outro valor viram sugestao (`aplicarProposta`); grava pelo Salvar do publicado (so a ficha, o preco fica o
+ * mesmo), que acende o "!" da ficha. Nada vai ao ML: o dono confere e usa o Enviar mudancas. Outra categoria: so o aviso,
+ * porque a ficha e da categoria da proposta. Devolve as marcas da proposta, ou null quando nada foi gravado.
+ */
+async function fichaNoPublicado(anuncioId, { categoriaId, ficha, avisos }) {
+  if (Object.keys(ficha).length === 0) return null;
+  const carregado = await carregarAnuncioML(anuncioId);
+  if (!carregado.ok) {
+    avisos.push(`A ficha não foi aplicada no anúncio já publicado: ${carregado.erro}`);
+    return null;
+  }
+  const publicado = carregado.rascunho;
+  const categoriaDoPublicado = String(publicado.categoriaId ?? "").trim();
+  if (categoriaDoPublicado && categoriaDoPublicado !== categoriaId) {
+    avisos.push(`O anúncio já publicado está na categoria ${categoriaDoPublicado} e a proposta na ${categoriaId}: a ficha não foi aplicada nele.`);
+    return null;
+  }
+  const aplicado = aplicarProposta(publicado, Object.fromEntries(Object.entries(ficha).map(([id, valor]) => [`atributos.${id}`, valor])));
+  if (aplicado.campos.length > 0) {
+    const salvo = await salvarPublicadoML(anuncioId, { preco: Number(publicado.preco), atributos: aplicado.rascunho.atributos });
+    if (!salvo.ok) throw new ErroDeFerramenta(`A ficha do anúncio já publicado não foi gravada: ${salvo.erro}`);
+  }
+  return { campos: aplicado.campos, sugestoes: aplicado.sugestoes, valores: aplicado.valores };
 }
 
 /** O anuncio do produto, do mesmo formato, que ja esta no ML (publicado, publicando ou com item criado) na `variante`. */

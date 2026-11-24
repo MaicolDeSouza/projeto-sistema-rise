@@ -3571,7 +3571,8 @@ try {
     await prisma.anuncio.update({ where: { id: classicoPA11.id }, data: { status: "PUBLICADO", idExterno: "MLB5550099", dados: { ...classicoPA11.dados, publicacao: { itemId: "MLB5550099" } } } });
     const soPremium = await gravarPropostaML(ml(), "ZZ-ML-PA11", { categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] });
     const depois = await prisma.anuncio.findMany({ where: { produtoId: produtoPA11.id, canal: "MERCADO_LIVRE" }, select: { dados: true, status: true } });
-    conferir("ja publicado na variante: nao cria outro Classico, avisa e atualiza o Premium", [soPremium.anuncioId, soPremium.avisos.some((aviso) => /MLB5550099/.test(aviso) && /já/.test(aviso)), depois.length, Boolean(soPremium.premium?.anuncioId)], [null, true, 2, true]);
+    // Desde 24/11/2026 a ficha da proposta vai para o publicado, e o anuncioId devolvido e o dele (nao um novo).
+    conferir("ja publicado na variante: nao cria outro Classico, avisa e atualiza o Premium", [soPremium.anuncioId, soPremium.avisos.some((aviso) => /MLB5550099/.test(aviso) && /já/.test(aviso)), depois.length, Boolean(soPremium.premium?.anuncioId)], [classicoPA11.id, true, 2, true]);
 
     // A conta ja tem anuncio do codigo fora do Rise: a proposta avisa (com o MLB) e devolve a lista, para o dono reaproveitar
     // em vez de publicar outro igual.
@@ -3580,6 +3581,20 @@ try {
     const comAntigo = await gravarPropostaML(ml({ meusItens: { "ZZ-ML-PA10": [naConta] } }), "ZZ-ML-PA10", { categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] });
     conferir("proposta: a conta ja tem anuncio do codigo fora do Rise, avisa com o MLB e devolve a lista", [comAntigo.avisos.some((aviso) => /MLB5550001/.test(aviso) && /Reaproveit/i.test(aviso)), comAntigo.anunciosNaConta?.map((c) => c.id)], [true, ["MLB5550001"]]);
     conferir("proposta: sem anuncio na conta, nada a avisar", [gravada.avisos.some((aviso) => /fora do Rise/.test(aviso)), gravada.anunciosNaConta], [false, []]);
+    // Reaproveitado e DEPOIS a proposta (dono, 24/11/2026: "quando mando criar proposta no ML e um anuncio e reutilizado, nao
+    // esta sendo preenchida a aba de descricao tecnica"): a proposta nao cria outro anuncio, mas a ficha chega no reaproveitado,
+    // que ganha a proposta (as marcas e o relatorio no editor) e o "!" da ficha. Nada vai ao ML.
+    const { reaproveitarAnuncioML: reaproveitarML } = await import("../src/lib/canaisDeVenda/ml/reaproveitar.js");
+    const mlDaConta = ml({ meusItens: { "ZZ-ML-PA10": [naConta] } });
+    const adotado = await reaproveitarML((await prisma.produto.findUnique({ where: { sku: "ZZ-ML-PA10" } })).id, "MLB5550001", { ml: mlDaConta });
+    const sobreOAdotado = await gravarPropostaML(mlDaConta, "ZZ-ML-PA10", { categoriaId: "MLB99779", atributos: { ...ATRIBUTOS, MICROCONTROLLER: "ATmega328P" }, catalogos: [], relatorio: "- reaproveitado" });
+    const adotadoDepois = await prisma.anuncio.findUnique({ where: { id: adotado.anuncioId } });
+    const abertoDepois = await carregarAnuncioML(adotado.anuncioId);
+    conferir(
+      "proposta sobre o reaproveitado: a ficha chega nele, com a proposta e o '!' da ficha, sem outro anuncio e sem escrever no ML",
+      [adotado.ok, sobreOAdotado.anuncioId, adotadoDepois.status, adotadoDepois.atributos?.BRAND, adotadoDepois.atributos?.MODEL, adotadoDepois.atributos?.MICROCONTROLLER, adotadoDepois.dados?.proposta?.relatorio, abertoDepois.mudancas?.partes?.includes("ficha"), await prisma.anuncio.count({ where: { status: "PUBLICADO", produto: { sku: "ZZ-ML-PA10" } } }), mlDaConta.escritas.length],
+      [true, adotado.anuncioId, "PUBLICADO", "ARDUINO", "UNO R3", "ATmega328P", "- reaproveitado", true, 1, 0],
+    );
     conferir("titulo: o da LLM é ignorado e avisado, sem marca de proposta no campo", [gravada.titulo, gravada.avisos.some((a) => /título enviado foi ignorado/.test(a)), gravada.campos.includes("titulo")], ["PLACA UNO R3 CH340 ZZ", true, false]);
     conferir("GTIN e o motivo mandados pela LLM ficam fora", [anuncio.atributos.GTIN ?? null, anuncio.atributos.EMPTY_GTIN_REASON ?? null], [null, null]);
     conferir("catálogos: só os de 5 ou mais anúncios, o de 4 avisado", [gravada.catalogosSugeridos.map((c) => c.catalogoId), gravada.avisos.some((a) => /MLBP4/.test(a) && /menos de 5/.test(a))], [["MLBP9", "MLBP6"], true]);
