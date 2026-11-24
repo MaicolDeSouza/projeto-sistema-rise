@@ -36,6 +36,11 @@ export function criarMlPerguntasFalso({ vendedorId = "212386247" } = {}) {
       const limit = Number(params.limit ?? 50);
       return resposta(200, { total: lista.length, limit, questions: lista.slice(offset, offset + limit) });
     }
+    // O multiget (`GET /items?ids=a,b`): uma entrada por id, na ordem pedida, com `code` e `body`.
+    if (caminho === "/items") {
+      const ids = String(params.ids ?? "").split(",").map((id) => id.trim()).filter(Boolean);
+      return resposta(200, ids.map((id) => (itens.has(id) ? { code: 200, body: itens.get(id).dados } : { code: 404, body: { id, message: "Item not found" } })));
+    }
     let casou = /^\/questions\/([^/]+)$/.exec(caminho);
     if (casou) {
       const pergunta = perguntas.get(casou[1]);

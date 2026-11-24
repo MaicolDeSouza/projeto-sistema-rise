@@ -17,7 +17,7 @@ const ORDENAVEIS = new Set(["recebidaEm", "status", "itemId", "textoDoCliente", 
 
 /** O limite de caracteres da resposta de pergunta (Rise AI › Configuracoes; 2000 quando nao configurado). */
 export async function limiteDaPergunta() {
-  const linha = await prisma.configuracaoIA.findFirst({ select: { dados: true } }).catch(() => null);
+  const linha = await prisma.configuracaoIA.findUnique({ where: { id: "unica" }, select: { dados: true } }).catch(() => null);
   const valor = Number(linha?.dados?.atendimentoML?.limiteDaPergunta);
   return Number.isInteger(valor) && valor >= LIMITE_MINIMO && valor <= LIMITE_MAXIMO ? valor : LIMITE_PADRAO_DA_PERGUNTA;
 }
@@ -41,9 +41,9 @@ export async function linksDosAnunciosDoProduto(produtoId) {
 async function anunciosDasLinhas(linhas) {
   const ids = [...new Set(linhas.map((l) => l.anuncioId).filter(Boolean))];
   if (ids.length === 0) return new Map();
-  const anuncios = await prisma.anuncio.findMany({ where: { id: { in: ids } }, select: { id: true, titulo: true, idExterno: true, dados: true, urlExterna: true, produto: { select: { id: true, sku: true, nome: true } } } });
+  const anuncios = await prisma.anuncio.findMany({ where: { id: { in: ids } }, select: { id: true, titulo: true, idExterno: true, dados: true, urlExterna: true, produto: { select: { id: true, sku: true, tituloBase: true } } } });
   return new Map(
-    anuncios.map((a) => [a.id, { titulo: a.titulo || a.produto?.nome || "", itemId: a.idExterno, url: a.urlExterna, sku: a.produto?.sku ?? null, produtoId: a.produto?.id ?? null, unidadesDoKit: unidadesDoKitDoAnuncio(a.dados) }]),
+    anuncios.map((a) => [a.id, { titulo: a.titulo || a.produto?.tituloBase || "", itemId: a.idExterno, url: a.urlExterna, sku: a.produto?.sku ?? null, produtoId: a.produto?.id ?? null, unidadesDoKit: unidadesDoKitDoAnuncio(a.dados) }]),
   );
 }
 

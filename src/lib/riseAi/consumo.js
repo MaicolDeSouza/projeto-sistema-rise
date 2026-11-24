@@ -78,7 +78,7 @@ export async function consumoPorDia({ de, ate }) {
   }));
 }
 
-const TIPOS_DE_GASTO = ["TRANSCRICAO", "EMBEDDING", "BUSCA"];
+const TIPOS_DE_GASTO = ["TRANSCRICAO", "EMBEDDING", "BUSCA", "ATENDIMENTO_ML"];
 
 /**
  * O que o período gastou fora das respostas do chat (`GastoIA`: pesquisa na internet, transcrição, embeddings), por dia de

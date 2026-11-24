@@ -1052,6 +1052,8 @@ enum TipoDeGastoIA {
   BUSCA
   /// O custo de uma resposta da IA a um cliente (chat da loja): o orcamento CLIENTES soma so GastoIA.
   CONVERSA
+  /// A sugestao de resposta a uma pergunta do Mercado Livre (Atendimento do ML, 24/11/2026), no escopo INTERNO.
+  ATENDIMENTO_ML
 }
 
 enum EscopoDeGastoIA {

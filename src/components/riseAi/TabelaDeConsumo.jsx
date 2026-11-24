@@ -16,7 +16,7 @@ const CABECALHOS = [
   { rotulo: "Sem resultado", ajuda: "A busca no catálogo não achou produto." },
 ];
 
-const TIPOS_DE_OUTROS = { BUSCA: "Pesquisa na internet", TRANSCRICAO: "Transcrição de áudio", EMBEDDING: "Embeddings" };
+const TIPOS_DE_OUTROS = { BUSCA: "Pesquisa na internet", TRANSCRICAO: "Transcrição de áudio", EMBEDDING: "Embeddings", ATENDIMENTO_ML: "Atendimento ML" };
 
 /** O gasto "Outros" do dia, com o detalhe por tipo no mouse; `null` (a linha não é a primeira do dia, ou não houve gasto) fica em branco. */
 function Outros({ gasto }) {

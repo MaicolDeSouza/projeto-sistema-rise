@@ -55,6 +55,9 @@ export function configuracaoPadrao(ambiente) {
     telegram: telegramPadrao(),
     // O chat da loja (o Hobi, 19/11/2026): nasce desligado, com os limites de fabrica. Quem o le e o servico `ia`.
     chatDaLoja: chatDaLojaPadrao(),
+    // O Atendimento do ML (24/11/2026): o estilo que o dono quer nas sugestoes de resposta e o limite de caracteres da
+    // resposta de pergunta (o ML nao publica o limite na documentacao: 2000 e o padrao, ajustavel aqui).
+    atendimentoML: { prompt: "", limiteDaPergunta: 2000 },
   };
 }
 
@@ -105,6 +108,10 @@ const EsquemaDaConfiguracao = z.object({
     avisos: z.object(Object.fromEntries(TIPOS_DE_AVISO.map((tipo) => [tipo, z.boolean({ message: "Use ligado ou desligado." })]))),
   }),
   chatDaLoja: EsquemaDoChatDaLoja,
+  atendimentoML: z.object({
+    prompt: z.string().max(4000, "O prompt do ML passa de 4.000 caracteres."),
+    limiteDaPergunta: inteiro(100, 2000, "Limite da resposta de pergunta"),
+  }),
 });
 
 /** @returns {{ ok: true, dados: object } | { ok: false, erros: Record<string, string> }} */

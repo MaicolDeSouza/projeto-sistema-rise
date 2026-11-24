@@ -2657,8 +2657,8 @@ try {
       "gastos Outros por dia de Sao Paulo, por tipo, do mais recente ao mais antigo, sem outros meses",
       outros.map((dia) => [dia.dia, dia.brl, dia.usd, dia.porTipo]),
       [
-        ["2025-10-02", 0.2, 0.04, { TRANSCRICAO: 0.2, EMBEDDING: 0, BUSCA: 0 }],
-        ["2025-10-01", 0.1709, 0.03015, { TRANSCRICAO: 0, EMBEDDING: 0.05, BUSCA: 0.1209 }],
+        ["2025-10-02", 0.2, 0.04, { TRANSCRICAO: 0.2, EMBEDDING: 0, BUSCA: 0, ATENDIMENTO_ML: 0 }],
+        ["2025-10-01", 0.1709, 0.03015, { TRANSCRICAO: 0, EMBEDDING: 0.05, BUSCA: 0.1209, ATENDIMENTO_ML: 0 }],
       ],
     );
     conferir("sem gasto no periodo: lista vazia", await gastosOutrosPorDia({ de: "2020-01-01", ate: "2020-01-02" }), []);
