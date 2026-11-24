@@ -81,7 +81,8 @@
     "teste:analise-fornecedor": "node scripts/teste-analise-fornecedor.js",
     "aliexpress:recalcular": "node scripts/aliexpress-recalcular.js",
     "teste:propostas": "node scripts/teste-propostas.js",
-    "teste:frete": "node scripts/teste-frete.js"
+    "teste:frete": "node scripts/teste-frete.js",
+    "teste:atendimento-ml": "node scripts/teste-atendimento-ml.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",

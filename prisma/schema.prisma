@@ -3688,3 +3688,87 @@ model ReclamacaoML {
   @@index([abertaEm])
   @@index([devolucaoPostadaEm])
 }
+
+// ---------------------------------------------------------------------------
+// Atendimento do Mercado Livre (spec 2026-11-24-atendimento-ml-design.md)
+// ---------------------------------------------------------------------------
+
+enum TipoDeAtendimentoML {
+  PERGUNTA
+  POS_VENDA
+  RECLAMACAO
+}
+
+enum StatusDoAtendimentoML {
+  ABERTA
+  RESPONDIDA
+  IGNORADA
+  FECHADA_FORA
+}
+
+/// Uma pergunta de anuncio do ML (fase 1) e, nas fases 2 e 3, uma conversa de pos-venda ou de reclamacao. O dono le,
+/// redige (com a sugestao da IA so quando pede) e aprova; so entao o Rise publica no ML, uma unica vez (`enviandoDesde`).
+model AtendimentoML {
+  id        String              @id @default(cuid())
+  tipo      TipoDeAtendimentoML
+  /// O id no ML (da pergunta, do pack ou da reclamacao).
+  idExterno String
+
+  /// O anuncio perguntado (MLB) e, quando o Rise o conhece, o Anuncio e o Produto. Sem chave estrangeira: apagar o
+  /// anuncio nao apaga a pergunta.
+  itemId    String?
+  anuncioId String?
+  produtoId String?
+
+  textoDoCliente String
+  /// UNANSWERED, ANSWERED, BANNED, CLOSED_UNANSWERED, DELETED, DISABLED, UNDER_REVIEW.
+  situacaoNoML   String
+  recebidaEm     DateTime
+
+  status StatusDoAtendimentoML @default(ABERTA)
+
+  rascunho       String?
+  /// IA | MANUAL | IA_EDITADA.
+  rascunhoOrigem String?
+  rascunhoEm     DateTime?
+
+  /// A trava do envio unico: so quem a marcou envia. Solta no erro; mais velha que 2 min e tratada como solta.
+  enviandoDesde   DateTime?
+  respostaEnviada String?
+  respondidaEm    DateTime?
+  respondidaPor   String?
+  /// RISE | TELEGRAM | MCP | ML (respondida fora do Rise).
+  respondidaVia   String?
+  erroDoEnvio     String?
+
+  /// O aviso no Telegram (para editar quando a pergunta fecha) e o pedido "Escreva a resposta" em aberto.
+  telegramChatId     String?
+  telegramMensagemId Int?
+  telegramPedidoId   Int?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@unique([tipo, idExterno])
+  @@index([tipo, status, recebidaEm])
+}
+
+/// Ate onde o worker ja leu as atualizacoes do bot (`getUpdates`). Uma linha so, id "bot".
+model EstadoDoBotTelegram {
+  id           String   @id
+  offset       Int      @default(0)
+  atualizadoEm DateTime @updatedAt
+}
+
+/// Um `/vincular CODIGO` recebido pelo bot. Desde que o worker le as atualizacoes, a tela "Conferir vinculo" consulta
+/// estas linhas em vez de ler o Telegram. So o SHA-256 do codigo digitado e guardado.
+model ComandoDeVinculoTelegram {
+  updateId   Int      @id
+  chatId     String
+  nome       String
+  usuario    String?
+  codigoHash String
+  recebidoEm DateTime
+
+  @@index([recebidoEm])
+}
