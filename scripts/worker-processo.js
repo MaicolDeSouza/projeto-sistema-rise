@@ -65,6 +65,7 @@ const { recalcularPecasDosPedidosAbertos } = await import("../src/lib/pedidos/ba
 const { lerComprasDoML } = await import("../src/lib/compras/mercadoLivre/compras.js");
 const { rodarRastreioDasCompras } = await import("../src/lib/compras/rastreioJT/banco.js");
 const { lerReclamacoesML } = await import("../src/lib/pedidos/reclamacoesML.js");
+const { rodarAtendimentoML, ATENDIMENTO_ML_MS } = await import("../src/lib/atendimentoML/perguntas.js");
 const { vencerPropostas } = await import("../src/lib/propostas/banco.js");
 const { rodarRastreioDosEnvios } = await import("../src/lib/frete/rastreio.js");
 const { lerEGravarSaldo } = await import("../src/lib/frete/saldo.js");
@@ -95,6 +96,9 @@ const LER_COMPRAS_ML_MS = 30 * 60 * 1000;
 /// Reclamacoes do Mercado Livre (20/11/2026): a cada 15 min; a mediacao aberta tira a venda do faturamento e avisa.
 const LER_RECLAMACOES_ML_MS = 15 * 60 * 1000;
 let reclamacoesMLLidasEm = 0;
+/// As perguntas dos anuncios do ML (24/11/2026, Atendimento do ML): a notificacao traz a pergunta em segundos (fila
+/// abaixo); esta rotina, a cada 5 min, e a rede de seguranca e fecha a que foi respondida pelo app do ML. So LEITURA.
+let atendimentoMLLidoEm = 0;
 let comprasMLLidasEm = 0;
 /// O rastreio dos envios comprados pelo Rise (modulo de frete, fase 2): a cada 15 min, como na spec (sem webhook).
 const RASTREIO_DOS_ENVIOS_MS = 15 * 60 * 1000;
@@ -657,6 +661,12 @@ async function laco() {
         saldoDoFreteLidoEm = Date.now();
         const lido = await lerEGravarSaldo();
         if (lido.ok && lido.baixoDesde) log(`frete: saldo do Melhor Envio R$${lido.saldo} abaixo do limite R$${lido.limite}`);
+      }
+      // `rodarAtendimentoML` nunca lanca: ML fora do ar vira linha vermelha na Saude e a proxima volta tenta de novo.
+      if (!FONTES && !SO_NO_PC && Date.now() - atendimentoMLLidoEm >= ATENDIMENTO_ML_MS) {
+        atendimentoMLLidoEm = Date.now();
+        const atendimento = await rodarRotina("atendimentoML", ATENDIMENTO_ML_MS, () => rodarAtendimentoML());
+        if (atendimento?.novas || atendimento?.fechadas) log(`perguntas do ML: ${atendimento.novas} nova(s), ${atendimento.fechadas} fechada(s) fora do Rise`);
       }
       // A fila dos webhooks (fase 2): a cada volta, para a venda nova aparecer em segundos e nao em ate 5 min. A linha
       // que falha conta tentativa e desiste na 5a; a rotina acima continua cobrindo o pedido.

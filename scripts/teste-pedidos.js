@@ -1006,7 +1006,7 @@ try {
     conferir("webhook ML valido", conferirNotificacao({ origem: "MERCADO_LIVRE", corpoTexto: corpoML, headers: new Headers(), segredos: seg }).recurso, "/orders/2000000001");
     conferir("webhook ML de outra conta", conferirNotificacao({ origem: "MERCADO_LIVRE", corpoTexto: corpoML.replace("212386247", "999"), headers: new Headers(), segredos: seg }).status, 401);
     conferir("webhook ML de outro app", conferirNotificacao({ origem: "MERCADO_LIVRE", corpoTexto: corpoML.replace('"application_id":123', '"application_id":9'), headers: new Headers(), segredos: seg }).status, 401);
-    conferir("webhook ML de outro topico e ignorado", conferirNotificacao({ origem: "MERCADO_LIVRE", corpoTexto: corpoML.replace("orders_v2", "questions"), headers: new Headers(), segredos: seg }).recurso, null);
+    conferir("webhook ML de outro topico e ignorado", conferirNotificacao({ origem: "MERCADO_LIVRE", corpoTexto: corpoML.replace("orders_v2", "items"), headers: new Headers(), segredos: seg }).recurso, null);
     const corpoBling = JSON.stringify({ event: "order.updated", companyId: "x", data: { id: 7002 } });
     const assinatura = "sha256=" + createHmac("sha256", "segredo-zz").update(corpoBling).digest("hex");
     conferir("webhook Bling assinado", conferirNotificacao({ origem: "BLING", corpoTexto: corpoBling, headers: new Headers({ "x-bling-signature-256": assinatura }), segredos: seg }).recurso, "order.updated:7002");

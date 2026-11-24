@@ -16,7 +16,8 @@ import { config } from "@/lib/integracoes/config";
 
 export const ORIGEM_DA_ROTA = { "mercado-livre": "MERCADO_LIVRE", "loja-integrada": "LOJA_INTEGRADA", bling: "BLING" };
 
-const TOPICOS_DO_ML = new Set(["orders_v2", "shipments"]);
+// `questions` (24/11/2026): as perguntas dos anuncios, lidas pelo Atendimento do ML (`/questions/{id}`).
+const TOPICOS_DO_ML = new Set(["orders_v2", "shipments", "questions"]);
 const HEADERS_DO_TOKEN_DA_LI = ["token", "x-token", "x-webhook-token", "authorization", "x-li-token"];
 
 const recusa = (erro) => ({ ok: false, status: 401, erro });

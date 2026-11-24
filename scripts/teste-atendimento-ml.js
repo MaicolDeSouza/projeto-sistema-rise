@@ -91,6 +91,56 @@ try {
     conferir("vazio", f("   ").barrados[0]?.motivo, "vazio");
   }
 
+  // ---------------------------------------------------------------------------------------------------------------
+  console.log("\n# Tarefa 3: a pergunta chega");
+  {
+    const { conferirNotificacao } = await import("../src/lib/pedidos/webhooks.js");
+    const { aplicarPerguntaLida, lerPerguntaDoML, rodarAtendimentoML, ATENDIMENTO_ML_MS } = await import("../src/lib/atendimentoML/perguntas.js");
+    const { ROTINAS_DO_WORKER } = await import("../src/lib/saude/regras.js");
+    const { criarMlPerguntasFalso } = await import("./lib/mlPerguntasFalso.js");
+
+    const seg = { mlUsuarioId: "212386247", mlClientId: "123" };
+    const corpo = JSON.stringify({ resource: "/questions/ZZ-ATD-10", user_id: 212386247, topic: "questions", application_id: 123 });
+    conferir("notificacao de pergunta entra na fila", conferirNotificacao({ origem: "MERCADO_LIVRE", corpoTexto: corpo, headers: new Headers(), segredos: seg }).recurso, "/questions/ZZ-ATD-10");
+    conferir("a rotina tem linha na Saude e roda a cada 5 min", [ROTINAS_DO_WORKER.some((r) => r.id === "atendimentoML"), ATENDIMENTO_ML_MS], [true, 300000]);
+
+    const ml = criarMlPerguntasFalso();
+    const linha = (idExterno) => prisma.atendimentoML.findUnique({ where: { tipo_idExterno: { tipo: "PERGUNTA", idExterno } } });
+
+    ml.porPergunta({ id: "ZZ-ATD-10", texto: "Serve no Arduino Uno?" });
+    const primeira = await aplicarPerguntaLida(await lerPerguntaDoML(ml, "ZZ-ATD-10"));
+    conferir("pergunta lida nasce ABERTA", [primeira.criada, primeira.status, (await linha("ZZ-ATD-10")).textoDoCliente], [true, "ABERTA", "Serve no Arduino Uno?"]);
+    conferir("anuncio desconhecido entra sem produto", [(await linha("ZZ-ATD-10")).itemId, (await linha("ZZ-ATD-10")).anuncioId], ["MLB900000001", null]);
+    const repetida = await aplicarPerguntaLida(await lerPerguntaDoML(ml, "ZZ-ATD-10"));
+    conferir("a mesma pergunta lida de novo nao duplica", [repetida.criada, await prisma.atendimentoML.count({ where: { idExterno: "ZZ-ATD-10" } })], [false, 1]);
+
+    ml.responderNoApp("ZZ-ATD-10", "Serve sim.");
+    const fechada = await aplicarPerguntaLida(await lerPerguntaDoML(ml, "ZZ-ATD-10"));
+    const depois = await linha("ZZ-ATD-10");
+    conferir("respondida no app do ML fecha a linha", [fechada.status, depois.respondidaVia, depois.respostaEnviada, depois.situacaoNoML], ["FECHADA_FORA", "ML", "Serve sim.", "ANSWERED"]);
+
+    conferir("pergunta que o ML nao tem mais", await lerPerguntaDoML(ml, "ZZ-ATD-404"), null);
+    ml.porPergunta({ id: "ZZ-ATD-11", texto: "", status: "BANNED" });
+    conferir("pergunta banida (texto vazio) nao entra", [(await aplicarPerguntaLida(await lerPerguntaDoML(ml, "ZZ-ATD-11"))).criada, await linha("ZZ-ATD-11")], [false, null]);
+    ml.porPergunta({ id: "ZZ-ATD-12", status: "ANSWERED", resposta: { text: "ok", status: "ACTIVE" } });
+    conferir("pergunta que ja chega respondida nao entra", (await aplicarPerguntaLida(await lerPerguntaDoML(ml, "ZZ-ATD-12"))).criada, false);
+
+    // A rotina: a busca de seguranca traz a que nao veio por notificacao e fecha a que foi respondida fora.
+    ml.perguntas.clear();
+    await limpar();
+    ml.porPergunta({ id: "ZZ-ATD-20", texto: "Qual a tensão?" });
+    ml.porPergunta({ id: "ZZ-ATD-21", texto: "Tem nota fiscal?" });
+    const rodada = await rodarAtendimentoML({ ml, soPrefixo: "ZZ-ATD-" });
+    conferir("a busca de seguranca traz as sem resposta", [rodada.ok, rodada.novas, (await linha("ZZ-ATD-21")).status], [true, 2, "ABERTA"]);
+    ml.responderNoApp("ZZ-ATD-20");
+    ml.perguntas.delete("ZZ-ATD-21");
+    const segunda = await rodarAtendimentoML({ ml, soPrefixo: "ZZ-ATD-" });
+    conferir("a rotina fecha a respondida no app e a apagada", [segunda.novas, segunda.fechadas, (await linha("ZZ-ATD-20")).status, (await linha("ZZ-ATD-21")).status, (await linha("ZZ-ATD-21")).situacaoNoML], [0, 2, "FECHADA_FORA", "FECHADA_FORA", "DELETED"]);
+    const comErro = await rodarAtendimentoML({ ml: { ...ml, get: async () => ({ ok: false, status: 500, dados: {} }) }, soPrefixo: "ZZ-ATD-" });
+    conferir("ML fora do ar: a rotina nao lanca", [comErro.ok, typeof comErro.erro], [false, "string"]);
+    await limpar();
+  }
+
   // MARCADOR: blocos novos entram acima desta linha.
 } finally {
   if (!MANTER) await limpar();

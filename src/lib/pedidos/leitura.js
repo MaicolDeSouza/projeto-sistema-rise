@@ -8,6 +8,7 @@ import { normalizarPedidoML } from "@/lib/pedidos/ml";
 import { normalizarPedidoLI } from "@/lib/pedidos/li";
 import { classificarLojaDoBling, normalizarPedidoBling } from "@/lib/pedidos/bling";
 import { adiarConferenciaDoMercadoPago, aplicarPedidoLido, espelharNoBling, marcarFalhaDoMercadoPago, pedidosParaConferirNoMercadoPago, pedidosParaReconferir, reabrirLucroDoPedido } from "@/lib/pedidos/banco";
+import { aplicarPerguntaLida, lerPerguntaDoML } from "@/lib/atendimentoML/perguntas";
 
 /**
  * A leitura dos pedidos por origem (spec 5.2): a rotina `pedidos` do worker, a cada 5 min, pede a cada origem so o que
@@ -428,6 +429,12 @@ async function tratarRecurso(origem, recurso, clientes, memoria, agora) {
   if (origem === "MERCADO_LIVRE") {
     const [, tipo, id] = String(recurso).split("/");
     if (!id) return;
+    // A pergunta de um anuncio (Atendimento do ML, 24/11/2026). Pergunta que o ML nao tem mais (404) nao pede nada.
+    if (tipo === "questions") {
+      const pergunta = await lerPerguntaDoML(clientes.ml, id);
+      if (pergunta) await aplicarPerguntaLida(pergunta, { agora: new Date(agora) });
+      return;
+    }
     // `null` = compra da propria conta (nao e venda): ignorada aqui.
     const aplicarSeVenda = (lido) => (lido ? aplicar(lido) : undefined);
     if (tipo === "orders") return aplicarSeVenda(await lerPedidoML(clientes.ml, id));
