@@ -123,6 +123,12 @@ export function conferirProposta(entrada = {}) {
   dados.vendedor = texto(entrada.vendedor, 120);
   // O PDF sai assinado pelo certificado da empresa (17/11/2026, "apenas as marcadas").
   dados.assinarDigitalmente = entrada.assinarDigitalmente === true || entrada.assinarDigitalmente === "true";
+  // As caixas do PDF sao da proposta (24/11/2026; vinham do padrao): comecam pelo cadastro do cliente e o operador muda.
+  dados.mostrarMarcaModelo = entrada.mostrarMarcaModelo === true || entrada.mostrarMarcaModelo === "true";
+  dados.mostrarFaturamentoMinimo = entrada.mostrarFaturamentoMinimo === true || entrada.mostrarFaturamentoMinimo === "true";
+  // Ausente (script) e diferente de nulo (a tela, que sempre manda): ausente = vale o gravado; mandado = a tela ja aplicou
+  // as condicoes daquele cliente (ou nenhuma), e o Salvar nao reaplica por cima da edicao.
+  dados.condicoesDoClienteId = "condicoesDoClienteId" in entrada ? texto(entrada.condicoesDoClienteId, 40) : undefined;
   dados.observacoesInternas = texto(entrada.observacoesInternas, 4000);
 
   if (!dataValida(entrada.validadeAte)) erros.validadeAte = "Informe a validade.";

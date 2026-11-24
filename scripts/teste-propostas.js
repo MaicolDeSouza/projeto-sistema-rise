@@ -769,6 +769,74 @@ try {
   conferir("pagina publica sem script e sem internas", [/<script/i.test(html), html.includes("so nossa"), html.includes("Módulo relé 5V")], [false, false, true]);
 
   // -------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
+  // Condicoes do cliente na proposta (24/11/2026): o Salvar aplica as do cadastro ao ligar o cliente, uma vez
+  // -------------------------------------------------------------------------
+  console.log("\nCondicoes do cliente na proposta");
+  const CNPJ_CONDICOES = cnpjDeTeste(999990000601);
+  const CNPJ_NOVO = cnpjDeTeste(999990000701);
+  for (const doc of [CNPJ_CONDICOES, CNPJ_NOVO]) {
+    if (await prisma.cliente.findUnique({ where: { documento: cliente.documentoValido(doc).formatado } })) throw new Error(`Documento de teste ${doc} já existe num cliente: troque a base.`);
+  }
+  const comCondicoes = await prisma.cliente.create({
+    data: {
+      nome: "ZZ Proposta Condicoes",
+      tipoPessoa: "JURIDICA",
+      documento: cliente.documentoValido(CNPJ_CONDICOES).formatado,
+      propostaValidadeDias: 30,
+      propostaFormaPagamento: "Transferência",
+      propostaPagamentoTexto: "28 dias DDL",
+      propostaFretePorConta: "CIF",
+      propostaFreteDiluido: true,
+      propostaGarantia: "90 dias",
+      propostaAc: "Adler Truber",
+      propostaFaturamentoMinimo: true,
+      propostaObservacoes: "Frete CIF",
+      propostaExigencias: "1. x",
+      contatos: { create: [{ nome: "Adler Truber" }] },
+    },
+  });
+  const baseDaCondicao = { validadeAte: "2026-12-31", itens: [{ descricaoCliente: "Item ZZ", quantidade: "1", unidade: "UN", precoUnitario: "10" }] };
+  const opcoesDaCondicao = { hoje: "2026-11-24", bling: falso, exigirEscrita: () => falso.exigirEscrita("ZZ-CLIENTE") };
+  const semMarcador = ({ condicoesDoClienteId: _ignorado, ...resto }) => resto;
+  const pc = await banco.criarProposta({ login: "zz", nome: "ZZ" });
+
+  await banco.salvarProposta(pc.numero, { ...baseDaCondicao, clienteId: comCondicoes.id }, opcoesDaCondicao);
+  const lidaC1 = await banco.lerProposta(pc.numero);
+  conferir(
+    "proposta: recebe as condicoes ao ligar",
+    [lidaC1.formaPagamento, lidaC1.pagamentoTexto, lidaC1.fretePorConta, lidaC1.contatoNome, Boolean(lidaC1.contatoId), lidaC1.mostrarFaturamentoMinimo, lidaC1.condicoesDoClienteId, lidaC1.validadeAte],
+    ["Transferência", "28 dias DDL", "CIF", "Adler Truber", true, true, comCondicoes.id, "2026-12-24"],
+  );
+  await banco.salvarProposta(pc.numero, { ...lidaC1, desconto: "", formaPagamento: "PIX" }, opcoesDaCondicao);
+  const lidaC2 = await banco.lerProposta(pc.numero);
+  conferir("proposta: a edicao depois do preenchimento fica", lidaC2.formaPagamento, "PIX");
+  await banco.salvarProposta(pc.numero, { ...semMarcador(lidaC2), desconto: "", formaPagamento: "Boleto" }, opcoesDaCondicao);
+  const lidaC3 = await banco.lerProposta(pc.numero);
+  conferir("proposta: script sem a chave nao reaplica", lidaC3.formaPagamento, "Boleto");
+  await banco.salvarProposta(pc.numero, { ...lidaC3, desconto: "", condicoesDoClienteId: "outro" }, opcoesDaCondicao);
+  const lidaC4 = await banco.lerProposta(pc.numero);
+  conferir("proposta: id velho reaplica", lidaC4.formaPagamento, "Transferência");
+
+  const pc5 = await banco.criarProposta({ login: "zz", nome: "ZZ" });
+  await banco.salvarProposta(pc5.numero, { ...baseDaCondicao, clienteNome: "ZZ Proposta Digitado", clienteDocumento: CNPJ_CONDICOES }, opcoesDaCondicao);
+  const lidaC5 = await banco.lerProposta(pc5.numero);
+  conferir("proposta: CNPJ digitado acha e aplica", [lidaC5.clienteId, lidaC5.formaPagamento], [comCondicoes.id, "Transferência"]);
+
+  const pc6 = await banco.criarProposta({ login: "zz", nome: "ZZ" });
+  await banco.salvarProposta(pc6.numero, { ...baseDaCondicao, clienteNome: "ZZ Proposta Nova Pelo CNPJ", clienteDocumento: CNPJ_NOVO, formaPagamento: "PIX" }, opcoesDaCondicao);
+  const lidaC6 = await banco.lerProposta(pc6.numero);
+  conferir("proposta: cliente recem-criado nao apaga o digitado", [Boolean(lidaC6.clienteId), lidaC6.formaPagamento, lidaC6.condicoesDoClienteId], [true, "PIX", null]);
+
+  await banco.salvarProposta(pc.numero, { ...lidaC4, desconto: "", clienteId: noRise.id }, opcoesDaCondicao);
+  const lidaC7 = await banco.lerProposta(pc.numero);
+  conferir(
+    "proposta: trocar para cliente sem condicoes volta a regra geral",
+    [lidaC7.clienteId, lidaC7.formaPagamento, lidaC7.pagamentoTexto, lidaC7.fretePorConta, lidaC7.condicoesDoClienteId],
+    [noRise.id, null, null, "A_COMBINAR", null],
+  );
+  conferir("proposta: nada do portal na leitura", JSON.stringify(await banco.lerProposta(pc.numero)).includes("portal"), false);
+
   // Padroes de proposta, marca/modelo, faturamento minimo e ficha cadastral (13/11/2026)
   // -------------------------------------------------------------------------
   console.log("\nPadroes de proposta");
@@ -824,28 +892,23 @@ try {
   if (!salvaComPadrao.ok) console.log(JSON.stringify(salvaComPadrao));
   const relida = await banco.lerProposta(p2.numero);
   conferir("proposta: grava o padrao e a marca/modelo do item", [salvaComPadrao.ok, relida.padrao?.nome, relida.itens[0].marca, relida.itens[0].modelo], [true, "ZZ Proposta Padrao SENAI", "GENÉRICA", "HTS-315"]);
-  const conteudoComPadrao = conteudoDaProposta(relida, { ...empresaFalsa, faturamentoMinimo: 50 });
+  // Desde 24/11/2026 o PDF le as caixas da PROPOSTA (vindas do cadastro do cliente), nao o padrao.
+  const comAsCaixas = { ...relida, mostrarMarcaModelo: true, mostrarFaturamentoMinimo: true };
+  const conteudoComPadrao = conteudoDaProposta(comAsCaixas, { ...empresaFalsa, faturamentoMinimo: 50 });
   conferir(
     "PDF: coluna Marca / Modelo e faturamento minimo",
     [conteudoComPadrao.colunas.some((c) => c.chave === "marca"), conteudoComPadrao.itens[0].celulas.marca, conteudoComPadrao.blocos.some(([titulo, texto]) => titulo === "Faturamento mínimo" && texto.includes("R$50,00"))],
     [true, "GENÉRICA / HTS-315", true],
   );
-  conferir("PDF: sem marca e sem padrao, a coluna nao aparece", conteudoDaProposta({ ...relida, padrao: null, itens: relida.itens.map((i) => ({ ...i, marca: null, modelo: null })) }, empresaFalsa).colunas.some((c) => c.chave === "marca"), false);
-  // Item com marca (a do cadastro do Rise) mas padrao que nao pede: a coluna nao sai (regra do dono em 17/11/2026, 2032).
+  conferir("PDF: sem a caixa e sem marca, a coluna nao aparece", conteudoDaProposta({ ...relida, mostrarMarcaModelo: false, itens: relida.itens.map((i) => ({ ...i, marca: null, modelo: null })) }, empresaFalsa).colunas.some((c) => c.chave === "marca"), false);
+  // Item com marca (a do cadastro do Rise) mas a caixa desmarcada: a coluna nao sai (regra do dono em 17/11/2026, 2032).
+  conferir("PDF: item com marca e a caixa desmarcada, a coluna nao aparece", conteudoDaProposta({ ...relida, mostrarMarcaModelo: false }, empresaFalsa).colunas.some((c) => c.chave === "marca"), false);
   conferir(
-    "PDF: item com marca, padrao sem a exigencia, a coluna nao aparece",
-    [
-      conteudoDaProposta({ ...relida, padrao: null }, empresaFalsa).colunas.some((c) => c.chave === "marca"),
-      conteudoDaProposta({ ...relida, padrao: { ...relida.padrao, exigeMarcaModelo: false } }, empresaFalsa).colunas.some((c) => c.chave === "marca"),
-    ],
-    [false, false],
-  );
-  conferir(
-    "PDF: cliente comum (sem padrao) nao ve o faturamento minimo",
-    conteudoDaProposta({ ...relida, padrao: null }, { ...empresaFalsa, faturamentoMinimo: 50 }).blocos.some(([titulo]) => titulo === "Faturamento mínimo"),
+    "PDF: sem a caixa do faturamento minimo, a linha nao aparece",
+    conteudoDaProposta({ ...relida, mostrarFaturamentoMinimo: false }, { ...empresaFalsa, faturamentoMinimo: 50 }).blocos.some(([titulo]) => titulo === "Faturamento mínimo"),
     false,
   );
-  const pdfComPadrao = await pdfDaProposta(relida, { ...empresaFalsa, faturamentoMinimo: 50 }, {});
+  const pdfComPadrao = await pdfDaProposta(comAsCaixas, { ...empresaFalsa, faturamentoMinimo: 50 }, {});
   conferir("PDF com marca gerado", pdfComPadrao.subarray(0, 5).toString("latin1"), "%PDF-");
 
   await prisma.cliente.update({ where: { id: noRise.id }, data: { padraoPropostaId: salvoPadrao.id } });

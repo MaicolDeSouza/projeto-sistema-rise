@@ -206,7 +206,8 @@ export function conteudoDaProposta(proposta, empresa) {
   // Marca / Modelo SO quando o padrao do cliente exige (SENAI). Regra do dono em 17/11/2026, na 2032 da FUNPEC: "Nao deve
   // aparecer marca e modelo no PDF nas propostas, apenas quando o cliente solicitar" (ate ali saia tambem quando algum item
   // tinha marca, e o item do Rise traz a marca do cadastro).
-  const temMarca = Boolean(proposta.padrao?.exigeMarcaModelo);
+  // Desde 24/11/2026 a caixa e da propria proposta (vem do cadastro do cliente e o operador muda), nao do padrao.
+  const temMarca = Boolean(proposta.mostrarMarcaModelo);
   // Frete diluido (17/11/2026): o cliente ve os precos com o frete dentro e o quadro diz "Incluso nos produtos".
   const diluido = Boolean(proposta.freteDiluido) && proposta.fretePorConta === "CIF" && totais.frete > 0;
   const itensDoCliente = diluido ? itensComFreteDiluido(proposta.itens, totais.frete) : proposta.itens;
@@ -226,8 +227,8 @@ export function conteudoDaProposta(proposta, empresa) {
   // cliente sairam daqui para a caixa "Observações" (pedido do dono em 17/11/2026).
   const blocos = [
     ["Para a nota fiscal", notaFiscal],
-    // So para cliente com padrao personalizado (SENAI); o cliente comum, sem padrao, nao ve (o dono em 13/11/2026).
-    ["Faturamento mínimo", proposta.padrao ? textoDoFaturamentoMinimo(empresa?.faturamentoMinimo) : null],
+    // So com a caixa da proposta marcada (24/11/2026; antes, todo cliente com padrao, desde 13/11/2026).
+    ["Faturamento mínimo", proposta.mostrarFaturamentoMinimo ? textoDoFaturamentoMinimo(empresa?.faturamentoMinimo) : null],
   ].filter(([, valor]) => String(valor ?? "").trim());
 
   const empresaNoCabecalho = dadosDaEmpresa(empresa);

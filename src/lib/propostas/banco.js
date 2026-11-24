@@ -5,6 +5,7 @@ import { fotosDaProposta, urlDaFotoDoItem } from "@/lib/propostas/arquivos";
 import { garantirClienteDaProposta } from "@/lib/propostas/cliente";
 import { conferirProposta, conferirSituacao } from "@/lib/propostas/esquema";
 import {
+  camposAoLigarCliente,
   GARANTIA_PADRAO,
   PROXIMO_CONTATO_PADRAO_DIAS,
   VENDEDOR_PADRAO,
@@ -61,6 +62,37 @@ export async function criarProposta({ login = "pc", nome = null } = {}, { hoje =
   return { ok: true, ...criada };
 }
 
+/**
+ * O que a proposta le do cliente para as condicoes comerciais (24/11/2026): a tela (clienteParaProposta) e o Salvar usam
+ * o mesmo `select`. NUNCA as colunas do portal (a senha cifrada e o acesso nao saem do cadastro).
+ */
+export const SELECAO_DE_CONDICOES = {
+  id: true,
+  propostaValidadeDias: true,
+  propostaFormaPagamento: true,
+  propostaPagamentoTexto: true,
+  propostaFretePorConta: true,
+  propostaFreteDiluido: true,
+  propostaGarantia: true,
+  propostaAc: true,
+  propostaMarcaModelo: true,
+  propostaAssinar: true,
+  propostaFaturamentoMinimo: true,
+  propostaObservacoes: true,
+  propostaExigencias: true,
+  notaFiscalObservacao: true,
+  transportadoraId: true,
+  // A 1a condicao preferida, como o ligarCliente ja usava (13/11/2026).
+  condicoesPreferidas: { orderBy: { nome: "asc" }, take: 1, select: { id: true } },
+};
+
+/** A linha lida com SELECAO_DE_CONDICOES no formato das regras: a condicao preferida vira `condicaoPagamentoId`. */
+export function clienteParaCondicoes(linha) {
+  if (!linha) return null;
+  const { condicoesPreferidas, ...resto } = linha;
+  return { ...resto, condicaoPagamentoId: condicoesPreferidas?.[0]?.id ?? null };
+}
+
 const INCLUIR = {
   itens: {
     orderBy: { ordem: "asc" },
@@ -90,6 +122,8 @@ const INCLUIR = {
       inscricaoEstadual: true,
       blingContatoId: true,
       padraoPropostaId: true,
+      // As exigencias do cliente aparecem ao vivo no editor (24/11/2026), nunca no PDF.
+      propostaExigencias: true,
       enderecos: true,
       contatos: { orderBy: { nome: "asc" }, select: { id: true, nome: true, cargo: true, telefone: true, email: true } },
     },
@@ -166,6 +200,9 @@ export function propostaParaTela(proposta, { hoje = hojeEmSaoPaulo() } = {}) {
     freteDiluido: Boolean(proposta.freteDiluido),
     cotacaoDoFrete: proposta.cotacaoDoFrete ?? null,
     assinarDigitalmente: Boolean(proposta.assinarDigitalmente),
+    mostrarMarcaModelo: Boolean(proposta.mostrarMarcaModelo),
+    mostrarFaturamentoMinimo: Boolean(proposta.mostrarFaturamentoMinimo),
+    condicoesDoClienteId: proposta.condicoesDoClienteId ?? null,
     ocCliente: proposta.ocCliente,
     observacoesNf: proposta.observacoesNf,
     observacoesCliente: proposta.observacoesCliente,
@@ -306,6 +343,18 @@ export async function salvarProposta(numeroDaProposta, entrada, { manterCusto = 
   }
   if (!clienteId && !dados.clienteNome) return { ok: false, erro: "Confira os campos destacados.", erros: { clienteNome: "Informe o cliente." } };
 
+  // As condicoes do cadastro do cliente (24/11/2026), pela MESMA regra da tela: entram uma vez por cliente e nao desfazem
+  // a edicao do operador. A tela manda o `condicoesDoClienteId` que ja aplicou; o script que nao manda vale o gravado.
+  // Vem antes do A/C e da copia do cliente porque as condicoes trazem o A/C (`contatoNome`).
+  const jaAplicado = dados.condicoesDoClienteId !== undefined ? dados.condicoesDoClienteId : (atual.condicoesDoClienteId ?? null);
+  let condicoesDoClienteId = jaAplicado;
+  if (clienteId) {
+    const linha = await prisma.cliente.findUnique({ where: { id: clienteId }, select: SELECAO_DE_CONDICOES });
+    const remendo = camposAoLigarCliente(clienteParaCondicoes(linha), { ...dados, condicoesDoClienteId: jaAplicado }, { hoje });
+    Object.assign(dados, remendo);
+    if ("condicoesDoClienteId" in remendo) condicoesDoClienteId = remendo.condicoesDoClienteId;
+  }
+
   // Copia do cadastro: o PDF de amanha tem de dizer o que foi enviado hoje, mesmo que o cadastro mude.
   let copiaDoCliente = {
     clienteNome: dados.clienteNome ?? "",
@@ -403,6 +452,9 @@ export async function salvarProposta(numeroDaProposta, entrada, { manterCusto = 
         // Json nulo no Prisma e DbNull (null puro e recusado).
         cotacaoDoFrete: dados.cotacaoDoFrete ?? Prisma.DbNull,
         assinarDigitalmente: dados.assinarDigitalmente,
+        mostrarMarcaModelo: dados.mostrarMarcaModelo,
+        mostrarFaturamentoMinimo: dados.mostrarFaturamentoMinimo,
+        condicoesDoClienteId,
         prazoTransporteDias: dados.prazoTransporteDias,
         descontoTipo: dados.descontoTipo,
         descontoValor: dados.descontoValor,
