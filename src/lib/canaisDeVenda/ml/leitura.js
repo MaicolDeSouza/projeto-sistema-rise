@@ -12,7 +12,7 @@
 
 import { normalizarAtributosDaCategoria } from "./atributos";
 import { LIMITE_DO_FRETE_GRATIS, freteQueConta, precoPorMargem } from "./custos";
-import { precoComDescontoAdicional, precoPelaFaixa, varianteDoRascunho } from "./faixas";
+import { LIMITE_DA_SEGUNDA_VARIANTE, descontoAdicionalValido, precoComDescontoAdicional, precoPelaFaixa, varianteDoRascunho } from "./faixas";
 import { medidasFaltando } from "./validacao";
 
 const dinheiro = (valor) => Math.round((Number(valor) + Number.EPSILON) * 100) / 100;
@@ -221,8 +221,15 @@ export async function precoPelaFaixaNoML(cliente, rascunho, { custo, lucro, vari
   const frete = async (preco, freteGratis) =>
     (await lerFreteDoVendedor(cliente, { envio: { ...envio, freteGratis }, preco: dinheiro(preco), tipoAnuncio, logistica }))?.custo ?? 0;
 
-  const cheio = await precoPelaFaixa({ lucro, custo, variante, taxas, frete });
+  let cheio = await precoPelaFaixa({ lucro, custo, variante, taxas, frete });
   if (!cheio) return null;
+  // Com desconto, a base e sempre o preco da FAIXA (24/11/2026): o anuncio que o desconto tirou do frete gratis fica sem frete,
+  // e o proximo clique partiria do preco sem frete, dando outro numero. Sem frete de R$ 72 para cima a regra e subir para o
+  // frete gratis (R$ 79 ou mais), entao o desconto sai de la, como no primeiro clique.
+  if (descontoAdicionalValido(desconto) > 0 && !cheio.freteGratis && cheio.preco >= LIMITE_DA_SEGUNDA_VARIANTE) {
+    variante = String(variante).replace("_sem_frete", "_frete_gratis");
+    cheio = (await precoPelaFaixa({ lucro, custo, variante, taxas, frete })) ?? cheio;
+  }
   // O "Desconto adicional" do anuncio (20/11/2026): sai do preco cheio, com as mesmas taxas e os limites de `faixas.js`.
   const resultado = await precoComDescontoAdicional({ resultado: cheio, desconto, custo, variante, taxas, frete });
   const custosML = await lerCustosDoAnuncio(cliente, {
@@ -231,5 +238,6 @@ export async function precoPelaFaixaNoML(cliente, rascunho, { custo, lucro, vari
     tipoAnuncio,
     envio: { ...envio, freteGratis: resultado.freteGratis },
   });
-  return { ...resultado, variante, custosML };
+  // O desconto pode tirar o anuncio do frete gratis (24/11/2026): a variante passa a ser a que o preco final deu.
+  return { ...resultado, variante: resultado.variante ?? variante, custosML };
 }

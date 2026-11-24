@@ -87,7 +87,9 @@ export function custosValem(custosML, rascunho) {
     dinheiro(custosML.preco) === dinheiro(rascunho.preco) &&
     String(custosML.categoriaId ?? "").trim() === String(rascunho.categoriaId ?? "").trim() &&
     custosML.tipoAnuncio === rascunho.tipoAnuncio &&
-    custosML.logistica === (rascunho.envio?.logistica ?? "xd_drop_off")
+    custosML.logistica === (rascunho.envio?.logistica ?? "xd_drop_off") &&
+    // O frete gratis muda o frete do vendedor (24/11/2026): desligado pelo preco abaixo de R$ 79, os custos sao relidos.
+    Boolean(custosML.freteGratis) === Boolean(rascunho.envio?.freteGratis)
   );
 }
 

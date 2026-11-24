@@ -7,7 +7,8 @@ import { Calculator, ExternalLink, Search } from "lucide-react";
 import Campo, { CLASSE_CAMPO, bordaDoCampo } from "@/components/cadastros/Campo";
 import { custoDaComposicao } from "@/lib/canaisDeVenda/composicao";
 import { precoPelaFaixaMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
-import { custosDoAnuncio, custosValem, freteQueConta, precoPorMargem } from "@/lib/canaisDeVenda/ml/custos";
+import { LIMITE_DO_FRETE_GRATIS, custosDoAnuncio, custosValem, freteQueConta, precoPorMargem } from "@/lib/canaisDeVenda/ml/custos";
+import { ATACADO_DESLIGADO } from "@/lib/canaisDeVenda/ml/atacado";
 import { DESCONTO_ADICIONAL_MAXIMO, LUCRO_MINIMO_ML, descontoAdicionalValido, lucroPorUnidade } from "@/lib/canaisDeVenda/ml/faixas";
 import { kitForaDoBloco, unidadesDoAnuncio } from "@/lib/canaisDeVenda/ml/kitsNaDescricao";
 import { calcularMarkup, corDoMarkup, lucroLiquido } from "@/lib/margem";
@@ -147,6 +148,24 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
     alterar({ preco: lerDecimal(texto) });
   }
 
+  // Preco digitado que desce dos R$ 79 para baixo (pedido do dono em 24/11/2026: "se defino um valor manualmente abaixo do frete
+  // gratis ... deve recalcular e retirar o frete gratis"): ao sair do campo o anuncio sai do frete gratis e os custos sao
+  // relidos sem ele. So ao sair, para digitar "85" nao passar pelo "8" e desligar; e so quem estava em R$ 79 ou mais, para o
+  // frete gratis escolhido abaixo disso continuar.
+  const precoAoEntrar = useRef(preco);
+  const [saiuDoFreteGratis, setSaiuDoFreteGratis] = useState(false);
+  function sairDoPreco() {
+    setPrecoDigitado(null);
+    const cruzou = precoAoEntrar.current >= LIMITE_DO_FRETE_GRATIS && preco > 0 && preco < LIMITE_DO_FRETE_GRATIS;
+    if (cruzou && rascunho.envio?.freteGratis) {
+      alterar(semFreteGratis(rascunho));
+      setSaiuDoFreteGratis(true);
+    } else if (preco >= LIMITE_DO_FRETE_GRATIS) {
+      setSaiuDoFreteGratis(false);
+    }
+    precoAoEntrar.current = preco;
+  }
+
   return (
     <div className="space-y-4">
       <SecaoDoAnuncio titulo="Preço e custos">
@@ -170,7 +189,10 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
               value={mostrarDigitado(precoDigitado, rascunho.preco, 2)}
               onChange={(evento) => digitarPreco(evento.target.value)}
               // Ao sair o campo volta ao numero formatado ("29,9" vira "29,90").
-              onBlur={() => setPrecoDigitado(null)}
+              onFocus={() => {
+                precoAoEntrar.current = Number(rascunho.preco);
+              }}
+              onBlur={sairDoPreco}
               className={`${CLASSE_CAMPO} ${acessos.custos ? "pr-10" : ""} ${bordaDoCampo(erroDoPreco)}`}
             />
             );
@@ -200,6 +222,9 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
             </p>
           )}
           <MensagensDoCampo problemas={problemas} campo="preco" />
+          {saiuDoFreteGratis && preco > 0 && preco < LIMITE_DO_FRETE_GRATIS && !rascunho.envio?.freteGratis && (
+            <p className="mt-1 text-[11px] font-medium text-amber-700">Saiu do frete grátis: preço abaixo de R$79,00.</p>
+          )}
           {acessos.custos && <MargemDoPreco preco={preco} custo={custo} conta={conta} mensagemSemCusto={mensagemSemCusto(custo.faltam)} />}
           {/* Kit (pedido do dono em 27/10/2026, no lugar da "Soma dos preços avulsos"): o preço de UMA unidade no site da loja e
               o do ML dividido pelas unidades do kit, para comparar os dois. Kit misto: a média por unidade. */}
@@ -288,6 +313,9 @@ export default function AbaPrecoEstoque({ rascunho, contexto, alterar, setContex
                   setContexto((atual) => ({ ...atual, custosML: resposta.custosML ?? atual.custosML }));
                   const alteracoes = { preco: resposta.preco };
                   if (resposta.freteGratis && !rascunho.envio?.freteGratis) alteracoes.envio = { ...rascunho.envio, freteGratis: true };
+                  // O desconto levou o preco para baixo dos R$ 79 (24/11/2026): o anuncio sai do frete gratis (e do atacado, que
+                  // sem frete gratis da erro no Publicar).
+                  if (resposta.desconto?.saiuDoFreteGratis) Object.assign(alteracoes, semFreteGratis(rascunho));
                   alterar(alteracoes);
                 }}
               />
@@ -325,6 +353,17 @@ function PercentualDoLucro({ preco, custo }) {
 }
 
 // O nome pelo que o preco FICOU: a variante sem frete cujo preco passou de R$ 79 sai com frete gratis (obrigatorio).
+/**
+ * O que muda no rascunho quando o preco cai abaixo dos R$ 79 e o anuncio sai do frete gratis (pedido do dono em 24/11/2026):
+ * o frete gratis desliga e o atacado tambem (sem frete gratis o ML nao sugere o desconto e o Publicar dava erro, 09/11/2026).
+ * Os custos do ML sao relidos sozinhos, porque o frete gratis entra na chave da releitura (`custosValem`).
+ */
+function semFreteGratis(rascunho) {
+  const alteracoes = { envio: { ...(rascunho.envio ?? {}), freteGratis: false } };
+  if (rascunho.atacado?.ligado) alteracoes.atacado = ATACADO_DESLIGADO();
+  return alteracoes;
+}
+
 function nomeDaVariante({ variante, freteGratis }) {
   const premium = String(variante).startsWith("premium");
   return `${premium ? "Premium" : "Clássico"} ${freteGratis ? "com frete grátis" : "sem frete"}`;
@@ -338,7 +377,7 @@ function nomeDaVariante({ variante, freteGratis }) {
  * "Desconto adicional" (pedido do dono em 20/11/2026: "uma caixinha escrito desconto adicional que deve ser sobre o preço de
  * venda e deve nascer em 0%"): o % ao lado do botao sai do preco que o lucro da loja deu. Fica guardado no anuncio
  * (`descontoAdicional`) e vale no proximo calculo; sair do campo (ou Enter) com outro valor ja refaz o preco, para o dono
- * nao digitar 7 e ficar olhando o preco antigo. Os limites (R$ 79 do frete gratis e o lucro minimo) sao do servidor.
+ * nao digitar 7 e ficar olhando o preco antigo. O lucro minimo e a saida do frete gratis abaixo de R$ 79 (24/11/2026) sao do servidor.
  */
 function BotaoPrecoPeloLucroDaLoja({ rascunho, custo, temPrecoDaLoja, aplicar, alterar }) {
   const [ocupado, iniciar] = useTransition();
@@ -378,14 +417,12 @@ function BotaoPrecoPeloLucroDaLoja({ rascunho, custo, temPrecoDaLoja, aplicar, a
           ? baixou
             ? `Desconto limitado pelo lucro mínimo de ${MOEDA.format(LUCRO_MINIMO_ML)}.`
             : `Sem espaço para desconto: o lucro já está no mínimo de ${MOEDA.format(LUCRO_MINIMO_ML)}.`
-          : baixou
-            ? "Desconto parou em R$79,00: abaixo disso o frete e a tarifa mudam."
-            : "Sem espaço para desconto: abaixo de R$79,00 o frete e a tarifa mudam.";
+          : null;
       setResultado({
         // Lucro da loja abaixo do minimo (R$ 5): o preco subiu para deixar R$ 5, em ambar porque e dinheiro (regra 2).
         aviso: resposta.minimoAplicado
           ? `Lucro da loja ${MOEDA.format(resposta.lucroDaLoja)} abaixo do mínimo: preço ajustado para lucro de ${MOEDA.format(resposta.lucro)}.`
-          : avisoDoDesconto,
+          : [comDesconto?.saiuDoFreteGratis ? "Saiu do frete grátis: com o desconto o preço ficou abaixo de R$79,00." : null, avisoDoDesconto].filter(Boolean).join(" ") || null,
         texto: baixou
           ? `Com o desconto: de ${MOEDA.format(comDesconto.precoSemDesconto)} para ${MOEDA.format(resposta.preco)}${comDesconto.lucro === null ? "" : ` (lucro ${MOEDA.format(comDesconto.lucro)})`}.`
           : resposta.piso

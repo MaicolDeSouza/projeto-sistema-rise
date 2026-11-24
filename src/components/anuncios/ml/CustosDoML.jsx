@@ -75,7 +75,8 @@ export default function CustosDoML({ rascunho, contexto, setContexto, custo, con
 
   // Releitura automatica: so GET no ML. Uma tentativa por combinacao (preco, categoria, tipo, logistica): um erro nao
   // vira laco de pedidos, e o botao continua para tentar de novo.
-  const chave = [preco, rascunho.categoriaId, rascunho.tipoAnuncio, rascunho.envio?.logistica].join("|");
+  // O frete gratis entra (24/11/2026): o preco abaixo de R$ 79 o desliga, e o frete do vendedor muda.
+  const chave = [preco, rascunho.categoriaId, rascunho.tipoAnuncio, rascunho.envio?.logistica, Boolean(rascunho.envio?.freteGratis)].join("|");
   const ultimaTentativa = useRef(null);
   const lerSozinho = useEffectEvent(() => {
     ultimaTentativa.current = chave;

@@ -1370,8 +1370,10 @@ try {
         custosValem(lidos, { ...r, categoriaId: "MLB1" }),
         custosValem(lidos, { ...r, envio: { ...r.envio, logistica: "fulfillment" } }),
         custosValem(lidos, { ...r, preco: 49.5 }),
+        // O frete gratis mudou (24/11/2026: o preco que cai abaixo de R$ 79 tira o frete gratis): o frete do vendedor muda junto.
+        custosValem(lidos, { ...r, envio: { ...r.envio, freteGratis: true } }),
       ],
-      [false, false, false, false],
+      [false, false, false, false, false],
     );
     conferir("custosValem: sem custos lidos", custosValem(null, r), false);
     // Medido nas vendas reais de 22/10/2026: abaixo de R$ 79 o ML cobra o frete do vendedor (R$ 6,85) mesmo sem frete
@@ -4328,26 +4330,36 @@ try {
     const comDesconto = (resultado, desconto, custo, variante) => precoComDescontoAdicional({ resultado, desconto, custo, variante, taxas, frete });
     // Sem frete, lucro 9,44 e custo 25: R$ 66,60. Com 7%: 61,938, fechado em R$ 62,00; lucro 62 x 0,81 - 6,50 - 13 - 25 = 5,72.
     const d7 = await comDesconto(semFrete, 7, 25, "classico_sem_frete");
-    conferir("desconto de 7%: preco fechado abaixo do cheio, com o lucro que sobra", [semFrete.preco, d7.preco, d7.freteGratis, d7.desconto], [66.6, 62, false, { percentual: 7, precoSemDesconto: 66.6, lucro: lucroDe(62, 25, false), limite: null }]);
+    conferir("desconto de 7%: preco fechado abaixo do cheio, com o lucro que sobra", [semFrete.preco, d7.preco, d7.freteGratis, d7.desconto], [66.6, 62, false, { percentual: 7, precoSemDesconto: 66.6, lucro: lucroDe(62, 25, false), limite: null, saiuDoFreteGratis: false }]);
     conferir("desconto zero, vazio ou invalido: o preco nao muda e nao ha desconto", [(await comDesconto(semFrete, 0, 25, "classico_sem_frete")).preco, (await comDesconto(semFrete, 0, 25, "classico_sem_frete")).desconto, (await comDesconto(semFrete, undefined, 25, "classico_sem_frete")).desconto, (await comDesconto(semFrete, "x", 25, "classico_sem_frete")).preco], [66.6, null, null, 66.6]);
     // 15% daria R$ 56,70 com lucro de R$ 1,43: para no preco que deixa os R$ 5 do minimo, (5 + 25 + 6,50 + 13) / 0,81 = 61,11 -> 61,20.
     const d15 = await comDesconto(semFrete, 15, 25, "classico_sem_frete");
     conferir("desconto que derruba o lucro abaixo de R$ 5: para no preco do lucro minimo", [d15.preco, d15.desconto.limite, d15.desconto.lucro >= 5, d15.desconto.lucro < 5.1, d15.desconto.precoSemDesconto], [61.2, "lucroMinimo", true, true, 66.6]);
-    // Com frete gratis, lucro 20 e custo 38: R$ 95,20. 25% daria R$ 71,40, abaixo dos R$ 79 em que o frete gratis e obrigatorio:
-    // para em R$ 79 (lucro 79 x 0,81 - 19,05 - 38 = 6,94).
+    // Desconto que passa para baixo dos R$ 79 (pedido do dono em 24/11/2026: "se o desconto ficar abaixo das condicoes do frete
+    // gratis, deve sair do frete gratis, apenas informar"): o anuncio sai do frete gratis e o lucro e refeito sem frete.
+    // Com frete gratis, lucro 20 e custo 25: (20 + 25 + 19,05) / 0,81 = 79,07 -> 79,10. 20% da 63,28 -> 63,30, sem frete:
+    // lucro 63,30 x 0,81 - 6,50 - 13 - 25 = 6,77.
+    const cheioFG = await precoPelaFaixa({ lucro: 20, custo: 25, variante: "classico_frete_gratis", taxas, frete });
+    const d20 = await comDesconto(cheioFG, 20, 25, "classico_frete_gratis");
+    conferir("desconto abaixo dos R$ 79: sai do frete gratis e o lucro e o sem frete", [cheioFG.preco, d20.preco, d20.freteGratis, d20.variante, d20.desconto.limite, d20.desconto.saiuDoFreteGratis, d20.desconto.lucro], [79.1, 63.3, false, "classico_sem_frete", null, true, lucroDe(63.3, 25, false)]);
+    // Lucro 20 e custo 38 (R$ 95,20): 25% daria R$ 71,40 sem frete, com lucro de R$ 0,33; para no lucro minimo SEM frete,
+    // (5 + 38 + 6,50 + 13) / 0,81 = 77,16 -> 77,20, ainda abaixo dos R$ 79 e fora do frete gratis.
     const cheio79 = await precoPelaFaixa({ lucro: 20, custo: 38, variante: "classico_frete_gratis", taxas, frete });
     const d25 = await comDesconto(cheio79, 25, 38, "classico_frete_gratis");
-    conferir("desconto que atravessaria os R$ 79 do frete gratis: para em R$ 79", [cheio79.preco, d25.preco, d25.freteGratis, d25.desconto.limite, d25.desconto.lucro], [95.2, 79, true, "frete", lucroDe(79, 38, true)]);
+    conferir("desconto abaixo dos R$ 79 com lucro minimo: para no minimo sem frete", [cheio79.preco, d25.preco, d25.freteGratis, d25.desconto.limite, d25.desconto.saiuDoFreteGratis], [95.2, 77.2, false, "lucroMinimo", true]);
+    const d5 = await comDesconto(cheio79, 5, 38, "classico_frete_gratis");
+    conferir("desconto que fica acima dos R$ 79: continua com frete gratis", [d5.preco, d5.freteGratis, d5.variante, d5.desconto.saiuDoFreteGratis], [90.5, true, "classico_frete_gratis", false]);
     // Frete gratis por escolha abaixo de R$ 79 (R$ 74,10): o desconto vale normal, nao ha regime para atravessar.
     // 68,913 fecha em R$ 69,00; lucro 69 x 0,81 - 6,50 - 19,05 - 25 = 5,34.
     const dFG = await comDesconto(comFG, 7, 25, "classico_frete_gratis");
     conferir("frete gratis abaixo de R$ 79: o desconto vale normal", [comFG.preco, dFG.preco, dFG.freteGratis, dFG.desconto.limite], [74.1, 69, true, null]);
     const dPiso = await comDesconto(piso, 7, 35, "classico_frete_gratis");
-    conferir("preco que ja esta no piso de R$ 79: o desconto nao tem para onde ir", [dPiso.preco, dPiso.desconto.limite, dPiso.piso], [79, "frete", true]);
-    // Os dois limites juntos (frete gratis, lucro 60 e custo 100: R$ 221,10): 70% pararia nos R$ 79 com prejuizo, entao vale o
-    // lucro minimo, (5 + 100 + 19,05) / 0,81 = 153,15 -> 153,20.
+    // No piso de R$ 79 (lucro 6, custo 35): 7% da 73,47 -> 73,50 sem frete, lucro 73,50 x 0,81 - 6,50 - 13 - 35 = 5,04.
+    conferir("preco no piso de R$ 79: o desconto sai do frete gratis e do piso", [dPiso.preco, dPiso.freteGratis, dPiso.desconto.limite, dPiso.desconto.saiuDoFreteGratis, dPiso.piso], [73.5, false, null, true, false]);
+    // Lucro minimo acima dos R$ 79 (frete gratis, lucro 60 e custo 100: R$ 221,10): 70% daria R$ 66,40 com prejuizo; o minimo
+    // sem frete passa dos R$ 79, onde o frete gratis volta a ser obrigatorio: (5 + 100 + 19,05) / 0,81 = 153,15 -> 153,20.
     const d70 = await comDesconto(alto, 70, 100, "classico_frete_gratis");
-    conferir("os dois limites: vale o do lucro minimo, nunca acima do preco cheio", [d70.preco, d70.desconto.limite, d70.preco < alto.preco], [153.2, "lucroMinimo", true]);
+    conferir("lucro minimo acima dos R$ 79: fica com frete gratis, nunca acima do preco cheio", [d70.preco, d70.freteGratis, d70.desconto.limite, d70.desconto.saiuDoFreteGratis, d70.preco < alto.preco], [153.2, true, "lucroMinimo", false, true]);
     // Lucro da loja ja no minimo: nao sobra desconto nenhum.
     const noMinimo = await precoPelaFaixa({ lucro: 5, custo: 25, variante: "classico_sem_frete", taxas, frete });
     const dMin = await comDesconto(noMinimo, 7, 25, "classico_sem_frete");
@@ -4377,6 +4389,19 @@ try {
     const lucroComDesconto = custosDoAnuncio({ preco: comDesconto.preco, custo: 25, percentual: 0.13, tarifaFixa: 0, frete: 6.85 }).lucro;
     conferir("com desconto de 7%: preco menor, custos lidos nele e o lucro que sobra", [comDesconto.preco < semFrete.preco, comDesconto.preco >= semFrete.preco * 0.93, comDesconto.custosML?.preco, comDesconto.desconto?.percentual, comDesconto.desconto?.precoSemDesconto, comDesconto.desconto?.lucro, comDesconto.desconto?.limite], [true, true, comDesconto.preco, 7, semFrete.preco, lucroComDesconto, null]);
     conferir("sem desconto: nada muda e o desconto vem nulo", [semFrete.desconto, (await precoPelaFaixaNoML(falso, rascunho, { custo: 25, lucro, desconto: 0 })).preco], [null, semFrete.preco]);
+    // Desconto que tira do frete gratis (24/11/2026): o anuncio fica sem frete abaixo de R$ 79 e o PROXIMO clique tem de dar o
+    // mesmo preco. Lucro 14 e custo 40 caem na faixa 72-79 sem frete, que pela regra sobe para R$ 79 com frete gratis: o
+    // desconto sai sempre dos R$ 79, e nao do preco sem frete (que daria outro numero a cada clique).
+    const naFaixa = await precoPelaFaixaNoML(falso, rascunho, { custo: 40, lucro: 14 });
+    const comFG = { ...rascunho, preco: 79, envio: { ...rascunho.envio, freteGratis: true } };
+    const primeiro = await precoPelaFaixaNoML(falso, comFG, { custo: 40, lucro: 14, desconto: 10 });
+    const semFG = { ...rascunho, preco: primeiro.preco, envio: { ...rascunho.envio, freteGratis: false } };
+    const segundo = await precoPelaFaixaNoML(falso, semFG, { custo: 40, lucro: 14, desconto: 10 });
+    conferir(
+      "desconto que sai do frete gratis: sem frete, custos sem frete e o segundo clique igual ao primeiro",
+      [naFaixa.preco >= 72 && naFaixa.preco < 79, primeiro.desconto?.precoSemDesconto, primeiro.preco < 79, primeiro.freteGratis, primeiro.variante, primeiro.desconto?.saiuDoFreteGratis, primeiro.custosML?.frete, segundo.preco, segundo.freteGratis],
+      [true, 79, true, false, "classico_sem_frete", true, 6.85, primeiro.preco, false],
+    );
     let erroSemCategoria = null;
     try { await precoPelaFaixaNoML(falso, { ...rascunho, categoriaId: "" }, { custo: 25, lucro }); } catch (erro) { erroSemCategoria = erro.message; }
     conferir("sem categoria: recusa dizendo", /categoria/i.test(String(erroSemCategoria)), true);

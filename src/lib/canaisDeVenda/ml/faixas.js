@@ -272,12 +272,12 @@ export function descontoAdicionalValido(valor) {
 /**
  * O "Desconto adicional" do anuncio (pedido do dono em 20/11/2026: "uma caixinha escrito desconto adicional que deve ser sobre
  * o preço de venda e deve nascer em 0%"): tira o percentual do preco que `precoPelaFaixa` deu (`resultado`) e fecha em 0
- * centavo. Dois limites, porque o desconto no preco pesa mais no lucro do que parece (so a comissao e o imposto caem junto):
- * - nao atravessa os R$ 79: o preco que esta em R$ 79 ou mais para em R$ 79, senao o frete e a tarifa mudariam de regime
- *   e a conta do lucro da loja deixaria de valer (`limite: "frete"`); abaixo de R$ 79 nao ha regime para atravessar;
+ * centavo. Duas regras, porque o desconto no preco pesa mais no lucro do que parece (so a comissao e o imposto caem junto):
+ * - o preco que estava em R$ 79 ou mais e cai abaixo disso SAI do frete gratis (24/11/2026; de 20 a 24/11 ele parava em R$ 79)
+ *   e o lucro e o do regime sem frete (`freteGratis`, `variante` e `desconto.saiuDoFreteGratis` dizem isso a tela);
  * - nao deixa o lucro abaixo do minimo do ML (`LUCRO_MINIMO_ML`): para no preco que deixa esse lucro, nunca acima do preco
- *   cheio (`limite: "lucroMinimo"`, que vence o do frete).
- * Devolve o `resultado` com o preco novo e `desconto: { percentual, precoSemDesconto, lucro, limite }`; sem desconto,
+ *   cheio (`limite: "lucroMinimo"`).
+ * Devolve o `resultado` com o preco novo e `desconto: { percentual, precoSemDesconto, lucro, limite, saiuDoFreteGratis }`; sem desconto,
  * `desconto: null` e o preco de antes.
  */
 export async function precoComDescontoAdicional({ resultado, desconto, custo, variante, taxas, frete }) {
@@ -286,26 +286,37 @@ export async function precoComDescontoAdicional({ resultado, desconto, custo, va
   if (!(percentual > 0)) return { ...resultado, desconto: null };
   const cheio = resultado.preco;
   const freteGratis = Boolean(resultado.freteGratis);
+  // Abaixo dos R$ 79 o anuncio que estava em R$ 79 ou mais SAI do frete gratis (pedido do dono em 24/11/2026: "se o desconto
+  // ficar abaixo das condicoes do frete gratis, deve sair do frete gratis, apenas informar"; ate ali o desconto parava em
+  // R$ 79). O lucro e refeito com a tarifa e o frete do regime sem frete. O frete gratis por escolha com o preco cheio ja
+  // abaixo de R$ 79 continua; de R$ 79 para cima ele e sempre obrigatorio.
+  const freteGratisEm = (preco) => (preco >= LIMITE_DO_FRETE_GRATIS ? true : cheio >= LIMITE_DO_FRETE_GRATIS ? false : freteGratis);
+  const tipo = String(variante).startsWith("premium") ? "premium" : "classico";
+  const varianteEm = (preco) => `${tipo}_${freteGratisEm(preco) ? "frete_gratis" : "sem_frete"}`;
   const lucroEm = async (preco) => {
     const { percentual: comissao, tarifaFixa } = (await taxas(preco)) ?? {};
-    return custosDoAnuncio({ preco, custo: Number(custo), percentual: comissao, tarifaFixa, frete: await frete(preco, freteGratis) })?.lucro ?? null;
+    return custosDoAnuncio({ preco, custo: Number(custo), percentual: comissao, tarifaFixa, frete: await frete(preco, freteGratisEm(preco)) })?.lucro ?? null;
   };
 
   let preco = Math.min(cheio, precoFechado(cheio * (1 - percentual / 100)));
   let limite = null;
-  // So quem ja esta em R$ 79 ou mais tem um regime para atravessar; o frete gratis por escolha abaixo disso desconta normal.
-  if (cheio >= LIMITE_DO_FRETE_GRATIS && preco < LIMITE_DO_FRETE_GRATIS) {
-    preco = LIMITE_DO_FRETE_GRATIS;
-    limite = "frete";
-  }
   let lucro = await lucroEm(preco);
   if (lucro !== null && lucro < LUCRO_MINIMO_ML) {
-    const minimo = (await precoPelaFaixa({ lucro: LUCRO_MINIMO_ML, custo, variante, taxas, frete }))?.preco ?? cheio;
+    // O minimo no regime do preco com desconto: sem frete abaixo de R$ 79 (a conta sobe sozinha para o frete gratis se passar).
+    const minimo = (await precoPelaFaixa({ lucro: LUCRO_MINIMO_ML, custo, variante: varianteEm(preco), taxas, frete }))?.preco ?? cheio;
     preco = Math.min(cheio, Math.max(preco, minimo));
     limite = "lucroMinimo";
     lucro = await lucroEm(preco);
   }
-  return { ...resultado, preco: dinheiro(preco), desconto: { percentual, precoSemDesconto: cheio, lucro, limite } };
+  const ficouComFreteGratis = freteGratisEm(preco);
+  return {
+    ...resultado,
+    preco: dinheiro(preco),
+    freteGratis: ficouComFreteGratis,
+    variante: varianteEm(preco),
+    piso: preco === cheio ? resultado.piso : false,
+    desconto: { percentual, precoSemDesconto: cheio, lucro, limite, saiuDoFreteGratis: freteGratis && !ficouComFreteGratis },
+  };
 }
 
 /**
