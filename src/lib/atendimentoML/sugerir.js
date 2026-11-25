@@ -6,7 +6,7 @@ import { estadoDoOrcamento, estimarCustoMaximoBrl, liquidarReserva, registrarGas
 import { criarProvedor as criarProvedorReal } from "@/lib/riseAi/provedores/index";
 
 import { salvarRascunho } from "./banco";
-import { anunciosIndicaveis, montarContexto, montarContextoDePosVenda } from "./contexto";
+import { anunciosIndicaveis, montarContexto, montarContextoDePosVenda, montarContextoDeReclamacao } from "./contexto";
 import { trocarEtiquetas } from "./etiquetas";
 import { montarPromptDoML } from "./prompt";
 
@@ -22,6 +22,10 @@ import { montarPromptDoML } from "./prompt";
 const MAX_TOKENS_DA_SUGESTAO = 900;
 /// A mensagem de pos-venda cabe em 350 caracteres: teto curto, para a sugestao nao nascer maior que o limite do ML.
 const MAX_TOKENS_DE_POS_VENDA = 300;
+/// A mensagem de reclamacao tem teto de 1000 caracteres no Rise, e o prompt pede ate 500.
+const MAX_TOKENS_DE_RECLAMACAO = 600;
+/// Vai junto de toda sugestao de reclamacao (tela, Telegram e MCP): a mensagem pesa na decisao do ML.
+export const LEMBRETE_DO_MEDIADOR = "O mediador do ML lê esta mensagem.";
 /// Estimativa grosseira para a reserva do orcamento: 1 token a cada 3 caracteres (portugues).
 const tokensDe = (texto) => Math.ceil(String(texto ?? "").length / 3);
 
@@ -42,16 +46,17 @@ const recusa = (motivo, extra = {}) => ({ ok: false, motivo, mensagem: TEXTO[mot
  */
 export async function sugerirResposta(id, { por, ml = clienteML(), criarProvedor = null, configuracao = null, agora = Date.now() } = {}) {
   const linha = await prisma.atendimentoML.findUnique({ where: { id: String(id ?? "") }, select: { id: true, status: true, tipo: true } });
-  if (!linha || linha.status !== "ABERTA" || !["PERGUNTA", "POS_VENDA"].includes(linha.tipo)) return recusa("nao-aberta");
+  if (!linha || linha.status !== "ABERTA" || !["PERGUNTA", "POS_VENDA", "RECLAMACAO"].includes(linha.tipo)) return recusa("nao-aberta");
   const posVenda = linha.tipo === "POS_VENDA";
-  const maxTokens = posVenda ? MAX_TOKENS_DE_POS_VENDA : MAX_TOKENS_DA_SUGESTAO;
+  const reclamacao = linha.tipo === "RECLAMACAO";
+  const maxTokens = reclamacao ? MAX_TOKENS_DE_RECLAMACAO : posVenda ? MAX_TOKENS_DE_POS_VENDA : MAX_TOKENS_DA_SUGESTAO;
 
   const config = configuracao ?? (await lerConfiguracao());
   if ((await estadoDoOrcamento("INTERNO", { agora, config })).nivel === "esgotado") return recusa("orcamento");
   const escolhas = [config.padrao, config.reserva].filter((escolha) => escolha?.provedor && escolha?.modelo);
   if (escolhas.length === 0) return recusa("sem-modelo");
 
-  const contexto = posVenda ? await montarContextoDePosVenda(linha.id) : await montarContexto(linha.id, { ml });
+  const contexto = reclamacao ? await montarContextoDeReclamacao(linha.id) : posVenda ? await montarContextoDePosVenda(linha.id) : await montarContexto(linha.id, { ml });
   const { sistema, mensagem } = montarPromptDoML({ contexto, estiloDoDono: config.atendimentoML?.prompt });
   const fabricar = criarProvedor ?? (async (provedorId) => criarProvedorReal(provedorId, { endpoint: config.endpoints?.[provedorId], chave: await lerChave(provedorId) }));
 
@@ -87,9 +92,9 @@ export async function sugerirResposta(id, { por, ml = clienteML(), criarProvedor
     detalhe: { tokensEntrada: resposta.uso?.entrada ?? 0, tokensSaida: resposta.uso?.saida ?? 0, por: por ?? null },
   });
 
-  // Pos-venda nao tem etiqueta de anuncio: o texto fica como veio e qualquer endereco e barrado pelo filtro.
-  const troca = posVenda ? { texto: String(resposta.texto).trim(), links: [] } : trocarEtiquetas(String(resposta.texto).trim(), anunciosIndicaveis(contexto));
+  // Pos-venda e reclamacao nao tem etiqueta de anuncio: o texto fica como veio e qualquer endereco e barrado pelo filtro.
+  const troca = posVenda || reclamacao ? { texto: String(resposta.texto).trim(), links: [] } : trocarEtiquetas(String(resposta.texto).trim(), anunciosIndicaveis(contexto));
   const salvo = await salvarRascunho({ id: linha.id, texto: troca.texto, origem: "IA", por, linksDaTroca: troca.links, agora: new Date(agora) });
   if (salvo.motivo === "nao-aberta") return recusa("nao-aberta");
-  return { ok: true, texto: troca.texto, barrados: salvo.barrados, custoBrl: custo?.brl ?? 0, avisos: contexto.avisos };
+  return { ok: true, texto: troca.texto, barrados: salvo.barrados, custoBrl: custo?.brl ?? 0, avisos: contexto.avisos, ...(reclamacao ? { lembrete: LEMBRETE_DO_MEDIADOR } : {}) };
 }

@@ -5,6 +5,7 @@ import { mascararDadosPessoais } from "@/lib/riseAi/mascarar";
 import { limiteDaPergunta, unidadesDoKitDoAnuncio } from "./banco";
 import { etiquetaDoAnuncio } from "./etiquetas";
 import { linkDoMercadoLivre } from "./filtro";
+import { LIMITE_DA_RECLAMACAO } from "./reclamacoes";
 
 /**
  * O CONTEXTO de uma pergunta do ML: tudo o que a IA do Rise (e o assistente do dono, pelo MCP) recebe para redigir a
@@ -171,6 +172,68 @@ export async function montarContextoDePosVenda(id) {
     limite: Number.isInteger(linha.limite) && linha.limite > 0 ? linha.limite : 350,
     bloqueio: linha.bloqueio ?? null,
     conversa: mensagens.map((m) => ({ de: m.de === "V" ? "V" : "C", texto: cortar(mascarar(m.texto), 2000), em: m.em ?? null })),
+    pedido: pedido
+      ? {
+          numero: pedido.numero,
+          data: diaDeSaoPaulo(pedido.dataDaVenda),
+          situacao: SITUACAO_DO_PEDIDO[pedido.status] ?? null,
+          itens: pedido.itens.map((item) => ({ titulo: cortar(item.titulo, 200), quantidade: item.quantidade })),
+          envio: { situacao: SITUACAO_DO_ENVIO[pedido.statusDoEnvio] ?? null, transportadora: texto(envio.transportadora), servico: texto(envio.servico), rastreio: texto(envio.rastreio) },
+        }
+      : null,
+    avisos: pedido ? [] : ["pedido-fora-do-rise"],
+  };
+}
+
+const SITUACAO_DA_DEVOLUCAO = {
+  pending: "Aguardando o comprador postar",
+  label_generated: "Etiqueta de devolução gerada",
+  ready_to_ship: "Etiqueta de devolução gerada",
+  shipped: "Postada pelo comprador",
+  pending_delivered: "A caminho da loja",
+  delivered: "Entregue de volta à loja",
+  not_delivered: "Não entregue à loja",
+  cancelled: "Devolução cancelada",
+  expired: "Prazo da devolução vencido",
+};
+
+/**
+ * O CONTEXTO de uma RECLAMACAO (fase 3): a conversa (mascarada, com quem falou: comprador, loja ou mediador do ML), a
+ * etapa, para quem a mensagem vai, o motivo, se afeta a reputacao, a situacao da devolucao e o pedido do Rise so com o
+ * que o comprador ja sabe (o mesmo recorte do pos-venda).
+ *
+ * NUNCA entra: nome, CPF/CNPJ, e-mail, telefone ou endereco do comprador, custo, lucro nem frete pago pela loja. So
+ * LEITURA do banco: a conversa e o retrato gravado na linha.
+ */
+export async function montarContextoDeReclamacao(id) {
+  const linha = await prisma.atendimentoML.findUnique({ where: { id: String(id ?? "") } });
+  if (!linha || linha.tipo !== "RECLAMACAO") return null;
+  const [pedido, base] = await Promise.all([
+    linha.pedidoId
+      ? prisma.pedidoDeVenda.findUnique({
+          where: { id: linha.pedidoId },
+          select: { numero: true, dataDaVenda: true, status: true, statusDoEnvio: true, envio: true, itens: { orderBy: { ordem: "asc" }, select: { titulo: true, quantidade: true } } },
+        })
+      : null,
+    linha.reclamacaoId ? prisma.reclamacaoML.findUnique({ where: { id: linha.reclamacaoId }, select: { motivoNome: true, motivoDetalhe: true, afetaReputacao: true, devolucaoStatus: true } }) : null,
+  ]);
+  const retrato = linha.conversa && typeof linha.conversa === "object" ? linha.conversa : {};
+  const mensagens = Array.isArray(retrato.mensagens) ? retrato.mensagens : [];
+  const envio = pedido?.envio && typeof pedido.envio === "object" ? pedido.envio : {};
+  const texto = (valor, teto = 120) => (typeof valor === "string" && valor.trim() ? cortar(valor, teto) : null);
+
+  return {
+    tipo: "RECLAMACAO",
+    limite: LIMITE_DA_RECLAMACAO,
+    bloqueio: linha.bloqueio ?? null,
+    etapa: linha.etapa ?? null,
+    destinatario: linha.destinatario ?? null,
+    motivo: base?.motivoNome ? { nome: cortar(base.motivoNome, 200), detalhe: texto(base.motivoDetalhe, 300) } : null,
+    afetaReputacao: base?.afetaReputacao ?? null,
+    devolucao: base?.devolucaoStatus ? SITUACAO_DA_DEVOLUCAO[base.devolucaoStatus] ?? null : null,
+    // O que o proprio ML diz da situacao (titulo e descricao do detalhe): texto dele, nao do comprador.
+    situacaoNoML: retrato.detalhe?.titulo ? { titulo: cortar(retrato.detalhe.titulo, 200), descricao: texto(retrato.detalhe.descricao, 400) } : null,
+    conversa: mensagens.map((m) => ({ de: m.de === "V" || m.de === "M" ? m.de : "C", texto: cortar(mascarar(m.texto), 2000), em: m.em ?? null })),
     pedido: pedido
       ? {
           numero: pedido.numero,
