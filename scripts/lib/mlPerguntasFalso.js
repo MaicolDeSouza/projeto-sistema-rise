@@ -6,6 +6,10 @@
  * `offset` e `limit`), `GET /items/{id}`, `GET /items/{id}/description` e `POST /answers`. Caminho que ele nao conhece
  * LANCA: esconder isso atras de um 404 faria o teste passar sem provar nada.
  *
+ * Fase 2 (pos-venda): `GET /messages/packs/{pack}/sellers/{vendedor}` (10 por pagina, da mais NOVA para a mais antiga, como
+ * o ML; sem `mark_as_read=false` a conversa entra em `marcadasComoLidas`), `GET /messages/unread`, `GET /messages/{id}` e
+ * `POST /messages/packs/{pack}/sellers/{vendedor}` (guardado em `mensagensEnviadas`).
+ *
  * `respostasEnviadas` guarda cada `POST /answers` que chegou (inclusive o que falhou conta em `chamadas`);
  * `falharNoProximoPost(status)` faz o proximo POST responder esse erro, uma vez.
  */
@@ -15,6 +19,13 @@ export function criarMlPerguntasFalso({ vendedorId = "212386247" } = {}) {
   const itens = new Map();
   const respostasEnviadas = [];
   const chamadas = [];
+  // Pos-venda: pack -> { status, substatus, claimIds, limite, compradorId, mensagens: [da mais antiga para a mais nova] }.
+  const conversas = new Map();
+  const naoLidas = new Set();
+  const marcadasComoLidas = [];
+  const mensagensEnviadas = [];
+  let foraDoAr = false;
+  let sequencia = 0;
   let falhaDoPost = null;
 
   const resposta = (status, dados) => ({ ok: status >= 200 && status < 300, status, dados });
@@ -25,8 +36,59 @@ export function criarMlPerguntasFalso({ vendedorId = "212386247" } = {}) {
     return pergunta;
   }
 
-  async function get(caminho, params = {}) {
+  const mensagemDoML = (pack, m) => ({
+    id: m.id,
+    site_id: "MLB",
+    from: { user_id: m.de === "V" ? Number(vendedorId) : conversas.get(pack).compradorId },
+    to: { user_id: m.de === "V" ? conversas.get(pack).compradorId : Number(vendedorId) },
+    status: "available",
+    text: m.texto,
+    message_date: { created: m.em, received: m.em, available: m.em, notified: m.em, read: null },
+    message_moderation: { is_automatic: false, status: m.moderacao ?? "clean", reason: null, source: "online" },
+    message_attachments: m.anexos ? Array.from({ length: m.anexos }, (_, i) => ({ filename: `anexo-${i + 1}.jpg` })) : null,
+    message_resources: [{ id: String(pack), name: "packs" }, { id: String(vendedorId), name: "sellers" }],
+    conversation_first_message: false,
+  });
+
+  function paginaDaConversa(pack, params) {
+    const conversa = conversas.get(pack);
+    const limit = Number(params.limit ?? 10);
+    const offset = Number(params.offset ?? 0);
+    const todas = conversa ? [...conversa.mensagens].reverse() : [];
+    if (conversa && String(params.mark_as_read ?? "true") !== "false") {
+      marcadasComoLidas.push(pack);
+      naoLidas.delete(pack);
+    }
+    return {
+      paging: { limit, offset, total: todas.length },
+      conversation_status: { path: `/packs/${pack}/sellers/${vendedorId}`, status: conversa?.status ?? "blocked", substatus: conversa ? conversa.substatus ?? null : "blocked_by_conversation_initiated_by_seller_limited", claim_ids: conversa?.claimIds ?? [], shipping_id: null },
+      messages: todas.slice(offset, offset + limit).map((m) => mensagemDoML(pack, m)),
+      seller_max_message_length: conversa?.limite ?? 350,
+      buyer_max_message_length: 3500,
+    };
+  }
+
+  async function get(caminhoComQuery, parametros = {}) {
+    // A consulta pode vir no caminho ("...?tag=post_sale") ou em `params`: o falso aceita as duas.
+    const [caminho, consulta = ""] = String(caminhoComQuery).split("?");
+    const params = { ...Object.fromEntries(new URLSearchParams(consulta)), ...parametros };
     chamadas.push({ metodo: "GET", caminho, params });
+    if (caminho.startsWith("/messages")) {
+      if (foraDoAr) return resposta(503, { message: "Service unavailable", status: 503 });
+      if (caminho === "/messages/unread") {
+        return resposta(200, { user_id: Number(vendedorId), total: naoLidas.size, results: [...naoLidas].map((pack) => ({ resource: `/packs/${pack}/sellers/${vendedorId}`, count: 1 })) });
+      }
+      const daConversa = /^\/messages\/packs\/([^/]+)\/sellers\/([^/]+)$/.exec(caminho);
+      if (daConversa) return resposta(200, paginaDaConversa(daConversa[1], params));
+      const daMensagem = /^\/messages\/([^/]+)$/.exec(caminho);
+      if (daMensagem) {
+        for (const [pack, conversa] of conversas) {
+          const achada = conversa.mensagens.find((m) => m.id === daMensagem[1]);
+          if (achada) return resposta(200, { messages: [mensagemDoML(pack, achada)] });
+        }
+        return resposta(404, { message: "Message not found", status: 404 });
+      }
+    }
     if (caminho === "/questions/search") {
       const item = params.item ?? params.item_id ?? null;
       let lista = [...perguntas.values()];
@@ -59,8 +121,22 @@ export function criarMlPerguntasFalso({ vendedorId = "212386247" } = {}) {
     throw new Error(`ML falso (perguntas): GET desconhecido ${caminho}`);
   }
 
-  async function post(caminho, corpo) {
-    chamadas.push({ metodo: "POST", caminho, corpo });
+  async function post(caminhoComQuery, corpo) {
+    const [caminho] = String(caminhoComQuery).split("?");
+    chamadas.push({ metodo: "POST", caminho, corpo, consulta: String(caminhoComQuery).split("?")[1] ?? "" });
+    const daConversa = /^\/messages\/packs\/([^/]+)\/sellers\/([^/]+)$/.exec(caminho);
+    if (daConversa) {
+      if (falhaDoPost) {
+        const status = falhaDoPost;
+        falhaDoPost = null;
+        return resposta(status, { message: status === 400 ? "The message was moderated" : "Internal error", status });
+      }
+      const conversa = conversas.get(daConversa[1]);
+      if (!conversa || conversa.status !== "active") return resposta(403, { message: "Conversation blocked", error: "blocked_conversation_send_message_forbidden", status: 403 });
+      mensagensEnviadas.push({ pack: daConversa[1], consulta: String(caminhoComQuery).split("?")[1] ?? "", ...corpo });
+      conversa.mensagens.push({ id: `zzmsgv${++sequencia}`, de: "V", texto: corpo.text, em: new Date().toISOString() });
+      return resposta(201, { id: `zzmsgv${sequencia}`, status: "available" });
+    }
     if (caminho !== "/answers") throw new Error(`ML falso (perguntas): POST desconhecido ${caminho}`);
     if (falhaDoPost) {
       const status = falhaDoPost;
@@ -96,6 +172,29 @@ export function criarMlPerguntasFalso({ vendedorId = "212386247" } = {}) {
     },
     falharNoProximoPost(status = 500) {
       falhaDoPost = status;
+    },
+    conversas,
+    naoLidas,
+    marcadasComoLidas,
+    mensagensEnviadas,
+    /** Cria (ou troca) a conversa de um pack. `mensagens`: `[{ de: "C" | "V", texto, em?, anexos?, moderacao? }]`, da mais antiga para a mais nova. */
+    porConversa(pack, { status = "active", substatus = null, claimIds = [], limite = 350, compradorId = 987654321, mensagens = [] } = {}) {
+      const base = Date.parse("2026-11-24T12:00:00.000Z");
+      conversas.set(String(pack), { status, substatus, claimIds, limite, compradorId, mensagens: mensagens.map((m, i) => ({ id: m.id ?? `zzmsg${++sequencia}`, em: m.em ?? new Date(base + i * 60000).toISOString(), ...m })) });
+      return conversas.get(String(pack));
+    },
+    /** O comprador (ou o vendedor, pelo app do ML) escreve mais uma mensagem. Devolve o id dela. */
+    escrever(pack, de, texto, extra = {}) {
+      const conversa = conversas.get(String(pack));
+      const ultima = conversa.mensagens.at(-1);
+      const em = new Date((ultima ? Date.parse(ultima.em) : Date.parse("2026-11-24T12:00:00.000Z")) + 60000).toISOString();
+      const id = `zzmsg${++sequencia}`;
+      conversa.mensagens.push({ id, de, texto, em, ...extra });
+      if (de === "C") naoLidas.add(String(pack));
+      return id;
+    },
+    mensagensForaDoAr(valor = true) {
+      foraDoAr = valor;
     },
   };
 }

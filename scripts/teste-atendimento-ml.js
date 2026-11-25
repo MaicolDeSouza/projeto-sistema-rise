@@ -657,6 +657,196 @@ try {
     }
   }
 
+  // ===============================================================================================================
+  // FASE 2: mensagens de pos-venda (plano docs/superpowers/plans/2026-11-24-atendimento-ml-fase-2-pos-venda.md)
+  // ===============================================================================================================
+  const linhaDoPack = (pack) => prisma.atendimentoML.findUnique({ where: { tipo_idExterno: { tipo: "POS_VENDA", idExterno: pack } } });
+
+  // ---------------------------------------------------------------------------------------------------------------
+  console.log("\n# Fase 2, tarefa 1: retrato da conversa");
+  {
+    const { criarMlPerguntasFalso } = await import("./lib/mlPerguntasFalso.js");
+    const pv = await import("../src/lib/atendimentoML/posVenda.js");
+    const ml = criarMlPerguntasFalso();
+    const V = await ml.usuarioId();
+    const resumo = async (pack) => pv.resumirConversa(await pv.lerConversaDoML(ml, pack, { vendedorId: V }), V);
+
+    ml.porConversa("ZZ-ATD-P1", { mensagens: [{ de: "C", texto: "Oi, ja enviaram?" }, { de: "V", texto: "Enviamos hoje." }, { de: "C", texto: "Obrigado, e o rastreio?" }] });
+    let r = await resumo("ZZ-ATD-P1");
+    conferir("conversa da mais antiga para a mais nova, com quem falou", r.mensagens.map((m) => [m.de, m.texto]), [["C", "Oi, ja enviaram?"], ["V", "Enviamos hoje."], ["C", "Obrigado, e o rastreio?"]]);
+    conferir("ultima do comprador pede resposta; limite e comprador lidos do ML", [r.aguardaResposta, r.ultimaDoCliente.texto, r.limite, r.bloqueio, r.compradorId, r.emReclamacao, r.longa], [true, "Obrigado, e o rastreio?", 350, null, "987654321", false, false]);
+    conferir("a leitura nao marca a conversa como lida", [ml.marcadasComoLidas.length, ml.chamadas.at(-1).params.mark_as_read, ml.chamadas.at(-1).params.tag], [0, "false", "post_sale"]);
+
+    ml.escrever("ZZ-ATD-P1", "V", "Segue o codigo.");
+    r = await resumo("ZZ-ATD-P1");
+    conferir("ultima do vendedor: nao espera resposta", [r.aguardaResposta, r.ultimaDoCliente.texto], [false, "Obrigado, e o rastreio?"]);
+
+    ml.porConversa("ZZ-ATD-P2", { status: "blocked", substatus: "blocked_by_cancelled_order", limite: 300, mensagens: [{ de: "C", texto: "Cancelei sem querer" }] });
+    r = await resumo("ZZ-ATD-P2");
+    conferir("conversa bloqueada: o motivo e a frase; limite diferente e respeitado", [r.bloqueio, pv.textoDoBloqueio(r.bloqueio), r.limite], ["blocked_by_cancelled_order", "O pedido foi cancelado: o Mercado Livre não aceita mais mensagens nesta conversa.", 300]);
+    conferir("bloqueio que o Rise nao conhece mostra o codigo", pv.textoDoBloqueio("blocked_by_xyz"), "O Mercado Livre bloqueou esta conversa (blocked_by_xyz).");
+
+    ml.porConversa("ZZ-ATD-P3", { claimIds: [5001], mensagens: [{ de: "C", texto: "", anexos: 2 }, { de: "C", texto: "texto proibido", moderacao: "rejected" }] });
+    r = await resumo("ZZ-ATD-P3");
+    conferir("anexo sem texto e mensagem retida pelo ML", r.mensagens.map((m) => [m.texto, m.anexos, m.retida]), [["[anexo]", 2, false], ["[mensagem retida pelo ML]", 0, true]]);
+    conferir("conversa com reclamacao", [r.emReclamacao, r.aguardaResposta], [true, true]);
+
+    ml.porConversa("ZZ-ATD-P4", { mensagens: Array.from({ length: 23 }, (_, i) => ({ de: i % 2 ? "V" : "C", texto: `m${i + 1}` })) });
+    const antes = ml.chamadas.length;
+    r = await resumo("ZZ-ATD-P4");
+    conferir("23 mensagens: le as tres paginas, na ordem", [r.mensagens.length, r.mensagens[0].texto, r.mensagens.at(-1).texto, ml.chamadas.length - antes, r.longa], [23, "m1", "m23", 3, false]);
+    ml.porConversa("ZZ-ATD-P5", { mensagens: Array.from({ length: 60 }, (_, i) => ({ de: "C", texto: `m${i + 1}` })) });
+    r = await resumo("ZZ-ATD-P5");
+    conferir("60 mensagens: guarda as 50 mais novas e avisa", [r.mensagens.length, r.mensagens[0].texto, r.mensagens.at(-1).texto, r.longa], [50, "m11", "m60", true]);
+
+    r = await resumo("ZZ-ATD-P-NAO-EXISTE");
+    conferir("pack sem conversa: nada a responder", [r.mensagens.length, r.aguardaResposta, r.ultimaDoCliente], [0, false, null]);
+  }
+
+  // ---------------------------------------------------------------------------------------------------------------
+  console.log("\n# Fase 2, tarefa 2: chegada");
+  {
+    const { criarMlPerguntasFalso } = await import("./lib/mlPerguntasFalso.js");
+    const pv = await import("../src/lib/atendimentoML/posVenda.js");
+    const { rodarAtendimentoML } = await import("../src/lib/atendimentoML/perguntas.js");
+    const ml = criarMlPerguntasFalso();
+    const rodar = () => pv.rodarPosVendaML({ ml, soPrefixo: "ZZ-ATD-" });
+
+    ml.porConversa("ZZ-ATD-P10", { mensagens: [{ de: "C", texto: "Meu pedido ja saiu?" }] });
+    ml.naoLidas.add("ZZ-ATD-P10");
+    let volta = await rodar();
+    let linha = await linhaDoPack("ZZ-ATD-P10");
+    conferir("mensagem nova cria a linha ABERTA", [volta.ok, volta.novas, linha?.status, linha?.textoDoCliente, linha?.situacaoNoML, linha?.limite, linha?.bloqueio, linha?.conversa?.mensagens?.length, linha?.conversa?.compradorId, Boolean(linha?.ultimaDoClienteId)], [true, 1, "ABERTA", "Meu pedido ja saiu?", "active", 350, null, 1, "987654321", true]);
+    volta = await rodar();
+    conferir("a mesma mensagem lida de novo nao duplica", [volta.novas, volta.reabertas, await prisma.atendimentoML.count({ where: { tipo: "POS_VENDA", idExterno: "ZZ-ATD-P10" } })], [0, 0, 1]);
+    conferir("a rotina nunca marca como lida", ml.marcadasComoLidas.length, 0);
+
+    ml.escrever("ZZ-ATD-P10", "V", "Saiu hoje cedo.");
+    volta = await rodar();
+    linha = await linhaDoPack("ZZ-ATD-P10");
+    conferir("respondida pelo app do ML fecha a linha", [volta.fechadas, volta.fechadasIds, linha.status, linha.respondidaVia, linha.respostaEnviada], [1, [linha.id], "FECHADA_FORA", "ML", "Saiu hoje cedo."]);
+
+    await prisma.atendimentoML.update({ where: { id: linha.id }, data: { rascunho: "rascunho velho", rascunhoOrigem: "MANUAL", telegramChatId: "zz-atd-chat", telegramMensagemId: 5, erroDoEnvio: "erro velho" } });
+    ml.escrever("ZZ-ATD-P10", "C", "E o codigo de rastreio?");
+    volta = await rodar();
+    const reaberta = await linhaDoPack("ZZ-ATD-P10");
+    conferir("comprador escreve de novo: a MESMA linha reabre limpa", [volta.reabertas, reaberta.id === linha.id, reaberta.status, reaberta.textoDoCliente, reaberta.rascunho, reaberta.telegramMensagemId, reaberta.erroDoEnvio, reaberta.respostaEnviada, reaberta.respondidaVia, reaberta.conversa.mensagens.length], [1, true, "ABERTA", "E o codigo de rastreio?", null, null, null, null, null, 3]);
+
+    await prisma.atendimentoML.update({ where: { id: linha.id }, data: { status: "IGNORADA" } });
+    volta = await rodar();
+    conferir("ignorada sem mensagem nova continua ignorada", [volta.reabertas, (await linhaDoPack("ZZ-ATD-P10")).status], [0, "IGNORADA"]);
+
+    ml.porConversa("ZZ-ATD-P11", { mensagens: [{ de: "V", texto: "Mensagem que a loja mandou" }] });
+    ml.naoLidas.add("ZZ-ATD-P11");
+    ml.naoLidas.add("ZZ-ATD-P-VAZIA");
+    await rodar();
+    conferir("conversa so do vendedor ou vazia nao cria linha", [await linhaDoPack("ZZ-ATD-P11"), await linhaDoPack("ZZ-ATD-P-VAZIA")], [null, null]);
+
+    ml.porConversa("ZZ-ATD-P12", { mensagens: [{ id: "zzatdn1", de: "C", texto: "Chegou com a caixa amassada" }] });
+    const pelaNotificacao = await pv.aplicarNotificacaoDeMensagem(ml, "zzatdn1");
+    conferir("a notificacao 'messages' vira linha (pelo id da mensagem)", [pelaNotificacao.criada, (await linhaDoPack("ZZ-ATD-P12"))?.textoDoCliente], [true, "Chegou com a caixa amassada"]);
+    conferir("notificacao de mensagem que o ML nao tem: nada", (await pv.aplicarNotificacaoDeMensagem(ml, "zzatdnaoexiste")).criada, false);
+    {
+      const { conferirNotificacao } = await import("../src/lib/pedidos/webhooks.js");
+      const seg = { mlUsuarioId: "212386247", mlClientId: "123" };
+      const aviso = (resource, topic = "messages") => conferirNotificacao({ origem: "MERCADO_LIVRE", corpoTexto: JSON.stringify({ resource, user_id: 212386247, topic, application_id: 123 }), headers: new Headers(), segredos: seg }).recurso;
+      conferir("o topico 'messages' entra na fila como /messages/{id} (o ML manda so o id)", [aviso("zzatdn2"), aviso("/messages/zzatdn2"), aviso("zzatdn2", "items")], ["/messages/zzatdn2", "/messages/zzatdn2", null]);
+      const { registrarNotificacao } = await import("../src/lib/pedidos/webhooks.js");
+      const { processarNotificacoes } = await import("../src/lib/pedidos/leitura.js");
+      ml.porConversa("ZZ-ATD-P13", { mensagens: [{ id: "zzatdn2", de: "C", texto: "Pela fila das notificacoes" }] });
+      const naFila = await registrarNotificacao({ origem: "MERCADO_LIVRE", recurso: aviso("zzatdn2"), payload: { teste: "zz-atd" } });
+      const processada = await processarNotificacoes({ ml, ids: [naFila.id] });
+      conferir("a fila le a mensagem e cria a linha", [processada, (await linhaDoPack("ZZ-ATD-P13"))?.textoDoCliente], [{ processadas: 1, erros: 0 }, "Pela fila das notificacoes"]);
+      await prisma.notificacaoDePedido.deleteMany({ where: { id: naFila.id } });
+    }
+
+    ml.porPergunta({ id: "ZZ-ATD-P-Q1", texto: "Pergunta junto da mensagem?" });
+    ml.mensagensForaDoAr();
+    volta = await rodar();
+    conferir("mensagens do ML fora do ar: a volta devolve o erro, sem lancar", [volta.ok, typeof volta.erro], [false, "string"]);
+    const junta = await rodarAtendimentoML({ ml, soPrefixo: "ZZ-ATD-" });
+    conferir("o erro das mensagens nao esconde as perguntas", [junta.ok, junta.novas, junta.posVenda?.ok], [true, 1, false]);
+    ml.mensagensForaDoAr(false);
+    const juntaBoa = await rodarAtendimentoML({ ml, soPrefixo: "ZZ-ATD-" });
+    conferir("a rotina roda as duas e junta as fechadas", [juntaBoa.ok, juntaBoa.posVenda?.ok, Array.isArray(juntaBoa.fechadasIds)], [true, true, true]);
+    await limpar();
+  }
+
+  // ---------------------------------------------------------------------------------------------------------------
+  console.log("\n# Fase 2, tarefa 3: envio unico e marcar como lida");
+  {
+    const { criarMlPerguntasFalso } = await import("./lib/mlPerguntasFalso.js");
+    const pv = await import("../src/lib/atendimentoML/posVenda.js");
+    const { enviarResposta } = await import("../src/lib/atendimentoML/enviar.js");
+    const { salvarRascunho, ignorarAtendimento, lerAtendimento } = await import("../src/lib/atendimentoML/banco.js");
+    const ml = criarMlPerguntasFalso();
+    const V = await ml.usuarioId();
+    const ligado = { ML_RESPONDER_MENSAGENS: "true" };
+    const nova = async (pack, opcoes = {}) => {
+      ml.porConversa(pack, { mensagens: [{ de: "C", texto: "Quando chega o meu pedido?" }], ...opcoes });
+      ml.naoLidas.add(pack);
+      await pv.rodarPosVendaML({ ml, soPrefixo: "ZZ-ATD-" });
+      return (await linhaDoPack(pack)).id;
+    };
+    const enviar = (id, env = ligado) => enviarResposta({ id, por: "zz-atd-dono", via: "RISE", ml, env });
+    const texto = "Olá! Seu pedido foi postado hoje e chega em até 5 dias úteis.";
+
+    const id = await nova("ZZ-ATD-P20");
+    const longo = await salvarRascunho({ id, texto: "a".repeat(351), origem: "DONO", por: "zz-atd-dono" });
+    conferir("351 caracteres: o rascunho volta barrado pelo limite do ML", [longo.ok, longo.barrados[0]?.motivo, longo.barrados[0]?.trecho], [false, "tamanho", "351 de 350 caracteres"]);
+    conferir("e o envio recusa", (await enviar(id)).motivo, "filtro");
+    conferir("350 caracteres passam", (await salvarRascunho({ id, texto: "a".repeat(350), origem: "DONO", por: "zz-atd-dono" })).ok, true);
+    await salvarRascunho({ id, texto, origem: "DONO", por: "zz-atd-dono" });
+
+    const travado = await enviar(id, { ML_RESPONDER_MENSAGENS: "false", ML_RESPONDER_PERGUNTAS: "true" });
+    conferir("trava das mensagens desligada: nada sai (a das perguntas nao serve)", [travado.ok, travado.motivo, travado.mensagem, ml.mensagensEnviadas.length], [false, "trava", pv.TEXTO_DA_TRAVA_DE_MENSAGENS, 0]);
+
+    const dois = await Promise.all([enviar(id), enviar(id)]);
+    const depois = await lerAtendimento(id);
+    conferir("dois envios ao mesmo tempo: um POST so", [dois.filter((r) => r.ok).length, ml.mensagensEnviadas.length], [1, 1]);
+    conferir("o POST leva de, para, texto e a marca de pos-venda", ml.mensagensEnviadas[0], { pack: "ZZ-ATD-P20", consulta: "tag=post_sale", from: { user_id: V }, to: { user_id: "987654321" }, text: texto });
+    conferir("a linha vira RESPONDIDA", [depois.status, depois.respostaEnviada, depois.respondidaVia, depois.respondidaPor, depois.enviandoDesde, depois.erroDoEnvio], ["RESPONDIDA", texto, "RISE", "zz-atd-dono", null, null]);
+    conferir("depois de responder, marca como lida no ML (uma vez)", ml.marcadasComoLidas, ["ZZ-ATD-P20"]);
+    const auditoria = await prisma.auditoriaDeAcesso.findFirst({ where: { quem: "zz-atd-dono", oQue: "atendimentoML.responder", alvo: id } });
+    conferir("auditoria sem o texto", [Boolean(auditoria), JSON.stringify(auditoria?.depois ?? {}).includes("postado")], [true, false]);
+
+    const bloqueada = await nova("ZZ-ATD-P21", { status: "blocked", substatus: "blocked_by_cancelled_order" });
+    await salvarRascunho({ id: bloqueada, texto, origem: "DONO", por: "zz-atd-dono" });
+    const recusada = await enviar(bloqueada);
+    conferir("conversa bloqueada pelo ML: nao envia e diz o motivo", [recusada.motivo, recusada.mensagem, ml.mensagensEnviadas.length], ["bloqueada", pv.textoDoBloqueio("blocked_by_cancelled_order"), 1]);
+
+    const fora = await nova("ZZ-ATD-P22");
+    await salvarRascunho({ id: fora, texto, origem: "DONO", por: "zz-atd-dono" });
+    ml.escrever("ZZ-ATD-P22", "V", "Ja respondi pelo app");
+    const jaRespondida = await enviar(fora);
+    conferir("respondida fora antes do envio: nada sai e fecha", [jaRespondida.motivo, (await lerAtendimento(fora)).status, ml.mensagensEnviadas.length], ["fechada-fora", "FECHADA_FORA", 1]);
+
+    const andou = await nova("ZZ-ATD-P23");
+    await salvarRascunho({ id: andou, texto, origem: "DONO", por: "zz-atd-dono" });
+    ml.escrever("ZZ-ATD-P23", "C", "Esquece, ja chegou! Mas veio sem o cabo.");
+    const comNova = await enviar(andou);
+    const atualizada = await lerAtendimento(andou);
+    conferir("mensagem nova do comprador no meio: recusa e mostra a nova", [comNova.motivo, atualizada.status, atualizada.textoDoCliente, atualizada.rascunho, atualizada.enviandoDesde, ml.mensagensEnviadas.length], ["mensagem-nova", "ABERTA", "Esquece, ja chegou! Mas veio sem o cabo.", texto, null, 1]);
+    conferir("depois de ver a nova, o envio sai", [(await enviar(andou)).ok, ml.mensagensEnviadas.length], [true, 2]);
+
+    const moderada = await nova("ZZ-ATD-P24");
+    await salvarRascunho({ id: moderada, texto, origem: "DONO", por: "zz-atd-dono" });
+    ml.falharNoProximoPost(400);
+    const negada = await enviar(moderada);
+    const solta = await lerAtendimento(moderada);
+    conferir("ML recusa a mensagem: solta a trava e guarda o motivo", [negada.motivo, solta.status, solta.enviandoDesde, Boolean(solta.erroDoEnvio), ml.mensagensEnviadas.length], ["ml", "ABERTA", null, true, 2]);
+    conferir("e a segunda tentativa, pedida pelo dono, envia", [(await enviar(moderada)).ok, ml.mensagensEnviadas.length], [true, 3]);
+
+    const ignorada = await nova("ZZ-ATD-P25");
+    const lidasAntes = ml.marcadasComoLidas.length;
+    conferir("ignorar tambem marca como lida no ML", [(await ignorarAtendimento({ id: ignorada, por: "zz-atd-dono", ml })).ok, (await lerAtendimento(ignorada)).status, ml.marcadasComoLidas.slice(lidasAntes)], [true, "IGNORADA", ["ZZ-ATD-P25"]]);
+    ml.mensagensForaDoAr();
+    const outra = await prisma.atendimentoML.create({ data: { tipo: "POS_VENDA", idExterno: "ZZ-ATD-P26", textoDoCliente: "oi", situacaoNoML: "active", recebidaEm: new Date() } });
+    conferir("ML fora do ar ao marcar como lida nao desfaz o ignorar", (await ignorarAtendimento({ id: outra.id, por: "zz-atd-dono", ml })).ok, true);
+    await limparOResto();
+    await limpar();
+  }
+
   // MARCADOR: blocos novos entram acima desta linha.
 } finally {
   await limpar();

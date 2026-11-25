@@ -3748,6 +3748,16 @@ model AtendimentoML {
   telegramMensagemId Int?
   telegramPedidoId   Int?
 
+  /// Pos-venda (fase 2). O PedidoDeVenda do Rise (sem chave estrangeira), o retrato da conversa lida do ML
+  /// (`[{ id, de: "C" | "V", texto, em, anexos, retida }]`, da mais antiga para a mais nova, mais `compradorId`), o id
+  /// da ultima mensagem do comprador (a que a resposta responde; outra = a conversa andou), o motivo do bloqueio do ML
+  /// (nulo = pode responder) e o limite de caracteres do vendedor lido do ML.
+  pedidoId          String?
+  conversa          Json?
+  ultimaDoClienteId String?
+  bloqueio          String?
+  limite            Int?
+
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 

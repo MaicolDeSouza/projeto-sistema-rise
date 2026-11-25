@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/db";
+import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
 import { POR_PAGINA_GRANDE, POR_PAGINA_PADRAO } from "@/lib/porPagina";
 
 import { filtrarResposta, linkDoMercadoLivre } from "./filtro";
+import { LIMITE_PADRAO_DE_MENSAGEM, marcarConversaComoLida } from "./posVenda";
 
 /**
  * O banco do Atendimento do ML (spec 2026-11-24-atendimento-ml-design.md): listar, ler, contar, salvar o rascunho, ignorar
@@ -20,6 +22,15 @@ export async function limiteDaPergunta() {
   const linha = await prisma.configuracaoIA.findUnique({ where: { id: "unica" }, select: { dados: true } }).catch(() => null);
   const valor = Number(linha?.dados?.atendimentoML?.limiteDaPergunta);
   return Number.isInteger(valor) && valor >= LIMITE_MINIMO && valor <= LIMITE_MAXIMO ? valor : LIMITE_PADRAO_DA_PERGUNTA;
+}
+
+/**
+ * O limite de caracteres da resposta de UMA linha: o da pergunta (configuravel) ou, na mensagem de pos-venda, o que o ML
+ * informou na conversa (`limite`, 350 em 24/11/2026).
+ */
+export async function limiteDoAtendimento(linha) {
+  if (linha?.tipo === "POS_VENDA") return Number.isInteger(linha.limite) && linha.limite > 0 ? linha.limite : LIMITE_PADRAO_DE_MENSAGEM;
+  return limiteDaPergunta();
 }
 
 /** Quantas unidades o anuncio vende de uma vez: a soma da composicao do kit, ou 1 (a mesma conta de `contaDoEditor.js`). */
@@ -117,10 +128,10 @@ export function contarAbertas(tipo = null, { soPrefixo = null } = {}) {
  * @returns {Promise<{ ok: boolean, motivo?: "nao-aberta", barrados: object[], rascunhoEm?: Date }>}
  */
 export async function salvarRascunho({ id, texto, origem, por, linksDaTroca = [], agora = new Date() }) {
-  const linha = await prisma.atendimentoML.findUnique({ where: { id: String(id ?? "") }, select: { id: true, status: true, rascunho: true, rascunhoOrigem: true } });
+  const linha = await prisma.atendimentoML.findUnique({ where: { id: String(id ?? "") }, select: { id: true, status: true, tipo: true, limite: true, rascunho: true, rascunhoOrigem: true } });
   if (!linha || linha.status !== "ABERTA") return { ok: false, motivo: "nao-aberta", barrados: [] };
   const conteudo = String(texto ?? "").trim();
-  const filtro = filtrarResposta({ texto: conteudo, origem: origem === "IA" ? "IA" : "DONO", linksDaTroca, limite: await limiteDaPergunta() });
+  const filtro = filtrarResposta({ texto: conteudo, origem: origem === "IA" ? "IA" : "DONO", linksDaTroca, limite: await limiteDoAtendimento(linha) });
   let rascunhoOrigem = "IA";
   if (origem !== "IA") {
     const eraDaIA = linha.rascunhoOrigem === "IA" || linha.rascunhoOrigem === "IA_EDITADA";
@@ -135,9 +146,13 @@ export async function salvarRascunho({ id, texto, origem, por, linksDaTroca = []
 }
 
 /** ABERTA -> IGNORADA (a pergunta continua no ML; o Rise so para de mostrar entre as abertas). */
-export async function ignorarAtendimento({ id, por }) {
+export async function ignorarAtendimento({ id, por, ml = null }) {
   const mudou = await prisma.atendimentoML.updateMany({ where: { id: String(id ?? ""), status: "ABERTA", enviandoDesde: null }, data: { status: "IGNORADA", respondidaPor: por ?? null } });
-  return { ok: mudou.count === 1 };
+  if (mudou.count !== 1) return { ok: false };
+  // Pos-venda: o Rise so marca a conversa como lida no ML quando o dono responde ou ignora. Falha aqui nao desfaz o ignorar.
+  const linha = await prisma.atendimentoML.findUnique({ where: { id: String(id) }, select: { tipo: true, idExterno: true } });
+  if (linha?.tipo === "POS_VENDA") await marcarConversaComoLida(ml ?? clienteML(), linha.idExterno);
+  return { ok: true };
 }
 
 /** IGNORADA -> ABERTA. Respondida e fechada fora nao reabrem. */

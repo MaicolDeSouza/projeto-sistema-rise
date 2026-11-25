@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db";
 import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
 
+import { rodarPosVendaML } from "./posVenda";
+
 /**
  * As perguntas dos anuncios do Mercado Livre (Atendimento do ML, fase 1; spec 2026-11-24-atendimento-ml-design.md).
  *
@@ -106,10 +108,10 @@ export async function buscarSemResposta(ml, vendedorId) {
 }
 
 /**
- * Uma volta da rotina do worker. Nunca lanca: `{ ok, lidas, novas, fechadas, fechadasIds }` ou `{ ok: false, erro }`.
+ * Uma volta das PERGUNTAS. Nunca lanca: `{ ok, lidas, novas, fechadas, fechadasIds }` ou `{ ok: false, erro }`.
  * `soPrefixo` restringe as linhas do banco que ela rele (o teste, para nao tocar as perguntas de verdade).
  */
-export async function rodarAtendimentoML({ ml = clienteML(), agora = new Date(), soPrefixo = null } = {}) {
+export async function rodarPerguntasML({ ml = clienteML(), agora = new Date(), soPrefixo = null } = {}) {
   try {
     const semResposta = await buscarSemResposta(ml, await ml.usuarioId());
     let novas = 0;
@@ -135,4 +137,15 @@ export async function rodarAtendimentoML({ ml = clienteML(), agora = new Date(),
   } catch (erro) {
     return { ok: false, erro: String(erro?.message ?? erro).slice(0, 300) };
   }
+}
+
+/**
+ * Uma volta da rotina do worker: as perguntas e, depois, as mensagens de pos-venda (fase 2). O erro de uma nao esconde a
+ * outra: o retorno e o das perguntas, com `posVenda` (o da outra volta) e `fechadasIds` das duas juntas, que e de onde o
+ * worker tira os avisos do Telegram a atualizar.
+ */
+export async function rodarAtendimentoML(opcoes = {}) {
+  const perguntas = await rodarPerguntasML(opcoes);
+  const posVenda = await rodarPosVendaML(opcoes);
+  return { ...perguntas, fechadasIds: [...(perguntas.fechadasIds ?? []), ...(posVenda.fechadasIds ?? [])], posVenda };
 }

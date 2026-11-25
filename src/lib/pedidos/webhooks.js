@@ -17,7 +17,17 @@ import { config } from "@/lib/integracoes/config";
 export const ORIGEM_DA_ROTA = { "mercado-livre": "MERCADO_LIVRE", "loja-integrada": "LOJA_INTEGRADA", bling: "BLING" };
 
 // `questions` (24/11/2026): as perguntas dos anuncios, lidas pelo Atendimento do ML (`/questions/{id}`).
-const TOPICOS_DO_ML = new Set(["orders_v2", "shipments", "questions"]);
+// `messages` (24/11/2026, fase 2): as mensagens de pos-venda. O ML manda so o id da mensagem no `resource`, sem caminho:
+// vira `/messages/{id}`, para a fila separar o tipo como nos outros.
+const TOPICOS_DO_ML = new Set(["orders_v2", "shipments", "questions", "messages"]);
+
+/** O recurso de uma notificacao do ML como a fila o guarda (`/tipo/id`). */
+function recursoDoML(payload) {
+  if (!TOPICOS_DO_ML.has(payload.topic) || typeof payload.resource !== "string" || !payload.resource) return null;
+  if (payload.topic !== "messages") return payload.resource;
+  const id = payload.resource.replace(/^\/?(messages\/)?/, "");
+  return /^[\w-]+$/.test(id) ? `/messages/${id}` : null;
+}
 const HEADERS_DO_TOKEN_DA_LI = ["token", "x-token", "x-webhook-token", "authorization", "x-li-token"];
 
 const recusa = (erro) => ({ ok: false, status: 401, erro });
@@ -45,8 +55,7 @@ export function conferirNotificacao({ origem, corpoTexto, headers, segredos }) {
     if (!segredos?.mlUsuarioId || !segredos?.mlClientId) return recusa("O Mercado Livre não está conectado.");
     if (String(payload.user_id) !== String(segredos.mlUsuarioId)) return recusa("Notificação de outra conta do ML.");
     if (String(payload.application_id) !== String(segredos.mlClientId)) return recusa("Notificação de outro app do ML.");
-    const recurso = TOPICOS_DO_ML.has(payload.topic) && typeof payload.resource === "string" ? payload.resource : null;
-    return { ok: true, recurso, payload };
+    return { ok: true, recurso: recursoDoML(payload), payload };
   }
 
   if (origem === "BLING") {

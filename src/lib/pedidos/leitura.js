@@ -9,6 +9,7 @@ import { normalizarPedidoLI } from "@/lib/pedidos/li";
 import { classificarLojaDoBling, normalizarPedidoBling } from "@/lib/pedidos/bling";
 import { adiarConferenciaDoMercadoPago, aplicarPedidoLido, espelharNoBling, marcarFalhaDoMercadoPago, pedidosParaConferirNoMercadoPago, pedidosParaReconferir, reabrirLucroDoPedido } from "@/lib/pedidos/banco";
 import { aplicarPerguntaLida, lerPerguntaDoML } from "@/lib/atendimentoML/perguntas";
+import { aplicarNotificacaoDeMensagem } from "@/lib/atendimentoML/posVenda";
 import { atualizarAvisoFechado } from "@/lib/atendimentoML/telegram";
 
 /**
@@ -435,6 +436,12 @@ async function tratarRecurso(origem, recurso, clientes, memoria, agora) {
       const pergunta = await lerPerguntaDoML(clientes.ml, id);
       const aplicada = pergunta ? await aplicarPerguntaLida(pergunta, { agora: new Date(agora) }) : null;
       // Respondida pelo app do ML: o aviso do Telegram perde os botoes (nunca lanca; sem bot nao faz nada).
+      if (aplicada?.fechou) await atualizarAvisoFechado(aplicada.id);
+      return;
+    }
+    // A mensagem de pos-venda (Atendimento do ML, fase 2): o aviso traz o id da mensagem, e a conversa sai dela.
+    if (tipo === "messages") {
+      const aplicada = await aplicarNotificacaoDeMensagem(clientes.ml, id, { agora: new Date(agora) });
       if (aplicada?.fechou) await atualizarAvisoFechado(aplicada.id);
       return;
     }
