@@ -6,7 +6,7 @@ import { estadoDoOrcamento, estimarCustoMaximoBrl, liquidarReserva, registrarGas
 import { criarProvedor as criarProvedorReal } from "@/lib/riseAi/provedores/index";
 
 import { salvarRascunho } from "./banco";
-import { anunciosIndicaveis, montarContexto } from "./contexto";
+import { anunciosIndicaveis, montarContexto, montarContextoDePosVenda } from "./contexto";
 import { trocarEtiquetas } from "./etiquetas";
 import { montarPromptDoML } from "./prompt";
 
@@ -20,11 +20,13 @@ import { montarPromptDoML } from "./prompt";
  */
 
 const MAX_TOKENS_DA_SUGESTAO = 900;
+/// A mensagem de pos-venda cabe em 350 caracteres: teto curto, para a sugestao nao nascer maior que o limite do ML.
+const MAX_TOKENS_DE_POS_VENDA = 300;
 /// Estimativa grosseira para a reserva do orcamento: 1 token a cada 3 caracteres (portugues).
 const tokensDe = (texto) => Math.ceil(String(texto ?? "").length / 3);
 
 const TEXTO = {
-  "nao-aberta": "Esta pergunta não está mais aberta.",
+  "nao-aberta": "Este atendimento não está mais aberto.",
   orcamento: "O orçamento interno da IA deste mês acabou (Rise AI › Configurações).",
   provedor: "A IA não respondeu agora. Tente de novo ou escreva a resposta.",
   "sem-modelo": "Nenhum modelo de IA está configurado (Rise AI › Configurações).",
@@ -40,26 +42,28 @@ const recusa = (motivo, extra = {}) => ({ ok: false, motivo, mensagem: TEXTO[mot
  */
 export async function sugerirResposta(id, { por, ml = clienteML(), criarProvedor = null, configuracao = null, agora = Date.now() } = {}) {
   const linha = await prisma.atendimentoML.findUnique({ where: { id: String(id ?? "") }, select: { id: true, status: true, tipo: true } });
-  if (!linha || linha.status !== "ABERTA" || linha.tipo !== "PERGUNTA") return recusa("nao-aberta");
+  if (!linha || linha.status !== "ABERTA" || !["PERGUNTA", "POS_VENDA"].includes(linha.tipo)) return recusa("nao-aberta");
+  const posVenda = linha.tipo === "POS_VENDA";
+  const maxTokens = posVenda ? MAX_TOKENS_DE_POS_VENDA : MAX_TOKENS_DA_SUGESTAO;
 
   const config = configuracao ?? (await lerConfiguracao());
   if ((await estadoDoOrcamento("INTERNO", { agora, config })).nivel === "esgotado") return recusa("orcamento");
   const escolhas = [config.padrao, config.reserva].filter((escolha) => escolha?.provedor && escolha?.modelo);
   if (escolhas.length === 0) return recusa("sem-modelo");
 
-  const contexto = await montarContexto(linha.id, { ml });
+  const contexto = posVenda ? await montarContextoDePosVenda(linha.id) : await montarContexto(linha.id, { ml });
   const { sistema, mensagem } = montarPromptDoML({ contexto, estiloDoDono: config.atendimentoML?.prompt });
   const fabricar = criarProvedor ?? (async (provedorId) => criarProvedorReal(provedorId, { endpoint: config.endpoints?.[provedorId], chave: await lerChave(provedorId) }));
 
   let resposta = null;
   let usada = null;
   for (const escolha of escolhas) {
-    const estimadoBrl = estimarCustoMaximoBrl({ provedor: escolha.provedor, modelo: escolha.modelo, tokensEntrada: tokensDe(sistema) + tokensDe(mensagem), maxTokensSaida: MAX_TOKENS_DA_SUGESTAO });
+    const estimadoBrl = estimarCustoMaximoBrl({ provedor: escolha.provedor, modelo: escolha.modelo, tokensEntrada: tokensDe(sistema) + tokensDe(mensagem), maxTokensSaida: maxTokens });
     const reserva = await reservarOrcamento("INTERNO", estimadoBrl, { dono: `atendimentoML:${linha.id}`, agora, config });
     if (!reserva.ok) return recusa("orcamento");
     try {
       const provedor = await fabricar(escolha.provedor);
-      resposta = await provedor.conversar({ modelo: escolha.modelo, sistema, mensagens: [{ papel: "usuario", conteudo: mensagem }], maxTokens: MAX_TOKENS_DA_SUGESTAO, temperatura: 0.3 });
+      resposta = await provedor.conversar({ modelo: escolha.modelo, sistema, mensagens: [{ papel: "usuario", conteudo: mensagem }], maxTokens, temperatura: 0.3 });
       usada = escolha;
     } catch (erro) {
       console.error(`[atendimentoML] ${escolha.provedor} nao respondeu:`, String(erro?.message ?? erro).slice(0, 200));
@@ -83,7 +87,8 @@ export async function sugerirResposta(id, { por, ml = clienteML(), criarProvedor
     detalhe: { tokensEntrada: resposta.uso?.entrada ?? 0, tokensSaida: resposta.uso?.saida ?? 0, por: por ?? null },
   });
 
-  const troca = trocarEtiquetas(String(resposta.texto).trim(), anunciosIndicaveis(contexto));
+  // Pos-venda nao tem etiqueta de anuncio: o texto fica como veio e qualquer endereco e barrado pelo filtro.
+  const troca = posVenda ? { texto: String(resposta.texto).trim(), links: [] } : trocarEtiquetas(String(resposta.texto).trim(), anunciosIndicaveis(contexto));
   const salvo = await salvarRascunho({ id: linha.id, texto: troca.texto, origem: "IA", por, linksDaTroca: troca.links, agora: new Date(agora) });
   if (salvo.motivo === "nao-aberta") return recusa("nao-aberta");
   return { ok: true, texto: troca.texto, barrados: salvo.barrados, custoBrl: custo?.brl ?? 0, avisos: contexto.avisos };

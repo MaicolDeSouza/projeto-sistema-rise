@@ -120,6 +120,70 @@ export async function montarContexto(id, { ml = clienteML() } = {}) {
   };
 }
 
+const SITUACAO_DO_PEDIDO = {
+  AGUARDANDO_PAGAMENTO: "Aguardando pagamento",
+  PAGO: "Pago, em preparação",
+  // O comprador nao precisa saber que falta peca: para ele o pedido esta em preparacao.
+  AGUARDANDO_PECAS: "Pago, em preparação",
+  EM_SEPARACAO: "Em separação",
+  ENVIADO: "Enviado",
+  ENTREGUE: "Entregue",
+  FINALIZADO: "Entregue",
+  CANCELADO: "Cancelado",
+  DEVOLVIDO: "Devolvido",
+};
+const SITUACAO_DO_ENVIO = {
+  SEM_ENVIO: null,
+  A_POSTAR: "Aguardando postagem",
+  POSTADO: "Postado",
+  EM_TRANSITO: "Em trânsito",
+  ENTREGUE: "Entregue",
+  NAO_ENTREGUE: "Não entregue",
+  DEVOLVIDO: "Devolvido",
+  CANCELADO: "Cancelado",
+};
+const diaDeSaoPaulo = (valor) => (valor ? new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(valor)) : null);
+
+/**
+ * O CONTEXTO de uma mensagem de POS-VENDA (fase 2): a conversa (mascarada), o pedido do Rise so com o que o comprador ja
+ * sabe (numero, data, situacao, itens e quantidades) e o envio (situacao, transportadora, servico e codigo de rastreio).
+ *
+ * NUNCA entra: nome, CPF/CNPJ, e-mail, telefone ou endereco do comprador, custo, lucro, frete pago pela loja, nem o link
+ * do rastreio (a resposta nao leva endereco de fora do ML). So LEITURA do banco: a conversa e o retrato gravado na linha.
+ *
+ * @returns {Promise<null | { tipo: "POS_VENDA", limite: number, bloqueio: string | null, conversa: object[], pedido: object | null, avisos: string[] }>}
+ */
+export async function montarContextoDePosVenda(id) {
+  const linha = await prisma.atendimentoML.findUnique({ where: { id: String(id ?? "") } });
+  if (!linha || linha.tipo !== "POS_VENDA") return null;
+  const pedido = linha.pedidoId
+    ? await prisma.pedidoDeVenda.findUnique({
+        where: { id: linha.pedidoId },
+        select: { numero: true, dataDaVenda: true, status: true, statusDoEnvio: true, envio: true, itens: { orderBy: { ordem: "asc" }, select: { titulo: true, quantidade: true } } },
+      })
+    : null;
+  const mensagens = Array.isArray(linha.conversa?.mensagens) ? linha.conversa.mensagens : [{ de: "C", texto: linha.textoDoCliente, em: linha.recebidaEm?.toISOString?.() ?? null }];
+  const envio = pedido?.envio && typeof pedido.envio === "object" ? pedido.envio : {};
+  const texto = (valor) => (typeof valor === "string" && valor.trim() ? cortar(valor, 120) : null);
+
+  return {
+    tipo: "POS_VENDA",
+    limite: Number.isInteger(linha.limite) && linha.limite > 0 ? linha.limite : 350,
+    bloqueio: linha.bloqueio ?? null,
+    conversa: mensagens.map((m) => ({ de: m.de === "V" ? "V" : "C", texto: cortar(mascarar(m.texto), 2000), em: m.em ?? null })),
+    pedido: pedido
+      ? {
+          numero: pedido.numero,
+          data: diaDeSaoPaulo(pedido.dataDaVenda),
+          situacao: SITUACAO_DO_PEDIDO[pedido.status] ?? null,
+          itens: pedido.itens.map((item) => ({ titulo: cortar(item.titulo, 200), quantidade: item.quantidade })),
+          envio: { situacao: SITUACAO_DO_ENVIO[pedido.statusDoEnvio] ?? null, transportadora: texto(envio.transportadora), servico: texto(envio.servico), rastreio: texto(envio.rastreio) },
+        }
+      : null,
+    avisos: pedido ? [] : ["pedido-fora-do-rise"],
+  };
+}
+
 /** Os anuncios que a resposta pode indicar por etiqueta: os outros do produto e o proprio perguntado. */
 export function anunciosIndicaveis(contexto) {
   const lista = (contexto?.outrosAnuncios ?? []).map((a) => ({ itemId: a.itemId, url: a.url }));
