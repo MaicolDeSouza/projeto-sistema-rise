@@ -518,6 +518,7 @@ const ProdutoSchema = z.object({
   precoVenda: decimal(),
   unidade: z.enum(UNIDADES).catch("UN"),
   ativo: z.coerce.boolean(),
+  servico: z.coerce.boolean(),
   // Sem o campo (formulario aberto antes dele) nao grava nada: um padrao aqui transformaria um kit em
   // simples e apagaria as pecas (ver `prepararComposicaoDoCadastro`).
   tipo: z.preprocess(
@@ -831,6 +832,7 @@ export async function salvarProduto(id, _estadoAnterior, formData) {
   const resultado = ProdutoSchema.safeParse({
     ...bruto,
     ativo: bruto.ativo === "on",
+    servico: bruto.servico === "on",
   });
 
   if (!resultado.success) {

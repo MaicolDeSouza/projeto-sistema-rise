@@ -5,6 +5,7 @@ import Image from "next/image";
 import { ChartColumn } from "lucide-react";
 
 import { metricasDeFaturamentoAcao } from "@/app/pedidos/acoes";
+import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { canalPorId } from "@/lib/canais";
 import { diasDoPeriodo, periodoDoMes } from "@/lib/pedidos/periodoDasMetricas";
 
@@ -41,7 +42,7 @@ function Linha({ rotulo, children, title }) {
 }
 
 /** Uma caixinha: a de um canal (com o logo) ou a Geral (`geral`, em destaque azul, sem logo). */
-function Caixa({ resumo, dias, geral = false }) {
+function Caixa({ resumo, dias, geral = false, titulo = null, ajuda = null }) {
   const canal = geral ? null : canalPorId(resumo.canal);
   const temLucro = "lucro" in resumo;
   const semVenda = resumo.pedidos === 0;
@@ -49,7 +50,8 @@ function Caixa({ resumo, dias, geral = false }) {
     <div className={`rounded-lg border px-3.5 py-2.5 ${geral ? "border-acento/40 bg-acento/5" : "border-borda bg-superficie"}`}>
       <div className="mb-1.5 flex items-center gap-2">
         {canal?.logo && <Image src={canal.logo} alt="" width={18} height={18} className="rounded-sm" />}
-        <span className="text-sm font-medium">{geral ? "Geral" : (canal?.nome ?? resumo.canal)}</span>
+        <span className="text-sm font-medium">{titulo ?? (geral ? "Geral" : (canal?.nome ?? resumo.canal))}</span>
+        {ajuda && <BolhaDeAjuda variante="inline" texto={ajuda} />}
       </div>
       {semVenda ? (
         <p className="py-3 text-center text-xs text-suave">Sem vendas no período</p>
@@ -198,6 +200,14 @@ export default function ResumoDosCanais({ hoje }) {
             <Caixa key={c.canal} resumo={c} dias={dias} />
           ))}
           <Caixa resumo={resumo.geral} dias={dias} geral />
+          {resumo.servicos && (
+            <Caixa
+              resumo={resumo.servicos}
+              dias={dias}
+              titulo="Serviços"
+              ajuda="Só os itens de produto marcado como Serviço, já com o desconto. O valor também está dentro dos canais e da Geral."
+            />
+          )}
         </div>
       )}
     </div>

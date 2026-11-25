@@ -445,6 +445,8 @@ try {
     const p3 = await prisma.produto.create({ data: { sku: "ZZ-PED-P3", tituloBase: "ZZ Ped P3", estoque: 0 } });
     const k = await prisma.produto.create({ data: { sku: "ZZ-PED-K", tituloBase: "ZZ Ped Kit", tipo: "COMPOSICAO", componentes: { create: [{ componenteId: p1.id, quantidade: 2 }] } } });
     const pp = await prisma.produto.create({ data: { sku: "ZZ-PED-PP", tituloBase: "ZZ Ped PP", pecasProprias: true, pecasDoProduto: { create: [{ componenteId: p2.id, quantidade: 1.5 }] } } });
+    // Servico (25/11/2026): estoque 0 e mesmo assim nunca falta.
+    const sv = await prisma.produto.create({ data: { sku: "ZZ-PED-SV", tituloBase: "ZZ Ped Servico", estoque: 0, servico: true } });
     const fornecedor = await prisma.fornecedor.create({ data: { nome: "ZZ Ped Fornecedor" } });
     const numeroDaCompra = ((await prisma.pedidoDeCompra.aggregate({ _max: { numero: true } }))._max.numero ?? 0) + 1;
     await prisma.pedidoDeCompra.create({ data: { numero: numeroDaCompra, status: "ENVIADO", fornecedorId: fornecedor.id, enviadoEm: new Date("2026-11-05T12:00:00-03:00"), itens: { create: [{ produtoId: p2.id, quantidade: 10, prazoDias: 7 }] } } });
@@ -452,6 +454,7 @@ try {
     const op = await prisma.ordemDeProducao.create({ data: { numero: numeroDaOrdem, produtoId: p3.id, situacao: "ABERTA", quantidadePlanejada: 1 } });
     const mapa = new Map((await prisma.produto.findMany({ where: { sku: { startsWith: "ZZ-PED-" } }, include: { componentes: true, pecasDoProduto: true } })).map((p) => [p.id, p]));
     conferir("necessidade: simples, kit e pecas proprias", [...necessidadeDoPedido([{ produtoId: k.id, quantidade: 1 }, { produtoId: pp.id, quantidade: 1 }], mapa).entries()], [[p1.id, 2], [p2.id, 2]]);
+    conferir("necessidade: servico nao conta", [...necessidadeDoPedido([{ produtoId: sv.id, quantidade: 1 }, { produtoId: p1.id, quantidade: 1 }], mapa).entries()], [[p1.id, 1]]);
     const novoPedido = (numero, hora, itens) =>
       prisma.pedidoDeVenda.create({
         data: { origem: "BLING", canal: "BLING", idExterno: numero, numero, dataDaVenda: new Date(`2026-11-04T${hora}:00-03:00`), atualizadoNaOrigemEm: new Date(), statusDaOrigem: "Em andamento", status: "PAGO", enderecoDeEntrega: {}, pagamento: [], envio: {}, historico: [], totalProdutos: 10, desconto: 0, freteCobrado: 0, total: 10, itens: { create: itens.map((item, ordem) => ({ ordem, produtoId: item.produtoId, titulo: "x", quantidade: item.quantidade, precoUnitario: 1, desconto: 0, total: item.quantidade })) } },
@@ -460,6 +463,17 @@ try {
     const pedidoAntigo = await novoPedido("ZZ-PED-20", "10:00", [{ produtoId: p1.id, quantidade: 2 }]);
     const pedidoNovo = await novoPedido("ZZ-PED-21", "11:00", [{ produtoId: p1.id, quantidade: 2 }, { produtoId: p2.id, quantidade: 1 }]);
     const pedidoComP3 = await novoPedido("ZZ-PED-22", "12:00", [{ produtoId: p3.id, quantidade: 1 }]);
+    {
+      const { resumoDosCanais } = await import("../src/lib/pedidos/banco.js");
+      const dia = { desde: new Date("2026-11-04T00:00:00-03:00"), ate: new Date("2026-11-04T23:59:59.999-03:00") };
+      const antes = (await resumoDosCanais(dia)).servicos;
+      const pedidoServico = await novoPedido("ZZ-PED-23", "13:00", [{ produtoId: sv.id, quantidade: 1 }, { produtoId: p1.id, quantidade: 1 }]);
+      conferir("pedido com servico de estoque 0: nao falta", (await calcularPecas(prisma, pedidoServico)).pecas.map((p) => p.sku), ["ZZ-PED-P1"]);
+      const depois = (await resumoDosCanais(dia)).servicos;
+      // novoPedido grava o total da linha = quantidade (1): so a linha do servico entra.
+      conferir("metricas: servicos soma so a linha do servico", [depois.pedidos - antes.pedidos, Math.round((depois.faturamento - antes.faturamento) * 100) / 100], [1, 1]);
+      await prisma.pedidoDeVenda.delete({ where: { id: pedidoServico.id } });
+    }
     const r1 = await calcularPecas(prisma, pedidoAntigo);
     conferir("primeiro pedido tem", [r1.falta, r1.pecas[0].disponivel, r1.pecas[0].falta], [false, 3, 0]);
     const r2 = await calcularPecas(prisma, pedidoNovo);

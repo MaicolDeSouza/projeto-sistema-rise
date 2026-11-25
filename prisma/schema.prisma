@@ -257,6 +257,10 @@ model Produto {
   /// `custo` e o total das pecas proprias (gravado no Salvar) e a ENTRADA de estoque so vem da ordem de producao.
   pecasProprias Boolean @default(false)
 
+  /// Servico, e nao mercadoria (pedido do dono em 25/11/2026, o 999906 de configuracao do LightBurn): nao entra no
+  /// "Aguardando pecas" do pedido de venda e vira a caixinha "Servicos" das Metricas de faturamento.
+  servico Boolean @default(false)
+
   /// Marca "produto totalmente conferido" (pedido do dono em 22/09/2026): antes
   /// vivia so no navegador (ConferidoProduto.jsx) e sumia ao recarregar. Agora
   /// grava de verdade, para a contagem "(N verificados)" da lista ser real.

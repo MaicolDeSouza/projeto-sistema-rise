@@ -508,8 +508,21 @@ const centavos = (valor) => Math.round(valor * 100) / 100;
 export async function resumoDosCanais(filtro = {}, { comLucro = false } = {}) {
   const pedidos = await prisma.pedidoDeVenda.findMany({
     where: { AND: [filtroDaLista({ ...filtro, canais: [] }), { status: { not: "CANCELADO" } }] },
-    select: { canal: true, status: true, statusDoEnvio: true, emMediacao: true, total: true, lucroFechado: true, lucroEstimado: true, lucroReal: true },
+    select: {
+      canal: true,
+      status: true,
+      statusDoEnvio: true,
+      emMediacao: true,
+      total: true,
+      lucroFechado: true,
+      lucroEstimado: true,
+      lucroReal: true,
+      // So as linhas de servico (25/11/2026): a caixinha Servicos soma o total delas, ja com o desconto do item.
+      itens: { where: { produto: { servico: true } }, select: { total: true } },
+    },
   });
+  // Servicos (pedido do dono em 25/11/2026): parte do faturamento dos canais, contada a parte; as mesmas regras de fora.
+  const servicos = { pedidos: 0, faturamento: 0 };
   const porCanal = new Map(CANAIS_DO_RESUMO.map((canal) => [canal, { canal, pedidos: 0, faturamento: 0, lucro: 0, custo: 0, semLucro: 0 }]));
   for (const p of pedidos) {
     const soma = porCanal.get(p.canal);
@@ -521,6 +534,10 @@ export async function resumoDosCanais(filtro = {}, { comLucro = false } = {}) {
     if (!devolvido) {
       soma.pedidos += 1;
       soma.faturamento += total;
+      if (p.itens?.length) {
+        servicos.pedidos += 1;
+        servicos.faturamento += p.itens.reduce((s, item) => s + (numero(item.total) ?? 0), 0);
+      }
     }
     if (lucro === null) {
       if (!devolvido) soma.semLucro += 1;
@@ -546,7 +563,12 @@ export async function resumoDosCanais(filtro = {}, { comLucro = false } = {}) {
       ? { lucro: centavos(c.lucro), markup: c.custo > 0 ? c.lucro / c.custo : null, semLucro: c.semLucro, lucroMedio: media(c.lucro, c.pedidos - c.semLucro) }
       : {}),
   });
-  return { canais: [...porCanal.values()].map((c) => ({ canal: c.canal, ...paraTela(c) })), geral: paraTela(geral) };
+  return {
+    canais: [...porCanal.values()].map((c) => ({ canal: c.canal, ...paraTela(c) })),
+    geral: paraTela(geral),
+    // Sem lucro: o lucro e do pedido inteiro, e dividir as taxas entre servico e produto seria inventar.
+    servicos: { pedidos: servicos.pedidos, faturamento: centavos(servicos.faturamento), ticket: media(servicos.faturamento, servicos.pedidos) },
+  };
 }
 
 function itemParaTela(item) {

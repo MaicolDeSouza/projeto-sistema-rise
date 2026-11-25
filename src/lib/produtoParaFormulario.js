@@ -100,6 +100,7 @@ export async function carregarProdutoParaFormulario(id) {
     larguraCm: registro.larguraCm ? Number(registro.larguraCm) : "",
     comprimentoCm: registro.comprimentoCm ? Number(registro.comprimentoCm) : "",
     ativo: registro.ativo,
+    servico: registro.servico ?? false,
     // A proposta automatica da sessao do Claude (spec 2026-10-16), ate o Conferido. So leitura na tela: o quadro
     // "Proposta" so preenche o formulario, e o Salvar marca as secoes aplicadas.
     proposta: await propostaParaFormulario(registro.id),

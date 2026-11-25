@@ -15,6 +15,7 @@ const SELECAO_DO_PRODUTO = {
   blingSaldoLidoEm: true,
   tipo: true,
   pecasProprias: true,
+  servico: true,
   componentes: { select: { componenteId: true, quantidade: true } },
   pecasDoProduto: { select: { componenteId: true, quantidade: true } },
 };
@@ -37,7 +38,8 @@ export function necessidadeDoPedido(itens, produtosPorId, { soOQueOBlingBaixa = 
   for (const item of Array.isArray(itens) ? itens : []) {
     const quantidade = Number(item?.quantidade ?? 0);
     const produto = ler(item?.produtoId);
-    if (!produto || !(quantidade > 0)) continue;
+    // Servico (25/11/2026) nao sai da prateleira: com estoque 0 ele deixaria o pedido em "Aguardando pecas".
+    if (!produto || !(quantidade > 0) || produto.servico) continue;
     if (produto.tipo === "COMPOSICAO") {
       for (const peca of produto.componentes ?? []) somar(necessidade, peca.componenteId, Number(peca.quantidade ?? 0) * quantidade);
     } else if (produto.pecasProprias) {

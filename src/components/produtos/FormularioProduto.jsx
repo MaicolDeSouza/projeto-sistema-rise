@@ -391,12 +391,15 @@ function Selecao({ nome, rotulo, opcoes, inicial, ajuda, semVazio = false }) {
 }
 
 /** Interruptor de situacao, no lugar da caixa de selecao. */
-function Interruptor({ nome, inicial }) {
+function Interruptor({ nome, inicial, rotulo = "Situação", textos = ["Ativado", "Desativado"], ajuda = null }) {
   const [ligado, setLigado] = useState(inicial ?? true);
 
   return (
     <div>
-      <span className="block text-sm font-semibold">Situação</span>
+      <span className="flex items-center gap-1 text-sm font-semibold">
+        {rotulo}
+        {ajuda && <BolhaDeAjuda variante="inline" texto={ajuda} />}
+      </span>
       <input type="hidden" name={nome} value={ligado ? "on" : ""} />
       <button
         type="button"
@@ -421,7 +424,7 @@ function Interruptor({ nome, inicial }) {
             ligado ? "text-emerald-700" : "text-suave"
           }`}
         >
-          {ligado ? "Ativado" : "Desativado"}
+          {ligado ? textos[0] : textos[1]}
         </span>
       </button>
     </div>
@@ -3901,6 +3904,13 @@ export default function FormularioProduto({
               </Campo>
 
               <Interruptor nome="ativo" inicial={inicial?.ativo ?? true} />
+              <Interruptor
+                nome="servico"
+                inicial={inicial?.servico ?? false}
+                rotulo="Serviço"
+                textos={["Sim", "Não"]}
+                ajuda="Serviço (configuração, instalação, mão de obra) não entra em Aguardando peças e aparece em Serviços nas Métricas de faturamento."
+              />
               {/* Tipo SO em produto novo ou clonado (pedido do dono em 10/10/2026): sem o campo no envio, o servidor
                   mantem o tipo gravado (`prepararComposicaoDoCadastro`), e um produto salvo nao vira kit nem volta a
                   simples pela tela. O caminho para um kit novo e o Clonar. */}
