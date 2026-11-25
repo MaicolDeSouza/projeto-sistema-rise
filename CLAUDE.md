@@ -363,7 +363,7 @@ precisa ver primeiro X e a ação principal é Y", e desenha a partir dela. Cada
 | Pedidos | **Pedidos de venda, fase 1 (04/11/2026, NO AR na VPS desde 04.11.2026.60):** o worker lê a cada 5 min os pedidos do ML, da LI e do Bling (desde 01/11/2026), cria o cliente pelo CPF/CNPJ, casa os itens com os produtos, calcula status, peças em falta e lucro estimado × real; lista `/pedidos`, tela do pedido com abas, taxas da LI e nível do cliente. Ver "Pedidos de venda (04/11/2026)" |
 | Propostas | **Propostas para cliente, fase 1 (12/11/2026, SEM deploy):** proposta comercial que vive só no Rise (nº 2026, 2027…), cliente do Rise ou do Bling (ou provisório, sem cadastro), itens com a descrição e o código do cliente, prazo por item, pagamento, frete, OC/obs. da NF, validade de 15 dias que vence sozinha, "!" de contato, PDF, link público com WhatsApp, cotação anexada e pedido de venda no Bling na aprovada. Ver "Propostas para cliente (12/11/2026)" |
 | Frete | **Módulo de frete, fase 1 (cotação) NO AR na VPS desde 19.11.2026.130, Melhor Envio de produção conectado em 19/11/2026.** **Fase 2 (etiqueta, rastreio e aviso) NO AR desde o deploy 20.11.2026.131** (`FRETE_COMPRA` e `EMAIL_ENVIO` ainda fechadas na VPS): comprar, imprimir e cancelar a etiqueta no pedido do Bling e no envio avulso, lista de Envios (bloco novo), rotina de rastreio no worker, custo da etiqueta no lucro e aviso ao cliente por e-mail (trava `EMAIL_ENVIO`) e WhatsApp. **MCP do frete (9 ferramentas, compra em dois passos) pronto em 20/11/2026, SEM deploy.** Reverso, a 3. Ver "Módulo de frete (18/11/2026)" |
-| Atendimento ML | **Fase 1 (perguntas dos anúncios) NO AR na VPS desde 24.11.2026.147**, com `ML_RESPONDER_PERGUNTAS=true` lá (ok do dono em 24/11/2026): tela `/atendimento`, sugestão da IA só no botão, envio único, a pergunta no Telegram com botões (o bot passou a escutar) e 5 ferramentas no MCP com envio em dois passos. **Fase 2 (mensagens de pós-venda) NO AR na VPS desde 25.11.2026.149** (commit `377f563`, "Pode subir" do dono em 25/11/2026; migration `20261124e_atendimento_pos_venda` com backup de 343 MB antes; as 6 respostas de fora ok e a rotina `atendimentoML` ok depois do deploy; `ML_RESPONDER_MENSAGENS=true` no `.env` da VPS desde 25/11/2026 ("pode ligar o envio de mensagens" do dono; cópia `.env.bak-20261125-184055`, só `app` e `worker` recriados), e o dono marcou **Messages** (Created e Read) no aplicativo do ML no mesmo dia; nenhuma mensagem real vista ainda): aba Mensagens, conversa com o pedido, limite de 350 lido do ML, trava `ML_RESPONDER_MENSAGENS`, aviso `mensagemML` no Telegram e as mesmas 5 ferramentas no MCP. Fase 3 (reclamações) na spec, não feita. Ver "Atendimento do Mercado Livre (24/11/2026)" |
+| Atendimento ML | **Fase 1 (perguntas dos anúncios) NO AR na VPS desde 24.11.2026.147**, com `ML_RESPONDER_PERGUNTAS=true` lá (ok do dono em 24/11/2026): tela `/atendimento`, sugestão da IA só no botão, envio único, a pergunta no Telegram com botões (o bot passou a escutar) e 5 ferramentas no MCP com envio em dois passos. **Fase 2 (mensagens de pós-venda) NO AR na VPS desde 25.11.2026.149** (commit `377f563`, "Pode subir" do dono em 25/11/2026; migration `20261124e_atendimento_pos_venda` com backup de 343 MB antes; as 6 respostas de fora ok e a rotina `atendimentoML` ok depois do deploy; `ML_RESPONDER_MENSAGENS=true` no `.env` da VPS desde 25/11/2026 ("pode ligar o envio de mensagens" do dono; cópia `.env.bak-20261125-184055`, só `app` e `worker` recriados), e o dono marcou **Messages** (Created e Read) no aplicativo do ML no mesmo dia; nenhuma mensagem real vista ainda): aba Mensagens, conversa com o pedido, limite de 350 lido do ML, trava `ML_RESPONDER_MENSAGENS`, aviso `mensagemML` no Telegram e as mesmas 5 ferramentas no MCP. **Fase 3 (mensagens das reclamações) PRONTA em 25/11/2026, SEM deploy** (uma migration, `20261125_atendimento_reclamacoes`; trava `ML_RESPONDER_RECLAMACOES`, nasce desligada): aba Reclamações, conversa com o comprador e o mediador do ML, IA que nunca oferece resolução, o aviso `reclamacaoML` com botões e as mesmas 5 ferramentas no MCP. Ver "Atendimento do Mercado Livre (24/11/2026)" |
 | Financeiro | Esqueleto |
 
 **O que está no ar (24/10/2026):** o deploy 24.10.2026.29 (commit `5ede491`) subiu TUDO o que estava na main até esse commit
@@ -549,7 +549,7 @@ npm run hobi:demo                 # a LOJA DE MENTIRA do chat (http://127.0.0.1:
 npm run hobi:montar               # monta e publica a janela do chat em assistente/publicado/ (nome pelo conteúdo + integridade). Rodar depois de mexer em assistente/widget/ ou no mascote e commitar o publicado junto; nunca apagar publicado antigo depois que a etiqueta estiver na loja
 npm run hobi:mascote              # recorta o fundo das imagens do mascote (docs/mascote-hobi/) e grava os .webp de assistente/mascote/; `-- --conferir` grava também cada recorte sobre fundo escuro em dados/diag/
 npm run teste:ia-isolamento       # 95 asserções do usuário de banco `rise_ia` (com os dois WhatsApp da empresa pela visão e a função do pedido: prova, mesma resposta para o não achado, 5 erros por número, número só em hash): veste o papel no Postgres de verdade e tenta ler o proibido (18 tabelas negadas, nenhuma coluna sensível nas visões, conversas e orçamento só do canal de cliente), a migration igual ao gerador, uma conversa inteira e o serviço de verdade (`scripts/ia-processo.js`) rodando como `rise_ia` num ambiente sem as chaves do Rise. Postgres local, SEM rede; dá ao papel uma senha de uso único e a tira no fim; recusa rodar na produção e onde o papel já tem login
-npm run teste:atendimento-ml      # 225 asserções do Atendimento do ML, fases 1 (perguntas) e 2 (mensagens de pós-venda: retrato da conversa, chegada pela notificação e pelas não lidas, reabertura, envio único com a trava própria, conversa bloqueada, mensagem nova no meio, contexto do pedido sem dado pessoal, Telegram e MCP): banco, filtro e etiquetas de link, chegada pela notificação e pela rotina, envio único (dois ao mesmo tempo, respondida fora, trava), contexto sem dado interno, sugestão da IA, acessos, o bot que escuta e o vínculo pelo ouvinte, a pergunta no Telegram (botões, resposta escrita, texto solto) e o MCP em dois passos. ML, Telegram e IA FALSOS (SEM rede, SEM gasto); Postgres local, só escreve ZZ-ATD-* / zz-atd-* e devolve o estado do bot do dono; `-- --manter` deixa 3 perguntas ZZ-ATD-T* e 2 conversas ZZ-ATD-TP* para conferir a tela
+npm run teste:atendimento-ml      # 330 asserções do Atendimento do ML, fases 1 (perguntas), 3 (mensagens das reclamações: retrato com o mediador, chegada pela rotina e pela notificação, envio único que confere a etapa e o que a pessoa viu, contexto e prompt sem oferta de resolução, tela, Telegram e MCP) e 2 (mensagens de pós-venda: retrato da conversa, chegada pela notificação e pelas não lidas, reabertura, envio único com a trava própria, conversa bloqueada, mensagem nova no meio, contexto do pedido sem dado pessoal, Telegram e MCP): banco, filtro e etiquetas de link, chegada pela notificação e pela rotina, envio único (dois ao mesmo tempo, respondida fora, trava), contexto sem dado interno, sugestão da IA, acessos, o bot que escuta e o vínculo pelo ouvinte, a pergunta no Telegram (botões, resposta escrita, texto solto) e o MCP em dois passos. ML, Telegram e IA FALSOS (SEM rede, SEM gasto); Postgres local, só escreve ZZ-ATD-* / zz-atd-* e devolve o estado do bot do dono; `-- --manter` deixa 3 perguntas ZZ-ATD-T* e 2 conversas ZZ-ATD-TP* para conferir a tela
 npm run teste:saude               # 80 asserções da Saúde do Rise (com a linha "Assistente da loja"): regras (rotinas, worker, disco, backup, memória, banco, integrações, orçamento, varreduras, PC, healthchecks, certificado digital), o aviso do Telegram, a gravação em RotinaDoWorker e a coleta nos modos PC e VPS. Postgres local, SEM rede; só escreve zz-saude-*
 npm run teste:acessos             # 207 asserções de Acessos: catálogo, resolução, sessão (segredo de borda, PC simulado), invólucro, semeadura, gravação com auditoria, matriz, o cadastro de Produto por poder de edição, as projeções do lançamento 2 (Painel, lista de Produtos, Cadastros, canais, Scraper, Indicadores), "Ver como", Histórico e o guarda estático de src/app (sem lista de exceções). Postgres local, SEM rede; só escreve zz-ac-* e ZZ-AC *
 npm run teste:proposta            # 339 asserções da proposta automática de produto (com as seções de categorias e SEO da loja e as Correções da descrição no banco): regras de preço/medidas/NCM, validação do plano, gravação por seção (fotos padronizadas em proposta/), aplicar ao formulário, Salvar marcando aplicadas, fotos para a reserva, Conferido com pergunta e o script de verdade (Postgres local, SEM rede; só escreve produtos ZZ-PROP-* e as pastas deles)
@@ -8924,6 +8924,58 @@ aqui (IA só no botão, só ele responde, filtro, envio único, Telegram por res
 **Roteiro do dono para ligar a fase 2:** "sobe" (uma migration, com backup); marcar **Messages** nas notificações do aplicativo (no
 painel de desenvolvedor do ML); conferir o aviso "Mensagem de comprador no Mercado Livre" na aba Canais; esperar a
 primeira mensagem real e conferir a aba Mensagens; só então `ML_RESPONDER_MENSAGENS=true` no `.env` da VPS.
+
+### Fase 3: mensagens das reclamações (25/11/2026, SEM deploy)
+
+Plano em `docs/superpowers/plans/2026-11-25-atendimento-ml-fase-3-reclamacoes.md`, aprovado pelo dono ("Aprovo, pode
+implementar"). Código em `src/lib/atendimentoML/reclamacoes.js`; o resto é o das fases 1 e 2 escolhendo pelo `tipo`.
+
+- **Medido na conta (25/11/2026, só GET):** 1 reclamação aberta e 346 fechadas. `GET /post-purchase/v1/claims/search`
+  devolve cada reclamação com `players[]` e as `available_actions` do vendedor (`role: respondent`); a documentação
+  pede `players.role=respondent` e `players.user_id` na busca. `GET .../claims/{id}/messages` devolve uma lista solta,
+  da mais nova para a mais antiga, com `sender_role`/`receiver_role` (complainant | respondent | mediator), `stage`,
+  `message_moderation` e `hash` (o identificador; não há `id`). `GET .../claims/{id}/detail` responde 200 ou 206 com
+  `title`, `description`, `problem`, `due_date` e `action_responsible`. Mensagem de 1 caractere existe e é texto de
+  verdade (letra ou número). **O ML não informa limite de caracteres** (nem na resposta nem na documentação).
+- **Uma linha de `AtendimentoML` (`tipo: RECLAMACAO`) por reclamação `mediations` aberta que espera resposta**
+  (`idExterno` = id da reclamação). `cancel_purchase` e os outros tipos nunca têm mensagem e ficam fora. Colunas novas:
+  `reclamacaoId`, `etapa` (claim | dispute), `destinatario` (complainant | mediator | nulo) e `prazoEm`. A conversa usa
+  `conversa.mensagens` com `de`: "C" comprador, "V" loja, "M" mediador. `ReclamacaoML` e a rotina `reclamacoesML`
+  (motivo, reputação, devolução, "Em mediação") **não mudaram**: a linha do atendimento só aponta para ela.
+- **Só mensagens.** Reembolsar, abrir mediação e aceitar devolução continuam no ML: a tela, o bot e o MCP só CITAM as
+  outras ações liberadas (`acoesEmTexto`), sem botão. O destinatário é o que a ação liberada diz
+  (`send_message_to_complainant` → comprador, `send_message_to_mediator` → mediador); sem ação, bloqueio "sem-acao".
+- **Teto de 1.000 caracteres do Rise** (`LIMITE_DA_RECLAMACAO`, decisão desta sessão aceita pelo dono); a recusa do ML,
+  se vier antes, aparece como veio.
+- **Chegada:** a rotina `atendimentoML` (5 min) roda a terceira leitura (`rodarReclamacoesML`: 1 busca das abertas, as
+  mensagens e o detalhe de cada uma, e a releitura das linhas abertas que saíram da busca). O erro de UMA reclamação não
+  derruba as outras, mas a rotina fica com erro na Saúde. Tópico `post_purchase` aceito na fila (vira `/claims/{id}`);
+  é só para apressar.
+- **Envio único** (`enviarMensagemDeReclamacao`, pelo `enviarResposta`): filtro → trava `ML_RESPONDER_RECLAMACOES` →
+  trava da linha → relê a reclamação → recusa se fechou, se foi respondida fora, se não há ação, se o destinatário
+  mudou ("etapa-mudou") ou se chegou mensagem nova → um `POST .../actions/send-message` com `{ receiver_role, message }`.
+  **O envio também confere "o que a pessoa viu"** (`visto`: destinatário e última mensagem): a tela manda o que a
+  janela mostrou, o MCP assina os dois no código de confirmação e o Telegram tira o destino da prévia clicada. Sem
+  isso, a rotina atualizava a linha com a janela aberta e a mensagem escrita para o comprador ia ao mediador.
+- **IA:** prompt próprio (`REGRAS_DE_RECLAMACAO`): nunca oferece reembolso, troca, devolução, reenvio, desconto nem
+  compensação, não admite culpa, e a sugestão volta com o lembrete "O mediador do ML lê esta mensagem.".
+- **Telegram:** o aviso da reclamação com conversa sai pelo atendimento, com botões, pelo interruptor `reclamacaoML` que
+  já existia (chave `reclamacao-conversa:`, com a última mensagem e o destino: mensagem nova ou ida para a mediação =
+  aviso novo). O aviso antigo sem botões (`reclamacoesAbertas`) não sai para a reclamação que tem linha no atendimento,
+  e a `mediations` recém-aberta espera 10 min por essa linha.
+- **Tela:** terceira aba (`/atendimento?tipo=reclamacoes`), a etapa na coluna do pedido, e a janela com a fala do
+  mediador em âmbar, "Sua mensagem para o comprador / mediador do Mercado Livre", prazo, motivo, reputação e devolução.
+  Conferida no navegador com duas reclamações de teste (`--manter`).
+- **Desvios do plano:** a lista não ganhou colunas próprias de motivo e etapa (a etapa vai como selo na coluna do
+  pedido); o link da linha de Vendas › Reclamações para a conversa **não foi feito**; o link "Abrir no ML" leva à venda
+  (`/vendas/{pedido}/detalhe`) e não existe quando o Rise não tem o pedido; os testes das tarefas 5 a 7 e do reforço do
+  Telegram foram escritos junto com o código, não antes.
+- **Não visto de verdade:** nenhum `POST` de mensagem de reclamação, a recusa do ML por texto longo, o corpo da
+  notificação `post_purchase` e a etapa `dispute` aberta na conta (só fechadas). A sugestão paga não foi rodada.
+
+**Roteiro do dono para ligar a fase 3:** "sobe" (uma migration, com backup); marcar **Post Purchase** (claims e
+claims_actions) nas notificações do aplicativo no painel do ML (opcional: só apressa); abrir a aba Reclamações e conferir
+a reclamação aberta; só então `ML_RESPONDER_RECLAMACOES=true` no `.env` da VPS.
 
 ## Trabalho em paralelo: worktrees
 
