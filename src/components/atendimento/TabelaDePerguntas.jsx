@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { MessageCircleQuestion } from "lucide-react";
+import { MessageCircleQuestion, MessagesSquare } from "lucide-react";
 
 import CabecalhoOrdenavel, { parametrosDaOrdenacao } from "@/components/ui/CabecalhoOrdenavel";
 
@@ -23,7 +23,10 @@ function Situacao({ status }) {
  * As perguntas dos anuncios do ML. O operador ve primeiro as ABERTAS, a mais antiga no alto (o tempo de resposta conta no
  * ML). Chips de situacao (`?status=`; "Todas" = `?status=todas`), cabecalho que ordena, e a linha abre a pergunta.
  */
-export default function TabelaDePerguntas({ linhas, status, contagem }) {
+// Na aba Mensagens (`tipo="POS_VENDA"`, fase 2) a mesma tabela lista as conversas de pos-venda: muda a 2a coluna (o
+// pedido no lugar do anuncio) e os textos.
+export default function TabelaDePerguntas({ linhas, status, contagem, tipo = "PERGUNTA" }) {
+  const mensagens = tipo === "POS_VENDA";
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -51,7 +54,7 @@ export default function TabelaDePerguntas({ linhas, status, contagem }) {
 
   return (
     <>
-      <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label="Filtrar as perguntas">
+      <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label={mensagens ? "Filtrar as mensagens" : "Filtrar as perguntas"}>
         {SITUACOES.map((s) => (
           <button key={s} type="button" onClick={() => escolher(s)} className={chip(status === s)} aria-pressed={status === s}>
             {SITUACAO_DO_ATENDIMENTO[s].plural} <span className="tabular-nums text-suave">{contagem[s] ?? 0}</span>
@@ -64,9 +67,13 @@ export default function TabelaDePerguntas({ linhas, status, contagem }) {
 
       {linhas.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-lg border border-borda bg-superficie px-6 py-12 text-center">
-          <MessageCircleQuestion size={30} className="text-suave" />
-          <p className="font-medium">{status === "ABERTA" ? "Nenhuma pergunta esperando resposta." : "Nenhuma pergunta aqui."}</p>
-          {status === "ABERTA" && <p className="max-w-md text-sm text-suave">As perguntas novas dos anúncios do Mercado Livre aparecem aqui em até 5 minutos.</p>}
+          {mensagens ? <MessagesSquare size={30} className="text-suave" /> : <MessageCircleQuestion size={30} className="text-suave" />}
+          <p className="font-medium">{status === "ABERTA" ? (mensagens ? "Nenhuma mensagem esperando resposta." : "Nenhuma pergunta esperando resposta.") : mensagens ? "Nenhuma mensagem aqui." : "Nenhuma pergunta aqui."}</p>
+          {status === "ABERTA" && (
+            <p className="max-w-md text-sm text-suave">
+              {mensagens ? "As mensagens que os compradores mandam depois da compra aparecem aqui em até 5 minutos." : "As perguntas novas dos anúncios do Mercado Livre aparecem aqui em até 5 minutos."}
+            </p>
+          )}
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-borda bg-superficie">
@@ -74,8 +81,8 @@ export default function TabelaDePerguntas({ linhas, status, contagem }) {
             <thead className="border-b border-borda bg-fundo text-left text-xs tracking-wide text-suave uppercase">
               <tr>
                 <CabecalhoOrdenavel {...coluna("recebidaEm", "Recebida")} className="w-28" />
-                <CabecalhoOrdenavel {...coluna("itemId", "Anúncio")} className="w-[32%]" />
-                <CabecalhoOrdenavel {...coluna("textoDoCliente", "Pergunta")} />
+                {mensagens ? <CabecalhoOrdenavel {...coluna("idExterno", "Pedido")} className="w-[32%]" /> : <CabecalhoOrdenavel {...coluna("itemId", "Anúncio")} className="w-[32%]" />}
+                <CabecalhoOrdenavel {...coluna("textoDoCliente", mensagens ? "Última mensagem" : "Pergunta")} />
                 <CabecalhoOrdenavel {...coluna("status", "Situação")} className="w-48" />
               </tr>
             </thead>
@@ -87,7 +94,19 @@ export default function TabelaDePerguntas({ linhas, status, contagem }) {
                     <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-suave" title={new Date(linha.recebidaEm).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}>
                       {haQuanto(linha.recebidaEm)}
                     </td>
-                    <td className="max-w-0 px-3 py-2.5">
+                    {mensagens && (
+                      <td className="max-w-0 px-3 py-2.5">
+                        <span className="block truncate" title={linha.pedido?.primeiroItem ?? ""}>
+                          {linha.pedido?.primeiroItem || <span className="text-suave">Pedido fora do Rise</span>}
+                          {linha.pedido?.itens > 1 && <span className="text-suave"> e mais {linha.pedido.itens - 1}</span>}
+                        </span>
+                        <span className="flex items-center gap-2 text-xs text-suave">
+                          <span className="font-mono">{linha.pedido?.numero ?? linha.idExterno}</span>
+                          {linha.bloqueado && <span className="rounded bg-amber-100 px-1 font-medium text-amber-800">Bloqueada pelo ML</span>}
+                        </span>
+                      </td>
+                    )}
+                    <td className={`max-w-0 px-3 py-2.5 ${mensagens ? "hidden" : ""}`}>
                       <div className="flex items-center gap-2.5">
                         {linha.anuncio?.foto ? (
                           // eslint-disable-next-line @next/next/no-img-element

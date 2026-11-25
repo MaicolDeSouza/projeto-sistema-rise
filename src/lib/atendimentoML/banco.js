@@ -15,7 +15,7 @@ export const LIMITE_PADRAO_DA_PERGUNTA = 2000;
 const LIMITE_MINIMO = 100;
 const LIMITE_MAXIMO = 2000;
 
-const ORDENAVEIS = new Set(["recebidaEm", "status", "itemId", "textoDoCliente", "respondidaEm"]);
+const ORDENAVEIS = new Set(["recebidaEm", "status", "itemId", "idExterno", "textoDoCliente", "respondidaEm"]);
 
 /** O limite de caracteres da resposta de pergunta (Rise AI › Configuracoes; 2000 quando nao configurado). */
 export async function limiteDaPergunta() {
@@ -76,6 +76,14 @@ async function anunciosDasLinhas(linhas) {
   );
 }
 
+/** O pedido de cada linha de pos-venda, para a lista: `{ id, numero, idExterno, primeiroItem, itens } | null`. Sem dado do comprador. */
+async function pedidosDasLinhas(linhas) {
+  const ids = [...new Set(linhas.map((l) => l.pedidoId).filter(Boolean))];
+  if (ids.length === 0) return new Map();
+  const pedidos = await prisma.pedidoDeVenda.findMany({ where: { id: { in: ids } }, select: { id: true, numero: true, idExterno: true, itens: { orderBy: { ordem: "asc" }, select: { titulo: true, quantidade: true } } } });
+  return new Map(pedidos.map((p) => [p.id, { id: p.id, numero: p.numero, idExterno: p.idExterno, primeiroItem: p.itens[0]?.titulo ?? "", itens: p.itens.length }]));
+}
+
 /** Quantas perguntas ha em cada situacao (os numeros dos chips da tela). */
 export async function contagemPorStatus(tipo = "PERGUNTA") {
   const grupos = await prisma.atendimentoML.groupBy({ by: ["status"], where: { tipo }, _count: { _all: true } });
@@ -88,6 +96,8 @@ function ondeDaLista({ tipo, status, filtros, soPrefixo }) {
   const item = String(filtros?.item ?? "").trim();
   if (texto) e.push({ textoDoCliente: { contains: texto, mode: "insensitive" } });
   if (item) e.push({ itemId: { contains: item.toUpperCase().replace("-", "") } });
+  // Pos-venda: a busca da tela tambem acha pelo numero do pack/pedido.
+  if (texto && tipo === "POS_VENDA") e.splice(0, 1, { OR: [{ textoDoCliente: { contains: texto, mode: "insensitive" } }, { idExterno: { contains: texto } }] });
   if (soPrefixo) e.push({ idExterno: { startsWith: soPrefixo } });
   return { tipo, ...(status ? { status } : {}), ...(e.length ? { AND: e } : {}) };
 }
@@ -105,15 +115,15 @@ export async function listarAtendimentos({ tipo = "PERGUNTA", status = null, pag
     prisma.atendimentoML.count({ where }),
     prisma.atendimentoML.findMany({ where, orderBy: [{ [campo]: direcao === "desc" ? "desc" : "asc" }, { id: "asc" }], skip: (atual - 1) * tamanho, take: tamanho }),
   ]);
-  const anuncios = await anunciosDasLinhas(linhas);
-  return { linhas: linhas.map((l) => ({ ...l, anuncio: anuncios.get(l.anuncioId) ?? null })), total, pagina: atual, porPagina: tamanho };
+  const [anuncios, pedidos] = await Promise.all([anunciosDasLinhas(linhas), pedidosDasLinhas(linhas)]);
+  return { linhas: linhas.map((l) => ({ ...l, anuncio: anuncios.get(l.anuncioId) ?? null, pedido: pedidos.get(l.pedidoId) ?? null })), total, pagina: atual, porPagina: tamanho };
 }
 
 /** Uma linha com o anuncio, ou `null`. */
 export async function lerAtendimento(id) {
   const linha = await prisma.atendimentoML.findUnique({ where: { id: String(id ?? "") } });
   if (!linha) return null;
-  return { ...linha, anuncio: (await anunciosDasLinhas([linha])).get(linha.anuncioId) ?? null };
+  return { ...linha, anuncio: (await anunciosDasLinhas([linha])).get(linha.anuncioId) ?? null, pedido: (await pedidosDasLinhas([linha])).get(linha.pedidoId) ?? null };
 }
 
 /** Quantas esperam resposta (o numero do menu). */

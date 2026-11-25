@@ -94,7 +94,14 @@ async function semearParaATela() {
   await prisma.atendimentoML.create({ data: { ...base, idExterno: "ZZ-ATD-T1", textoDoCliente: "Boa tarde, funciona em 3.3V? Tem kit com 10 unidades?", recebidaEm: new Date(agora - 12 * 60000) } });
   await prisma.atendimentoML.create({ data: { ...base, itemId: "MLB9900000777", anuncioId: null, produtoId: null, idExterno: "ZZ-ATD-T2", textoDoCliente: "Emite nota fiscal?", recebidaEm: new Date(agora - 3 * 3600000), rascunho: "Olá! Sim, toda compra vai com nota fiscal.", rascunhoOrigem: "MANUAL", rascunhoEm: new Date() } });
   await prisma.atendimentoML.create({ data: { ...base, idExterno: "ZZ-ATD-T3", textoDoCliente: "É original?", recebidaEm: new Date(agora - 26 * 3600000), status: "RESPONDIDA", respostaEnviada: "Olá! Sim, produto novo e original.", respondidaEm: new Date(agora - 25 * 3600000), respondidaVia: "RISE", respondidaPor: "zz-atd-dono" } });
-  console.log("\n--manter: 3 perguntas ZZ-ATD-T* deixadas para a tela (/atendimento). Rodar o teste sem --manter as apaga.");
+  // Fase 2: duas conversas de pos-venda (uma ativa com pedido, uma bloqueada sem pedido) para a aba Mensagens.
+  const pedido = await criarPedidoDeTeste({ idExterno: "ZZ-ATD-TO1", packId: "ZZ-ATD-TP1" });
+  const hora = (minutos) => new Date(agora - minutos * 60000).toISOString();
+  const conversa = (mensagens) => ({ mensagens: mensagens.map(([de, texto, minutos, anexos = 0], i) => ({ id: `zzatdt${i}${minutos}`, de, texto, em: hora(minutos), anexos, retida: false })), compradorId: "987654321", emReclamacao: false, longa: false });
+  const posVenda = { tipo: "POS_VENDA", situacaoNoML: "active", limite: 350 };
+  await prisma.atendimentoML.create({ data: { ...posVenda, idExterno: "ZZ-ATD-TP1", pedidoId: pedido.id, textoDoCliente: "Já foi postado? Preciso para sábado.", recebidaEm: new Date(agora - 8 * 60000), ultimaDoClienteId: "zzatdt28", conversa: conversa([["C", "Boa tarde, comprei dois sensores.", 190], ["V", "Olá! Obrigado pela compra. Em que posso ajudar?", 180], ["C", "Já foi postado? Preciso para sábado.", 8]]) } });
+  await prisma.atendimentoML.create({ data: { ...posVenda, situacaoNoML: "blocked", bloqueio: "blocked_by_cancelled_order", idExterno: "ZZ-ATD-TP2", textoDoCliente: "[anexo]", recebidaEm: new Date(agora - 5 * 3600000), ultimaDoClienteId: "zzatdt0300", conversa: conversa([["C", "[anexo]", 300, 1]]) } });
+  console.log("\n--manter: 3 perguntas ZZ-ATD-T* e 2 conversas ZZ-ATD-TP* deixadas para a tela (/atendimento). Rodar o teste sem --manter as apaga.");
 }
 
 try {
@@ -769,6 +776,12 @@ try {
     await prisma.atendimentoML.update({ where: { id: linha.id }, data: { status: "IGNORADA" } });
     volta = await rodar();
     conferir("ignorada sem mensagem nova continua ignorada", [volta.reabertas, (await linhaDoPack("ZZ-ATD-P10")).status], [0, "IGNORADA"]);
+
+    await prisma.atendimentoML.update({ where: { id: linha.id }, data: { status: "ABERTA" } });
+    const mensagensGuardadas = ml.conversas.get("ZZ-ATD-P10").mensagens.splice(0);
+    volta = await rodar();
+    conferir("ML devolve a conversa vazia: a linha aberta nao e fechada", [volta.fechadas, (await linhaDoPack("ZZ-ATD-P10")).status, (await linhaDoPack("ZZ-ATD-P10")).conversa.mensagens.length], [0, "ABERTA", 3]);
+    ml.conversas.get("ZZ-ATD-P10").mensagens.push(...mensagensGuardadas);
 
     ml.porConversa("ZZ-ATD-P11", { mensagens: [{ de: "V", texto: "Mensagem que a loja mandou" }] });
     ml.naoLidas.add("ZZ-ATD-P11");

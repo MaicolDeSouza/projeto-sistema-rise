@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { negarSemAcesso, negarSemAcessos, sessaoDeAcessos } from "@/lib/acessos/servidor";
 import { ignorarAtendimento, lerAtendimento, limiteDaPergunta, reabrirAtendimento, salvarRascunho } from "@/lib/atendimentoML/banco";
 import { montarContexto } from "@/lib/atendimentoML/contexto";
+import { detalhesDaConversa } from "@/lib/atendimentoML/janela";
 import { enviarResposta, respostaDePerguntaLiberada, TEXTO_DA_TRAVA } from "@/lib/atendimentoML/enviar";
 import { textoDoBarrado } from "@/lib/atendimentoML/filtro";
 import { sugerirResposta } from "@/lib/atendimentoML/sugerir";
@@ -19,9 +20,12 @@ import { gravarConfiguracao } from "@/lib/riseAi/configuracao";
 
 const RECURSO = ["acao.atendimentoML.responder", "executar"];
 const ehId = (valor) => typeof valor === "string" && valor !== "" && valor.length <= 64;
-const INVALIDO = { ok: false, erro: "Pergunta inválida." };
+const INVALIDO = { ok: false, erro: "Atendimento inválido." };
+const NAO_ABERTA = "Este atendimento não está mais aberto.";
 
-async function comAcesso(trabalho) {
+// O nome comeca por "negarSem" de proposito: o guarda estatico do `teste:acessos` procura a conferencia nas primeiras
+// linhas de cada acao exportada, e e por esta funcao que todas passam.
+async function negarSemAcessoOuFazer(trabalho) {
   const negado = await negarSemAcesso(...RECURSO);
   if (negado) return negado;
   try {
@@ -37,9 +41,10 @@ const avisos = (barrados) => (barrados ?? []).map(textoDoBarrado);
 /** O que a janela mostra ao abrir: o anuncio como esta no ML agora, os outros anuncios do produto e as respostas anteriores. */
 export async function detalhesDaPerguntaAcao(id) {
   if (!ehId(id)) return INVALIDO;
-  return comAcesso(async () => {
+  return negarSemAcessoOuFazer(async () => {
     const atendimento = await lerAtendimento(id);
     if (!atendimento) return INVALIDO;
+    if (atendimento.tipo === "POS_VENDA") return detalhesDaConversa(id);
     const limite = await limiteDaPergunta();
     const envio = respostaDePerguntaLiberada() ? null : TEXTO_DA_TRAVA;
     const base = { ok: true, rascunho: atendimento.rascunho ?? "", rascunhoOrigem: atendimento.rascunhoOrigem, status: atendimento.status, erroDoEnvio: atendimento.erroDoEnvio, limite, motivoDoEnvioDesligado: envio };
@@ -62,16 +67,16 @@ export async function detalhesDaPerguntaAcao(id) {
 
 export async function salvarRascunhoAcao(id, texto) {
   if (!ehId(id) || typeof texto !== "string") return INVALIDO;
-  return comAcesso(async (por) => {
+  return negarSemAcessoOuFazer(async (por) => {
     const salvo = await salvarRascunho({ id, texto, origem: "DONO", por });
-    if (salvo.motivo === "nao-aberta") return { ok: false, erro: "Esta pergunta não está mais aberta." };
+    if (salvo.motivo === "nao-aberta") return { ok: false, erro: NAO_ABERTA };
     return { ok: true, barrados: avisos(salvo.barrados) };
   });
 }
 
 export async function sugerirAcao(id) {
   if (!ehId(id)) return INVALIDO;
-  return comAcesso(async (por) => {
+  return negarSemAcessoOuFazer(async (por) => {
     const sugestao = await sugerirResposta(id, { por });
     if (!sugestao.ok) return { ok: false, erro: sugestao.mensagem };
     return { ok: true, texto: sugestao.texto, barrados: avisos(sugestao.barrados), custoBrl: sugestao.custoBrl };
@@ -81,34 +86,35 @@ export async function sugerirAcao(id) {
 /** Grava o texto que esta na tela e envia: o dono aprova exatamente o que le. */
 export async function enviarAcao(id, texto) {
   if (!ehId(id) || typeof texto !== "string") return INVALIDO;
-  return comAcesso(async (por) => {
+  return negarSemAcessoOuFazer(async (por) => {
     const salvo = await salvarRascunho({ id, texto, origem: "DONO", por });
-    if (salvo.motivo === "nao-aberta") return { ok: false, erro: "Esta pergunta não está mais aberta." };
+    if (salvo.motivo === "nao-aberta") return { ok: false, erro: NAO_ABERTA };
     const envio = await enviarResposta({ id, por, via: "RISE" });
     revalidatePath("/atendimento");
     // O aviso da pergunta no Telegram perde os botoes (nunca lanca; sem bot nao faz nada).
     if (envio.ok || envio.motivo === "fechada-fora") await atualizarAvisoFechado(id);
-    if (!envio.ok) return { ok: false, erro: envio.mensagem, barrados: avisos(envio.barrados), fechada: envio.motivo === "fechada-fora" };
+    // Mensagem nova do comprador ou conversa bloqueada: a janela rele a conversa antes de o dono tentar de novo.
+    if (!envio.ok) return { ok: false, erro: envio.mensagem, barrados: avisos(envio.barrados), fechada: envio.motivo === "fechada-fora", recarregar: envio.motivo === "mensagem-nova" || envio.motivo === "bloqueada" };
     return { ok: true };
   });
 }
 
 export async function ignorarAcao(id) {
   if (!ehId(id)) return INVALIDO;
-  return comAcesso(async (por) => {
+  return negarSemAcessoOuFazer(async (por) => {
     const feito = await ignorarAtendimento({ id, por });
     revalidatePath("/atendimento");
     if (feito.ok) await atualizarAvisoFechado(id);
-    return feito.ok ? { ok: true } : { ok: false, erro: "Esta pergunta não está mais aberta." };
+    return feito.ok ? { ok: true } : { ok: false, erro: NAO_ABERTA };
   });
 }
 
 export async function reabrirAcao(id) {
   if (!ehId(id)) return INVALIDO;
-  return comAcesso(async (por) => {
+  return negarSemAcessoOuFazer(async (por) => {
     const feito = await reabrirAtendimento({ id, por });
     revalidatePath("/atendimento");
-    return feito.ok ? { ok: true } : { ok: false, erro: "Só uma pergunta ignorada pode ser reaberta." };
+    return feito.ok ? { ok: true } : { ok: false, erro: "Só um atendimento ignorado pode ser reaberto." };
   });
 }
 

@@ -167,6 +167,10 @@ export async function aplicarConversaLida(idExterno, dados, { vendedorId, agora 
     }
   }
 
+  // O ML devolveu a conversa VAZIA para uma linha que ja existe (falha dele, ou conversa que saiu do ar): nao e resposta
+  // da loja. Fechar aqui tiraria da tela uma mensagem que ninguem respondeu.
+  if (resumo.mensagens.length === 0) return { ...nada, id: existente.id, status: existente.status };
+
   const mensagemNova = Boolean(resumo.ultimaDoCliente) && resumo.ultimaDoCliente.id !== existente.ultimaDoClienteId;
   const semAvisoAntigo = { telegramChatId: null, telegramMensagemId: null, telegramPedidoId: null };
 

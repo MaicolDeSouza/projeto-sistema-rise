@@ -20,6 +20,40 @@ const AVISO = {
   "anuncio-nao-lido": "O Mercado Livre não devolveu este anúncio agora: preço e disponibilidade podem faltar.",
   "ml-fora": "Mercado Livre não conectado ou fora do ar: sem os dados do anúncio agora.",
 };
+// Os avisos da conversa de pos-venda (fase 2).
+const AVISO_DA_CONVERSA = {
+  "pedido-fora-do-rise": "Pedido não encontrado no Rise: a sugestão usa só a conversa.",
+  "ml-fora": "Mercado Livre não conectado ou fora do ar: a conversa abaixo é a última que o Rise guardou.",
+};
+
+const horaDaMensagem = (em) => (em ? new Date(em).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "");
+
+/** A conversa em baloes: o comprador a esquerda, a loja a direita, a hora embaixo. Mensagem so com arquivo abre no ML. */
+function Conversa({ mensagens, urlNoML, longa }) {
+  return (
+    <div className="flex max-h-72 flex-col gap-2 overflow-y-auto rounded-md bg-fundo px-3 py-3">
+      {longa && <p className="text-center text-xs text-suave">Conversa longa: só as 50 mensagens mais recentes aparecem aqui.</p>}
+      {mensagens.map((mensagem) => {
+        const daLoja = mensagem.de === "V";
+        return (
+          <div key={mensagem.id} className={`flex flex-col ${daLoja ? "items-end" : "items-start"}`}>
+            <p className={`max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap ${daLoja ? "bg-acento/10" : "border border-borda bg-superficie"} ${mensagem.retida ? "text-suave italic" : ""}`}>
+              {mensagem.texto}
+              {mensagem.anexos > 0 && urlNoML && (
+                <a href={urlNoML} target="_blank" rel="noreferrer" className="ml-2 inline-flex items-center gap-1 text-xs text-acento hover:underline">
+                  {mensagem.anexos === 1 ? "1 anexo" : `${mensagem.anexos} anexos`}: abrir no ML <ExternalLink size={11} aria-hidden="true" />
+                </a>
+              )}
+            </p>
+            <span className="mt-0.5 text-[11px] text-suave tabular-nums">
+              {daLoja ? "Loja" : "Comprador"} · {horaDaMensagem(mensagem.em)}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 /**
  * A pergunta aberta: o que o comprador perguntou, o anuncio como esta no ML agora, a caixa da resposta e as tres acoes
@@ -37,8 +71,12 @@ export default function JanelaDaPergunta({ linha, aoFechar }) {
   const [pendente, iniciar] = useTransition();
   const [acao, setAcao] = useState(null);
 
-  const aberta = (detalhes?.status ?? linha.status) === "ABERTA";
-  const limite = detalhes?.limite ?? 2000;
+  // Pos-venda (fase 2): a mesma janela, com a conversa e o pedido no lugar do anuncio, e o limite que o ML informou.
+  const posVenda = linha.tipo === "POS_VENDA";
+  const situacaoAtual = detalhes?.status ?? linha.status;
+  const aberta = situacaoAtual === "ABERTA";
+  const limite = detalhes?.limite ?? (posVenda ? (linha.limite ?? 350) : 2000);
+  const bloqueio = posVenda ? (detalhes?.bloqueio ?? null) : null;
   const passou = texto.length > limite;
   // O mesmo filtro do servidor, enquanto o dono digita: ele ve o trecho que nao pode sair antes de tentar enviar. O
   // servidor confere de novo no envio (e o que ele barrar aparece em `barrados`).
@@ -57,7 +95,7 @@ export default function JanelaDaPergunta({ linha, aoFechar }) {
     let vivo = true;
     detalhesDaPerguntaAcao(linha.id).then((resposta) => {
       if (!vivo) return;
-      if (!resposta?.ok) return setErro(resposta?.erro ?? "Não foi possível abrir a pergunta.");
+      if (!resposta?.ok) return setErro(resposta?.erro ?? "Não foi possível abrir.");
       setDetalhes(resposta);
       setTexto(resposta.rascunho ?? "");
     });
@@ -65,6 +103,12 @@ export default function JanelaDaPergunta({ linha, aoFechar }) {
       vivo = false;
     };
   }, [linha.id]);
+
+  // Rele a conversa sem trocar o que o dono digitou (chegou mensagem nova no meio do envio, ou o ML bloqueou).
+  const recarregar = async () => {
+    const resposta = await detalhesDaPerguntaAcao(linha.id);
+    if (resposta?.ok) setDetalhes(resposta);
+  };
 
   const fechar = () => {
     if (pendente) return;
@@ -103,6 +147,7 @@ export default function JanelaDaPergunta({ linha, aoFechar }) {
         setBarrados(resposta?.barrados ?? []);
         setErro(resposta?.erro ?? "Não foi possível enviar.");
         if (resposta?.fechada) router.refresh();
+        if (resposta?.recarregar || resposta?.fechada) await recarregar();
         return;
       }
       router.refresh();
@@ -133,20 +178,44 @@ export default function JanelaDaPergunta({ linha, aoFechar }) {
   const titulo = anuncio?.titulo || linha.anuncio?.titulo || "Anúncio fora do Rise";
   const kit = textoDoKit(anuncio?.unidadesDoKit ?? linha.anuncio?.unidadesDoKit);
   const motivoDoEnvio = detalhes?.motivoDoEnvioDesligado ?? null;
-  const podeEnviar = aberta && Boolean(detalhes) && texto.trim() !== "" && !passou && !motivoDoEnvio && aoVivo.length === 0;
+  const podeEnviar = aberta && Boolean(detalhes) && texto.trim() !== "" && !passou && !motivoDoEnvio && !bloqueio && aoVivo.length === 0;
+  const pedido = detalhes?.pedido ?? null;
+  const conversa = detalhes?.conversa?.length ? detalhes.conversa : [{ id: "ultima", de: "C", texto: detalhes?.textoDoCliente ?? linha.textoDoCliente, em: linha.recebidaEm, anexos: 0, retida: false }];
+  const tituloDaConversa = pedido?.itens?.length ? `${pedido.itens[0].titulo}${pedido.itens.length > 1 ? ` e mais ${pedido.itens.length - 1}` : ""}` : linha.pedido?.primeiroItem || "Pedido fora do Rise";
+  const fechada = posVenda ? { status: situacaoAtual, via: detalhes?.respondidaVia ?? linha.respondidaVia, em: detalhes?.respondidaEm ?? linha.respondidaEm, texto: detalhes?.respostaEnviada ?? linha.respostaEnviada } : { status: linha.status, via: linha.respondidaVia, em: linha.respondidaEm, texto: linha.respostaEnviada };
+  const avisosDaJanela = (detalhes?.avisos ?? []).map((aviso) => (posVenda ? AVISO_DA_CONVERSA[aviso] : AVISO[aviso])).filter(Boolean);
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 pt-12" {...propsDoFundo(fechar)}>
-      <section role="dialog" aria-modal="true" aria-label="Pergunta do Mercado Livre" className="w-full max-w-2xl rounded-lg border border-borda bg-superficie shadow-2xl">
+      <section role="dialog" aria-modal="true" aria-label={posVenda ? "Mensagem de comprador do Mercado Livre" : "Pergunta do Mercado Livre"} className="w-full max-w-2xl rounded-lg border border-borda bg-superficie shadow-2xl">
         <header className="flex items-start justify-between gap-4 border-b border-borda px-5 py-4">
           <div className="min-w-0">
             <p className="text-xs text-suave">
-              Pergunta recebida {haQuanto(linha.recebidaEm)} · {SITUACAO_DO_ATENDIMENTO[detalhes?.status ?? linha.status]?.texto}
+              {posVenda ? "Mensagem recebida" : "Pergunta recebida"} {haQuanto(linha.recebidaEm)} · {SITUACAO_DO_ATENDIMENTO[situacaoAtual]?.texto}
             </p>
-            <h2 className="mt-0.5 truncate font-semibold" title={titulo}>
-              {titulo}
+            <h2 className="mt-0.5 truncate font-semibold" title={posVenda ? tituloDaConversa : titulo}>
+              {posVenda ? tituloDaConversa : titulo}
             </h2>
-            <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-suave">
+            {posVenda && (
+              <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-suave">
+                <span className="font-mono">Pedido {pedido?.numero ?? linha.pedido?.numero ?? linha.idExterno}</span>
+                {pedido?.situacao && <span className="rounded bg-fundo px-1.5 py-0.5 font-medium text-texto">{pedido.situacao}</span>}
+                {pedido?.envio?.situacao && <span>Envio: {pedido.envio.situacao}</span>}
+                {pedido?.envio?.transportadora && <span>{pedido.envio.transportadora}</span>}
+                {pedido?.envio?.rastreio && <span className="font-mono">{pedido.envio.rastreio}</span>}
+                {pedido?.id && (
+                  <a href={`/pedidos/${pedido.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-acento hover:underline">
+                    Pedido no Rise <ExternalLink size={12} aria-hidden="true" />
+                  </a>
+                )}
+                {detalhes?.urlNoML && (
+                  <a href={detalhes.urlNoML} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-acento hover:underline">
+                    Abrir no ML <ExternalLink size={12} aria-hidden="true" />
+                  </a>
+                )}
+              </p>
+            )}
+            <p className={`mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-suave ${posVenda ? "hidden" : ""}`}>
               {kit && <span className="rounded bg-fundo px-1.5 py-0.5 font-medium text-texto">{kit}</span>}
               <span className="font-mono">{linha.itemId}</span>
               {anuncio?.preco !== null && anuncio?.preco !== undefined && <span className="tabular-nums">{moeda.format(anuncio.preco)}</span>}
@@ -165,24 +234,30 @@ export default function JanelaDaPergunta({ linha, aoFechar }) {
         </header>
 
         <div className="flex flex-col gap-4 px-5 py-4">
-          <div>
-            <p className="text-xs font-semibold text-suave">O comprador perguntou</p>
-            <p className="mt-1 rounded-md bg-fundo px-3 py-2.5 text-sm leading-relaxed whitespace-pre-wrap">{linha.textoDoCliente}</p>
-          </div>
+          {posVenda ? (
+            <Conversa mensagens={conversa} urlNoML={detalhes?.urlNoML} longa={Boolean(detalhes?.longa)} />
+          ) : (
+            <div>
+              <p className="text-xs font-semibold text-suave">O comprador perguntou</p>
+              <p className="mt-1 rounded-md bg-fundo px-3 py-2.5 text-sm leading-relaxed whitespace-pre-wrap">{linha.textoDoCliente}</p>
+            </div>
+          )}
 
-          {(detalhes?.avisos ?? []).filter((aviso) => AVISO[aviso]).map((aviso) => (
+          {avisosDaJanela.map((aviso) => (
             <p key={aviso} className="text-sm text-amber-700">
-              {AVISO[aviso]}
+              {aviso}
             </p>
           ))}
 
           {!detalhes && !erro && (
             <p className="inline-flex items-center gap-2 text-sm text-suave">
-              <Loader2 size={14} className="animate-spin" /> Lendo o anúncio no Mercado Livre…
+              <Loader2 size={14} className="animate-spin" /> {posVenda ? "Lendo a conversa no Mercado Livre…" : "Lendo o anúncio no Mercado Livre…"}
             </p>
           )}
 
-          {aberta ? (
+          {aberta && bloqueio ? (
+            <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">{bloqueio}</p>
+          ) : aberta ? (
             <div>
               <div className="flex items-end justify-between gap-3">
                 <label htmlFor="resposta-ml" className="text-sm font-semibold">
@@ -230,8 +305,11 @@ export default function JanelaDaPergunta({ linha, aoFechar }) {
             </div>
           ) : (
             <div>
-              <p className="text-xs font-semibold text-suave">{linha.status === "IGNORADA" ? "Ignorada no Rise (a pergunta continua no Mercado Livre)" : `Resposta ${linha.respondidaVia === "ML" ? "dada fora do Rise" : "enviada"}${linha.respondidaEm ? ` ${haQuanto(linha.respondidaEm)}` : ""}`}</p>
-              {linha.respostaEnviada && <p className="mt-1 rounded-md border border-borda px-3 py-2.5 text-sm leading-relaxed whitespace-pre-wrap">{linha.respostaEnviada}</p>}
+              <p className="text-xs font-semibold text-suave">
+                {fechada.status === "IGNORADA" ? `Ignorada no Rise (a ${posVenda ? "conversa" : "pergunta"} continua no Mercado Livre)` : `Resposta ${fechada.via === "ML" ? "dada fora do Rise" : "enviada"}${fechada.em ? ` ${haQuanto(fechada.em)}` : ""}`}
+              </p>
+              {/* Na conversa a resposta ja aparece no ultimo balao da loja. */}
+              {fechada.texto && !posVenda && <p className="mt-1 rounded-md border border-borda px-3 py-2.5 text-sm leading-relaxed whitespace-pre-wrap">{fechada.texto}</p>}
             </div>
           )}
 
@@ -257,7 +335,7 @@ export default function JanelaDaPergunta({ linha, aoFechar }) {
         </div>
 
         <footer className="border-t border-borda px-5 py-4">
-          {aberta && motivoDoEnvio && <p className="mb-3 text-sm text-amber-700">{motivoDoEnvio}</p>}
+          {aberta && motivoDoEnvio && !bloqueio && <p className="mb-3 text-sm text-amber-700">{motivoDoEnvio}</p>}
           {confirmando ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm font-medium">Enviar ao Mercado Livre? Depois de enviada não dá para editar.</p>
@@ -270,9 +348,24 @@ export default function JanelaDaPergunta({ linha, aoFechar }) {
                 </button>
               </div>
             </div>
+          ) : aberta && bloqueio ? (
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={ignorar} disabled={pendente} title="Tira a conversa das abertas no Rise. Ela continua no Mercado Livre." className={`${BOTAO} border border-borda hover:bg-fundo`}>
+                {acao === "ignorar" && <Loader2 size={14} className="animate-spin" />} Ignorar
+              </button>
+              <button type="button" onClick={fechar} className={`${BOTAO} border border-borda hover:bg-fundo`}>
+                Fechar
+              </button>
+            </div>
           ) : aberta ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <button type="button" onClick={sugerir} disabled={!detalhes || pendente} title="A IA lê o anúncio, o produto e suas respostas anteriores. Só roda quando você clica." className={`${BOTAO} border border-acento text-acento hover:bg-acento/10`}>
+              <button
+                type="button"
+                onClick={sugerir}
+                disabled={!detalhes || pendente}
+                title={posVenda ? "A IA lê a conversa, os itens do pedido e o rastreio. Só roda quando você clica." : "A IA lê o anúncio, o produto e suas respostas anteriores. Só roda quando você clica."}
+                className={`${BOTAO} border border-acento text-acento hover:bg-acento/10`}
+              >
                 {acao === "sugerir" ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Sugerir com IA
               </button>
               <div className="flex gap-2">
@@ -286,7 +379,7 @@ export default function JanelaDaPergunta({ linha, aoFechar }) {
             </div>
           ) : (
             <div className="flex justify-end gap-2">
-              {linha.status === "IGNORADA" && (
+              {situacaoAtual === "IGNORADA" && (
                 <button type="button" onClick={reabrir} disabled={pendente} className={`${BOTAO} border border-borda hover:bg-fundo`}>
                   {acao === "reabrir" && <Loader2 size={14} className="animate-spin" />} Reabrir
                 </button>
