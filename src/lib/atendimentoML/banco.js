@@ -100,7 +100,7 @@ function ondeDaLista({ tipo, status, filtros, soPrefixo }) {
   if (texto) e.push({ textoDoCliente: { contains: texto, mode: "insensitive" } });
   if (item) e.push({ itemId: { contains: item.toUpperCase().replace("-", "") } });
   // Pos-venda: a busca da tela tambem acha pelo numero do pack/pedido.
-  if (texto && tipo === "POS_VENDA") e.splice(0, 1, { OR: [{ textoDoCliente: { contains: texto, mode: "insensitive" } }, { idExterno: { contains: texto } }] });
+  if (texto && (tipo === "POS_VENDA" || tipo === "RECLAMACAO")) e.splice(0, 1, { OR: [{ textoDoCliente: { contains: texto, mode: "insensitive" } }, { idExterno: { contains: texto } }] });
   if (soPrefixo) e.push({ idExterno: { startsWith: soPrefixo } });
   return { tipo, ...(status ? { status } : {}), ...(e.length ? { AND: e } : {}) };
 }

@@ -11,6 +11,7 @@ import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import { contagemPorStatus, contarAbertas, listarAtendimentos } from "@/lib/atendimentoML/banco";
 import { mensagemDePosVendaLiberada, TEXTO_DA_TRAVA_DE_MENSAGENS } from "@/lib/atendimentoML/posVenda";
 import { respostaDePerguntaLiberada, TEXTO_DA_TRAVA } from "@/lib/atendimentoML/enviar";
+import { mensagemDeReclamacaoLiberada, TEXTO_DA_TRAVA_DE_RECLAMACOES } from "@/lib/atendimentoML/reclamacoes";
 import { porPaginaDaUrl } from "@/lib/porPagina";
 import { lerConfiguracao } from "@/lib/riseAi/configuracao";
 
@@ -19,10 +20,12 @@ export const dynamic = "force-dynamic";
 
 const ORDENAVEIS = ["recebidaEm", "itemId", "idExterno", "textoDoCliente", "status"];
 
-// As duas abas (`?tipo=mensagens`): as perguntas dos anuncios e as mensagens de quem ja comprou (fase 2).
+// As tres abas (`?tipo=mensagens`, `?tipo=reclamacoes`): as perguntas dos anuncios, as mensagens de quem ja comprou
+// (fase 2) e as reclamacoes (fase 3).
 const ABAS = [
   { tipo: "PERGUNTA", rotulo: "Perguntas", parametro: null },
   { tipo: "POS_VENDA", rotulo: "Mensagens", parametro: "mensagens" },
+  { tipo: "RECLAMACAO", rotulo: "Reclamações", parametro: "reclamacoes" },
 ];
 const esperando = (quantas, uma, varias) => (quantas === 0 ? null : quantas === 1 ? `1 ${uma}` : `${quantas} ${varias}`);
 
@@ -34,8 +37,9 @@ const esperando = (quantas, uma, varias) => (quantas === 0 ? null : quantas === 
 export default async function AtendimentoPage({ searchParams }) {
   const acesso = await exigirAcessoNaPagina("tela.atendimento", "ver");
   const params = await searchParams;
-  const tipo = params?.tipo === "mensagens" ? "POS_VENDA" : "PERGUNTA";
+  const tipo = params?.tipo === "mensagens" ? "POS_VENDA" : params?.tipo === "reclamacoes" ? "RECLAMACAO" : "PERGUNTA";
   const mensagens = tipo === "POS_VENDA";
+  const reclamacoes = tipo === "RECLAMACAO";
   const pedido = typeof params?.status === "string" ? params.status : "ABERTA";
   const status = pedido === "todas" ? null : SITUACAO_DO_ATENDIMENTO[pedido] ? pedido : "ABERTA";
   const busca = typeof params?.q === "string" ? params.q : "";
@@ -45,27 +49,28 @@ export default async function AtendimentoPage({ searchParams }) {
   // Abertas: a mais antiga primeiro (e a que mais pesa no tempo de resposta). As outras: a mais recente primeiro.
   const direcao = params?.ordenar ? (params?.direcao === "desc" ? "desc" : "asc") : status === "ABERTA" ? "asc" : "desc";
 
-  const [{ linhas, total }, contagem, config, perguntasAbertas, mensagensAbertas] = await Promise.all([
+  const [{ linhas, total }, contagem, config, perguntasAbertas, mensagensAbertas, reclamacoesAbertas] = await Promise.all([
     listarAtendimentos({ tipo, status, filtros: { texto: busca }, ordenar, direcao, pagina: paginaPedida, porPagina: POR_PAGINA }),
     contagemPorStatus(tipo),
     lerConfiguracao(),
     contarAbertas("PERGUNTA"),
     contarAbertas("POS_VENDA"),
+    contarAbertas("RECLAMACAO"),
   ]);
-  const abertasDaAba = { PERGUNTA: perguntasAbertas, POS_VENDA: mensagensAbertas };
+  const abertasDaAba = { PERGUNTA: perguntasAbertas, POS_VENDA: mensagensAbertas, RECLAMACAO: reclamacoesAbertas };
   const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
   const pagina = Math.min(paginaPedida, totalPaginas);
-  const resumo = [esperando(perguntasAbertas, "pergunta", "perguntas"), esperando(mensagensAbertas, "mensagem", "mensagens")].filter(Boolean);
-  const travaDesligada = mensagens ? (mensagemDePosVendaLiberada() ? null : TEXTO_DA_TRAVA_DE_MENSAGENS) : respostaDePerguntaLiberada() ? null : TEXTO_DA_TRAVA;
+  const resumo = [esperando(perguntasAbertas, "pergunta", "perguntas"), esperando(mensagensAbertas, "mensagem", "mensagens"), esperando(reclamacoesAbertas, "reclamação", "reclamações")].filter(Boolean);
+  const travaDesligada = reclamacoes ? (mensagemDeReclamacaoLiberada() ? null : TEXTO_DA_TRAVA_DE_RECLAMACOES) : mensagens ? (mensagemDePosVendaLiberada() ? null : TEXTO_DA_TRAVA_DE_MENSAGENS) : respostaDePerguntaLiberada() ? null : TEXTO_DA_TRAVA;
   const podeResponder = acesso.pode("acao.atendimentoML.responder", "executar");
   // A lista vai ao navegador sem o que a janela nao mostra.
-  const naTela = linhas.map((l) => ({ id: l.id, tipo: l.tipo, idExterno: l.idExterno, limite: l.limite, bloqueado: Boolean(l.bloqueio), pedido: l.pedido, itemId: l.itemId, textoDoCliente: l.textoDoCliente, recebidaEm: l.recebidaEm.toISOString(), status: l.status, rascunho: l.rascunho, respostaEnviada: l.respostaEnviada, respondidaEm: l.respondidaEm?.toISOString() ?? null, respondidaVia: l.respondidaVia, anuncio: l.anuncio ? { titulo: l.anuncio.titulo, unidadesDoKit: l.anuncio.unidadesDoKit, foto: l.anuncio.foto } : null }));
+  const naTela = linhas.map((l) => ({ id: l.id, tipo: l.tipo, idExterno: l.idExterno, limite: l.limite, bloqueado: Boolean(l.bloqueio), etapa: l.etapa ?? null, pedido: l.pedido, itemId: l.itemId, textoDoCliente: l.textoDoCliente, recebidaEm: l.recebidaEm.toISOString(), status: l.status, rascunho: l.rascunho, respostaEnviada: l.respostaEnviada, respondidaEm: l.respondidaEm?.toISOString() ?? null, respondidaVia: l.respondidaVia, anuncio: l.anuncio ? { titulo: l.anuncio.titulo, unidadesDoKit: l.anuncio.unidadesDoKit, foto: l.anuncio.foto } : null }));
 
   return (
     <>
       <PageHeader
         titulo="Atendimento ML"
-        descricao={resumo.length === 0 ? "Nada esperando resposta." : `${resumo.join(" e ")} esperando resposta.`}
+        descricao={resumo.length === 0 ? "Nada esperando resposta." : `${new Intl.ListFormat("pt-BR", { style: "long", type: "conjunction" }).format(resumo)} esperando resposta.`}
         acao={<AjustesDoAtendimento prompt={config.atendimentoML?.prompt ?? ""} limite={config.atendimentoML?.limiteDaPergunta ?? 2000} podeEditar={podeResponder && acesso.pode("riseAi.configuracoes", "editar")} />}
       />
       <nav className="mb-4 flex gap-1 border-b border-borda" aria-label="Tipo de atendimento">
@@ -85,9 +90,9 @@ export default async function AtendimentoPage({ searchParams }) {
         })}
       </nav>
       {travaDesligada && <p className="mb-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">{travaDesligada} Você pode ler, pedir sugestão e guardar o rascunho; o envio ao Mercado Livre fica bloqueado.</p>}
-      {!podeResponder && <p className="mb-3 text-sm text-amber-700">Você vê {mensagens ? "as mensagens" : "as perguntas"}, mas não tem a permissão de responder.</p>}
+      {!podeResponder && <p className="mb-3 text-sm text-amber-700">Você vê {reclamacoes ? "as reclamações" : mensagens ? "as mensagens" : "as perguntas"}, mas não tem a permissão de responder.</p>}
       <div className="mb-3 flex flex-wrap items-start gap-3">
-        <CampoBusca valorInicial={busca} rotulo={mensagens ? "Buscar na mensagem ou pelo número do pedido" : "Buscar no texto da pergunta"} className="w-full max-w-sm" />
+        <CampoBusca valorInicial={busca} rotulo={reclamacoes ? "Buscar na mensagem ou pelo número da reclamação" : mensagens ? "Buscar na mensagem ou pelo número do pedido" : "Buscar no texto da pergunta"} className="w-full max-w-sm" />
         <NavegacaoDoTopo pagina={pagina} totalPaginas={totalPaginas} total={total} porPagina={POR_PAGINA} />
       </div>
       <TabelaDePerguntas linhas={naTela} status={status} contagem={contagem} tipo={tipo} />

@@ -59,6 +59,27 @@ export function destinatarioEmTexto(destinatario) {
   return destinatario === "complainant" ? "comprador" : null;
 }
 
+const ACAO_EM_TEXTO = {
+  refund: "reembolsar o comprador",
+  open_dispute: "pedir a mediação do Mercado Livre",
+  allow_return: "aceitar a devolução",
+  allow_return_label: "liberar a etiqueta de devolução",
+  allow_partial_refund: "oferecer reembolso parcial",
+  add_shipping_evidence: "enviar o comprovante de envio",
+  return_review_ok: "confirmar que o produto devolvido chegou bem",
+  return_review_fail: "informar problema no produto devolvido",
+};
+
+/** As outras acoes que o ML libera, em palavras (a tela, o bot e o MCP so as CITAM; quem as executa e o dono, no ML). */
+export function acoesEmTexto(acoes) {
+  return (Array.isArray(acoes) ? acoes : []).map((acao) => ACAO_EM_TEXTO[acao] ?? String(acao).replaceAll("_", " "));
+}
+
+/** "Reclamação" ou "Mediação" (a etapa `dispute` e a que o ML intermedia). */
+export function etapaEmTexto(etapa) {
+  return etapa === "dispute" ? "Mediação" : "Reclamação";
+}
+
 const data = (valor) => {
   const d = valor ? new Date(valor) : null;
   return d && !Number.isNaN(d.getTime()) ? d : null;

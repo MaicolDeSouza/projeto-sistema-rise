@@ -101,7 +101,15 @@ async function semearParaATela() {
   const posVenda = { tipo: "POS_VENDA", situacaoNoML: "active", limite: 350 };
   await prisma.atendimentoML.create({ data: { ...posVenda, idExterno: "ZZ-ATD-TP1", pedidoId: pedido.id, textoDoCliente: "Já foi postado? Preciso para sábado.", recebidaEm: new Date(agora - 8 * 60000), ultimaDoClienteId: "zzatdt28", conversa: conversa([["C", "Boa tarde, comprei dois sensores.", 190], ["V", "Olá! Obrigado pela compra. Em que posso ajudar?", 180], ["C", "Já foi postado? Preciso para sábado.", 8]]) } });
   await prisma.atendimentoML.create({ data: { ...posVenda, situacaoNoML: "blocked", bloqueio: "blocked_by_cancelled_order", idExterno: "ZZ-ATD-TP2", textoDoCliente: "[anexo]", recebidaEm: new Date(agora - 5 * 3600000), ultimaDoClienteId: "zzatdt0300", conversa: conversa([["C", "[anexo]", 300, 1]]) } });
-  console.log("\n--manter: 3 perguntas ZZ-ATD-T* e 2 conversas ZZ-ATD-TP* deixadas para a tela (/atendimento). Rodar o teste sem --manter as apaga.");
+  // Fase 3: duas reclamacoes (uma na etapa de reclamacao com pedido, uma na mediacao com a fala do mediador) para a aba Reclamacoes.
+  const pedidoDaReclamacao = await criarPedidoDeTeste({ idExterno: "ZZ-ATD-TO2", packId: "ZZ-ATD-TPK2", status: "ENTREGUE", statusDoEnvio: "ENTREGUE" });
+  await prisma.reclamacaoML.deleteMany({ where: { id: { startsWith: "ZZ-ATD-" } } });
+  await prisma.reclamacaoML.create({ data: { id: "ZZ-ATD-TR1", recurso: "order", recursoId: "ZZ-ATD-TO2", pedidoNumero: "ZZ-ATD-TO2", pedidoId: pedidoDaReclamacao.id, tipo: "mediations", etapa: "claim", status: "opened", motivoNome: "O produto chegou com defeito", motivoDetalhe: "Não funciona", grupo: "PRODUTO", afetaReputacao: true, devolucaoStatus: "pending", abertaEm: new Date(agora - 26 * 3600000) } });
+  const fala = (mensagens) => ({ mensagens: mensagens.map(([de, para, texto, minutos, etapa = "claim"], i) => ({ id: `zzatdr${i}${minutos}`, de, para, texto, em: hora(minutos), anexos: 0, retida: false, etapa })), longa: false });
+  const reclamacaoBase = { tipo: "RECLAMACAO", situacaoNoML: "opened", limite: 1000 };
+  await prisma.atendimentoML.create({ data: { ...reclamacaoBase, idExterno: "ZZ-ATD-TR1", reclamacaoId: "ZZ-ATD-TR1", pedidoId: pedidoDaReclamacao.id, etapa: "claim", destinatario: "complainant", textoDoCliente: "Liguei em 12V e não acendeu. Quero resolver.", recebidaEm: new Date(agora - 40 * 60000), ultimaDoClienteId: "zzatdr040", conversa: { ...fala([["C", "V", "Liguei em 12V e não acendeu. Quero resolver.", 40]]), outrasAcoes: ["refund", "open_dispute"], detalhe: { titulo: "Responda ao comprador", descricao: "Você tem até quinta-feira para responder.", problema: "Produto com defeito", responsavel: "respondent" } }, prazoEm: new Date(agora + 2 * 24 * 3600000) } });
+  await prisma.atendimentoML.create({ data: { ...reclamacaoBase, idExterno: "ZZ-ATD-TR2", etapa: "dispute", destinatario: "mediator", textoDoCliente: "Olá, somos do Mercado Livre. Conte o que aconteceu com esta venda.", recebidaEm: new Date(agora - 3 * 3600000), ultimaDoClienteId: "zzatdr2180", conversa: { ...fala([["C", "V", "Não recebi o que comprei.", 300], ["V", "C", "Olá! O rastreio mostra entregue em 20/11.", 280], ["M", "V", "Olá, somos do Mercado Livre. Conte o que aconteceu com esta venda.", 180, "dispute"]]), outrasAcoes: [], detalhe: null } } });
+  console.log("\n--manter: 3 perguntas ZZ-ATD-T*, 2 conversas ZZ-ATD-TP* e 2 reclamações ZZ-ATD-TR* deixadas para a tela (/atendimento). Rodar o teste sem --manter as apaga.");
 }
 
 try {
@@ -1370,6 +1378,26 @@ try {
       conferir("reclamacao sem pedido no Rise: avisa e segue so com a conversa", [semPedido.pedido, semPedido.avisos, semPedido.destinatario, semPedido.conversa[0].de, semPedido.motivo], [null, ["pedido-fora-do-rise"], "mediator", "M", null]);
       const paraOMediador = montarPromptDoML({ contexto: semPedido });
       conferir("na mediacao o prompt diz que a mensagem vai ao mediador e mostra a fala dele", [paraOMediador.mensagem.includes("(não encontrado"), paraOMediador.mensagem.includes("Mediador do Mercado Livre: Olá"), /vai para o mediador/i.test(paraOMediador.mensagem)], [true, true, true]);
+
+      // Tarefa 5: o que a janela e a lista recebem.
+      const { detalhesDaReclamacao } = await import("../src/lib/atendimentoML/janela.js");
+      const { listarAtendimentos, contarAbertas } = await import("../src/lib/atendimentoML/banco.js");
+      ml.escreverNaReclamacao("ZZ-ATD-R40", "C", "Segue a foto, a placa veio queimada.");
+      let janela = await detalhesDaReclamacao(id, { ml, env: {} });
+      conferir("a janela rele a reclamacao e mostra a mensagem que acabou de chegar", [janela.tipo, janela.conversa.at(-1).texto, janela.textoDoCliente, janela.conversa.map((m) => m.de)], ["RECLAMACAO", "Segue a foto, a placa veio queimada.", "Segue a foto, a placa veio queimada.", ["C", "V", "C", "C"]]);
+      conferir("etapa, destinatario, limite, outras acoes em palavras e a trava", [janela.etapa, janela.emMediacao, janela.destinatario, janela.limite, janela.outrasAcoes, janela.motivoDoEnvioDesligado, janela.bloqueio], ["Reclamação", false, "comprador", 1000, ["reembolsar o comprador", "pedir a mediação do Mercado Livre"], rc.TEXTO_DA_TRAVA_DE_RECLAMACOES, null]);
+      conferir("motivo, reputacao, devolucao, pedido e o link da venda no ML", [janela.motivo?.nome, janela.afetaReputacao, janela.devolucao, janela.pedido?.numero, janela.pedido?.id === pedido.id, janela.urlNoML], ["O produto chegou com defeito", true, "Postada pelo comprador", "ZZ-ATD-O40", true, "https://www.mercadolivre.com.br/vendas/ZZ-ATD-O40/detalhe"]);
+      conferir("a janela nao leva dado pessoal do comprador", /Fulano|529\.982|zzatd@|54988990008|Secreta/.test(JSON.stringify(janela)), false);
+      conferir("com a trava ligada, sem motivo de envio desligado", (await detalhesDaReclamacao(id, { ml, env: { ML_RESPONDER_RECLAMACOES: "true" } })).motivoDoEnvioDesligado, null);
+      janela = await detalhesDaReclamacao((await linhaDaReclamacao("ZZ-ATD-R41")).id, { ml, env: {} });
+      conferir("na mediacao: a etapa, o mediador e nenhum link sem pedido", [janela.etapa, janela.emMediacao, janela.destinatario, janela.urlNoML, janela.avisos], ["Mediação", true, "mediador do Mercado Livre", null, ["pedido-fora-do-rise"]]);
+      ml.reclamacaoForaDoAr("ZZ-ATD-R41");
+      janela = await detalhesDaReclamacao((await linhaDaReclamacao("ZZ-ATD-R41")).id, { ml, env: {} });
+      conferir("sem o ML, a janela abre com o retrato guardado e avisa", [janela.ok, janela.conversa.length, janela.avisos.includes("ml-fora")], [true, 1, true]);
+      ml.reclamacaoForaDoAr("ZZ-ATD-R41", false);
+      const lista = await listarAtendimentos({ tipo: "RECLAMACAO", status: "ABERTA", soPrefixo: "ZZ-ATD-" });
+      conferir("a lista da aba: as duas abertas, com a etapa e o pedido", [lista.total, lista.linhas.map((l) => l.etapa).sort(), lista.linhas.find((l) => l.idExterno === "ZZ-ATD-R40")?.pedido?.numero, await contarAbertas("RECLAMACAO", { soPrefixo: "ZZ-ATD-" })], [2, ["claim", "dispute"], "ZZ-ATD-O40", 2]);
+      conferir("a busca da aba acha pelo numero da reclamacao", (await listarAtendimentos({ tipo: "RECLAMACAO", status: null, filtros: { texto: "ATD-R41" }, soPrefixo: "ZZ-ATD-" })).linhas.map((l) => l.idExterno), ["ZZ-ATD-R41"]);
     } finally {
       await prisma.reclamacaoML.deleteMany({ where: { id: { startsWith: "ZZ-ATD-" } } });
       await limparOResto();

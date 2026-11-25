@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { negarSemAcesso, negarSemAcessos, sessaoDeAcessos } from "@/lib/acessos/servidor";
 import { ignorarAtendimento, lerAtendimento, limiteDaPergunta, reabrirAtendimento, salvarRascunho } from "@/lib/atendimentoML/banco";
 import { montarContexto } from "@/lib/atendimentoML/contexto";
-import { detalhesDaConversa } from "@/lib/atendimentoML/janela";
+import { detalhesDaConversa, detalhesDaReclamacao } from "@/lib/atendimentoML/janela";
 import { enviarResposta, respostaDePerguntaLiberada, TEXTO_DA_TRAVA } from "@/lib/atendimentoML/enviar";
 import { textoDoBarrado } from "@/lib/atendimentoML/filtro";
 import { sugerirResposta } from "@/lib/atendimentoML/sugerir";
@@ -45,6 +45,7 @@ export async function detalhesDaPerguntaAcao(id) {
     const atendimento = await lerAtendimento(id);
     if (!atendimento) return INVALIDO;
     if (atendimento.tipo === "POS_VENDA") return detalhesDaConversa(id);
+    if (atendimento.tipo === "RECLAMACAO") return detalhesDaReclamacao(id);
     const limite = await limiteDaPergunta();
     const envio = respostaDePerguntaLiberada() ? null : TEXTO_DA_TRAVA;
     const base = { ok: true, rascunho: atendimento.rascunho ?? "", rascunhoOrigem: atendimento.rascunhoOrigem, status: atendimento.status, erroDoEnvio: atendimento.erroDoEnvio, limite, motivoDoEnvioDesligado: envio };
@@ -79,7 +80,7 @@ export async function sugerirAcao(id) {
   return negarSemAcessoOuFazer(async (por) => {
     const sugestao = await sugerirResposta(id, { por });
     if (!sugestao.ok) return { ok: false, erro: sugestao.mensagem };
-    return { ok: true, texto: sugestao.texto, barrados: avisos(sugestao.barrados), custoBrl: sugestao.custoBrl };
+    return { ok: true, texto: sugestao.texto, barrados: avisos(sugestao.barrados), custoBrl: sugestao.custoBrl, lembrete: sugestao.lembrete ?? null };
   });
 }
 
@@ -92,9 +93,10 @@ export async function enviarAcao(id, texto) {
     const envio = await enviarResposta({ id, por, via: "RISE" });
     revalidatePath("/atendimento");
     // O aviso da pergunta no Telegram perde os botoes (nunca lanca; sem bot nao faz nada).
-    if (envio.ok || envio.motivo === "fechada-fora") await atualizarAvisoFechado(id);
-    // Mensagem nova do comprador ou conversa bloqueada: a janela rele a conversa antes de o dono tentar de novo.
-    if (!envio.ok) return { ok: false, erro: envio.mensagem, barrados: avisos(envio.barrados), fechada: envio.motivo === "fechada-fora", recarregar: envio.motivo === "mensagem-nova" || envio.motivo === "bloqueada" };
+    const fechada = envio.motivo === "fechada-fora" || envio.motivo === "fechada";
+    if (envio.ok || fechada) await atualizarAvisoFechado(id);
+    // Mensagem nova, conversa bloqueada ou (na reclamacao) etapa que mudou: a janela rele antes de o dono tentar de novo.
+    if (!envio.ok) return { ok: false, erro: envio.mensagem, barrados: avisos(envio.barrados), fechada, recarregar: ["mensagem-nova", "bloqueada", "etapa-mudou", "sem-acao"].includes(envio.motivo) };
     return { ok: true };
   });
 }

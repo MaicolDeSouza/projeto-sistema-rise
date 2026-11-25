@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { MessageCircleQuestion, MessagesSquare } from "lucide-react";
+import { MessageCircleQuestion, MessagesSquare, ShieldAlert } from "lucide-react";
 
 import CabecalhoOrdenavel, { parametrosDaOrdenacao } from "@/components/ui/CabecalhoOrdenavel";
 
@@ -26,7 +26,14 @@ function Situacao({ status }) {
 // Na aba Mensagens (`tipo="POS_VENDA"`, fase 2) a mesma tabela lista as conversas de pos-venda: muda a 2a coluna (o
 // pedido no lugar do anuncio) e os textos.
 export default function TabelaDePerguntas({ linhas, status, contagem, tipo = "PERGUNTA" }) {
-  const mensagens = tipo === "POS_VENDA";
+  const reclamacoes = tipo === "RECLAMACAO";
+  // Reclamacoes (fase 3): a mesma tabela das conversas, com a etapa na coluna do pedido.
+  const mensagens = tipo === "POS_VENDA" || reclamacoes;
+  const VAZIO = reclamacoes
+    ? { esperando: "Nenhuma reclamação esperando resposta.", nada: "Nenhuma reclamação aqui.", dica: "As reclamações abertas no Mercado Livre aparecem aqui em até 5 minutos, com as mensagens do comprador e do mediador.", filtro: "Filtrar as reclamações" }
+    : tipo === "POS_VENDA"
+      ? { esperando: "Nenhuma mensagem esperando resposta.", nada: "Nenhuma mensagem aqui.", dica: "As mensagens que os compradores mandam depois da compra aparecem aqui em até 5 minutos.", filtro: "Filtrar as mensagens" }
+      : { esperando: "Nenhuma pergunta esperando resposta.", nada: "Nenhuma pergunta aqui.", dica: "As perguntas novas dos anúncios do Mercado Livre aparecem aqui em até 5 minutos.", filtro: "Filtrar as perguntas" };
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -54,7 +61,7 @@ export default function TabelaDePerguntas({ linhas, status, contagem, tipo = "PE
 
   return (
     <>
-      <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label={mensagens ? "Filtrar as mensagens" : "Filtrar as perguntas"}>
+      <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label={VAZIO.filtro}>
         {SITUACOES.map((s) => (
           <button key={s} type="button" onClick={() => escolher(s)} className={chip(status === s)} aria-pressed={status === s}>
             {SITUACAO_DO_ATENDIMENTO[s].plural} <span className="tabular-nums text-suave">{contagem[s] ?? 0}</span>
@@ -67,11 +74,11 @@ export default function TabelaDePerguntas({ linhas, status, contagem, tipo = "PE
 
       {linhas.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-lg border border-borda bg-superficie px-6 py-12 text-center">
-          {mensagens ? <MessagesSquare size={30} className="text-suave" /> : <MessageCircleQuestion size={30} className="text-suave" />}
-          <p className="font-medium">{status === "ABERTA" ? (mensagens ? "Nenhuma mensagem esperando resposta." : "Nenhuma pergunta esperando resposta.") : mensagens ? "Nenhuma mensagem aqui." : "Nenhuma pergunta aqui."}</p>
+          {reclamacoes ? <ShieldAlert size={30} className="text-suave" /> : mensagens ? <MessagesSquare size={30} className="text-suave" /> : <MessageCircleQuestion size={30} className="text-suave" />}
+          <p className="font-medium">{status === "ABERTA" ? VAZIO.esperando : VAZIO.nada}</p>
           {status === "ABERTA" && (
             <p className="max-w-md text-sm text-suave">
-              {mensagens ? "As mensagens que os compradores mandam depois da compra aparecem aqui em até 5 minutos." : "As perguntas novas dos anúncios do Mercado Livre aparecem aqui em até 5 minutos."}
+              {VAZIO.dica}
             </p>
           )}
         </div>
@@ -97,12 +104,13 @@ export default function TabelaDePerguntas({ linhas, status, contagem, tipo = "PE
                     {mensagens && (
                       <td className="max-w-0 px-3 py-2.5">
                         <span className="block truncate" title={linha.pedido?.primeiroItem ?? ""}>
-                          {linha.pedido?.primeiroItem || <span className="text-suave">Pedido fora do Rise</span>}
+                          {linha.pedido?.primeiroItem || <span className="text-suave">{reclamacoes ? "Venda fora do Rise" : "Pedido fora do Rise"}</span>}
                           {linha.pedido?.itens > 1 && <span className="text-suave"> e mais {linha.pedido.itens - 1}</span>}
                         </span>
                         <span className="flex items-center gap-2 text-xs text-suave">
                           <span className="font-mono">{linha.pedido?.numero ?? linha.idExterno}</span>
-                          {linha.bloqueado && <span className="rounded bg-amber-100 px-1 font-medium text-amber-800">Bloqueada pelo ML</span>}
+                          {reclamacoes && <span className={`rounded px-1 font-medium ${linha.etapa === "dispute" ? "bg-amber-100 text-amber-800" : "bg-fundo text-texto"}`}>{linha.etapa === "dispute" ? "Mediação" : "Reclamação"}</span>}
+                          {linha.bloqueado && linha.status === "ABERTA" && <span className="rounded bg-amber-100 px-1 font-medium text-amber-800">{reclamacoes ? "Sem mensagem liberada" : "Bloqueada pelo ML"}</span>}
                         </span>
                       </td>
                     )}
