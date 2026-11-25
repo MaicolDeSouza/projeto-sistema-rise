@@ -812,7 +812,7 @@ try {
     volta = await rodar();
     conferir("mensagens do ML fora do ar: a volta devolve o erro, sem lancar", [volta.ok, typeof volta.erro], [false, "string"]);
     const junta = await rodarAtendimentoML({ ml, soPrefixo: "ZZ-ATD-" });
-    conferir("o erro das mensagens nao esconde as perguntas", [junta.ok, junta.novas, junta.posVenda?.ok], [true, 1, false]);
+    conferir("o erro das mensagens nao impede as perguntas, e a rotina acusa a falha (a Saude fica vermelha)", [junta.ok, junta.novas, junta.posVenda?.ok, junta.erro?.startsWith("mensagens de pós-venda: ")], [false, 1, false, true]);
     ml.mensagensForaDoAr(false);
     const juntaBoa = await rodarAtendimentoML({ ml, soPrefixo: "ZZ-ATD-" });
     conferir("a rotina roda as duas e junta as fechadas", [juntaBoa.ok, juntaBoa.posVenda?.ok, Array.isArray(juntaBoa.fechadasIds)], [true, true, true]);

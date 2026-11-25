@@ -147,5 +147,8 @@ export async function rodarPerguntasML({ ml = clienteML(), agora = new Date(), s
 export async function rodarAtendimentoML(opcoes = {}) {
   const perguntas = await rodarPerguntasML(opcoes);
   const posVenda = await rodarPosVendaML(opcoes);
-  return { ...perguntas, fechadasIds: [...(perguntas.fechadasIds ?? []), ...(posVenda.fechadasIds ?? [])], posVenda };
+  // A rotina so esta bem quando as DUAS leituras deram certo: sem isto, as mensagens fora do ar ficariam escondidas
+  // atras de uma linha verde na Saude do Rise. O que deu certo segue valendo (`novas`, `fechadasIds`).
+  const erros = [perguntas.ok ? null : perguntas.erro, posVenda.ok ? null : `mensagens de pós-venda: ${posVenda.erro}`].filter(Boolean);
+  return { ...perguntas, ok: erros.length === 0, ...(erros.length ? { erro: erros.join(" | ").slice(0, 300) } : {}), fechadasIds: [...(perguntas.fechadasIds ?? []), ...(posVenda.fechadasIds ?? [])], posVenda };
 }

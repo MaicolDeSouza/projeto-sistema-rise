@@ -678,6 +678,8 @@ async function laco() {
         atendimentoMLLidoEm = Date.now();
         const atendimento = await rodarRotina("atendimentoML", ATENDIMENTO_ML_MS, () => rodarAtendimentoML());
         if (atendimento?.novas || atendimento?.fechadas) log(`perguntas do ML: ${atendimento.novas} nova(s), ${atendimento.fechadas} fechada(s) fora do Rise`);
+        const mensagens = atendimento?.posVenda;
+        if (mensagens?.novas || mensagens?.reabertas || mensagens?.fechadas) log(`mensagens do ML: ${mensagens.novas} nova(s), ${mensagens.reabertas} reaberta(s), ${mensagens.fechadas} respondida(s) fora do Rise`);
         // A pergunta respondida pelo app do ML perde os botoes no Telegram (`atualizarAvisoFechado` nunca lanca).
         for (const id of atendimento?.fechadasIds ?? []) await atualizarAvisoFechado(id);
       }
