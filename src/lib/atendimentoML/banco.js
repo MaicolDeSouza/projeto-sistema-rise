@@ -126,7 +126,9 @@ export async function listarAtendimentos({ tipo = "PERGUNTA", status = null, pag
 export async function lerAtendimento(id) {
   const linha = await prisma.atendimentoML.findUnique({ where: { id: String(id ?? "") } });
   if (!linha) return null;
-  return { ...linha, anuncio: (await anunciosDasLinhas([linha])).get(linha.anuncioId) ?? null, pedido: (await pedidosDasLinhas([linha])).get(linha.pedidoId) ?? null };
+  // Reclamacao (fase 3): o motivo e a reputacao moram na `ReclamacaoML` (o bot e o MCP os mostram).
+  const reclamacao = linha.reclamacaoId ? await prisma.reclamacaoML.findUnique({ where: { id: linha.reclamacaoId }, select: { motivoNome: true, motivoDetalhe: true, afetaReputacao: true } }) : null;
+  return { ...linha, anuncio: (await anunciosDasLinhas([linha])).get(linha.anuncioId) ?? null, pedido: (await pedidosDasLinhas([linha])).get(linha.pedidoId) ?? null, reclamacao };
 }
 
 /** Quantas esperam resposta (o numero do menu). */

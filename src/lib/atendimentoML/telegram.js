@@ -11,6 +11,7 @@ import { ignorarAtendimento, lerAtendimento, salvarRascunho } from "./banco";
 import { enviarResposta } from "./enviar";
 import { textoDoBarrado } from "./filtro";
 import { LIMITE_PADRAO_DE_MENSAGEM, textoDoBloqueio } from "./posVenda";
+import { destinatarioEmTexto, etapaEmTexto, LIMITE_DA_RECLAMACAO, textoDoBloqueioDaReclamacao } from "./reclamacoes";
 import { sugerirResposta } from "./sugerir";
 
 /**
@@ -28,8 +29,17 @@ import { sugerirResposta } from "./sugerir";
  */
 
 // O tipo de aviso (o interruptor da aba Canais) e o cabecalho de cada tipo de atendimento. Fase 2: a mensagem de pos-venda.
-const TIPO_DO_AVISO = { PERGUNTA: "perguntaML", POS_VENDA: "mensagemML" };
-const PREFIXO_DA_CHAVE = { PERGUNTA: "pergunta-ml", POS_VENDA: "mensagem-ml" };
+// Fase 3: a reclamacao usa o interruptor `reclamacaoML` que ja existia (o aviso antigo, sem botoes, deixa de sair para a
+// reclamacao que tem conversa aqui: ver `reclamacoesAbertas` em `lib/telegram/avisos.js`). A chave nao pode comecar por
+// "reclamacao-ml:", que e a do aviso antigo.
+const TIPO_DO_AVISO = { PERGUNTA: "perguntaML", POS_VENDA: "mensagemML", RECLAMACAO: "reclamacaoML" };
+const PREFIXO_DA_CHAVE = { PERGUNTA: "pergunta-ml", POS_VENDA: "mensagem-ml", RECLAMACAO: "reclamacao-conversa" };
+const ABA = { PERGUNTA: "/atendimento", POS_VENDA: "/atendimento?tipo=mensagens", RECLAMACAO: "/atendimento?tipo=reclamacoes" };
+const NAO_ABERTA = { PERGUNTA: "Esta pergunta não está mais aberta.", POS_VENDA: "Esta mensagem não está mais aberta.", RECLAMACAO: "Esta reclamação não está mais aberta." };
+const CABECALHO_DA_RECLAMACAO = "Reclamação no Mercado Livre";
+/// O limite de caracteres de uma linha de conversa (pos-venda: o que o ML informou; reclamacao: o teto do Rise).
+const limiteDaConversa = (linha) => (linha.tipo === "RECLAMACAO" ? LIMITE_DA_RECLAMACAO : (linha.limite ?? LIMITE_PADRAO_DE_MENSAGEM));
+const bloqueioEmTexto = (linha) => (linha.tipo === "RECLAMACAO" ? textoDoBloqueioDaReclamacao(linha.bloqueio) : textoDoBloqueio(linha.bloqueio));
 const CABECALHO = "Pergunta no Mercado Livre";
 const CABECALHO_DA_MENSAGEM = "Mensagem de comprador no Mercado Livre";
 const DICA = "Para responder, toque em Escrever / Editar na pergunta.";
@@ -46,6 +56,15 @@ const VIA = { RISE: "pelo Rise", TELEGRAM: "pelo Telegram", MCP: "pelo assistent
 
 /** O corpo do aviso: o cabecalho, o anuncio (com "Kit de N") e a pergunta do comprador, mascarada e sem virar link. */
 function corpoDoAviso(linha) {
+  if (linha.tipo === "RECLAMACAO") {
+    // O pedido, o motivo, a reputacao, a etapa e para quem a mensagem vai. Nenhum dado do comprador.
+    const numero = linha.pedido?.numero ? `Pedido ${trechoSeguro(linha.pedido.numero, 30)}` : `Reclamação ${trechoSeguro(linha.idExterno ?? "", 30)}`;
+    const item = linha.pedido?.primeiroItem ? `: ${trechoSeguro(linha.pedido.primeiroItem, 80)}${linha.pedido.itens > 1 ? ` e mais ${linha.pedido.itens - 1}` : ""}` : linha.pedido ? "" : " (venda fora do Rise)";
+    const motivo = linha.reclamacao?.motivoNome ? [`Motivo: ${trechoSeguro(linha.reclamacao.motivoNome, 120)}${linha.reclamacao.afetaReputacao === true ? " (afeta a reputação)" : ""}`] : [];
+    const destino = destinatarioEmTexto(linha.destinatario);
+    const bloqueio = textoDoBloqueioDaReclamacao(linha.bloqueio);
+    return [CABECALHO_DA_RECLAMACAO, `${numero}${item}`, ...motivo, `${etapaEmTexto(linha.etapa)}${destino ? `: a mensagem vai para o ${destino}` : ""}`, `“${trechoSeguro(linha.textoDoCliente, 600)}”`, ...(bloqueio ? [bloqueio] : [])].join("\n");
+  }
   if (linha.tipo === "POS_VENDA") {
     // So o que o dono precisa para reconhecer a venda: o numero do pedido e o item. Nenhum dado do comprador.
     const numero = trechoSeguro(linha.pedido?.numero ?? linha.idExterno ?? "", 30);
@@ -59,7 +78,7 @@ function corpoDoAviso(linha) {
 }
 
 function botoesDoAviso(id, urlPublica, linha = null) {
-  const link = linkAbrirNoRise(urlPublica, linha?.tipo === "POS_VENDA" ? "/atendimento?tipo=mensagens" : "/atendimento");
+  const link = linkAbrirNoRise(urlPublica, ABA[linha?.tipo] ?? ABA.PERGUNTA);
   // Conversa que o ML bloqueou: nao ha o que responder, so tirar das abertas ou abrir no Rise.
   if (linha?.bloqueio) return [[botao("Ignorar", id, "i"), ...(link ? [{ texto: "Abrir no Rise", url: link }] : [])]];
   return [
@@ -108,7 +127,7 @@ export async function avisarPerguntasNovas({ cliente = null, agora = Date.now(),
     });
     // A chave do aviso. Na conversa de pos-venda entra a ultima mensagem do comprador: mensagem nova (com a conversa
     // aberta, ou reabrindo a linha) e aviso novo.
-    const chaveDe = (aberta, chat) => (aberta.tipo === "POS_VENDA" ? `${PREFIXO_DA_CHAVE.POS_VENDA}:${aberta.id}:${aberta.ultimaDoClienteId ?? ""}:${chat}` : `${PREFIXO_DA_CHAVE.PERGUNTA}:${aberta.id}:${chat}`);
+    const chaveDe = (aberta, chat) => (aberta.tipo === "PERGUNTA" ? `${PREFIXO_DA_CHAVE.PERGUNTA}:${aberta.id}:${chat}` : `${PREFIXO_DA_CHAVE[aberta.tipo]}:${aberta.id}:${aberta.ultimaDoClienteId ?? ""}:${chat}`);
     if (abertas.length === 0) return { ok: true, mandados: 0, falhas: 0 };
     const chats = [...(autorizados ? await autorizados() : await chatsAutorizados({ env }))].sort();
     if (chats.length === 0) return { ok: true, mandados: 0, falhas: 0, motivo: "sem-destinatario" };
@@ -207,12 +226,12 @@ function comRascunho(titulo, rascunho, rodape = "") {
 export function criarTratadoresDoAtendimento({ ml = null, env = process.env, sugestao = {} } = {}) {
   const mercadoLivre = () => ml ?? clienteML();
 
-  async function mostrarRascunho(cliente, chatId, id, titulo, rascunho, barrados) {
+  async function mostrarRascunho(cliente, chatId, id, titulo, rascunho, barrados, rodape = "") {
     if (barrados.length) {
       const montada = comRascunho(`${titulo} (não pode sair assim)`, rascunho, neutralizar(barrados.map(textoDoBarrado).join("\n")));
       return cliente.enviarComBotoes(chatId, montada.texto, { entidades: montada.entidades, botoes: [[botao("Escrever / Editar", id, "e")]] });
     }
-    const montada = comRascunho(titulo, rascunho);
+    const montada = comRascunho(titulo, rascunho, rodape);
     const botoes = titulo.startsWith("Sugestão") ? [[botao("Enviar ao ML", id, "v"), botao("Escrever / Editar", id, "e")], [botao("Ignorar", id, "i")]] : [[botao("Enviar ao ML", id, "v"), botao("Escrever / Editar", id, "e")]];
     return cliente.enviarComBotoes(chatId, montada.texto, { entidades: montada.entidades, botoes });
   }
@@ -221,24 +240,27 @@ export function criarTratadoresDoAtendimento({ ml = null, env = process.env, sug
     const casou = DADOS.exec(String(evento?.data ?? ""));
     if (!casou) return void (await cliente.responderAoClique(evento.id, "Botão desconhecido."));
     const [, id, acao] = casou;
-    const linha = await prisma.atendimentoML.findUnique({ where: { id }, select: { id: true, status: true, tipo: true, rascunho: true, textoDoCliente: true, telegramChatId: true, bloqueio: true, limite: true } });
+    const linha = await prisma.atendimentoML.findUnique({ where: { id }, select: { id: true, status: true, tipo: true, rascunho: true, textoDoCliente: true, telegramChatId: true, bloqueio: true, limite: true, destinatario: true } });
     if (!linha || !TIPO_DO_AVISO[linha.tipo]) return void (await cliente.responderAoClique(evento.id, "Pergunta não encontrada."));
-    const posVenda = linha.tipo === "POS_VENDA";
+    // "Conversa": a mensagem de pos-venda e a reclamacao (tem limite proprio e pode estar bloqueada pelo ML).
+    const posVenda = linha.tipo !== "PERGUNTA";
+    const reclamacao = linha.tipo === "RECLAMACAO";
     if (linha.status !== "ABERTA") {
-      await cliente.responderAoClique(evento.id, posVenda ? "Esta mensagem não está mais aberta." : "Esta pergunta não está mais aberta.");
+      await cliente.responderAoClique(evento.id, NAO_ABERTA[linha.tipo]);
       return void (await atualizarAvisoFechado(id, { cliente }));
     }
     // Conversa bloqueada pelo ML: o aviso nem traz estes botoes; um clique antigo ou forjado so recebe o motivo.
-    if (posVenda && linha.bloqueio && acao !== "i") return void (await cliente.responderAoClique(evento.id, textoDoBloqueio(linha.bloqueio)));
+    if (posVenda && linha.bloqueio && acao !== "i") return void (await cliente.responderAoClique(evento.id, bloqueioEmTexto(linha)));
     // Na mensagem de pos-venda a previa diz o tamanho contra o limite do ML (350): no celular nao ha contador.
-    const medida = (texto) => (posVenda ? ` (${String(texto ?? "").length} de ${linha.limite ?? LIMITE_PADRAO_DE_MENSAGEM})` : "");
+    const medida = (texto) => (posVenda ? ` (${String(texto ?? "").length} de ${limiteDaConversa(linha)})` : "");
     const por = (await loginDoChat(chatId, { env })) ?? "telegram";
 
     if (acao === "s") {
       await cliente.responderAoClique(evento.id, "Pedindo a sugestão…");
       const resultado = await sugerirResposta(id, { por, ml: mercadoLivre(), ...sugestao });
       if (!resultado.ok) return void (await cliente.enviarComBotoes(chatId, neutralizar(resultado.mensagem), { botoes: [[botao("Escrever / Editar", id, "e")]] }));
-      return void (await mostrarRascunho(cliente, chatId, id, `Sugestão da IA${medida(resultado.texto)}:`, resultado.texto, resultado.barrados));
+      // Na reclamacao a sugestao sai com o lembrete: o mediador do ML le a mensagem.
+      return void (await mostrarRascunho(cliente, chatId, id, `Sugestão da IA${medida(resultado.texto)}:`, resultado.texto, resultado.barrados, resultado.lembrete ?? ""));
     }
 
     if (acao === "e") {
@@ -248,7 +270,8 @@ export function criarTratadoresDoAtendimento({ ml = null, env = process.env, sug
         const atual = comRascunho("Rascunho atual (toque para copiar):", linha.rascunho);
         await cliente.enviarComBotoes(chatId, atual.texto, { entidades: atual.entidades });
       }
-      const pedido = await cliente.enviarComBotoes(chatId, `Escreva a resposta para esta ${posVenda ? `mensagem (até ${linha.limite ?? LIMITE_PADRAO_DE_MENSAGEM} caracteres)` : "pergunta"}:\n“${trechoSeguro(linha.textoDoCliente, 200)}”`, { forcarResposta: true, dica: "Sua resposta" });
+      const oQue = reclamacao ? `Escreva a mensagem desta reclamação${destinatarioEmTexto(linha.destinatario) ? `, para o ${destinatarioEmTexto(linha.destinatario)}` : ""} (até ${limiteDaConversa(linha)} caracteres)` : `Escreva a resposta para esta ${posVenda ? `mensagem (até ${limiteDaConversa(linha)} caracteres)` : "pergunta"}`;
+      const pedido = await cliente.enviarComBotoes(chatId, `${oQue}:\n“${trechoSeguro(linha.textoDoCliente, 200)}”`, { forcarResposta: true, dica: "Sua resposta" });
       if (pedido.ok && pedido.dados?.message_id) {
         await prisma.atendimentoML.updateMany({ where: { id, status: "ABERTA" }, data: { telegramPedidoId: pedido.dados.message_id, ...(linha.telegramChatId ? {} : { telegramChatId: chatId }) } });
       }
@@ -259,7 +282,7 @@ export function criarTratadoresDoAtendimento({ ml = null, env = process.env, sug
       const envio = await enviarResposta({ id, por, via: "TELEGRAM", ml: mercadoLivre(), env });
       if (!envio.ok) {
         await cliente.responderAoClique(evento.id, envio.mensagem);
-        if (envio.motivo === "fechada-fora") await atualizarAvisoFechado(id, { cliente });
+        if (envio.motivo === "fechada-fora" || envio.motivo === "fechada") await atualizarAvisoFechado(id, { cliente });
         return;
       }
       await cliente.responderAoClique(evento.id, "Enviada ao Mercado Livre.");
@@ -273,7 +296,7 @@ export function criarTratadoresDoAtendimento({ ml = null, env = process.env, sug
 
     // acao === "i"
     const feito = await ignorarAtendimento({ id, por, ml: mercadoLivre() });
-    await cliente.responderAoClique(evento.id, feito.ok ? "Ignorada." : posVenda ? "Esta mensagem não está mais aberta." : "Esta pergunta não está mais aberta.");
+    await cliente.responderAoClique(evento.id, feito.ok ? "Ignorada." : NAO_ABERTA[linha.tipo]);
     await atualizarAvisoFechado(id, { cliente });
   }
 
@@ -284,11 +307,11 @@ export function criarTratadoresDoAtendimento({ ml = null, env = process.env, sug
     if (!linha) return void (await cliente.enviarComBotoes(chatId, DICA));
     const por = (await loginDoChat(chatId, { env })) ?? "telegram";
     const salvo = await salvarRascunho({ id: linha.id, texto: String(mensagem.text ?? ""), origem: "DONO", por });
-    const posVenda = linha.tipo === "POS_VENDA";
-    if (salvo.motivo === "nao-aberta") return void (await cliente.enviarComBotoes(chatId, posVenda ? "Esta mensagem não está mais aberta." : "Esta pergunta não está mais aberta."));
+    const posVenda = linha.tipo !== "PERGUNTA";
+    if (salvo.motivo === "nao-aberta") return void (await cliente.enviarComBotoes(chatId, NAO_ABERTA[linha.tipo]));
     await prisma.atendimentoML.updateMany({ where: { id: linha.id, telegramPedidoId: respondeA }, data: { telegramPedidoId: null } });
     const escrito = String(mensagem.text ?? "").trim();
-    await mostrarRascunho(cliente, chatId, linha.id, posVenda ? `Vai ficar assim (${escrito.length} de ${linha.limite ?? LIMITE_PADRAO_DE_MENSAGEM}):` : "Vai ficar assim:", escrito, salvo.barrados);
+    await mostrarRascunho(cliente, chatId, linha.id, posVenda ? `Vai ficar assim (${escrito.length} de ${limiteDaConversa(linha)}):` : "Vai ficar assim:", escrito, salvo.barrados);
   }
 
   return { clique, texto };

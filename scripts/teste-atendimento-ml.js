@@ -1405,6 +1405,113 @@ try {
     }
   }
 
+  // ---------------------------------------------------------------------------------------------------------------
+  console.log("\n# Fase 3, tarefa 6: a reclamacao no Telegram");
+  {
+    const { criarClienteTelegram } = await import("../src/lib/telegram/cliente.js");
+    const { avisosDevidos } = await import("../src/lib/telegram/avisos.js");
+    const { avisarPerguntasNovas, atualizarAvisoFechado, criarTratadoresDoAtendimento } = await import("../src/lib/atendimentoML/telegram.js");
+    const { lerAtendimento } = await import("../src/lib/atendimentoML/banco.js");
+    const { LEMBRETE_DO_MEDIADOR } = await import("../src/lib/atendimentoML/sugerir.js");
+    const rc = await import("../src/lib/atendimentoML/reclamacoes.js");
+    const { criarTelegramFalso } = await import("./lib/telegramFalso.js");
+    const { criarMlPerguntasFalso } = await import("./lib/mlPerguntasFalso.js");
+    const TOKEN = `123456789:${"A".repeat(35)}`;
+    const CHAT = "990000003";
+    const limparTg = async () => {
+      await prisma.avisoTelegram.deleteMany({ where: { chatId: { startsWith: "9900000" } } });
+      await prisma.usuarioRise.deleteMany({ where: { login: { startsWith: "zz-atd-" } } });
+      await prisma.reclamacaoML.deleteMany({ where: { id: { startsWith: "ZZ-ATD-" } } });
+    };
+    await limparTg();
+    try {
+      const adminFn = await prisma.funcaoRise.upsert({ where: { nome: "Administrador" }, update: {}, create: { nome: "Administrador", descricao: "Vê e edita tudo.", fixa: true } });
+      await prisma.usuarioRise.create({ data: { login: "zz-atd-dono", nome: "ZZ ATD Dono", telegramChatId: CHAT, funcoes: { create: [{ funcaoId: adminFn.id }] } } });
+      const env = { RISE_PRODUCAO: "1", ML_RESPONDER_RECLAMACOES: "true" };
+      const autorizados = async () => new Set([CHAT]);
+      const ligado = { telegram: { ligado: true, avisos: { perguntaML: false, mensagemML: false, reclamacaoML: true } } };
+      const ml = criarMlPerguntasFalso();
+      const falso = criarTelegramFalso();
+      const cliente = criarClienteTelegram({ token: TOKEN, requisitar: falso.requisitar, urlPublica: "https://rise.exemplo" });
+      const rodar = () => rc.rodarReclamacoesML({ ml, soPrefixo: "ZZ-ATD-" });
+      const agora = Date.now();
+
+      const pedido = await criarPedidoDeTeste({ idExterno: "ZZ-ATD-O60", packId: "ZZ-ATD-P60", status: "ENTREGUE", statusDoEnvio: "ENTREGUE" });
+      const base = { recurso: "order", tipo: "mediations", etapa: "claim", status: "opened", grupo: "PRODUTO" };
+      // Tres reclamacoes de pedido: uma com conversa no atendimento, uma `mediations` recem-aberta sem conversa ainda, e
+      // uma devolucao sem conversa (o aviso antigo continua valendo para ela).
+      await prisma.reclamacaoML.create({ data: { ...base, id: "ZZ-ATD-R60", recursoId: "ZZ-ATD-O60", pedidoNumero: "ZZ-ATD-O60", pedidoId: pedido.id, motivoNome: "O produto chegou com defeito", afetaReputacao: true, abertaEm: new Date(agora - 60 * 60000) } });
+      await prisma.reclamacaoML.create({ data: { ...base, id: "ZZ-ATD-R61", recursoId: "ZZ-ATD-O60", pedidoId: pedido.id, motivoNome: "Recem-aberta", abertaEm: new Date(agora - 2 * 60000) } });
+      await prisma.reclamacaoML.create({ data: { ...base, id: "ZZ-ATD-R62", tipo: "returns", recursoId: "ZZ-ATD-O60", pedidoId: pedido.id, motivoNome: "Devolucao", abertaEm: new Date(agora - 2 * 60000) } });
+      ml.porReclamacao("ZZ-ATD-R60", { mensagens: [{ de: "C", texto: "Chegou queimado. Me chama no zap @fulano" }] });
+      await rodar();
+      const id = (await linhaDaReclamacao("ZZ-ATD-R60")).id;
+      const antigos = async (quando = agora) => (await avisosDevidos("reclamacaoML", { agora: quando })).map((a) => a.chave.split(":").at(-1)).filter((c) => c.startsWith("ZZ-ATD-")).sort();
+      conferir("o aviso antigo (sem botoes) nao sai para a que tem conversa nem para a 'mediations' recem-aberta", await antigos(), ["ZZ-ATD-R62"]);
+      conferir("passados 10 min sem conversa, a 'mediations' ganha o aviso antigo", await antigos(agora + 9 * 60000), ["ZZ-ATD-R61", "ZZ-ATD-R62"]);
+
+      const avisar = (extra = {}) => avisarPerguntasNovas({ cliente, env, configuracao: ligado, autorizados, soPrefixo: "ZZ-ATD-", urlPublica: "https://rise.exemplo", ...extra });
+      const ultima = () => falso.mensagens.at(-1);
+      const dados = (mensagem) => (mensagem.reply_markup?.inline_keyboard ?? []).flat().map((b) => b.callback_data ?? b.url);
+      conferir("aviso de reclamacao desmarcado: nada sai", (await avisar({ configuracao: { telegram: { ligado: true, avisos: { perguntaML: true, mensagemML: true, reclamacaoML: false } } } })).mandados, 0);
+      const primeira = await avisar();
+      const aviso = falso.mensagens[0];
+      conferir("o aviso: cabecalho, pedido, motivo com a reputacao, etapa com o destino e o texto neutralizado", [primeira.mandados, aviso.text.split("\n")[0], aviso.text.includes("Pedido ZZ-ATD-O60: ZZ ATD Sensor"), aviso.text.includes("Motivo: O produto chegou com defeito (afeta a reputação)"), aviso.text.includes("Reclamação: a mensagem vai para o comprador"), aviso.text.includes("Chegou queimado."), aviso.text.includes("@fulano"), aviso.text.includes("Fulano Zzatd")], [1, "Reclamação no Mercado Livre", true, true, true, true, false, false]);
+      conferir("os botoes, com o Abrir no Rise na aba Reclamacoes", dados(aviso), [`at:${id}:s`, `at:${id}:e`, `at:${id}:i`, "https://rise.exemplo/atendimento?tipo=reclamacoes"]);
+      const gravado = await prisma.avisoTelegram.findFirst({ where: { chatId: CHAT }, select: { tipo: true, chave: true } });
+      conferir("gravado com o tipo do interruptor e chave propria", [gravado?.tipo, gravado?.chave.startsWith("reclamacao-conversa:")], ["reclamacaoML", true]);
+      conferir("a segunda rodada nao repete", [(await avisar()).mandados, falso.mensagens.length], [0, 1]);
+
+      ml.escreverNaReclamacao("ZZ-ATD-R60", "C", "Alguém responde?");
+      await rodar();
+      conferir("mensagem nova na mesma reclamacao: aviso novo", [(await avisar()).mandados, ultima().text.includes("Alguém responde?")], [1, true]);
+
+      const recebidos = [];
+      const criarProvedor = async () => ({ conversar: async (p) => (recebidos.push(p), { texto: "Olá! Sentimos pelo ocorrido. Vamos analisar o caso.", chamadasDeFerramenta: [], uso: { entrada: 500, saida: 30 }, motivoParada: "fim", modelo: p.modelo }) });
+      const configuracao = { padrao: { provedor: "zz-atd-falso", modelo: "zz-m" }, reserva: null, orcamentos: { internoBrl: 30 }, endpoints: {}, atendimentoML: { prompt: "", limiteDaPergunta: 2000 } };
+      const tratadores = criarTratadoresDoAtendimento({ ml, env, sugestao: { criarProvedor, configuracao } });
+      let n = 0;
+      const clicar = (acao, alvo = id, ambiente = null) => (ambiente ? criarTratadoresDoAtendimento({ ml, env: ambiente, sugestao: { criarProvedor, configuracao } }) : tratadores).clique({ id: `cqr${++n}`, data: `at:${alvo}:${acao}`, from: { id: Number(CHAT) }, message: { message_id: 1, chat: { id: Number(CHAT) }, text: "Reclamação no Mercado Livre" } }, { cliente, chatId: CHAT });
+      const escrever = (text, responderA) => tratadores.texto({ message_id: 800 + ++n, chat: { id: Number(CHAT), type: "private" }, text, reply_to_message: { message_id: responderA } }, { cliente, chatId: CHAT });
+
+      await clicar("s");
+      conferir("Sugerir com IA: a sugestao vem com o tamanho e o lembrete do mediador", [ultima().text.startsWith("Sugestão da IA (51 de 1000):"), ultima().text.includes(LEMBRETE_DO_MEDIADOR), dados(ultima()).includes(`at:${id}:v`), recebidos[0].sistema.includes("RECLAMAÇÃO")], [true, true, true, true]);
+      await clicar("e");
+      conferir("Escrever / Editar diz para quem vai e o limite", [ultima().reply_markup.force_reply, ultima().text.startsWith("Escreva a mensagem desta reclamação, para o comprador (até 1000 caracteres)")], [true, true]);
+      const texto = "Olá! Pode nos mandar uma foto da placa, por favor?";
+      await escrever(texto, falso.mensagens.length);
+      conferir("a previa mostra o tamanho contra o teto do Rise", [ultima().text.startsWith(`Vai ficar assim (${texto.length} de 1000):`), dados(ultima())], [true, [`at:${id}:v`, `at:${id}:e`]]);
+      await clicar("v", id, { RISE_PRODUCAO: "1", ML_RESPONDER_MENSAGENS: "true" });
+      conferir("Enviar com a trava das reclamacoes desligada: so o motivo", [falso.cliques.at(-1).text, ml.mensagensDeReclamacaoEnviadas.length], [rc.TEXTO_DA_TRAVA_DE_RECLAMACOES, 0]);
+      await clicar("v");
+      const enviada = await lerAtendimento(id);
+      conferir("Enviar pelo botao: um POST, ao comprador", [ml.mensagensDeReclamacaoEnviadas.length, ml.mensagensDeReclamacaoEnviadas[0]?.receiver_role, ml.mensagensDeReclamacaoEnviadas[0]?.message, enviada.status, enviada.respondidaVia], [1, "complainant", texto, "RESPONDIDA", "TELEGRAM"]);
+
+      ml.abrirMediacao("ZZ-ATD-R60");
+      ml.escreverNaReclamacao("ZZ-ATD-R60", "M", "Olá, vamos analisar o caso.");
+      await rodar();
+      conferir("mediador escreve: a linha reabre e sai aviso novo, agora para o mediador", [(await lerAtendimento(id)).status, (await avisar()).mandados, ultima().text.includes("Mediação: a mensagem vai para o mediador do Mercado Livre")], ["ABERTA", 1, true]);
+      const mensagemDoAviso = (await lerAtendimento(id)).telegramMensagemId;
+      ml.fecharReclamacao("ZZ-ATD-R60");
+      const volta = await rodar();
+      for (const fechadaId of volta.fechadasIds) await atualizarAvisoFechado(fechadaId, { cliente });
+      conferir("reclamacao fechada no ML: o aviso e editado e perde os botoes", [volta.fechadas, falso.edicoes.some((e) => e.message_id === mensagemDoAviso && /Respondida fora do Rise/.test(e.text ?? e.caption ?? ""))], [1, true]);
+
+      ml.porReclamacao("ZZ-ATD-R63", { acoes: ["refund"], mensagens: [{ de: "C", texto: "Quero o reembolso." }] });
+      await rodar();
+      const semAcao = (await linhaDaReclamacao("ZZ-ATD-R63")).id;
+      await avisar();
+      conferir("sem acao de mensagem: o aviso diz o motivo e so oferece Ignorar e Abrir", [ultima().text.includes("não libera mensagem"), ultima().text.includes("Reclamação ZZ-ATD-R63 (venda fora do Rise)"), dados(ultima())], [true, true, [`at:${semAcao}:i`, "https://rise.exemplo/atendimento?tipo=reclamacoes"]]);
+      await clicar("s", semAcao);
+      conferir("clique forjado de sugestao na sem acao: so o motivo", [falso.cliques.at(-1).text, (await lerAtendimento(semAcao)).rascunho], [rc.textoDoBloqueioDaReclamacao("sem-acao"), null]);
+    } finally {
+      await limparTg();
+      await prisma.gastoIA.deleteMany({ where: { provedor: { startsWith: "zz-atd-" } } });
+      await limparOResto();
+      await limpar();
+    }
+  }
+
   // MARCADOR: blocos novos entram acima desta linha.
 } finally {
   await limpar();

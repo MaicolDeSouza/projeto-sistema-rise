@@ -334,12 +334,18 @@ async function novasVendas({ agora }) {
 /// Reclamacao aberta no Mercado Livre (20/11/2026, Opcao 1 do dono): um aviso por reclamacao de pedido que o Rise tem, aberta
 /// nos ultimos 3 dias (o worker pode ter ficado parado; a chave impede a repeticao). A fechada nao avisa.
 const TRES_DIAS_MS = 3 * UM_DIA_MS;
+const ESPERA_DA_CONVERSA_MS = 10 * 60 * 1000;
 async function reclamacoesAbertas({ agora }) {
-  const abertas = await prisma.reclamacaoML.findMany({
+  const lidas = await prisma.reclamacaoML.findMany({
     where: { status: "opened", pedidoId: { not: null }, abertaEm: { gte: new Date(agora - TRES_DIAS_MS) } },
     orderBy: { abertaEm: "asc" },
-    select: { id: true, grupo: true, motivoNome: true, motivoDetalhe: true, afetaReputacao: true, pedido: { select: { id: true, numero: true, total: true } } },
+    select: { id: true, tipo: true, abertaEm: true, grupo: true, motivoNome: true, motivoDetalhe: true, afetaReputacao: true, pedido: { select: { id: true, numero: true, total: true } } },
   });
+  // Atendimento do ML, fase 3 (25/11/2026): a reclamacao com conversa ganha o aviso COM BOTOES do atendimento, pelo mesmo
+  // interruptor; este aqui, sem botoes, nao sai para ela (seriam dois avisos da mesma reclamacao). A reclamacao
+  // `mediations` recem-aberta espera 10 min: e o tempo de a rotina do atendimento (5 min) criar a linha dela.
+  const comConversa = new Set((await prisma.atendimentoML.findMany({ where: { tipo: "RECLAMACAO", idExterno: { in: lidas.map((r) => r.id) } }, select: { idExterno: true } })).map((a) => a.idExterno));
+  const abertas = lidas.filter((r) => !comConversa.has(r.id) && (r.tipo !== "mediations" || r.abertaEm.getTime() <= agora - ESPERA_DA_CONVERSA_MS));
   return abertas.map((r) => ({
     chave: `reclamacao-ml:${r.pedido.id}:${r.id}`,
     dados: { pedidoId: r.pedido.id, numero: r.pedido.numero, total: Number(r.pedido.total), grupo: r.grupo, motivo: textoDoMotivo({ nome: r.motivoNome, detalhe: r.motivoDetalhe }), afeta: r.afetaReputacao },

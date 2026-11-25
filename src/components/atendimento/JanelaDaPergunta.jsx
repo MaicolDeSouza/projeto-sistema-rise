@@ -190,7 +190,7 @@ export default function JanelaDaPergunta({ linha, aoFechar }) {
   const podeEnviar = aberta && Boolean(detalhes) && texto.trim() !== "" && !passou && !motivoDoEnvio && !bloqueio && aoVivo.length === 0;
   const pedido = detalhes?.pedido ?? null;
   const conversa = detalhes?.conversa?.length || (reclamacao && detalhes) ? (detalhes.conversa ?? []) : [{ id: "ultima", de: "C", texto: detalhes?.textoDoCliente ?? linha.textoDoCliente, em: linha.recebidaEm, anexos: 0, retida: false }];
-  const tituloDaConversa = pedido?.itens?.length ? `${pedido.itens[0].titulo}${pedido.itens.length > 1 ? ` e mais ${pedido.itens.length - 1}` : ""}` : linha.pedido?.primeiroItem || "Pedido fora do Rise";
+  const tituloDaConversa = pedido?.itens?.length ? `${pedido.itens[0].titulo}${pedido.itens.length > 1 ? ` e mais ${pedido.itens.length - 1}` : ""}` : linha.pedido?.primeiroItem || (reclamacao ? "Venda fora do Rise" : "Pedido fora do Rise");
   const fechada = posVenda ? { status: situacaoAtual, via: detalhes?.respondidaVia ?? linha.respondidaVia, em: detalhes?.respondidaEm ?? linha.respondidaEm, texto: detalhes?.respostaEnviada ?? linha.respostaEnviada } : { status: linha.status, via: linha.respondidaVia, em: linha.respondidaEm, texto: linha.respostaEnviada };
   const avisosDaJanela = (detalhes?.avisos ?? []).map((aviso) => (posVenda ? AVISO_DA_CONVERSA[aviso] : AVISO[aviso])).filter(Boolean);
 
@@ -342,12 +342,7 @@ export default function JanelaDaPergunta({ linha, aoFechar }) {
 
           {reclamacao && aberta && (detalhes?.outrasAcoes ?? []).length > 0 && (
             <p className="text-xs text-suave">
-              No Mercado Livre você também pode {detalhes.outrasAcoes.join(", ")}.{" "}
-              {detalhes.urlNoML && (
-                <a href={detalhes.urlNoML} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-acento hover:underline">
-                  Abrir a venda no ML <ExternalLink size={11} aria-hidden="true" />
-                </a>
-              )}
+              No Mercado Livre você também pode {new Intl.ListFormat("pt-BR", { style: "long", type: "disjunction" }).format(detalhes.outrasAcoes)}.
             </p>
           )}
 
