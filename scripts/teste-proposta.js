@@ -502,6 +502,16 @@ try {
     await gravarProposta("ZZ-PROP-1", { ...titulos, conteudo: { ...titulos.conteudo, opcoes: ["NOVA A", "NOVA B", "NOVA C"] } });
     conferir("gravar: a mesma secao e substituida", (await lerProposta("ZZ-PROP-1")).secoes.titulos.opcoes[0] === "NOVA A");
     conferir("gravar: o produto nao muda", (await prisma.produto.findUnique({ where: { id: produto.id } })).tituloBase === "PRODUTO DE TESTE DA PROPOSTA");
+    // Proposta refeita (940504, 24/11/2026): o campo que o dono editou num Salvar anterior nao podia prender a proposta NOVA
+    // na lista do icone; regravar a secao libera os campos DELA, e os das outras secoes continuam como o dono deixou.
+    await prisma.propostaDeProduto.update({
+      where: { produtoId: produto.id },
+      data: { aplicadas: { editados: ["descricaoBase", "marca"], daProposta: { descricaoBase: "Velha.", precoVenda: 10 }, originais: { descricaoBase: "Do dono." } } },
+    });
+    await gravarProposta("ZZ-PROP-1", { secao: "descricao", conteudo: { texto: "TITULO\n\nTexto novo da proposta.", prompt: "Padrão do sistema", divergencias: [] } });
+    const refeita = (await prisma.propostaDeProduto.findUnique({ where: { produtoId: produto.id } })).aplicadas;
+    conferir("gravar: secao refeita libera o campo editado dela (a proposta nova entra no campo)", !refeita.editados.includes("descricaoBase") && !("descricaoBase" in refeita.daProposta));
+    conferir("gravar: secao refeita nao mexe nos campos das outras secoes nem no original", refeita.editados.includes("marca") && refeita.daProposta.precoVenda === 10 && refeita.originais.descricaoBase === "Do dono.");
 
     const png = await sharp({ create: { width: 600, height: 400, channels: 3, background: "#2a6" } }).png().toBuffer();
     const fotoPlano = { secao: "fotos", conteudo: { candidatas: [{ id: "c1", origem: { loja: "Loja X", url: "https://x.test/1.png" }, escolhida: true, ordem: 0, motivo: "placa com cabo" }] } };

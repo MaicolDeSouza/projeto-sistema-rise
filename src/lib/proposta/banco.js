@@ -15,7 +15,7 @@ import { lerCorrecoesAtivas, somarUsos } from "@/lib/ia/correcoesBanco";
 import { listarPromptsDaDescricao } from "@/lib/ia/promptsDescricao";
 import { normalizarDescricao } from "@/lib/ia/revisaoDescricao";
 
-import { decisoesDosCampos, SECOES_APLICAVEIS } from "./aplicar";
+import { decisoesDosCampos, SECOES_APLICAVEIS, valoresDaProposta } from "./aplicar";
 import { assinaturaDaSecao, secoesNaoAplicadas } from "./aplicadas";
 import { conferirLinksDosDocumentos } from "./links";
 import { precoCalculadoDaProposta } from "./preco";
@@ -241,6 +241,14 @@ export async function gravarProposta(sku, plano, { bytes = new Map(), testarLink
     // Conteudo novo ainda nao foi aplicado pelo dono: a marca da secao sai.
     const aplicadas = { ...(anterior?.aplicadas ?? {}) };
     delete aplicadas[secao];
+    // E os campos DESTA secao voltam a receber a proposta (940504, 24/11/2026: "refazer a proposta, parece que nao salvou").
+    // O campo que o dono editou num Salvar anterior ficava em `editados`, e a proposta nova so ia para a lista do icone; o
+    // texto do dono continua na lista como "Original". Os campos das outras secoes ficam como o dono deixou.
+    const camposDaSecao = Object.keys(valoresDaProposta({ [secao]: conteudo }));
+    if (Array.isArray(aplicadas.editados)) aplicadas.editados = aplicadas.editados.filter((campo) => !camposDaSecao.includes(campo));
+    if (aplicadas.daProposta && typeof aplicadas.daProposta === "object") {
+      aplicadas.daProposta = Object.fromEntries(Object.entries(aplicadas.daProposta).filter(([campo]) => !camposDaSecao.includes(campo)));
+    }
     await prisma.propostaDeProduto.upsert({
       where: { produtoId: produto.id },
       // Cada secao gravada carimba a versao do roteiro em vigor (roteiro unico de 21/10/2026).
