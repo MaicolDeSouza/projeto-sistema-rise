@@ -75,14 +75,19 @@ function dicaDoEstoque(estoquesNosCanais, virtual) {
         <>
           <span className="block font-semibold">Estoque virtual: {virtual.quantidade.toLocaleString("pt-BR")} un. a caminho</span>
           {sozinho ? (
-            <span className={`block ${sozinho.dias !== null && sozinho.dias < 0 ? "text-amber-300" : ""}`}>
-              Previsão de entrega: {previsao(sozinho)}
-              <span className="text-slate-400"> · {sozinho.codigo}</span>
-            </span>
+            <>
+              <span className={`block ${sozinho.dias !== null && sozinho.dias < 0 ? "text-amber-300" : ""}`}>
+                Previsão de entrega: {previsao(sozinho)}
+                <span className="text-slate-400"> · {sozinho.codigo}</span>
+              </span>
+              {/* O fornecedor do pedido (pedido do dono em 25/11/2026). */}
+              {sozinho.fornecedor && <span className="block">Fornecedor: {sozinho.fornecedor}</span>}
+            </>
           ) : (
             virtual.pedidos.map((pedido, indice) => (
               <span key={`${pedido.codigo}-${indice}`} className={`block ${pedido.dias !== null && pedido.dias < 0 ? "text-amber-300" : ""}`}>
-                {pedido.codigo} · {pedido.quantidade.toLocaleString("pt-BR")} un. · {previsao(pedido)}
+                {pedido.codigo}
+                {pedido.fornecedor ? ` · ${pedido.fornecedor}` : ""} · {pedido.quantidade.toLocaleString("pt-BR")} un. · {previsao(pedido)}
               </span>
             ))
           )}

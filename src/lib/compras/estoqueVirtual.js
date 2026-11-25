@@ -1,11 +1,16 @@
 import { prisma } from "@/lib/db";
+import { prazoDoPedido } from "@/lib/compras/aliexpress/regras";
 import { STATUS_A_CAMINHO, faltaLancar, fatorDoItem, numeroDoPedido } from "@/lib/compras/regras";
 
 /**
  * O "estoque virtual" de cada produto (pedido do dono em 07/11/2026: ao passar o mouse no estoque da lista de Produtos,
  * "quantos produtos estao no estoque virtual, ou seja que tem pedido de compra e logo abaixo a previsao de entrega
  * mostrando dias faltando para chegar"): o que falta lancar dos pedidos de compra ENVIADOS ou PARCIAIS (a mesma conta do
- * "a caminho" do Compras, em unidades do Rise: caixas x fator) e, por pedido, a previsao = envio + prazo em dias.
+ * "a caminho" do Compras, em unidades do Rise: caixas x fator) e, por pedido, a previsao e o fornecedor.
+ *
+ * A previsao e a MESMA da lista de Compras (`prazoDoPedido`): no AliExpress, o fim da previsao dos pacotes; nos outros,
+ * o envio mais o prazo do item. Ate 25/11/2026 so o prazo do item contava, e o pedido do AliExpress (que nao tem prazo por
+ * item) aparecia "sem prazo no pedido" com a lista dizendo "11 dias (21/11 a 06/12)" (o PC-0043 do 121605).
  */
 
 const DIA_MS = 24 * 60 * 60 * 1000;
@@ -29,7 +34,7 @@ export function textoDaPrevisao(dias) {
 
 /**
  * @param {string[]} ids os produtos da pagina
- * @returns {Promise<Map<string, { quantidade: number, pedidos: { codigo: string, quantidade: number, previsao: string|null, data: string|null, dias: number|null }[] }>>}
+ * @returns {Promise<Map<string, { quantidade: number, pedidos: { codigo: string, fornecedor: string|null, quantidade: number, previsao: string|null, data: string|null, dias: number|null }[] }>>}
  *   so os produtos com algo a caminho; os pedidos na ordem da previsao (sem prazo por ultimo).
  */
 export async function estoqueVirtualDosProdutos(ids, agora = new Date()) {
@@ -37,17 +42,31 @@ export async function estoqueVirtualDosProdutos(ids, agora = new Date()) {
   if (!ids?.length) return resultado;
   const itens = await prisma.itemDoPedidoDeCompra.findMany({
     where: { produtoId: { in: ids }, pedido: { status: { in: STATUS_A_CAMINHO } } },
-    select: { produtoId: true, quantidade: true, quantidadeLancada: true, fator: true, prazoDias: true, pedido: { select: { numero: true, enviadoEm: true } } },
+    select: { produtoId: true, quantidade: true, quantidadeLancada: true, fator: true, prazoDias: true, pedido: {
+        select: {
+          numero: true,
+          status: true,
+          enviadoEm: true,
+          fornecedor: { select: { nome: true } },
+          aliexpress: { select: { pacotes: { select: { previsaoInicio: true, previsaoFim: true } } } },
+        },
+      },
+    },
   });
   for (const item of itens) {
     const unidades = faltaLancar(item) * fatorDoItem(item);
     if (unidades <= 0) continue;
-    const enviadoEm = item.pedido.enviadoEm;
-    const chegada = enviadoEm && item.prazoDias !== null && item.prazoDias !== undefined ? new Date(enviadoEm.getTime() + Number(item.prazoDias) * DIA_MS) : null;
+    const prazo = prazoDoPedido({
+      status: item.pedido.status,
+      enviadoEm: item.pedido.enviadoEm,
+      prazosDosItens: [item.prazoDias],
+      pacotes: item.pedido.aliexpress?.pacotes ?? [],
+    });
+    const chegada = prazo?.fim ?? null;
     const dias = chegada ? diasAte(chegada, agora) : null;
     const atual = resultado.get(item.produtoId) ?? { quantidade: 0, pedidos: [] };
     atual.quantidade += unidades;
-    atual.pedidos.push({ codigo: numeroDoPedido(item.pedido.numero), quantidade: unidades, previsao: textoDaPrevisao(dias), data: chegada ? DIA_MES.format(chegada) : null, dias });
+    atual.pedidos.push({ codigo: numeroDoPedido(item.pedido.numero), fornecedor: item.pedido.fornecedor?.nome ?? null, quantidade: unidades, previsao: textoDaPrevisao(dias), data: chegada ? DIA_MES.format(chegada) : null, dias });
     resultado.set(item.produtoId, atual);
   }
   for (const valor of resultado.values()) valor.pedidos.sort((a, b) => (a.dias ?? Infinity) - (b.dias ?? Infinity));
