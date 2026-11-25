@@ -13,7 +13,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirAcessoNaPagina } from "@/lib/acessos/servidor";
 import ResumoDosCanais from "@/components/pedidos/ResumoDosCanais";
-import { contarEnviosDeHoje, listarPedidosDeVenda, opcoesDasColunas, resumoDosCanais } from "@/lib/pedidos/banco";
+import { contarEnviosDeHoje, listarPedidosDeVenda, opcoesDasColunas } from "@/lib/pedidos/banco";
 import { projetarLinhaDaLista } from "@/lib/pedidos/projecao";
 import { porPaginaDaUrl } from "@/lib/porPagina";
 
@@ -39,15 +39,6 @@ function umMesAntes(dia) {
   return `${anoAntes}-${String(mesAntes).padStart(2, "0")}-${String(Math.min(d, ultimoDia)).padStart(2, "0")}`;
 }
 
-/**
- * Dias corridos do filtro de datas, com as duas pontas (pedido do dono em 22/11/2026, para o "Diario" das caixinhas:
- * sabado, domingo e feriado contam, a loja vende todo dia). O "ate" no futuro conta so ate hoje, senao os dias que
- * ainda nao chegaram puxariam a media para baixo.
- */
-function diasDoPeriodo(desde, ate) {
-  const dias = Math.round((Date.parse(`${ate}T12:00:00Z`) - Date.parse(`${desde}T12:00:00Z`)) / 86_400_000) + 1;
-  return Math.max(1, dias);
-}
 
 /**
  * Pedidos de venda (spec 5.10): os pedidos do ML, da LI e do Bling que o worker le a cada 5 minutos. Nesta tela o
@@ -85,7 +76,6 @@ export default async function PedidosDeVendaPage({ searchParams }) {
   // As opcoes do filtro de Status e Envio e as caixinhas dos canais saem do mesmo filtro da lista (sem a pagina).
   let opcoes = null;
   let enviosDeHoje = null;
-  let resumoPorCanal = null;
   let erro = null;
   try {
     const filtro = {
@@ -106,11 +96,10 @@ export default async function PedidosDeVendaPage({ searchParams }) {
       direcao,
       porPagina,
     };
-    [resultado, opcoes, enviosDeHoje, resumoPorCanal] = await Promise.all([
+    [resultado, opcoes, enviosDeHoje] = await Promise.all([
       listarPedidosDeVenda({ ...filtro, pagina: paginaPedida }),
       opcoesDasColunas(filtro),
       contarEnviosDeHoje(agora),
-      resumoDosCanais(filtro, { comLucro: veLucro }),
     ]);
     // Pagina alem do fim (link antigo, filtro que encolheu a lista): mostra a ultima que existe.
     const ultima = Math.max(1, Math.ceil(resultado.total / porPagina));
@@ -143,7 +132,8 @@ export default async function PedidosDeVendaPage({ searchParams }) {
 
       {erro && <AvisoBanco erro={erro} />}
 
-      <ResumoDosCanais resumo={resumoPorCanal} dias={despacho ? null : diasDoPeriodo(desde, ate < hoje ? ate : hoje)} />
+      {/* As Metricas de faturamento (25/11/2026) tem o periodo delas, sem os filtros da lista; nascem no mes atual. */}
+      <ResumoDosCanais hoje={hoje} />
 
       <FiltrosDePedidos
         busca={busca}

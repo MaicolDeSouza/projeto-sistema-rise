@@ -1395,6 +1395,20 @@ try {
     conferir("marcar reclamacao que nao existe recusa", (await marcarNotaDeDevolucao({ reclamacaoId: "ZZ-PED-DV-0000", numero: "1", por: "zz", agora })).ok, false);
   }
 
+  {
+    // Metricas de faturamento (pedido do dono em 25/11/2026): o painel nasce no mes atual e tem Mes anterior, Mes atual e datas.
+    console.log("\nPeríodo das métricas de faturamento");
+    const { periodoDoMes, diasDoPeriodo, conferirPeriodo } = await import("../src/lib/pedidos/periodoDasMetricas.js");
+    conferir("mes atual: do dia 1 ate hoje", periodoDoMes("2026-11-25", 0), { desde: "2026-11-01", ate: "2026-11-25" });
+    conferir("mes anterior: o mes inteiro", [periodoDoMes("2026-11-25", -1), periodoDoMes("2026-01-10", -1), periodoDoMes("2026-03-31", -1), periodoDoMes("2028-03-15", -1)], [{ desde: "2026-10-01", ate: "2026-10-31" }, { desde: "2025-12-01", ate: "2025-12-31" }, { desde: "2026-02-01", ate: "2026-02-28" }, { desde: "2028-02-01", ate: "2028-02-29" }]);
+    conferir("dias: as duas pontas, o futuro nao conta", [diasDoPeriodo("2026-11-01", "2026-11-25", "2026-11-25"), diasDoPeriodo("2026-11-20", "2026-11-30", "2026-11-25"), diasDoPeriodo("2026-10-01", "2026-10-31", "2026-11-25")], [25, 6, 31]);
+    conferir(
+      "periodo: aceita o certo, recusa data invalida, invertida e mais de 1 ano",
+      [conferirPeriodo({ desde: "2026-11-01", ate: "2026-11-25" }).ok, conferirPeriodo({ desde: "2026-13-01", ate: "2026-11-25" }).ok, conferirPeriodo({ desde: "2026-11-26", ate: "2026-11-25" }).ok, conferirPeriodo({ desde: "2024-01-01", ate: "2026-11-25" }).ok, conferirPeriodo({ desde: "x", ate: null }).ok],
+      [true, false, false, false, false],
+    );
+  }
+
   // Marcador: os blocos seguintes entram acima desta linha.
 } finally {
   if (!manter) await limpar();

@@ -10,9 +10,11 @@ import {
   buscarClientesParaVincular,
   criarClienteDoPedido,
   marcarEmSeparacao,
+  resumoDosCanais,
   salvarCustoDoFreteManual,
   vincularCliente,
 } from "@/lib/pedidos/banco";
+import { conferirPeriodo } from "@/lib/pedidos/periodoDasMetricas";
 import { marcarNotaDeDevolucao } from "@/lib/pedidos/reclamacoesML";
 
 /**
@@ -117,5 +119,26 @@ export async function marcarNotaDeDevolucaoAcao(reclamacaoId, numero, emitida) {
       if (resultado.pedidoId) revalidar(resultado.pedidoId, { ok: true });
     }
     return resultado.ok ? { ok: true } : resultado;
+  });
+}
+
+/**
+ * As Metricas de faturamento de Vendas (pedido do dono em 25/11/2026): as caixinhas por canal e a Geral de um periodo
+ * proprio (mes atual, mes anterior ou datas), sem os outros filtros da lista. Dias "AAAA-MM-DD" de Sao Paulo. O lucro so
+ * vai para quem ve custo (`dado.custo`), como na lista.
+ */
+export async function metricasDeFaturamentoAcao(desde, ate) {
+  const negado = await negarSemAcesso("tela.pedidos", "ver");
+  if (negado) return negado;
+  const periodo = conferirPeriodo({ desde, ate });
+  if (!periodo.ok) return periodo;
+  return protegendo(async () => {
+    const sessao = await sessaoDeAcessos();
+    const resumo = await resumoDosCanais(
+      // O dia inteiro de Sao Paulo nas duas pontas (o Brasil nao tem horario de verao: -03:00 o ano todo).
+      { desde: new Date(`${desde}T00:00:00.000-03:00`), ate: new Date(`${ate}T23:59:59.999-03:00`) },
+      { comLucro: Boolean(sessao?.pode("dado.custo", "ver")) },
+    );
+    return { ok: true, resumo };
   });
 }

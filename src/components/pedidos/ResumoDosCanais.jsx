@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Image from "next/image";
 import { ChartColumn } from "lucide-react";
 
+import { metricasDeFaturamentoAcao } from "@/app/pedidos/acoes";
 import { canalPorId } from "@/lib/canais";
+import { diasDoPeriodo, periodoDoMes } from "@/lib/pedidos/periodoDasMetricas";
 
 import { moeda, moedaComSinal } from "./formato";
 
@@ -91,35 +93,107 @@ function Caixa({ resumo, dias, geral = false }) {
   );
 }
 
+const MES = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC", month: "long", year: "numeric" });
+const nomeDoMes = (dia) => {
+  const texto = MES.format(new Date(`${dia}T12:00:00Z`));
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+};
+
 /**
- * As caixinhas de Vendas (pedido do dono em 12/11/2026): uma por canal (vendas, lucro com markup e ticket medio) e a
- * Geral, com as mesmas linhas somando os tres canais (ela substituiu o "Lucro no periodo" do canto). Seguem os filtros
- * da lista menos o de canal (`resumoDosCanais`). Cancelados e devolvidos nao entram nas vendas nem no ticket.
+ * As Metricas de faturamento de Vendas (pedido do dono em 25/11/2026; eram as caixinhas de 12/11/2026 atras do "Mostrar
+ * resumo", que seguiam os filtros da lista): uma caixinha por canal (vendas, lucro com markup e ticket medio) e a Geral.
+ * O botao fica a esquerda e o painel nasce fechado; ao abrir, mostra o MES ATUAL, com "Mes anterior", "Mes atual" e um
+ * intervalo de datas proprio (os outros filtros da lista nao entram). Os numeros vem da acao `metricasDeFaturamentoAcao`.
+ * Cancelados, devolvidos e vendas em mediacao nao entram nas vendas nem no ticket.
  */
-export default function ResumoDosCanais({ resumo, dias = null }) {
-  // As caixinhas nascem ESCONDIDAS (pedido do dono em 22/11/2026: "botao que esconde os 04 cards") e o botao as mostra;
-  // vale so enquanto a tela esta aberta.
+export default function ResumoDosCanais({ hoje }) {
   const [aberto, setAberto] = useState(false);
-  if (!resumo) return null;
+  const [periodo, setPeriodo] = useState(() => periodoDoMes(hoje, 0));
+  const [resumo, setResumo] = useState(null);
+  const [erro, setErro] = useState(null);
+  const [carregando, iniciar] = useTransition();
+
+  const mesAtual = periodoDoMes(hoje, 0);
+  const mesAnterior = periodoDoMes(hoje, -1);
+  const igual = (a, b) => a.desde === b.desde && a.ate === b.ate;
+
+  function carregar(novo) {
+    setPeriodo(novo);
+    if (!novo.desde || !novo.ate || novo.desde > novo.ate) return;
+    setErro(null);
+    iniciar(async () => {
+      const resposta = await metricasDeFaturamentoAcao(novo.desde, novo.ate);
+      if (resposta?.ok) setResumo(resposta.resumo);
+      else setErro(resposta?.erro ?? "Não foi possível ler as métricas.");
+    });
+  }
+
+  function alternar() {
+    const abrir = !aberto;
+    setAberto(abrir);
+    // Abre sempre no mes atual (pedido do dono: "deve nascer com os dados de faturamento do mes atual").
+    if (abrir) carregar(mesAtual);
+  }
+
+  const botaoDoPeriodo = (rotulo, alvo) => (
+    <button
+      type="button"
+      onClick={() => carregar(alvo)}
+      aria-pressed={igual(periodo, alvo)}
+      className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${igual(periodo, alvo) ? "border-acento bg-acento text-white" : "border-borda hover:bg-fundo"}`}
+    >
+      {rotulo}
+    </button>
+  );
+  const rotuloDoPeriodo = igual(periodo, mesAtual) || igual(periodo, mesAnterior) ? nomeDoMes(periodo.desde) : null;
+  const dias = periodo.desde && periodo.ate && periodo.desde <= periodo.ate ? diasDoPeriodo(periodo.desde, periodo.ate, hoje) : null;
+
   return (
     <div className="mb-3">
-      <div className="mb-1.5 flex justify-end">
+      <div className="mb-1.5 flex flex-wrap items-center gap-2">
         <button
           type="button"
-          onClick={() => setAberto((antes) => !antes)}
+          onClick={alternar}
           aria-expanded={aberto}
-          title={aberto ? "Esconder o resumo de vendas e lucro por canal" : "Mostrar o resumo de vendas e lucro por canal"}
+          title={aberto ? "Esconder as métricas de faturamento" : "Mostrar as métricas de faturamento por canal"}
           className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs transition-colors ${
             aberto ? "border-acento bg-acento/10 text-acento" : "border-borda text-suave hover:bg-fundo"
           }`}
         >
-          <ChartColumn size={13} aria-hidden="true" /> {aberto ? "Esconder resumo" : "Mostrar resumo"}
+          <ChartColumn size={13} aria-hidden="true" /> Métricas de faturamento
         </button>
+        {aberto && (
+          <>
+            <span className="mx-1 h-5 w-px bg-borda" aria-hidden="true" />
+            {botaoDoPeriodo("Mês anterior", mesAnterior)}
+            {botaoDoPeriodo("Mês atual", mesAtual)}
+            <input
+              type="date"
+              value={periodo.desde}
+              max={periodo.ate || undefined}
+              onChange={(evento) => carregar({ ...periodo, desde: evento.target.value })}
+              aria-label="Data inicial das métricas"
+              className="rounded-md border border-borda bg-superficie px-2 py-1 text-xs tabular-nums"
+            />
+            <span className="text-xs text-suave">a</span>
+            <input
+              type="date"
+              value={periodo.ate}
+              min={periodo.desde || undefined}
+              onChange={(evento) => carregar({ ...periodo, ate: evento.target.value })}
+              aria-label="Data final das métricas"
+              className="rounded-md border border-borda bg-superficie px-2 py-1 text-xs tabular-nums"
+            />
+            {rotuloDoPeriodo && <span className="text-xs font-medium text-suave">{rotuloDoPeriodo}</span>}
+            {carregando && <span className="text-xs text-suave">Carregando…</span>}
+            {erro && <span className="text-xs text-red-700">{erro}</span>}
+          </>
+        )}
       </div>
-      {aberto && (
+      {aberto && resumo && (
         // Quatro lado a lado so em tela muito larga: com o "por dia" na mesma linha a linha de Vendas pede ~420 px de
         // caixinha (medido com R$18.195,36), e em 4 colunas abaixo de ~2040 px ela nao cabe.
-        <div className="grid grid-cols-1 gap-2.5 min-[768px]:grid-cols-2 min-[2040px]:grid-cols-4">
+        <div className={`grid grid-cols-1 gap-2.5 transition-opacity duration-150 min-[768px]:grid-cols-2 min-[2040px]:grid-cols-4 ${carregando ? "opacity-50" : ""}`}>
           {resumo.canais.map((c) => (
             <Caixa key={c.canal} resumo={c} dias={dias} />
           ))}
