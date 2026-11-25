@@ -3758,6 +3758,15 @@ model AtendimentoML {
   bloqueio          String?
   limite            Int?
 
+  /// Reclamacao (fase 3). A `ReclamacaoML` de mesmo id (sem chave estrangeira; nulo ate a rotina das reclamacoes a ler),
+  /// a etapa no ML (claim | dispute), para quem a mensagem vai segundo a acao que o ML libera (complainant | mediator;
+  /// nulo = o ML nao libera mensagem) e o prazo da acao obrigatoria, quando o ML informa. A conversa usa `conversa`
+  /// (`de`: "C" comprador, "V" loja, "M" mediador) e `ultimaDoClienteId` guarda o `hash` da ultima mensagem de fora.
+  reclamacaoId String?
+  etapa        String?
+  destinatario String?
+  prazoEm      DateTime?
+
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 

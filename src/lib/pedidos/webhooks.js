@@ -19,11 +19,17 @@ export const ORIGEM_DA_ROTA = { "mercado-livre": "MERCADO_LIVRE", "loja-integrad
 // `questions` (24/11/2026): as perguntas dos anuncios, lidas pelo Atendimento do ML (`/questions/{id}`).
 // `messages` (24/11/2026, fase 2): as mensagens de pos-venda. O ML manda so o id da mensagem no `resource`, sem caminho:
 // vira `/messages/{id}`, para a fila separar o tipo como nos outros.
-const TOPICOS_DO_ML = new Set(["orders_v2", "shipments", "questions", "messages"]);
+// `post_purchase` (25/11/2026, fase 3): as reclamacoes. O recurso vem como "post-purchase/v1/claims/{id}" (na
+// documentacao, sem a barra inicial): vira `/claims/{id}`.
+const TOPICOS_DO_ML = new Set(["orders_v2", "shipments", "questions", "messages", "post_purchase"]);
 
 /** O recurso de uma notificacao do ML como a fila o guarda (`/tipo/id`). */
 function recursoDoML(payload) {
   if (!TOPICOS_DO_ML.has(payload.topic) || typeof payload.resource !== "string" || !payload.resource) return null;
+  if (payload.topic === "post_purchase") {
+    const reclamacao = /claims\/([\w-]+)/.exec(payload.resource);
+    return reclamacao ? `/claims/${reclamacao[1]}` : null;
+  }
   if (payload.topic !== "messages") return payload.resource;
   const id = payload.resource.replace(/^\/?(messages\/)?/, "");
   return /^[\w-]+$/.test(id) ? `/messages/${id}` : null;

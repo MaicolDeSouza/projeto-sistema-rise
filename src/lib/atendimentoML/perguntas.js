@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { clienteML } from "@/lib/canaisDeVenda/ml/cliente";
 
 import { rodarPosVendaML } from "./posVenda";
+import { rodarReclamacoesML } from "./reclamacoes";
 
 /**
  * As perguntas dos anuncios do Mercado Livre (Atendimento do ML, fase 1; spec 2026-11-24-atendimento-ml-design.md).
@@ -147,8 +148,9 @@ export async function rodarPerguntasML({ ml = clienteML(), agora = new Date(), s
 export async function rodarAtendimentoML(opcoes = {}) {
   const perguntas = await rodarPerguntasML(opcoes);
   const posVenda = await rodarPosVendaML(opcoes);
-  // A rotina so esta bem quando as DUAS leituras deram certo: sem isto, as mensagens fora do ar ficariam escondidas
+  const reclamacoes = await rodarReclamacoesML(opcoes);
+  // A rotina so esta bem quando as TRES leituras deram certo: sem isto, as mensagens fora do ar ficariam escondidas
   // atras de uma linha verde na Saude do Rise. O que deu certo segue valendo (`novas`, `fechadasIds`).
-  const erros = [perguntas.ok ? null : perguntas.erro, posVenda.ok ? null : `mensagens de pós-venda: ${posVenda.erro}`].filter(Boolean);
-  return { ...perguntas, ok: erros.length === 0, ...(erros.length ? { erro: erros.join(" | ").slice(0, 300) } : {}), fechadasIds: [...(perguntas.fechadasIds ?? []), ...(posVenda.fechadasIds ?? [])], posVenda };
+  const erros = [perguntas.ok ? null : perguntas.erro, posVenda.ok ? null : `mensagens de pós-venda: ${posVenda.erro}`, reclamacoes.ok ? null : `reclamações: ${reclamacoes.erro}`].filter(Boolean);
+  return { ...perguntas, ok: erros.length === 0, ...(erros.length ? { erro: erros.join(" | ").slice(0, 300) } : {}), fechadasIds: [...(perguntas.fechadasIds ?? []), ...(posVenda.fechadasIds ?? []), ...(reclamacoes.fechadasIds ?? [])], posVenda, reclamacoes };
 }

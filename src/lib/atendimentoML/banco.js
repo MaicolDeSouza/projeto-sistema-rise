@@ -4,6 +4,7 @@ import { POR_PAGINA_GRANDE, POR_PAGINA_PADRAO } from "@/lib/porPagina";
 
 import { filtrarResposta, linkDoMercadoLivre } from "./filtro";
 import { LIMITE_PADRAO_DE_MENSAGEM, marcarConversaComoLida } from "./posVenda";
+import { LIMITE_DA_RECLAMACAO } from "./reclamacoes";
 
 /**
  * O banco do Atendimento do ML (spec 2026-11-24-atendimento-ml-design.md): listar, ler, contar, salvar o rascunho, ignorar
@@ -30,6 +31,8 @@ export async function limiteDaPergunta() {
  */
 export async function limiteDoAtendimento(linha) {
   if (linha?.tipo === "POS_VENDA") return Number.isInteger(linha.limite) && linha.limite > 0 ? linha.limite : LIMITE_PADRAO_DE_MENSAGEM;
+  // Reclamacao (fase 3): o ML nao informa limite; vale o teto do Rise.
+  if (linha?.tipo === "RECLAMACAO") return LIMITE_DA_RECLAMACAO;
   return limiteDaPergunta();
 }
 

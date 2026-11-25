@@ -10,6 +10,7 @@ import { classificarLojaDoBling, normalizarPedidoBling } from "@/lib/pedidos/bli
 import { adiarConferenciaDoMercadoPago, aplicarPedidoLido, espelharNoBling, marcarFalhaDoMercadoPago, pedidosParaConferirNoMercadoPago, pedidosParaReconferir, reabrirLucroDoPedido } from "@/lib/pedidos/banco";
 import { aplicarPerguntaLida, lerPerguntaDoML } from "@/lib/atendimentoML/perguntas";
 import { aplicarNotificacaoDeMensagem } from "@/lib/atendimentoML/posVenda";
+import { aplicarNotificacaoDeReclamacao } from "@/lib/atendimentoML/reclamacoes";
 import { atualizarAvisoFechado } from "@/lib/atendimentoML/telegram";
 
 /**
@@ -442,6 +443,12 @@ async function tratarRecurso(origem, recurso, clientes, memoria, agora) {
     // A mensagem de pos-venda (Atendimento do ML, fase 2): o aviso traz o id da mensagem, e a conversa sai dela.
     if (tipo === "messages") {
       const aplicada = await aplicarNotificacaoDeMensagem(clientes.ml, id, { agora: new Date(agora) });
+      if (aplicada?.fechou) await atualizarAvisoFechado(aplicada.id);
+      return;
+    }
+    // A reclamacao (Atendimento do ML, fase 3): a notificacao so apressa; a rotina de 5 min e a garantia.
+    if (tipo === "claims") {
+      const aplicada = await aplicarNotificacaoDeReclamacao(clientes.ml, id, { agora: new Date(agora) });
       if (aplicada?.fechou) await atualizarAvisoFechado(aplicada.id);
       return;
     }

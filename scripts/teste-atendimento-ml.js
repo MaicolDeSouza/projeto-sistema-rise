@@ -1100,6 +1100,226 @@ try {
     }
   }
 
+  // ===============================================================================================================
+  // FASE 3: mensagens das reclamacoes (plano docs/superpowers/plans/2026-11-25-atendimento-ml-fase-3-reclamacoes.md)
+  // ===============================================================================================================
+  const linhaDaReclamacao = (id) => prisma.atendimentoML.findUnique({ where: { tipo_idExterno: { tipo: "RECLAMACAO", idExterno: id } } });
+
+  // ---------------------------------------------------------------------------------------------------------------
+  console.log("\n# Fase 3, tarefa 1: retrato da reclamacao");
+  {
+    const { criarMlPerguntasFalso } = await import("./lib/mlPerguntasFalso.js");
+    const rc = await import("../src/lib/atendimentoML/reclamacoes.js");
+    const ml = criarMlPerguntasFalso();
+    const V = await ml.usuarioId();
+    const resumo = async (id) => {
+      const lida = await rc.lerReclamacaoDoML(ml, id);
+      return rc.resumirReclamacao(lida.reclamacao, lida.mensagens, V, lida.detalhe);
+    };
+
+    ml.porReclamacao("ZZ-ATD-R1", { mensagens: [{ de: "C", texto: "O produto chegou quebrado." }] });
+    let r = await resumo("ZZ-ATD-R1");
+    conferir("etapa claim: a mensagem vai ao comprador; as outras acoes ficam so listadas", [r.etapa, r.statusNoML, r.destinatario, r.outrasAcoes, r.bloqueio, r.aguardaResposta], ["claim", "opened", "complainant", ["refund", "open_dispute"], null, true]);
+    conferir("a mensagem traz quem falou, para quem, e o hash como id", r.mensagens.map((m) => [m.de, m.para, m.texto, m.etapa, m.id === ml.reclamacoes.get("ZZ-ATD-R1").mensagens[0].hash]), [["C", "V", "O produto chegou quebrado.", "claim", true]]);
+    conferir("a ultima de fora e a do comprador", [r.ultimaDeFora?.texto, r.ultimaDeForaId === r.mensagens[0].id], ["O produto chegou quebrado.", true]);
+
+    ml.abrirMediacao("ZZ-ATD-R1");
+    ml.escreverNaReclamacao("ZZ-ATD-R1", "M", "Olá, somos do Mercado Livre e vamos ajudar.");
+    r = await resumo("ZZ-ATD-R1");
+    conferir("etapa dispute: a mensagem vai ao mediador", [r.etapa, r.destinatario, r.outrasAcoes, r.mensagens.map((m) => m.de), r.ultimaDeFora?.de], ["dispute", "mediator", [], ["C", "M"], "M"]);
+
+    ml.escreverNaReclamacao("ZZ-ATD-R1", "V", "Enviamos outro produto.");
+    r = await resumo("ZZ-ATD-R1");
+    conferir("ultima da loja: nao espera resposta, e a ultima de fora continua a do mediador", [r.aguardaResposta, r.ultimaDeFora?.de, r.mensagens.at(-1).para], [false, "M", "M"]);
+
+    ml.porReclamacao("ZZ-ATD-R2", { acoes: ["refund"], mensagens: [{ de: "C", texto: "" }, { de: "C", texto: "", anexos: 1 }, { de: "C", texto: "texto proibido", moderacao: "rejected" }, { de: "C", texto: "V" }] });
+    r = await resumo("ZZ-ATD-R2");
+    conferir("sem acao de mensagem: sem destinatario e com o motivo", [r.destinatario, r.bloqueio, rc.textoDoBloqueioDaReclamacao(r.bloqueio)], [null, "sem-acao", "O Mercado Livre não libera mensagem nesta etapa da reclamação."]);
+    conferir("sem texto, so anexo, retida e de 1 caractere", r.mensagens.map((m) => [m.texto, m.anexos, m.retida]), [["[sem texto]", 0, false], ["[anexo]", 1, false], ["[mensagem retida pelo ML]", 0, true], ["V", 0, false]]);
+    conferir("mensagem sem texto util nao serve de texto do cliente", r.textoUtilDeFora, null);
+
+    ml.porReclamacao("ZZ-ATD-R3", { status: "closed", mensagens: [{ de: "C", texto: "Resolvido, obrigado." }] });
+    r = await resumo("ZZ-ATD-R3");
+    conferir("reclamacao fechada: nada a enviar", [r.statusNoML, r.destinatario, r.bloqueio, r.aguardaResposta, rc.textoDoBloqueioDaReclamacao(r.bloqueio)], ["closed", null, "fechada", false, "A reclamação foi encerrada no Mercado Livre."]);
+
+    ml.porReclamacao("ZZ-ATD-R4", { obrigatoria: "send_message_to_complainant", prazo: "2026-12-03T22:50:00.000-04:00", mensagens: [] });
+    r = await resumo("ZZ-ATD-R4");
+    conferir("sem mensagem ainda: espera resposta, com o prazo da acao obrigatoria", [r.aguardaResposta, r.mensagens.length, r.ultimaDeForaId, r.prazoEm], [true, 0, "abertura", "2026-12-04T02:50:00.000Z"]);
+    conferir("o detalhe do ML entra no retrato", [r.detalhe?.titulo, r.detalhe?.descricao], ["Responda ao comprador", "O comprador abriu uma reclamação."]);
+    conferir("reclamacao que o ML nao tem", await rc.lerReclamacaoDoML(ml, "ZZ-ATD-R-NAO-EXISTE"), null);
+    conferir("o teto do Rise", rc.LIMITE_DA_RECLAMACAO, 1000);
+  }
+
+  // ---------------------------------------------------------------------------------------------------------------
+  console.log("\n# Fase 3, tarefa 2: chegada");
+  {
+    const { criarMlPerguntasFalso } = await import("./lib/mlPerguntasFalso.js");
+    const rc = await import("../src/lib/atendimentoML/reclamacoes.js");
+    const { rodarAtendimentoML } = await import("../src/lib/atendimentoML/perguntas.js");
+    const ml = criarMlPerguntasFalso();
+    const rodar = () => rc.rodarReclamacoesML({ ml, soPrefixo: "ZZ-ATD-" });
+    try {
+      ml.porReclamacao("ZZ-ATD-R10", { problema: "Produto com defeito", mensagens: [{ de: "C", texto: "Chegou com defeito, quero resolver." }] });
+      ml.porReclamacao("ZZ-ATD-R11", { tipo: "cancel_purchase", etapa: "none", acoes: [], mensagens: [] });
+      let volta = await rodar();
+      let linha = await linhaDaReclamacao("ZZ-ATD-R10");
+      conferir("reclamacao aberta cria a linha ABERTA, com a etapa e o destinatario", [volta.ok, volta.lidas, volta.novas, linha?.status, linha?.textoDoCliente, linha?.situacaoNoML, linha?.etapa, linha?.destinatario, linha?.limite, linha?.bloqueio, linha?.conversa?.mensagens?.length, linha?.conversa?.outrasAcoes], [true, 1, 1, "ABERTA", "Chegou com defeito, quero resolver.", "opened", "claim", "complainant", 1000, null, 1, ["refund", "open_dispute"]]);
+      conferir("a busca vai com o vendedor e o papel (pedido da documentacao)", (() => { const b = ml.chamadas.find((c) => c.caminho === "/post-purchase/v1/claims/search"); return [b.params.status, b.params["players.role"], String(b.params["players.user_id"])]; })(), ["opened", "respondent", "212386247"]);
+      conferir("cancelamento de compra nao cria linha", await linhaDaReclamacao("ZZ-ATD-R11"), null);
+      conferir("sem a ReclamacaoML ainda: nasce sem pedido", [linha?.reclamacaoId, linha?.pedidoId], [null, null]);
+
+      volta = await rodar();
+      conferir("segunda volta nao duplica nem conta como nova", [volta.novas, await prisma.atendimentoML.count({ where: { tipo: "RECLAMACAO", idExterno: { startsWith: "ZZ-ATD-" } } })], [0, 1]);
+
+      const pedido = await criarPedidoDeTeste({ idExterno: "ZZ-ATD-O-RECL", packId: "ZZ-ATD-PK-RECL" });
+      await prisma.reclamacaoML.create({ data: { id: "ZZ-ATD-R10", recurso: "order", recursoId: "ZZ-ATD-O-RECL", pedidoNumero: "ZZ-ATD-O-RECL", pedidoId: pedido.id, tipo: "mediations", etapa: "claim", status: "opened", motivoNome: "Produto com defeito", grupo: "PRODUTO", afetaReputacao: true, abertaEm: new Date() } });
+      await rodar();
+      linha = await linhaDaReclamacao("ZZ-ATD-R10");
+      conferir("com a ReclamacaoML lida, a linha ganha a reclamacao e o pedido", [linha?.reclamacaoId, linha?.pedidoId === pedido.id], ["ZZ-ATD-R10", true]);
+
+      ml.escreverNaReclamacao("ZZ-ATD-R10", "V", "Podemos enviar outro.");
+      volta = await rodar();
+      linha = await linhaDaReclamacao("ZZ-ATD-R10");
+      conferir("respondida pelo app do ML: FECHADA_FORA com o texto da loja", [volta.fechadas, volta.fechadasIds[0] === linha.id, linha.status, linha.respondidaVia, linha.respostaEnviada], [1, true, "FECHADA_FORA", "ML", "Podemos enviar outro."]);
+
+      await prisma.atendimentoML.update({ where: { id: linha.id }, data: { rascunho: "velho", telegramChatId: "zz-atd-1", telegramMensagemId: 7 } });
+      ml.escreverNaReclamacao("ZZ-ATD-R10", "C", "Prefiro o dinheiro de volta.");
+      volta = await rodar();
+      linha = await linhaDaReclamacao("ZZ-ATD-R10");
+      conferir("mensagem nova reabre a MESMA linha, limpa", [volta.reabertas, linha.status, linha.textoDoCliente, linha.rascunho, linha.telegramMensagemId, linha.respostaEnviada], [1, "ABERTA", "Prefiro o dinheiro de volta.", null, null, null]);
+
+      ml.abrirMediacao("ZZ-ATD-R10");
+      ml.escreverNaReclamacao("ZZ-ATD-R10", "M", "Olá, vamos analisar o caso.");
+      await rodar();
+      linha = await linhaDaReclamacao("ZZ-ATD-R10");
+      conferir("mediacao aberta: a linha passa a apontar para o mediador e mostra a fala dele", [linha.etapa, linha.destinatario, linha.textoDoCliente, linha.status], ["dispute", "mediator", "Olá, vamos analisar o caso.", "ABERTA"]);
+
+      ml.fecharReclamacao("ZZ-ATD-R10");
+      volta = await rodar();
+      linha = await linhaDaReclamacao("ZZ-ATD-R10");
+      conferir("reclamacao fechada no ML (saiu da busca): a linha fecha", [volta.fechadas, linha.status, linha.situacaoNoML, linha.respostaEnviada, linha.bloqueio], [1, "FECHADA_FORA", "closed", null, "fechada"]);
+
+      ml.porReclamacao("ZZ-ATD-R12", { acoes: ["refund"], mensagens: [{ de: "C", texto: "V" }] });
+      await prisma.reclamacaoML.create({ data: { id: "ZZ-ATD-R12", recurso: "order", recursoId: "ZZ-ATD-O-X", tipo: "mediations", etapa: "claim", status: "opened", motivoNome: "Não quero mais o produto", grupo: "ARREPENDIMENTO", abertaEm: new Date() } });
+      await rodar();
+      linha = await linhaDaReclamacao("ZZ-ATD-R12");
+      conferir("mensagem sem texto util: a linha mostra o motivo; sem acao, guarda o bloqueio", [linha?.textoDoCliente, linha?.bloqueio, linha?.destinatario, linha?.status], ["Não quero mais o produto", "sem-acao", null, "ABERTA"]);
+
+      ml.porReclamacao("ZZ-ATD-R13", { mensagens: [{ de: "C", texto: "Veio o modelo errado." }] });
+      let aplicada = await rc.aplicarNotificacaoDeReclamacao(ml, "post-purchase/v1/claims/ZZ-ATD-R13");
+      conferir("notificacao sem barra inicial cria a linha", [aplicada.criada, (await linhaDaReclamacao("ZZ-ATD-R13"))?.status], [true, "ABERTA"]);
+      aplicada = await rc.aplicarNotificacaoDeReclamacao(ml, "/post-purchase/v1/claims/ZZ-ATD-R13");
+      conferir("com barra, a mesma linha", [aplicada.criada, aplicada.id === (await linhaDaReclamacao("ZZ-ATD-R13")).id], [false, true]);
+      conferir("notificacao de reclamacao que o ML nao tem: nada", (await rc.aplicarNotificacaoDeReclamacao(ml, "/post-purchase/v1/claims/ZZ-ATD-R-NAO")).id, null);
+      {
+        const { conferirNotificacao } = await import("../src/lib/pedidos/webhooks.js");
+        const seg = { mlUsuarioId: "212386247", mlClientId: "123" };
+        const aviso = (resource, topic = "post_purchase") => conferirNotificacao({ origem: "MERCADO_LIVRE", corpoTexto: JSON.stringify({ resource, user_id: 212386247, topic, application_id: 123, actions: ["claims"] }), headers: new Headers(), segredos: seg }).recurso;
+        conferir("o topico 'post_purchase' entra na fila como /claims/{id}", [aviso("post-purchase/v1/claims/5108684499"), aviso("/post-purchase/v1/claims/5108684499"), aviso("post-purchase/v1/outra-coisa/1"), aviso("post-purchase/v1/claims/5108684499", "items")], ["/claims/5108684499", "/claims/5108684499", null, null]);
+      }
+
+      ml.porReclamacao("ZZ-ATD-R14", { mensagens: [{ de: "C", texto: "Outra reclamacao." }] });
+      ml.reclamacaoForaDoAr("ZZ-ATD-R13");
+      volta = await rodar();
+      conferir("erro numa reclamacao nao derruba as outras", [volta.ok, volta.erro?.includes("500"), volta.novas, (await linhaDaReclamacao("ZZ-ATD-R14"))?.status], [false, true, 1, "ABERTA"]);
+      ml.reclamacaoForaDoAr("ZZ-ATD-R13", false);
+
+      const tudo = await rodarAtendimentoML({ ml, soPrefixo: "ZZ-ATD-" });
+      conferir("a rotina do worker roda as tres leituras", [tudo.ok, tudo.reclamacoes?.ok, tudo.posVenda?.ok, Array.isArray(tudo.fechadasIds)], [true, true, true, true]);
+    } finally {
+      await prisma.reclamacaoML.deleteMany({ where: { id: { startsWith: "ZZ-ATD-" } } });
+      await limparOResto();
+      await limpar();
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------------------------------
+  console.log("\n# Fase 3, tarefa 3: envio unico");
+  {
+    const { criarMlPerguntasFalso } = await import("./lib/mlPerguntasFalso.js");
+    const rc = await import("../src/lib/atendimentoML/reclamacoes.js");
+    const { enviarResposta } = await import("../src/lib/atendimentoML/enviar.js");
+    const { salvarRascunho, ignorarAtendimento, lerAtendimento } = await import("../src/lib/atendimentoML/banco.js");
+    const ml = criarMlPerguntasFalso();
+    const ligado = { ML_RESPONDER_RECLAMACOES: "true" };
+    const nova = async (id, opcoes = {}) => {
+      ml.porReclamacao(id, { mensagens: [{ de: "C", texto: "O produto chegou com defeito." }], ...opcoes });
+      await rc.rodarReclamacoesML({ ml, soPrefixo: "ZZ-ATD-" });
+      return (await linhaDaReclamacao(id)).id;
+    };
+    const enviar = (id, env = ligado) => enviarResposta({ id, por: "zz-atd-dono", via: "RISE", ml, env });
+    const posts = () => ml.chamadas.filter((c) => c.metodo === "POST").length;
+    const texto = "Olá! Sentimos pelo ocorrido. Pode nos dizer o que aconteceu com o produto?";
+    try {
+      const id = await nova("ZZ-ATD-R20");
+      const longo = await salvarRascunho({ id, texto: "a".repeat(1001), origem: "DONO", por: "zz-atd-dono" });
+      conferir("1001 caracteres: o rascunho volta barrado pelo teto do Rise", [longo.ok, longo.barrados[0]?.motivo, longo.barrados[0]?.trecho], [false, "tamanho", "1001 de 1000 caracteres"]);
+      conferir("e o envio recusa antes do ML", [(await enviar(id)).motivo, posts()], ["filtro", 0]);
+      await salvarRascunho({ id, texto, origem: "DONO", por: "zz-atd-dono" });
+
+      const travado = await enviar(id, { ML_RESPONDER_MENSAGENS: "true", ML_RESPONDER_PERGUNTAS: "true" });
+      conferir("trava das reclamacoes desligada: nada sai (as outras duas nao servem)", [travado.ok, travado.motivo, travado.mensagem, posts()], [false, "trava", rc.TEXTO_DA_TRAVA_DE_RECLAMACOES, 0]);
+
+      const [a, b] = await Promise.all([enviar(id), enviar(id)]);
+      const depois = await lerAtendimento(id);
+      conferir("dois envios ao mesmo tempo: um POST so", [[a.ok, b.ok].sort(), ml.mensagensDeReclamacaoEnviadas.length], [[false, true], 1]);
+      conferir("o corpo do POST e o caminho", [ml.chamadas.find((c) => c.metodo === "POST").caminho, ml.mensagensDeReclamacaoEnviadas[0].receiver_role, ml.mensagensDeReclamacaoEnviadas[0].message, Object.keys(ml.chamadas.find((c) => c.metodo === "POST").corpo).sort()], ["/post-purchase/v1/claims/ZZ-ATD-R20/actions/send-message", "complainant", texto, ["message", "receiver_role"]]);
+      conferir("a linha vira RESPONDIDA e a fala entra na conversa", [depois.status, depois.respondidaVia, depois.respondidaPor, depois.respostaEnviada, depois.conversa.mensagens.at(-1).de, depois.conversa.mensagens.at(-1).para], ["RESPONDIDA", "RISE", "zz-atd-dono", texto, "V", "C"]);
+      const auditoria = await prisma.auditoriaDeAcesso.findFirst({ where: { quem: "zz-atd-dono", alvo: id } });
+      conferir("a auditoria nao guarda o texto", [auditoria?.oQue, JSON.stringify(auditoria?.depois ?? {}).includes("Sentimos")], ["atendimentoML.responder", false]);
+
+      const etapa = await nova("ZZ-ATD-R21");
+      await salvarRascunho({ id: etapa, texto, origem: "DONO", por: "zz-atd-dono" });
+      ml.abrirMediacao("ZZ-ATD-R21");
+      let antes = posts();
+      let r = await enviar(etapa);
+      conferir("a reclamacao foi para a mediacao: a mensagem ao comprador nao vai ao mediador", [r.ok, r.motivo, posts() - antes, (await lerAtendimento(etapa)).destinatario, (await lerAtendimento(etapa)).status], [false, "etapa-mudou", 0, "mediator", "ABERTA"]);
+      r = await enviar(etapa);
+      conferir("conferida a etapa, o segundo envio vai ao mediador", [r.ok, ml.mensagensDeReclamacaoEnviadas.at(-1).receiver_role], [true, "mediator"]);
+
+      const novaMsg = await nova("ZZ-ATD-R22");
+      await salvarRascunho({ id: novaMsg, texto, origem: "DONO", por: "zz-atd-dono" });
+      ml.escreverNaReclamacao("ZZ-ATD-R22", "C", "E ainda veio faltando o cabo.");
+      antes = posts();
+      r = await enviar(novaMsg);
+      conferir("mensagem nova no meio: recusa e atualiza a linha, mantendo o rascunho", [r.motivo, posts() - antes, (await lerAtendimento(novaMsg)).textoDoCliente, (await lerAtendimento(novaMsg)).rascunho], ["mensagem-nova", 0, "E ainda veio faltando o cabo.", texto]);
+
+      const fechada = await nova("ZZ-ATD-R23");
+      await salvarRascunho({ id: fechada, texto, origem: "DONO", por: "zz-atd-dono" });
+      ml.fecharReclamacao("ZZ-ATD-R23");
+      antes = posts();
+      r = await enviar(fechada);
+      conferir("reclamacao fechada no ML: nada sai e a linha fecha", [r.motivo, posts() - antes, (await lerAtendimento(fechada)).status], ["fechada", 0, "FECHADA_FORA"]);
+
+      const semAcao = await nova("ZZ-ATD-R24", { acoes: ["refund"] });
+      await salvarRascunho({ id: semAcao, texto, origem: "DONO", por: "zz-atd-dono" });
+      r = await enviar(semAcao);
+      conferir("sem acao de mensagem: o motivo e nada sai", [r.motivo, r.mensagem], ["sem-acao", rc.textoDoBloqueioDaReclamacao("sem-acao")]);
+
+      const fora = await nova("ZZ-ATD-R25");
+      await salvarRascunho({ id: fora, texto, origem: "DONO", por: "zz-atd-dono" });
+      ml.escreverNaReclamacao("ZZ-ATD-R25", "V", "Respondido pelo app.");
+      r = await enviar(fora);
+      conferir("respondida pelo app antes do envio", [r.motivo, (await lerAtendimento(fora)).status], ["fechada-fora", "FECHADA_FORA"]);
+
+      const recusada = await nova("ZZ-ATD-R26");
+      await salvarRascunho({ id: recusada, texto, origem: "DONO", por: "zz-atd-dono" });
+      ml.falharNoProximoPost(400);
+      r = await enviar(recusada);
+      const linha = await lerAtendimento(recusada);
+      conferir("o ML recusa: a linha continua ABERTA, solta, com o erro dele", [r.motivo, r.mensagem.includes("too long"), linha.status, linha.enviandoDesde, linha.erroDoEnvio?.includes("400")], ["ml", true, "ABERTA", null, true]);
+      r = await enviar(recusada);
+      conferir("o dono tenta de novo e vai", [r.ok, (await lerAtendimento(recusada)).status], [true, "RESPONDIDA"]);
+
+      const ignorada = await nova("ZZ-ATD-R27");
+      antes = ml.chamadas.length;
+      conferir("ignorar a reclamacao so tira da lista (nada vai ao ML)", [(await ignorarAtendimento({ id: ignorada, por: "zz-atd-dono", ml })).ok, (await lerAtendimento(ignorada)).status, ml.chamadas.length - antes], [true, "IGNORADA", 0]);
+    } finally {
+      await limparOResto();
+      await limpar();
+    }
+  }
+
   // MARCADOR: blocos novos entram acima desta linha.
 } finally {
   await limpar();

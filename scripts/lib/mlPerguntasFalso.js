@@ -24,6 +24,9 @@ export function criarMlPerguntasFalso({ vendedorId = "212386247" } = {}) {
   const naoLidas = new Set();
   const marcadasComoLidas = [];
   const mensagensEnviadas = [];
+  // Reclamacoes: id -> { status, tipo, etapa, acoes, mensagens: [da mais antiga para a mais nova] }.
+  const reclamacoes = new Map();
+  const mensagensDeReclamacaoEnviadas = [];
   let foraDoAr = false;
   let sequencia = 0;
   let falhaDoPost = null;
@@ -68,6 +71,44 @@ export function criarMlPerguntasFalso({ vendedorId = "212386247" } = {}) {
     };
   }
 
+  // Reclamacoes (fase 3): o formato medido na conta em 25/11/2026 (`players[].available_actions`, mensagens com `hash`).
+  const PAPEL = { C: "complainant", V: "respondent", M: "mediator" };
+  const reclamacaoDoML = (r) => ({
+    id: r.id,
+    resource_id: r.recursoId,
+    status: r.status,
+    type: r.tipo,
+    stage: r.etapa,
+    resource: "order",
+    reason_id: "PDD9939",
+    fulfilled: true,
+    players: [
+      { role: "complainant", type: "buyer", user_id: 987654321, available_actions: [] },
+      { role: "respondent", type: "seller", user_id: Number(vendedorId), available_actions: r.status === "opened" ? r.acoes.map((action) => ({ action, mandatory: action === r.obrigatoria, due_date: action === r.obrigatoria ? r.prazo ?? null : null })) : [] },
+      { role: "mediator", type: "internal", user_id: 1, available_actions: [] },
+    ],
+    resolution: r.status === "closed" ? { reason: "payment_refunded", closed_by: "mediator" } : null,
+    site_id: "MLB",
+    date_created: r.criadaEm,
+    last_updated: r.criadaEm,
+  });
+  const mensagemDaReclamacao = (r, m) => ({
+    sender_role: PAPEL[m.de],
+    receiver_role: PAPEL[m.para ?? (m.de === "V" ? (r.etapa === "dispute" ? "M" : "C") : "V")],
+    message: m.texto,
+    translated_message: null,
+    date_created: m.em,
+    last_updated: m.em,
+    message_date: m.em,
+    date_read: null,
+    attachments: m.anexos ? Array.from({ length: m.anexos }, (_, i) => ({ filename: `anexo-${i + 1}.jpg`, original_filename: "foto.jpg", size: 100, type: "image/jpeg" })) : [],
+    status: m.moderacao && m.moderacao !== "clean" ? "moderated" : "available",
+    stage: m.etapa ?? r.etapa,
+    message_moderation: { status: m.moderacao ?? "clean", reason: null, source: "online", date_moderated: m.em },
+    repeated: false,
+    hash: m.hash,
+  });
+
   async function get(caminhoComQuery, parametros = {}) {
     // A consulta pode vir no caminho ("...?tag=post_sale") ou em `params`: o falso aceita as duas.
     const [caminho, consulta = ""] = String(caminhoComQuery).split("?");
@@ -87,6 +128,24 @@ export function criarMlPerguntasFalso({ vendedorId = "212386247" } = {}) {
           if (achada) return resposta(200, { messages: [mensagemDoML(pack, achada)] });
         }
         return resposta(404, { message: "Message not found", status: 404 });
+      }
+    }
+    if (caminho.startsWith("/post-purchase/v1/claims")) {
+      if (caminho === "/post-purchase/v1/claims/search") {
+        let lista = [...reclamacoes.values()];
+        if (params.status) lista = lista.filter((r) => r.status === params.status);
+        const offset = Number(params.offset ?? 0);
+        const limit = Number(params.limit ?? 30);
+        return resposta(200, { paging: { total: lista.length, offset, limit }, data: lista.slice(offset, offset + limit).map(reclamacaoDoML) });
+      }
+      const daReclamacao = /^\/post-purchase\/v1\/claims\/([^/]+)(\/messages|\/detail)?$/.exec(caminho);
+      if (daReclamacao) {
+        const reclamacao = reclamacoes.get(daReclamacao[1]);
+        if (!reclamacao) return resposta(404, { message: "Claim not found", status: 404 });
+        if (reclamacao.foraDoAr) return resposta(500, { message: "Internal error", status: 500 });
+        if (daReclamacao[2] === "/messages") return resposta(200, [...reclamacao.mensagens].reverse().map((m) => mensagemDaReclamacao(reclamacao, m)));
+        if (daReclamacao[2] === "/detail") return resposta(206, { due_date: reclamacao.prazo ?? null, action_responsible: "respondent", title: "Responda ao comprador", description: "O comprador abriu uma reclamação.", problem: reclamacao.problema ?? null });
+        return resposta(200, reclamacaoDoML(reclamacao));
       }
     }
     if (caminho === "/questions/search") {
@@ -136,6 +195,20 @@ export function criarMlPerguntasFalso({ vendedorId = "212386247" } = {}) {
       mensagensEnviadas.push({ pack: daConversa[1], consulta: String(caminhoComQuery).split("?")[1] ?? "", ...corpo });
       conversa.mensagens.push({ id: `zzmsgv${++sequencia}`, de: "V", texto: corpo.text, em: new Date().toISOString() });
       return resposta(201, { id: `zzmsgv${sequencia}`, status: "available" });
+    }
+    const daReclamacao = /^\/post-purchase\/v1\/claims\/([^/]+)\/actions\/send-message$/.exec(caminho);
+    if (daReclamacao) {
+      if (falhaDoPost) {
+        const status = falhaDoPost;
+        falhaDoPost = null;
+        return resposta(status, { message: status === 400 ? "The message is too long" : "Internal error", status });
+      }
+      const reclamacao = reclamacoes.get(daReclamacao[1]);
+      const acao = { complainant: "send_message_to_complainant", mediator: "send_message_to_mediator" }[corpo?.receiver_role];
+      if (!reclamacao || reclamacao.status !== "opened" || !acao || !reclamacao.acoes.includes(acao)) return resposta(400, { message: "Action not available", error: "action_not_available", status: 400 });
+      mensagensDeReclamacaoEnviadas.push({ reclamacao: daReclamacao[1], ...corpo });
+      reclamacao.mensagens.push({ hash: `zzhashv${++sequencia}`, de: "V", para: corpo.receiver_role === "mediator" ? "M" : "C", texto: corpo.message, em: new Date().toISOString(), etapa: reclamacao.etapa });
+      return resposta(201, {});
     }
     if (caminho !== "/answers") throw new Error(`ML falso (perguntas): POST desconhecido ${caminho}`);
     if (falhaDoPost) {
@@ -195,6 +268,34 @@ export function criarMlPerguntasFalso({ vendedorId = "212386247" } = {}) {
     },
     mensagensForaDoAr(valor = true) {
       foraDoAr = valor;
+    },
+    reclamacoes,
+    mensagensDeReclamacaoEnviadas,
+    /** Cria (ou troca) uma reclamacao. `mensagens`: `[{ de: "C" | "V" | "M", texto, para?, anexos?, moderacao?, etapa? }]`, da mais antiga para a mais nova. */
+    porReclamacao(id, { status = "opened", tipo = "mediations", etapa = "claim", acoes = ["send_message_to_complainant", "refund", "open_dispute"], obrigatoria = null, prazo = null, problema = null, recursoId = "ZZ-ATD-O-RECL", criadaEm = "2026-11-25T12:00:00.000Z", mensagens = [] } = {}) {
+      const base = Date.parse(criadaEm);
+      reclamacoes.set(String(id), { id: String(id), status, tipo, etapa, acoes, obrigatoria, prazo, problema, recursoId, criadaEm, foraDoAr: false, mensagens: mensagens.map((m, i) => ({ hash: m.hash ?? `zzhash${++sequencia}`, em: m.em ?? new Date(base + (i + 1) * 60000).toISOString(), ...m })) });
+      return reclamacoes.get(String(id));
+    },
+    /** Alguem escreve na reclamacao (o comprador, o mediador, ou a loja pelo app do ML). Devolve o `hash`. */
+    escreverNaReclamacao(id, de, texto, extra = {}) {
+      const reclamacao = reclamacoes.get(String(id));
+      const ultima = reclamacao.mensagens.at(-1);
+      const hash = `zzhash${++sequencia}`;
+      reclamacao.mensagens.push({ hash, de, texto, em: new Date((ultima ? Date.parse(ultima.em) : Date.parse(reclamacao.criadaEm)) + 60000).toISOString(), ...extra });
+      return hash;
+    },
+    /** A reclamacao vai para a mediacao: a acao de mensagem passa a ser para o mediador. */
+    abrirMediacao(id) {
+      const reclamacao = reclamacoes.get(String(id));
+      reclamacao.etapa = "dispute";
+      reclamacao.acoes = ["send_message_to_mediator"];
+    },
+    fecharReclamacao(id) {
+      reclamacoes.get(String(id)).status = "closed";
+    },
+    reclamacaoForaDoAr(id, valor = true) {
+      reclamacoes.get(String(id)).foraDoAr = valor;
     },
   };
 }

@@ -6,6 +6,7 @@ import { limiteDaPergunta, linksDosAnunciosDoProduto } from "./banco";
 import { filtrarResposta, textoDoBarrado } from "./filtro";
 import { aplicarPerguntaLida, lerPerguntaDoML } from "./perguntas";
 import { enviarMensagemDePosVenda } from "./posVenda";
+import { enviarMensagemDeReclamacao } from "./reclamacoes";
 
 /**
  * O ENVIO UNICO da resposta ao Mercado Livre (spec 2026-11-24-atendimento-ml-design.md, "O envio"). A tela, o Telegram e o
@@ -52,6 +53,8 @@ export async function enviarResposta({ id, por, via, ml = clienteML(), env = pro
   if (!linha || linha.status !== "ABERTA") return recusa("nao-aberta");
   // A mensagem de pos-venda (fase 2) tem outro caminho no ML, outra trava e outro limite: `posVenda.js`.
   if (linha.tipo === "POS_VENDA") return enviarMensagemDePosVenda({ linha, por, via, ml, env, agora });
+  // A mensagem de reclamacao (fase 3): outro caminho, outra trava, e o destinatario e o que o ML libera: `reclamacoes.js`.
+  if (linha.tipo === "RECLAMACAO") return enviarMensagemDeReclamacao({ linha, por, via, ml, env, agora });
   if (linha.tipo !== "PERGUNTA") return recusa("nao-aberta");
   const texto = String(linha.rascunho ?? "").trim();
   if (!texto) return recusa("sem-rascunho");
