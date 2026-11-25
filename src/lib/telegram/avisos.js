@@ -457,6 +457,7 @@ const CALCULO = {
   // A pergunta do ML tem botoes proprios: quem a manda e `avisarPerguntasNovas` (atendimentoML/telegram.js). Aqui o tipo
   // so existe para o interruptor da aba Canais.
   perguntaML: () => [],
+  mensagemML: () => [],
 };
 
 /** Os avisos devidos de um tipo, ainda SEM o destinatario (a chave final e `<chave>:<chatId>`). */

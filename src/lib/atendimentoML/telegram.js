@@ -10,6 +10,7 @@ import { linkAbrirNoRise, neutralizar, trechoSeguro } from "@/lib/telegram/texto
 import { ignorarAtendimento, lerAtendimento, salvarRascunho } from "./banco";
 import { enviarResposta } from "./enviar";
 import { textoDoBarrado } from "./filtro";
+import { LIMITE_PADRAO_DE_MENSAGEM, textoDoBloqueio } from "./posVenda";
 import { sugerirResposta } from "./sugerir";
 
 /**
@@ -26,8 +27,11 @@ import { sugerirResposta } from "./sugerir";
  * Quem publica no ML continua sendo so `enviarResposta` (a mesma trava, o mesmo filtro, o mesmo envio unico).
  */
 
-const TIPO = "perguntaML";
+// O tipo de aviso (o interruptor da aba Canais) e o cabecalho de cada tipo de atendimento. Fase 2: a mensagem de pos-venda.
+const TIPO_DO_AVISO = { PERGUNTA: "perguntaML", POS_VENDA: "mensagemML" };
+const PREFIXO_DA_CHAVE = { PERGUNTA: "pergunta-ml", POS_VENDA: "mensagem-ml" };
 const CABECALHO = "Pergunta no Mercado Livre";
+const CABECALHO_DA_MENSAGEM = "Mensagem de comprador no Mercado Livre";
 const DICA = "Para responder, toque em Escrever / Editar na pergunta.";
 const TRES_DIAS_MS = 3 * 24 * 60 * 60 * 1000;
 const MAXIMO_POR_VOLTA = 10;
@@ -42,13 +46,22 @@ const VIA = { RISE: "pelo Rise", TELEGRAM: "pelo Telegram", MCP: "pelo assistent
 
 /** O corpo do aviso: o cabecalho, o anuncio (com "Kit de N") e a pergunta do comprador, mascarada e sem virar link. */
 function corpoDoAviso(linha) {
+  if (linha.tipo === "POS_VENDA") {
+    // So o que o dono precisa para reconhecer a venda: o numero do pedido e o item. Nenhum dado do comprador.
+    const numero = trechoSeguro(linha.pedido?.numero ?? linha.idExterno ?? "", 30);
+    const item = linha.pedido?.primeiroItem ? `: ${trechoSeguro(linha.pedido.primeiroItem, 80)}${linha.pedido.itens > 1 ? ` e mais ${linha.pedido.itens - 1}` : ""}` : " (fora do Rise)";
+    const bloqueio = textoDoBloqueio(linha.bloqueio);
+    return [CABECALHO_DA_MENSAGEM, `Pedido ${numero}${item}`, `“${trechoSeguro(linha.textoDoCliente, 600)}”`, ...(bloqueio ? [bloqueio] : [])].join("\n");
+  }
   const kit = Number(linha.anuncio?.unidadesDoKit) > 1 ? ` (Kit de ${linha.anuncio.unidadesDoKit})` : "";
   const anuncio = linha.anuncio?.titulo ? `${trechoSeguro(linha.anuncio.titulo, 90)}${kit}` : `Anúncio ${trechoSeguro(linha.itemId ?? "", 20)} (fora do Rise)`;
   return [CABECALHO, anuncio, `“${trechoSeguro(linha.textoDoCliente, 600)}”`].join("\n");
 }
 
-function botoesDoAviso(id, urlPublica) {
-  const link = linkAbrirNoRise(urlPublica, "/atendimento");
+function botoesDoAviso(id, urlPublica, linha = null) {
+  const link = linkAbrirNoRise(urlPublica, linha?.tipo === "POS_VENDA" ? "/atendimento?tipo=mensagens" : "/atendimento");
+  // Conversa que o ML bloqueou: nao ha o que responder, so tirar das abertas ou abrir no Rise.
+  if (linha?.bloqueio) return [[botao("Ignorar", id, "i"), ...(link ? [{ texto: "Abrir no Rise", url: link }] : [])]];
   return [
     [botao("Sugerir com IA", id, "s"), botao("Escrever / Editar", id, "e")],
     [botao("Ignorar", id, "i"), ...(link ? [{ texto: "Abrir no Rise", url: link }] : [])],
@@ -85,12 +98,17 @@ async function fotoDoProduto(produtoId, lerFoto) {
 export async function avisarPerguntasNovas({ cliente = null, agora = Date.now(), env = process.env, configuracao = null, autorizados = null, lerFoto = lerFotoDoDisco, soPrefixo = null, urlPublica = env.APP_URL_PUBLICA } = {}) {
   try {
     const config = configuracao ?? (await lerConfiguracao());
-    if (!config.telegram?.ligado || !config.telegram.avisos?.[TIPO]) return { ok: true, mandados: 0, falhas: 0, motivo: "desligado" };
+    // Cada tipo de atendimento tem o seu interruptor na aba Canais (pergunta e mensagem de pos-venda).
+    const tiposLigados = Object.keys(TIPO_DO_AVISO).filter((tipo) => config.telegram?.avisos?.[TIPO_DO_AVISO[tipo]]);
+    if (!config.telegram?.ligado || tiposLigados.length === 0) return { ok: true, mandados: 0, falhas: 0, motivo: "desligado" };
     const abertas = await prisma.atendimentoML.findMany({
-      where: { tipo: "PERGUNTA", status: "ABERTA", recebidaEm: { gte: new Date(agora - TRES_DIAS_MS) }, ...(soPrefixo ? { idExterno: { startsWith: soPrefixo } } : {}) },
+      where: { tipo: { in: tiposLigados }, status: "ABERTA", recebidaEm: { gte: new Date(agora - TRES_DIAS_MS) }, ...(soPrefixo ? { idExterno: { startsWith: soPrefixo } } : {}) },
       orderBy: { recebidaEm: "asc" },
-      select: { id: true },
+      select: { id: true, tipo: true, ultimaDoClienteId: true },
     });
+    // A chave do aviso. Na conversa de pos-venda entra a ultima mensagem do comprador: mensagem nova (com a conversa
+    // aberta, ou reabrindo a linha) e aviso novo.
+    const chaveDe = (aberta, chat) => (aberta.tipo === "POS_VENDA" ? `${PREFIXO_DA_CHAVE.POS_VENDA}:${aberta.id}:${aberta.ultimaDoClienteId ?? ""}:${chat}` : `${PREFIXO_DA_CHAVE.PERGUNTA}:${aberta.id}:${chat}`);
     if (abertas.length === 0) return { ok: true, mandados: 0, falhas: 0 };
     const chats = [...(autorizados ? await autorizados() : await chatsAutorizados({ env }))].sort();
     if (chats.length === 0) return { ok: true, mandados: 0, falhas: 0, motivo: "sem-destinatario" };
@@ -100,19 +118,21 @@ export async function avisarPerguntasNovas({ cliente = null, agora = Date.now(),
     // A linha de `AvisoTelegram` so nasce quando a mensagem SAIU (ou quando o chat bloqueou o bot): a rotina comum dos
     // avisos reenvia toda linha pendente como texto simples, e a pergunta sem os botoes nao serviria. O que falhou
     // fica sem linha e tenta de novo na volta seguinte.
-    const jaTratados = await prisma.avisoTelegram.findMany({ where: { tipo: TIPO, chave: { in: abertas.flatMap((a) => chats.map((chat) => `pergunta-ml:${a.id}:${chat}`)) } }, select: { chave: true } });
+    const jaTratados = await prisma.avisoTelegram.findMany({ where: { tipo: { in: Object.values(TIPO_DO_AVISO) }, chave: { in: abertas.flatMap((a) => chats.map((chat) => chaveDe(a, chat))) } }, select: { chave: true } });
     const tratadas = new Set(jaTratados.map((aviso) => aviso.chave));
     let mandados = 0;
     let falhas = 0;
-    for (const { id } of abertas) {
+    for (const aberta of abertas) {
+      const { id } = aberta;
+      const TIPO = TIPO_DO_AVISO[aberta.tipo];
       for (const chatId of chats) {
         if (mandados + falhas >= MAXIMO_POR_VOLTA) return { ok: true, mandados, falhas };
-        const chave = `pergunta-ml:${id}:${chatId}`;
+        const chave = chaveDe(aberta, chatId);
         if (tratadas.has(chave)) continue;
         const linha = await lerAtendimento(id);
         if (!linha || linha.status !== "ABERTA") continue;
         const texto = corpoDoAviso(linha);
-        const botoes = botoesDoAviso(id, urlPublica);
+        const botoes = botoesDoAviso(id, urlPublica, linha);
         const foto = await fotoDoProduto(linha.produtoId, lerFoto);
         let envio = foto ? await bot.enviarFotoComBotoes(chatId, foto, texto, { botoes }) : null;
         // Sem foto, ou com a foto recusada: o texto sai do mesmo jeito. Chat que bloqueou o bot nao ganha a 2a tentativa.
@@ -201,19 +221,24 @@ export function criarTratadoresDoAtendimento({ ml = null, env = process.env, sug
     const casou = DADOS.exec(String(evento?.data ?? ""));
     if (!casou) return void (await cliente.responderAoClique(evento.id, "Botão desconhecido."));
     const [, id, acao] = casou;
-    const linha = await prisma.atendimentoML.findUnique({ where: { id }, select: { id: true, status: true, tipo: true, rascunho: true, textoDoCliente: true, telegramChatId: true } });
-    if (!linha || linha.tipo !== "PERGUNTA") return void (await cliente.responderAoClique(evento.id, "Pergunta não encontrada."));
+    const linha = await prisma.atendimentoML.findUnique({ where: { id }, select: { id: true, status: true, tipo: true, rascunho: true, textoDoCliente: true, telegramChatId: true, bloqueio: true, limite: true } });
+    if (!linha || !TIPO_DO_AVISO[linha.tipo]) return void (await cliente.responderAoClique(evento.id, "Pergunta não encontrada."));
+    const posVenda = linha.tipo === "POS_VENDA";
     if (linha.status !== "ABERTA") {
-      await cliente.responderAoClique(evento.id, "Esta pergunta não está mais aberta.");
+      await cliente.responderAoClique(evento.id, posVenda ? "Esta mensagem não está mais aberta." : "Esta pergunta não está mais aberta.");
       return void (await atualizarAvisoFechado(id, { cliente }));
     }
+    // Conversa bloqueada pelo ML: o aviso nem traz estes botoes; um clique antigo ou forjado so recebe o motivo.
+    if (posVenda && linha.bloqueio && acao !== "i") return void (await cliente.responderAoClique(evento.id, textoDoBloqueio(linha.bloqueio)));
+    // Na mensagem de pos-venda a previa diz o tamanho contra o limite do ML (350): no celular nao ha contador.
+    const medida = (texto) => (posVenda ? ` (${String(texto ?? "").length} de ${linha.limite ?? LIMITE_PADRAO_DE_MENSAGEM})` : "");
     const por = (await loginDoChat(chatId, { env })) ?? "telegram";
 
     if (acao === "s") {
       await cliente.responderAoClique(evento.id, "Pedindo a sugestão…");
       const resultado = await sugerirResposta(id, { por, ml: mercadoLivre(), ...sugestao });
       if (!resultado.ok) return void (await cliente.enviarComBotoes(chatId, neutralizar(resultado.mensagem), { botoes: [[botao("Escrever / Editar", id, "e")]] }));
-      return void (await mostrarRascunho(cliente, chatId, id, "Sugestão da IA:", resultado.texto, resultado.barrados));
+      return void (await mostrarRascunho(cliente, chatId, id, `Sugestão da IA${medida(resultado.texto)}:`, resultado.texto, resultado.barrados));
     }
 
     if (acao === "e") {
@@ -223,7 +248,7 @@ export function criarTratadoresDoAtendimento({ ml = null, env = process.env, sug
         const atual = comRascunho("Rascunho atual (toque para copiar):", linha.rascunho);
         await cliente.enviarComBotoes(chatId, atual.texto, { entidades: atual.entidades });
       }
-      const pedido = await cliente.enviarComBotoes(chatId, `Escreva a resposta para esta pergunta:\n“${trechoSeguro(linha.textoDoCliente, 200)}”`, { forcarResposta: true, dica: "Sua resposta" });
+      const pedido = await cliente.enviarComBotoes(chatId, `Escreva a resposta para esta ${posVenda ? `mensagem (até ${linha.limite ?? LIMITE_PADRAO_DE_MENSAGEM} caracteres)` : "pergunta"}:\n“${trechoSeguro(linha.textoDoCliente, 200)}”`, { forcarResposta: true, dica: "Sua resposta" });
       if (pedido.ok && pedido.dados?.message_id) {
         await prisma.atendimentoML.updateMany({ where: { id, status: "ABERTA" }, data: { telegramPedidoId: pedido.dados.message_id, ...(linha.telegramChatId ? {} : { telegramChatId: chatId }) } });
       }
@@ -247,21 +272,23 @@ export function criarTratadoresDoAtendimento({ ml = null, env = process.env, sug
     }
 
     // acao === "i"
-    const feito = await ignorarAtendimento({ id, por });
-    await cliente.responderAoClique(evento.id, feito.ok ? "Ignorada." : "Esta pergunta não está mais aberta.");
+    const feito = await ignorarAtendimento({ id, por, ml: mercadoLivre() });
+    await cliente.responderAoClique(evento.id, feito.ok ? "Ignorada." : posVenda ? "Esta mensagem não está mais aberta." : "Esta pergunta não está mais aberta.");
     await atualizarAvisoFechado(id, { cliente });
   }
 
   async function texto(mensagem, { cliente, chatId }) {
     const respondeA = mensagem?.reply_to_message?.message_id;
-    const linha = Number.isInteger(respondeA) ? await prisma.atendimentoML.findFirst({ where: { tipo: "PERGUNTA", status: "ABERTA", telegramPedidoId: respondeA, OR: [{ telegramChatId: chatId }, { telegramChatId: null }] }, select: { id: true } }) : null;
+    const linha = Number.isInteger(respondeA) ? await prisma.atendimentoML.findFirst({ where: { tipo: { in: Object.keys(TIPO_DO_AVISO) }, status: "ABERTA", telegramPedidoId: respondeA, OR: [{ telegramChatId: chatId }, { telegramChatId: null }] }, select: { id: true, tipo: true, limite: true } }) : null;
     // Texto solto, ou resposta a outra mensagem: nunca e comando. Uma linha de dica e nada no banco.
     if (!linha) return void (await cliente.enviarComBotoes(chatId, DICA));
     const por = (await loginDoChat(chatId, { env })) ?? "telegram";
     const salvo = await salvarRascunho({ id: linha.id, texto: String(mensagem.text ?? ""), origem: "DONO", por });
-    if (salvo.motivo === "nao-aberta") return void (await cliente.enviarComBotoes(chatId, "Esta pergunta não está mais aberta."));
+    const posVenda = linha.tipo === "POS_VENDA";
+    if (salvo.motivo === "nao-aberta") return void (await cliente.enviarComBotoes(chatId, posVenda ? "Esta mensagem não está mais aberta." : "Esta pergunta não está mais aberta."));
     await prisma.atendimentoML.updateMany({ where: { id: linha.id, telegramPedidoId: respondeA }, data: { telegramPedidoId: null } });
-    await mostrarRascunho(cliente, chatId, linha.id, "Vai ficar assim:", String(mensagem.text ?? "").trim(), salvo.barrados);
+    const escrito = String(mensagem.text ?? "").trim();
+    await mostrarRascunho(cliente, chatId, linha.id, posVenda ? `Vai ficar assim (${escrito.length} de ${linha.limite ?? LIMITE_PADRAO_DE_MENSAGEM}):` : "Vai ficar assim:", escrito, salvo.barrados);
   }
 
   return { clique, texto };

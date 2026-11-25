@@ -958,6 +958,91 @@ try {
     }
   }
 
+  // ---------------------------------------------------------------------------------------------------------------
+  console.log("\n# Fase 2, tarefa 6: a mensagem de pos-venda no Telegram");
+  {
+    const { criarClienteTelegram } = await import("../src/lib/telegram/cliente.js");
+    const { TIPOS_DE_AVISO, ROTULO_DO_AVISO } = await import("../src/lib/telegram/avisosTipos.js");
+    const { avisarPerguntasNovas, criarTratadoresDoAtendimento } = await import("../src/lib/atendimentoML/telegram.js");
+    const { lerAtendimento } = await import("../src/lib/atendimentoML/banco.js");
+    const pv = await import("../src/lib/atendimentoML/posVenda.js");
+    const { criarTelegramFalso } = await import("./lib/telegramFalso.js");
+    const { criarMlPerguntasFalso } = await import("./lib/mlPerguntasFalso.js");
+    const TOKEN = `123456789:${"A".repeat(35)}`;
+    const CHAT = "990000002";
+    const limparTg = async () => {
+      await prisma.avisoTelegram.deleteMany({ where: { chatId: { startsWith: "9900000" } } });
+      await prisma.usuarioRise.deleteMany({ where: { login: { startsWith: "zz-atd-" } } });
+    };
+    await limparTg();
+    try {
+      conferir("o tipo de aviso da mensagem existe, com rotulo", [TIPOS_DE_AVISO.includes("mensagemML"), ROTULO_DO_AVISO.mensagemML], [true, "Mensagem de comprador no Mercado Livre"]);
+      const adminFn = await prisma.funcaoRise.upsert({ where: { nome: "Administrador" }, update: {}, create: { nome: "Administrador", descricao: "Vê e edita tudo.", fixa: true } });
+      await prisma.usuarioRise.create({ data: { login: "zz-atd-dono", nome: "ZZ ATD Dono", telegramChatId: CHAT, funcoes: { create: [{ funcaoId: adminFn.id }] } } });
+      const env = { RISE_PRODUCAO: "1", ML_RESPONDER_MENSAGENS: "true" };
+      const autorizados = async () => new Set([CHAT]);
+      const ligado = { telegram: { ligado: true, avisos: { perguntaML: true, mensagemML: true } } };
+
+      const ml = criarMlPerguntasFalso();
+      const falso = criarTelegramFalso();
+      const cliente = criarClienteTelegram({ token: TOKEN, requisitar: falso.requisitar, urlPublica: "https://rise.exemplo" });
+      const rodar = () => pv.rodarPosVendaML({ ml, soPrefixo: "ZZ-ATD-" });
+      await criarPedidoDeTeste({ idExterno: "ZZ-ATD-O40", packId: "ZZ-ATD-P40" });
+      ml.porConversa("ZZ-ATD-P40", { mensagens: [{ de: "C", texto: "Quando chega? Me chama no zap @fulano" }] });
+      ml.naoLidas.add("ZZ-ATD-P40");
+      await rodar();
+      const id = (await linhaDoPack("ZZ-ATD-P40")).id;
+      const avisar = (extra = {}) => avisarPerguntasNovas({ cliente, env, configuracao: ligado, autorizados, soPrefixo: "ZZ-ATD-", urlPublica: "https://rise.exemplo", ...extra });
+      const ultima = () => falso.mensagens.at(-1);
+      const dados = (mensagem) => (mensagem.reply_markup?.inline_keyboard ?? []).flat().map((b) => b.callback_data ?? b.url);
+
+      conferir("aviso de mensagem desmarcado: nada sai (o das perguntas nao serve)", (await avisar({ configuracao: { telegram: { ligado: true, avisos: { perguntaML: true, mensagemML: false } } } })).mandados, 0);
+      const primeira = await avisar();
+      const aviso = falso.mensagens[0];
+      conferir("o aviso da mensagem: cabecalho, pedido, item e o texto neutralizado", [primeira.mandados, aviso.text.split("\n")[0], aviso.text.includes("ZZ-ATD-O40"), aviso.text.includes("ZZ ATD Sensor"), aviso.text.includes("Quando chega?"), aviso.text.includes("@fulano"), aviso.text.includes("Fulano Zzatd")], [1, "Mensagem de comprador no Mercado Livre", true, true, true, false, false]);
+      conferir("os botoes, com o Abrir no Rise na aba Mensagens", dados(aviso), [`at:${id}:s`, `at:${id}:e`, `at:${id}:i`, "https://rise.exemplo/atendimento?tipo=mensagens"]);
+      conferir("a segunda rodada nao repete", [(await avisar()).mandados, falso.mensagens.length, (await lerAtendimento(id)).telegramMensagemId], [0, 1, 1]);
+
+      ml.escrever("ZZ-ATD-P40", "C", "Alguém aí?");
+      await rodar();
+      conferir("comprador escreve de novo com a conversa ainda aberta: sai aviso novo", [(await avisar()).mandados, ultima().text.includes("Alguém aí?")], [1, true]);
+
+      const tratadores = criarTratadoresDoAtendimento({ ml, env, sugestao: {} });
+      let n = 0;
+      const clicar = (acao, alvo = id) => tratadores.clique({ id: `cqp${++n}`, data: `at:${alvo}:${acao}`, from: { id: Number(CHAT) }, message: { message_id: 1, chat: { id: Number(CHAT) }, text: "Mensagem de comprador no Mercado Livre" } }, { cliente, chatId: CHAT });
+      const escrever = (text, responderA) => tratadores.texto({ message_id: 700 + ++n, chat: { id: Number(CHAT), type: "private" }, text, reply_to_message: { message_id: responderA } }, { cliente, chatId: CHAT });
+
+      await clicar("e");
+      conferir("Escrever / Editar abre o campo de resposta da mensagem", [ultima().reply_markup.force_reply, ultima().text.startsWith("Escreva a resposta")], [true, true]);
+      await escrever("c".repeat(351), falso.mensagens.length);
+      conferir("351 caracteres no chat: nao oferece o envio e diz o limite", [ultima().text.includes("351 de 350"), dados(ultima())], [true, [`at:${id}:e`]]);
+      await clicar("e");
+      const texto = "Olá! Seu pedido foi postado hoje.";
+      await escrever(texto, falso.mensagens.length);
+      conferir("a previa mostra o tamanho contra o limite do ML", [ultima().text.startsWith(`Vai ficar assim (${texto.length} de 350):`), dados(ultima())], [true, [`at:${id}:v`, `at:${id}:e`]]);
+      await clicar("v");
+      const enviada = await lerAtendimento(id);
+      conferir("Enviar pelo botao: um POST de mensagem", [ml.mensagensEnviadas.length, ml.mensagensEnviadas[0]?.text, enviada.status, enviada.respondidaVia], [1, texto, "RESPONDIDA", "TELEGRAM"]);
+
+      ml.escrever("ZZ-ATD-P40", "C", "Obrigado! E a nota fiscal?");
+      await rodar();
+      conferir("linha reaberta ganha aviso novo", [(await lerAtendimento(id)).status, (await avisar()).mandados, ultima().text.includes("E a nota fiscal?")], ["ABERTA", 1, true]);
+
+      ml.porConversa("ZZ-ATD-P41", { status: "blocked", substatus: "blocked_by_cancelled_order", mensagens: [{ de: "C", texto: "Cancelei sem querer" }] });
+      ml.naoLidas.add("ZZ-ATD-P41");
+      await rodar();
+      const bloqueada = (await linhaDoPack("ZZ-ATD-P41")).id;
+      await avisar();
+      conferir("conversa bloqueada: o aviso diz o motivo e so oferece Ignorar e Abrir", [ultima().text.includes("O pedido foi cancelado"), dados(ultima())], [true, [`at:${bloqueada}:i`, "https://rise.exemplo/atendimento?tipo=mensagens"]]);
+      await clicar("s", bloqueada);
+      conferir("clique forjado de resposta na bloqueada: so o motivo", [falso.cliques.at(-1).text.includes("O pedido foi cancelado"), (await lerAtendimento(bloqueada)).rascunho], [true, null]);
+    } finally {
+      await limparTg();
+      await limparOResto();
+      await limpar();
+    }
+  }
+
   // MARCADOR: blocos novos entram acima desta linha.
 } finally {
   await limpar();
