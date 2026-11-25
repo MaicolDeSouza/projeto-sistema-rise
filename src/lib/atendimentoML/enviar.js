@@ -48,13 +48,14 @@ const recusa = (motivo, extra = {}) => ({ ok: false, motivo, mensagem: MENSAGEM[
  * @param {{ id: string, por: string, via: "RISE" | "TELEGRAM" | "MCP", ml?: object, env?: object, agora?: Date }} entrada
  * @returns {Promise<{ ok: true } | { ok: false, motivo: string, mensagem: string, barrados?: object[] }>}
  */
-export async function enviarResposta({ id, por, via, ml = clienteML(), env = process.env, agora = new Date() }) {
+export async function enviarResposta({ id, por, via, ml = clienteML(), env = process.env, agora = new Date(), visto = null }) {
   const linha = await prisma.atendimentoML.findUnique({ where: { id: String(id ?? "") } });
   if (!linha || linha.status !== "ABERTA") return recusa("nao-aberta");
   // A mensagem de pos-venda (fase 2) tem outro caminho no ML, outra trava e outro limite: `posVenda.js`.
   if (linha.tipo === "POS_VENDA") return enviarMensagemDePosVenda({ linha, por, via, ml, env, agora });
   // A mensagem de reclamacao (fase 3): outro caminho, outra trava, e o destinatario e o que o ML libera: `reclamacoes.js`.
-  if (linha.tipo === "RECLAMACAO") return enviarMensagemDeReclamacao({ linha, por, via, ml, env, agora });
+  // `visto` (so a reclamacao usa): para quem a mensagem ia e qual era a ultima mensagem quando a pessoa leu a conversa.
+  if (linha.tipo === "RECLAMACAO") return enviarMensagemDeReclamacao({ linha, por, via, ml, env, agora, visto });
   if (linha.tipo !== "PERGUNTA") return recusa("nao-aberta");
   const texto = String(linha.rascunho ?? "").trim();
   if (!texto) return recusa("sem-rascunho");

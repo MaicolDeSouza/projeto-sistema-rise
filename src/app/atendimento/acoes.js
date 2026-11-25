@@ -85,12 +85,15 @@ export async function sugerirAcao(id) {
 }
 
 /** Grava o texto que esta na tela e envia: o dono aprova exatamente o que le. */
-export async function enviarAcao(id, texto) {
+export async function enviarAcao(id, texto, visto = null) {
   if (!ehId(id) || typeof texto !== "string") return INVALIDO;
+  // Reclamacao: o que a janela mostrou (para quem ia e a ultima mensagem). So texto curto ou nulo passa.
+  const curto = (valor) => (typeof valor === "string" && valor.length <= 120 ? valor : null);
+  const oQueViu = visto && typeof visto === "object" ? { destinatario: curto(visto.destinatario), ultima: curto(visto.ultima) } : null;
   return negarSemAcessoOuFazer(async (por) => {
     const salvo = await salvarRascunho({ id, texto, origem: "DONO", por });
     if (salvo.motivo === "nao-aberta") return { ok: false, erro: NAO_ABERTA };
-    const envio = await enviarResposta({ id, por, via: "RISE" });
+    const envio = await enviarResposta({ id, por, via: "RISE", visto: oQueViu });
     revalidatePath("/atendimento");
     // O aviso da pergunta no Telegram perde os botoes (nunca lanca; sem bot nao faz nada).
     const fechada = envio.motivo === "fechada-fora" || envio.motivo === "fechada";

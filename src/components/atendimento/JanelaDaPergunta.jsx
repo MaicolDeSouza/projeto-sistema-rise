@@ -150,7 +150,7 @@ export default function JanelaDaPergunta({ linha, aoFechar }) {
 
   function enviar() {
     rodar("enviar", async () => {
-      const resposta = await enviarAcao(linha.id, texto);
+      const resposta = await enviarAcao(linha.id, texto, detalhes?.visto ?? null);
       setConfirmando(false);
       if (!resposta?.ok) {
         setBarrados(resposta?.barrados ?? []);

@@ -357,6 +357,7 @@ const MENSAGEM = {
   "mensagem-nova": "Chegou mensagem nova na reclamação. Confira a conversa antes de enviar.",
 };
 const recusa = (motivo, extra = {}) => ({ ok: false, motivo, mensagem: MENSAGEM[motivo] ?? "Não foi possível enviar.", ...extra });
+const MENSAGEM_DA_ETAPA = (destinatario) => (destinatarioEmTexto(destinatario) ? `A reclamação mudou de etapa: agora a mensagem vai para o ${destinatarioEmTexto(destinatario)}. Confira o texto antes de enviar.` : BLOQUEIOS["sem-acao"]);
 
 /**
  * O ENVIO UNICO da mensagem de reclamacao (chamado por `enviarResposta`, que ja conferiu linha ABERTA). Ordem: filtro ->
@@ -368,9 +369,15 @@ const recusa = (motivo, extra = {}) => ({ ok: false, motivo, mensagem: MENSAGEM[
  *
  * @returns {Promise<{ ok: true } | { ok: false, motivo: string, mensagem: string, barrados?: object[] }>}
  */
-export async function enviarMensagemDeReclamacao({ linha, por, via, ml = clienteML(), env = process.env, agora = new Date() }) {
+export async function enviarMensagemDeReclamacao({ linha, por, via, ml = clienteML(), env = process.env, agora = new Date(), visto = null }) {
   const mensagem = String(linha.rascunho ?? "").trim();
   if (!mensagem) return recusa("sem-rascunho");
+  // A rotina do worker pode ter atualizado a linha (etapa nova, mensagem nova) com a janela aberta ou entre o preparo e o
+  // envio do assistente: o que a pessoa viu ja nao e o que a linha diz, e nada sai sem ela conferir.
+  if (visto) {
+    if ((visto.destinatario ?? null) !== (linha.destinatario ?? null)) return recusa("etapa-mudou", { mensagem: MENSAGEM_DA_ETAPA(linha.destinatario) });
+    if (String(visto.ultima ?? "") !== String(linha.ultimaDoClienteId ?? "")) return recusa("mensagem-nova");
+  }
   const filtro = filtrarResposta({ texto: mensagem, origem: linha.rascunhoOrigem === "IA" ? "IA" : "DONO", linksDaTroca: [], limite: LIMITE_DA_RECLAMACAO });
   if (!filtro.ok) return recusa("filtro", { mensagem: textoDoBarrado(filtro.barrados[0]), barrados: filtro.barrados });
   if (!mensagemDeReclamacaoLiberada(env)) return recusa("trava");
@@ -396,7 +403,7 @@ export async function enviarMensagemDeReclamacao({ linha, por, via, ml = cliente
     if (!resumo.aguardaResposta) return await parar("fechada-fora");
     if (!resumo.destinatario) return await parar("sem-acao");
     if (resumo.destinatario !== linha.destinatario) {
-      return await parar("etapa-mudou", { mensagem: `A reclamação mudou de etapa: agora a mensagem vai para o ${destinatarioEmTexto(resumo.destinatario)}. Confira o texto antes de enviar.` });
+      return await parar("etapa-mudou", { mensagem: MENSAGEM_DA_ETAPA(resumo.destinatario) });
     }
     if (resumo.ultimaDeForaId !== linha.ultimaDoClienteId) return await parar("mensagem-nova");
     destinatario = resumo.destinatario;

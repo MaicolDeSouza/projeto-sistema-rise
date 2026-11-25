@@ -50,6 +50,8 @@ export async function detalhesDaReclamacao(id, { ml = null, env = process.env } 
     respondidaVia: atendimento.respondidaVia,
     respondidaEm: atendimento.respondidaEm?.toISOString() ?? null,
     etapa: etapaEmTexto(atendimento.etapa),
+    // O que a janela mostrou: volta no Enviar, e o envio recusa se a linha mudou enquanto ela estava aberta.
+    visto: { destinatario: atendimento.destinatario ?? null, ultima: atendimento.ultimaDoClienteId ?? null },
     emMediacao: atendimento.etapa === "dispute",
     destinatario: destinatarioEmTexto(atendimento.destinatario),
     prazoEm: atendimento.prazoEm?.toISOString() ?? null,
