@@ -912,8 +912,8 @@ function descreverAjuste(movimento) {
  * 04/10/2026, §4.3). `preco`, `custo` e `observacoes` sao opcionais e ficam de fora ate o teste real
  * (Tarefa 12) dizer se fazem falta; nada de `actionEstoque` nem de outra chave do produto (Emenda 11).
  *
- * O balanco (`B`) define o saldo FISICO do deposito; o Rise mostra o virtual (descontadas as reservas),
- * por isso o saldo e relido no fim.
+ * O balanco (`B`) define o saldo FISICO do deposito; quem chama ja trocou a contagem pelo fisico que deixa o virtual
+ * na contagem (`balancoPeloVirtual`), e o saldo e relido no fim.
  */
 function corpoDoAjuste(idProduto, idDeposito, movimento, oQue) {
   const operacao = OPERACAO_DO_AJUSTE[movimento.tipo];
@@ -983,6 +983,36 @@ async function marcarEnviados(movimentos, feito) {
         "confira o saldo no Bling antes de enviar de novo, senão o lançamento iria duas vezes.",
     );
   }
+}
+
+/**
+ * O balanco do Rise define o saldo VIRTUAL (o disponivel), nao o fisico (pedido do dono em 25/11/2026: "hoje geramos
+ * pedido no bling, ele da baixa e depois geramos NF sem afetar o estoque"). Na 4hobby o pedido do Bling fica "Em aberto"
+ * para sempre e a reserva dele E a baixa; a contagem da prateleira e o que sobra depois dela. O `B` do Bling, porem, grava
+ * o FISICO do deposito: o 121607 contado em 14, com 447 reservados, ficou com virtual -433. Aqui o Rise le os saldos ANTES
+ * e manda o fisico que deixa o virtual total igual a contagem: contagem + reservas - o fisico dos outros depositos (o
+ * Virtual das compras do AliExpress). As reservas sao `saldoFisicoTotal - saldoVirtualTotal`, a conta do proprio Bling.
+ * Ate 25/11/2026 o balanco ia como fisico e o Rise mostrava "contagem - reservas" (regra de 09/11/2026, que saiu).
+ * Sem conseguir ler, nada e lancado (lanca `FalhaDoEnvio`): mandar a contagem crua seria o erro de antes.
+ */
+async function balancoPeloVirtual(cliente, idNoBling, idDeposito, liquido, oQue) {
+  const resposta = await ler(cliente, "/estoques/saldos", { "idsProdutos[]": [idNoBling] }, `a leitura do saldo antes de ${oQue}`);
+  const item = (resposta.dados?.data ?? []).find((candidato) => idOuNull(candidato?.produto?.id) === idNoBling);
+  const fisicoTotal = Number(item?.saldoFisicoTotal);
+  const virtualTotal = Number(item?.saldoVirtualTotal);
+  if (!item || !Number.isFinite(fisicoTotal) || !Number.isFinite(virtualTotal)) {
+    throw new FalhaDoEnvio(`O Bling não devolveu o saldo deste produto antes de ${oQue}, então nada foi enviado. Tente de novo.`);
+  }
+  const noDeposito = (item.depositos ?? []).find((outro) => idOuNull(outro?.id) === idDeposito);
+  const fisicoDoDeposito = Number(noDeposito?.saldoFisico ?? 0);
+  const reservado = fisicoTotal - virtualTotal;
+  const fisico = Number(liquido.quantidade) + reservado - (fisicoTotal - (Number.isFinite(fisicoDoDeposito) ? fisicoDoDeposito : 0));
+  if (!Number.isFinite(fisico) || fisico < 0) {
+    throw new FalhaDoEnvio(
+      `Não foi possível enviar ${oQue}: para o disponível ficar em ${liquido.quantidade}, o físico do depósito teria de ser ${fisico} (os outros depósitos já têm mais). Nada foi enviado.`,
+    );
+  }
+  return { ...liquido, quantidade: fisico };
 }
 
 /**
@@ -1107,7 +1137,8 @@ async function lancarPendentes(cliente, produto, opcoes, saida, estado, achadoAn
   if (deposito.precisaDeposito) return { precisaDeposito: deposito.precisaDeposito };
 
   const oQue = `o lançamento de ${descreverAjuste(liquido)} (o total de ${pendentes.length} ajuste(s) pendente(s))`;
-  const corpo = corpoDoAjuste(achado.id, deposito.id, liquido, oQue);
+  const lancado = liquido.tipo === "BALANCO" ? await balancoPeloVirtual(cliente, achado.id, deposito.id, liquido, oQue) : liquido;
+  const corpo = corpoDoAjuste(achado.id, deposito.id, lancado, oQue);
   estado.tentou = true;
   let aceito = false;
   try {

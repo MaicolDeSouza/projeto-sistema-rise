@@ -2404,18 +2404,59 @@ try {
       conferir("kit com estoque PROPRIO (F): o ajuste vai normalmente", [enviado.ok, postsDeEstoque(falsoFisico).length, await marcados(fisico.id)], [true, 1, [true]]);
     }
 
-    // --- BALANCO 12: operacao B, quantidade 12; a releitura traz o saldo VIRTUAL ---
+    // --- BALANCO 12 define o VIRTUAL (pedido do dono em 25/11/2026): com 2 de reserva, o B vai com o fisico 14 ---
     {
       const produto = await criarComPendentes("ZZ-BS-K2", [["BALANCO", 12]]);
       // Codigo em outra caixa no Bling, e 2 de reserva (fisico 5, virtual 3).
       const falso = novoFalso({ produtos: [noBling("zz-bs-k2")], saldos: { "zz-bs-k2": { virtual: 3, fisico: 5 } } });
       const resultado = await enviarAjustesDeEstoque(produto.id, falso);
-      conferir("BALANCO 12: ok, um POST com operacao B e quantidade 12", [resultado, postsDeEstoque(falso).map((chamada) => chamada.corpo)], [{ ok: true, enviados: 1, restantes: 0 }, [lancamento("B", 12)]]);
+      conferir("BALANCO 12 com 2 reservados: ok, um POST com operacao B e o fisico 14 (12 + 2)", [resultado, postsDeEstoque(falso).map((chamada) => chamada.corpo)], [{ ok: true, enviados: 1, restantes: 0 }, [lancamento("B", 14)]]);
       conferir(
-        "o codigo do Bling em outra caixa e o mesmo produto, e a releitura grava o VIRTUAL (balanco define o fisico 12; menos 2 de reserva = 10)",
+        "o codigo do Bling em outra caixa e o mesmo produto, e a releitura grava o VIRTUAL, igual a contagem (12)",
         [(await ler(produto.id)).blingSaldo, (await marcados(produto.id))],
-        [10, [true]],
+        [12, [true]],
       );
+    }
+
+    // --- O caso do 121607 (25/11/2026): fisico 14, 447 reservados (virtual -433), contagem 14 -> B 461, virtual 14 ---
+    {
+      const produto = await criarComPendentes("ZZ-BS-K2B", [["BALANCO", 14]]);
+      const falso = novoFalso({ produtos: [noBling("ZZ-BS-K2B")], saldos: { "ZZ-BS-K2B": { virtual: -433, fisico: 14 } } });
+      const resultado = await enviarAjustesDeEstoque(produto.id, falso);
+      conferir(
+        "reserva maior que o fisico: o B vai com 461 e o virtual fica 14",
+        [resultado.ok, postsDeEstoque(falso).map((chamada) => chamada.corpo), (await ler(produto.id)).blingSaldo],
+        [true, [lancamento("B", 461)], 14],
+      );
+    }
+
+    // --- Outro deposito com fisico (o Virtual do AliExpress): ele conta no total, e o B do padrao desconta ---
+    {
+      const produto = await criarComPendentes("ZZ-BS-K2C", [["BALANCO", 10]]);
+      // Total: fisico 8 (5 no padrao + 3 no Virtual), 2 reservados, virtual 6.
+      const falso = novoFalso({ produtos: [noBling("ZZ-BS-K2C")], saldos: { "ZZ-BS-K2C": { virtual: 6, fisico: 8 } } });
+      const original = falso.get;
+      const cliente = {
+        ...falso,
+        get: async (caminho, params) => {
+          const resposta = await original(caminho, params);
+          if (caminho === "/estoques/saldos" && resposta?.dados?.data?.[0]) {
+            const item = resposta.dados.data[0];
+            item.depositos = [{ id: item.depositos[0].id, saldoFisico: 5, saldoVirtual: 3 }, { id: 999, saldoFisico: 3, saldoVirtual: 1 }];
+          }
+          return resposta;
+        },
+      };
+      const resultado = await enviarAjustesDeEstoque(produto.id, cliente);
+      conferir("com 3 no outro deposito: B do padrao = 10 + 2 - 3 = 9", [resultado.ok, postsDeEstoque(falso).map((chamada) => chamada.corpo)], [true, [lancamento("B", 9)]]);
+    }
+
+    // --- Sem conseguir ler o saldo antes, o balanco NAO vai (mandar a contagem crua seria o erro de antes) ---
+    {
+      const produto = await criarComPendentes("ZZ-BS-K2D", [["BALANCO", 10]]);
+      const falso = novoFalso({ produtos: [noBling("ZZ-BS-K2D")], saldos: { "ZZ-BS-K2D": 4 }, falhas: [{ metodo: "GET", caminho: "/estoques/saldos", status: 500, mensagem: "Erro interno" }] });
+      const resultado = await enviarAjustesDeEstoque(produto.id, falso);
+      conferir("saldo ilegivel: falha, nenhum POST e o balanco continua pendente", [resultado.ok, postsDeEstoque(falso).length, await marcados(produto.id)], [false, 0, [false]]);
     }
 
     // --- O Bling recusa o lancamento liquido (saida de 7 com 4 no Bling): nada marcado, os dois seguem pendentes ---
@@ -2459,7 +2500,7 @@ try {
       const falso = novoFalso({ produtos: [noBling("ZZ-BS-KG")], saldos: { "ZZ-BS-KG": 4 } });
       const resultado = await enviarAjustesDeEstoque(produto.id, falso);
       conferir(
-        "saida 3, balanco 10, entrada 2, saida 1: UM balanco de 11, os 4 marcados",
+        "saida 3, balanco 10, entrada 2, saida 1: UM balanco de 11 (sem reserva, o fisico e o proprio 11), os 4 marcados",
         [resultado, postsDeEstoque(falso).map((chamada) => chamada.corpo), await marcados(produto.id)],
         [{ ok: true, enviados: 4, restantes: 0 }, [lancamento("B", 11)], [true, true, true, true]],
       );
@@ -3002,16 +3043,16 @@ try {
       conferir("fora do Bling: o movimento existe, e o Bling so foi lido (sem trava de escrita, sem escrita)", [await pendentesDe(produto.id), falso.escritasExigidas, escritasDe(falso).length], [[["ENTRADA", 3, false]], [], 0]);
     }
 
-    // --- Balanco com reserva no Bling: o Rise termina igual ao saldo (virtual) que o Bling devolve ---
+    // --- Balanco com reserva no Bling: o disponivel fica na contagem (25/11/2026) e o Rise igual a ele ---
     {
       const produto = await criarComPendentes("ZZ-BS-AJA", []);
-      // 2 de reserva: fisico 5, virtual 3. O balanco define o fisico 12; o virtual fica 10.
+      // 2 de reserva: fisico 5, virtual 3. O B vai com 14 e o virtual fica 12, a contagem.
       const falso = criarBlingFalso({ produtos: [noBling("ZZ-BS-AJA")], saldos: { "ZZ-BS-AJA": { virtual: 3, fisico: 5 } } });
       const resultado = await ajustarESincronizar(produto.id, { tipo: "BALANCO", quantidade: 12 }, falso);
       conferir(
-        "BALANCO 12 com 2 reservados: enviado, e o estoque do Rise fica igual ao saldo relido do Bling (10)",
+        "BALANCO 12 com 2 reservados: enviado com o fisico 14, e o Rise e o Bling ficam em 12",
         [resultado.ok, resultado.bling, resultado.saldoAnterior, resultado.estoque, resultado.blingSaldo, postsDeEstoque(falso).map((chamada) => chamada.corpo), await estoqueE(produto.id)],
-        [true, "enviado", 3, 10, 10, [lancamento("B", 12)], [10, 10]],
+        [true, "enviado", 3, 12, 12, [lancamento("B", 14)], [12, 12]],
       );
     }
 

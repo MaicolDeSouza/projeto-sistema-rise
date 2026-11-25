@@ -55,8 +55,8 @@ export async function lerSaldoParaAjuste(produtoId, cliente = clienteBling()) {
 
 /**
  * Depois de um envio completo: o estoque do Rise passa a ser o saldo que o Bling devolveu na releitura. Quase sempre
- * ja e (o Rise contava o ajuste); muda no balanco com reserva, em que o Bling grava o fisico e devolve o virtual
- * (contagem 12 com 2 reservadas = 10), e o Rise mostra o virtual, igual ao Bling (regra do dono de 09/11/2026).
+ * ja e (o Rise contava o ajuste, e desde 25/11/2026 o balanco vai ao Bling ja somando as reservas, para o disponivel ficar
+ * na contagem); fica como rede para o Bling que devolve outro numero (uma reserva que mudou no meio).
  * A linha e travada, como em todo ajuste; com algum pendente (outro ajuste entrou no meio) nao mexe, porque o saldo
  * relido nao o contem. O kit nunca passa por aqui com ajuste (o Rise recusa antes).
  */
