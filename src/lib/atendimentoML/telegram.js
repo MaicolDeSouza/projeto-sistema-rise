@@ -123,11 +123,12 @@ export async function avisarPerguntasNovas({ cliente = null, agora = Date.now(),
     const abertas = await prisma.atendimentoML.findMany({
       where: { tipo: { in: tiposLigados }, status: "ABERTA", recebidaEm: { gte: new Date(agora - TRES_DIAS_MS) }, ...(soPrefixo ? { idExterno: { startsWith: soPrefixo } } : {}) },
       orderBy: { recebidaEm: "asc" },
-      select: { id: true, tipo: true, ultimaDoClienteId: true },
+      select: { id: true, tipo: true, ultimaDoClienteId: true, destinatario: true },
     });
     // A chave do aviso. Na conversa de pos-venda entra a ultima mensagem do comprador: mensagem nova (com a conversa
-    // aberta, ou reabrindo a linha) e aviso novo.
-    const chaveDe = (aberta, chat) => (aberta.tipo === "PERGUNTA" ? `${PREFIXO_DA_CHAVE.PERGUNTA}:${aberta.id}:${chat}` : `${PREFIXO_DA_CHAVE[aberta.tipo]}:${aberta.id}:${aberta.ultimaDoClienteId ?? ""}:${chat}`);
+    // aberta, ou reabrindo a linha) e aviso novo. Na reclamacao entra tambem para quem a mensagem vai: a ida para a
+    // mediacao, mesmo sem mensagem nova, e aviso novo (o destino mudou).
+    const chaveDe = (aberta, chat) => (aberta.tipo === "PERGUNTA" ? `${PREFIXO_DA_CHAVE.PERGUNTA}:${aberta.id}:${chat}` : `${PREFIXO_DA_CHAVE[aberta.tipo]}:${aberta.id}:${aberta.ultimaDoClienteId ?? ""}${aberta.tipo === "RECLAMACAO" ? `:${aberta.destinatario ?? ""}` : ""}:${chat}`);
     if (abertas.length === 0) return { ok: true, mandados: 0, falhas: 0 };
     const chats = [...(autorizados ? await autorizados() : await chatsAutorizados({ env }))].sort();
     if (chats.length === 0) return { ok: true, mandados: 0, falhas: 0, motivo: "sem-destinatario" };
@@ -240,7 +241,7 @@ export function criarTratadoresDoAtendimento({ ml = null, env = process.env, sug
     const casou = DADOS.exec(String(evento?.data ?? ""));
     if (!casou) return void (await cliente.responderAoClique(evento.id, "Botão desconhecido."));
     const [, id, acao] = casou;
-    const linha = await prisma.atendimentoML.findUnique({ where: { id }, select: { id: true, status: true, tipo: true, rascunho: true, textoDoCliente: true, telegramChatId: true, bloqueio: true, limite: true, destinatario: true } });
+    const linha = await prisma.atendimentoML.findUnique({ where: { id }, select: { id: true, status: true, tipo: true, rascunho: true, textoDoCliente: true, telegramChatId: true, bloqueio: true, limite: true, destinatario: true, ultimaDoClienteId: true } });
     if (!linha || !TIPO_DO_AVISO[linha.tipo]) return void (await cliente.responderAoClique(evento.id, "Pergunta não encontrada."));
     // "Conversa": a mensagem de pos-venda e a reclamacao (tem limite proprio e pode estar bloqueada pelo ML).
     const posVenda = linha.tipo !== "PERGUNTA";
@@ -252,7 +253,8 @@ export function criarTratadoresDoAtendimento({ ml = null, env = process.env, sug
     // Conversa bloqueada pelo ML: o aviso nem traz estes botoes; um clique antigo ou forjado so recebe o motivo.
     if (posVenda && linha.bloqueio && acao !== "i") return void (await cliente.responderAoClique(evento.id, bloqueioEmTexto(linha)));
     // Na mensagem de pos-venda a previa diz o tamanho contra o limite do ML (350): no celular nao ha contador.
-    const medida = (texto) => (posVenda ? ` (${String(texto ?? "").length} de ${limiteDaConversa(linha)})` : "");
+    // Na reclamacao a previa diz tambem para quem vai: e o que o Enviar confere contra a linha (`destinoVisto`).
+    const medida = (texto) => (posVenda ? `${reclamacao && destinatarioEmTexto(linha.destinatario) ? `, para o ${destinatarioEmTexto(linha.destinatario)}` : ""} (${String(texto ?? "").length} de ${limiteDaConversa(linha)})` : "");
     const por = (await loginDoChat(chatId, { env })) ?? "telegram";
 
     if (acao === "s") {
@@ -279,7 +281,11 @@ export function criarTratadoresDoAtendimento({ ml = null, env = process.env, sug
     }
 
     if (acao === "v") {
-      const envio = await enviarResposta({ id, por, via: "TELEGRAM", ml: mercadoLivre(), env });
+      // Reclamacao: a previa em que ele clicou dizia para quem a mensagem ia. Se a reclamacao mudou de etapa depois, o
+      // texto escrito para o comprador nao vai ao mediador (e vice-versa) sem ele ver.
+      const clicado = String(evento.message?.text ?? evento.message?.caption ?? "");
+      const destinoVisto = !reclamacao ? null : clicado.includes("para o mediador do Mercado Livre") ? "mediator" : clicado.includes("para o comprador") ? "complainant" : null;
+      const envio = await enviarResposta({ id, por, via: "TELEGRAM", ml: mercadoLivre(), env, visto: destinoVisto ? { destinatario: destinoVisto, ultima: linha.ultimaDoClienteId } : null });
       if (!envio.ok) {
         await cliente.responderAoClique(evento.id, envio.mensagem);
         if (envio.motivo === "fechada-fora" || envio.motivo === "fechada") await atualizarAvisoFechado(id, { cliente });
@@ -302,7 +308,7 @@ export function criarTratadoresDoAtendimento({ ml = null, env = process.env, sug
 
   async function texto(mensagem, { cliente, chatId }) {
     const respondeA = mensagem?.reply_to_message?.message_id;
-    const linha = Number.isInteger(respondeA) ? await prisma.atendimentoML.findFirst({ where: { tipo: { in: Object.keys(TIPO_DO_AVISO) }, status: "ABERTA", telegramPedidoId: respondeA, OR: [{ telegramChatId: chatId }, { telegramChatId: null }] }, select: { id: true, tipo: true, limite: true } }) : null;
+    const linha = Number.isInteger(respondeA) ? await prisma.atendimentoML.findFirst({ where: { tipo: { in: Object.keys(TIPO_DO_AVISO) }, status: "ABERTA", telegramPedidoId: respondeA, OR: [{ telegramChatId: chatId }, { telegramChatId: null }] }, select: { id: true, tipo: true, limite: true, destinatario: true } }) : null;
     // Texto solto, ou resposta a outra mensagem: nunca e comando. Uma linha de dica e nada no banco.
     if (!linha) return void (await cliente.enviarComBotoes(chatId, DICA));
     const por = (await loginDoChat(chatId, { env })) ?? "telegram";
@@ -311,7 +317,7 @@ export function criarTratadoresDoAtendimento({ ml = null, env = process.env, sug
     if (salvo.motivo === "nao-aberta") return void (await cliente.enviarComBotoes(chatId, NAO_ABERTA[linha.tipo]));
     await prisma.atendimentoML.updateMany({ where: { id: linha.id, telegramPedidoId: respondeA }, data: { telegramPedidoId: null } });
     const escrito = String(mensagem.text ?? "").trim();
-    await mostrarRascunho(cliente, chatId, linha.id, posVenda ? `Vai ficar assim (${escrito.length} de ${limiteDaConversa(linha)}):` : "Vai ficar assim:", escrito, salvo.barrados);
+    await mostrarRascunho(cliente, chatId, linha.id, posVenda ? `Vai ficar assim${linha.tipo === "RECLAMACAO" && destinatarioEmTexto(linha.destinatario) ? `, para o ${destinatarioEmTexto(linha.destinatario)}` : ""} (${escrito.length} de ${limiteDaConversa(linha)}):` : "Vai ficar assim:", escrito, salvo.barrados);
   }
 
   return { clique, texto };

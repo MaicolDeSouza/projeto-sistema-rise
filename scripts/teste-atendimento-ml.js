@@ -1475,17 +1475,32 @@ try {
       const escrever = (text, responderA) => tratadores.texto({ message_id: 800 + ++n, chat: { id: Number(CHAT), type: "private" }, text, reply_to_message: { message_id: responderA } }, { cliente, chatId: CHAT });
 
       await clicar("s");
-      conferir("Sugerir com IA: a sugestao vem com o tamanho e o lembrete do mediador", [ultima().text.startsWith("Sugestão da IA (51 de 1000):"), ultima().text.includes(LEMBRETE_DO_MEDIADOR), dados(ultima()).includes(`at:${id}:v`), recebidos[0].sistema.includes("RECLAMAÇÃO")], [true, true, true, true]);
+      conferir("Sugerir com IA: a sugestao vem com o tamanho e o lembrete do mediador", [ultima().text.startsWith("Sugestão da IA, para o comprador (51 de 1000):"), ultima().text.includes(LEMBRETE_DO_MEDIADOR), dados(ultima()).includes(`at:${id}:v`), recebidos[0].sistema.includes("RECLAMAÇÃO")], [true, true, true, true]);
       await clicar("e");
       conferir("Escrever / Editar diz para quem vai e o limite", [ultima().reply_markup.force_reply, ultima().text.startsWith("Escreva a mensagem desta reclamação, para o comprador (até 1000 caracteres)")], [true, true]);
       const texto = "Olá! Pode nos mandar uma foto da placa, por favor?";
       await escrever(texto, falso.mensagens.length);
-      conferir("a previa mostra o tamanho contra o teto do Rise", [ultima().text.startsWith(`Vai ficar assim (${texto.length} de 1000):`), dados(ultima())], [true, [`at:${id}:v`, `at:${id}:e`]]);
+      conferir("a previa mostra o tamanho contra o teto do Rise", [ultima().text.startsWith(`Vai ficar assim, para o comprador (${texto.length} de 1000):`), dados(ultima())], [true, [`at:${id}:v`, `at:${id}:e`]]);
       await clicar("v", id, { RISE_PRODUCAO: "1", ML_RESPONDER_MENSAGENS: "true" });
       conferir("Enviar com a trava das reclamacoes desligada: so o motivo", [falso.cliques.at(-1).text, ml.mensagensDeReclamacaoEnviadas.length], [rc.TEXTO_DA_TRAVA_DE_RECLAMACOES, 0]);
       await clicar("v");
       const enviada = await lerAtendimento(id);
       conferir("Enviar pelo botao: um POST, ao comprador", [ml.mensagensDeReclamacaoEnviadas.length, ml.mensagensDeReclamacaoEnviadas[0]?.receiver_role, ml.mensagensDeReclamacaoEnviadas[0]?.message, enviada.status, enviada.respondidaVia], [1, "complainant", texto, "RESPONDIDA", "TELEGRAM"]);
+
+      // Previa escrita para o comprador; a reclamacao vai para a mediacao antes do clique em Enviar.
+      ml.porReclamacao("ZZ-ATD-R64", { mensagens: [{ de: "C", texto: "Veio sem o cabo." }] });
+      await rodar();
+      const velha = (await linhaDaReclamacao("ZZ-ATD-R64")).id;
+      await avisar();
+      await clicar("e", velha);
+      await escrever("Olá! Vamos verificar o que houve com o cabo.", falso.mensagens.length);
+      const previa = ultima().text;
+      ml.abrirMediacao("ZZ-ATD-R64");
+      await rodar();
+      conferir("a ida para a mediacao, sem mensagem nova, gera aviso novo com o destino", [(await avisar()).mandados, ultima().text.includes("a mensagem vai para o mediador do Mercado Livre")], [1, true]);
+      const antesDoClique = ml.mensagensDeReclamacaoEnviadas.length;
+      await tratadores.clique({ id: `cqr${++n}`, data: `at:${velha}:v`, from: { id: Number(CHAT) }, message: { message_id: 55, chat: { id: Number(CHAT) }, text: previa } }, { cliente, chatId: CHAT });
+      conferir("Enviar numa previa antiga (dizia comprador, agora e mediador): nada sai", [ml.mensagensDeReclamacaoEnviadas.length - antesDoClique, falso.cliques.at(-1).text.includes("mudou de etapa"), (await lerAtendimento(velha)).status], [0, true, "ABERTA"]);
 
       ml.abrirMediacao("ZZ-ATD-R60");
       ml.escreverNaReclamacao("ZZ-ATD-R60", "M", "Olá, vamos analisar o caso.");
