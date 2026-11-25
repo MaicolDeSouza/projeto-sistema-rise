@@ -4369,6 +4369,18 @@ página calculava o resumo a cada carga; agora só quando o painel abre). Datas 
 (`periodoDoMes`, `diasDoPeriodo` com o futuro cortado em hoje, `conferirPeriodo` com teto de 1 ano), testadas no `teste:pedidos`.
 Visto no PC: abre em 01/11 a 25/11 e o Mês anterior mostra 01/10 a 31/10 (vazio: o PC só tem pedidos desde 01/11).
 
+### Produto que é Serviço (25/11/2026, SEM deploy)
+
+Pedido do dono (Opção 2, ao registrar o serviço de configuração do LightBurn da cliente Andrelina): o Rise não tem "pedido de
+serviço"; o serviço vai como item comum do pedido de venda (Proposta → pedido no Bling → Vendas), e o **produto** é que diz que é
+serviço. `Produto.servico` (migration `20261125b_produto_servico`, que já marca o **999906**), chave **"Serviço"** ao lado da
+Situação no cadastro (Sim/Não, com a bolha). Com ela: o item **não entra no "Aguardando peças"** (`necessidadeDoPedido` em
+`lib/pedidos/pecas.js` pula, então também não reserva estoque de ninguém) e as **Métricas de faturamento** ganham a caixinha
+**"Serviços"** (`resumoDosCanais().servicos`: pedidos com serviço, soma do `total` das linhas de serviço já com o desconto do
+item, e ticket), **sem lucro** (o lucro é do pedido inteiro) e **também contada** dentro dos canais e da Geral. Não muda: o tipo do
+produto no Bling (o 999906 lá é produto com estoque ~986), a nota fiscal (serviço costuma ser NFS-e, conferir com o contador) e as
+licenças 999908/999911, que ficaram como produto. Teste no `teste:pedidos`.
+
 ### Nota de devolução do Mercado Livre (20/11/2026, SEM deploy)
 
 Pedido do dono: o imposto da venda devolvida (6% de R$ 1.000 = R$ 60) volta pela **nota de devolução**, que abate a receita do
