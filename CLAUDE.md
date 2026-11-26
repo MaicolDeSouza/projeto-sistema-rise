@@ -4375,7 +4375,12 @@ página calculava o resumo a cada carga; agora só quando o painel abre). Datas 
 (`periodoDoMes`, `diasDoPeriodo` com o futuro cortado em hoje, `conferirPeriodo` com teto de 1 ano), testadas no `teste:pedidos`.
 Visto no PC: abre em 01/11 a 25/11 e o Mês anterior mostra 01/10 a 31/10 (vazio: o PC só tem pedidos desde 01/11).
 
-### Escrita do dia a dia pelo MCP (26/11/2026, SEM deploy)
+### Escrita do dia a dia pelo MCP (26/11/2026, NO AR em 26.11.2026.152)
+
+**Deploy 26.11.2026.152 (commit `48e771a`), "1" do dono.** Primeiro uso, no mesmo dia, pelas mesmas funções rodadas por script na
+VPS (o conector do Claude Code guardava a lista antiga de 80 ferramentas): cliente Andrelina Paula de Azevedo Ferreira
+cadastrado, proposta **2039** (999906 a R$100 com 30% = R$70) aprovada e pedido de venda **27516123587** no Bling, com o contato
+18543618029 criado lá.
 
 Pedido do dono: "Análise e veja quais ferramentas mcp precisamos criar ... Para criamos tudo de 1 vez"; escolheu os 6 grupos
 e "Quero que implementar tudo direto". 15 ferramentas que gravam e 2 de leitura, todas em `src/lib/mcp/`, pelas MESMAS
