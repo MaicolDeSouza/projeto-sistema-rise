@@ -343,6 +343,13 @@ try {
     conferir("Bling: totais, item e envio", [bl1.totais, bl1.itens[0].total, bl1.envio.rastreio, bl1.envio.fonteDoCusto, bl1.envio.custoDoVendedor], [{ totalProdutos: 119.8, desconto: 0, freteCobrado: 18.12, total: 137.92 }, 119.8, "QB123456789BR", "estimado", null]);
     conferir("Bling: nf", [bl1.nf.origem, bl1.nf.numero, bl1.nf.status, bl1.nf.urlPdf, bl1.nf.urlXml], ["BLING", "1234", "autorizada", "https://www.bling.com.br/relatorios/nfe.pdf?id=9001", null]);
     conferir("Bling: sem nf", normalizarPedidoBling({ pedido: fx("bling-pedido")[1], formas: [], situacoes: [], nfe: null }).nf, null);
+    // O `valor` do item no GET ja vem com o desconto (pedido 18363, 26/11/2026: 100 com 30% voltou valor 70): o total e 70, nao 49.
+    const comDesconto = normalizarPedidoBling({ pedido: { ...fx("bling-pedido")[1], itens: [{ codigo: "999906", descricao: "Servico", quantidade: 1, valor: 70, desconto: 30 }], totalProdutos: 70 }, formas: [], situacoes: [], nfe: null }).itens[0];
+    conferir("Bling: desconto do item nao e tirado duas vezes", [comDesconto.precoUnitario, comDesconto.desconto, comDesconto.total], [100, 30, 70]);
+    const vinteOito = normalizarPedidoBling({ pedido: { ...fx("bling-pedido")[1], itens: [{ codigo: "X", descricao: "X", quantidade: 28, valor: 45, desconto: 6.25 }] }, formas: [], situacoes: [], nfe: null }).itens[0];
+    conferir("Bling: 28 x R$45 com 6,25% (pedido 18311) = 1260", [vinteOito.precoUnitario, vinteOito.total, vinteOito.desconto], [48, 1260, 84]);
+    const cem = normalizarPedidoBling({ pedido: { ...fx("bling-pedido")[1], itens: [{ codigo: "X", descricao: "X", quantidade: 1, valor: 0, desconto: 100 }] }, formas: [], situacoes: [], nfe: null }).itens[0];
+    conferir("Bling: desconto de 100% fica no valor", [cem.precoUnitario, cem.desconto, cem.total], [0, 0, 0]);
     // Prazo de envio do Bling (08/11/2026): a data prevista do pedido, ate o fim do dia; sem data, sem prazo.
     conferir("Bling: prazo = data prevista as 23:59", bl1.envio.despacharAte, "2026-11-07T02:59:00.000Z");
     conferir("Bling: sem data prevista, sem prazo", [normalizarPedidoBling({ pedido: { ...fx("bling-pedido")[0], dataPrevista: "" } }).envio.despacharAte, normalizarPedidoBling({ pedido: { ...fx("bling-pedido")[0], dataPrevista: "0000-00-00" } }).envio.despacharAte], [null, null]);

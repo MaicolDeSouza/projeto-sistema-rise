@@ -99,9 +99,15 @@ export function normalizarPedidoBling({ pedido, formas = [], situacoes = [], nfe
 
   p.itens = (pedido.itens ?? []).map((item, indice) => {
     const quantidade = Number(item.quantidade ?? 0);
-    const unitario = dinheiro(item.valor);
-    // No Bling o desconto do item e um percentual.
-    const desconto = dinheiro((unitario * quantidade * Number(item.desconto ?? 0)) / 100);
+    // No Bling o desconto do item e um percentual, e o `valor` que o GET devolve JA VEM COM ELE (medido em 26/11/2026 no
+    // pedido 18363: POST com valor 100 e desconto 30 voltou `valor: 70, desconto: 30, totalProdutos: 70`). Ate ali o Rise
+    // tirava o desconto de novo e a linha de R$70 virava R$49. O total da linha e o valor x quantidade; o preco cheio
+    // (o de antes do desconto) e o desconto em R$ saem do percentual. Com 100% nao ha como voltar ao cheio: fica o valor.
+    const liquido = dinheiro(item.valor);
+    const percentual = Number(item.desconto ?? 0);
+    const unitario = percentual > 0 && percentual < 100 ? dinheiro(liquido / (1 - percentual / 100)) : liquido;
+    const total = dinheiro(liquido * quantidade);
+    const desconto = percentual > 0 && percentual < 100 ? dinheiro(unitario * quantidade - total) : 0;
     return {
       ordem: indice + 1,
       codigoNaOrigem: texto(item.codigo),
@@ -110,7 +116,7 @@ export function normalizarPedidoBling({ pedido, formas = [], situacoes = [], nfe
       quantidade,
       precoUnitario: unitario,
       desconto,
-      total: dinheiro(unitario * quantidade - desconto),
+      total,
       comissao: null,
     };
   });
