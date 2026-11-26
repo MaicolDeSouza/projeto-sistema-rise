@@ -799,6 +799,25 @@ try {
       // a 5002 nao tem copia no Bling e foi vendida 2 h antes de `agora`; a 5001 tem o espelho 7003
       conferir("espelho ausente depois de 1 h", [(await porNumero("LOJA_INTEGRADA", "5002")).avisos.includes("espelhoNoBlingAusente"), (await porNumero("LOJA_INTEGRADA", "5001")).avisos.includes("espelhoNoBlingAusente")], [true, false]);
       conferir("espelhar tira o aviso", [await espelharNoBling("LOJA_INTEGRADA", "5002", { blingPedidoId: "7777", blingNumero: "777" }), (await porNumero("LOJA_INTEGRADA", "5002")).avisos.includes("espelhoNoBlingAusente")], [true, false]);
+      conferir("o mesmo espelho lido de novo continua casando", await espelharNoBling("LOJA_INTEGRADA", "5002", { blingPedidoId: "7777", blingNumero: "777" }), true);
+      // Pedido CLONADO no Bling (26/11/2026, o 18367): herda a loja da LI e o numero 5001 do original (7003). Vira pedido
+      // do Bling, e o pedido 5001 da LI continua ligado ao 7003.
+      const hojeSP = naiveSP(agora).slice(0, 10);
+      const original = blingFalso.estado.pedidosDeVenda.get(7003);
+      blingFalso.estado.pedidosDeVenda.set(7005, { ...JSON.parse(JSON.stringify(original)), id: 7005, numero: 126, data: hojeSP, dataAlteracao: hojeSP });
+      // Espelhos pendentes repetidos (a lista da VPS chegou a 500 de 500 com o mesmo pedido varias vezes).
+      const repetido = { origem: "MERCADO_LIVRE", numeroLoja: "ZZ-PED-NAO-CHEGOU", blingNumero: "999", blingPedidoId: "9999" };
+      const memoria = await prisma.rotinaDoWorker.findUnique({ where: { id: "pedidos" } });
+      await prisma.rotinaDoWorker.update({ where: { id: "pedidos" }, data: { dados: { ...memoria.dados, espelhosPendentes: [repetido, repetido, repetido] } } });
+      const agoraMais15 = new Date(agora.getTime() + 15 * 60 * 1000);
+      const r4 = await rodarLeituraDePedidos({ ml: mlFalso, li: liFalsa, bling: blingFalso, agora: agoraMais15, taxas: null });
+      const clone = await porNumero("BLING", "7005");
+      conferir("clone do Bling vira pedido do Bling", [r4.criados >= 1, clone?.numero, clone?.canal], [true, "126", "BLING"]);
+      conferir("clone nao troca o espelho do pedido da LI", [(await porNumero("LOJA_INTEGRADA", "5001")).blingPedidoId, (await porNumero("LOJA_INTEGRADA", "5001")).blingNumero], ["7003", "124"]);
+      const pendentesDepois = (await prisma.rotinaDoWorker.findUnique({ where: { id: "pedidos" } })).dados.espelhosPendentes;
+      conferir("espelhos pendentes sem repetidos", pendentesDepois.filter((e) => e.blingPedidoId === "9999").length, 1);
+      await rodarLeituraDePedidos({ ml: mlFalso, li: liFalsa, bling: blingFalso, agora: new Date(agoraMais15.getTime() + 5 * 60 * 1000), taxas: null });
+      conferir("clone lido de novo nao duplica", await prisma.pedidoDeVenda.count({ where: { origem: "BLING", idExterno: "7005" } }), 1);
       conferir("ROTINAS_DO_WORKER tem pedidos", ROTINAS_DO_WORKER.some((r) => r.id === "pedidos"), true);
     } finally {
       await prisma.rotinaDoWorker.deleteMany({ where: { id: "pedidos" } });

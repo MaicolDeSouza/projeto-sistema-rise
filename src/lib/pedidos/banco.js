@@ -792,15 +792,21 @@ export async function criarClienteDoPedido(id) {
   });
 }
 
-/** Anota no pedido do ML ou da LI o espelho dele no Bling (o numero e o id de la). false quando o pedido nao existe. */
+/**
+ * Anota no pedido do ML ou da LI o espelho dele no Bling (o numero e o id de la). false quando o pedido nao existe.
+ * "clone" quando o pedido ja tem OUTRO pedido do Bling ligado: e um pedido clonado no Bling, que herda a loja e o numero
+ * da loja do original (26/11/2026: o 18367 clonado do 18318 trocou o numero do Bling do pedido 1418 da LI e nunca virou
+ * pedido). Quem chama le esse como pedido do Bling. O mesmo espelho lido de novo (mesmo id) continua casando.
+ */
 export async function espelharNoBling(origem, numeroNaLoja, { blingPedidoId, blingNumero }) {
   const pedido = await prisma.pedidoDeVenda.findFirst({
     // O Bling grava no numeroLoja o numero do carrinho (pack) quando o pedido do ML tem um, senao o do pedido (medido na
     // VPS em 04/11/2026: 14 dos 15 eram o pack).
     where: { origem, OR: [{ idExterno: String(numeroNaLoja) }, { numero: String(numeroNaLoja) }, { packId: String(numeroNaLoja) }] },
-    select: { id: true, avisos: true },
+    select: { id: true, avisos: true, blingPedidoId: true },
   });
   if (!pedido) return false;
+  if (pedido.blingPedidoId && blingPedidoId !== null && blingPedidoId !== undefined && pedido.blingPedidoId !== String(blingPedidoId)) return "clone";
   await prisma.pedidoDeVenda.update({
     where: { id: pedido.id },
     data: {

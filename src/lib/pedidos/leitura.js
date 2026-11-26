@@ -384,12 +384,34 @@ export async function rodarLeituraDePedidos({ ml = null, li = null, bling = null
   }
 
   // Espelhos do Bling: casa com o pedido do ML/LI; o que ainda nao chegou fica pendente para a proxima volta.
-  const pendentes = [];
+  // A leitura do Bling volta um dia a cada 5 min, entao o mesmo espelho pendente chegava de novo a cada volta e a lista
+  // enchia de repetidos (500 de 500 na VPS em 26/11/2026): um por pedido do Bling, o mais recente.
+  const pendentes = new Map();
+  let apoioDosClones = null;
   for (const espelho of espelhos) {
     const casou = espelho?.numeroLoja ? await espelharNoBling(espelho.origem, espelho.numeroLoja, espelho).catch(() => false) : false;
-    if (!casou) pendentes.push(espelho);
+    if (casou === "clone") {
+      // Pedido clonado no Bling (herdou a loja do original): e venda digitada la, lida como pedido do Bling.
+      try {
+        apoioDosClones = apoioDosClones ?? (await apoioDoBling(clientes.bling));
+        const aplicado = await aplicarPedidoLido(await lerPedidoBling(clientes.bling, espelho.blingPedidoId, apoioDosClones), { cliente: clientes.ml, taxas, agora });
+        if (!aplicado?.ignorado) {
+          lidos += 1;
+          if (aplicado?.criado) criados += 1;
+        }
+      } catch (erro) {
+        detalhes.push({ origem: "BLING", idExterno: String(espelho.blingPedidoId ?? ""), erro: erro?.message ?? String(erro) });
+        pendentes.delete(String(espelho?.blingPedidoId ?? ""));
+        pendentes.set(String(espelho?.blingPedidoId ?? ""), espelho);
+      }
+      continue;
+    }
+    if (!casou) {
+      pendentes.delete(String(espelho?.blingPedidoId ?? ""));
+      pendentes.set(String(espelho?.blingPedidoId ?? ""), espelho);
+    }
   }
-  espelhos = pendentes.slice(-TETO_DE_ESPELHOS_PENDENTES);
+  espelhos = [...pendentes.values()].slice(-TETO_DE_ESPELHOS_PENDENTES);
 
   const reconferidos = await reconferirPedidosPendentes({ ...clientes, agora, taxas }).catch((erro) => ({ conferidos: 0, falhas: 1, erros: [erro?.message ?? String(erro)] }));
   // O Mercado Pago (09/11/2026): os pedidos do ML sem o que foi creditado ou com o dinheiro ainda nao liberado.
@@ -488,7 +510,11 @@ async function tratarRecurso(origem, recurso, clientes, memoria, agora) {
       // A copia que o Bling fez da venda do canal: so anota o espelho. O pedido do canal que ainda nao chegou e
       // casado pela rotina de 5 min (ela guarda o espelho pendente).
       const blingNumero = lido?.numero === undefined || lido?.numero === null ? null : String(lido.numero);
-      await espelharNoBling(classe === "espelhoML" ? "MERCADO_LIVRE" : "LOJA_INTEGRADA", String(lido?.numeroLoja ?? ""), { blingPedidoId: id, blingNumero });
+      const casou = await espelharNoBling(classe === "espelhoML" ? "MERCADO_LIVRE" : "LOJA_INTEGRADA", String(lido?.numeroLoja ?? ""), { blingPedidoId: id, blingNumero });
+      if (casou === "clone") {
+        memoria.apoio = memoria.apoio ?? (await apoioDoBling(clientes.bling));
+        return aplicar(await lerPedidoBling(clientes.bling, id, memoria.apoio, lido));
+      }
     }
     return;
   }
