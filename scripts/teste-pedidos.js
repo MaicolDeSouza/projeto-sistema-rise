@@ -407,6 +407,17 @@ try {
     await prisma.produto.create({ data: { sku: "ZZ-PED-KIT", tituloBase: "ZZ Ped Kit", tipo: "COMPOSICAO", componentes: { create: [{ componenteId: a.id, quantidade: 2 }] } } });
     await prisma.anuncio.create({ data: { produtoId: a.id, canal: "MERCADO_LIVRE", idExterno: "MLBZZPED1", status: "PUBLICADO" } });
     conferir("custo: fornecedor padrao > rascunho > cadastro", [custoCongeladoDoProduto({ custo: 10, fornecedores: [{ padrao: true, precoFornecedor: 8 }] }), custoCongeladoDoProduto({ custo: 10, fornecedorRascunho: { precoCusto: 7.5 }, fornecedores: [] }), custoCongeladoDoProduto({ custo: 10, fornecedores: [] }), custoCongeladoDoProduto({ custo: null, fornecedores: [] })], [{ custo: 8, origem: "fornecedorPadrao" }, { custo: 7.5, origem: "rascunhoBling" }, { custo: 10, origem: "cadastro" }, { custo: null, origem: null }]);
+    conferir("custo do servico: sem custo = 0, com custo = o dele", [custoCongeladoDoProduto({ servico: true, custo: null }), custoCongeladoDoProduto({ servico: true, custo: 15 })], [{ custo: 0, origem: "servico" }, { custo: 15, origem: "servico" }]);
+    {
+      // Servico sem NF (25/11/2026): a linha de R$70 (R$100 com 30%) nao paga imposto; o produto de R$50 paga os 6%.
+      const itens = [
+        { quantidade: 1, precoUnitario: 100, desconto: 30, total: 70, custoUnitarioCongelado: 0, custoOrigem: "servico" },
+        { quantidade: 1, precoUnitario: 50, total: 50, custoUnitarioCongelado: 20 },
+      ];
+      const real = parcelasDoReal({ origem: "BLING", itens, totais: { totalProdutos: 120, total: 120 }, envio: {}, pagamento: [], custoDoFreteManual: 0, estimativa: {} });
+      conferir("servico sem NF: imposto so do produto e lucro = 70 + (50 - 3 - 20)", [real.imposto, real.lucro], [3, 97]);
+      conferir("servico sem NF: a estimativa da o mesmo lucro", parcelasDaEstimativa({ origem: "BLING", itens, totais: { totalProdutos: 120 } }).lucro, 97);
+    }
     conferir("custo do kit soma as pecas", custoCongeladoDoProduto({ tipo: "COMPOSICAO", custo: null, fornecedores: [], componentes: [{ quantidade: 2, componente: { custo: 10, fornecedores: [] } }] }), { custo: 20, origem: "kit" });
     const ml = await casarItens(prisma, { origem: "MERCADO_LIVRE", itens: [{ ordem: 0, idNaOrigem: "MLBZZPED1", codigoNaOrigem: null, titulo: "A", quantidade: 2, precoUnitario: 30, desconto: 0, total: 60, comissao: 7.8 }] });
     conferir("ML casa pelo MLB", [ml.itens[0].produtoId === a.id, ml.itens[0].custoUnitarioCongelado, ml.itens[0].conferido, ml.avisos], [true, 10, true, []]);
@@ -472,6 +483,9 @@ try {
       const depois = (await resumoDosCanais(dia)).servicos;
       // novoPedido grava o total da linha = quantidade (1): so a linha do servico entra.
       conferir("metricas: servicos soma so a linha do servico", [depois.pedidos - antes.pedidos, Math.round((depois.faturamento - antes.faturamento) * 100) / 100], [1, 1]);
+      const comLucro = await resumoDosCanais(dia, { comLucro: true });
+      // O servico sem custo: lucro = o valor da linha (1).
+      conferir("metricas: lucro do servico = valor - custo", Math.round((comLucro.servicos.lucro - (antes.lucro ?? 0)) * 100) / 100 >= 1, true);
       await prisma.pedidoDeVenda.delete({ where: { id: pedidoServico.id } });
     }
     const r1 = await calcularPecas(prisma, pedidoAntigo);

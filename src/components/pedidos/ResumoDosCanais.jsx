@@ -5,7 +5,6 @@ import Image from "next/image";
 import { ChartColumn } from "lucide-react";
 
 import { metricasDeFaturamentoAcao } from "@/app/pedidos/acoes";
-import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import { canalPorId } from "@/lib/canais";
 import { diasDoPeriodo, periodoDoMes } from "@/lib/pedidos/periodoDasMetricas";
 
@@ -42,7 +41,7 @@ function Linha({ rotulo, children, title }) {
 }
 
 /** Uma caixinha: a de um canal (com o logo) ou a Geral (`geral`, em destaque azul, sem logo). */
-function Caixa({ resumo, dias, geral = false, titulo = null, ajuda = null }) {
+function Caixa({ resumo, dias, geral = false, servicos = null }) {
   const canal = geral ? null : canalPorId(resumo.canal);
   const temLucro = "lucro" in resumo;
   const semVenda = resumo.pedidos === 0;
@@ -50,8 +49,7 @@ function Caixa({ resumo, dias, geral = false, titulo = null, ajuda = null }) {
     <div className={`rounded-lg border px-3.5 py-2.5 ${geral ? "border-acento/40 bg-acento/5" : "border-borda bg-superficie"}`}>
       <div className="mb-1.5 flex items-center gap-2">
         {canal?.logo && <Image src={canal.logo} alt="" width={18} height={18} className="rounded-sm" />}
-        <span className="text-sm font-medium">{titulo ?? (geral ? "Geral" : (canal?.nome ?? resumo.canal))}</span>
-        {ajuda && <BolhaDeAjuda variante="inline" texto={ajuda} />}
+        <span className="text-sm font-medium">{geral ? "Geral" : (canal?.nome ?? resumo.canal)}</span>
       </div>
       {semVenda ? (
         <p className="py-3 text-center text-xs text-suave">Sem vendas no período</p>
@@ -67,7 +65,7 @@ function Caixa({ resumo, dias, geral = false, titulo = null, ajuda = null }) {
           </Linha>
           {temLucro && (
             <Linha
-              rotulo="Lucro"
+              rotulo={geral ? "Lucro produtos" : "Lucro"}
               title={
                 resumo.semLucro > 0
                   ? `${resumo.semLucro} venda(s) sem lucro calculado (item sem custo) ficaram de fora do lucro e do markup`
@@ -87,6 +85,18 @@ function Caixa({ resumo, dias, geral = false, titulo = null, ajuda = null }) {
               title={`Lucro ÷ vendas com lucro calculado (${resumo.pedidos - resumo.semLucro})${resumo.semLucro > 0 ? `; ${resumo.semLucro} venda(s) sem custo ficaram de fora` : ""}`}
             >
               <span className={resumo.lucroMedio < 0 ? "text-red-600" : "text-emerald-700"}>{moedaComSinal(resumo.lucroMedio)}</span>
+            </Linha>
+          )}
+          {/* Servicos (25/11/2026): so na Geral e so com venda de servico no periodo; o lucro e o valor menos o custo (sem NF). */}
+          {servicos?.pedidos > 0 && (
+            <Linha rotulo="Serviços" title="Itens de produto marcado como Serviço, já com o desconto. Sem nota fiscal por enquanto: o lucro é o valor menos o custo.">
+              {moeda.format(servicos.faturamento)}
+              {"lucro" in servicos && (
+                <span className="font-normal text-suave">
+                  {" "}
+                  (Lucro <span className={servicos.lucro < 0 ? "text-red-600" : "text-emerald-700"}>{moedaComSinal(servicos.lucro)}</span>)
+                </span>
+              )}
             </Linha>
           )}
         </div>
@@ -199,15 +209,7 @@ export default function ResumoDosCanais({ hoje }) {
           {resumo.canais.map((c) => (
             <Caixa key={c.canal} resumo={c} dias={dias} />
           ))}
-          <Caixa resumo={resumo.geral} dias={dias} geral />
-          {resumo.servicos && (
-            <Caixa
-              resumo={resumo.servicos}
-              dias={dias}
-              titulo="Serviços"
-              ajuda="Só os itens de produto marcado como Serviço, já com o desconto. O valor também está dentro dos canais e da Geral."
-            />
-          )}
+          <Caixa resumo={resumo.geral} dias={dias} geral servicos={resumo.servicos} />
         </div>
       )}
     </div>

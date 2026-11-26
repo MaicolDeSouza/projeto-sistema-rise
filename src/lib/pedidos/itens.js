@@ -16,6 +16,9 @@ const numero = (valor) => {
 /** `{ custo, origem }` de um produto ja lido com `fornecedores` e, no kit, `componentes[].componente`. Puro. */
 export function custoCongeladoDoProduto(produto) {
   if (!produto) return { custo: null, origem: null };
+  // Servico (25/11/2026): a mao de obra e da casa, entao sem custo cadastrado o custo e 0 (e nao "sem custo", que deixava o
+  // pedido sem lucro). A origem "servico" fica gravada no item e e o que o lucro e as Metricas usam para separar a linha.
+  if (produto.servico) return { custo: numero(produto.custo) ?? 0, origem: "servico" };
   if (produto.tipo === "COMPOSICAO") {
     const pecas = Array.isArray(produto.componentes) ? produto.componentes : [];
     let soma = 0;
@@ -121,6 +124,7 @@ export async function casarItens(tx, normalizado) {
             custo: true,
             tipo: true,
             pecasProprias: true,
+            servico: true,
             conferido: true,
             fornecedorRascunho: true,
             ...INCLUIR_PRODUTO,

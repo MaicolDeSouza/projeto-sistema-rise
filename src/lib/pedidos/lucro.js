@@ -37,6 +37,14 @@ function custoDe(itens) {
 const lista = (valor) => (Array.isArray(valor) ? valor : []);
 
 /**
+ * Linha de servico (25/11/2026): o item gravou `custoOrigem` "servico" (ver `custoCongeladoDoProduto`). Decisao do dono:
+ * por enquanto todo servico sai SEM nota, entao nao paga o imposto padrao e o lucro dele e o valor da linha (ja com o
+ * desconto) menos o custo. Quando houver NF de servico, e aqui que o imposto entra.
+ */
+export const ehServico = (item) => item?.custoOrigem === "servico";
+const totalDosServicos = (itens) => dinheiro(itens.filter(ehServico).reduce((soma, item) => soma + Number(item?.total ?? 0), 0));
+
+/**
  * A estimativa (o numero que o editor mostrava no dia da venda). ML: `custosDoAnuncio` por item, com as taxas lidas
  * do anuncio (`custosML = { percentual, tarifaFixa, frete }`), vezes a quantidade. LI e Bling: o "Lucro na loja"
  * (`lucroLiquido`) por item, mais o frete padrao das Taxas quando o dono o configurar.
@@ -95,11 +103,15 @@ export function parcelasDaEstimativa({ origem, itens, totais, custosML = null, t
   const receita = receitaDe(linhas, totais);
   const custo = custoDe(linhas);
   const frete = dinheiro(taxas?.padrao?.frete ?? 0);
-  const imposto = dinheiro(receita * IMPOSTO_PADRAO);
+  const imposto = dinheiro((receita - totalDosServicos(linhas)) * IMPOSTO_PADRAO);
   let lucro = 0;
   let semCusto = custo === null;
   for (const item of linhas) {
     const { kits, custoDoKit } = porKit(item);
+    if (ehServico(item)) {
+      lucro += Number(item?.total ?? 0) - (custoDoKit ?? 0) * kits;
+      continue;
+    }
     const doKit = custoDoKit === null ? null : lucroLiquido(Number(item?.precoUnitario), custoDoKit);
     if (doKit === null) semCusto = true;
     else lucro += doKit * kits;
@@ -158,7 +170,7 @@ export function parcelasDoReal({ origem, itens, totais, envio = {}, pagamento = 
   const linhas = lista(itens);
   const receita = receitaDe(linhas, totais);
   const custo = custoDe(linhas);
-  const imposto = dinheiro(receita * IMPOSTO_PADRAO);
+  const imposto = dinheiro((receita - totalDosServicos(linhas)) * IMPOSTO_PADRAO);
   const fontes = {};
   let comissao = 0;
   let tarifaFixa = 0;

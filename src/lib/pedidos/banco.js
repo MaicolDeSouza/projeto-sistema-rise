@@ -517,12 +517,18 @@ export async function resumoDosCanais(filtro = {}, { comLucro = false } = {}) {
       lucroFechado: true,
       lucroEstimado: true,
       lucroReal: true,
-      // So as linhas de servico (25/11/2026): a caixinha Servicos soma o total delas, ja com o desconto do item.
-      itens: { where: { produto: { servico: true } }, select: { total: true } },
+      // So as linhas de servico (25/11/2026): a linha Servicos da Geral soma o total delas, ja com o desconto do item.
+      itens: {
+        where: { OR: [{ custoOrigem: "servico" }, { produto: { servico: true } }] },
+        select: { total: true, quantidade: true, custoUnitarioCongelado: true },
+      },
     },
   });
-  // Servicos (pedido do dono em 25/11/2026): parte do faturamento dos canais, contada a parte; as mesmas regras de fora.
-  const servicos = { pedidos: 0, faturamento: 0 };
+  // Servicos (pedido do dono em 25/11/2026): parte do faturamento e do lucro dos canais, mostrada a parte na Geral, que
+  // passa a mostrar o "Lucro produtos" (o lucro sem a parte dos servicos). Sem NF por enquanto: o lucro do servico e o
+  // valor da linha menos o custo (o mesmo de `parcelasDoReal`).
+  // `noLucro*`: a parte dos servicos que esta DENTRO do lucro somado (so pedidos com lucro calculado), para tirar da Geral.
+  const servicos = { pedidos: 0, faturamento: 0, lucro: 0, noLucro: 0, noCusto: 0, soServico: 0 };
   const porCanal = new Map(CANAIS_DO_RESUMO.map((canal) => [canal, { canal, pedidos: 0, faturamento: 0, lucro: 0, custo: 0, semLucro: 0 }]));
   for (const p of pedidos) {
     const soma = porCanal.get(p.canal);
@@ -531,17 +537,25 @@ export async function resumoDosCanais(filtro = {}, { comLucro = false } = {}) {
     const devolvido = p.status === "DEVOLVIDO" || p.statusDoEnvio === "DEVOLVIDO";
     const total = numero(p.total) ?? 0;
     const lucro = lucroQueConta(p);
+    const doServico = devolvido ? 0 : (p.itens ?? []).reduce((s, item) => s + (numero(item.total) ?? 0), 0);
+    const custoDoServico = devolvido ? 0 : (p.itens ?? []).reduce((s, item) => s + (numero(item.custoUnitarioCongelado) ?? 0) * Number(item.quantidade ?? 0), 0);
     if (!devolvido) {
       soma.pedidos += 1;
       soma.faturamento += total;
       if (p.itens?.length) {
         servicos.pedidos += 1;
-        servicos.faturamento += p.itens.reduce((s, item) => s + (numero(item.total) ?? 0), 0);
+        servicos.faturamento += doServico;
+        servicos.lucro += doServico - custoDoServico;
       }
     }
     if (lucro === null) {
       if (!devolvido) soma.semLucro += 1;
       continue;
+    }
+    if (p.itens?.length && !devolvido) {
+      servicos.noLucro += doServico - custoDoServico;
+      servicos.noCusto += custoDoServico;
+      if (Math.abs(total - doServico) < 0.005) servicos.soServico += 1;
     }
     soma.lucro += lucro;
     if (!devolvido) soma.custo += total - lucro;
@@ -560,14 +574,25 @@ export async function resumoDosCanais(filtro = {}, { comLucro = false } = {}) {
     // Lucro medio por venda (pedido do dono em 21/11/2026): o lucro dividido pelas vendas COM lucro calculado; a venda sem
     // custo nao entra no lucro, entao contar ela no divisor puxaria a media para baixo sem motivo.
     ...(comLucro
-      ? { lucro: centavos(c.lucro), markup: c.custo > 0 ? c.lucro / c.custo : null, semLucro: c.semLucro, lucroMedio: media(c.lucro, c.pedidos - c.semLucro) }
+      ? { lucro: centavos(c.lucro), markup: c.custo > 0 ? c.lucro / c.custo : null, semLucro: c.semLucro, lucroMedio: media(c.lucro, c.pedidos - c.semLucro - (c.soServico ?? 0)) }
       : {}),
   });
+  // Na Geral, o lucro, o markup e o lucro medio sao SO de produtos: tira-se a parte dos servicos (o pedido so de servico
+  // sai tambem do divisor do lucro medio). Os canais continuam com o lucro inteiro.
+  const geralDeProdutos = {
+    ...geral,
+    lucro: geral.lucro - servicos.noLucro,
+    custo: geral.custo - servicos.noCusto,
+    soServico: servicos.soServico,
+  };
   return {
     canais: [...porCanal.values()].map((c) => ({ canal: c.canal, ...paraTela(c) })),
-    geral: paraTela(geral),
-    // Sem lucro: o lucro e do pedido inteiro, e dividir as taxas entre servico e produto seria inventar.
-    servicos: { pedidos: servicos.pedidos, faturamento: centavos(servicos.faturamento), ticket: media(servicos.faturamento, servicos.pedidos) },
+    geral: paraTela(geralDeProdutos),
+    servicos: {
+      pedidos: servicos.pedidos,
+      faturamento: centavos(servicos.faturamento),
+      ...(comLucro ? { lucro: centavos(servicos.lucro) } : {}),
+    },
   };
 }
 
