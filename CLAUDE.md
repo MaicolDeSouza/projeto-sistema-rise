@@ -4375,9 +4375,14 @@ Pedido do dono (Opção 2, ao registrar o serviço de configuração do LightBur
 serviço"; o serviço vai como item comum do pedido de venda (Proposta → pedido no Bling → Vendas), e o **produto** é que diz que é
 serviço. `Produto.servico` (migration `20261125b_produto_servico`, que já marca o **999906**), chave **"Serviço"** ao lado da
 Situação no cadastro (Sim/Não, com a bolha). Com ela: o item **não entra no "Aguardando peças"** (`necessidadeDoPedido` em
-`lib/pedidos/pecas.js` pula, então também não reserva estoque de ninguém) e as **Métricas de faturamento** ganham a caixinha
-**"Serviços"** (`resumoDosCanais().servicos`: pedidos com serviço, soma do `total` das linhas de serviço já com o desconto do
-item, e ticket), **sem lucro** (o lucro é do pedido inteiro) e **também contada** dentro dos canais e da Geral. Não muda: o tipo do
+`lib/pedidos/pecas.js` pula, então também não reserva estoque de ninguém). **Lucro do serviço (2ª leva, mesmo dia):** o
+`custoCongeladoDoProduto` dá ao serviço o custo dele ou **0** (mão de obra da casa) com `custoOrigem` **"servico"**, gravado no
+item; `parcelasDaEstimativa`/`parcelasDoReal` (`ehServico` em `lib/pedidos/lucro.js`) **não cobram o imposto padrão** da linha
+de serviço, porque o dono decidiu que **por enquanto todo serviço sai sem NF** ("futuramente pensamos sobre a NF"; o ISS de
+Caxias para o item 1.07 é 2% fora do Simples e, no Simples, vai no DAS pelo Anexo III, o dono estimou ~10%). Nas **Métricas de
+faturamento** a caixinha **Geral** mostra **"Lucro produtos"** (o lucro, o markup e o lucro médio sem a parte dos serviços; o
+pedido só de serviço sai do divisor) e, na última linha, **"Serviços R$70,00 (Lucro R$70,00)"** (`resumoDosCanais().servicos`);
+os canais continuam com o lucro inteiro. Não muda: o tipo do
 produto no Bling (o 999906 lá é produto com estoque ~986), a nota fiscal (serviço costuma ser NFS-e, conferir com o contador) e as
 licenças 999908/999911, que ficaram como produto. Teste no `teste:pedidos`.
 
