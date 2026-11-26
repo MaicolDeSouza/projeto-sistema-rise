@@ -474,6 +474,12 @@ compra pelo PacoteVício (migration `20261123d_rastreio_jt`, backup de 329 MB an
 `.env` da VPS no mesmo dia (arquivo do dono, cópia `.env.bak-*` ao lado, só `app` e `worker` recriados). Conferido: as 6 respostas de
 fora e os contêineres de pé.
 
+**Deploy 26.11.2026.151 (commit `1c0bfb2`, 26/11/2026, 03:34):** "Sobe" do dono. Levou o produto que é Serviço (chave no
+cadastro, fora do Aguardando peças, lucro sem NF, "Lucro produtos" e a linha "Serviços" na Geral das Métricas; migration
+`20261125b_produto_servico`, que marca o 999906) e a fase 3 do atendimento do ML de outra sessão (migration
+`20261125_atendimento_reclamacoes`; trava `ML_RESPONDER_RECLAMACOES` fora do `.env` da VPS, então o envio segue desligado), com
+o backup de 353,6 MB antes. Conferido: as 6 respostas de fora, o chat da loja respondendo e os 6 contêineres de pé.
+
 **Travas de escrita na VPS (decisão do dono em 22/10/2026):** o dono mandou liberar **o Mercado Livre e o Bling para todos os
 códigos** (`ML_PUBLICACAO=true`, `ML_PUBLICACAO_CODIGOS` ausente, `BLING_ESCRITA=true`, `BLING_ESCRITA_CODIGOS` vazio) depois
 de o Publicar recusar com "ML_PUBLICACAO está false"; aplicado só no `.env` da VPS (cópia `.env.bak-AAAAMMDD-HHMMSS` ao lado),
@@ -4369,7 +4375,7 @@ página calculava o resumo a cada carga; agora só quando o painel abre). Datas 
 (`periodoDoMes`, `diasDoPeriodo` com o futuro cortado em hoje, `conferirPeriodo` com teto de 1 ano), testadas no `teste:pedidos`.
 Visto no PC: abre em 01/11 a 25/11 e o Mês anterior mostra 01/10 a 31/10 (vazio: o PC só tem pedidos desde 01/11).
 
-### Produto que é Serviço (25/11/2026, SEM deploy)
+### Produto que é Serviço (25/11/2026, NO AR em 26.11.2026.151)
 
 Pedido do dono (Opção 2, ao registrar o serviço de configuração do LightBurn da cliente Andrelina): o Rise não tem "pedido de
 serviço"; o serviço vai como item comum do pedido de venda (Proposta → pedido no Bling → Vendas), e o **produto** é que diz que é
