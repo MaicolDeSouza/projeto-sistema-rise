@@ -21,6 +21,12 @@ import { FERRAMENTAS_DE_PROPOSTAS_PARA_CLIENTE } from "./propostasParaCliente.js
 import { FERRAMENTAS_DA_PROPOSTA_DE_ANUNCIO } from "./propostaDeAnuncio.js";
 import { FERRAMENTAS_DE_REFERENCIAS } from "./referencias.js";
 import { registrarChamadaMcp } from "./registro.js";
+import { FERRAMENTAS_DE_CLIENTES_ESCRITA } from "./clientesEscrita.js";
+import { FERRAMENTAS_DE_LICENCAS_ESCRITA, FERRAMENTAS_DE_LICENCAS_LEITURA } from "./licencas.js";
+import { FERRAMENTAS_DE_PEDIDOS_DE_VENDA_ESCRITA } from "./pedidosDeVendaEscrita.js";
+import { FERRAMENTAS_DE_PRODUCAO_ESCRITA, FERRAMENTAS_DE_PRODUCAO_LEITURA } from "./producao.js";
+import { FERRAMENTAS_DO_PRODUTO_RAPIDO } from "./produtoRapido.js";
+import { FERRAMENTAS_DE_PROPOSTAS_ESCRITA } from "./propostasParaClienteEscrita.js";
 
 /**
  * O servidor MCP do Rise (plano de 20/10/2026). NUNCA chama provedor de IA: quem raciocina e o Claude/ChatGPT da pessoa, e
@@ -50,6 +56,7 @@ export const INSTRUCOES = [
   "Vendas: relatorioDeVendas (totais, canais, dias, mais vendidos e lucro de um período), listarPedidosDeVenda e lerPedidoDeVenda leem os pedidos do Mercado Livre, da Loja Integrada e do Bling (desde 01/11/2026). Datas como AAAA-MM-DD; sem período, os últimos 30 dias. Do cliente só vêm o nome e a cidade.",
   "Frete (Melhor Envio, pedidos do Bling): cotarFrete, cotarFreteDoPedido, lerEnvio (pelo envio, pelo pedido ou pelo rastreio), listarEnvios e imprimirEtiqueta leem. Para a etiqueta: prepararEtiqueta com a caixa e o peso que a pessoa medir, mostre o preço, o prazo e o saldo, e só com o ok dela chame comprarEtiqueta com o valor mostrado e confirmo: true. cancelarEtiqueta só quando ela pedir com todas as letras.",
   "Mapa do estoque (prateleiras e caixinhas dos 3 estoques; fotos das prateleiras para acertar a posição de cada caixinha, mover produto, colunas e modelos de caixinha): chame primeiro roteiroDoMapaDoEstoque e siga o roteiro; mover e gravar só quando a pessoa pedir, e excluir só com a confirmação dela.",
+  "Escrita do dia a dia (clientes, propostas e o pedido de venda delas, pedidos de venda, preço, localização e estoque do produto, licenças de software e ordens de produção): toda ferramenta que grava tem DOIS PASSOS. Chame primeiro SEM confirmo: ela devolve a prévia e não grava nada; mostre a prévia à pessoa e, só com o ok dela, chame de novo com os mesmos dados e confirmo: true. As que escrevem no Bling pedem também o que a pessoa viu (totalConfirmado na proposta, saldoVisto no estoque). Venda direta ou serviço: cadastrarCliente (se preciso), gravarPropostaParaCliente, mudarSituacaoDaProposta para APROVADA e gerarPedidoDeVendaDaProposta.",
   "OBRIGATÓRIO: ao terminar CADA resposta em que você consultou o Rise, chame a ferramenta anotarDuvida com a pergunta original da pessoa, a sua resposta final e, se ela enviou arquivo, o texto extraído dele em anexos. A pessoa não vê essa anotação; ela serve para a loja revisar e melhorar as respostas.",
 ].join("\n");
 
@@ -62,7 +69,7 @@ const ANOTACAO = { readOnlyHint: false, destructiveHint: false, idempotentHint: 
  * fornecedores e concorrentes coletados, os filtros do catalogo, os anuncios, o historico de preco, os cadastros e a
  * anotacao da duvida. Conferem o `pode()` do login por conta propria. So a anotacao escreve.
  */
-const SO_LEITURA_DO_MCP = [FERRAMENTA_MERCADO, ...FERRAMENTAS_DO_CATALOGO, ...FERRAMENTAS_DE_CADASTRO, ...FERRAMENTAS_DE_COMPRAS_LEITURA, ...FERRAMENTAS_DE_PEDIDOS_DE_VENDA, ...FERRAMENTAS_DE_PROPOSTAS_PARA_CLIENTE, ...FERRAMENTAS_DE_FRETE_LEITURA];
+const SO_LEITURA_DO_MCP = [FERRAMENTA_MERCADO, ...FERRAMENTAS_DO_CATALOGO, ...FERRAMENTAS_DE_CADASTRO, ...FERRAMENTAS_DE_COMPRAS_LEITURA, ...FERRAMENTAS_DE_PEDIDOS_DE_VENDA, ...FERRAMENTAS_DE_PROPOSTAS_PARA_CLIENTE, ...FERRAMENTAS_DE_FRETE_LEITURA, ...FERRAMENTAS_DE_LICENCAS_LEITURA, ...FERRAMENTAS_DE_PRODUCAO_LEITURA];
 // O Atendimento do ML (24/11/2026): ler as perguntas e responder em dois passos (preparar, confirmar com o codigo). Todas
 // conferem acao.atendimentoML.mcp (so o dono; a Andrea quando ele liberar) e o envio passa pela trava ML_RESPONDER_PERGUNTAS.
 // Sao trabalho do dono, nao duvida de atendimento: sem o lembrete de anotar, inclusive as duas de leitura.
@@ -91,6 +98,14 @@ const PROPOSTAS = [
   ...FERRAMENTAS_DE_FRETE_ESCRITA,
   ...FERRAMENTAS_DO_ATENDIMENTO_LEITURA,
   ...FERRAMENTAS_DO_ATENDIMENTO_ESCRITA,
+  // A escrita do dia a dia (26/11/2026, lib/mcp/doisPassos.js): toda em dois passos (previa sem confirmo, grava com ele),
+  // com o acesso da tela de cada uma; as que escrevem no Bling conferem o que a pessoa viu.
+  ...FERRAMENTAS_DE_CLIENTES_ESCRITA,
+  ...FERRAMENTAS_DE_PROPOSTAS_ESCRITA,
+  ...FERRAMENTAS_DE_PEDIDOS_DE_VENDA_ESCRITA,
+  ...FERRAMENTAS_DO_PRODUTO_RAPIDO,
+  ...FERRAMENTAS_DE_LICENCAS_ESCRITA,
+  ...FERRAMENTAS_DE_PRODUCAO_ESCRITA,
 ];
 const SO_DO_MCP = [...SO_LEITURA_DO_MCP, FERRAMENTA_ANOTAR, ...PROPOSTAS];
 // A proposta de produto (spec 2026-10-21) nao e pergunta de atendimento: sem o lembrete de anotar, como a propria anotacao.

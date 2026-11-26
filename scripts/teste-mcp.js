@@ -78,6 +78,25 @@ const FRETE_ESCRITA = ["prepararEtiqueta", "comprarEtiqueta", "cancelarEtiqueta"
 const FRETE = ["cotarFrete", "cotarFreteDoPedido", "lerEnvio", "listarEnvios", "imprimirEtiqueta", ...FRETE_ESCRITA];
 // O Atendimento do ML (24/11/2026): as cinco sao trabalho do dono (sem o lembrete); as duas primeiras so leem.
 const ATENDIMENTO_ML = ["listarAtendimentosML", "lerAtendimentoML", "prepararRespostaML", "enviarRespostaML", "ignorarAtendimentoML"];
+// A escrita do dia a dia (26/11/2026): as que gravam sao trabalho (sem o lembrete); as duas leituras lembram de anotar.
+const DIA_A_DIA_ESCRITA = [
+  "cadastrarCliente",
+  "editarCliente",
+  "gravarPropostaParaCliente",
+  "mudarSituacaoDaProposta",
+  "gerarPedidoDeVendaDaProposta",
+  "marcarPedidoEmSeparacao",
+  "vincularClienteAoPedido",
+  "marcarNotaDeDevolucaoEmitida",
+  "alterarPrecoDeVenda",
+  "alterarLocalizacao",
+  "ajustarEstoque",
+  "registrarLicencaDoCliente",
+  "criarOrdemDeProducao",
+  "darBaixaNaOrdemDeProducao",
+  "concluirOrdemDeProducao",
+];
+const DIA_A_DIA_LEITURA = ["listarLicencasDeSoftware", "listarOrdensDeProducao"];
 
 async function lerRespostaMcp(resposta) {
   const texto = await resposta.text();
@@ -116,6 +135,8 @@ function pedidoMcp(metodo, parametros = {}, { era = "moderna", id = 1, cabecalho
 
 /** Apaga tudo o que os testes criam. Tokens e codigos saem junto com o cliente (Cascade). */
 async function limpar() {
+  // As propostas do teste da escrita do dia a dia (os itens saem junto) antes do produto e do cliente delas (Restrict).
+  await prisma.propostaParaCliente.deleteMany({ where: { criadoPor: { startsWith: "zz-mcp-" } } });
   await prisma.chamadaMcp.deleteMany({ where: { login: { startsWith: "zz-mcp-" } } });
   await prisma.correcaoDaDescricao.deleteMany({ where: { criadoPor: { startsWith: "zz-mcp-" } } });
   await prisma.clienteMcp.deleteMany({ where: { nome: { startsWith: "ZZ-MCP" } } });
@@ -784,11 +805,12 @@ try {
         descoberta?.instructions === INSTRUCOES && INSTRUCOES.includes("anotarDuvida"),
       ],
       [
-        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "calcularEstudoDeViabilidade", "compararProdutos", "comprasACaminhoDoProduto", "consultarEstoque", "consultarPreco", "consultarProduto", "criarKit", "criarProduto", "desligarCorrecaoDaDescricao", "filtrarProdutos", "folhaDeContato", "gravarCorrecaoDaDescricao", "gravarEstudoDeViabilidade", "gravarPropostaML", "gravarSecao", "historicoDePreco", "lerCategoriaML", "lerParaEstudoDeViabilidade", "lerParaProposta", "lerParaPropostaML", "lerPedidoDeCompra", "lerPedidoDeVenda", "lerProposta", "lerPropostaParaCliente", "listarClientes", "listarConcorrentes", "listarCorrecoesDaDescricao", "listarEstudosDeViabilidade", "listarFornecedores", "listarMarcas", "listarPedidosDeCompra", "listarPedidosDeVenda", "listarPropostasParaCliente", "listarTransportadoras", "marcarReferencias", "montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra", "produtosAbaixoDoMinimo", "reaproveitarAnuncioML", "relatorioDeVendas", "roteiroDaAnaliseDeFornecedor", "roteiroDaProposta", "roteiroDoEstudoDeViabilidade", "sincronizarComBling", "sincronizarComLojaIntegrada", "situacaoDoProduto", ...ESTOQUE, ...FRETE, ...ATENDIMENTO_ML].sort(),
+        ["anotarDuvida", "anunciosDoProduto", "baixarCandidatas", "buscarConhecimento", "buscarNoMercado", "buscarProdutos", "buscarProdutosSimilares", "calcularEstudoDeViabilidade", "compararProdutos", "comprasACaminhoDoProduto", "consultarEstoque", "consultarPreco", "consultarProduto", "criarKit", "criarProduto", "desligarCorrecaoDaDescricao", "filtrarProdutos", "folhaDeContato", "gravarCorrecaoDaDescricao", "gravarEstudoDeViabilidade", "gravarPropostaML", "gravarSecao", "historicoDePreco", "lerCategoriaML", "lerParaEstudoDeViabilidade", "lerParaProposta", "lerParaPropostaML", "lerPedidoDeCompra", "lerPedidoDeVenda", "lerProposta", "lerPropostaParaCliente", "listarClientes", "listarConcorrentes", "listarCorrecoesDaDescricao", "listarEstudosDeViabilidade", "listarFornecedores", "listarMarcas", "listarPedidosDeCompra", "listarPedidosDeVenda", "listarPropostasParaCliente", "listarTransportadoras", "marcarReferencias", "montarPedidoDeCompra", "mudarSituacaoDoPedidoDeCompra", "produtosAbaixoDoMinimo", "reaproveitarAnuncioML", "relatorioDeVendas", "roteiroDaAnaliseDeFornecedor", "roteiroDaProposta", "roteiroDoEstudoDeViabilidade", "sincronizarComBling", "sincronizarComLojaIntegrada", "situacaoDoProduto", ...ESTOQUE, ...FRETE, ...ATENDIMENTO_ML, ...DIA_A_DIA_ESCRITA, ...DIA_A_DIA_LEITURA].sort(),
+        // +2 de leitura da escrita do dia a dia (licencas e ordens de producao), 26/11/2026.
         // +4 de leitura do Mapa do estoque (roteiro, mapa, caixinha e sugerir), 15/11/2026.
         // +5 de leitura do frete (cotar, cotar o pedido, ler, listar e imprimir), 20/11/2026.
         // +2 de leitura do Atendimento do ML (listar e ler), 24/11/2026.
-        48,
+        50,
         true,
       ],
     );
@@ -1230,7 +1252,7 @@ try {
       [2, true, 1],
     );
     const lista = (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/list", {}, { id: id++ }), quem)))?.result?.tools ?? [];
-    conferir("a descricao de toda ferramenta de consulta lembra de anotar", lista.filter((ferramenta) => ferramenta.name !== "anotarDuvida" && !PROPOSTA.includes(ferramenta.name) && !PROPOSTA_DE_ANUNCIO.includes(ferramenta.name) && !REFERENCIAS.includes(ferramenta.name) && !COMPRAS_ESCRITA.includes(ferramenta.name) && !CORRECOES.includes(ferramenta.name) && !ANALISE_FORNECEDOR.includes(ferramenta.name) && !ESTUDOS.includes(ferramenta.name) && !CANAIS.includes(ferramenta.name) && !ESTOQUE.includes(ferramenta.name) && !FRETE_ESCRITA.includes(ferramenta.name) && !ATENDIMENTO_ML.includes(ferramenta.name) && !ferramenta.description.includes("anotarDuvida")).map((ferramenta) => ferramenta.name), []);
+    conferir("a descricao de toda ferramenta de consulta lembra de anotar", lista.filter((ferramenta) => ferramenta.name !== "anotarDuvida" && !PROPOSTA.includes(ferramenta.name) && !PROPOSTA_DE_ANUNCIO.includes(ferramenta.name) && !REFERENCIAS.includes(ferramenta.name) && !COMPRAS_ESCRITA.includes(ferramenta.name) && !CORRECOES.includes(ferramenta.name) && !ANALISE_FORNECEDOR.includes(ferramenta.name) && !ESTUDOS.includes(ferramenta.name) && !CANAIS.includes(ferramenta.name) && !ESTOQUE.includes(ferramenta.name) && !FRETE_ESCRITA.includes(ferramenta.name) && !ATENDIMENTO_ML.includes(ferramenta.name) && !DIA_A_DIA_ESCRITA.includes(ferramenta.name) && !ferramenta.description.includes("anotarDuvida")).map((ferramenta) => ferramenta.name), []);
 
     // --- as Correcoes da descricao (07/11/2026): gravadas pelo chat com o login da conexao, sem o lembrete ---
     await prisma.correcaoDaDescricao.deleteMany({ where: { criadoPor: "zz-mcp-lembrete" } });
@@ -1780,6 +1802,108 @@ try {
     conferir("sem codigo: marcar de novo nao duplica", nomeDeNovo.feitos?.map((item) => item.acao), ["fornecedor já estava marcado"]);
     const nomeTirado = lerJson(await chamar("marcarReferencias", { sku: "ZZ-MCP-REF", fornecedores: { remover: [{ fonte: "ZZ-MCP Atacado", nome: "ZZ UNO R3 Board" }, { fonte: "ZZ-MCP Atacado", nome: "ZZ Micro N20 Gear Motor" }] } }));
     conferir("sem codigo: desmarca so o do nome pedido", [nomeTirado.feitos?.map((item) => item.acao), nomeTirado.recusados?.length], [["fornecedor desmarcado"], 1]);
+  }
+
+  // -------------------------------------------------------------------------
+  // A escrita do dia a dia (26/11/2026): clientes, propostas e pedido de venda, pedidos, produto, licencas e producao,
+  // todas em dois passos (previa sem confirmo, grava com ele). O que le ou escreve no Bling so e testado ate antes dele.
+  // -------------------------------------------------------------------------
+  {
+    console.log("\nEscrita do dia a dia (dois passos)");
+    const { responderMcp } = await import("../src/lib/mcp/servidor.js");
+    let id = 6000;
+    const quem = (pode) => ({ login: "zz-mcp-dia", clienteId: null, clienteNome: "Claude", escopos: ["consultar"], familia: "zz-mcp-familia", expiraEm: new Date(Date.now() + 3600e3), administrador: false, pode });
+    const tudo = quem(() => true);
+    const chamar = async (nome, argumentos, autenticacao = tudo) =>
+      (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/call", { name: nome, arguments: argumentos }, { id: id++ }), autenticacao)))?.result ?? null;
+    const lerJson = (resultado) => JSON.parse(resultado?.content?.[0]?.text || "{}");
+    const erroDe = (resultado) => (resultado?.isError ? resultado.content?.[0]?.text ?? "" : null);
+
+    const lista = (await lerRespostaMcp(await responderMcp(pedidoMcp("tools/list", {}, { id: id++ }), tudo)))?.result?.tools ?? [];
+    conferir("as 15 que gravam estao no tools/list e nao sao so de leitura", DIA_A_DIA_ESCRITA.filter((nome) => lista.find((f) => f.name === nome)?.annotations?.readOnlyHint !== false), []);
+    conferir("as 2 de leitura estao no tools/list como so leitura", DIA_A_DIA_LEITURA.map((nome) => lista.find((f) => f.name === nome)?.annotations?.readOnlyHint), [true, true]);
+    conferir("toda que grava tem o confirmo no esquema", DIA_A_DIA_ESCRITA.filter((nome) => !lista.find((f) => f.name === nome)?.inputSchema?.properties?.confirmo), []);
+
+    // ---- Clientes
+    const CPF = "294.814.008-08";
+    const semPessoal = quem((recurso) => recurso !== "dado.pessoalDoCliente");
+    conferir("cadastrarCliente sem o dado pessoal e recusado", erroDe(await chamar("cadastrarCliente", { nome: "ZZ-MCP Andrelina", documento: CPF }, semPessoal))?.includes("dados pessoais"), true);
+    const previaCliente = lerJson(await chamar("cadastrarCliente", { nome: "ZZ-MCP Andrelina", documento: "29481400808", telefone: "54 98899-0008" }));
+    conferir(
+      "cadastrarCliente sem confirmo: so a previa, nada gravado",
+      [previaCliente.previa, previaCliente.vaiCadastrar?.documento, previaCliente.vaiCadastrar?.telefone, await prisma.cliente.count({ where: { nome: "ZZ-MCP Andrelina" } })],
+      [true, CPF, "(54) 98899-0008", 0],
+    );
+    conferir("cadastrarCliente com telefone invalido e recusado", erroDe(await chamar("cadastrarCliente", { nome: "ZZ-MCP X", documento: CPF, telefone: "123" }))?.includes("Telefone inválido"), true);
+    const criado = lerJson(await chamar("cadastrarCliente", { nome: "ZZ-MCP Andrelina", documento: "29481400808", confirmo: true }));
+    const gravado = await prisma.cliente.findUnique({ where: { documento: CPF }, select: { nome: true, tipoPessoa: true } });
+    conferir("cadastrarCliente com confirmo grava pessoa fisica", [criado.gravado, gravado?.nome, gravado?.tipoPessoa], [true, "ZZ-MCP Andrelina", "FISICA"]);
+    conferir("cadastrarCliente com documento repetido e recusado", erroDe(await chamar("cadastrarCliente", { nome: "ZZ-MCP Outra", documento: CPF, confirmo: true }))?.includes("Já existe"), true);
+    const previaEdicao = lerJson(await chamar("editarCliente", { cliente: CPF, email: "zz@exemplo.com" }));
+    conferir("editarCliente sem confirmo mostra antes e depois", [previaEdicao.previa, previaEdicao.antes?.email, previaEdicao.depois?.email], [true, null, "zz@exemplo.com"]);
+    await chamar("editarCliente", { cliente: "ZZ-MCP Andrelina", email: "zz@exemplo.com", confirmo: true });
+    conferir("editarCliente com confirmo grava", (await prisma.cliente.findUnique({ where: { documento: CPF }, select: { email: true } }))?.email, "zz@exemplo.com");
+    conferir("editarCliente sem nada a mudar e recusado", erroDe(await chamar("editarCliente", { cliente: CPF, email: "zz@exemplo.com" }))?.includes("Nada a mudar"), true);
+
+    // ---- Propostas (o caso da Andrelina: servico a R$100 com 30% de desconto)
+    await prisma.produto.create({ data: { sku: "ZZ-MCP-SV", tituloBase: "ZZMCP CONFIGURACAO DO LIGHTBURN", precoVenda: 100, servico: true } });
+    const propostasAntes = await prisma.propostaParaCliente.count();
+    const previaProposta = lerJson(await chamar("gravarPropostaParaCliente", { cliente: CPF, itens: [{ sku: "zz-mcp-sv", quantidade: 1, descontoPercentual: 30 }] }));
+    conferir(
+      "gravarPropostaParaCliente sem confirmo: previa com o desconto do item e nada criado",
+      [previaProposta.previa, previaProposta.cliente?.nome, previaProposta.itens?.[0]?.precoUnitario, previaProposta.itens?.[0]?.total, previaProposta.totais?.total, await prisma.propostaParaCliente.count()],
+      [true, "ZZ-MCP Andrelina", 100, 70, 70, propostasAntes],
+    );
+    conferir("a previa avisa que o produto nao esta no Bling", previaProposta.avisos?.some((aviso) => aviso.includes("não tem cadastro no Bling")), true);
+    conferir("proposta nova sem itens e recusada", erroDe(await chamar("gravarPropostaParaCliente", { cliente: CPF }))?.includes("ao menos um item"), true);
+    conferir("item com codigo que nao existe e recusado", erroDe(await chamar("gravarPropostaParaCliente", { cliente: CPF, itens: [{ sku: "ZZ-MCP-NAO", quantidade: 1 }] }))?.includes("não encontrado"), true);
+    const proposta = lerJson(await chamar("gravarPropostaParaCliente", { cliente: CPF, itens: [{ sku: "ZZ-MCP-SV", quantidade: 1, descontoPercentual: 30 }], observacoesInternas: "zz teste", confirmo: true }));
+    const gravada = proposta.numero ? await prisma.propostaParaCliente.findUnique({ where: { numero: proposta.numero }, include: { itens: true } }) : null;
+    conferir(
+      "gravarPropostaParaCliente com confirmo: rascunho ligado ao cliente, item com 30% e total 70",
+      [proposta.gravado, proposta.total, gravada?.situacao, Boolean(gravada?.clienteId), gravada?.itens?.length, Number(gravada?.itens?.[0]?.descontoPercentual), gravada?.criadoPor],
+      [true, 70, "RASCUNHO", true, 1, 30, "zz-mcp-dia"],
+    );
+    const mudada = lerJson(await chamar("gravarPropostaParaCliente", { numero: proposta.numero, itens: [{ sku: "ZZ-MCP-SV", quantidade: 2, descontoPercentual: 30 }], confirmo: true }));
+    conferir("gravarPropostaParaCliente com numero troca os itens", [mudada.total, await prisma.itemDaPropostaParaCliente.count({ where: { propostaId: gravada?.id } })], [140, 1]);
+    const previaSituacao = lerJson(await chamar("mudarSituacaoDaProposta", { numero: proposta.numero, para: "APROVADA" }));
+    conferir("mudarSituacaoDaProposta sem confirmo nao muda", [previaSituacao.previa, previaSituacao.para, (await prisma.propostaParaCliente.findUnique({ where: { numero: proposta.numero } }))?.situacao], [true, "Aprovada", "RASCUNHO"]);
+    conferir("recusar sem motivo e recusado", erroDe(await chamar("mudarSituacaoDaProposta", { numero: proposta.numero, para: "RECUSADA" }))?.includes("motivo"), true);
+    await chamar("mudarSituacaoDaProposta", { numero: proposta.numero, para: "APROVADA", confirmo: true });
+    conferir("mudarSituacaoDaProposta com confirmo aprova", (await prisma.propostaParaCliente.findUnique({ where: { numero: proposta.numero } }))?.situacao, "APROVADA");
+    conferir("aprovada nao muda mais pelo gravar", erroDe(await chamar("gravarPropostaParaCliente", { numero: proposta.numero, desconto: "5%" }))?.includes("aprovada"), true);
+    const semPedido = quem((recurso) => recurso !== "acao.propostas.pedidoDeVenda");
+    conferir("gerarPedidoDeVendaDaProposta sem a acao e recusado", erroDe(await chamar("gerarPedidoDeVendaDaProposta", { numero: proposta.numero }, semPedido))?.includes("Bling"), true);
+    const previaPedido = lerJson(await chamar("gerarPedidoDeVendaDaProposta", { numero: proposta.numero, totalConfirmado: 140, confirmo: true }));
+    conferir(
+      "gerarPedidoDeVendaDaProposta com impedimento (produto fora do Bling) nao chama o Bling nem com confirmo",
+      [previaPedido.previa, previaPedido.podeGerar, previaPedido.impedimentos?.some((motivo) => motivo.includes("ZZ-MCP-SV")), (await prisma.propostaParaCliente.findUnique({ where: { numero: proposta.numero } }))?.pedidoDeVendaEm],
+      [true, false, true, null],
+    );
+
+    // ---- Produto no dia a dia
+    const previaPreco = lerJson(await chamar("alterarPrecoDeVenda", { sku: "ZZ-MCP-SV", preco: 120 }));
+    conferir("alterarPrecoDeVenda sem confirmo: antes e depois, nada gravado", [previaPreco.precoAntes, previaPreco.precoDepois, Number((await prisma.produto.findUnique({ where: { sku: "ZZ-MCP-SV" } }))?.precoVenda)], ["R$100,00", "R$120,00", 100]);
+    await chamar("alterarPrecoDeVenda", { sku: "ZZ-MCP-SV", preco: 120, confirmo: true });
+    conferir("alterarPrecoDeVenda com confirmo grava", Number((await prisma.produto.findUnique({ where: { sku: "ZZ-MCP-SV" } }))?.precoVenda), 120);
+    await chamar("alterarLocalizacao", { sku: "ZZ-MCP-SV", localizacao: "Z9", confirmo: true });
+    conferir("alterarLocalizacao com confirmo grava", (await prisma.produto.findUnique({ where: { sku: "ZZ-MCP-SV" } }))?.localizacao, "Z9");
+    const semLocal = quem((recurso) => recurso !== "dado.localizacao");
+    conferir("alterarLocalizacao sem o dado e recusada", Boolean(erroDe(await chamar("alterarLocalizacao", { sku: "ZZ-MCP-SV", localizacao: "Z1" }, semLocal))), true);
+    const semBling = quem((recurso) => recurso !== "acao.produtos.sincronizarBling");
+    conferir("ajustarEstoque sem sincronizar com o Bling e recusado", erroDe(await chamar("ajustarEstoque", { sku: "ZZ-MCP-SV", tipo: "ENTRADA", quantidade: 1 }, semBling))?.includes("Bling"), true);
+    conferir("ajustarEstoque com motivo de outro tipo e recusado antes do Bling", erroDe(await chamar("ajustarEstoque", { sku: "ZZ-MCP-SV", tipo: "ENTRADA", quantidade: 1, motivo: "Uso interno" }))?.includes("Motivo inválido"), true);
+    await prisma.produto.create({ data: { sku: "ZZ-MCP-KITD", tituloBase: "ZZMCP KIT", tipo: "COMPOSICAO" } });
+    conferir("ajustarEstoque de kit e recusado antes do Bling", erroDe(await chamar("ajustarEstoque", { sku: "ZZ-MCP-KITD", tipo: "SAIDA", quantidade: 1 }))?.includes("kit"), true);
+
+    // ---- Pedidos, licencas e producao (sem pedido nem licenca de teste: as recusas e as leituras)
+    conferir("marcarPedidoEmSeparacao de pedido que nao existe", erroDe(await chamar("marcarPedidoEmSeparacao", { pedido: "ZZ-MCP-NAO-EXISTE" }))?.includes("não encontrado"), true);
+    conferir("vincularClienteAoPedido sem a acao e recusado", Boolean(erroDe(await chamar("vincularClienteAoPedido", { pedido: "1", cliente: CPF }, quem((recurso) => recurso !== "acao.pedidos.vincularCliente")))), true);
+    conferir("listarLicencasDeSoftware sem a tela e recusado", Boolean(erroDe(await chamar("listarLicencasDeSoftware", {}, quem((recurso) => recurso !== "tela.ferramentas.licencas")))), true);
+    conferir("registrarLicencaDoCliente com chave que nao existe", Boolean(erroDe(await chamar("registrarLicencaDoCliente", { licenca: "ZZ-MCP-CHAVE-NAO", cliente: CPF }))), true);
+    conferir("listarOrdensDeProducao responde", typeof lerJson(await chamar("listarOrdensDeProducao", { limite: 1 })).total, "number");
+    conferir("criarOrdemDeProducao de produto sem pecas proprias e recusado", erroDe(await chamar("criarOrdemDeProducao", { sku: "ZZ-MCP-SV", quantidade: 1 }))?.includes("peças próprias"), true);
+    conferir("concluirOrdemDeProducao de ordem que nao existe", erroDe(await chamar("concluirOrdemDeProducao", { ordem: "OP-999999", quantidadeProduzida: 1 }))?.includes("não encontrada"), true);
   }
 
   // (os blocos das tarefas seguintes entram aqui, antes do finally)

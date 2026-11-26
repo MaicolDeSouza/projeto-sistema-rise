@@ -7,7 +7,8 @@ import { ErroDeFerramenta } from "@/lib/riseAi/ferramentas/erro";
 /**
  * Propostas para cliente pelo MCP (spec 2026-11-12): so leitura, com o acesso da tela (`tela.propostas`); custo e lucro
  * so com `dado.custo`. Dado pessoal do cliente (documento, telefone, e-mail, endereco) NUNCA sai daqui, como nos pedidos
- * de venda: a resposta vai para o Claude/ChatGPT da pessoa, fora do Rise. Fica o nome. Criar pelo MCP fica para depois.
+ * de venda: a resposta vai para o Claude/ChatGPT da pessoa, fora do Rise. Fica o nome. A escrita (26/11/2026) mora em
+ * propostasParaClienteEscrita.js.
  */
 
 const LEITURA = { readOnlyHint: true, destructiveHint: false, openWorldHint: false };

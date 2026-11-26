@@ -532,7 +532,7 @@ npm run teste:fundo               # 9 asserções da regra do fundo das janelas 
 npm run teste:composicao          # 144 asserções do produto com composição (kit): regras puras (com o NCM e as categorias pela peça de maior quantidade), gravação, estoque calculado, cadastro, busca de peças (com o que falta a cada produto), a descrição só com referências cadastradas e os ajustes de 10/10/2026 (código sugerido, localização da peça, peça de origem, documentos e descrições das peças, o "!" do kit e o "Anexar a este produto") (Postgres, SEM rede; só escreve produtos ZZ-KIT-* e a pasta dados/produtos/ZZ-KIT-C3, que apaga)
 npm run teste:bling-sync          # 800 asserções da sincronização Rise <-> Bling: ícone, pop-up (com a frase do estoque igual e só ajuste por enviar), envio de campos e de fotos, fornecedores, ajustes e saldos de estoque (num lançamento só, com o saldo líquido, também dentro do Sincronizar), o ajuste da lista que já vai ao Bling e as travas (Bling falso, SEM rede; Postgres local, só escreve produtos ZZ-BS-*)
 npm run teste:rise-ai             # 621 asserções do Rise AI (Entrega 1 e A1; com a imagem na mensagem do usuário, 22/11/2026; o chat da tela e a leitura do fluxo SSE saíram em 20/10/2026): provedores, laço da conversa, ferramentas, conhecimento, sugestões, revisão, consumo e a coluna Outros, configuração e as quatro abas, orçamento e reserva, cotação do dia, Parar, texto seguro, perfil cliente, pesquisa na internet, trava do token e túnel. Provedores FALSOS (SEM rede, SEM IA paga); Postgres local, só escreve `ZZ-IA-*` e devolve a configuração e a conexão OLLAMA do dono
-npm run teste:mcp                 # 327 asserções do servidor MCP (com o portal de compras do cliente que nunca sai; com o criarKit: kit de composição pelas peças, fotos marcadas, SEO, recusas; com as 9 ferramentas do frete, o marcarReferencias de item sem código pelo nome, o buscarNoMercado, os filtros do catálogo, anúncios, histórico de preço, os cadastros, as Correções da descrição e o roteiro da análise de fornecedor): sondagem do SDK, OAuth puro e no banco (só hash, rotação, revogação por família), portão 401/403/503, rotas do protocolo, tela Autorizar, as ferramentas com o pode() do login, o registro de cada chamada, anotarDuvida, a rota /mcp, o Caddyfile, a aba Conexões e a Revisão do dia. Postgres local, SEM rede e SEM IA; só escreve zz-mcp-*, ZZ-MCP * e ZZ-MCP-*
+npm run teste:mcp                 # 364 asserções do servidor MCP (com a escrita do dia a dia em dois passos: clientes, propostas e o pedido de venda delas, pedidos, preço/localização/estoque, licenças e produção; com o portal de compras do cliente que nunca sai; com o criarKit: kit de composição pelas peças, fotos marcadas, SEO, recusas; com as 9 ferramentas do frete, o marcarReferencias de item sem código pelo nome, o buscarNoMercado, os filtros do catálogo, anúncios, histórico de preço, os cadastros, as Correções da descrição e o roteiro da análise de fornecedor): sondagem do SDK, OAuth puro e no banco (só hash, rotação, revogação por família), portão 401/403/503, rotas do protocolo, tela Autorizar, as ferramentas com o pode() do login, o registro de cada chamada, anotarDuvida, a rota /mcp, o Caddyfile, a aba Conexões e a Revisão do dia. Postgres local, SEM rede e SEM IA; só escreve zz-mcp-*, ZZ-MCP * e ZZ-MCP-*
 npm run teste:telegram            # 148 asserções da Entrega C1 (avisos no Telegram, com a nova venda no formato "Canal de venda:" de 24/11/2026, com os produtos zerados dentro do resumo das 20h, com o relógio próprio da rotina, a nova venda com foto dos produtos, a venda da Loja Integrada só com pagamento aprovado e as vendas no resumo das 20h, contadas das 20h da véspera às 20h do dia): banco, texto dos avisos (4 linhas, neutralizado, mascarado), cliente da API do bot e o token mascarado no log, vínculo por código, a configuração e a aba Canais, e a rotina do worker (linha de base, zerou/voltou/zerou, orçamento 80/100%, varredura que falhou, resumo das 20h, bloqueado, 3 tentativas). Telegram FALSO (SEM rede); Postgres local, só escreve zz-tg-* e ZZ-TG-* e devolve a Conexao TELEGRAM, a configuração e a linha de base do dono
 npm run teste:producao            # 89 asserções das peças próprias e da ordem de produção: regras (custo, cor do estoque, validação, arredondamento), custo pelas peças e o recálculo, trava da entrada manual, preparo do Salvar, clone, rascunho, a ordem (cria, baixa com falta, baixa, clique duplo, conclui com perda, cancela devolvendo, kit recalculado) contra o Bling falso. Postgres local, SEM rede; só escreve ZZ-PROD-*
 npm run teste:compras             # 194 asserções do módulo Compras (com a observação por item, o link público e o "Voltar para rascunho" do enviado): regras (totais, desconto % ou R$, a caminho, carrinho, situação), lista do mínimo e rascunho automático (com concorrência), pedido (salvar, itens, situação, preço que não se apaga), lançamento contra o Bling falso (clique duplo, Bling que recusa, desfazer com estoque vendido), proposta pelos bytes, dados da empresa, o PDF e as ferramentas de Compras do MCP. Postgres local, SEM rede; só escreve ZZ-COMPRA-* e "ZZ Compra *"
@@ -4374,6 +4374,31 @@ até hoje). Os números vêm da ação `metricasDeFaturamentoAcao` (`src/app/ped
 página calculava o resumo a cada carga; agora só quando o painel abre). Datas em `src/lib/pedidos/periodoDasMetricas.js`
 (`periodoDoMes`, `diasDoPeriodo` com o futuro cortado em hoje, `conferirPeriodo` com teto de 1 ano), testadas no `teste:pedidos`.
 Visto no PC: abre em 01/11 a 25/11 e o Mês anterior mostra 01/10 a 31/10 (vazio: o PC só tem pedidos desde 01/11).
+
+### Escrita do dia a dia pelo MCP (26/11/2026, SEM deploy)
+
+Pedido do dono: "Análise e veja quais ferramentas mcp precisamos criar ... Para criamos tudo de 1 vez"; escolheu os 6 grupos
+e "Quero que implementar tudo direto". 15 ferramentas que gravam e 2 de leitura, todas em `src/lib/mcp/`, pelas MESMAS
+funções das telas e com o MESMO acesso (`pode()` do login):
+
+- **Dois passos na mesma ferramenta** (`doisPassos.js`, Opção A): sem `confirmo` devolve a prévia (`previa: true`, nada
+  gravado); com `confirmo: true` e os mesmos dados, grava. As que escrevem no Bling pedem também o que a pessoa viu:
+  `totalConfirmado` no pedido de venda da proposta e `saldoVisto` no ajuste de estoque (mudou entre os passos = recusa).
+- **Clientes** (`clientesEscrita.js`): `cadastrarCliente` (nome e CPF/CNPJ obrigatórios, telefone, e-mail, observações;
+  só no Rise) e `editarCliente` (nome, telefone, e-mail, observações; o documento não muda por aqui).
+- **Propostas** (`propostasParaClienteEscrita.js`): `gravarPropostaParaCliente` (nova ou aberta; itens pelo código com
+  preço e desconto % por item; CPF/CNPJ fora do Rise vira cliente pela regra da proposta, que procura no Bling e cadastra
+  no Rise e no Bling), `mudarSituacaoDaProposta` e `gerarPedidoDeVendaDaProposta` (Bling, com os impedimentos da tela).
+- **Pedidos de venda** (`pedidosDeVendaEscrita.js`): `marcarPedidoEmSeparacao`, `vincularClienteAoPedido` e
+  `marcarNotaDeDevolucaoEmitida` (só registra a nota; nada vai ao canal).
+- **Produto** (`produtoRapido.js`): `alterarPrecoDeVenda`, `alterarLocalizacao` e `ajustarEstoque` (lê o saldo no Bling,
+  grava e manda ao Bling, como o popup).
+- **Licenças** (`licencas.js`): `listarLicencasDeSoftware` (leitura) e `registrarLicencaDoCliente` (o "+ Cliente").
+- **Produção** (`producao.js`): `listarOrdensDeProducao` (leitura), `criarOrdemDeProducao` (só Rise),
+  `darBaixaNaOrdemDeProducao` e `concluirOrdemDeProducao` (Bling). Cancelar fica na tela.
+- As que gravam entram em `PROPOSTAS` do `servidor.js` (sem o lembrete de anotar); a INSTRUCOES ganhou a linha dos dois
+  passos e o caminho da venda direta (cliente, proposta, aprovar, pedido). 37 asserções no `teste:mcp`; o que lê ou
+  escreve no Bling só é testado até antes dele (ajuste de estoque, baixa e conclusão nunca rodaram de verdade pelo MCP).
 
 ### Produto que é Serviço (25/11/2026, NO AR em 26.11.2026.151)
 
