@@ -112,7 +112,10 @@ export function parcelasDaEstimativa({ origem, itens, totais, custosML = null, t
       lucro += Number(item?.total ?? 0) - (custoDoKit ?? 0) * kits;
       continue;
     }
-    const doKit = custoDoKit === null ? null : lucroLiquido(Number(item?.precoUnitario), custoDoKit);
+    // O preco que conta e o PAGO por kit (o total da linha / kits), nao o `precoUnitario`: desde 26/11/2026 o item do Bling
+    // traz no `precoUnitario` o preco cheio e o desconto a parte, e o lucro sairia sobre um preco que o cliente nao pagou.
+    const pago = kits > 0 && item?.total !== undefined && item?.total !== null ? Number(item.total) / kits : Number(item?.precoUnitario);
+    const doKit = custoDoKit === null ? null : lucroLiquido(pago, custoDoKit);
     if (doKit === null) semCusto = true;
     else lucro += doKit * kits;
   }

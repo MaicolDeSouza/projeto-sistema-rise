@@ -348,6 +348,9 @@ try {
     conferir("Bling: desconto do item nao e tirado duas vezes", [comDesconto.precoUnitario, comDesconto.desconto, comDesconto.total], [100, 30, 70]);
     const vinteOito = normalizarPedidoBling({ pedido: { ...fx("bling-pedido")[1], itens: [{ codigo: "X", descricao: "X", quantidade: 28, valor: 45, desconto: 6.25 }] }, formas: [], situacoes: [], nfe: null }).itens[0];
     conferir("Bling: 28 x R$45 com 6,25% (pedido 18311) = 1260", [vinteOito.precoUnitario, vinteOito.total, vinteOito.desconto], [48, 1260, 84]);
+    // O lucro na loja sai do preco PAGO (45), nao do cheio (48): 28 x (45 x 0,94 - 17,58) = 692,16, o lucro real do 18311.
+    const estimado = parcelasDaEstimativa({ origem: "BLING", itens: [{ ...vinteOito, custoUnitarioCongelado: 17.58 }], totais: { totalProdutos: 1260 } });
+    conferir("Bling: lucro estimado pelo preco pago, nao pelo cheio", estimado.lucro, 692.16);
     const cem = normalizarPedidoBling({ pedido: { ...fx("bling-pedido")[1], itens: [{ codigo: "X", descricao: "X", quantidade: 1, valor: 0, desconto: 100 }] }, formas: [], situacoes: [], nfe: null }).itens[0];
     conferir("Bling: desconto de 100% fica no valor", [cem.precoUnitario, cem.desconto, cem.total], [0, 0, 0]);
     // Prazo de envio do Bling (08/11/2026): a data prevista do pedido, ate o fim do dia; sem data, sem prazo.
