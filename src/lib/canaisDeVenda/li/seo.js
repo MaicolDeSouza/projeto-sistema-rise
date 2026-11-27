@@ -45,6 +45,31 @@ const comparavel = (texto) =>
     .replace(/\p{M}/gu, "")
     .toLowerCase();
 
+const mesmoTexto = (a, b) => comparavel(a) === comparavel(b);
+
+/**
+ * O Tag Title acompanha o Nome (pedido do dono em 26/11/2026: trocar o Nome deixava o title com o nome antigo, e e ele que o
+ * Google mostra). So troca enquanto o title ainda e o Nome de antes (inteiro ou cortado em 70); o escrito a mao fica.
+ */
+export function tituloSeoAcompanhaNome(tituloSeo, nomeDeAntes, nome) {
+  if (!colapsar(tituloSeo) || !colapsar(nome) || !colapsar(nomeDeAntes)) return tituloSeo;
+  const eraONome = mesmoTexto(tituloSeo, nomeDeAntes) || mesmoTexto(tituloSeo, tituloSeoPadrao(nomeDeAntes));
+  return eraONome ? tituloSeoPadrao(nome) : tituloSeo;
+}
+
+/** O Tag Title ficou para tras: o Nome mudou e o title nao e o Nome novo (o "!" da aba SEO). */
+export function tituloSeoAtrasado(tituloSeo, nomeSalvo, nome) {
+  if (!colapsar(tituloSeo) || !colapsar(nome) || mesmoTexto(nomeSalvo, nome)) return false;
+  return !mesmoTexto(tituloSeo, tituloSeoPadrao(nome)) && !mesmoTexto(tituloSeo, nome);
+}
+
+/** A description ainda cita o Nome de antes (inteiro, sem caixa nem acento): o "!" da Meta Description. */
+export function descriptionCitaNomeAntigo(descricaoSeo, nomeSalvo, nome) {
+  const antigo = comparavel(nomeSalvo);
+  if (!antigo || mesmoTexto(nomeSalvo, nome)) return false;
+  return comparavel(descricaoSeo).includes(antigo) && !comparavel(descricaoSeo).includes(comparavel(nome));
+}
+
 // No padrao da loja a descricao abre com o TITULO EM MAIUSCULAS numa linha so. Como description
 // ele so repetiria o title; o que diz o que o produto e vem no paragrafo seguinte.
 function ehTitulo(paragrafo, titulo) {

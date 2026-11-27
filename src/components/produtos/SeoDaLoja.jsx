@@ -1,13 +1,21 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { ExternalLink, ListChecks, Loader, Sparkles, X } from "lucide-react";
+import { AlertCircle, ExternalLink, ListChecks, Loader, Sparkles, X } from "lucide-react";
 
 import { gerarSeoDoProduto, seoDosConcorrentesDoProduto } from "@/app/produtos/acoes-loja";
 import { CLASSE_CAMPO } from "@/components/cadastros/Campo";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import GastoDaIA from "@/components/ui/GastoDaIA";
-import { LIMITE_DA_DESCRIPTION_SEO, LIMITE_DO_TITULO_SEO, cortarNaFrase, tituloSeoPadrao } from "@/lib/canaisDeVenda/li/seo";
+import {
+  LIMITE_DA_DESCRIPTION_SEO,
+  LIMITE_DO_TITULO_SEO,
+  cortarNaFrase,
+  descriptionCitaNomeAntigo,
+  tituloSeoAcompanhaNome,
+  tituloSeoAtrasado,
+  tituloSeoPadrao,
+} from "@/lib/canaisDeVenda/li/seo";
 
 const DATA = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Sao_Paulo" });
 
@@ -95,6 +103,19 @@ function ListaDeOpcoes({ rotulo, aberta, aoAlternar, carregando, children }) {
   );
 }
 
+/** A linha do "!" quando o Nome mudou e o SEO ficou para tras: o que houve e o que fazer, numa linha. */
+function AvisoDoNome({ texto, children }) {
+  return (
+    <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-amber-800">
+      <span className="inline-flex items-center gap-1">
+        <AlertCircle size={13} />
+        {texto}
+      </span>
+      {children}
+    </p>
+  );
+}
+
 const SECAO = "px-2 pb-1 text-[11px] font-semibold tracking-wide text-suave uppercase";
 
 /**
@@ -107,8 +128,12 @@ const SECAO = "px-2 pb-1 text-[11px] font-semibold tracking-wide text-suave uppe
  * - A description vem do icone de lista ao lado do campo: o SEO dos concorrentes salvos no produto (pede o dado Concorrentes) e
  *   "Gerar com IA" (3 opcoes de 140 a 160 caracteres).
  * O texto vai no Salvar pelos proprios campos (`name`), como os outros do formulario. A URL do produto fica so na LI.
+ * - O Nome mudou (pedido do dono em 26/11/2026, Opcao 1): o Tag Title que ainda e o Nome de antes acompanha sozinho
+ *   (`trocaDoNome`, a cada troca); o escrito a mao fica, com o "!" e o "Atualizar pelo nome". A description que ainda cita
+ *   o Nome salvo ganha o "!" para gerar outra. "Manter" ou mexer no campo tira o "!" ate o fim da edicao. A URL nao muda:
+ *   trocar o endereco faria o Google perder a pagina e quebraria os links que ja existem.
  */
-export default function SeoDaLoja({ produtoId, inicialTitulo = "", inicialDescricao = "", lerCampo, aoAlterar, ativo, acessos = { concorrentes: true, ia: true }, iconeDaProposta = null, marcaDaProposta = null }) {
+export default function SeoDaLoja({ produtoId, inicialTitulo = "", inicialDescricao = "", lerCampo, aoAlterar, ativo, acessos = { concorrentes: true, ia: true }, iconeDaProposta = null, marcaDaProposta = null, trocaDoNome = null, aoMudarAviso }) {
   const [titulo, setTitulo] = useState(String(inicialTitulo ?? ""));
   const [descricao, setDescricao] = useState(String(inicialDescricao ?? ""));
   const [mexeuNoTitulo, setMexeuNoTitulo] = useState(false);
@@ -119,6 +144,24 @@ export default function SeoDaLoja({ produtoId, inicialTitulo = "", inicialDescri
   const [erroIA, setErroIA] = useState(null);
   const [gastoIA, setGastoIA] = useState(null);
   const [gerando, iniciarGeracao] = useTransition();
+  const [vezVista, setVezVista] = useState(trocaDoNome?.vez ?? 0);
+  const [dispensado, setDispensado] = useState({ titulo: false, descricao: false });
+
+  // Cada troca do Nome chega uma vez (ajuste de estado durante a renderizacao, como o de baixo).
+  if (trocaDoNome && trocaDoNome.vez !== vezVista) {
+    setVezVista(trocaDoNome.vez);
+    const acompanhado = tituloSeoAcompanhaNome(titulo, trocaDoNome.anterior, trocaDoNome.nome);
+    if (acompanhado !== titulo) setTitulo(acompanhado);
+  }
+  const nomeSalvo = trocaDoNome?.salvo ?? "";
+  const nomeAtual = trocaDoNome?.nome ?? "";
+  const tituloAtras = !dispensado.titulo && tituloSeoAtrasado(titulo, nomeSalvo, nomeAtual);
+  const descricaoAtras = !dispensado.descricao && descriptionCitaNomeAntigo(descricao, nomeSalvo, nomeAtual);
+  // O "!" da aba SEO mora no formulario (a barra de abas).
+  useEffect(() => {
+    aoMudarAviso?.(tituloAtras || descricaoAtras);
+  }, [tituloAtras, descricaoAtras, aoMudarAviso]);
+  const dispensar = (qual) => setDispensado((atual) => ({ ...atual, [qual]: true }));
 
   // Na PRIMEIRA vez que a aba abre (ajuste de estado durante a renderizacao, o padrao do React 19 no lugar de setState em
   // efeito): o Tag Title vazio e ainda nao mexido ganha o nome do produto cortado em 70, e a lista dos concorrentes e pedida.
@@ -143,6 +186,7 @@ export default function SeoDaLoja({ produtoId, inicialTitulo = "", inicialDescri
   function escolherDescription(texto) {
     setAberta(null);
     setDescricao(cortarNaFrase(texto, LIMITE_DA_DESCRIPTION_SEO));
+    dispensar("descricao");
     aoAlterar?.();
   }
   function gerarComIA() {
@@ -177,10 +221,29 @@ export default function SeoDaLoja({ produtoId, inicialTitulo = "", inicialDescri
           onChange={(evento) => {
             setTitulo(evento.target.value);
             setMexeuNoTitulo(true);
+            dispensar("titulo");
             aoAlterar?.();
           }}
-          className={`${CLASSE_CAMPO} border-borda focus:border-acento`}
+          className={`${CLASSE_CAMPO} ${tituloAtras ? "border-amber-400" : "border-borda focus:border-acento"}`}
         />
+        {tituloAtras && (
+          <AvisoDoNome texto="O Nome mudou e o Tag Title continua o de antes.">
+            <button
+              type="button"
+              onClick={() => {
+                setTitulo(tituloSeoPadrao(nomeAtual));
+                dispensar("titulo");
+                aoAlterar?.();
+              }}
+              className="font-medium text-acento hover:underline"
+            >
+              Atualizar pelo nome
+            </button>
+            <button type="button" onClick={() => dispensar("titulo")} className="text-suave hover:underline">
+              Manter
+            </button>
+          </AvisoDoNome>
+        )}
       </div>
 
       <div>
@@ -200,9 +263,10 @@ export default function SeoDaLoja({ produtoId, inicialTitulo = "", inicialDescri
             maxLength={LIMITE_DA_DESCRIPTION_SEO}
             onChange={(evento) => {
               setDescricao(evento.target.value);
+              dispensar("descricao");
               aoAlterar?.();
             }}
-            className={`${CLASSE_CAMPO} resize-y border-borda focus:border-acento`}
+            className={`${CLASSE_CAMPO} resize-y ${descricaoAtras ? "border-amber-400" : "border-borda focus:border-acento"}`}
           />
           <div className="mt-1 flex items-center gap-1">
             {/* O valor de antes da proposta (etiqueta "Original") ou a sugestao dela, vindos do formulario do produto. */}
@@ -264,6 +328,16 @@ export default function SeoDaLoja({ produtoId, inicialTitulo = "", inicialDescri
             </ListaDeOpcoes>
           </div>
         </div>
+        {descricaoAtras && (
+          <AvisoDoNome texto="A descrição ainda cita o Nome de antes.">
+            <button type="button" onClick={() => setAberta("description")} className="font-medium text-acento hover:underline">
+              Escolher outra
+            </button>
+            <button type="button" onClick={() => dispensar("descricao")} className="text-suave hover:underline">
+              Manter
+            </button>
+          </AvisoDoNome>
+        )}
         {marcaDaProposta}
       </div>
     </div>

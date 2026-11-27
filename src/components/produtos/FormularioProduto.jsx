@@ -40,6 +40,7 @@ import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import GastoDaIA, { GastoDoProduto } from "@/components/ui/GastoDaIA";
 import { somarResumos } from "@/lib/ia/gasto";
 import { acompanharTituloNaDescricao } from "@/lib/ia/revisaoDescricao";
+import { tituloSeoAcompanhaNome } from "@/lib/canaisDeVenda/li/seo";
 
 /** O gasto que foi no Salvar (campo oculto `gastoIA`), para a tela passa-lo ao total quando o servidor ja o gravou. */
 function lerGastoEnviado(formData) {
@@ -2172,6 +2173,13 @@ export default function FormularioProduto({
   // CORRECOES DA DESCRICAO (spec 2026-11-07): o texto que a IA, a proposta ou a busca escreveu na descricao (ou o que o
   // cadastro trouxe ao abrir). No Salvar, o que o dono mudou a mao em relacao a ele vira os pares do popup "O que mudou
   // na descricao". Estado, e nao ref: o rascunho guarda junto, e ler ref durante a renderizacao nao vale.
+  // O Nome mudou: a aba SEO acompanha o Tag Title e mostra o "!" do que ficou para tras (pedido do dono em 26/11/2026).
+  // `salvo` e o Nome com que o cadastro abriu, a referencia do "!"; `vez` faz cada troca chegar uma vez so.
+  const nomeAoAbrir = useRef(String(preenchido?.tituloBase ?? produto?.tituloBase ?? ""));
+  const [trocaDoNome, setTrocaDoNome] = useState(null);
+  const [avisoDoSeo, setAvisoDoSeo] = useState(false);
+  const avisarTrocaDoNome = (nome, anterior) =>
+    setTrocaDoNome((atual) => ({ salvo: nomeAoAbrir.current, anterior, nome, vez: (atual?.vez ?? 0) + 1 }));
   const [descricaoDaMaquina, setDescricaoDaMaquina] = useState(() => String(preenchido?.descricaoBase ?? produto?.descricaoBase ?? ""));
   const [oQueMudou, setOQueMudou] = useState(null);
   // O segundo envio (depois do popup) passa direto; o campo escondido leva as TROCAs marcadas.
@@ -2637,6 +2645,7 @@ export default function FormularioProduto({
     if (texto !== campo.value) escreverNoCampo(campo, texto);
     // O texto da maquina acompanha igual: a troca do Nome nao e uma correcao do dono.
     setDescricaoDaMaquina((anterior) => acompanharTituloNaDescricao(anterior, nomeDeAntes, nome));
+    avisarTrocaDoNome(nome, nomeDeAntes);
   }
 
   const idsMarcados = [...marcados.keys()];
@@ -3376,6 +3385,11 @@ export default function FormularioProduto({
     if (trazidos.tituloBase !== undefined && typeof mesclado.descricaoBase === "string") {
       mesclado.descricaoBase = acompanharTituloNaDescricao(mesclado.descricaoBase, atual.tituloBase || mesclado.tituloBase, mesclado.tituloBase);
     }
+    // O Tag Title acompanha igual (a aba SEO remonta com o `versao` e le o valor daqui).
+    if (trazidos.tituloBase !== undefined && trazidos.seoTituloLI === undefined && typeof mesclado.seoTituloLI === "string") {
+      mesclado.seoTituloLI = tituloSeoAcompanhaNome(mesclado.seoTituloLI, atual.tituloBase || mesclado.tituloBase, mesclado.tituloBase);
+    }
+    if (trazidos.tituloBase !== undefined && !recomecar) avisarTrocaDoNome(mesclado.tituloBase, atual.tituloBase || mesclado.tituloBase);
     // A descricao que chega por aqui (IA, proposta, busca por codigo, recomecar) e o novo texto da maquina; so o Nome
     // trocado leva o texto da maquina junto, como leva o do campo.
     if (recomecar || trazidos.descricaoBase !== undefined || daOrigem.descricaoBase !== undefined) {
@@ -4043,6 +4057,11 @@ export default function FormularioProduto({
                 }`}
               >
                 {item.rotulo}
+                {item.id === "seo" && avisoDoSeo && (
+                  <span title="O Nome mudou e o SEO ficou com o Nome de antes" className="ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white">
+                    !
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -4456,6 +4475,8 @@ export default function FormularioProduto({
                 acessos={{ concorrentes: acessos.concorrentes, ia: acessos.ia }}
                 iconeDaProposta={<IconeDaProposta nome="seoDescricaoLI" />}
                 marcaDaProposta={<MarcaDaProposta nome="seoDescricaoLI" />}
+                trocaDoNome={trocaDoNome}
+                aoMudarAviso={setAvisoDoSeo}
               />
             </div>
 

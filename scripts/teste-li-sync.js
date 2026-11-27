@@ -22,7 +22,7 @@ register(new URL("./resolver-alias.js", import.meta.url), pathToFileURL("./"));
 
 const { prisma } = await import("../src/lib/db.js");
 const { LIMITE_DO_SLUG, slugDe, slugValido } = await import("../src/lib/canaisDeVenda/li/slug.js");
-const { LIMITE_DA_DESCRIPTION_SEO, LIMITE_DO_TITULO_SEO, cortarNaFrase, cortarNaPalavra, descriptionPadrao, tituloSeoPadrao } = await import("../src/lib/canaisDeVenda/li/seo.js");
+const { LIMITE_DA_DESCRIPTION_SEO, LIMITE_DO_TITULO_SEO, cortarNaFrase, cortarNaPalavra, descriptionCitaNomeAntigo, descriptionPadrao, tituloSeoAcompanhaNome, tituloSeoAtrasado, tituloSeoPadrao } = await import("../src/lib/canaisDeVenda/li/seo.js");
 const { montarDescricaoLI } = await import("../src/lib/canaisDeVenda/li/descricao.js");
 const { htmlParaTexto } = await import("../src/lib/integracoes/normalizacao.js");
 const { CAMPOS_DE_ENVIO_LI, CAMPOS_SO_LEITURA_LI, TEXTO_DO_TIPO_PRODUCAO, TIPO_PRODUCAO_DA_LI, assinaturaLI, avisosFiscaisLI, contarDivergencias, diferencasLI, normalizarDaLI, normalizarDoRiseLI } = await import("../src/lib/canaisDeVenda/li/campos.js");
@@ -131,6 +131,18 @@ try {
     conferir("corta na palavra", cortarNaPalavra("Fonte chaveada 12V 5A bivolt", 18), "Fonte chaveada 12V");
     conferir("palavra unica maior que o limite corta seca", cortarNaPalavra("abcdefghij", 4), "abcd");
     conferir("titulo SEO padrao <= 70", tituloSeoPadrao("x".repeat(60) + " " + "y".repeat(20)), "x".repeat(60));
+    // O Tag Title acompanha o Nome (26/11/2026): so quando ainda e o Nome de antes; o escrito a mao fica.
+    conferir("SEO acompanha: era o Nome", tituloSeoAcompanhaNome("Placa Nano V3", "Placa Nano V3", "Placa Nano V3 com Cabo"), "Placa Nano V3 com Cabo");
+    conferir("SEO acompanha: era o Nome sem acento e caixa", tituloSeoAcompanhaNome("modulo rele", "Módulo Relé", "Módulo Relé 5V"), "Módulo Relé 5V");
+    conferir("SEO acompanha: era o Nome cortado em 70", tituloSeoAcompanhaNome("x".repeat(60), "x".repeat(60) + " " + "y".repeat(20), "Novo"), "Novo");
+    conferir("SEO acompanha: escrito a mao fica", tituloSeoAcompanhaNome("Arduino Nano barato", "Placa Nano V3", "Placa Nano"), "Arduino Nano barato");
+    conferir("SEO acompanha: vazio fica vazio", tituloSeoAcompanhaNome("", "A", "B"), "");
+    conferir("SEO atrasado: Nome mudou e title a mao", tituloSeoAtrasado("Arduino Nano barato", "Placa Nano V3", "Placa Nano"), true);
+    conferir("SEO atrasado: title ja e o Nome novo", tituloSeoAtrasado("Placa Nano", "Placa Nano V3", "Placa Nano"), false);
+    conferir("SEO atrasado: Nome nao mudou", tituloSeoAtrasado("Outro", "Placa Nano", "placa nano"), false);
+    conferir("description cita o Nome antigo", descriptionCitaNomeAntigo("A Placa Nano V3 e compacta.", "Placa Nano V3", "Placa Nano"), false);
+    conferir("description cita o Nome antigo (sem o novo)", descriptionCitaNomeAntigo("O Modulo Rele liga cargas.", "Módulo Relé", "Relé 5V"), true);
+    conferir("description sem o Nome antigo", descriptionCitaNomeAntigo("Liga cargas de 10A.", "Módulo Relé", "Relé 5V"), false);
     conferir("description padrao = primeiro paragrafo colapsado", descriptionPadrao("Linha  1\ncontinua\n\nSegundo paragrafo"), "Linha 1 continua");
     conferir("description padrao <= 160 (o limite que o Google mostra)", descriptionPadrao("palavra ".repeat(60)).length <= 160, true);
     const longa = "A Placa Uno R3 usa o ATmega328P e roda a 16 MHz com tensao de 5V. " + "Ela e compativel com os shields do Arduino e com a IDE oficial, e acompanha cabo USB para gravar o codigo. ".repeat(3);
