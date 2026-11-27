@@ -484,6 +484,16 @@ o backup de 353,6 MB antes. Conferido: as 6 respostas de fora, o chat da loja re
 
 **Pedido clonado no Bling (26/11/2026, Opção 1 do dono, NO AR em 26.11.2026.155, commit `2b36325`):** a Andrea clonou o 18318 (cópia do pedido 1418 da LI) e o clone 18367 herdou a loja da LI e o número da loja 1418. O Rise o tomou por espelho, trocou o número do Bling do pedido 1418 para 18367 e não criou pedido nem o aviso do Telegram. Agora `espelharNoBling` devolve `"clone"` quando o pedido do ML/LI já tem OUTRO pedido do Bling ligado, e a rotina (e a notificação do Bling) lê esse como pedido do Bling (`lerPedidoBling` + `aplicarPedidoLido`). O mesmo espelho lido de novo (mesmo id) continua casando. **Limite:** se um dia o Bling refizer a cópia de uma venda com outro id, ela entra como pedido do Bling em dobro. Na mesma mudança, os espelhos pendentes guardam um por pedido do Bling (a lista da VPS estava em 500 de 500 com repetidos). Logo depois do deploy ("Pode subir" do dono), o pedido 1418 da LI voltou ao 18318 (`blingPedidoId` 27462534209) direto no banco da VPS; o 18367 entra sozinho na volta seguinte da leitura, enquanto estiver na janela de um dia. Conferido: as 6 respostas de fora e os contêineres de pé.
 
+**Deploy 26.11.2026.156 (commit `6f4d3ec`, 26/11/2026):** "Sim, subir" do dono, sem migration. **Fotos da proposta em duas seções**
+(`FotosDaProposta.jsx` e a grade do `QuadroDaProposta.jsx`): "Escolhidas (N)" em cima e, depois de um risco, "Descartadas (N)" com
+o motivo, **sem efeito apagado** (o dono ainda analisa as descartadas). **SEO acompanha o Nome** (Opção 1 do dono): o Tag Title
+(`seoTituloLI`) que ainda é o Nome de antes (inteiro ou cortado em 70) troca junto com o Nome, digitado, pela lista de títulos ou
+pela proposta (`tituloSeoAcompanhaNome` em `canaisDeVenda/li/seo.js`, chamado pelo `trocaDoNome` do `FormularioProduto`); o escrito
+à mão fica e a aba SEO ganha o "!" com "Atualizar pelo nome" e "Manter" (`tituloSeoAtrasado`); a Meta Description que ainda cita o
+Nome com que o cadastro abriu ganha o "!" com "Escolher outra" (`descriptionCitaNomeAntigo`). O "!" vale só durante a edição (não
+há coluna guardando o Nome do SEO). A URL da LI não muda, de propósito. Asserções no `teste:li-sync`. Conferido no PC; as 6
+respostas de fora ok.
+
 **Travas de escrita na VPS (decisão do dono em 22/10/2026):** o dono mandou liberar **o Mercado Livre e o Bling para todos os
 códigos** (`ML_PUBLICACAO=true`, `ML_PUBLICACAO_CODIGOS` ausente, `BLING_ESCRITA=true`, `BLING_ESCRITA_CODIGOS` vazio) depois
 de o Publicar recusar com "ML_PUBLICACAO está false"; aplicado só no `.env` da VPS (cópia `.env.bak-AAAAMMDD-HHMMSS` ao lado),
