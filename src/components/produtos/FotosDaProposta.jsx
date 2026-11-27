@@ -23,6 +23,8 @@ import { AmpliacaoDeFoto, ImagemComZoom } from "./ImagemComZoom";
  * Desenho: nesta janela o operador precisa ver primeiro as fotos e quais estao escolhidas, em que ordem; a acao
  * principal e "Aplicar fotos".
  */
+const CLASSE_DA_GRADE = "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4";
+
 export default function FotosDaProposta({ fotos, urls, aoAplicar, aoFechar, ocupado = false, ordemInicial = null }) {
   const candidatas = fotos?.candidatas ?? [];
   // `ordemInicial`: a ultima escolha que o dono APLICOU nesta edicao (pedido do dono em 23/10/2026: reabrir antes de
@@ -68,6 +70,8 @@ export default function FotosDaProposta({ fotos, urls, aoAplicar, aoFechar, ocup
     const pb = ordem.indexOf(b.id);
     return (pa < 0 ? 999 : pa) - (pb < 0 ? 999 : pb);
   });
+  const escolhidas = visiveis.filter((c) => ordem.includes(c.id));
+  const descartadas = visiveis.filter((c) => !ordem.includes(c.id));
   const urlDe = (candidata) => urls?.[`foto:${candidata.id}`] ?? null;
 
   // A foto grande segue o id, e nao a posicao: escolher muda a ordem da grade, e a foto aberta nao pode trocar.
@@ -99,6 +103,61 @@ export default function FotosDaProposta({ fotos, urls, aoAplicar, aoFechar, ocup
     );
   }
 
+  function cartao(candidata, descartada = false) {
+    const posicao = ordem.indexOf(candidata.id);
+    const marcada = posicao >= 0;
+    const url = urlDe(candidata);
+    const alvo = sobre === candidata.id && arrastando && arrastando !== candidata.id && marcada;
+    return (
+      <li
+        key={candidata.id}
+        draggable
+        onDragStart={(evento) => {
+          setZoom(null);
+          setArrastando(candidata.id);
+          evento.dataTransfer.effectAllowed = "move";
+        }}
+        onDragEnd={() => {
+          setArrastando(null);
+          setSobre(null);
+        }}
+        onDragOver={(evento) => {
+          // So uma ESCOLHIDA recebe: e a ordem delas que muda.
+          if (!marcada) return;
+          evento.preventDefault();
+          if (sobre !== candidata.id) setSobre(candidata.id);
+        }}
+        onDrop={(evento) => {
+          evento.preventDefault();
+          soltar(candidata.id);
+        }}
+        className={`relative flex flex-col rounded border-2 p-1.5 ${descartada ? "opacity-70 transition-opacity hover:opacity-100" : ""} ${marcada ? "border-emerald-500" : "border-borda"} ${alvo ? "ring-2 ring-acento ring-offset-1" : ""} ${arrastando === candidata.id ? "opacity-50" : ""}`}
+        title={candidata.motivo}
+      >
+        {url ? (
+          <ImagemComZoom
+            src={url}
+            alt={`Candidata ${candidata.id}`}
+            zoom={zoom?.id === candidata.id ? zoom.ponto : null}
+            setZoom={(ponto) => setZoom(ponto ? { id: candidata.id, ponto } : null)}
+            aoAmpliar={() => setAberta(candidata.id)}
+            className="aspect-square w-full rounded bg-white"
+          />
+        ) : (
+          <span className="flex aspect-square w-full items-center justify-center rounded bg-fundo text-xs text-suave">sem imagem</span>
+        )}
+        {marcada && (
+          <span className="pointer-events-none absolute top-2.5 left-2.5 inline-flex h-6 min-w-6 items-center justify-center gap-0.5 rounded-full bg-emerald-600 px-1.5 text-xs font-semibold text-white">
+            <Check size={12} /> {posicao + 1}
+          </span>
+        )}
+        <span className="mt-1 block truncate text-xs font-medium">{candidata.origem?.loja}</span>
+        <span className="line-clamp-2 block flex-1 text-[11px] text-suave">{candidata.motivo}</span>
+        <div className="mt-1.5">{botaoDaEscolha(candidata)}</div>
+      </li>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4" {...propsDoFundo(aoFechar)}>
       <div role="dialog" aria-label="Fotos da proposta" className="mt-6 flex max-h-[90vh] w-full max-w-5xl flex-col rounded-lg bg-superficie shadow-xl">
@@ -118,62 +177,23 @@ export default function FotosDaProposta({ fotos, urls, aoAplicar, aoFechar, ocup
           </button>
         </header>
 
-        <ul ref={grade} className="grid flex-1 grid-cols-2 gap-3 overflow-y-auto p-4 [overflow-anchor:none] sm:grid-cols-3 lg:grid-cols-4">
-          {visiveis.map((candidata) => {
-            const posicao = ordem.indexOf(candidata.id);
-            const marcada = posicao >= 0;
-            const url = urlDe(candidata);
-            const alvo = sobre === candidata.id && arrastando && arrastando !== candidata.id && marcada;
-            return (
-              <li
-                key={candidata.id}
-                draggable
-                onDragStart={(evento) => {
-                  setZoom(null);
-                  setArrastando(candidata.id);
-                  evento.dataTransfer.effectAllowed = "move";
-                }}
-                onDragEnd={() => {
-                  setArrastando(null);
-                  setSobre(null);
-                }}
-                onDragOver={(evento) => {
-                  // So uma ESCOLHIDA recebe: e a ordem delas que muda.
-                  if (!marcada) return;
-                  evento.preventDefault();
-                  if (sobre !== candidata.id) setSobre(candidata.id);
-                }}
-                onDrop={(evento) => {
-                  evento.preventDefault();
-                  soltar(candidata.id);
-                }}
-                className={`relative flex flex-col rounded border-2 p-1.5 ${marcada ? "border-emerald-500" : "border-borda"} ${alvo ? "ring-2 ring-acento ring-offset-1" : ""} ${arrastando === candidata.id ? "opacity-50" : ""}`}
-                title={candidata.motivo}
-              >
-                {url ? (
-                  <ImagemComZoom
-                    src={url}
-                    alt={`Candidata ${candidata.id}`}
-                    zoom={zoom?.id === candidata.id ? zoom.ponto : null}
-                    setZoom={(ponto) => setZoom(ponto ? { id: candidata.id, ponto } : null)}
-                    aoAmpliar={() => setAberta(candidata.id)}
-                    className="aspect-square w-full rounded bg-white"
-                  />
-                ) : (
-                  <span className="flex aspect-square w-full items-center justify-center rounded bg-fundo text-xs text-suave">sem imagem</span>
-                )}
-                {marcada && (
-                  <span className="pointer-events-none absolute top-2.5 left-2.5 inline-flex h-6 min-w-6 items-center justify-center gap-0.5 rounded-full bg-emerald-600 px-1.5 text-xs font-semibold text-white">
-                    <Check size={12} /> {posicao + 1}
-                  </span>
-                )}
-                <span className="mt-1 block truncate text-xs font-medium">{candidata.origem?.loja}</span>
-                <span className="line-clamp-2 block flex-1 text-[11px] text-suave">{candidata.motivo}</span>
-                <div className="mt-1.5">{botaoDaEscolha(candidata)}</div>
-              </li>
-            );
-          })}
-        </ul>
+        {/* Duas secoes (pedido do dono em 26/11/2026): em cima as escolhidas, embaixo de um risco as descartadas, que ele as
+            vezes aproveita. As duas ficam no mesmo container de rolagem, para escolher nao pular a tela. */}
+        <div ref={grade} className="flex-1 overflow-y-auto p-4 [overflow-anchor:none]">
+          <h3 className="mb-2 text-sm font-semibold">Escolhidas ({escolhidas.length})</h3>
+          {escolhidas.length > 0 ? (
+            <ul className={CLASSE_DA_GRADE}>{escolhidas.map((candidata) => cartao(candidata))}</ul>
+          ) : (
+            <div className="rounded border-2 border-dashed border-borda py-6 text-center text-xs text-suave">Nenhuma escolhida</div>
+          )}
+          {descartadas.length > 0 && (
+            <>
+              <hr className="my-5 border-t-2 border-borda" />
+              <h3 className="mb-2 text-sm font-semibold text-suave">Descartadas ({descartadas.length})</h3>
+              <ul className={CLASSE_DA_GRADE}>{descartadas.map((candidata) => cartao(candidata, true))}</ul>
+            </>
+          )}
+        </div>
 
         <footer className="flex items-center justify-end gap-2 border-t border-borda px-5 py-3">
           <button type="button" onClick={aoFechar} className="rounded border border-borda px-3 py-1.5 text-sm hover:bg-fundo">

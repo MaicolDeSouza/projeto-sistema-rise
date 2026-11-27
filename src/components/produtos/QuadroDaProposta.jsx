@@ -255,11 +255,14 @@ function DetalheDaSecao({ secao, conteudo, urls }) {
     );
   }
   if (secao === "fotos") {
-    const candidatas = [...(conteudo.candidatas ?? [])].sort((a, b) => Number(b.escolhida) - Number(a.escolhida) || (a.ordem ?? 99) - (b.ordem ?? 99));
-    return (
+    // Escolhidas em cima e, depois de um risco, as descartadas (pedido do dono em 26/11/2026: ele as vezes aproveita uma).
+    const candidatas = conteudo.candidatas ?? [];
+    const escolhidas = candidatas.filter((c) => c.escolhida).sort((a, b) => (a.ordem ?? 99) - (b.ordem ?? 99));
+    const descartadas = candidatas.filter((c) => !c.escolhida);
+    const grade = (lista) => (
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {candidatas.map((candidata) => (
-          <li key={candidata.id} className={`rounded border p-2 ${candidata.escolhida ? "border-emerald-500" : "border-borda"}`}>
+        {lista.map((candidata) => (
+          <li key={candidata.id} className={`rounded border p-2 ${candidata.escolhida ? "border-emerald-500" : "border-borda opacity-70 transition-opacity hover:opacity-100"}`}>
             {urls[`foto:${candidata.id}`] && (
               // eslint-disable-next-line @next/next/no-img-element -- foto da pasta da proposta, servida pela rota do Rise
               <img src={urls[`foto:${candidata.id}`]} alt={`Candidata ${candidata.id}`} loading="lazy" className="aspect-square w-full rounded object-contain" />
@@ -272,6 +275,19 @@ function DetalheDaSecao({ secao, conteudo, urls }) {
           </li>
         ))}
       </ul>
+    );
+    return (
+      <>
+        <Subtitulo>Escolhidas ({escolhidas.length})</Subtitulo>
+        {grade(escolhidas)}
+        {descartadas.length > 0 && (
+          <>
+            <hr className="my-4 border-t-2 border-borda" />
+            <Subtitulo>Descartadas ({descartadas.length})</Subtitulo>
+            {grade(descartadas)}
+          </>
+        )}
+      </>
     );
   }
   if (secao === "documentos") {
