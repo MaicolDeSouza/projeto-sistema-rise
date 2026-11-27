@@ -103,7 +103,7 @@ export default function FotosDaProposta({ fotos, urls, aoAplicar, aoFechar, ocup
     );
   }
 
-  function cartao(candidata, descartada = false) {
+  function cartao(candidata) {
     const posicao = ordem.indexOf(candidata.id);
     const marcada = posicao >= 0;
     const url = urlDe(candidata);
@@ -131,7 +131,7 @@ export default function FotosDaProposta({ fotos, urls, aoAplicar, aoFechar, ocup
           evento.preventDefault();
           soltar(candidata.id);
         }}
-        className={`relative flex flex-col rounded border-2 p-1.5 ${descartada ? "opacity-70 transition-opacity hover:opacity-100" : ""} ${marcada ? "border-emerald-500" : "border-borda"} ${alvo ? "ring-2 ring-acento ring-offset-1" : ""} ${arrastando === candidata.id ? "opacity-50" : ""}`}
+        className={`relative flex flex-col rounded border-2 p-1.5 ${marcada ? "border-emerald-500" : "border-borda"} ${alvo ? "ring-2 ring-acento ring-offset-1" : ""} ${arrastando === candidata.id ? "opacity-50" : ""}`}
         title={candidata.motivo}
       >
         {url ? (
@@ -190,7 +190,7 @@ export default function FotosDaProposta({ fotos, urls, aoAplicar, aoFechar, ocup
             <>
               <hr className="my-5 border-t-2 border-borda" />
               <h3 className="mb-2 text-sm font-semibold text-suave">Descartadas ({descartadas.length})</h3>
-              <ul className={CLASSE_DA_GRADE}>{descartadas.map((candidata) => cartao(candidata, true))}</ul>
+              <ul className={CLASSE_DA_GRADE}>{descartadas.map((candidata) => cartao(candidata))}</ul>
             </>
           )}
         </div>

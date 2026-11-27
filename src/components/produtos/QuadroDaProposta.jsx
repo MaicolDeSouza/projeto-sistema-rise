@@ -262,7 +262,7 @@ function DetalheDaSecao({ secao, conteudo, urls }) {
     const grade = (lista) => (
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {lista.map((candidata) => (
-          <li key={candidata.id} className={`rounded border p-2 ${candidata.escolhida ? "border-emerald-500" : "border-borda opacity-70 transition-opacity hover:opacity-100"}`}>
+          <li key={candidata.id} className={`rounded border p-2 ${candidata.escolhida ? "border-emerald-500" : "border-borda"}`}>
             {urls[`foto:${candidata.id}`] && (
               // eslint-disable-next-line @next/next/no-img-element -- foto da pasta da proposta, servida pela rota do Rise
               <img src={urls[`foto:${candidata.id}`]} alt={`Candidata ${candidata.id}`} loading="lazy" className="aspect-square w-full rounded object-contain" />
