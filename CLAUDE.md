@@ -273,6 +273,16 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
     foto posta no produto depois de montar o kit entra na primeira abertura). Desmarcada e salva continua fora. Vale ao abrir
     o editor, no Publicar, no Sincronizar e no "!" de fotos do kit publicado (`conteudoAtualDoAnuncio`). O anúncio simples já
     seguia o produto desde 24/10/2026. O contexto dos produtos ganhou `imagens[].criadoEm`.
+  - **Imagem "Compre em kit e economize" como 3ª foto (27/11/2026, pedido do dono, SEM deploy, commit `1ce37135`):** o anúncio
+    do ML ainda NÃO publicado que tem o bloco "Compre em kit e economize" na descrição (o de 1 un. e os kits menores;
+    `kitsParaOBloco` com algum kit) ganha a imagem como 3ª foto (com menos de 2 fotos, no fim; sem foto nenhuma, não entra, para
+    não virar capa). A imagem mora UMA vez em `public/anuncios-ml/compre-em-kit.jpg` e no rascunho é o id fixo
+    `banner-compre-em-kit` (`src/lib/canaisDeVenda/ml/bannerDoKit.js`, regras puras). Escolha do dono em `dados.bannerKit`:
+    `null` automática, `false` tirou (o X da foto; não volta sozinha), `true` incluiu ("Incluir imagem Compre em kit" na aba
+    Imagens). Entra no `novoRascunhoML` e no `carregarAnuncioML` (que o Publicar usa); `fotosDoRise`, `fotosDoKitDoRise` e a
+    troca de composição mantêm a posição dela; Publicar e Enviar mudanças leem os bytes pelo `bytesDaFoto` (`publicar.js`); o
+    "!" de fotos a conta pelo nome `compre-em-kit.jpg`. **Publicado não muda** (decisão do dono: a troca em todos fica para
+    depois). Trocar a imagem = trocar o arquivo e subir; anúncio que já a enviou não acende o "!" sozinho (o nome não muda).
 - **Texto cortado mostra o resto AO PASSAR O MOUSE, rápido**, em todo o Rise (23/10/2026 o dono pediu ao clique; em
   24/10/2026 mudou: "ao clicar não quero que abra esse popup, quero que abra rapidamente o texto como é feito ao deixar o
   mouse em cima por um tempo"): `TextoCortadoAoClicar` (`src/components/ui/`, montado no `layout.jsx`; o nome ficou)
