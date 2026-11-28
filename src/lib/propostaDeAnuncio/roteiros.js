@@ -31,7 +31,8 @@ import { REGRAS_DAS_VARIANTES } from "@/lib/canaisDeVenda/ml/faixas";
 // "13" em 22/11/2026: kit de produtos DIFERENTES nunca no anuncio (o editor recusa); e um produto "Com composicao" do cadastro,
 // e o anuncio sai dele (pedido do dono: "o kit deve sempre ser montado no rise antes").
 // "14" em 22/11/2026: o kit de produtos diferentes se cria com a ferramenta criarKit.
-export const VERSAO_ROTEIRO_ML = "14";
+// "15" em 27/11/2026: lucro minimo de R$ 5 e preco minimo de R$ 19 no preco que o Rise calcula, tambem no reaproveitado.
+export const VERSAO_ROTEIRO_ML = "15";
 
 export const ROTEIRO_ML = `ROTEIRO DA PROPOSTA DE ANÚNCIO DO MERCADO LIVRE (Rise / 4hobby), versão ${VERSAO_ROTEIRO_ML}
 
@@ -42,6 +43,10 @@ anúncios no Rise, e o dono revisa no editor do Mercado Livre e publica.
 QUANTOS ANÚNCIOS E DE QUE TIPO (o Rise decide pelo preço que ele calcula; você só confere e explica ao dono):
 ${REGRAS_DAS_VARIANTES.map((linha) => `- ${linha}`).join("\n")}
 A proposta usa só você (sem custo de IA para o Rise). O PREÇO é calculado pelo Rise, nunca por você.
+MÍNIMOS DO PREÇO (o Rise aplica; você só explica ao dono): lucro de pelo menos R$5 por venda no ML e preço de pelo menos
+R$19 (abaixo disso o comprador paga o frete). O anúncio reaproveitado (reaproveitarAnuncioML) ou já publicado que a proposta
+acha, com preço que não cumpre os dois, tem o preço corrigido no Rise (só para cima; vem em precoCorrigido e nos avisos):
+diga ao dono o de/para e que ele confere e usa o Enviar mudanças. O dono pode digitar outro preço no editor.
 
 CAMINHO (nesta ordem)
 1. situacaoDoProduto(sku). Diga à pessoa, no chat, o proximoPasso e o motivo, ANTES de fazer qualquer coisa.

@@ -6,7 +6,7 @@
  */
 
 import { clonarRascunhoML } from "./banco";
-import { lucroDaLojaDoRascunho, rascunhoDaVariante, VARIANTES } from "./faixas";
+import { lucroComMinimo, lucroDaLojaDoRascunho, rascunhoDaVariante, VARIANTES } from "./faixas";
 import { precoPelaFaixaNoML } from "./leitura";
 
 /**
@@ -33,7 +33,8 @@ export async function clonarVarianteML(anuncioId, variante, { ml }) {
   else {
     try {
       // O clone herda o "Desconto adicional" do anuncio de origem (20/11/2026): o preco ja sai com ele, como a caixinha mostra.
-      const resultado = await precoPelaFaixaNoML(ml, rascunho, { custo, lucro, variante, desconto: rascunho.descontoAdicional });
+      // O lucro minimo de R$ 5 no ML (27/11/2026), como no botao "Preco pelo lucro da loja": a variante nao sai com menos.
+      const resultado = await precoPelaFaixaNoML(ml, rascunho, { custo, lucro: lucroComMinimo(lucro).lucro, variante, desconto: rascunho.descontoAdicional });
       if (resultado) preco = resultado.preco;
       else aviso = "Lucro da loja inatingível com estas taxas: o preço ficou o do anúncio de origem.";
     } catch (erro) {

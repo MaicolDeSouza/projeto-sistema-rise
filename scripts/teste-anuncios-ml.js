@@ -3535,6 +3535,16 @@ try {
     const relida = await lerParaPropostaML(mlPA12, "ZZ-ML-PA12");
     conferir("reaproveitar pela IA: vira anuncio do Rise e sai da conta", [typeof reaproveitado.anuncioId, reaproveitado.variante, relida.anunciosNaConta.length, relida.anunciosNoRise.map((a) => [a.mlb, a.status, a.variante])], ["string", "Clássico + frete grátis", 0, [["MLB5550012", "PUBLICADO", "Clássico + frete grátis"]]]);
     conferir("reaproveitar pela IA: MLB de outro SKU e recusado com o motivo", await reaproveitarParaProposta(mlPA12, "ZZ-ML-PA1", "MLB5550012").then(() => "aceitou", (erro) => (/SKU|Rise/.test(erro.message) ? "recusou" : erro.message)), "recusou");
+    // 27/11/2026: o preco do reaproveitado passa pelos minimos (lucro de R$ 5 e preco de R$ 19), so para cima. O de R$ 89,90 ja
+    // cumpria e fica; o de R$ 15 (custo R$ 20: prejuizo) sobe para o preco da proposta, no Rise, com o aviso.
+    conferir("reaproveitar pela IA: preco que cumpre os minimos fica", [reaproveitado.precoCorrigido ?? null, reaproveitado.preco], [null, 89.9]);
+    await criarPronto("ZZ-ML-PA13");
+    const mlPA13 = ml({ meusItens: { "ZZ-ML-PA13": [{ id: "MLB5550013", title: "Placa barata 13", price: 15, listing_type_id: "gold_special", shipping: { free_shipping: false }, sold_quantity: 2, status: "active", seller_custom_field: "ZZ-ML-PA13", permalink: "https://produto.mercadolivre.com.br/MLB-5550013", category_id: "MLB99779", date_created: "2025-01-01T00:00:00.000Z" }] } });
+    const barato = await reaproveitarParaProposta(mlPA13, "ZZ-ML-PA13", "MLB5550013");
+    const anBarato = await prisma.anuncio.findUnique({ where: { id: barato.anuncioId } });
+    conferir("reaproveitar pela IA: preco abaixo dos minimos sobe no Rise, com o aviso", [
+      barato.precoCorrigido?.de, barato.precoCorrigido?.para >= 19, barato.precoCorrigido?.lucroPara >= 5, Number(anBarato.dados.preco) === barato.precoCorrigido?.para, barato.avisos?.some((aviso) => /passou a R\$/.test(aviso)),
+    ], [15, true, true, true, true]);
 
     const gravada = await gravarPropostaML(ml(), "ZZ-ML-PA1", { categoriaId: "MLB99779", titulo: "Placa Uno R3 CH340 compatível", atributos: { ...ATRIBUTOS, GTIN: "7890000000000", EMPTY_GTIN_REASON: "x" }, catalogos: ["MLBP9", "MLBP4", "MLBP6"], relatorio: "- teste" });
     const anuncio = await prisma.anuncio.findUnique({ where: { id: gravada.anuncioId } });
@@ -3652,9 +3662,22 @@ try {
     conferir("kit no ML: nenhum produto novo no Rise", await prisma.produto.count({ where: { sku: { startsWith: "ZZ-ML-PA8" } } }), 1);
     conferir("kit no ML: o anúncio simples do produto fica à parte", [simplesDaBarra.anuncioId !== kitML.anuncioId, (await prisma.anuncio.findUnique({ where: { id: simplesDaBarra.anuncioId } })).dados.composicao ?? null], [true, null]);
     // O kit repete o lucro de vender as 10 na loja (10 x R$ 1,50 com custo R$ 5: R$ 9,10, dez vezes o de uma, R$ 0,91):
-    // (5 + 6,85 + 9,10) / 0,81 = 25,87, vai a 25,90. O de 1 unidade: (0,50 + 6,85 + 0,91) / 0,81 = 10,20.
+    // (5 + 6,85 + 9,10) / 0,81 = 25,87, vai a 25,90. O de 1 unidade (27/11/2026): o lucro da loja (R$ 0,91) e menor que o minimo
+    // de R$ 5, entao o alvo e R$ 5: (0,50 + 6,85 + 5) / 0,81 = 15,25, que fica abaixo do preco minimo de R$ 19 e sobe para 19.
     conferir("kit no ML: o preço pelo lucro das 10 unidades na loja",
-      [kitML.preco.valor, kitML.preco.lucroNaLoja, simplesDaBarra.preco.valor, simplesDaBarra.preco.lucroNaLoja, kitML.preco.valor === anKitML.dados.preco], [25.9, 9.1, 10.2, 0.91, true]);
+      [kitML.preco.valor, kitML.preco.lucroNaLoja, simplesDaBarra.preco.valor, simplesDaBarra.preco.lucroNaLoja, kitML.preco.valor === anKitML.dados.preco], [25.9, 9.1, 19, 0.91, true]);
+    conferir("proposta: os avisos do lucro minimo de R$ 5 e do preco minimo de R$ 19", [
+      simplesDaBarra.avisos.some((aviso) => /menor que o mínimo de R\$5,00 do Mercado Livre/.test(aviso)),
+      simplesDaBarra.avisos.some((aviso) => /abaixo do mínimo de R\$19,00 do Mercado Livre: sobe para R\$19,00/.test(aviso)),
+      simplesDaBarra.preco.lucro > 5,
+      kitML.avisos.some((aviso) => /mínimo/.test(aviso)),
+    ], [true, true, true, false]);
+    {
+      const { comPrecoMinimo, PRECO_MINIMO_ML } = await import("../src/lib/canaisDeVenda/ml/faixas.js");
+      conferir("comPrecoMinimo: abaixo de R$ 19 sobe; R$ 19 ou mais fica; sem preco nao mexe", [comPrecoMinimo(18.9), comPrecoMinimo(19), comPrecoMinimo(25.5), comPrecoMinimo(null).subiu, PRECO_MINIMO_ML], [
+        { preco: 19, subiu: true }, { preco: 19, subiu: false }, { preco: 25.5, subiu: false }, false, 19,
+      ]);
+    }
     conferir("kit no ML: peso das 10 unidades no envio", anKitML.dados.envio.pesoKg, 0.01);
 
     const kitDeNovo = await gravarPropostaML(ml(), "ZZ-ML-PA8", { quantidade: 10, categoriaId: "MLB99779", atributos: ATRIBUTOS, catalogos: [] });

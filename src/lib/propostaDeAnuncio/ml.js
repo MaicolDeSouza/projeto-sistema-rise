@@ -4,11 +4,13 @@ import { completarFichaPelaDescricao, problemasDosAtributos } from "@/lib/canais
 import { contextoDosProdutos, carregarAnuncioML, novoRascunhoML, salvarPublicadoML, salvarRascunhoML } from "@/lib/canaisDeVenda/ml/banco";
 import { catalogosDosMeusAnuncios, lerPrimeiroDoCatalogo, sugerirCatalogos } from "@/lib/canaisDeVenda/ml/catalogo";
 import { eanDoKit } from "@/lib/canaisDeVenda/ml/eanDoKit";
-import { LIMITE_DO_PREMIUM, REGRAS_DAS_VARIANTES, ROTULO_DA_VARIANTE, rascunhoDaVariante, varianteDoRascunho } from "@/lib/canaisDeVenda/ml/faixas";
+import { LIMITE_DO_PREMIUM, LUCRO_MINIMO_ML, PRECO_MINIMO_ML, REGRAS_DAS_VARIANTES, ROTULO_DA_VARIANTE, rascunhoDaVariante, varianteDoRascunho } from "@/lib/canaisDeVenda/ml/faixas";
+import { precoDaLojaDoAnuncio } from "@/lib/canaisDeVenda/ml/acompanhar";
+import { custosDoAnuncio, freteQueConta } from "@/lib/canaisDeVenda/ml/custos";
 import { anunciosDoSkuNaConta, candidatosParaReaproveitar, reaproveitarAnuncioML } from "@/lib/canaisDeVenda/ml/reaproveitar";
 import { ROTULO_DO_TIPO_ML } from "@/lib/canaisDeVenda/ml/rotulos";
 import { sugerirCategoria } from "@/lib/canaisDeVenda/ml/inteligencia";
-import { lerCategoriaCompleta } from "@/lib/canaisDeVenda/ml/leitura";
+import { lerCategoriaCompleta, lerCustosDoAnuncio } from "@/lib/canaisDeVenda/ml/leitura";
 import { tituloDoKit } from "@/lib/canaisDeVenda/ml/rascunho";
 import { lerReferenciasML } from "@/lib/canaisDeVenda/ml/referencias";
 import { ErroDeFerramenta } from "@/lib/riseAi/ferramentas/erro";
@@ -76,6 +78,47 @@ function precoNaLojaDoAnuncio(produto, kit) {
   const unitario = Number(produto.precoVenda);
   if (!(unitario > 0)) return null;
   return kit ? unitario * kit.itens[0].quantidade : unitario;
+}
+
+/**
+ * O preco do anuncio JA PUBLICADO que o MCP reaproveita ou acha na proposta (pedido do dono em 27/11/2026: "os precos de venda
+ * de anuncio reutilizados nao estao respeitando a regra dos R$ 5 minimo de lucro"). O reaproveitado entra com o preco que
+ * estava no ML; se esse preco deixa menos de R$ 5 de lucro (`LUCRO_MINIMO_ML`) ou fica abaixo de R$ 19 (`PRECO_MINIMO_ML`), ele
+ * passa ao preco da proposta (lucro da loja, com os dois minimos), SO PARA CIMA. Grava no Rise pelo Salvar do publicado, que
+ * acende o "!" do preco: nada vai ao ML, o dono confere e usa o Enviar mudancas. Devolve `{ de, para, lucroDe, lucroPara }`, ou
+ * null quando o preco ja respeitava as regras ou nao deu para calcular (o motivo vai em `avisos`).
+ */
+async function precoDoPublicadoPelasRegras(cliente, anuncioId, avisos) {
+  const carregado = await carregarAnuncioML(anuncioId);
+  if (!carregado.ok) return null;
+  const { rascunho, contexto } = carregado;
+  const produtos = contexto?.produtos ?? {};
+  const custoDe = (id) => Number(produtos[id]?.custo?.valor);
+  const pecas = rascunho.composicao?.itens;
+  const custo = Array.isArray(pecas) && pecas.length
+    ? pecas.reduce((soma, item) => (soma === null || !(custoDe(item.produtoId) > 0) ? null : soma + custoDe(item.produtoId) * Number(item.quantidade)), 0)
+    : custoDe(rascunho.produtoId) > 0 ? custoDe(rascunho.produtoId) : null;
+  const atual = Number(rascunho.preco);
+  if (!(atual > 0) || !(custo > 0)) return null;
+  let lucroDe = null;
+  try {
+    const custosML = await lerCustosDoAnuncio(cliente, rascunho);
+    lucroDe = custosDoAnuncio({ preco: atual, custo, percentual: custosML.percentual, tarifaFixa: custosML.tarifaFixa, frete: freteQueConta(custosML, rascunho) })?.lucro ?? null;
+  } catch (erro) {
+    avisos.push(`O lucro do preço atual (${emDinheiro(atual)}) não pôde ser lido no Mercado Livre: ${String(erro?.message ?? erro)}`);
+    return null;
+  }
+  if (atual >= PRECO_MINIMO_ML && lucroDe !== null && lucroDe >= LUCRO_MINIMO_ML) return null;
+  const novo = await precoDaPropostaML(cliente, rascunho, { custo, precoNaLoja: precoDaLojaDoAnuncio(rascunho, produtos) });
+  if (!(novo.valor > atual)) {
+    avisos.push(...novo.avisos);
+    return null;
+  }
+  const salvo = await salvarPublicadoML(anuncioId, { preco: novo.valor, atributos: rascunho.atributos });
+  if (!salvo.ok) throw new ErroDeFerramenta(`O preço do anúncio já publicado não foi corrigido: ${salvo.erro}`);
+  const motivo = atual < PRECO_MINIMO_ML ? `abaixo do mínimo de ${emDinheiro(PRECO_MINIMO_ML)}` : `lucro de ${emDinheiro(lucroDe)}, abaixo do mínimo de ${emDinheiro(LUCRO_MINIMO_ML)}`;
+  avisos.push(`O preço do anúncio no ML (${emDinheiro(atual)}, ${motivo}) passou a ${emDinheiro(novo.valor)} no Rise${novo.lucro != null ? ` (lucro de ${emDinheiro(novo.lucro)})` : ""}: o dono confere e usa o Enviar mudanças.`);
+  return { de: atual, para: novo.valor, lucroDe, lucroPara: novo.lucro };
 }
 
 const meuVendedor = async (cliente) => (typeof cliente.usuarioId === "function" ? cliente.usuarioId().catch(() => null) : null);
@@ -300,6 +343,8 @@ export async function gravarPropostaML(cliente, sku, { categoriaId, titulo, quan
       anuncioId = jaPublicado.id;
       marcas = naFicha;
     }
+    // O preco do publicado tambem passa pelos minimos de R$ 5 de lucro e R$ 19 de preco (27/11/2026).
+    await precoDoPublicadoPelasRegras(cliente, jaPublicado.id, avisos);
   } else {
     const salvo = await salvarRascunhoML(existente?.id ?? null, segunda.rascunho);
     if (!salvo.ok) throw new ErroDeFerramenta(`O rascunho do Mercado Livre não foi gravado: ${salvo.erro}`);
@@ -444,12 +489,17 @@ export async function reaproveitarParaProposta(cliente, sku, itemId) {
   const produto = await produtoPeloSku(sku);
   const resultado = await reaproveitarAnuncioML(produto.id, String(itemId ?? "").trim(), { ml: cliente });
   if (!resultado.ok) throw new ErroDeFerramenta(resultado.erro ?? "O anúncio não foi reaproveitado.");
+  // O preco que veio do ML passa pelas regras do lucro minimo de R$ 5 e do preco minimo de R$ 19 (27/11/2026).
+  const avisos = [];
+  const precoCorrigido = await precoDoPublicadoPelasRegras(cliente, resultado.anuncioId, avisos);
   const anuncio = await prisma.anuncio.findUnique({ where: { id: resultado.anuncioId }, select: { dados: true } });
   return {
     anuncioId: resultado.anuncioId,
     itemId,
     variante: rotuloDaVariante(anuncio?.dados?.tipoAnuncio, anuncio?.dados?.envio?.freteGratis, anuncio?.dados?.preco),
     preco: anuncio?.dados?.preco ?? null,
+    ...(precoCorrigido ? { precoCorrigido } : {}),
+    ...(avisos.length > 0 ? { avisos } : {}),
     proximo: "O anúncio está no Rise como publicado. O dono revisa no editor do ML, usa Enviar mudanças e decide se move o vínculo do Bling.",
   };
 }

@@ -11,8 +11,8 @@
  */
 
 import { normalizarAtributosDaCategoria } from "./atributos";
-import { LIMITE_DO_FRETE_GRATIS, freteQueConta, precoPorMargem } from "./custos";
-import { LIMITE_DA_SEGUNDA_VARIANTE, descontoAdicionalValido, precoComDescontoAdicional, precoPelaFaixa, varianteDoRascunho } from "./faixas";
+import { LIMITE_DO_FRETE_GRATIS, custosDoAnuncio, freteQueConta, precoPorMargem } from "./custos";
+import { LIMITE_DA_SEGUNDA_VARIANTE, comPrecoMinimo, descontoAdicionalValido, precoComDescontoAdicional, precoPelaFaixa, varianteDoRascunho } from "./faixas";
 import { medidasFaltando } from "./validacao";
 
 const dinheiro = (valor) => Math.round((Number(valor) + Number.EPSILON) * 100) / 100;
@@ -231,13 +231,23 @@ export async function precoPelaFaixaNoML(cliente, rascunho, { custo, lucro, vari
     cheio = (await precoPelaFaixa({ lucro, custo, variante, taxas, frete })) ?? cheio;
   }
   // O "Desconto adicional" do anuncio (20/11/2026): sai do preco cheio, com as mesmas taxas e os limites de `faixas.js`.
-  const resultado = await precoComDescontoAdicional({ resultado: cheio, desconto, custo, variante, taxas, frete });
+  const comDesconto = await precoComDescontoAdicional({ resultado: cheio, desconto, custo, variante, taxas, frete });
+  // O preco minimo do ML (27/11/2026, `PRECO_MINIMO_ML`): abaixo de R$ 19 o preco calculado sobe para R$ 19 (sem frete gratis por
+  // escolha, que abaixo de R$ 79 e do vendedor). So o calculado: o dono ainda pode digitar menos no editor.
+  const minimo = comPrecoMinimo(comDesconto.preco);
+  const resultado = minimo.subiu
+    ? { ...comDesconto, preco: minimo.preco, freteGratis: false, variante: String(comDesconto.variante ?? variante).replace("_frete_gratis", "_sem_frete"), piso: false, precoMinimo: true }
+    : { ...comDesconto, precoMinimo: false };
   const custosML = await lerCustosDoAnuncio(cliente, {
     ...rascunho,
     preco: resultado.preco,
     tipoAnuncio,
     envio: { ...envio, freteGratis: resultado.freteGratis },
   });
+  // No preco minimo o lucro e o do preco de R$ 19, maior que o pedido: a tela mostra esse.
+  const lucroNoPreco = resultado.precoMinimo
+    ? (custosDoAnuncio({ preco: resultado.preco, custo: Number(custo), percentual: custosML?.percentual, tarifaFixa: custosML?.tarifaFixa, frete: freteQueConta(custosML, rascunho) })?.lucro ?? null)
+    : null;
   // O desconto pode tirar o anuncio do frete gratis (24/11/2026): a variante passa a ser a que o preco final deu.
-  return { ...resultado, variante: resultado.variante ?? variante, custosML };
+  return { ...resultado, variante: resultado.variante ?? variante, custosML, ...(resultado.precoMinimo ? { lucroNoPreco } : {}) };
 }

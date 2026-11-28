@@ -258,6 +258,21 @@ export function lucroComMinimo(lucro) {
   return valor < LUCRO_MINIMO_ML ? { lucro: LUCRO_MINIMO_ML, subiu: true } : { lucro: dinheiro(valor), subiu: false };
 }
 
+/**
+ * Preco minimo do anuncio no ML (pedido do dono em 27/11/2026): abaixo de R$ 19 o comprador paga o frete e quase nao compra (1
+ * venda abaixo de R$ 19 em 169 do ML em 90 dias); de R$ 19 a R$ 78,99 o ML da frete gratis e o custo de envio do vendedor sobe
+ * so R$ 1,20 (R$ 5,65 para R$ 6,85 ate 0,3 kg, tabela de 24/08/2026). Vale para o preco que o Rise CALCULA (proposta pelo MCP,
+ * "Preco pelo lucro da loja", variante); o dono continua podendo digitar um preco menor no editor ("deixa aberto para eu editar").
+ */
+export const PRECO_MINIMO_ML = 19;
+
+/** O preco calculado com o minimo do ML: `{ preco, subiu }`; `subiu` diz que o minimo foi aplicado, para a tela avisar. */
+export function comPrecoMinimo(preco) {
+  const valor = Number(preco);
+  if (!Number.isFinite(valor) || valor <= 0) return { preco, subiu: false };
+  return valor < PRECO_MINIMO_ML ? { preco: PRECO_MINIMO_ML, subiu: true } : { preco: valor, subiu: false };
+}
+
 /** Teto do desconto adicional, em %: so barra o absurdo; quem segura o preco e o lucro minimo. */
 export const DESCONTO_ADICIONAL_MAXIMO = 90;
 

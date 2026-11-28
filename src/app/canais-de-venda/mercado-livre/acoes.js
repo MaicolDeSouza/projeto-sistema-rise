@@ -522,7 +522,10 @@ export async function precoPelaFaixaMLAcao(rascunho, { variante } = {}) {
     const alvo = lucroComMinimo(lucro);
     // O "Desconto adicional" do anuncio (20/11/2026) sai do preco calculado; `resultado.desconto` diz quanto e se algum limite segurou.
     const resultado = await precoPelaFaixaNoML(clienteML(), lido.data, { custo, lucro: alvo.lucro, variante: variante ?? varianteDoRascunho(lido.data), desconto: lido.data.descontoAdicional });
-    return resultado ? { ok: true, ...resultado, lucro: alvo.lucro, lucroDaLoja: lucro, minimoAplicado: alvo.subiu } : { ok: false, erro: "Lucro inatingível com estas taxas." };
+    // No preco minimo de R$ 19 (27/11/2026) o lucro e o do preco final, maior que o alvo.
+    return resultado
+      ? { ok: true, ...resultado, lucro: resultado.precoMinimo && resultado.lucroNoPreco != null ? resultado.lucroNoPreco : alvo.lucro, lucroDaLoja: lucro, minimoAplicado: alvo.subiu }
+      : { ok: false, erro: "Lucro inatingível com estas taxas." };
   } catch (erro) {
     return falhaDeLeitura(erro, "preco pela faixa");
   }

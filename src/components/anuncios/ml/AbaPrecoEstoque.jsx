@@ -9,7 +9,7 @@ import { custoDaComposicao } from "@/lib/canaisDeVenda/composicao";
 import { precoPelaFaixaMLAcao } from "@/app/canais-de-venda/mercado-livre/acoes";
 import { LIMITE_DO_FRETE_GRATIS, custosDoAnuncio, custosValem, freteQueConta, precoPorMargem } from "@/lib/canaisDeVenda/ml/custos";
 import { ATACADO_DESLIGADO } from "@/lib/canaisDeVenda/ml/atacado";
-import { DESCONTO_ADICIONAL_MAXIMO, LUCRO_MINIMO_ML, descontoAdicionalValido, lucroPorUnidade } from "@/lib/canaisDeVenda/ml/faixas";
+import { DESCONTO_ADICIONAL_MAXIMO, LUCRO_MINIMO_ML, PRECO_MINIMO_ML, descontoAdicionalValido, lucroPorUnidade } from "@/lib/canaisDeVenda/ml/faixas";
 import { kitForaDoBloco, unidadesDoAnuncio } from "@/lib/canaisDeVenda/ml/kitsNaDescricao";
 import { calcularMarkup, corDoMarkup, lucroLiquido } from "@/lib/margem";
 import CalculadoraDeMargem, { taxasUsaveis } from "./CalculadoraDeMargem";
@@ -420,9 +420,13 @@ function BotaoPrecoPeloLucroDaLoja({ rascunho, custo, temPrecoDaLoja, aplicar, a
           : null;
       setResultado({
         // Lucro da loja abaixo do minimo (R$ 5): o preco subiu para deixar R$ 5, em ambar porque e dinheiro (regra 2).
-        aviso: resposta.minimoAplicado
-          ? `Lucro da loja ${MOEDA.format(resposta.lucroDaLoja)} abaixo do mínimo: preço ajustado para lucro de ${MOEDA.format(resposta.lucro)}.`
-          : [comDesconto?.saiuDoFreteGratis ? "Saiu do frete grátis: com o desconto o preço ficou abaixo de R$79,00." : null, avisoDoDesconto].filter(Boolean).join(" ") || null,
+        // Preco calculado abaixo de R$ 19 (27/11/2026): sobe para o minimo do ML; o campo continua editavel.
+        aviso: [
+          resposta.minimoAplicado ? `Lucro da loja ${MOEDA.format(resposta.lucroDaLoja)} abaixo do mínimo: preço ajustado para lucro de ${MOEDA.format(resposta.lucro)}.` : null,
+          resposta.precoMinimo ? `Preço abaixo de ${MOEDA.format(PRECO_MINIMO_ML)}: subiu para o mínimo do ML (frete grátis ao comprador).` : null,
+          !resposta.minimoAplicado && comDesconto?.saiuDoFreteGratis ? "Saiu do frete grátis: com o desconto o preço ficou abaixo de R$79,00." : null,
+          !resposta.minimoAplicado ? avisoDoDesconto : null,
+        ].filter(Boolean).join(" ") || null,
         texto: baixou
           ? `Com o desconto: de ${MOEDA.format(comDesconto.precoSemDesconto)} para ${MOEDA.format(resposta.preco)}${comDesconto.lucro === null ? "" : ` (lucro ${MOEDA.format(comDesconto.lucro)})`}.`
           : resposta.piso

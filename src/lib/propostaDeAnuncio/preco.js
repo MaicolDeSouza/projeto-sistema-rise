@@ -1,5 +1,5 @@
 import { custosDoAnuncio, freteQueConta, LIMITE_DO_FRETE_GRATIS } from "@/lib/canaisDeVenda/ml/custos";
-import { LIMITE_DA_SEGUNDA_VARIANTE } from "@/lib/canaisDeVenda/ml/faixas";
+import { LIMITE_DA_SEGUNDA_VARIANTE, LUCRO_MINIMO_ML, PRECO_MINIMO_ML, comPrecoMinimo, lucroComMinimo } from "@/lib/canaisDeVenda/ml/faixas";
 import { lerCustosDoAnuncio, precoPorMargemNoML } from "@/lib/canaisDeVenda/ml/leitura";
 import { montarRanking } from "@/lib/canaisDeVenda/ml/ranking";
 import { lucroLiquido } from "@/lib/margem";
@@ -70,25 +70,40 @@ export async function precoDaPropostaML(cliente, rascunho, { custo, precoNaLoja,
     const custosML = await lerCustosDoAnuncio(cliente, { ...rascunho, preco });
     return custosDoAnuncio({ preco, custo, percentual: custosML.percentual, tarifaFixa: custosML.tarifaFixa, frete: freteQueConta(custosML, rascunho) });
   };
-  const alvo = { tipo: "reais", valor: lucroNaLoja };
+  // O lucro minimo de R$ 5 por venda no ML (pedido do dono em 11/11/2026, valendo no MCP desde 27/11/2026): o lucro da loja
+  // menor que isso nao serve de alvo; o preco sai do lucro de R$ 5.
+  const minimoDoLucro = lucroComMinimo(lucroNaLoja);
+  const lucroAlvo = minimoDoLucro.lucro;
+  if (minimoDoLucro.subiu) avisos.push(`O lucro na loja (${reais(lucroNaLoja)}) é menor que o mínimo de ${reais(LUCRO_MINIMO_ML)} do Mercado Livre: o preço sai do lucro de ${reais(lucroAlvo)}.`);
+  const alvo = { tipo: "reais", valor: lucroAlvo };
 
   // A procura comeca no preco da loja: o ML leva mais taxas que a loja, entao o preco do mesmo lucro fica acima dele, e
   // subindo a partir dali a primeira solucao e a mais barata (abaixo de R$ 79 o frete do vendedor e menor, e de 79 para cima
   // o frete gratis obrigatorio pode dar uma segunda solucao, mais cara).
   const bruto = await precoPorMargemNoML(cliente, { ...rascunho, preco: naLoja }, { custo, margem: alvo });
   if (!bruto) {
-    avisos.push(`Nenhum preço deixa no Mercado Livre o lucro da loja (${reais(lucroNaLoja)}) com as taxas dele.`);
+    avisos.push(`Nenhum preço deixa no Mercado Livre o lucro de ${reais(lucroAlvo)} com as taxas dele.`);
     return { ...vazio, lucroNaLoja };
   }
   let valor = paraCima5(bruto.preco);
   // Subir ate 5 centavos pode cruzar R$ 79 e trazer o frete gratis: confere e, se o lucro cair, refaz a partir dali.
   let conta = await contaEm(valor);
-  if (!(conta?.lucro >= lucroNaLoja)) {
+  if (!(conta?.lucro >= lucroAlvo)) {
     const deNovo = await precoPorMargemNoML(cliente, { ...rascunho, preco: valor }, { custo, margem: alvo });
     if (deNovo) {
       valor = paraCima5(deNovo.preco);
       conta = await contaEm(valor);
     }
+  }
+
+  // O preco minimo do ML (27/11/2026): abaixo de R$ 19 o comprador paga o frete; o preco sobe para R$ 19, com frete gratis do ML.
+  // O dono ainda pode digitar outro preco no editor.
+  const minimoDoPreco = comPrecoMinimo(valor);
+  if (minimoDoPreco.subiu) {
+    const calculado = valor;
+    valor = minimoDoPreco.preco;
+    conta = await contaEm(valor);
+    avisos.push(`O preço calculado (${reais(calculado)}) fica abaixo do mínimo de ${reais(PRECO_MINIMO_ML)} do Mercado Livre: sobe para ${reais(valor)}${conta?.lucro != null ? ` (lucro de ${reais(conta.lucro)} no ML)` : ""}. O preço continua editável no editor.`);
   }
 
   // A variante pelo preco (definicoes do dono em 08/11/2026, "pode sempre criar as propostas com as variantes"): abaixo de
