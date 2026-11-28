@@ -95,6 +95,15 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
   taxas e desejado 40%, antes 40% de piso e antes 30% de margem). Propostas gravadas antes guardaram `margem` e
   aparecem como margem. Os nomes antigos (`calcularMargem`, `CalculadoraDeMargem`, `dado.margem`) ficaram; tela nova
   mostra markup. **As seções abaixo que falam de "margem" de 30% ou 60% descrevem o que valia antes.**
+- **Mínimos do preço do ML (27/11/2026, pedido do dono, commit `e8a4ee25`, SEM deploy):** lucro de pelo menos **R$5** por venda
+  (`LUCRO_MINIMO_ML`, de 11/11/2026, que só valia no botão "Preço pelo lucro da loja") e preço de pelo menos **R$19**
+  (`PRECO_MINIMO_ML`, `comPrecoMinimo` em `canaisDeVenda/ml/faixas.js`: abaixo disso o comprador paga o frete; em 90 dias foi 1
+  venda abaixo de R$19 em 169 do ML). Valem no preço que o Rise CALCULA: a proposta do ML pelo MCP (`precoDaPropostaML`, com
+  aviso), o botão (`precoPelaFaixaNoML` devolve `precoMinimo` e `lucroNoPreco`), a variante (`clonarVarianteML`) e o anúncio
+  já publicado que o MCP reaproveita ou que a proposta acha (`precoDoPublicadoPelasRegras` em `propostaDeAnuncio/ml.js`: preço
+  abaixo dos mínimos sobe para o da proposta, **só para cima**, gravado no Rise pelo Salvar do publicado; o dono confere e usa
+  o Enviar mudanças). **O preço continua editável no editor** ("deixa aberto para eu editar"): nenhuma validação recusa menos.
+  Roteiro do ML v15.
 - **Fornecedor padrão do produto** (pedido do dono em 08/11/2026: "sempre que o produto tiver um único fornecedor
   automaticamente deve marcar aquele como padrão"): o **único fornecedor é sempre o padrão**; com vários, **o padrão não
   sai** até o dono marcar outro (lixeira desabilitada com o motivo no `title`, regra 8, e o servidor recusa igual);
