@@ -95,7 +95,7 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
   taxas e desejado 40%, antes 40% de piso e antes 30% de margem). Propostas gravadas antes guardaram `margem` e
   aparecem como margem. Os nomes antigos (`calcularMargem`, `CalculadoraDeMargem`, `dado.margem`) ficaram; tela nova
   mostra markup. **As seções abaixo que falam de "margem" de 30% ou 60% descrevem o que valia antes.**
-- **Mínimos do preço do ML (27/11/2026, pedido do dono, commit `e8a4ee25`, SEM deploy):** lucro de pelo menos **R$5** por venda
+- **Mínimos do preço do ML (27/11/2026, pedido do dono, commit `e8a4ee25`, NO AR em 28.11.2026.157):** lucro de pelo menos **R$5** por venda
   (`LUCRO_MINIMO_ML`, de 11/11/2026, que só valia no botão "Preço pelo lucro da loja") e preço de pelo menos **R$19**
   (`PRECO_MINIMO_ML`, `comPrecoMinimo` em `canaisDeVenda/ml/faixas.js`: abaixo disso o comprador paga o frete; em 90 dias foi 1
   venda abaixo de R$19 em 169 do ML). Valem no preço que o Rise CALCULA: a proposta do ML pelo MCP (`precoDaPropostaML`, com
@@ -282,7 +282,7 @@ existe em texto corrido mais abaixo, esta seção só aponta para lá.
     foto posta no produto depois de montar o kit entra na primeira abertura). Desmarcada e salva continua fora. Vale ao abrir
     o editor, no Publicar, no Sincronizar e no "!" de fotos do kit publicado (`conteudoAtualDoAnuncio`). O anúncio simples já
     seguia o produto desde 24/10/2026. O contexto dos produtos ganhou `imagens[].criadoEm`.
-  - **Imagem "Compre em kit e economize" como 3ª foto (27/11/2026, pedido do dono, SEM deploy, commit `1ce37135`):** o anúncio
+  - **Imagem "Compre em kit e economize" como 3ª foto (27/11/2026, pedido do dono, NO AR em 28.11.2026.157, commit `1ce37135`):** o anúncio
     do ML ainda NÃO publicado que tem o bloco "Compre em kit e economize" na descrição (o de 1 un. e os kits menores;
     `kitsParaOBloco` com algum kit) ganha a imagem como 3ª foto (com menos de 2 fotos, no fim; sem foto nenhuma, não entra, para
     não virar capa). A imagem mora UMA vez em `public/anuncios-ml/compre-em-kit.jpg` e no rascunho é o id fixo
@@ -512,6 +512,8 @@ pela proposta (`tituloSeoAcompanhaNome` em `canaisDeVenda/li/seo.js`, chamado pe
 Nome com que o cadastro abriu ganha o "!" com "Escolher outra" (`descriptionCitaNomeAntigo`). O "!" vale só durante a edição (não
 há coluna guardando o Nome do SEO). A URL da LI não muda, de propósito. Asserções no `teste:li-sync`. Conferido no PC; as 6
 respostas de fora ok.
+
+**Deploy 28.11.2026.157 (commit `6738387`, 28/11/2026):** "Sim, subir" do dono, sem migration. Levou a imagem "Compre em kit e economize" como 3ª foto do anúncio do ML ainda não publicado (`1ce37135`) e os mínimos do preço do ML, R$5 de lucro e R$19 de preço (`e8a4ee25`). Conferido: as 6 respostas de fora, o chat da loja respondendo e os contêineres de pé. As seções acima que dizem "SEM deploy" para esses dois itens estão obsoletas.
 
 **Travas de escrita na VPS (decisão do dono em 22/10/2026):** o dono mandou liberar **o Mercado Livre e o Bling para todos os
 códigos** (`ML_PUBLICACAO=true`, `ML_PUBLICACAO_CODIGOS` ausente, `BLING_ESCRITA=true`, `BLING_ESCRITA_CODIGOS` vazio) depois
