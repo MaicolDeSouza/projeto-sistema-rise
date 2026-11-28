@@ -9,7 +9,8 @@ import { iniciarProgressoML } from "./progresso";
 import { impressaoDoConteudo } from "./impressao";
 import { lerCategoriaCompleta } from "./leitura";
 import { nomeDaFoto, termosParaAtualizar } from "./payload";
-import { emAndamento, fiscalDoPrincipal, lerFotoDoDisco, tipoDaFoto } from "./publicar";
+import { bytesDaFoto, emAndamento, fiscalDoPrincipal, lerFotoDoDisco, tipoDaFoto } from "./publicar";
+import { FOTO_BANNER_KIT, ID_BANNER_KIT } from "./bannerDoKit";
 import { textoDaRecusaML } from "./respostas";
 import { reutilizadoPendente } from "./rotulos";
 import { guardarContaDoEditorSemFalhar } from "@/lib/canaisDeVenda/ml/contaDoEditor";
@@ -262,13 +263,15 @@ async function enviarPartes({ ml, lerFoto, progresso, anuncioId, itemId, codigo,
       const porId = new Map(
         Object.values(contexto.produtos ?? {}).flatMap((dono) => [...(dono?.imagens ?? []), ...(dono?.fotosDoKit ?? [])].map((imagem) => [imagem.id, { ...imagem, sku: dono.sku }])),
       );
+      // A imagem "Compre em kit" (27/11/2026) nao e de produto: mora uma vez so no Rise.
+      porId.set(ID_BANNER_KIT, FOTO_BANNER_KIT);
       for (const [indice, id] of ids.entries()) {
         if (fotosNoML[id]) continue;
         const foto = porId.get(id);
         if (!foto) return falhar(parte, `A foto ${indice + 1} não foi encontrada (pode ter sido excluída). Ajuste a aba Imagens.`);
         let resposta;
         try {
-          resposta = await ml.upload("/pictures/items/upload", { bytes: await lerFoto(foto.sku, foto.arquivo), nome: nomeDaFoto(rascunho.titulo, indice), tipo: tipoDaFoto(foto.arquivo) });
+          resposta = await ml.upload("/pictures/items/upload", { bytes: await bytesDaFoto(foto, lerFoto), nome: nomeDaFoto(rascunho.titulo, indice), tipo: tipoDaFoto(foto.arquivo) });
         } catch (erro) {
           return falhar(parte, `Falha ao enviar a foto ${indice + 1}: ${textoDe(erro)}`);
         }

@@ -814,7 +814,7 @@ try {
 
         const lido = await carregarAnuncioML(salvo.id);
         conferir("carregar devolve o que foi salvo", [lido.rascunho.titulo, lido.rascunho.tipoAnuncio, lido.rascunho.envio.pesoKg], [novo.rascunho.titulo, "gold_special", 0.05]);
-        conferir("carregar devolve o rascunho inteiro", ordenado(lido.rascunho), ordenado({ ...novo.rascunho, descricaoEditada: false, fotosReordenadas: false, fotosVistasEm: null, tipoAnuncio: "gold_special" }));
+        conferir("carregar devolve o rascunho inteiro", ordenado(lido.rascunho), ordenado({ ...novo.rascunho, bannerKit: null, descricaoEditada: false, fotosReordenadas: false, fotosVistasEm: null, tipoAnuncio: "gold_special" }));
         conferir("carregar: anuncio, status e contexto", [lido.anuncioId, lido.status, Object.keys(lido.contexto.produtos), lido.contexto.codigoEmUso],
           [salvo.id, "RASCUNHO", [p1.id], null]);
         conferir("carregar: anuncio que nao existe", (await carregarAnuncioML("id-que-nao-existe")).erro, "Anúncio não encontrado.");
@@ -858,7 +858,7 @@ try {
         const gravado = await anuncioDe(completo.id);
         conferir("cada campo mora na sua coluna", [gravado.titulo, gravado.descricao, gravado.categoriaExternaId, gravado.produtoId, ordenado(gravado.atributos)],
           [novo.rascunho.titulo, novo.rascunho.descricao, "MLB1234", p1.id, ordenado(novo.rascunho.atributos)]);
-        conferir("o resto do rascunho vai para dados", Object.keys(gravado.dados).sort(), ["atacado", "categoriaNome", "composicao", "condicao", "descontoAdicional", "descricaoEditada", "envio", "estoque", "familyName", "fotosReordenadas", "fotosVistasEm", "imagens", "prazoDisponibilidadeDias", "preco", "tipoAnuncio"]);
+        conferir("o resto do rascunho vai para dados", Object.keys(gravado.dados).sort(), ["atacado", "bannerKit", "categoriaNome", "composicao", "condicao", "descontoAdicional", "descricaoEditada", "envio", "estoque", "familyName", "fotosReordenadas", "fotosVistasEm", "imagens", "prazoDisponibilidadeDias", "preco", "tipoAnuncio"]);
         // O estoque do anuncio e sempre o do produto no Rise (pedido do dono em 22/10/2026): o que a tela manda nao vale.
         conferir("numero escrito como texto vira numero; o estoque e o do produto, nao o da tela", [gravado.dados.preco, gravado.dados.estoque], [12.5, 9]);
         await prisma.produto.update({ where: { id: p1.id }, data: { estoque: 4 } });
@@ -3754,6 +3754,43 @@ try {
     const doKit = conteudoAtualDoAnuncio(kit, produtos);
     conferir("kit: fotos do proprio anuncio (vazias aqui), sem pacote, descricao com os itens inclusos", [doKit.fotos, doKit.pacote, doKit.kit, /Itens inclusos/i.test(doKit.descricao ?? "")], [[], null, true, true]);
     conferir("fotosDoRise do kit: null (sao do anuncio)", fotosDoRise(kit, produtos), null);
+    {
+      // A imagem "Compre em kit" como 3a foto (27/11/2026, bannerDoKit.js): entra com o bloco dos kits, o dono tira ou inclui,
+      // e ela fica no lugar dela quando a lista e refeita a partir do produto.
+      const B = await import("../src/lib/canaisDeVenda/ml/bannerDoKit.js");
+      const { fotosDoKitDoRise } = await import("../src/lib/canaisDeVenda/ml/rascunho.js");
+      const id = B.ID_BANNER_KIT;
+      conferir("banner: com bloco entra na 3a foto; com 1 foto, no fim; sem foto, nao entra (seria a capa)", [
+        B.aplicarBannerDoKit(["i2", "i1", "i3"], { temBloco: true, escolha: null }),
+        B.aplicarBannerDoKit(["i2"], { temBloco: true, escolha: null }),
+        B.aplicarBannerDoKit([], { temBloco: true, escolha: null }),
+      ], [["i2", "i1", id, "i3"], ["i2", id], []]);
+      conferir("banner: sem bloco nao entra e sai; o dono que tirou vence o bloco; o que incluiu vence a falta dele", [
+        B.aplicarBannerDoKit(["i2", "i1"], { temBloco: false, escolha: null }),
+        B.aplicarBannerDoKit(["i2", "i1", id], { temBloco: false, escolha: null }),
+        B.aplicarBannerDoKit(["i2", "i1", "i3"], { temBloco: true, escolha: false }),
+        B.aplicarBannerDoKit(["i2", "i1"], { temBloco: false, escolha: true }),
+      ], [["i2", "i1"], ["i2", "i1"], ["i2", "i1", "i3"], ["i2", "i1", id]]);
+      const movida = [id, "i2", "i1"];
+      conferir("banner: ja tendo e devendo ter, a posicao que o dono escolheu fica (mesma lista)", B.aplicarBannerDoKit(movida, { temBloco: true, escolha: null }) === movida, true);
+      conferir("banner: tirar e incluir pela tela", [B.tirarBannerDoKit({ imagens: ["i2", id, "i1"] }), B.incluirBannerDoKit({ imagens: ["i2", "i1", "i3"] })], [
+        { imagens: ["i2", "i1"], bannerKit: false },
+        { imagens: ["i2", "i1", id, "i3"], bannerKit: true },
+      ]);
+      conferir("fotosDoRise: a imagem do kit fica no lugar (na ordem do produto e na reordenada)", [
+        fotosDoRise({ ...simples, imagens: ["i2", "i1", id, "i3"] }, produtos),
+        fotosDoRise({ ...simples, fotosReordenadas: true, imagens: ["i3", id, "i2", "i1"] }, produtos),
+      ], [["i2", "i1", id, "i3"], ["i3", id, "i2", "i1"]]);
+      conferir("fotosDoKitDoRise: a imagem marcada no kit fica", fotosDoKitDoRise({ ...kit, imagens: ["i9", id, "i2"] }, produtos), ["i9", id, "i2"]);
+      conferir("conteudo atual: a imagem conta pelo nome do arquivo (o \"!\" das fotos)", conteudoAtualDoAnuncio({ ...simples, imagens: ["i2", "i1", id, "i3"] }, produtos).fotos, ["a2.jpg", "a1.jpg", B.ARQUIVO_BANNER_KIT, "a3.jpg"]);
+      const { existsSync } = await import("node:fs");
+      conferir("banner: o arquivo da imagem existe em public/", existsSync(`public${B.URL_BANNER_KIT}`), true);
+      // O Publicar e o Enviar mudancas leem a imagem do kit pelo arquivo do Rise, e a do produto pelo `lerFoto` de sempre.
+      const { bytesDaFoto } = await import("../src/lib/canaisDeVenda/ml/publicar.js");
+      const doBanner = await bytesDaFoto({ banner: true, arquivo: B.ARQUIVO_BANNER_KIT }, () => Buffer.from("nao"));
+      const doProduto = await bytesDaFoto({ banner: false, sku: "X", arquivo: "a.jpg" }, (sku, arquivo) => Buffer.from(`${sku}/${arquivo}`));
+      conferir("bytesDaFoto: a imagem do kit vem do arquivo (JPEG), a do produto pelo lerFoto", [doBanner.length > 100000, doBanner[0] === 0xff && doBanner[1] === 0xd8, doProduto.toString()], [true, true, "X/a.jpg"]);
+    }
     conferir("produto que falta no contexto: descricao null", conteudoAtualDoAnuncio({ produtoId: "sumiu", composicao: null }, produtos).descricao, null);
 
     const impressa = impressaoDoConteudo(atual);

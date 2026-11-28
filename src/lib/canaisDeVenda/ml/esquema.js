@@ -66,6 +66,8 @@ export const RascunhoMLSchema = z.object({
   descricaoEditada: z.boolean().default(false),
   // Anuncio simples: o dono reordenou as fotos no anuncio (28/10/2026). Sem isso a ordem e a do cadastro do produto.
   fotosReordenadas: z.boolean().default(false),
+  // A imagem "Compre em kit" (27/11/2026): null = automatica (entra com o bloco dos kits); false = o dono tirou; true = incluiu.
+  bannerKit: z.boolean().nullable().default(null),
   // Kit: quando o dono salvou as fotos pela ultima vez (28/10/2026). O servidor grava a hora do Salvar; o que vem da tela nao vale.
   fotosVistasEm: z.string().max(40).nullable().default(null),
   atributos: z

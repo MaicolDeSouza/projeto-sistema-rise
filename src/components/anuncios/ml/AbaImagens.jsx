@@ -1,10 +1,12 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ImageOff, Loader, Trash2, Upload } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ImageOff, ImagePlus, Loader, Trash2, Upload, X } from "lucide-react";
 
 import { enviarFotoDoKitML, excluirFotoDoKitML } from "@/app/canais-de-venda/mercado-livre/acoes-fotos-do-kit";
 import Badge from "@/components/ui/Badge";
+import { FOTO_BANNER_KIT, ID_BANNER_KIT, ehBannerDoKit, incluirBannerDoKit, manterBannerNaPosicao, tirarBannerDoKit } from "@/lib/canaisDeVenda/ml/bannerDoKit";
+import { kitsParaOBloco, unidadesDoAnuncio } from "@/lib/canaisDeVenda/ml/kitsNaDescricao";
 import BolhaDeAjuda from "@/components/ui/BolhaDeAjuda";
 import MensagensDoCampo from "./MensagensDoCampo";
 import SecaoDoAnuncio from "./SecaoDoAnuncio";
@@ -36,6 +38,27 @@ function fotosDisponiveis(rascunho, contexto) {
     }
   }
   return fotos;
+}
+
+/**
+ * "Incluir imagem Compre em kit" (27/11/2026): aparece no anuncio ainda nao publicado sem a imagem, quando a descricao tem o
+ * bloco dos kits ou o dono a tirou antes. Ela entra como a 3a foto.
+ */
+function BotaoIncluirBanner({ rascunho, contexto, alterar, jaNoML }) {
+  if (jaNoML || (Array.isArray(rascunho.imagens) && rascunho.imagens.includes(ID_BANNER_KIT))) return null;
+  const temBloco = kitsParaOBloco({ unidades: unidadesDoAnuncio(rascunho), preco: rascunho.preco, irmaos: contexto?.kitsDoProduto ?? [] }).length > 0;
+  if (!temBloco && rascunho.bannerKit !== false) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => alterar((atual) => incluirBannerDoKit(atual))}
+      title="Põe a imagem “Compre em kit e economize” como a 3ª foto do anúncio"
+      className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-acento hover:bg-superficie"
+    >
+      <ImagePlus size={14} aria-hidden="true" />
+      Incluir imagem Compre em kit
+    </button>
+  );
 }
 
 /**
@@ -101,10 +124,12 @@ export function LinhaDeFoto({ id, foto, posicao, total, aoAlternar, aoMover }) {
 
 // Anuncio simples: as fotos sao sempre as validadas do produto, mas a ORDEM se muda aqui (pedido do dono em 28/10/2026; vale
 // tambem depois de publicado: o Sincronizar manda a ordem nova). "Voltar a ordem do produto" volta a acompanhar o cadastro.
-function FotosDoProduto({ rascunho, disponiveis, alterar, problemas }) {
-  const porId = new Map(disponiveis.map((foto) => [foto.id, foto]));
+function FotosDoProduto({ rascunho, contexto, disponiveis, alterar, problemas, jaNoML }) {
+  // A imagem "Compre em kit" (27/11/2026) nao e do produto: entra na lista so quando o anuncio a tem.
+  const porId = new Map([...disponiveis.map((foto) => [foto.id, foto]), [ID_BANNER_KIT, FOTO_BANNER_KIT]]);
   const ids = (Array.isArray(rascunho.imagens) ? rascunho.imagens : []).filter((id) => porId.has(id));
   const fotos = [...ids, ...disponiveis.map((foto) => foto.id).filter((id) => !ids.includes(id))].map((id) => porId.get(id));
+  const voltarAOrdem = () => alterar({ imagens: manterBannerNaPosicao(rascunho.imagens, disponiveis.map((foto) => foto.id)), fotosReordenadas: false });
   const mover = (posicao, passo) => {
     const destino = posicao + passo;
     if (destino < 0 || destino >= fotos.length) return;
@@ -117,23 +142,33 @@ function FotosDoProduto({ rascunho, disponiveis, alterar, problemas }) {
       titulo={`Fotos do anúncio (${fotos.length})`}
       ajuda="As fotos do anúncio são as validadas do produto (para trocar uma foto, use Editar produto). A ordem se muda aqui, com as setas: a primeira é a capa. Acima do que a categoria aceita, vão as primeiras."
       acao={
-        rascunho.fotosReordenadas ? (
-          <button
-            type="button"
-            onClick={() => alterar({ imagens: disponiveis.map((foto) => foto.id), fotosReordenadas: false })}
-            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-acento hover:bg-superficie"
-          >
-            Voltar à ordem do produto
-          </button>
-        ) : null
+        <span className="flex items-center gap-1">
+          <BotaoIncluirBanner rascunho={rascunho} contexto={contexto} alterar={alterar} jaNoML={jaNoML} />
+          {rascunho.fotosReordenadas ? (
+            <button type="button" onClick={voltarAOrdem} className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-acento hover:bg-superficie">
+              Voltar à ordem do produto
+            </button>
+          ) : null}
+        </span>
       }
     >
       {fotos.length > 0 ? (
         <ul className="grid grid-cols-3 gap-3 sm:grid-cols-6">
           {fotos.map((foto, posicao) => (
-            <li key={foto.id} className="space-y-1">
+            <li key={foto.id} className="relative space-y-1">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={foto.url} alt={foto.titulo} loading="lazy" className="aspect-square w-full rounded border border-borda bg-superficie object-contain" />
+              {foto.banner && (
+                <button
+                  type="button"
+                  onClick={() => alterar((atual) => tirarBannerDoKit(atual))}
+                  title="Tirar a imagem “Compre em kit” deste anúncio"
+                  aria-label="Tirar a imagem Compre em kit"
+                  className="absolute top-1 right-1 rounded bg-superficie/90 p-1 text-red-700 shadow-sm hover:bg-red-50"
+                >
+                  <X size={14} />
+                </button>
+              )}
               <div className="flex items-center justify-between gap-1">
                 {posicao === 0 ? <Badge tom="info">Capa</Badge> : <span className="text-xs text-suave">Foto {posicao + 1}</span>}
                 <span className="flex">
@@ -294,18 +329,20 @@ function FotosDoKit({ rascunho, contexto, alterar, setContexto, anuncioId }) {
   );
 }
 
-export default function AbaImagens({ rascunho, contexto, alterar, setContexto, anuncioId, problemas }) {
+export default function AbaImagens({ rascunho, contexto, alterar, setContexto, anuncioId, problemas, jaNoML = false }) {
   const emKit = Boolean(rascunho.composicao);
   const disponiveis = fotosDisponiveis(rascunho, contexto);
   // Anuncio simples: as fotos sao SEMPRE as validadas do produto, na ordem do cadastro (decisao do dono em 24/10/2026,
   // "igual a LI"). A aba so mostra; mudar e no cadastro do produto.
-  if (!emKit) return <FotosDoProduto rascunho={rascunho} disponiveis={disponiveis} alterar={alterar} problemas={problemas} />;
-  const porId = new Map(disponiveis.map((foto) => [foto.id, foto]));
+  if (!emKit) return <FotosDoProduto rascunho={rascunho} contexto={contexto} disponiveis={disponiveis} alterar={alterar} problemas={problemas} jaNoML={jaNoML} />;
+  const porId = new Map([...disponiveis.map((foto) => [foto.id, foto]), [ID_BANNER_KIT, FOTO_BANNER_KIT]]);
   const marcadas = Array.isArray(rascunho.imagens) ? rascunho.imagens : [];
   const naoUsadas = disponiveis.filter((foto) => !marcadas.includes(foto.id));
 
   // Marcar poe a foto no fim da fila; desmarcar tira e as de baixo sobem.
   function alternar(id, marcada) {
+    // Desmarcar a imagem "Compre em kit" e tira-la: fica a escolha do dono e ela nao volta sozinha.
+    if (!marcada && ehBannerDoKit(id)) return alterar((atual) => tirarBannerDoKit(atual));
     if (marcada) alterar({ imagens: marcadas.includes(id) ? marcadas : [...marcadas, id] });
     else alterar({ imagens: marcadas.filter((outra) => outra !== id) });
   }
@@ -322,7 +359,11 @@ export default function AbaImagens({ rascunho, contexto, alterar, setContexto, a
     <div className="space-y-4">
       <FotosDoKit rascunho={rascunho} contexto={contexto} alterar={alterar} setContexto={setContexto} anuncioId={anuncioId} />
 
-      <SecaoDoAnuncio titulo={`Fotos do anúncio (${marcadas.length})`} ajuda="A ordem daqui é a ordem de envio: a primeira é a capa do anúncio. Use as setas para mudar.">
+      <SecaoDoAnuncio
+        titulo={`Fotos do anúncio (${marcadas.length})`}
+        ajuda="A ordem daqui é a ordem de envio: a primeira é a capa do anúncio. Use as setas para mudar."
+        acao={<BotaoIncluirBanner rascunho={rascunho} contexto={contexto} alterar={alterar} jaNoML={jaNoML} />}
+      >
         {marcadas.length > 0 ? (
           <ul className="divide-y divide-borda rounded border border-borda">
             {marcadas.map((id, posicao) => (

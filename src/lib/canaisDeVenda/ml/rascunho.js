@@ -22,6 +22,7 @@ import {
 import { pesoEMedidasDoKit } from "../../composicao";
 import { ATACADO_DESLIGADO } from "./atacado";
 import { fichaDaDescricao } from "./atributos";
+import { ID_BANNER_KIT, manterBannerNaPosicao } from "./bannerDoKit";
 
 const texto = (valor) => String(valor ?? "").trim();
 
@@ -171,7 +172,11 @@ function camposDaComposicao({ composicao, principalId, produtosPorId, descricaoA
     estoque: estoqueDaComposicao(itens, campoPorId(itens, produtosPorId, "estoque")),
     pesoKg: pesoDaComposicao(itens, campoPorId(itens, produtosPorId, "pesoKg")),
     // As fotos PROPRIAS do kit ja marcadas (enviadas na aba Imagens, 27/10/2026) ficam na frente; as dos itens sao refeitas.
-    imagens: [...fotosDoKitMarcadas(imagensAtuais, produtosPorId?.[principalId]), ...fotosEmOrdem([principalId, ...itens.map((item) => item.produtoId)], produtosPorId)],
+    // A imagem "Compre em kit" (27/11/2026) fica onde estava.
+    imagens: manterBannerNaPosicao(imagensAtuais, [
+      ...fotosDoKitMarcadas(imagensAtuais, produtosPorId?.[principalId]),
+      ...fotosEmOrdem([principalId, ...itens.map((item) => item.produtoId)], produtosPorId),
+    ]),
     // Kit: a descricao e EDITAVEL no anuncio (pedido do dono em 27/10/2026: "quando for KIT a area da descricao pode ser
     // editada"; ate ali era sempre a do principal). O texto do anuncio fica, e so o bloco "Itens inclusos" e refeito com o
     // codigo e as quantidades do kit; vazio, parte da descricao do produto principal.
@@ -192,10 +197,11 @@ export function fotosDoRise(rascunho, produtosPorId) {
   if (itensDaComposicao(rascunho?.composicao).length > 0) return null;
   const doProduto = fotosEmOrdem([rascunho?.produtoId], produtosPorId);
   // As fotos sao sempre as do produto; a ORDEM e a do anuncio quando o dono a mudou nele (28/10/2026). Foto nova do produto
-  // entra no fim; a que saiu do produto sai do anuncio.
-  if (!rascunho?.fotosReordenadas) return doProduto;
+  // entra no fim; a que saiu do produto sai do anuncio. A imagem "Compre em kit" (27/11/2026) nao e do produto e fica
+  // onde estava (`bannerDoKit.js`).
+  if (!rascunho?.fotosReordenadas) return manterBannerNaPosicao(rascunho?.imagens, doProduto);
   const naOrdem = (Array.isArray(rascunho.imagens) ? rascunho.imagens : []).filter((id) => doProduto.includes(id));
-  return [...naOrdem, ...doProduto.filter((id) => !naOrdem.includes(id))];
+  return manterBannerNaPosicao(rascunho.imagens, [...naOrdem, ...doProduto.filter((id) => !naOrdem.includes(id))]);
 }
 
 /**
@@ -214,7 +220,8 @@ export function fotosDoKitDoRise(rascunho, produtosPorId) {
   const idsDosProdutos = [principalId, ...itens.map((item) => item.produtoId)];
   const dasPecas = fotosEmOrdem(idsDosProdutos, produtosPorId);
   const proprias = (produtosPorId?.[principalId]?.fotosDoKit ?? []).map((foto) => foto.id);
-  const existem = new Set([...dasPecas, ...proprias]);
+  // A imagem "Compre em kit" (27/11/2026) conta como foto que existe: marcada, fica no lugar dela.
+  const existem = new Set([...dasPecas, ...proprias, ID_BANNER_KIT]);
   const marcadas = (Array.isArray(rascunho.imagens) ? rascunho.imagens : []).filter((id) => existem.has(id));
   const desde = Date.parse(rascunho.fotosVistasEm ?? "");
   if (!Number.isFinite(desde)) return marcadas;

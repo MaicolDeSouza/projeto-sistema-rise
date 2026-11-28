@@ -12,6 +12,7 @@
 import { impressaoDoAtacado } from "./atacado";
 import { montarDescricaoCompletaML, montarDescricaoML } from "./descricao";
 import { kitsParaOBloco, unidadesDoAnuncio } from "./kitsNaDescricao";
+import { ARQUIVO_BANNER_KIT, ID_BANNER_KIT } from "./bannerDoKit";
 import { atributosDaFicha } from "./payload";
 import { descricaoDoRise, fotosDoKitDoRise, fotosDoRise } from "./rascunho";
 import { medidasFaltando } from "./validacao";
@@ -90,12 +91,16 @@ export function conteudoAtualDoAnuncio(rascunho, produtosPorId, irmaos = null) {
   const produto = produtosPorId?.[rascunho?.produtoId];
   let fotos = null;
   if (!kit && produto) {
-    const porId = new Map((produto.imagens ?? []).map((imagem) => [imagem.id, imagem.arquivo]));
+    // A imagem "Compre em kit" (27/11/2026) entra pelo nome do arquivo dela, como as fotos do produto.
+    const porId = new Map([...(produto.imagens ?? []).map((imagem) => [imagem.id, imagem.arquivo]), [ID_BANNER_KIT, ARQUIVO_BANNER_KIT]]);
     fotos = (fotosDoRise(rascunho, produtosPorId) ?? []).map((id) => porId.get(id)).filter(Boolean);
   } else if (kit) {
     // Kit (28/10/2026): as fotos sao do proprio anuncio (das pecas e as do kit), editaveis depois de publicado.
     const porId = new Map(
-      Object.values(produtosPorId ?? {}).flatMap((outro) => [...(outro?.imagens ?? []), ...(outro?.fotosDoKit ?? [])].map((imagem) => [imagem.id, imagem.arquivo])),
+      [
+        ...Object.values(produtosPorId ?? {}).flatMap((outro) => [...(outro?.imagens ?? []), ...(outro?.fotosDoKit ?? [])].map((imagem) => [imagem.id, imagem.arquivo])),
+        [ID_BANNER_KIT, ARQUIVO_BANNER_KIT],
+      ],
     );
     // Desde 28/10/2026 acompanham o produto base e as pecas: foto nova entra, a que saiu sai, e o publicado acende o "!".
     fotos = (fotosDoKitDoRise(rascunho, produtosPorId) ?? []).map((id) => porId.get(id)).filter(Boolean);

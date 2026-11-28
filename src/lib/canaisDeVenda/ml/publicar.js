@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import path from "node:path";
 
 import { caminhoDe } from "@/lib/arquivos";
 import { prisma } from "@/lib/db";
@@ -18,6 +19,7 @@ import { lerCategoriaCompleta, textoDoErroML } from "./leitura";
 import { nomeDaFoto, montarPayloadML } from "./payload";
 import { causasDoML, corpoDaCriacao, situacaoDoItem, textoDaRecusaML } from "./respostas";
 import { validarRascunhoML } from "./validacao";
+import { ARQUIVO_BANNER_KIT, ID_BANNER_KIT } from "./bannerDoKit";
 import { guardarContaDoEditorSemFalhar } from "@/lib/canaisDeVenda/ml/contaDoEditor";
 
 /**
@@ -159,6 +161,22 @@ export async function lerFotoDoDisco(sku, arquivo) {
   if (!caminho) throw new Error(`caminho inválido para a foto ${arquivo}`);
   return readFile(caminho);
 }
+
+/// A imagem "Compre em kit" (27/11/2026): mora uma vez so no Rise, em `public/anuncios-ml/` (vai junto na imagem do deploy).
+export async function lerBannerDoKitDoDisco() {
+  return readFile(path.join(process.cwd(), "public", "anuncios-ml", ARQUIVO_BANNER_KIT));
+}
+
+/// As fotos do anuncio por id, `{ sku, arquivo, banner }`: as do produto (`ProdutoArquivo`) e a imagem "Compre em kit".
+async function fotosDoAnuncioPorId(ids) {
+  const arquivos = await prisma.produtoArquivo.findMany({ where: { id: { in: ids.filter((id) => id !== ID_BANNER_KIT) } }, select: { id: true, arquivo: true, produto: { select: { sku: true } } } });
+  const porId = new Map(arquivos.map((arquivo) => [arquivo.id, { sku: arquivo.produto.sku, arquivo: arquivo.arquivo, banner: false }]));
+  if (ids.includes(ID_BANNER_KIT)) porId.set(ID_BANNER_KIT, { sku: null, arquivo: ARQUIVO_BANNER_KIT, banner: true });
+  return porId;
+}
+
+/// Os bytes de uma foto do anuncio: a do produto pelo `lerFoto` (injetavel no teste), a imagem do kit pelo arquivo do Rise.
+export const bytesDaFoto = (foto, lerFoto) => (foto.banner ? lerBannerDoKitDoDisco() : lerFoto(foto.sku, foto.arquivo));
 
 export const tipoDaFoto = (arquivo) => (/\.png$/i.test(String(arquivo)) ? "image/png" : "image/jpeg");
 const textoDe = (erro) => erro?.message ?? String(erro);
@@ -323,13 +341,12 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto, p
         } else if (parte === "fotos") {
           const ids = Array.isArray(rascunho.imagens) ? rascunho.imagens : [];
           const faltam = ids.filter((id) => !pub.fotos?.[id]);
-          const arquivos = await prisma.produtoArquivo.findMany({ where: { id: { in: faltam } }, select: { id: true, arquivo: true, produto: { select: { sku: true } } } });
-          const porId = new Map(arquivos.map((arquivo) => [arquivo.id, arquivo]));
+          const porId = await fotosDoAnuncioPorId(faltam);
           for (const [indice, id] of ids.entries()) {
             if (pub.fotos?.[id]) continue;
             const arquivo = porId.get(id);
             if (!arquivo) return falhar("atualizar", `A foto ${indice + 1} não foi encontrada (pode ter sido excluída). Ajuste a aba Imagens.`);
-            const subida = await ml.upload("/pictures/items/upload", { bytes: await lerFoto(arquivo.produto.sku, arquivo.arquivo), nome: nomeDaFoto(payload.item.family_name, indice), tipo: tipoDaFoto(arquivo.arquivo) });
+            const subida = await ml.upload("/pictures/items/upload", { bytes: await bytesDaFoto(arquivo, lerFoto), nome: nomeDaFoto(payload.item.family_name, indice), tipo: tipoDaFoto(arquivo.arquivo) });
             if (!subida?.ok || !subida.dados?.id) return falhar("atualizar", textoDaRecusaML(subida, `a foto ${indice + 1}`));
             await gravar({ fotos: { [id]: subida.dados.id } });
           }
@@ -352,15 +369,14 @@ async function publicarUmaVolta(anuncioId, { ml, bling, recriar, ate, lerFoto, p
     progresso.andando(etapa);
 
     if (etapa === "fotos") {
-      const arquivos = await prisma.produtoArquivo.findMany({ where: { id: { in: ids } }, select: { id: true, arquivo: true, produto: { select: { sku: true } } } });
-      const porId = new Map(arquivos.map((arquivo) => [arquivo.id, arquivo]));
+      const porId = await fotosDoAnuncioPorId(ids);
       for (const [indice, id] of ids.entries()) {
         if (pub.fotos?.[id]) continue;
         const arquivo = porId.get(id);
         if (!arquivo) return falhar(etapa, `A foto ${indice + 1} não foi encontrada (pode ter sido excluída do produto). Ajuste a aba Imagens.`);
         let resposta;
         try {
-          const bytes = await lerFoto(arquivo.produto.sku, arquivo.arquivo);
+          const bytes = await bytesDaFoto(arquivo, lerFoto);
           resposta = await ml.upload("/pictures/items/upload", { bytes, nome: nomeDaFoto(payload.item.family_name, indice), tipo: tipoDaFoto(arquivo.arquivo) });
         } catch (erro) {
           return falhar(etapa, `Falha ao enviar a foto ${indice + 1}: ${textoDe(erro)}`);

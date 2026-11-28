@@ -7,7 +7,8 @@ import { conteudoAtualDoAnuncio, fichaDoAnuncio, mudancasDoAnuncio, prazoDoAnunc
 import { ATACADO_DESLIGADO, atacadoPermitido } from "./atacado";
 import { FORMATO_DA_DESCRICAO } from "./descricao";
 import { descontoAdicionalValido } from "./faixas";
-import { grupoDoAnuncioML, irmaoDoAnuncio } from "./kitsNaDescricao";
+import { grupoDoAnuncioML, irmaoDoAnuncio, kitsParaOBloco, unidadesDoAnuncio } from "./kitsNaDescricao";
+import { aplicarBannerDoKit } from "./bannerDoKit";
 import { avisosDeVariosProdutos } from "./concorrentes";
 import { precisaAgirNoML, seloDoEstadoML, textoDoEstadoML } from "./estadoNoML";
 import { estadoDoIconeML, motivosDoProblemaML, rotuloDoIconeML, temProblemaNoIconeML } from "./icone";
@@ -126,12 +127,13 @@ export async function novoRascunhoML(produtoId, { composicao = null } = {}) {
   if (!principal) return { ok: false, erro: "Produto não encontrado." };
   if (!principal.conferido) return { ok: false, erro: aindaNaoConferido(principal.sku) };
 
-  return {
-    ok: true,
-    rascunho: rascunhoInicial({ principal, produtosPorId: produtos, composicao }),
-    // Os anuncios do produto que ja estao no ML: a previa da descricao do anuncio novo ja mostra o bloco dos kits.
-    contexto: { produtos, codigoEmUso: null, kitsDoProduto: (await irmaosDosProdutosML([produtoId])).get(produtoId) ?? [] },
-  };
+  // Os anuncios do produto que ja estao no ML: a previa da descricao do anuncio novo ja mostra o bloco dos kits.
+  const kitsDoProduto = (await irmaosDosProdutosML([produtoId])).get(produtoId) ?? [];
+  const rascunho = rascunhoInicial({ principal, produtosPorId: produtos, composicao });
+  // Com o bloco dos kits na descricao, o anuncio novo ja nasce com a imagem "Compre em kit" como 3a foto (27/11/2026).
+  const temBloco = kitsParaOBloco({ unidades: unidadesDoAnuncio(rascunho), preco: rascunho.preco, irmaos: kitsDoProduto }).length > 0;
+  rascunho.imagens = aplicarBannerDoKit(rascunho.imagens, { temBloco, escolha: null });
+  return { ok: true, rascunho, contexto: { produtos, codigoEmUso: null, kitsDoProduto } };
 }
 
 // Anuncio sem `dados` (gravado por fora do editor) abre com o que falta em branco, e nao quebra a tela.
@@ -153,6 +155,8 @@ export function rascunhoDoAnuncio(anuncio) {
     descricao: anuncio.descricao ?? "",
     descricaoEditada: dados.descricaoEditada === true,
     fotosReordenadas: dados.fotosReordenadas === true,
+    // A imagem "Compre em kit" (27/11/2026, `bannerDoKit.js`): null = automatica; false/true = o dono tirou/incluiu.
+    bannerKit: typeof dados.bannerKit === "boolean" ? dados.bannerKit : null,
     // Kit: quando o dono salvou as fotos pela ultima vez (28/10/2026). Kit salvo antes do campo: a criacao do anuncio.
     fotosVistasEm: dados.composicao ? (dados.fotosVistasEm ?? (anuncio.criadoEm ? new Date(anuncio.criadoEm).toISOString() : null)) : null,
     atributos: anuncio.atributos ?? {},
@@ -258,6 +262,12 @@ export async function carregarAnuncioML(id) {
   rascunho.estoque = estoqueDoRise(rascunho, produtos) ?? rascunho.estoque;
   rascunho.descricao = descricaoDoRise(rascunho, produtos) ?? rascunho.descricao;
   rascunho.imagens = fotosDoRise(rascunho, produtos) ?? fotosDoKitDoRise(rascunho, produtos) ?? rascunho.imagens;
+  // A imagem "Compre em kit" como 3a foto do anuncio que tem o bloco dos kits na descricao (27/11/2026). So no que ainda nao
+  // foi publicado (decisao do dono); o Publicar abre por aqui, entao a proposta salva sem abrir o editor tambem a recebe.
+  if (anuncio.status !== "PUBLICADO") {
+    const temBloco = kitsParaOBloco({ unidades: unidadesDoAnuncio(rascunho), preco: rascunho.preco, irmaos: kitsDoProduto }).length > 0;
+    rascunho.imagens = aplicarBannerDoKit(rascunho.imagens, { temBloco, escolha: rascunho.bannerKit });
+  }
   // Peso e medidas do anuncio simples: os do produto (26/10/2026, no molde da LI).
   const pacote = pacoteDoRise(rascunho, produtos);
   if (pacote) rascunho.envio = { ...rascunho.envio, ...pacote };
